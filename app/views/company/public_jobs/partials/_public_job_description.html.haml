@@ -78,7 +78,7 @@
                     .label-info.badge.margin-bottom-5
                       = com.name
               %td
-                = link_to 'Apply',apply_company_public_job_path(@job, candidate_id: c.id), class: "btn btn-xs btn-primary margin-bottom-5 #{'disableClick' if c.already_applied?(@job.id)}",title: "Assign Groups", method: :post, remote: true, disabled: c.already_applied?(@job.id)
+                = link_to 'Apply',apply_company_public_job_path(@job, candidate_id: c.id), class: "btn btn-xs btn-primary margin-bottom-5 #{'disableClick' if c.is_already_applied?(@job.id)}",title: "Assign Groups", method: :post, remote: true, disabled: c.is_already_applied?(@job.id)
     -user_list = []
     -current_company.candidates.each do |c|
       -user_list.push(c.id) if (job_skills & c.skills.pluck(:name)).count >= count

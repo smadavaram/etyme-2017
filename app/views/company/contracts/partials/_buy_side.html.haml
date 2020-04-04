@@ -1,12 +1,12 @@
 .individual_contracts_headers
   - if @contract.buy_contract&.present?
-    %h6= "Buy-  #{@contract.buy_contract.number}"
+    %h3= "Buy-  #{@contract.buy_contract.number}"
     - if local_assigns[:editable] and editable
-      .text-right.d-none
+      .text-right
         =link_to 'Add', '#', class: 'btn btn-primary'
         =link_to 'Remove', '#', class: 'btn btn-danger'
 - if @contract.buy_contract.present?
-  %h6.contract_sub_heading{style: "font-size: 15px"}
+  %h3.contract_sub_heading
     Vendor Details
   .sell-side.box
     .contract-customer-details
@@ -17,7 +17,7 @@
             .pull-left= do_ellipsis(@contract.candidate.full_name,15)
           .w-100
             %strong.pull-left= "Contract Type: "
-            .pull-left{title: @contract.buy_contract.fetch_contract_type_label}= @contract.buy_contract.contract_type
+            .pull-left{title: @contract.buy_contract.get_contract_type_label}= @contract.buy_contract.contract_type
           .w-100
             %strong.pull-left= "Address: "
             .pull-left= do_ellipsis(@contract.candidate.addresses.first&.address_1,15)
@@ -31,7 +31,7 @@
               - if local_assigns[:editable] and editable
                 %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
           .rate_info.text-center.d-inline-block.p-0
-            %strong.rate_label USCIS
+            %strong.rate_label USICS
             %span
               %br
               =  number_to_currency(@contract.buy_contract.today_rate.try(:uscis)||0)
@@ -44,18 +44,18 @@
           %thead
             %tr{:role => "row"}
               %th Rate
-              %th Expected Hrs/Day
+              %th Expected Hrs
               %th Rate Type
               %th USCIS
               %th From
               %th To
           %tbody
             - @contract.buy_contract.change_rates.each do |change_rate|
-              - if change_rate.persisted? && change_rate.present?
+              - if change_rate.persisted?
                 %tr
                   %td= change_rate.rate
                   %td= change_rate.working_hrs
-                  %td= colorfull_text(change_rate.rate_type,'#1AAE9F')
+                  %td= colorfull_text(change_rate.rate_type.upcase,'#1AAE9F')
                   %td= change_rate.uscis
                   %td= colorfull_text(change_rate.from_date,'orange')
                   %td= colorfull_text(change_rate.to_date,'red')
@@ -64,51 +64,23 @@
           %strong.pull-left Business Contacts
           - if @contract.buy_contract.company.present?
             %pull-right= @contract.buy_contract.company.full_name
-        %br/
-        %br/
-        .row.hr_admins_table_body
-          -user = @contract.candidate
-          .col{style: 'padding-left: 4%'}
-            .profile-tile{style: 'border-bottom: unset'}
-              .profile-tile-box{style: 'background-color: #f2f4f8'}
-                .pt-avatar-w
-                  =image_tag 'avatars/male.png'
-                .pt-user-name
-                  = do_ellipsis(user.full_name,12)
-                  %br/
-                  %br/
-                  = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
-
+        .contract_users_team
+          - user = @contract.candidate
+          .logged-user-w.no_border_bottom{style: "width: 120px;"}
+            .avatar-w
+              =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+            .logged-user-name.no-wrap= do_ellipsis(user.full_name,12)
+            .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
           - if @contract.buy_contract.company.present?
             - user = @contract.company.owner
-            .col{style: 'padding-left: 4%'}
-              .profile-tile{style: 'border-bottom: unset'}
-                .profile-tile-box{style: 'background-color: #f2f4f8'}
-                  .pt-avatar-w
-                    =image_tag 'avatars/male.png'
-                  .pt-user-name
-                    = do_ellipsis(user.full_name,12)
-                    %br/
-                    %br/
-                    = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
-        -#.contract_users_team
-        -#  - user = @contract.candidate
-        -#  .logged-user-w.no_border_bottom{style: "width: 120px;"}
-        -#    .avatar-w
-        -#      =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
-        -#    .logged-user-name.no-wrap= do_ellipsis(user.full_name,12)
-        -#    .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
-        -#  - if @contract.buy_contract.company.present?
-        -#    - user = @contract.company.owner
-        -#    .logged-user-w.no_border_bottom{style: "width: 120px;"}
-        -#      .avatar-w
-        -#        =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
-        -#      .logged-user-name= do_ellipsis(user.full_name,12)
-        -#      .logged-user-role= user.roles.first.try(:name).try(:capitalize)
-        -#      .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
-
+            .logged-user-w.no_border_bottom{style: "width: 120px;"}
+              .avatar-w
+                =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+              .logged-user-name= do_ellipsis(user.full_name,12)
+              .logged-user-role= user.roles.first.try(:name).try(:capitalize)
+              .logged-user-role= contact_widget(user.email, user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
   %div
-    %h6.mt-2.mb-2
+    %h3.mt-2.mb-2
       Accounting & Work hours terms
     .contract-custome-details.box
       .row
@@ -156,7 +128,7 @@
                 %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
         .col-sm-4.col-md-4.col-lg-4.p-1
           .rate_info.text-center.p-0
-            %strong USCIS
+            %strong USICS
             %span
               %br
               =  number_to_currency(@contract.buy_contract.today_rate.try(:uscis)||0)
@@ -179,7 +151,7 @@
             %b
               = "Salary Date: #{@contract&.company&.payroll_infos&.first&.sal_cal_date.try(:strftime, '%d')} of each month"
   %div
-    %h6.mt-2.mb-2
+    %h3.mt-2.mb-2
       Documents
     .contract-custome-details.box
       .row
@@ -226,7 +198,7 @@
                                   = do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",10)
                                 %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
 
-
+                                  
               #buy_emp_req_docs.tab-pane.padding-top-15
                 .row
                   .col-md-12
@@ -271,7 +243,7 @@
                                 %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
 
   %div
-    %h6.mt-2.mb-2
+    %h3.mt-2.mb-2
       Commission
     %div.contract-custome-details.box
       .table-responsive
@@ -292,7 +264,6 @@
                   =csc.frequency
                 %td
                   =csc.limit
-      %br/
       %div.contract-custome-details
         %strong
           Payroll date:

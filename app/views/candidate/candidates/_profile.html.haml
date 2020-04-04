@@ -78,7 +78,7 @@
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span Age
+                      %span Date of Birth
                     .bar-label-right
                       %span= pluralize((Date.today.to_s(:number).to_i - candidate.dob.to_s(:number).to_i) / 10000,'year') rescue 'N/A'
                       %span.text-success
@@ -87,13 +87,13 @@
                     .bar-label-left
                       %span Visa Status
                     .bar-label-right
-                      %span=do_ellipsis(candidate.visa,15)
+                      %span=do_ellipsis('H1B',15)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
                       %span Current Location
                     .bar-label-right
-                      %span=do_ellipsis(candidate.location,15)
+                      %span=do_ellipsis(candidate.address,15)
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
@@ -192,13 +192,13 @@
                           .element-inner-desc.pl-2
                             %p.m-0
                               = "<strong>#{c.refrence_name.capitalize}</strong> endorse <strong>#{c.candidate.full_name}</strong> and their roles and responsibilities for the PROJECT".html_safe
-                        %strong Reference
-                        - if c.candidate == current_candidate and !c.refrence_two.present?
-                          = render 'candidate/candidates/partials/update_ref_two', client: c
-                        - else
-                          .element-inner-desc.pl-2
-                            %p.m-0
-                              = "<strong>#{c.refrence_two_name.capitalize}</strong> endorse <strong>#{c.candidate.full_name}</strong> and their roles and responsibilities for the PROJECT".html_safe
+                        -#%strong Reference
+                        -#- if c.candidate == current_candidate and !c.refrence_two.present?
+                        -#  = render 'candidate/candidates/partials/update_ref_two', client: c
+                        -#- else
+                        -#  .element-inner-desc.pl-2
+                        -#    %p.m-0
+                        -#      = "<strong>#{c.refrence_two_name.capitalize}</strong> endorse <strong>#{c.candidate.full_name}</strong> and their roles and responsibilities for the PROJECT".html_safe
 
               - else
                 .element-info

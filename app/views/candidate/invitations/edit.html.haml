@@ -16,7 +16,7 @@
                 = form_for resource , url: candidate_invitation_path(resource_name) ,html: { method: :put , class: 'form-horizontal'} do |e|
                   = e.hidden_field :invitation_token
                   %fieldset
-                    .form-group.m-10
+                    .form-group
                       %label.control-label.col-md-2
                         Password
                         %span{:style => "color:red;"} *
@@ -26,7 +26,7 @@
                             .input-icon-left
                               %i.fa.txt-color-green
                               = e.password_field :password, :class=>"form-control  input-sm", placeholder:"Enter Password", required: true
-                    .form-group.m-10
+                    .form-group
                       %label.control-label.col-md-2
                         Confirm Password
                         %span{:style => "color:red;"} *
@@ -35,8 +35,8 @@
                           .col-sm-12
                             .input-icon-left
                               %i.fa.txt-color-green
-                              = e.password_field :password_confirmation, :class=>"form-control input-sm", placeholder:"Confirm Password", required: true
-                    .form-group.m-10
+                              = e.password_field :password_confirmation, :class=>"form-control  input-sm", placeholder:"Confirm Password", required: true
+                    .form-group
                       .col-md-offset-2.col-md-6
                         .row
                           .col-sm-12

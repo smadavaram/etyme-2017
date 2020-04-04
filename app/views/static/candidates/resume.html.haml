@@ -16,7 +16,7 @@
       .col-md-4.col-md-push-8
         .biography
           .myphoto
-            = image_tag @candidate.photo if @candidate.photo
+            = image_tag @candidate.try(:photo)
           %ul
             %li
               %strong Name:

@@ -1,207 +1,351 @@
-.content-i
-  .contract_box.m-3.overflow_h
-    = render partial: 'company/companies/sub_menu_company'
-    - days = (1..31).to_a.map{|n| [pluralize(n, 'day'),n]}+[["End of month",32]]
-    - months = [["1 Current",1],["2 Previous",2]]+(3..12).to_a.map{|n| [n,n]}
-    = form_for @payroll,@payroll.persisted? ? {url: payroll_term_info_path(payroll),method: :put} : {url: payroll_term_infos_path,method: :post} do |f|
-      .row.text-left
-        .col-sm-6
-          .col-sm-12.mb-2
-            .col-md-12
-              %label.control-label
-                Pay Cycle Name
-            .col-md-12
-              .select
-                .plain-select
-                  = f.text_field :title, class: "form-control"
-          .col-sm-12
-            .col-md-12
-              %label.control-label
-                Frequency
-            .col-md-12
-              .select
-                .plain-select
-                  = f.select :payroll_type, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: payroll&.payroll_type},{class: "form-control payroll_frequency" }
-        .col-sm-6.payroll_users_wraper
-          .col-sm-12.users
-            %i.fa.fa-3x.fa-user-plus.pull-right
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-            =entity_image("hello","world")
-      .table-responsive
-        %table#payroll_table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-          %thead
-            %tr
-              %th Payroll-Calculation
-              %th Payroll Date
-              %th Payterm-Months
-              %th Payterm Days
-              %th Pay Period - Till day
-              %th Payroll Clearing
-              %th Event
-          %tbody
-            %tr{"data-frequency": "daily",style: "#{ 'display: none;' unless @payroll.payroll_type == 'daily'}"}
-              %td.p-0{"data-type": "sc_day_time"}= f.text_field :sc_day_time, class: "form-control p_time"
-              %td.p-0{"data-type": "sp_day_time"}= f.text_field :sp_day_time, class: "form-control p_time sp_payroll init_period"
-              %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_daily, months , {}, {class: "form-control init_period payroll_term" }
-              %td.p-0{"data-type": "term_no"}= f.select :term_no_daily, days , {}, {class: "form-control init_period term_no" }
-              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_daily, class: "form-control pay_period", readonly: true
-              %td.p-0{"data-type": "sclr_day_time"}= f.text_field :sclr_day_time, class: "form-control p_time"
-              %td.no-wrap{"data-type": "event"}
-                = f.radio_button :weekend_sch_daily, true, checked: payroll.weekend_sch_daily ? true : false,class: 'set-checkbox payroll-schedule-btn'
-                %label.m-0 Before Holiday
-                %br
-                = f.radio_button :weekend_sch_daily, false, checked: payroll.weekend_sch_daily == false ? true : false ,class: 'set-checkbox payroll-schedule-btn'
-                %label.m-0 After Holiday
-            %tr{"data-frequency": "weekly",style: "#{ 'display: none;' unless ['weekly','biweekly'].include?(@payroll.payroll_type)}"}
-              %td.p-0{"data-type": "sc_day_of_week"}= f.select :sc_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
-              %td.p-0{"data-type": "sp_day_of_week"}= f.select :sp_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control sp_payroll init_period" }
-              %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_weekly, months , {}, {class: "form-control init_period payroll_term" }
-              %td.p-0{"data-type": "term_no"}= f.select :term_no_weekly, days , {}, {class: "form-control init_period term_no" }
-              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_weekly, class: "form-control pay_period", readonly: true
-              %td.p-0{"data-type": "sclr_day_of_week"}= f.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
-              %td.no-wrap{"data-type": "event"}
-                = f.radio_button :weekend_sch_weekly, true,checked: payroll.weekend_sch_weekly ? true : false, class: 'set-checkbox payroll-schedule-btn'
-                %label.m-0 Before Holiday
-                %br
-                = f.radio_button :weekend_sch_weekly, false,checked: payroll.weekend_sch_weekly == false ? true : false, class: 'set-checkbox payroll-schedule-btn'
-                %label.m-0 After Holiday
-            %tr{"data-frequency": "biweekly",style: "#{ 'display: none;' unless @payroll.payroll_type == 'biweekly'}"}
-              %td.p-0{"data-type": "sc_2day_of_week"}= f.select :sc_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
-              %td.p-0{"data-type": "sp_2day_of_week"}= f.select :sp_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control sp_payroll init_period" }
-              %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_biweekly, months , {}, {class: "form-control init_period payroll_term" }
-              %td.p-0{"data-type": "term_no"}= f.select :term_no_biweekly, days , {}, {class: "form-control init_period term_no" }
-              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_biweekly, class: "form-control pay_period", readonly: true
-              %td.p-0{"data-type": "sclr_2day_of_week"}= f.select :sclr_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
-              %td.no-wrap{"data-type": "event"}
-                = f.radio_button :weekend_sch_biweekly, true, checked: payroll.weekend_sch_biweekly ? true : false, class: 'set-checkbox payroll-schedule-btn'
-                %label.m-0 Before Holiday
-                %br
-                = f.radio_button :weekend_sch_biweekly, false,checked: payroll.weekend_sch_biweekly == false ? true : false, class: 'set-checkbox payroll-schedule-btn'
-                %label.m-0 After Holiday
-            %tr{"data-frequency": "monthly",style: "#{ 'display: none;' unless ['monthly','twice a month'].include?(@payroll.payroll_type)}"}
-              %td.p-0{"data-type": "sc_date_1"}= f.text_field :sc_date_1, class: "p_date form-control", placeholder: "DD/MM/YYYY"
-              %td.p-0{"data-type": "sp_date_1"}= f.text_field :sp_date_1, class: "p_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
-              %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_monthly, months , {}, {class: "form-control init_period payroll_term" }
-              %td.p-0{"data-type": "term_no"}= f.select :term_no_monthly, days , {}, {class: "form-control init_period term_no" }
-              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_monthly, class: "form-control pay_period", readonly: true
-              %td.p-0{"data-type": "sclr_date_1"}= f.text_field :sclr_date_1, class: "p_date form-control", placeholder: "DD/MM/YYYY"
-              %td.no-wrap{"data-type": "event"}
-                = f.radio_button :weekend_sch_monthly, true,checked: payroll.weekend_sch_monthly ? true : false, class: 'set-checkbox payroll-schedule-btn'
-                %label.m-0 Before Holiday
-                %br
-                = f.radio_button :weekend_sch_monthly, false,checked: payroll.weekend_sch_monthly == false ? true : false ,class: 'set-checkbox payroll-schedule-btn'
-                %label.m-0 After Holiday
-            %tr{"data-frequency": "twice a month",style: "#{ 'display: none;' unless @payroll.payroll_type == 'twice a month'}"}
-              %td.p-0{"data-type": "sc_date_2"}= f.text_field :sc_date_2, class: "p_date form-control", placeholder: "DD/MM/YYYY"
-              %td.p-0{"data-type": "sp_date_2"}= f.text_field :sp_date_2, class: "p_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
-              %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_twice_a_month, months , {}, {class: "form-control init_period payroll_term" }
-              %td.p-0{"data-type": "term_no"}= f.select :term_no_twice_a_month, days , {}, {class: "form-control init_period term_no" }
-              %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_twice_a_monthly, class: "form-control pay_period", readonly: true
-              %td.p-0{"data-type": "sclr_date_2"}= f.text_field :sclr_date_2, class: "p_date form-control", placeholder: "DD/MM/YYYY"
-              %td.no-wrap{"data-type": "event"}
-                = f.radio_button :weekend_sch_twice_a_month,true,checked: payroll.weekend_sch_twice_a_month ? true : false, class: 'set-checkbox payroll-schedule-btn'
-                %label.m-0 Before Holiday
-                %br
-                = f.radio_button :weekend_sch_twice_a_month,false,checked: payroll.weekend_sch_twice_a_month == false ? true : false, class: 'set-checkbox payroll-schedule-btn'
-                %label.m-0 After Holiday
-      = f.submit 'Generate cycles', class: 'btn btn-primary pull-right mb-3 m-3 btn-sm'
-      = f.submit 'Save cycles', class: 'btn btn-primary pull-right mb-3 m-3 btn-sm'
-
-  .content-box
+.content-box
+  .element-wrapper
     .element-box
-      .row
-        .col-sm-4.cycle_calendar.payroll-calendar_container
-        .col-sm-8.cycles
-          = render 'company/payroll_term_infos/cycles', payroll: payroll if payroll.contract_cycles.exists?
+      = render partial: 'company/companies/sub_menu_company'
+      #content
+        %section#widget-grid
+          .row
+            %article.col-sm-12.col-md-12.col-lg-12
+              #wid-id-0.jarviswidget
+                %header
+                  %span.widget-icon
+                    %i.fa.fa-eye
+                  %h2 Payroll
+                %div
+                  .jarviswidget-editbox
+                  .widget-body
+                    .row{style: "padding: 15px;"}
+                      = form_for @payroll,@payroll.persisted? ? {url: payroll_term_info_path(payroll),method: :put} : {url: payroll_term_infos_path,method: :post} do |f|
+                        .row
+                          .col-sm-12
+                            .col-md-12
+                              %label.control-label
+                                Payroll Title
+                            .col-md-12
+                              .select
+                                .plain-select
+                                  = f.text_field :title, class: "form-control"
+                          .col-sm-12
+                            .col-md-12
+                              %label.control-label
+                                Payroll Frequency
+                            .col-md-12
+                              .select
+                                .plain-select
+                                  = f.select :payroll_type, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: payroll&.payroll_type},{class: "form-control buy-sal-cal" }
 
+                        .row
+                          .col-sm-6
+                            .col-md-12
+                              %label.control-label
+                                %strong Payroll Calculation
+                            .col-md-12
+                              .b-sal-cal
+                                %div{:class => "form-group daily #{f.object.payroll_type != 'daily' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select Time
+                                    = f.text_field :sc_day_time, class: "form-control con-time"
+                                %div{:class => "form-group week #{(f.object.payroll_type != 'weekly' or f.object.payroll_type != 'biweekly') ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select day of week
+                                  .select
+                                    .plain-select
+                                      = f.select :sc_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
+                                %div{:class => "form-group biweek #{f.object.payroll_type != 'biweekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select second day of week
+                                  .select
+                                    .plain-select
+                                      = f.select :sc_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
+                                %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
+                                  .select
+                                    = f.text_field :sc_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Second date
+                                  .select
+                                    = f.text_field :sc_date_2, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                            .col-md-12
+                              .b-sal-cal
+                                %span{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"} OR
+                                = f.check_box :sc_end_of_month, class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                                = f.label :sc_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                          .col-sm-6
+                            .col-md-12
+                              .form-group
+                                .row
+                                  .col-md-12
+                                    %label.control-label
+                                      %strong Payroll Process
+
+                                  .col-md-12
+                                    .b-sal-cal
+                                      %div{:class => "form-group daily #{f.object.payroll_type != 'daily' ? 'hidden' : ''}"}
+                                        %label.control-label
+                                          Select Time
+                                          = f.text_field :sp_day_time, class: "form-control con-time"
+                                      %div{:class => "form-group week #{f.object.payroll_type != 'weekly' ? 'hidden' : ''}"}
+                                        %label.control-label
+                                          Select day of week
+                                        .select
+                                          .plain-select
+                                            = f.select :sp_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
+                                      %div{:class => "form-group biweek #{f.object.payroll_type != 'biweekly' ? 'hidden' : ''}"}
+                                        %label.control-label
+                                          Select second day of week
+                                        .select
+                                          .plain-select
+                                            = f.select :sp_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
+
+                                      %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
+
+                                        .select
+                                          = f.text_field :sp_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                      %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                        %label.control-label
+                                          Second date
+                                        .select
+                                          = f.text_field :sp_date_2, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                  .col-md-12
+                                    .b-sal-cal
+                                      %span{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"} OR
+                                      = f.check_box :sp_end_of_month, class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                                      = f.label :sp_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                        .row
+                          .col-sm-6
+                            .col-md-12
+                              .form-group
+                                .row
+                                  .col-md-12
+                                    %label.control-label
+                                      %strong Payroll Date (clearing)
+                                  .col-md-12
+                                    .b-sal-cal
+                                      %div{:class => "form-group daily #{f.object.payroll_type != 'daily' ? 'hidden' : ''}"}
+                                        %label.control-label
+                                          Select Time
+                                          = f.text_field :sclr_day_time, class: "form-control con-time"
+                                      %div{:class => "form-group week #{f.object.payroll_type != 'weekly' ? 'hidden' : ''}"}
+                                        %label.control-label
+                                          Select day of week
+                                        .select
+                                          .plain-select
+                                            = f.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
+                                      %div{:class => "form-group biweek #{f.object.payroll_type != 'biweekly' ? 'hidden' : ''}"}
+                                        %label.control-label
+                                          Select second day of week
+                                        .select
+                                          .plain-select
+                                            = f.select :sclr_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-control" }
+                                      %div{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"}
+                                        %label.control-label
+                                        .select
+                                          = f.text_field :sclr_date_1, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                      %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                        %label.control-label
+                                          Second date
+                                        .select
+                                          = f.text_field :sclr_date_2, class: "date_1 form-control", placeholder: "DD/MM/YYYY"
+                                  .col-md-12
+                                    .b-sal-cal
+                                      %span{:class => "form-group month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"} OR
+                                      = f.check_box :sclr_end_of_month, class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                                      = f.label :sclr_end_of_month, "End of month", class: "month #{['twice a month', 'monthly'].include?(f.object.payroll_type) ? '' : 'hidden'}"
+                          .col-sm-6
+                            .col-md-12
+                              .form-group
+                                .row
+                                  .col-md-12
+                                    %label.control-label
+                                      %strong Payroll Period
+                                  .col-md-12
+                                    .b-sal-cal.term-no
+                                      %div{:class => "month"}
+                                      %label.control-label
+                                        Select Term 1
+                                      .select.form-group
+                                        = f.select :term_no, options_for_select( (1..30).to_a+['End of month'],f.object.term_no), {}, {class: 'form-control'}
+                                      %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                        %label.control-label
+                                          Select Term 2
+                                        .select
+                                          = f.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],f.object.term_no_2), {}, {class: 'form-control'}
+                                  .col-md-12
+                                    .b-sal-cal1
+                                      %div{:class => "month"}
+                                      %label.control-label
+                                        Select Payroll 1
+                                      .select.payrol
+                                        .plain-select.payroll-term
+
+                                    .b-sal-cal
+                                      %div{:class => "form-group twice-month #{f.object.payroll_type != 'twice a month' ? 'hidden' : ''}"}
+                                        %label.control-label
+                                          Select Payroll 2
+                                        .select.payrol-2
+                                          .plain-select.payroll-term-2
+
+
+                          %hr
+                          .row
+                            .col-md-12
+                              %label.control-label Holiday Schedule
+                              %i.fa.fa-info-circle
+                            .col-md-12
+                              .col-md-12
+                                .form-group.mr-top-12
+                                  %label.radio-container
+                                    Payroll Before Holiday
+                                    = f.radio_button :weekend_sch, "Payroll Before Holiday", checked:!payroll.blank? ? payroll.weekend_sch == "Payroll Before Holiday" ? true :false : "", class: 'set-checkbox payroll-schedule-btn'
+                                    %span.radio-checkmark
+                              .col-md-12
+                                .form-group.mr-top-12
+                                  %label.radio-container
+                                    Payroll After Holiday
+                                    = f.radio_button :weekend_sch, "Payroll After Holiday", checked:!payroll.blank? ? payroll.weekend_sch == "Payroll After Holiday" ? true :false : "", class: 'set-checkbox payroll-schedule-btn'
+                                    %span.radio-checkmark
+
+                        %br
+                        .row
+                          .col-md-6
+                            = f.submit 'Save', class: 'btn btn-primary'
+
+                          .col-md-6
+                            = link_to 'Generate Payroll Cycle', generate_payroll_dates_payroll_term_infos_path, class: 'btn btn-primary float-right' if payroll_infos(current_company)
 - content_for :scripts do
   :javascript
-    $(document).on('ready',function() {
-      $(document).on('click','.payroll_frequency',function(){
-        $("#payroll_table tbody tr").hide();
-        $(`tr[data-frequency='${this.value}']`).show();
-        if(this.value == 'twice a month'){
-          $(`tr[data-frequency='monthly']`).show();
-        }else if(this.value == 'biweekly'){
-          $(`tr[data-frequency='weekly']`).show();
-        }
-      });
-      $(document).on('change','.init_period',function() {
-        var tr = $(this.parentElement.parentElement);
-        var value = tr.find(".sp_payroll").val();
-        var day = Number(tr.find('.term_no option:selected').val());
-        var month = Number(tr.find('.payroll_term option:selected').val())-1;
-        var frequency = tr.data('frequency');
-        var date = get_date(value,frequency);
-        if( day == 32){
-          var period = moment(date).subtract(month,'months').endOf('month').format("YYYY-MM-DD");
-        }else{
-          var period = moment(date).subtract(month,'months').subtract(day,'days').format("YYYY-MM-DD");
-        }
-        tr.find(".pay_period").val(period)
-        if(frequency == 'monthly' || frequency == 'twice a month'){
-          if( (month == 0 && moment(date).date() < day) ||  period > date ){
-            tr.find(".pay_period").css('border', 'solid 2px red');
-            }else{
-              tr.find(".pay_period").css('border', 'solid 2px green');
-            }
-        }
-      });
-      var disableDays = JSON.parse("#{escape_javascript(render(inline: current_company.holidays.pluck(:date).to_json)) }").map(e=>(new Date(e)))
-      var data_src=JSON.parse("#{ escape_javascript(render(inline: payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.post_date, endDate: cc.post_date, postDate: cc.post_date} }.to_json)) }").map(e=>({...e,startDate: new Date(e.startDate),endDate: new Date(e.endDate),color: cc_color(e.name)}))
-      if (data_src.length > 0){
-        $('.cycle_calendar').calendar({
-          enableContextMenu: false,
-          enableRangeSelection: false,
-          displayHeader: false,
-          disabledDays: disableDays,
-          mouseOnDay: function(e) {
-          if(e.events.length > 0) {
-          var content = '';
-          for(var i in e.events) {
-          content += '<div class="event-tooltip-content">'
-          + '<div class="event-name" style="color:' + e.events[i].color + '">' + e.events[i].name + '</div>'
-          + '<div class="event-location">Processed On: '  + e.events[i].postDate + '</div>'
-          + '</div>';
-          }
-          $(e.element).popover({
-          trigger: 'manual',
-          container: 'body',
-          html:true,
-          content: content
-          });
-          $(e.element).popover('show');
-          }},
-          mouseOutDay: function(e) {
-          if(e.events.length > 0) {$(e.element).popover('hide');}},
-          dayContextMenu: function(e) {$(e.element).popover('hide');},
-          dataSource: data_src
-        });
-      }
+    $(document).on("click",".remove-tax-fields", function(){
+      $(this).closest('div.multi-field-container').remove();
     });
-    function adjust_holiday(date){
-      switch (moment(date).day()){
-        case 6:
-          return moment(date).subtract(1, "days").format("YYYY-MM-DD");
-          break;
-        case 0:
-          return moment(date).add(1, "days").format("YYYY-MM-DD");
-          break;
-        default:
-          return date
+    $(document).ready(function() {
+      $('.con-time').timepicker();
+      $('.date_1').datepicker({
+        dateFormat : 'dd/mm/yy'
+      });
+
+
+      if($('#payroll_info_payroll_type').val() == 'weekly'){
+        $(".b-sal-cal").find('.week').removeClass("hidden")
+        $(".term-no").find('.select').addClass('hidden')
+        $(".term-no").find('.control-label').addClass('hidden')
+        $('.plain-select.payroll-term').html("<select class='form-control' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='1'>1 Day</option> <option value='2'>2 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
+
+      } else if($('#payroll_info_payroll_type').val() == 'biweekly'){
+        $(".b-sal-cal").find('.week').removeClass("hidden")
+        $(".b-sal-cal").find('.biweek').removeClass("hidden")
+        $(".term-no").find('.select').addClass('hidden')
+        $(".term-no").find('.control-label').addClass('hidden')
+        $('.plain-select.payroll-term').html("<select class='form-control' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='1'>1 Day</option> <option value='2'>2 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
+        $('.plain-select.payroll-term-2').html("<select class='form-control month-term' name='payroll_info[payroll_term_2]' id='payroll_info_payroll_term_2'><option value='1'>1 Day</option> <option value='2'>2 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
+      } else if($('#payroll_info_payroll_type').val() == 'monthly'){
+        $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+      }else if($('#payroll_info_payroll_type').val() == 'twice a month'){
+        $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+        $('.plain-select.payroll-term-2').html("<select class='form-control month-term' name='payroll_info[payroll_term_2]' id='payroll_info_payroll_term_2'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+      }else if($('#payroll_info_payroll_type').val() == 'daily'){
+        $(".term-no").find('.select').addClass('hidden')
+        $(".term-no").find('.control-label').addClass('hidden')
+        $('.plain-select.payroll-term').html("<select class='form-control' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='1'>1 Day</option> <option value='2'>2 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
       }
-    }
-    function get_date(value,frequency){
-      switch(frequency) {
-        case 'daily':
-          return moment().format("YYYY-MM-DD")
-          break;
-        case 'monthly' || 'twice a month':
-          return value;
-          break;
-        case 'weekly' || 'biweekly':
-          return moment().day(value).format("YYYY-MM-DD");
-          break;
+
+      $('#payroll_info_payroll_term').val(#{payroll&.payroll_term})
+      $('#payroll_info_payroll_term_2').val(#{payroll&.payroll_term_2})
+
+      $(".buy-sal-cal").on("change", function(){
+        $('.plain-select.payroll-term').find('.month-terms').remove();
+        $(".b-sal-cal").children().addClass("hidden");
+        if($(this).val() == "daily"){
+          $(".b-sal-cal").find('.daily').removeClass("hidden");
+        } else if($(this).val() == "weekly"){
+          $(".b-sal-cal").find('.week').removeClass("hidden");
+          $('.plain-select.payroll-term').html("<select class='form-control' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='1'>1 Day</option> <option value='2'> Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
+        } else if ($(this).val() == "biweekly"){
+          $(".b-sal-cal").find('.week').removeClass("hidden");
+          $(".b-sal-cal").find('.biweek').removeClass("hidden");
+          $('.plain-select.payroll-term').html("<select class='form-control' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='1'>1 Day</option> <option value='2'> Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
+        } else if($(this).val() == "monthly"){
+          $(".b-sal-cal").find('.month').removeClass("hidden");
+          $(".term-no").find('.select').removeClass('hidden')
+          $(".term-no").find('.control-label').removeClass('hidden')
+          $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+        }else if($(this).val() == "twice a month"){
+          $(".b-sal-cal").find('.twice-month, .month').removeClass("hidden");
+          $(".term-no").find('.select').removeClass('hidden')
+          $(".term-no").find('.control-label').removeClass('hidden')
+          $('.plain-select.payroll-term').html("<select class='form-control month-term' name='payroll_info[payroll_term]' id='payroll_info_payroll_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+          $('.plain-select.payroll-term-2').html("<select class='form-control month-term' name='payroll_info[payroll_term_2]' id='payroll_info_payroll_term_2'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+
+        }
+      });
+
+
+    $(".payroll-schedule-btn").on("click", function(){
+      if($(this).attr("id") == "payroll_info_weekend_sch_payroll_after_weekend"){
+        $("#payroll_info_weekend_sch_payroll_before_weekend").removeAttr("checked", "checked");
+      }else{
+        $("#payroll_info_weekend_sch_payroll_after_weekend").removeAttr("checked", "checked");
       }
-    }
+      $("#"+$(this).attr("id")).attr("checked", "checked");
+    });
+
+
+    $("#payroll_info_payroll_date").on("change", function(){
+      var date_present = $(this).val();
+      var date_present1 = $("#payroll_info_sal_cal_date").val();
+        date = date_present.split("/");
+        if(date_present1!='')
+          date1 = date_present1.split("/");
+        var arr = [];
+          for (var i = 1; i <= 12; i++) {
+
+            var new_date = new Date(i+'/'+date[1]+'/'+date[2]);
+            var day = new_date.getDay();
+
+            if( $("#payroll_info_weekend_sch_payroll_before_weekend").attr("checked")){
+              if(day == 6){
+                var saturday = parseInt(date[1]) -1
+                arr.push(i+'/'+saturday+'/'+date[2]);
+              }else if(day == 0){
+                var sunday = parseInt(date[1]) -2
+                arr.push(i+'/'+sunday+'/'+date[2]);
+              }else{
+                arr.push(i+'/'+date[1]+'/'+date[2]);
+              }
+            }else{
+              if(day == 6){
+                var saturday = parseInt(date[1]) +2
+                arr.push(i+'/'+saturday+'/'+date[2]);
+              }else if(day == 0){
+                var sunday = parseInt(date[1]) +1
+                arr.push(i+'/'+sunday+'/'+date[2]);
+              }else{
+                arr.push(i+'/'+date[1]+'/'+date[2]);
+              }
+            }
+
+          }
+          if(date_present1 != ''){
+          for (var i = 1; i <= 12; i++) {
+            arr.push(i+'/'+date1[1]+'/'+date1[2]);
+          }
+          }
+      var today = new Date();
+      var y = today.getFullYear();
+      $('#datepicker').multiDatesPicker({
+        disabled: true,
+        addDates: arr,
+        numberOfMonths: [3,4],
+        minDate: new Date(2018, 0, 1),
+        maxDate: new Date(2018, 11, 31),
+        enableOnReadonly: false
+      });
+
+    });
+
+      $('#payroll_info_sal_cal_date, #payroll_info_payroll_date').datepicker({
+        dateFormat : 'mm/dd/yy',
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>'
+      });
+    });
+

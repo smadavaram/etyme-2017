@@ -9,16 +9,15 @@
     %li{class: "nav-item #{ "active" if @tab.eql?("open_timesheets") }"}
       %a{class: "nav-link fd open_timesheets", href:'#', onclick: "time_line_filter('open_timesheets','.select-time-cycle','.select-contract.active')","data-toggle" => "tab"} Calendar
     %li.nav-item.mt-2{style: "margin-left: auto;"}
-      -#%select.select-time-cycle.form-control.bright.form-control-sm{disabled:"disabled"}
-      -#  %option{value: 'all'} Select Cycle
-      -#%select.cycle-type.form-control-sm
-      -#  %option{value: false} Select Cycle Type
-      -#  %option{value: 'weekly'} Weekly
-      -#  %option{value: 'daily'} Daily
-      -#  %option{value: 'monthly'} Monthly
-      -#  %option{value: 'twice a month'} Twice A Month
-      -#  %option{value: 'biweekly'} Twice A Week
-
+      %select.select-time-cycle.form-control-sm{disabled:"disabled"}
+        %option{value: 'all'} Select Cycle
+      %select.cycle-type.form-control-sm
+        %option{value: false} Select Cycle Type
+        %option{value: 'weekly'} Weekly
+        %option{value: 'daily'} Daily
+        %option{value: 'monthly'} Monthly
+        %option{value: 'twice a month'} Twice A Month
+        %option{value: 'biweekly'} Twice A Week
 
 .row
   .col-sm-12.submit_ts_hidden.hidden
@@ -32,82 +31,39 @@
 .row
   .col-sm-5
     .content-box
-      %select.form-control.bright.form-control-sm{onchange: 'select_contract(this)', id: 'select_contract'}
-        %option{value: false} Select Contract
-        - @contracts.each do |c|
-          %option{value: c.id}  #{truncate(c.project_name,length: 30) + " - " + c.created_by&.full_name }
+      .support-index
+        .support-tickets
+          - @contracts.each_with_index do |contract,index|
+            = link_to '#',id: contract.id, class:"select-contract job_ticket" do
+              .st-body
+                .avatar
+                  = image_tag contract.company.logo
+                .ticket-content
+                  %h6.ticket-title
+                    = truncate(contract.project_name,length: 30)
+              .st-foot
+                %span.label Created by:
+                %span.value.with-avatar{:href => "#"}
+                  %span
+                    =contract.created_by&.full_name
+                %span.label Created at:
+                %span.value
+                  =contract.created_at.strftime("%d/%m/%Y")
 
-  .col-sm-5
-    .content-box
-      %select.select-time-cycle.form-control.bright.form-control-sm{disabled:"disabled"}
-        %option{value: 'all'} Select Cycle
-
-
-.row
-  .col-sm-7.offset-2
+  .col-sm-7
     #timesheet_calendar.p-4
     .timesheet_table.margin-auto.p-4
 
-
-
-  -# - @contracts.each_with_index do |contract,index|
-  -#   = link_to '#',id: contract.id, class:"select-contract job_ticket" do
-  -#     .st-body
-  -#       .avatar
-  -#         = image_tag contract.company.logo
-  -#       .ticket-content
-  -#         %h6.ticket-title
-  -#           = truncate(contract.project_name,length: 30)
-  -#     .st-foot
-  -#       %span.label Created by:
-  -#       %span.value.with-avatar{:href => "#"}
-  -#         %span
-  -#           =contract.created_by&.full_name
-  -#       %span.label Created at:
-  -#       %span.value
-  -#         =contract.created_at.strftime("%d/%m/%Y")
-= render 'candidate/timesheets/time_sheet_submit_modal'
-
-
-
 -events = []
--@timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,status: ts.status ,description: 'timesheet transaction23',title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}
+-@timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,status: ts.status ,description: 'timesheet transaction',title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}
 
 - content_for :scripts do
   :javascript
-    function select_contract(e){
-        $.get(`/api/candidate/candidates/contract_cycles.json?contract_type=BuyContract&contract_id=${e.value}`).then(function(data) {
-          console.log(data);
-          $('.select-time-cycle').empty().append($("<option>").val("all").text("Select Cycle"));
-          data.forEach(function(cycle) {
-            $('.select-time-cycle').append($("<option>").val(cycle.id).text(cycle.range))
-          });
-          $('.select-time-cycle').removeAttr('disabled');
-        })
-        $('.job_ticket.active').removeClass('active')
-        $(this).addClass('active')
-        // e.preventDefault();
-    }
     function time_line_filter(tab,cycle_selector,contract_selector){
       let cycle = $(cycle_selector).val();
       let contract = $(contract_selector)[0] ? $(contract_selector)[0].id : "all";
       $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=${tab}`);
     }
-    function show_popup(event){
-      let contract_id = $('#select_contract').val();
-      let transaction_id = event.getAttribute('data-transaction');
-      let timesheet_id = event.getAttribute('data-timesheet');
-      let time = event.getAttribute('data-time');
-      let memo = event.getAttribute('data-memo');
-      $('#transaction_id').val(transaction_id);
-      $('#timesheet_id').val(timesheet_id);
-      $('#t_total_time').val(time);
-      if(memo !== "null"){
-        $('#t_memo').val(memo);
-      }
-      $('#timesheet_submit_modal').modal('show');
-    }
-
     $(document).ready(function() {
       pageSetUp();
       default_active_nav('.ln-6');
@@ -127,16 +83,14 @@
         events: e,
         eventRender: function (info, event, el, view) {
           event[0].removeChild(event[0].firstChild);
-          let inputDisabled = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}'  onchange="handle_input(this,'candidate')" value='+' disabled='disabled' style='width: -moz-available;width: -webkit-fill-available;' />`
-          let input = `<input name='${info.title}' data-transaction='${info.id}' data-memo='${info.memo}' data-time="${info.total_time}"  data-timesheet='${info.timesheet_id}' onclick="show_popup(this)" value='<i class="icon-plus"></i>'.html_safe style='width: -moz-available;width: -webkit-fill-available;' />`
-          let icon = `<i class="fa fa-plus-circle" style="padding-left: 35%" data-transaction='${info.id}' data-memo='${info.memo}' data-time="${info.total_time}"  data-timesheet='${info.timesheet_id}' onclick="show_popup(this)"></i>`
+          let inputDisabled = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}'  onchange="handle_input(this,'candidate')" value='${info.total_time}' disabled='disabled' style='width: -moz-available;width: -webkit-fill-available;' />`
+          let input = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}' onchange="handle_input(this,'candidate')" value='${info.total_time}' style='width: -moz-available;width: -webkit-fill-available;' />`
           let today = moment();
           let transactionDay = moment(info.start);
           if(today < transactionDay || [ "submitted", "approved", "partially_approved", "rejected", "invoiced"].includes(info.status)){
             event.append(inputDisabled)
           }else{
-            // event.append(input)
-            event.append(icon);
+            event.append(input)
           }
         },
         selectConstraint: {
@@ -163,8 +117,7 @@
 
       $('.select-time-cycle').change(function(){
         let cycle = $(this).val();
-        // let contract = $('.select-contract.active')[0].id;
-        let contract = $('#select_contract').val();
+        let contract = $('.select-contract.active')[0].id;
         $.get(`/candidate/timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=open_timesheets`);
       });
 

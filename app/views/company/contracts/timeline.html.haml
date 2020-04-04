@@ -16,7 +16,7 @@
               .col-md-2
                 .form-group
                   %label Action
-                  = select_tag 'cycle_actions', options_for_select(ContractCycle.get_cycle_types.map{|type| [type.underscore.split("_").join(" ").capitalize,type]}), {class: 'form-control cycle_action', prompt: 'All'}
+                  = select_tag 'cycle_actions', options_for_select(ContractCycle.get_cycle_types.map{|type| [type.tableize.singularize.split("_").join(" "),type]}), {class: 'form-control cycle_action', prompt: 'All'}
               -#.col-md-2
               -#  .form-group
               -#    %label Search by relevance

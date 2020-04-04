@@ -73,7 +73,7 @@
                       .col-md-12.d-flex
                         %div.w-50.mr-1.height-45
                           %label.control-label Expense Type:
-                          = ff.select :expense_type_id, ExpenseType.all.map{ |e| [e.name, e.id] }, class: "form-control"
+                          = ff.select  :expense_type_id, '', {}, class: "form-control select2"
                         %div.w-50
                           %label.control-label Status:
                           = ff.select :status, ExpenseAccount.statuses.map { |key, value| [key.titleize, key] } , {class: "form-control w-100" , required: true}
@@ -117,7 +117,7 @@
       });
       $('.add_row').click();
       var count = 0;
-      // set_expense_type_select('#expense_expense_accounts_attributes_0_expense_type_id', "select expense type ");
+      set_expense_type_select('#expense_expense_accounts_attributes_0_expense_type_id', "select expense type ");
       var expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
       var due_date = "";
       $('#expense_terms').on('change', function() {

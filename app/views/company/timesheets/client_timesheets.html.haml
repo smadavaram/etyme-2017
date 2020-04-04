@@ -16,13 +16,13 @@
       %select.select-time-cycle{disabled:"disabled"}
         %option{value: 'all'} Select Cycle
 
-      -#%select.cycle-type
-      -#  %option{value: false} Select Cycle Type
-      -#  %option{value: 'weekly'} Weekly
-      -#  %option{value: 'daily'} Daily
-      -#  %option{value: 'monthly'} Monthly
-      -#  %option{value: 'twice a month'} Twice A Month
-      -#  %option{value: 'biweekly'} Twice A Week
+      %select.cycle-type
+        %option{value: false} Select Cycle Type
+        %option{value: 'weekly'} Weekly
+        %option{value: 'daily'} Daily
+        %option{value: 'monthly'} Monthly
+        %option{value: 'twice a month'} Twice A Month
+        %option{value: 'biweekly'} Twice A Week
 
 .row
   .col-sm-12.submit_ts_hidden.hidden
@@ -43,7 +43,11 @@
 
 - content_for :scripts do
   :javascript
-
+    function time_line_filter(tab,cycle_selector,contract_selector){
+      let cycle = $(cycle_selector).val();
+      let contract = $(contract_selector).val();
+      $.get(`/timesheets/client_timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=${tab}`);
+    }
     $(document).ready(function() {
       pageSetUp();
       default_active_nav('.ln-8');
@@ -79,4 +83,33 @@
           end: $.fullCalendar.moment(endCelandar)
         }
       });
+      flash_success('Celandar Rendered Successfully');
+      $('.cycle-type').change(function(){
+        $.get(`/timesheets/client_timesheets.js?cycle_id=${false}&&contract_id=${false}&&tab=open_timesheets&&cycle_frequency=${$(this).val()}`);
+      });
+      $('.select-contract').change(function() {
+        $.get(`/api/candidate/candidates/contract_cycles.json?contract_type=SellContract&contract_id=${$(this).val()}`).then(function(data) {
+          $('.select-time-cycle').empty().append($("<option>").val("all").text("Select Cycle"));
+          data.forEach(function(cycle) {
+            $('.select-time-cycle').append($("<option>").val(cycle.id).text(cycle.range))
+          });
+          $('.select-time-cycle').removeAttr('disabled');
+        })
+      });
+
+      $('.select-time-cycle').change(function(){
+        let cycle = $(this).val();
+        let contract = $('.select-contract').val();
+        $.get(`/timesheets/client_timesheets.js?cycle_id=${cycle}&&contract_id=${contract}&&tab=open_timesheets`);
+      });
+
+      $(".all-select").on("change", function(){
+        $( '.sin-select' ).prop('checked', this.checked)
+      });
+
+      $(".save-all-btn").on("click", function(){
+        $('input[name=sin_select]:checked').each(function(){
+          $(this).closest('form').submit();
+        });
+      })
     });

@@ -1,10 +1,9 @@
-# frozen_string_literal: true
-
 class Candidate::CandidatesController < Candidate::BaseController
+
   require 'will_paginate/array'
   respond_to :html, :json, :js
 
-  before_action :set_candidate, only: %i[show update]
+  before_action :set_candidate, only: [:show, :update]
   before_action :set_chats, only: [:dashboard]
 
   add_breadcrumb 'Dashboard', :candidate_candidate_dashboard_path
@@ -16,9 +15,9 @@ class Candidate::CandidatesController < Candidate::BaseController
       @messages = @chat.try(:messages)
       get_cards
       # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
-      @jobs = Job.active.order('id DESC').like_any([:title], params[:q].to_s.split).paginate(page: params[:page], per_page: 10) || []
-      @activities = PublicActivity::Activity.order('created_at desc')
-      @slick_pop_up = current_candidate.sign_in_count == 1 ? '' : 'display_none'
+      @jobs = Job.active.order("id DESC").like_any([:title], params[:q].to_s.split).paginate(page: params[:page], per_page: 10) || []
+      @activities = PublicActivity::Activity.order("created_at desc")
+      @slick_pop_up = current_candidate.sign_in_count==1 ? '' : 'display_none'
       format.js {}
       format.html {}
     end
@@ -60,59 +59,59 @@ class Candidate::CandidatesController < Candidate::BaseController
     @designation = current_candidate.designations.new(start_date: @client.start_date,
                                                       end_date: @client.end_date,
                                                       comp_name: @client.name,
-                                                      company_role: @client.role)
+                                                      company_role: @client.role
+    )
     if @designation.save
-      flash[:success] = 'Successfully transfer Client to employer'
+      flash[:success] = "Successfully transfer Client to employer"
       @client.destroy
-      current_candidate.update(ever_worked_with_company: 'No') if current_candidate.clients.count == 0
+      current_candidate.update(ever_worked_with_company: "No") if current_candidate.clients.count == 0
     else
       flash[:errors] = @designation.errors.full_messages
     end
-    redirect_to onboarding_profile_path(tag: 'skill')
+    redirect_to onboarding_profile_path(tag: "skill")
   end
 
   def filter_cards
     respond_to do |format|
-      format.js do
+      format.js {
         get_cards
-      end
+      }
     end
   end
+
 
   def get_cards
     @cards = {}
     start_date = get_start_date
     end_date = get_end_date
-    @cards['APPLICATION'] = current_candidate.job_applications.where(created_at: start_date...end_date).size
-    @cards['STATUS'] = Candidate.application_status_count(current_candidate, start_date, end_date)
-    @cards['ACTIVE'] = params[:filter]
+    @cards["APPLICATION"] = current_candidate.job_applications.where(created_at: start_date...end_date).count
+    @cards["STATUS"] = Candidate.application_status_count(current_candidate, start_date, end_date)
+    @cards["ACTIVE"] = params[:filter]
   end
 
   def get_start_date
-    filter = params[:filter] || 'year'
-    case filter
+    case params[:filter] ? params[:filter] : 'year'
     when 'period'
-      DateTime.parse(params[:start_date]).beginning_of_day
+      return DateTime.parse(params[:start_date]).beginning_of_day
     when 'month'
-      DateTime.current.beginning_of_month
+      return DateTime.current.beginning_of_month
     when 'quarter'
-      DateTime.current.beginning_of_quarter
+      return DateTime.current.beginning_of_quarter
     when 'year'
-      DateTime.current.beginning_of_year
+      return DateTime.current.beginning_of_year
     end
   end
 
   def get_end_date
-    filter = params[:filter] || 'year'
-    case filter
+    case params[:filter] ? params[:filter] : 'year'
     when 'period'
-      DateTime.parse(params[:end_date]).end_of_day
+      return DateTime.parse(params[:end_date]).end_of_day
     when 'month'
-      DateTime.current.end_of_month
+      return DateTime.current.end_of_month
     when 'quarter'
-      DateTime.current.end_of_quarter
+      return DateTime.current.end_of_quarter
     when 'year'
-      DateTime.current.end_of_year
+      return DateTime.current.end_of_year
     end
   end
 
@@ -151,7 +150,9 @@ class Candidate::CandidatesController < Candidate::BaseController
       if current_candidate.update_attributes candidate_params
         if params[:candidate][:educations_attributes].present?
           params[:candidate][:educations_attributes].each_pair do |mul_field|
-            Education.where(id: params[:candidate][:educations_attributes][mul_field]['id']).destroy_all unless params[:candidate][:educations_attributes][mul_field].reject { |p| p == 'id' }.present?
+            unless params[:candidate][:educations_attributes][mul_field].reject { |p| p == "id" }.present?
+              Education.where(id: params[:candidate][:educations_attributes][mul_field]["id"]).destroy_all
+            end
           end
         end
         # format.json {respond_with current_candidate}
@@ -161,13 +162,16 @@ class Candidate::CandidatesController < Candidate::BaseController
         # }
 
         format.json { respond_with current_candidate }
-        format.html do
-          flash[:success] = 'Candidate Updated'
-          redirect_to onboarding_profile_path(tag: params['tab']) unless @tab.eql?('fln_basic_info')
-        end
-        format.js do
-          flash.now[:success] = 'Candidate Profile Updated'
-        end
+        format.html {
+          flash[:success] = "Candidate Updated"
+          unless @tab.eql?("fln_basic_info")
+
+            redirect_to onboarding_profile_path(tag: params["tab"])
+          end
+        }
+        format.js {
+          flash.now[:success] = "Candidate Profile Updated"
+        }
 
       else
         format.html { redirect_back fallback_location: root_path }
@@ -181,26 +185,26 @@ class Candidate::CandidatesController < Candidate::BaseController
     resume = current_candidate.candidates_resumes.find_by(id: params[:id])
     response = ResumeParser.new(resume.resume).sovren_parse
     begin
-      if response.code == '200'
-        parsed_hash = JSON.parse(JSON.parse(response.body)['Value']['ParsedDocument'])['Resume']
+      if response.code == "200"
+        parsed_hash = JSON.parse(JSON.parse(response.body)["Value"]["ParsedDocument"])["Resume"]
         current_candidate.sovren_build_profile(parsed_hash)
-        flash[:success] = 'Profile build request from resume is processed'
+        flash[:success] = "Profile build request from resume is processed"
       else
         flash[:errors] = [response.body]
       end
-    rescue StandardError => e
+    rescue => e
       flash[:errors] = [e]
     end
-    redirect_to onboarding_profile_path(tag: 'verify-phone')
+    redirect_to onboarding_profile_path(tag: "verify-phone")
   end
 
   def upload_resume
-    new_resume = current_candidate.candidates_resumes.new
+    new_resume = current_candidate.candidates_resumes.new()
     new_resume.resume = params[:resume]
     new_resume.candidate_id = current_candidate.id
-    new_resume.is_primary = current_candidate.candidates_resumes.empty?
+    new_resume.is_primary = current_candidate.candidates_resumes.count == 0 ? true : false
     if new_resume.save
-      flash[:success] = 'Resume uploaded successfully.'
+      flash[:success] = "Resume uploaded successfully."
     else
       flash[:errors] = ['Resume not updated']
     end
@@ -211,20 +215,20 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   def delete_resume
     if params[:id].present?
-      resume = CandidatesResume.find_by(id: params['id'])
+      resume = CandidatesResume.find_by(id: params["id"])
       if resume.is_primary
-        resumes = CandidatesResume.where(candidate_id: resume.candidate_id).map(&:id)
+        resumes = CandidatesResume.where(:candidate_id => resume.candidate_id).map { |data| data.id }
         resumes.delete(resume.id)
-        resume.destroy
-        unless resumes.empty?
+        resume.destroy()
+        if resumes.count > 0
           primary_resume = CandidatesResume.find_by(id: resumes[0])
-          primary_resume.update_attributes(is_primary: true)
+          primary_resume.update_attributes(:is_primary => true)
         end
-        flash.now[:success] = !resumes.empty? ? 'Selected Resume has been destroy and First Resume status mark as primary' : 'Resume Destroy Successfully'
+        flash.now[:success] = resumes.count > 0 ? "Selected Resume has been destroy and First Resume status mark as primary" : "Resume Destroy Successfully"
 
       else
-        resume.destroy
-        flash.now[:success] = 'Resume Destroy Successfully'
+        resume.destroy()
+        flash.now[:success] = "Resume Destroy Successfully"
       end
     end
     render 'upload_resume'
@@ -232,23 +236,23 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def make_primary_resume
-    return unless params[:id].present?
-
-    resume = CandidatesResume.find_by(id: params['id'])
-    resumes = CandidatesResume.where(candidate_id: resume.candidate_id)
-    resumes.update_all(is_primary: false)
-    resume.update_attributes(is_primary: true)
-    render 'upload_resume'
+    if params[:id].present?
+      resume = CandidatesResume.find_by(id: params["id"])
+      resumes = CandidatesResume.where(:candidate_id => resume.candidate_id)
+      resumes.update_all(:is_primary => false)
+      resume.update_attributes(:is_primary => true)
+      render 'upload_resume'
+    end
   end
 
   def update_photo
     render json: current_candidate.update_attribute(:photo, params[:photo])
-    flash.now[:success] = 'Photo Successfully Updated'
+    flash.now[:success] = "Photo Successfully Updated"
   end
 
   def update_video
     render json: current_candidate.update_attributes(video: params[:video], video_type: params[:video_type])
-    flash.now[:success] = 'Video Successfully Updated'
+    flash.now[:success] = "Video Successfully Updated"
   end
 
   def notification
@@ -258,9 +262,8 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def notify_notifications
-    add_breadcrumb 'NOTIFICATIONS', '#'
-    @notifications = current_candidate.notifications.send(params[:notification_type] || 'all_notifications').where(status: (params[:status] || 0)).page(params[:page]).per_page(10)
-  end
+    add_breadcrumb "NOTIFICATIONS", '#'
+    @notifications = current_candidate.notifications.send(params[:notification_type] || "all_notifications").where(status: (params[:status] || 0)).page(params[:page]).per_page(10)  end
 
   def get_sub_category
     sub_cat = WORK_CATEGORIES[params[:category]]
@@ -273,26 +276,31 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def status_update
+
     @candidate = current_candidate
-    if @candidate.chat_status == 'available'
+    if @candidate.chat_status == "available"
       @candidate.go_unavailable
     else
       @candidate.go_available
     end
     respond_with @candidate
+
   end
 
   def chat_status_update
-    if current_candidate.chat_status == 'available'
+    if current_candidate.chat_status == "available"
       current_candidate.go_unavailable
     else
       current_candidate.go_available
     end
     # respond_with @candidate
-    render json: current_candidate
+    render :json => current_candidate
+
   end
 
+
   def my_profile
+
     @user = current_candidate
     @user.addresses.build unless @user.addresses.present?
     @user.educations.build unless @user.educations.present?
@@ -300,6 +308,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.clients.build unless @user.clients.present?
     @user.designations.build unless @user.designations.present?
     @sub_cat = WORK_CATEGORIES[@user.category]
+
   end
 
   def onboarding_profile
@@ -312,12 +321,14 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.clients.build unless @user.clients.present?
     @user.designations.build unless @user.designations.present?
     @sub_cat = WORK_CATEGORIES[@user.category]
-    @tab = params['tag']
+    @tab = params["tag"]
   end
 
   def update_mobile_number
-    @tab = 'verify-phone'
-    current_candidate.update_attributes(phone: params['phone_number'], is_number_verify: true) if current_candidate.present?
+    @tab = "verify-phone"
+    if current_candidate.present?
+      current_candidate.update_attributes(:phone => params["phone_number"], :is_number_verify => true)
+    end
   end
 
   private
@@ -332,21 +343,23 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   def candidate_params
     params.require(:candidate).permit(:first_name, :last_name, :invited_by, :ssn, :passport_number, :relocation, :visa_type, :job_id, :description, :last_nam, :dob, :email, :phone, :visa, :skill_list, :designate_list, :primary_address_id, :category, :subcategory, :dept_name, :industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status, :facebook_url, :twitter_url, :linkedin_url, :gtalk_url, :skypeid, :address,
-                                      addresses_attributes: %i[id address_1 address_2 country city state zip_code from_date to_date _destroy],
+                                      addresses_attributes: [:id, :address_1, :address_2, :country, :city, :state, :zip_code, :from_date, :to_date, :_destroy],
                                       educations_attributes: [:id, :degree_level, :degree_title, :grade, :completion_year, :start_year, :institute, :description, :_destroy,
-                                                              candidate_education_documents_attributes: %i[
-                                                                id education_id title file exp_date _destroy
+                                                              :candidate_education_documents_attributes => [
+                                                                  :id, :education_id, :title, :file, :exp_date, :_destroy
                                                               ]],
                                       certificates_attributes: [:id, :title, :start_date, :end_date, :institute, :_destroy,
-                                                                candidate_certificate_documents_attributes: %i[
-                                                                  id certificate_id title file exp_date _destroy
+                                                                :candidate_certificate_documents_attributes => [
+                                                                    :id, :certificate_id, :title, :file, :exp_date, :_destroy
                                                                 ]],
                                       clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email, :refrence_two_name, :refrence_two_phone, :refrence_two_email, :_destroy,
-                                                           designation_attributes: %i[id comp_name client_id candidate_id recruiter_name recruiter_phone recruiter_email start_date end_date status company_role _destroy]],
-                                      documents_attributes: %i[id candidate_id title file exp_date is_education is_legal_doc _destroy],
-                                      legal_documents_attributes: %i[id candidate_id document_number start_date title file exp_date _destroy],
-                                      criminal_check_attributes: %i[id candidate_id state address start_date end_date _destroy],
-                                      visas_attributes: %i[id candidate_id title file visa_number start_date exp_date status _destroy],
-                                      designations_attributes: %i[id comp_name recruiter_name recruiter_phone recruiter_email start_date end_date status company_role _destroy])
+                                                           designation_attributes: [:id, :comp_name, :client_id, :candidate_id, :recruiter_name, :recruiter_phone, :recruiter_email, :start_date, :end_date, :status, :company_role, :_destroy]],
+                                      documents_attributes: [:id, :candidate_id, :title, :file, :exp_date, :is_education, :is_legal_doc, :_destroy],
+                                      legal_documents_attributes: [:id, :candidate_id, :document_number, :start_date, :title, :file, :exp_date, :_destroy],
+                                      criminal_check_attributes: [:id, :candidate_id, :state, :address, :start_date, :end_date, :_destroy],
+                                      visas_attributes: [:id, :candidate_id, :title, :file, :visa_number, :start_date, :exp_date, :status, :_destroy],
+                                      designations_attributes: [:id, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_email, :start_date, :end_date, :status, :company_role, :_destroy])
   end
+
+
 end

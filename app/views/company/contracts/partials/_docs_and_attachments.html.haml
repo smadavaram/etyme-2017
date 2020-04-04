@@ -8,20 +8,20 @@
     %fieldset
       =f.fields_for :buy_contract do |bc|
         = bc.hidden_field :id
-        .contract-fields_wrapper.mt-4.contract-border
+        .contract-fields_wrapper.mt-4
           - if @contract.buy_contract.company.present?
             .row
               .col-md-12
                 .form-group
-                  %h3.control-label.text-muted
+                  %h3.control-label.pull-right.text-muted
                     = @contract.buy_contract.number
 
           .row
-            -#.col-md-6
-            -#  .form-group
-            -#    %label.control-label=  "Consultant/#{@contract.buy_contract.fetch_contract_type_label}"
-            -#    .contract-fild
-            -#      = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
+            .col-md-6
+              .form-group
+                %label.control-label=  "Consultant/#{@contract.buy_contract.get_contract_type_label}"
+                .contract-fild
+                  = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
 
             .col-md-6
               .form-group
@@ -30,7 +30,7 @@
                   .contract-fild
                     = text_field_tag :employeer_name, @contract.buy_contract.company.name.capitalize, disabled: "disabled"
                 - else
-                  %h3.control-label.text-muted
+                  %h3.control-label.pull-right.text-muted
                     = @contract.buy_contract.number
                     - if @contract&.buy_contract&.conversation.present?
                       .floated-chat-btn
@@ -38,7 +38,7 @@
                         %span
                         = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id) ,class: 'ChatBtn',id: 'ChatBtn', remote: true
         %label.control-label.font-weight-bold.mt-2 Accounting
-        .contract-fields_wrapper.mt-2.contract-border
+        .contract-fields_wrapper.mt-2
           %div
             .widget-body
               %ul#myTab1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
@@ -67,47 +67,47 @@
                     %span.badge.bg-color-blue.txt-color-white
                     Integration
               .col-md-12.pl-0
-                .tab-content.p-4{style: 'border: 1px solid #f0f2f3;'}
+                .tab-content.p-4{style: 'border: 1px solid #b6bcbf;'}
                   #tab-buy-ct.tab-pane.padding-top-15.active.in
                     .row
                       = bc.fields_for :change_rates, bc.object.change_rates.build do |cr|
                         .col-md-12.display-flex
                           =cr.hidden_field :rateable_type, value: bc.object.class.to_s
                           =cr.hidden_field :rateable_id, value: bc.object.id
-                          =render 'company/contracts/partials/rate_fields', f: cr, rates: @contract.sell_contract.change_rates.first, contract: @contract, usics: true
-                    -# - if bc.object.change_rates.present?
-                    -#   .row
-                    -#     .table-responsive
-                    -#       %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                    -#         %thead
-                    -#           %tr{:role => "row"}
-                    -#             %th Rate
-                    -#             %th Expected Hrs
-                    -#             %th Rate Type
-                    -#             %th USCIS
-                    -#             %th From
-                    -#             %th To
-                    -#         %tbody
-                    -#           - bc.object.change_rates.each do |change_rate|
-                    -#             -if change_rate.persisted?
-                    -#               %tr
-                    -#                 %td= change_rate.rate
-                    -#                 %td= change_rate.working_hrs
-                    -#                 %td= change_rate.rate_type
-                    -#                 %td= change_rate.uscis
-                    -#                 %td= change_rate.from_date
-                    -#                 %td= change_rate.to_date
+                          =render 'company/contracts/partials/rate_fields', f: cr, usics: true
+                    - if bc.object.change_rates.present?
+                      .row
+                        .table-responsive
+                          %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                            %thead
+                              %tr{:role => "row"}
+                                %th Rate
+                                %th Expected Hrs
+                                %th Rate Type
+                                %th USICS
+                                %th From
+                                %th To
+                            %tbody
+                              - bc.object.change_rates.each do |change_rate|
+                                -if change_rate.persisted?
+                                  %tr
+                                    %td= change_rate.rate
+                                    %td= change_rate.working_hrs
+                                    %td= change_rate.rate_type
+                                    %td= change_rate.uscis
+                                    %td= change_rate.from_date
+                                    %td= change_rate.to_date
                   #tab-buy-ts.tab-pane.padding-top-15
                     .row
                       .col-md-12
                         .form-group
                           .row
-                            .col-md-6
+                            .col-md-4
                               %label.control-label
                                 Time sheet
                               .plain-select
                                 = bc.select :time_sheet, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: @sc&.time_sheet},{ class: "form-control sell-time-sheet height-45 #{'field_disable' unless @sc&.time_sheet.blank?}" }
-                            .col-md-6
+                            .col-md-4
                               .s-ts-set
                                 -bc.object.time_sheet=@sc&.time_sheet
                                 - bc.object.time_sheet = bc.object.time_sheet || 'daily'
@@ -138,27 +138,26 @@
                                   .select
                                     = bc.text_field :ts_date_2, class: "date_1 #{'field_disable' unless @sc&.time_sheet.blank?}", placeholder: "DD/MM/YYYY", value: @sc&.ts_date_2
                                 %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"}
-                            -#.col-md-4
-                              -#%label.control-label
-                              -#  Collaborators
-                          .row
-                            .col-md-12.d-flex
-                              #buy_collaborators
-                                = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet')
-                              %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet', style: 'color: #fff !important;'}
-                                Add Collaborators
+                            .col-md-4
+                              %label.control-label
+                                Collaborators
+                              .row
+                                .col-md-12.d-flex
+                                  #buy_collaborators
+                                    = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet')
+                                  %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet'}
                   #tab-buy-ta.tab-pane.padding-top-15
                     .row
                       .col-md-12
                         .form-group
                           .row
-                            .col-md-6
+                            .col-md-4
                               %label.control-label
                                 Timesheet Approve
                               .select
                                 .plain-select
                                   = bc.select :ts_approve, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: @sc&.ts_approve},{class: "form-control sell-time-sheet-approve height-45 #{'field_disable' unless @sc&.ts_approve.blank?}" }
-                            .col-md-6
+                            .col-md-4
                               .b-ts-apv-set
                                 -bc.object.ts_approve=@sc&.ts_approve
                                 - bc.object.ts_approve = bc.object.ts_approve || 'daily'
@@ -193,15 +192,14 @@
                                     = bc.text_field :ta_date_2, class: "form-control #{'field_disable' unless @sc&.ts_approve.blank?}" ,value: @sc&.ta_date_2
                                     -#= bc.hidden_field :ta_date_2, value: bc.object.contract.sell_contract.ta_date_2
                                 %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"}
-                            -#.col-md-4
-                            -#  %label.control-label
-                            -#    Collaborators
-                          .row
-                            .col-md-12.d-flex
-                              #buy_ts_approver
-                                = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet_approve')
-                              %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet_approve', style: 'color: #fff !important;'}
-                                Add Collaborators
+                            .col-md-4
+                              %label.control-label
+                                Collaborators
+                              .row
+                                .col-md-12.d-flex
+                                  #buy_ts_approver
+                                    = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet_approve')
+                                  %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet_approve'}
                   #tab-buy-sc.tab-pane.padding-top-15
                     .row
                       .col-sm-12
@@ -267,8 +265,7 @@
                                   .col-md-12.d-flex
                                     #buy_s_c
                                       = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_calculation')
-                                    %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_calculation', style: "color: #fff !important;"}
-                                      Add Collaborators
+                                    %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_calculation'}
                       .row
                         .col-md-12
                           .form-group
@@ -317,9 +314,7 @@
                                   .col-md-12.d-flex
                                     #buy_s_p
                                       = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_process')
-                                    %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_process', style: "color: #fff !important;"}
-                                      Add Collaborators
-
+                                    %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_process'}
                       .row
                         .col-md-12
                           .form-group
@@ -390,7 +385,7 @@
                                         - #TODO: change the below select
                                         = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control height-45'}
                   #tab-buy-cc.tab-pane.padding-top-15
-                    .contract-fields_wrapper.mt-4.contract-border
+                    .contract-fields_wrapper.mt-4
                       %div
                         .widget-body
                           .col-md-4
@@ -414,7 +409,7 @@
                           Integration
                           = bc.text_field :integration, class: 'form-control'
         %label.control-label.font-weight-bold.mt-2  Employee/Vender Documents
-        .contract-fields_wrapper.mt-2.contract-border
+        .contract-fields_wrapper.mt-2
           .row
             .col-md-12.contract-attachment
               %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}

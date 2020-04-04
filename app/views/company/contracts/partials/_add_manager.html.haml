@@ -1,37 +1,22 @@
--# - business_detail_objs.each do |bussiness_detail|
--#   - user = bussiness_detail.user
--#   %tr
--#     %td= user.company.domain
--#     %td.no-wrap
--#       =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
--#       = do_ellipsis(user.full_name,10)
--#     %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
--#     %td= do_ellipsis(user.roles.pluck(:name).join(', '),40)
--#     %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
--#     %td
--#       = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
--#       - unless @have_admin
--#         %strong{:id => "response_#{bussiness_detail.id}"}
--#         = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male').html_safe, update_role_contracts_path(contract_id: @contract.id,bussiness_detail:bussiness_detail.id), remote: :true, title: "Make Admin", class: 'data-table-icons remove_admin_link')
--#       - else
--#         - if bussiness_detail.admin?
--#           = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, remove_role_contracts_path(bussiness_detail: bussiness_detail.id,status:'remove admin'), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
--#         -else
--#           %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
--#       = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: @contract.id,reporting_manager_id: bussiness_detail.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
-
-
-
 - business_detail_objs.each do |bussiness_detail|
   - user = bussiness_detail.user
-  .col{style: 'padding-left: 4%'}
-    .profile-tile{style: 'border-bottom: unset'}
-      .profile-tile-box{style: 'background-color: #f2f4f8'}
-        .pt-avatar-w
-          =image_tag 'avatars/male.png'
-        .pt-user-name
-          = do_ellipsis(user.full_name,10)
-          %br/
-          %br/
-          = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
-          = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: @contract.id,reporting_manager_id: bussiness_detail.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+  %tr
+    %td= user.company.domain
+    %td.no-wrap
+      =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+      = do_ellipsis(user.full_name,10)
+    %td= contact_widget(user.email,user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
+    %td= do_ellipsis(user.roles.pluck(:name).join(', '),40)
+    %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
+    %td
+      = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+      - unless @have_admin
+        %strong{:id => "response_#{bussiness_detail.id}"}
+        = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male').html_safe, update_role_contracts_path(contract_id: @contract.id,bussiness_detail:bussiness_detail.id), remote: :true, title: "Make Admin", class: 'data-table-icons remove_admin_link')
+      - else
+        - if bussiness_detail.admin? 
+          = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, remove_role_contracts_path(bussiness_detail: bussiness_detail.id,status:'remove admin'), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
+        -else
+          %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}    
+      = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: @contract.id,reporting_manager_id: bussiness_detail.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+  

@@ -4,19 +4,19 @@
       %ul.bootstrapWizard.form-wizard{style: 'display: flex; justify-content: space-evenly;'}
         %li.w-100.active{"data-target" => "#step1"}
           %a{"data-toggle" => "tab", :href => "#tab1"}
-            %span.step.light_border 1
+            %span.step 1
             %span.title Contract Header
         %li.w-100{"data-target" => "#step2"}
           %a{"data-toggle" => "tab", :href => "#tab2"}
-            %span.step.light_border 2
+            %span.step 2
             %span.title Onboard Customer / Sell Side
         %li.w-100{"data-target" => "#step3"}
           %a{"data-toggle" => "tab", :href => "#tab3"}
-            %span.step.light_border 3
+            %span.step 3
             %span.title Onboard Consultant / Buy Side
         %li.w-100{"data-target" => "#step4"}
           %a{"data-toggle" => "tab", :href => "#tab4"}
-            %span.step.light_border 4
+            %span.step 4
             %span.title Activate / Timeline
 
       / %li{"data-target" => "#step4"}
@@ -48,11 +48,11 @@
         .col-sm-12
           %ul.pager.wizard.no-margin.clearfix.p-0.no-steps-container
             %li.previous.disabled.pull-left
-              %a.btn.btn-primary{style: "background-color: #037bf8; color: white", :href => new_contract_path(contract_id: @contract.id || nil)} Contract Tab
+              %a{:href => new_contract_path(contract_id: @contract.id || nil)} Contract Tab
             %li.next.pull-right
-              %a.btn.btn-primary{style: "background-color: #037bf8; color: white", :href => "javascript:void(0);"} Save & Continue
+              %a{:href => "javascript:void(0);"} Save & Continue
             %li.pull-right.finish{:style=>"di"}
-              %a.btn.btn-primary.next_submit_link{style: "background-color: #037bf8; color: white", :href => "javascript:;"} Finish
+              %a.next_submit_link{:href => "javascript:;"} Finish
 
 .remote_container_contract
 = render "company/companies/partials/new_company", for_remote: true
@@ -85,7 +85,7 @@
       set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company");
       set_company_contacts_select('#select_sell_company_contacts', "Please Select Or Add new Contacts", "#sell_contract_company_1");
       set_company_contacts_select('#select_buy_company_contacts', "Please Select Or Add new Contacts", "#buy_contract_company");
-      set_contract_admins(".contract_admins","Please Select Contact")
+      set_contract_admins(".contract_admins","Please Select Contract Admin")
 
       $( ".file-pick" ).on('click',function() {
         $(".fp__overlay").css({'z-index':'99999'});
@@ -128,7 +128,7 @@
 
 
       // $(document).on('change','#select_jobs', function(){
-      //   $.get('/api/company/companies/fetch_owner?job_id='+$( "#select_jobs" ).val(),function (data, textStatus, jqXHR) {
+      //   $.get('/api/company/companies/get_owner?job_id='+$( "#select_jobs" ).val(),function (data, textStatus, jqXHR) {
       //     console.log('status: ' + textStatus + ', data:' + data);
       //     $('#contract_admins_table').find('tbody:last').append(`<tr><td>${data.domain}</td><td>${data.name}</td><td>TBD</td><td><a title='chat' class='data-table-icons' href='#'><i class='fa fa-comment-o'></i></a><a title='${data.email}' class='data-table-icons' href='mailto:${data.email}'><i class='os-icon os-icon-email-2-at2'></i></a><a title='${data.phone}' class='data-table-icons' href='#'><i class='os-icon os-icon-phone '></i></a><div title='' class='addeventatc' id='addeventatc1' style='visibility: visible;' aria-haspopup='true' aria-expanded='false' tabindex='0' translate='no'><span class="os-icon os-icon-calendar  atc_node notranslate"></span></div><td>${data.role}</td><td>${data.reminders}</td><td>TBD</td></tr>`);
       //     addeventatc.refresh();
@@ -223,6 +223,7 @@
         } else if($(this).val() == "monthly"){
           $(".s-ts-apv-set").find('.month').removeClass("hidden");
         }
+
         $(".b-ts-apv-set").children().addClass("hidden");
         if($(this).val() == "daily"){
           $(".b-ts-apv-set").find('.daily').removeClass("hidden");
@@ -437,7 +438,7 @@
         }
       });
 
-      $(".end_client").on("change", function(){
+      $(".is_client_customer_radio input[type='radio']").on("change", function(){
         if($(this).val() == "true"){
           $('.contract_client').show()
         } else {
@@ -526,6 +527,9 @@
       $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-id").val(e.params.data.id.split("_")[0]);
       $(this).closest('.assign_signable').find('div.sign-nested-fields:last').find("input.signable-type").val(e.params.data.id.split("_")[1]);
     });
+
+
+
 
     $( document ).on( "select2:unselect", ".commission-user", function( e ) {
       $(this).closest('.assign_commission_user').find('div.account-nested-fields').find(':input.accountable-id[value=' + e.params.data.id.split("_")[0] + ']').closest('div.account-nested-fields').remove();

@@ -1,64 +1,31 @@
-.element-wrapper
+.content-i
   .content-box
-    .element-box
-      = render partial: 'company/companies/sub_menu_company'
-      .row
-        .col-sm-12
-          .element-wrapper
-            .element-box-tp
-              .controls-above-table
-                .row.mr-1.ml-1
-                  .col-sm-6.pl-0
-                    %button.btn.btn-sm.btn-secondary.add_holiday Add holiday
-                  .col-sm-6
-                    .form-inline.justify-content-sm-end
-                      -#%input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: 'holidays-datatable-search'}
-              .table-responsive
-                %table#holidays-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                  %thead
+    = render partial: 'company/companies/sub_menu_company'
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-6
+                  %a.btn.btn-sm.btn-secondary{ :href => "#{new_payroll_term_info_path}", :title => "New Payroll Info" } Add Payroll
+                .col-sm-6
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: 'payroll-datatable-search'}
+            .table-responsive
+              %table#payroll-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                %thead
+                  %tr
+                    %th Title
+                    %th Type
+                    %th created At
+                    %th Updated At
+                    %th Actions
+                %tbody
+                  - @payrolls.each do |payroll|
                     %tr
-                      %th Year
-                      %th Date
-                      %th Name
-                      %th Actions
-                  %tbody
-                    - @holidays.each do |holiday|
-                      %tr{"data-id": holiday.id}
-                        %td= holiday.date.strftime("%Y")
-                        %td= holiday.date.strftime("%Y-%m-%d")
-                        %td= holiday.name
-                        %td= link_to content_tag(:i,nil,class: "fa fa-trash"),  holiday,  method: :delete, data: { confirm: 'Are you sure?' }, title: 'Delete Holiday'
-      .row
-        .col-sm-12
-          .element-wrapper
-            .element-box-tp
-              .controls-above-table
-                .row.mr-1.ml-1
-                  .col-sm-6.col-6
-                    %a.btn.btn-sm.btn-secondary{ :href => "#{new_payroll_term_info_path}", :title => "New Payroll Info" } Add Payroll
-                  .col-sm-6.col-6
-                    .form-inline.justify-content-sm-end.pull-right
-                      %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: 'payroll-datatable-search'}
-              .table-responsive
-                %table#payroll-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
-                  %thead
-                    %tr
-                      %th Title
-                      %th Type
-                      %th created At
-                      %th Updated At
-                      %th Actions
-                  %tbody
-                    - @payrolls.each do |payroll|
-                      %tr
-                        %td= payroll.title
-                        %td= payroll.payroll_type
-                        %td= payroll.created_at.strftime("%Y-%m-%d")
-                        %td= payroll.updated_at.strftime("%Y-%m-%d")
-                        %td
-                          = link_to 'Generate Cycles', generate_payroll_dates_payroll_term_info_path(payroll) unless payroll.contract_cycles.present?
-                          = link_to   content_tag(:i,nil,class: "fa fa-eye"), get_cycles_payroll_term_info_path(payroll), remote: true, title: 'View Cycles',class: "data-table-icons btn btn-link btn-sm"  if payroll.contract_cycles.present?
-                          = link_to content_tag(:i,nil,class: "fa fa-edit"), edit_payroll_term_info_path(payroll), class: "data-table-icons btn btn-link btn-sm", title: 'Edit Payroll'
-                          = link_to content_tag(:i,nil,class: "fa fa-trash"), payroll_term_info_path(payroll),  method: :delete, data: { confirm: 'Are you sure?' },title: 'Delete Payroll', class: "data-table-icons btn btn-link btn-sm"
-
-      .row.cycle_calendar
+                      %td= payroll.title
+                      %td= payroll.payroll_type
+                      %td= payroll.created_at.strftime("%Y-%m-%d")
+                      %td= payroll.updated_at.strftime("%Y-%m-%d")
+                      %td= link_to content_tag(:i,nil,class: "fa fa-edit"), edit_payroll_term_info_path(payroll), class: "data-table-icons btn btn-link btn-sm"

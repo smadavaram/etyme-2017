@@ -15,7 +15,7 @@ $('#timesheet_calendar').show();
 <% end %>
 
 <% events = [] %>
-<% @timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,description: 'timesheet transaction',memo: tt.memo ,status: ts.status,title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}  %>
+<% @timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,description: 'timesheet transaction',status: ts.status,title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}  %>
 var e=JSON.parse("<%= escape_javascript(render(inline: events.to_json)) %>")
 let startCelandar = "<%= j render(inline: (@timesheets.first.present? ? @timesheets.first&.start_date.to_s : DateTime.now.beginning_of_month.strftime('%Y-%m-%d'))) %>"
 let endCelandar = "<%= j render(inline: (@timesheets.last.present? ? @timesheets.last&.end_date.to_s : DateTime.now.end_of_month.strftime('%Y-%m-%d'))) %>"

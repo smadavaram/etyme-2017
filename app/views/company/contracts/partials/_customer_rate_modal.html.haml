@@ -9,6 +9,6 @@
       .modal-body
         = form_for @contract.sell_contract.change_rates.build, url: change_rates_path(contract_id: @contract.sell_contract.id, type: 'SellContract'), method: :post, html:{class: 'contract-expense-type'} do |f|
           .col-md-12.display-flex
-            =render 'company/contracts/partials/rate_fields', f: f, rates: nil, contract: @contract, usics: false
+            =render 'company/contracts/partials/rate_fields', f: f, usics: false
           %br
           = f.submit 'Save', class: 'btn btn-primary pull-right'

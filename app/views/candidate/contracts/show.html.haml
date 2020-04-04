@@ -19,7 +19,7 @@
                   .pull-left= do_ellipsis(@contract.candidate.full_name,15)
                 .w-100
                   %strong.pull-left= "Contract Type: "
-                  .pull-left{title: @contract.buy_contract.fetch_contract_type_label}= @contract.buy_contract.contract_type
+                  .pull-left{title: @contract.buy_contract.get_contract_type_label}= @contract.buy_contract.contract_type
                 .w-100
                   %strong.pull-left= "Address: "
                   .pull-left= do_ellipsis(@contract.candidate.addresses.first&.address_1,15)

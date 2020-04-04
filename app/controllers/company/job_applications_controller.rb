@@ -1,15 +1,16 @@
-# frozen_string_literal: true
-
 class Company::JobApplicationsController < Company::BaseController
-  # CallBacks
-  before_action :find_job, only: %i[create creates_multiple_for_candidate]
+
+  #CallBacks
+  before_action :find_job, only: [:create, :create_multiple_For_candidate]
   before_action :find_received_job_invitation, only: [:create]
   before_action :set_job_applications, only: [:index]
   before_action :find_attachments, :find_signers, only: [:send_templates]
-  before_action :find_received_job_application, only: %i[send_templates templates prescreen client_submission rate_negotiation accept_rate accept_interview accept reject interview hire short_list show proposal share_application_with_companies open_inbox_conversation]
-  before_action :authorized_user, only: %i[accept reject interview hire short_list show]
+  before_action :find_received_job_application, only: [:send_templates, :templates, :prescreen, :client_submission, :rate_negotiation, :accept_rate, :accept_interview, :accept, :reject, :interview, :hire, :short_list, :show, :proposal, :share_application_with_companies, :open_inbox_conversation]
+  before_action :authorized_user, only: [:accept, :reject, :interview, :hire, :short_list, :show]
   skip_before_action :authenticate_user!, :authorized_user, only: [:share], raise: false
-  add_breadcrumb 'Dashboard', :dashboard_path
+  add_breadcrumb "Dashboard", :dashboard_path
+
+
 
   def applicant
     @job_application = current_company.received_job_applications.find_by(id: params[:id])
@@ -18,7 +19,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def index
-    add_breadcrumb 'JOB APPLICATIONS', job_applications_path, options: { title: 'JOBS APPLICATION' }
+    add_breadcrumb "JOB APPLICATIONS", job_applications_path, options: {title: "JOBS APPLICATION"}
 
     respond_to do |format|
       format.html {}
@@ -27,20 +28,21 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def create
-    @job_application = current_company.sent_job_applications.new(job_application_params.merge!(applicationable_id: current_user.id, job_id: @job.id, job_invitation_id: @job_invitation.id, applicationable_type: 'User'))
+    @job_application = current_company.sent_job_applications.new(job_application_params.merge!(applicationable_id: current_user.id, job_id: @job.id, job_invitation_id: @job_invitation.id, applicationable_type: 'User', recruiter_company_id: 3))
     respond_to do |format|
       if @job_application.save
-        format.js { flash.now[:success] = 'Successfully Created.' }
+        format.js { flash.now[:success] = "Successfully Created." }
       else
         format.js { flash.now[:errors] = @job_application.errors.full_messages }
       end
+
     end
   end
 
-  def creates_multiple_for_candidate
+  def create_multiple_For_candidate
     if request.post?
       Candidate.where(id: params[:temp_candidates]).each do |c|
-        c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id)
+        c.job_applications.create!({applicant_resume: c.resume, cover_letter: "Application created by owner", job_id: @job.id})
       end
       @post = true
     end
@@ -53,29 +55,29 @@ class Company::JobApplicationsController < Company::BaseController
         @contract.contract_terms.new
         format.js
       else
-        format.js { flash.now[:errors] = ['Request Not Completed.'] }
+        format.js { flash.now[:errors] = ["Request Not Completed."] }
       end
     end
+
   end
 
   def templates
     @document_signs = current_company.document_signs.where(signable: @job_application.applicationable, part_of: @job_application)
   end
 
+
   def request_sign
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
-      if !result.is_a?(Hash) && (result.status == 'sent')
+      if (result&.status == "sent")
         @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
         flash[:success] = 'Document is submitted to the candidate for signature'
       else
-        @document_sign.destroy
-        error = eval(result[:error_message])
-        flash[:errors] = ["#{error[:errorCode]}: #{error[:message]}"]
+        flash[:errors] = result.error_message
       end
     else
-      flash[:errors] = ['Docusign token request failed, please regenerate the token from integrations']
+      flash[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]
     end
   end
 
@@ -83,17 +85,17 @@ class Company::JobApplicationsController < Company::BaseController
     @plugin = current_company.plugins.docusign.first
     @company_candidate_docs.each do |sign_doc|
       @document_sign = current_company.document_signs.create(
-        requested_by: current_user,
-        documentable: sign_doc,
-        signable: @job_application.applicationable,
-        is_sign_done: false,
-        part_of: @job_application,
-        signers_ids: params[:signers].to_s.tr('[', '{').tr(']', '}')
+          requested_by: current_user,
+          documentable: sign_doc,
+          signable: @job_application.applicationable,
+          is_sign_done: false,
+          part_of: @job_application,
+          signers_ids: params[:signers].to_s.gsub('[', '{').gsub(']', '}')
       )
       if @document_sign.is_signable?
         request_sign
       else
-        flash[:success] = 'Your request is submitted for processing'
+        flash[:success] = "Your request is submitted for processing"
       end
     end
     @document_signs = @job_application.applicationable.document_signs
@@ -106,12 +108,12 @@ class Company::JobApplicationsController < Company::BaseController
         if @job_application.rejected!
           create_conversation_message
           record_activity
-          format.html { flash[:success] = 'Successfully Rejected.' }
+          format.html { flash[:success] = "Successfully Rejected." }
         else
           format.html { flash[:errors] = @job_application.errors.full_messages }
         end
       else
-        format.html { flash[:errors] = ['Request Not Completed.'] }
+        format.html { flash[:errors] = ["Request Not Completed."] }
       end
     end
     redirect_back fallback_location: root_path
@@ -131,12 +133,12 @@ class Company::JobApplicationsController < Company::BaseController
       end
       redirect_back(fallback_location: root_path)
     else
-      if /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z]+)*\.[a-z]+\z/i.match?(@job_application.job.source.strip)
+      if (@job_application.job.source.strip.match(/\A[\w+\-.]+@[a-z\d\-]+(\.[a-z]+)*\.[a-z]+\z/i))
         if JobApplicationMailer.submit_to_client(@job_application.id, @job_application.job.id, current_company).deliver
           @job_application.client_submission!
-          flash[:success] = 'Application is Mailed to the client'
+          flash[:success] = "Application is Mailed to the client"
         else
-          flash[:errors] = ['Something went wrong']
+          flash[:errors] = ["Something went wrong"]
         end
       end
       redirect_back(fallback_location: root_path)
@@ -147,7 +149,7 @@ class Company::JobApplicationsController < Company::BaseController
     if @job_application.prescreen!
       create_conversation_message
       record_activity
-      flash[:success] = 'Successfully Prescreen.'
+      flash[:success] = "Successfully Prescreen."
     else
       flash[:errors] = @job_application.errors.full_messages
     end
@@ -155,16 +157,16 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def short_list
-    if @job_application.short_listed?
-      flash[:success] = 'Application is already ShortListed'
-    else
+    unless @job_application.short_listed?
       if @job_application.short_listed!
         create_conversation_message
         record_activity
-        flash[:success] = 'Successfully ShortListed.'
+        flash[:success] = "Successfully ShortListed."
       else
         flash[:errors] = @job_application.errors.full_messages
       end
+    else
+      flash[:success] = "Application is already ShortListed"
     end
     redirect_back fallback_location: root_path
   end
@@ -172,14 +174,14 @@ class Company::JobApplicationsController < Company::BaseController
   def interview
     @interview = params[:interview][:id].present? ?
                      @job_application.interviews.find_by(id: params[:interview][:id])
-                     : @job_application.interviews.new(interview_params.merge(accepted_by_company: true))
+                     : @job_application.interviews.new(interview_params)
     respond_to do |format|
-      if @interview.new_record? ? @interview.save : @interview.update(interview_params.merge(accept: false, accepted_by_recruiter: false, accepted_by_company: true))
+      if @interview.new_record? ? @interview.save : @interview.update(interview_params.merge({accept: false, accepted_by_recruiter: false, accepted_by_company: false}))
         @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
         body = current_user.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
         current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
-        format.html { flash[:success] = 'Interview is Scheduled, pending confirmation' }
+        format.html { flash[:success] = "Interview is Scheduled, pending confirmation" }
       else
         format.html { flash[:errors] = @job_application.errors.full_messages }
       end
@@ -218,7 +220,7 @@ class Company::JobApplicationsController < Company::BaseController
     respond_to do |format|
       if @job_application.hired!
         create_conversation_message
-        format.html { flash[:success] = 'Successfully Hired.' }
+        format.html { flash[:success] = "Successfully Hired." }
       else
         format.html { flash[:errors] = @job_application.errors.full_messages }
       end
@@ -227,15 +229,18 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def authorized_user
-    has_access?('manage_job_applications')
+    has_access?("manage_job_applications")
   end
 
   def show
-    add_breadcrumb 'JOB APPLICATIONS', job_applications_path, options: { title: 'JOBS APPLICATION' }
+    add_breadcrumb "JOB APPLICATIONS", job_applications_path, options: {title: "JOBS APPLICATION"}
     add_breadcrumb "JOB APPLICATIONS ID: #{params[:id]}"
 
+
     set_conversation(@job_application.applicationable)
-    @activities = PublicActivity::Activity.where(recipient: @job_application).order('created_at desc')
+    @activities = PublicActivity::Activity.where(recipient: @job_application).order("created_at desc")
+    @previous = JobApplication.where("id < ?", @job_application.id).sort.last
+    @next = JobApplication.where("id > ?", @job_application.id).sort.first
   end
 
   def open_inbox_conversation
@@ -246,12 +251,12 @@ class Company::JobApplicationsController < Company::BaseController
   def proposal
     set_conversation(@job_application.applicationable)
     @conversation_messages = @conversation.conversation_messages.last(50)
-    @unread_message_count = Conversation.joins(:conversation_messages).where('(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)', current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: { is_read: true, userable: current_user }).uniq.size
+    @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     @conversation_message = ConversationMessage.new
   end
 
   def accept_rate
-    if @job_application.job.company.owner == current_user ? @job_application.update(accept_rate_by_company: true, status: :rate_confirmation) : @job_application.update(accept_rate: true, status: :rate_confirmation)
+    if (@job_application.job.company.owner == current_user ? @job_application.update(accept_rate_by_company: true, status: :rate_confirmation) : @job_application.update(accept_rate: true, status: :rate_confirmation))
       @conversation = @job_application.conversation
       if @job_application.is_rate_accepted?
         @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
@@ -259,7 +264,7 @@ class Company::JobApplicationsController < Company::BaseController
       end
       body = current_user.full_name + " has accepted #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
       current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :job_conversation)
-      flash[:success] = 'Rate is Confirmed'
+      flash[:success] = "Rate is Confirmed"
     else
       flash[:errors] = @job_application.errors.full_messages
     end
@@ -273,7 +278,7 @@ class Company::JobApplicationsController < Company::BaseController
       @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
       body = current_user.full_name + " has offered you #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
       current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
-      flash[:success] = 'Rate is set for candidate confirmation'
+      flash[:success] = "Rate is set for candidate confirmation"
     else
       flash[:errors] = @job_application.errors.full_messages
     end
@@ -286,14 +291,13 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def share_application_with_companies
-    if params.key?('vendor_company')
+    if params.has_key?("vendor_company")
       Company.all.where(id: params[:vendor_company]).each do |c|
-        if c.invited_by.present?
-          next unless c.company_contacts.first.present?
-
-          c.company_contacts.first.notifications.create(message: current_company.name + " share a <a href='http://#{current_company.etyme_url + share_job_application_path(@job_application.share_key)}' target='_blank'>job application - #{@job_application.job.title}</a> with you.", title: 'Job Application')
+        if (c.invited_by.present?)
+          next if !c.company_contacts.first.present?
+          c.company_contacts.first.notifications.create(message: current_company.name + " share a <a href='http://#{current_company.etyme_url + share_job_application_path(@job_application.share_key)}' target='_blank'>job application - #{@job_application.job.title}</a> with you.", title: "Job Application")
         else
-          c.owner.notifications.create(message: current_company.name + " share a <a href='http://#{current_company.etyme_url + share_job_application_path(@job_application.share_key)}' target='_blank'>job application - #{@job_application.job.title}</a> with you.", title: 'Job Application')
+          c.owner.notifications.create(message: current_company.name + " share a <a href='http://#{current_company.etyme_url + share_job_application_path(@job_application.share_key)}' target='_blank'>job application - #{@job_application.job.title}</a> with you.", title: "Job Application")
 
         end
       end
@@ -307,7 +311,7 @@ class Company::JobApplicationsController < Company::BaseController
     # owner: who performs the activity
     # recipient: the one on which the activity is performed
     # additional_data: hash of things about the recipients --needed to make links
-    @job_application.create_activity key: 'job_application.status', owner: current_user, recipient: @job_application, additional_data: { status: @job_application.status.camelcase }
+    @job_application.create_activity key: 'job_application.status', owner: current_user, recipient: @job_application, additional_data: {status: @job_application.status.camelcase}
   end
 
   def set_conversation(user)
@@ -323,8 +327,10 @@ class Company::JobApplicationsController < Company::BaseController
         group.groupables.create(groupable: user)
         group.groupables.create(groupable: current_user)
         group.groupables.create(groupable: user.associated_company.owner) if user.associated_company.owner
+        group.groupables.create(groupable: @job_application.recruiter_company) if user.associated_company.owner
+        group.groupables.create(groupable: @job_application.recruiter_company)  if @job_application.recruiter_company
       end
-      @conversation = Conversation.create(chatable: group, topic: :JobApplication, job_application_id: @job_application.id) if group.present?
+      @conversation = Conversation.create({chatable: group, topic: :JobApplication, job_application_id: @job_application.id}) if group.present?
     end
   end
 
@@ -358,10 +364,10 @@ class Company::JobApplicationsController < Company::BaseController
 
   def job_application_params
     params.require(:job_application).permit([:message, :cover_letter, :status, :applicant_resume, custom_fields_attributes:
-        %i[
-          id
-          name
-          value
+        [
+            :id,
+            :name,
+            :value
         ]])
   end
 
@@ -382,4 +388,5 @@ class Company::JobApplicationsController < Company::BaseController
   def find_signers
     @signers = current_company.users.where(id: params[:signers])
   end
+
 end

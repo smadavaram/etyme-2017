@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 json.id @contract.id
 json.contract_type @contract.contract_type
 json.company_id @contract.buy_contract&.company&.id

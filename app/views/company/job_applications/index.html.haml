@@ -16,37 +16,42 @@
                   %tr
                     %th
                       %input{ type:"checkbox", name:"select_all", id:"example-select-all"}
+                      %th NO/Job Title
                       %th Name
-                      %th NO
-                      %th Job Title
-                      %th Bench
-                      %th Recruiter
+                      %th Bench/Recruiter
                       %th Status
                       %th Source/Type
-                      %th Contact
+                      %th Visa
+                      %th Exp.
+                      %th Skill Set.
                       %th Actions
                 %tbody
                   - @received_job_applications.each do |application|
                     %tr{"data-id" => "#{application.id}"}
                       - candidate = application.applicationable
                       %td= check_box_tag "ids[]", application.id
+                      %td
+                        %span.value{ :style => "margin-left: 15px;" }
+                          = link_to "#{application.id}", job_application_path(application)
+                          %br/
+                        %span.value
+                          =link_to do_ellipsis(application.job.title.capitalize, 15),job_path(application.job.id),class: 'data-table-font'
                       %td.no-wrap.pr-5
-                        = user_image(application.applicationable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.applicationable.present? ? application.applicationable.full_name : 'N/A'}" )
-                        - if application.applicationable.present?
-                          = link_to(do_ellipsis(application.applicationable.full_name,15), public_profile_static_candidates_path(application.applicationable), class: 'data-table-font')
-                      %td.text-center= application.id
-                      %td.no-wrap= link_to do_ellipsis(application.job.title.capitalize, 15),job_path(application.job.id),class: 'data-table-font'
-                      %td
-                        - if application.applicationable.present?
-                          - if application.applicationable.associated_company.present?
-                            = image_tag(application.applicationable.associated_company.logo,class: 'data-table-image', title: application.applicationable.associated_company.name)
-                      %td
-                        = image_tag(application.recruiter_company.logo,class: 'data-table-image', title: application.recruiter_company.name) if application&.recruiter_company.present? && application.with_recurator?
+                        = user_image(application.applicationable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.applicationable.full_name}" )
+                        = link_to(do_ellipsis(application.applicationable.full_name,15), public_profile_static_candidates_path(application.applicationable), class: 'data-table-font')
+                        %hr{style: "margin-top:-23px; visibility:hidden;"}
+                        %span{ :style => "margin-left:33px; font-size: 0.80em;" }
+                          = contact_widget(candidate.email, candidate.phone, candidate, chat_link: chat_link(candidate,application&.conversation&.id),color: '#3E4B5B; !important')
 
+                      %td
+                        %span
+                          = image_tag(application.applicationable.associated_company.logo,class: 'data-table-image', title: application.applicationable.associated_company.name)
+                          =do_ellipsis(application.recruiter_company&.email)
                       %td.no-wrap= colorfull_text( snake_to_words(application.status),application.status=='applied' ? 'orange' : 'green')
                       %td= application.job_invitation_id ? "Invited/#{application.application_type}" : "Direct/#{snake_to_words(application.application_type)}"
-                      - if candidate.present?
-                        %td.no-wrap= contact_widget(candidate.email, candidate.phone, candidate, chat_link: chat_link(candidate,application&.conversation&.id),color: '#3E4B5B; !important')
+                      %td= application.applicationable.candidate_visa
+                      %td= application.applicationable.total_experience
+                      %td= do_ellipsis(application.applicationable.skill_list.join(', '))
                       %td.no-wrap
                         = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(application), title: 'View Detail', class: 'data-table-icons')
                         = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, candidate_add_reminder_path(application.applicationable_id), remote: :true, title: "Remind Me", class: 'data-table-icons')

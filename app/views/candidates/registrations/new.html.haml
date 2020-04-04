@@ -1,59 +1,74 @@
-%h4.auth-header Sign Up
-= simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'candidateRegister' , class: '' }) do |f|
-  - flash.each do |key, value|
-    = flash_message(key,value)
-  .form-group.field-group
+- provide(:body_class, 'full-screen')
+
+#sectionIntro.intro-w.layout-v1.p-0
+  .os-container
+    .fade2
+    .call-to-action
+      .h3.cta-header
+        %i.fa.fa-coffee
+        Register
+      .h3.cta-header
+        %p New to eTyme? Create an account now.
+
+%section.banner-login
+  .container
     .row
-      .col-md-6
-        .form-row
-          %label First Name:
-          = f.text_field :first_name, :placeholder => "Your First Name", required: true,class: 'form-control field'
-          .pre-icon.os-icon.os-icon-user-plus
-      .col-md-6
-        .form-row
-          %label Last Name:
-          = f.text_field :last_name, :placeholder => "Your Last Name", required: true, class: 'form-control field'
-  .form-group.field-group
-    %label{:for => "user_email"} Email
-    = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'form-control field',onblur: 'validate_email();'
-    .help-block.form-text.with-errors.form-control-feedback
-      %a{:href => "#{new_candidate_session_path}"}  have an account?
-    .pre-icon.os-icon.os-icon-email-2-at2
-  .form-group.field-group
-    %label{:for => "user_password"} Password
-    = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'form-control field',id: "password"
-    .help-block.form-text.with-errors.form-control-feedback
-    .pre-icon.os-icon.os-icon-fingerprint
-  .form-group.field-group
-    %label{:for => "user_password"} Conform Password
-    = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#password",class: 'form-control field'
-    .help-block.form-text.with-errors.form-control-feedback
-    .pre-icon.os-icon.os-icon-fingerprint
-  .form-group.field-group
-    .form-controls
-      %input#terms{:name => "terms",class:"field", :type => "checkbox" ,required: true}/
-      = succeed "I agree with the " do
-        %i
-      %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
-  .field-group
-    %input.btn.btn-primary.float{"data-disable-with" => "Sign Up", :name => "commit", :type => "submit", :value => "Sign Up"}/
-    .buttons-w.mt-4
-    %a#sign_in_with_twitter.minumum-width.btn.btn-primary.mt-2{:href => "#{user_google_oauth2_omniauth_authorize_path}"}
-      %i.ti-google
-      Sign in with google
-    %a#sign_in_with_facebook.minumum-width.btn.btn-primary.mt-2{:href => "#{user_facebook_omniauth_authorize_path}"}
-      %i.ti-facebook
-      Sign in with Facebook
-    %a#sign_in_with_stripe.minumum-width.btn.btn-primary.mt-2{:href => "#{user_linkedin_omniauth_authorize_path}"}
-      %i.ti-linkedin
-      Sign in with Linkedin
+      %main.main.main-signup.col-lg-12
+        .col-lg-6.offset-lg-3.text-center
+          .form-sign
+            = simple_form_for(resource, as: resource_name, url: registration_path(resource_name), html: {id: 'candidateRegister' , class: 'lockscreen animated flipInY' }) do |f|
+              .form-body
+                - flash.each do |key, value|
+                  = flash_message(key,value)
+                .row
+                  .col-md-6
+                    .form-row
+                      %label First Name:
+                      = f.text_field :first_name, :placeholder => "Your First Name", required: true,class: 'field'
+                  .col-md-6
+                    .form-row
+                      %label Last Name:
+                      = f.text_field :last_name, :placeholder => "Your Last Name", required: true, class: 'field'
+                .form-row
+                  %label Email:
+                  = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'field',onblur: 'validate_email();'
+                .form-row
+                  %label Password:
+                  = f.password_field :password, :placeholder => "Password", required: true,minlength: "6",class: 'field',id: "password"
+                .form-row
+                  %label Conform Password:
+                  = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#password",class: 'field'
+                -#.form-row
+                  .form-controls
+                    %input#terms{:name => "terms",class:"field", :type => "checkbox" ,required: true}/
+                    = succeed "I agree with the " do
+                      %i
+                    %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
+              .form-foot
+                .form-actions
+                  %input.form-btn{:type => "submit", :value => "Register"}/
+                .social-login
+                  = link_to user_google_oauth2_omniauth_authorize_path, class: "btn btn-block google" do
+                    %i.fa.fa-google
+                    Sign up with google
+                  = link_to user_facebook_omniauth_authorize_path, class: "btn btn-block facebook" do
+                    %i.fa.fa-facebook
+                    Sign up with Facebook
+                  = link_to user_linkedin_omniauth_authorize_path, class: "btn btn-block linkedin" do
+                    %i.fa.fa-linkedin
+                    Sign up with Linked In
+                .form-head
+                  = link_to "Already have Account?",new_candidate_session_path ,class: "more-link"
+
+
+
 #myModal.modal{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :tabindex => "-1"}
   .modal-dialog
     .modal-content
       .modal-header
-        %h4#myModalLabel.modal-title Terms &amp; Conditions
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
+        %h4#myModalLabel.modal-title Terms &amp; Conditions
       .modal-body.custom-scroll.terms-body
         #left
           %h1 SMARTADMIN TERMS &amp; CONDITIONS TEMPLATE

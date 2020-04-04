@@ -30,7 +30,7 @@
             .col-sm-12.col-md-12.col-lg-2
               %div.profile-hover
                 %div.pictureContainer
-                  = button_tag "Upload CV", class: 'm-0 resume btn btn-primary btn-lg', onclick: "upload_resume_file_in_slick()"
+                  = button_tag "Upload CV" , class: 'm-0 resume btn btn-primary  btn-lg', onclick: "upload_resume_file_in_slick()"
                   -#= link_to "Upload CV" ,"#",class: 'm-0 resume btn btn-primary btn-rounded btn-lg', style: "margin-bottom: 10px"
           #resume_on_slick
             = render 'candidate/candidates/partials/resumes_on_slick'

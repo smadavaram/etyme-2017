@@ -14,7 +14,6 @@
  * require bootstrap
  *= require company/salaries
  *= require trix
- *= require shared/bootstrap-year-calendar
  *= require bootstarp-year-calendar
  *= require font-awesome
  *
@@ -60,13 +59,10 @@
  *= require navigation
  *= require top_navigation
  *= require jobs_small_chat
- *= require intlTelInput
+ *= require intl-tel-input-13.0.0/build/css/intlTelInput.min
  *= require calendar_custom
 
  *= require company/prefer_vendors
  *= require slick-carousel/slick/slick
  *= require candidate/dashboard
- *= require company/payroll
-
-            
  */

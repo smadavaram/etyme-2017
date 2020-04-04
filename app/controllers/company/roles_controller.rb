@@ -1,15 +1,17 @@
-# frozen_string_literal: true
-
 class Company::RolesController < Company::BaseController
-  add_breadcrumb 'Dashboard', :dashboard_path
-  before_action :set_new_role, only: [:new]
-  before_action :set_role, only: %i[destroy edit update]
-  before_action :authorized_user, only: %i[new edit index]
+  add_breadcrumb "Dashboard", :dashboard_path
+  before_action :set_new_role , only: [:new]
+  before_action :set_role , only: [:destroy,:edit,:update]
+  before_action :authorized_user , only: [:new,:edit,:index]
 
-  def new; end
 
-  def edit; end
+  def new
 
+  end
+
+  def edit
+
+  end
   def update
     if @role.update(role_params)
       flash[:success] = "#{@role.name} updated successfully."
@@ -20,14 +22,14 @@ class Company::RolesController < Company::BaseController
   end
 
   def index
-    add_breadcrumb 'ROLES', roles_path, options: { title: 'ROLES' }
+    add_breadcrumb "ROLES", roles_path, options: { title: "ROLES" }
     @roles = current_company.roles.includes(:permissions) || []
   end
 
   def create
     @role = current_company.roles.new(role_params)
     if @role.save
-      flash[:success] = 'New Role has been successfully created'
+      flash[:success] = "New Role has been successfully created"
       redirect_to roles_path
     else
       flash[:errors] = @role.errors.full_messages
@@ -36,7 +38,7 @@ class Company::RolesController < Company::BaseController
   end
 
   def authorized_user
-    has_access?('manage_roles')
+    has_access?("manage_roles")
   end
 
   private
@@ -51,6 +53,6 @@ class Company::RolesController < Company::BaseController
 
   def role_params
     params.require(:role).permit(:name,
-                                 permissions_attributes: %i[id name _destroy], permission_ids: [])
+                                 permissions_attributes:[:id, :name, :_destroy],permission_ids: [])
   end
 end

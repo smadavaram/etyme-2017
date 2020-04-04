@@ -1,28 +1,32 @@
-# frozen_string_literal: true
-
 class StaticController < ApplicationController
+
   include DomainExtractor
 
   skip_before_action :authenticate_user!, raise: false
   before_action :set_jobs, only: :index
-  before_action :check_domain, :set_company, :set_slug, only: :signin
-  before_action :handle_invalid_email, :find_user, :set_website, :find_similar_companies, only: :domain_suggestion
+  before_action :set_company, :set_slug, only: :signin
+  before_action :find_user, :set_website, :find_similar_companies, only: :domain_suggestion
 
   layout 'static', except: [:home]
   layout 'homepage', only: [:index]
-  layout 'company_account', only: %i[signin signup]
 
-  add_breadcrumb 'Home', '/'
+  add_breadcrumb "Home", '/'
 
-  def index; end
 
-  def contact_us; end
+  def index
+  end
 
-  def privacy_policy; end
+  def contact_us
+  end
 
-  def terms_of_use; end
+  def privacy_policy
+  end
 
-  def signup; end
+  def terms_of_use
+  end
+
+  def signup
+  end
 
   def acknowledge_refrence
     @client = Client.find_by(id: params[:id])
@@ -34,67 +38,39 @@ class StaticController < ApplicationController
     redirect_to root_path
   end
 
-  def check_user
-    user = @company.users.find_by(email: params[:email].downcase)
-    if user.present?
-      if user.sign_in_count.to_i.zero?
-        user.send_reset_password_instructions
-        flash[:error] = 'Looks like a lot of people want you on etyme. You are welcome. Better late than never. Check your email and get started'
-      end
-    else
-      user = @company.users.create(
-        email: params[:email].downcase,
-        company_id: @company.id,
-        password: "passpass#{rand(999)}",
-        password_confirmation: "passpass#{rand(999)}"
-      )
-      user.send_reset_password_instructions
-      flash[:error] = "Looks like Team #{@company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
-    end
-  end
-
   def signin
     if request.post?
       if params[:email].present?
         if @company.present?
-          check_user
-          if flash.present?
-            redirect_to signin_path
+          if Rails.env.production?
+            redirect_to "https://#{@company.etyme_url}/?email=#{params[:email]}"
           else
-            redirect_to "#{Rails.env.production? ? 'https' : 'http'}://#{@company.etyme_url}/?email=#{params[:email]}"
+            redirect_to "http://#{@company.etyme_url}/?email=#{params[:email]}"
           end
         else
-          flash.now[:errors] = ['No such domain in the system']
-          redirect_to register_path(email: params[:email])
+          flash.now[:error] = 'No such domain in the system'
         end
       else
-        flash.now[:errors] = ['Please enter your email or domain']
+        flash.now[:error] = 'Please enter your email or domain'
       end
     end
+
   end
 
   def domain_suggestion
     @company = Company.find_by(website: @website)
-
+    handle_invalid_email
     respond_to do |format|
-      if @company.present?
+      if @company
         format.html {}
         format.json do
-          render json: {
-            message: 'Looks like company already registered. Just add it as contact.',
-            slug: @company.slug,
-            website: @company.website,
-            name: @company.name,
-            company_type: @company.company_type,
-            domain: @company.domain,
-            status: :ok
-          }
+          domain = get_uniq_domain(get_domain_from_email(params[:email]))
+          render json: {message: 'Looks like company already registered. Just add it as contact.', slug: @company.try(:slug), website: domain_name(params[:email]), name: @company.try(:name), company_type: @company.try(:company_type), domain: domain, status: :ok}
         end
-
       else
         format.html {}
         format.json do
-          render json: { message: 'Company domain is available.', slug: suggested_slug, website: domain_from_email(params[:email]), domain: get_domain_from_email(params[:email]), status: :ok }
+          render json: {message: 'Company domain is available.', slug: suggested_slug, website: domain_from_email(params[:email]), domain: get_domain_from_email(params[:email]), status: :ok}
         end
       end
     end
@@ -104,16 +80,16 @@ class StaticController < ApplicationController
 
   def get_uniq_domain(domain)
     if domain.present?
-      total_domain = Company.where('domain like ?', "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}%").count
+      total_domain = Company.where("domain like ?", "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}%").count
       if total_domain == 0
-        domain = domain.gsub(/[^0-9A-Za-z.]/, '').downcase.to_s
+        domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}"
       else
         l = 1
-        domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}#{total_domain + l}"
+        domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}#{total_domain + l }"
         collision = Company.find_by_domain(domain)
         until collision.nil?
-          l += 1
-          domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}#{total_domain + l}"
+          l = l + 1
+          domain = "#{domain.gsub(/[^0-9A-Za-z.]/, '').downcase}#{total_domain +l}"
           collision = Company.find_by_domain(domain)
         end
       end
@@ -122,10 +98,10 @@ class StaticController < ApplicationController
   end
 
   def handle_invalid_email
-    unless ::EMAIL_REGEX.match?(params[:email])
+    unless ::EMAIL_REGEX =~ params[:email]
       respond_to do |format|
         format.json do
-          render json: { message: 'Invalid email entered.', status: :unprocessible_entity }
+          render json: {message: 'Invalid email entered.', status: :unprocessible_entity}
         end
       end
     end
@@ -140,10 +116,11 @@ class StaticController < ApplicationController
         format.html {}
         format.json do
           if @user.company.domain != current_user.company.domain
-            render json: { status: :ok, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type), registred_in_company: false }
+            render json: {status: :ok, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type), registred_in_company: false}
           else
-            render json: { message: 'User already registered.', status: :unprocessible_entity, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type) }
+            render json: {message: 'User already registered.', status: :unprocessible_entity, slug: @find_company.try(:slug), website: domain_from_email(params[:email]), name: @find_company.try(:name), company_type: @find_company.try(:company_type)}
           end
+
         end
       end
     end
@@ -156,7 +133,7 @@ class StaticController < ApplicationController
       respond_to do |format|
         format.html {}
         format.json do
-          render json: { message: 'Email is Invalid', status: :unprocessible_entity }
+          render json: {message: 'Email is Invalid', status: :unprocessible_entity}
         end
       end
     end
@@ -178,15 +155,19 @@ class StaticController < ApplicationController
     if params[:email].present?
       domain = domain_from_email(params[:email])
       @company = Company.find_by(website: domain)
+
       unless @company
-        find_similar_companies
-        redirect_to register_path(email: params[:email], register: true, show_selector: true, show_input: true, site: suggested_slug), notice: 'Add More information to continue.'
+        # respond_to do |format|
+        redirect_to signin_path, error: 'Company Not Found'
+        # end
       end
     end
   end
 
   def set_slug
-    @slug = @company.slug if @company
+    if @company
+      @slug = @company.slug
+    end
   end
 
   def set_jobs
@@ -195,10 +176,4 @@ class StaticController < ApplicationController
     @jobs = @search.result.group_by(&:job_category)
   end
 
-  def check_domain
-    if email_public_domain?(params[:email])
-      msg = 'You need your own domain to run your business. Google Apps/0365 are Amazing platforms to have your email, calendar, tasks, documents and everything in one place. Register your domain here. https://developers.google.com/admin-sdk/reseller/v1/get-start/getting-started'
-      redirect_to signin_path, notice: msg
-    end
-  end
 end

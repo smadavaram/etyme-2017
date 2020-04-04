@@ -132,17 +132,14 @@ $(document).ready(function () {
     $('#prefer_vendors_table').dataTable();
     $('#prefer_vendors_table-search').keyup(function () {
         $('#prefer_vendors_table').DataTable().search($(this).val()).draw();
-        default_active_nav('.ln-4');
     });
     $('#receive_prefer_vendors_table').dataTable();
     $('#receive_prefer_vendors_table-search').keyup(function () {
         $('#receive_prefer_vendors_table').DataTable().search($(this).val()).draw();
-        default_active_nav('.ln-4');
     });
     $('#network_prefer_vendors_table').dataTable();
     $('#network_prefer_vendors_table-search').keyup(function () {
         $('#network_prefer_vendors_table').DataTable().search($(this).val()).draw();
-        default_active_nav('.ln-4');
     });
     $('#company_bench_datatable').dataTable();
     $('#company_bench_datatable-search').keyup(function () {
@@ -299,66 +296,7 @@ $(document).ready(function () {
         $('#payroll-datatable').DataTable().search($(this).val()).draw();
     });
 
-    $('#group-datatable-search').keyup(function(){
-        $('#group-datatable').DataTable().search( $(this).val() ).draw();
-        default_active_nav('.ln-3');
 
-    });
-
-    $('#company-directory-datatable-search').keyup(function(){
-        $('#company-directory-datatable').DataTable().search( $(this).val() ).draw();
-        default_active_nav('.ln-3');
-
-    });
-    $('#companies-datatable-search').keyup(function(){
-        $('#companies-datatable').DataTable().search( $(this).val() ).draw();
-        default_active_nav('.ln-3');
-
-    });
-    $('#company-contacts-datatable-search').keyup(function(){
-        $('#company-contacts-datatable').DataTable().search( $(this).val() ).draw();
-        default_active_nav('.ln-3');
-
-    });
-    $('#company-candidates-datatable-search').keyup(function(){
-        $('#company-candidates-datatable').DataTable().search( $(this).val() ).draw();
-    });
-    $('#my_bench_datatable-search').keyup(function(){
-        $('#my_bench_datatable').DataTable().search( $(this).val() ).draw();
-    });
-    $('#jobs_datatable-search').keyup(function(){
-        $('#jobs_datatable').DataTable().search( $(this).val() ).draw();
-    });
-
-
-    $('#payroll-cycles-datatable').dataTable();
-    $('#payroll-cycles-datatable-search').keyup(function () {
-        $('#payroll-cycles-datatable').DataTable().search($(this).val()).draw();
-    });
-
-    $('#holidays-datatable').editableTableWidget({ editor: $('<input>'), preventColumns: [ 4 ]})
-        .on('change', function(evt, newValue) {
-            var row = evt.target.parentElement;
-            var id =  row.getAttribute("data-id");
-            var date = row.children[1].textContent;
-            var name = row.children[2].textContent;
-            var success = true;
-
-            $.ajax({
-                url: `/holidays/${id}`,
-                data: {holiday: {name: name, date: date}},
-                method: "PUT",
-                async: false,
-                dataType: 'json'
-            }).success(function (e) {
-                flash_success('Updated Successfully');
-                $(`#holidays-datatable tr[data-id='${e.id}'] td`)[0].innerText = moment(e.date).year();
-            }).error(function (e) {
-                flash_error(e.responseJSON.errors.toString());
-                success = false
-            });
-            return success
-        });
 
 
 

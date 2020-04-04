@@ -22,7 +22,7 @@
             .form-group
               %label.col-md-6.control-label Select Candidates
               .col-md-10.temp_select_candidates
-                = select_tag 'temp_candidates', options_for_select(current_company.candidates.collect { |c| [c.full_name,c.id] if c.resume.present? && !c.already_applied?(job) }.compact),class: 'form-control job_select2' , required: true ,:multiple => true
+                = select_tag 'temp_candidates', options_for_select(current_company.candidates.collect { |c| [c.full_name,c.id] if c.resume.present? && !c.is_already_applied?(job) }.compact),class: 'form-control job_select2' , required: true ,:multiple => true
             .form-group
               %label.col-md-6.control-label
                 Memo

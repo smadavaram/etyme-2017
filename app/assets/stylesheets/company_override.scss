@@ -301,14 +301,3 @@ body.smart-style-6 #logo-group > span#logo::before {
 #sub-menu-tab{
   margin-bottom: 55px;
 }
-#company_profile_pic:hover #company_info{
-  opacity: 0.7 !important;
-  transform: scaleY(1);
-  transition: all .4s;
-  transform-origin: bottom;
-}
-.profile-wrapper{
-  transform: scaleY(0);
-  transition: all .4s;
-  transform-origin: bottom;
-}

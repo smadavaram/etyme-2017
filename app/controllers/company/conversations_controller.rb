@@ -1,12 +1,12 @@
-# frozen_string_literal: true
-
 class Company::ConversationsController < Company::BaseController
+
   skip_before_action :authenticate_user!, only: :search
   before_action :find_attachments, :find_signers, only: [:chat_docusign]
-  add_breadcrumb 'Dashboard', :dashboard_path
+  add_breadcrumb "Dashboard", :dashboard_path
+
 
   def index
-    add_breadcrumb 'Inbox'
+    add_breadcrumb "Inbox"
 
     respond_to do |format|
       @query = nil
@@ -29,64 +29,67 @@ class Company::ConversationsController < Company::BaseController
   end
 
   def chat_docusign
+
     @conversation = Conversation.find_by(id: params[:conversation_id])
     @plugin = current_company.plugins.docusign.first
     main_signer = get_main_signer
     co_signers = params[:signers]
     co_signers&.pop
-    response = true # (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    response = true #(Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
         @document_sign = current_company.document_signs.create(
-          requested_by: current_user,
-          documentable: sign_doc,
-          signable: main_signer,
-          is_sign_done: false,
-          part_of: @conversation,
-          signers_ids: co_signers.to_s.tr('[', '{').tr(']', '}')
+            requested_by: current_user,
+            documentable: sign_doc,
+            signable: main_signer,
+            is_sign_done: false,
+            part_of: @conversation,
+            signers_ids: co_signers.to_s.gsub('[', '{').gsub(']', '}')
         )
         result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
-        if !result.is_a?(Hash) && (result.status == 'sent')
+        if (result.status == "sent")
           @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
-          flash.now[:success] = 'Document is submitted to the candidate for signature'
         else
-          @document_sign.destroy
-          error = eval(result[:error_message])
-          flash.now[:errors] = ["#{error[:errorCode]}: #{error[:message]}"]
+          flash[:errors] = result.error_message
         end
       end
       flash[:success] = 'Document is submitted to the candidate for signature'
     else
-      flash[:errors] = ['Docusign token request failed, please regenerate the token from integrations']
+      flash[:errors] = ["Docusign token request failed, please regenerate the token from integrations"]
     end
     redirect_to company_conversations_path(conversation: params[:conversation_id])
   end
 
+
   def create
     @conversation = Conversation.where(id: params[:conversation]).first
-    @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order('created_at desc') if @conversation.job_application.present?
+    if @conversation.job_application.present?
+      @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
+    end
     @favourites = current_user.favourables
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     respond_to do |format|
-      format.html do
+      format.html {
         render 'index'
-      end
+      }
       format.js
     end
   end
 
+
   def search
     @query = params[:keyword]
-    @topic = params[:topic].present? ? params[:topic] : 'All'
-    @conversations = if @query.present? && @topic.present?
-                       @topic == 'All' ?
-                        Conversation.conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 10) :
-                        Conversation.send(@topic).conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 10)
-                     else
-                       @topic == 'All' ?
-                        Conversation.all_onversations(online_user).paginate(page: params[:page], per_page: 10) :
-                        Conversation.send(@topic).all_onversations(online_user).paginate(page: params[:page], per_page: 10)
-                     end
+    @topic = params[:topic].present? ? params[:topic] : "All"
+    if @query.present? and @topic.present?
+      @conversations = @topic == "All" ?
+                           Conversation.conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 10) :
+                           Conversation.send(@topic).conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 10)
+    else
+      @conversations = @topic == "All" ?
+                           Conversation.all_onversations(online_user).paginate(page: params[:page], per_page: 10) :
+                           Conversation.send(@topic).all_onversations(online_user).paginate(page: params[:page], per_page: 10)
+
+    end
     # group_ids = Group.user_chat_groups(online_user, current_company).ids
     # debugger
     # @conversationsselect { |con| group_ids.include?(con.chatable_id) }
@@ -111,31 +114,31 @@ class Company::ConversationsController < Company::BaseController
     elsif params[:contactid].present?
       user = current_company.company_contacts.where(id: params[:contactid]).first.user
     else
-      flash[:error] = 'Select any one option.'
+      flash[:error] = "Select any one option."
       redirect_to company_conversations_path(conversation: conversation.id)
       return
     end
-    if params[:chatctype] == 'Group'
+    if params[:chatctype] == "Group"
       group = Group.find(params[:chatcid])
       if group.groupables.create(groupable: user)
-        flash[:success] = 'Member is added to the group'
+        flash[:success] = "Member is added to the group"
       else
         flash[:errors] = group.errors.full_messages
       end
     else
-      user1 = if params[:chatctype] == 'Candidate'
-                Candidate.where(id: params[:chatcid]).first
-              elsif params[:chatctype] == 'Company'
-                Company.where(id: params[:chatcid]).first
-              else
-                User.find(params[:chatcid])
-              end
-      name = current_user.full_name + ', ' + user.full_name + ', ' + user1.full_name
-      group = Group.create(group_name: name, company_id: current_company.id, member_type: 'Chat')
+      if params[:chatctype] == "Candidate"
+        user1 = Candidate.where(id: params[:chatcid]).first
+      elsif params[:chatctype] == "Company"
+        user1 = Company.where(id: params[:chatcid]).first
+      else
+        user1 = User.find(params[:chatcid])
+      end
+      name = current_user.full_name + ", " + user.full_name + ", " + user1.full_name
+      group = Group.create(group_name: name, company_id: current_company.id, member_type: "Chat")
       group.groupables.create(groupable: current_user)
       group.groupables.create(groupable: user)
       group.groupables.create(groupable: user1)
-      conversation.update(chatable: group, topic: 'GroupChat')
+      conversation.update(chatable: group, topic: "GroupChat")
     end
     redirect_back(fallback_location: current_company.etyme_url)
   end
@@ -160,11 +163,11 @@ class Company::ConversationsController < Company::BaseController
 
   def create_or_find_conversation
     @chat_with = find_mini_chat_user
-    user_groups = Group.where(member_type: 'Chat').joins(user_or_admin(current_user)).where('groupables.groupable_id = ?', current_user.id).ids
-    chat_with_groups = Group.where(member_type: 'Chat').joins(user_or_admin(@chat_with)).where('groupables.groupable_id = ?', @chat_with.id).ids
+    user_groups = Group.where(member_type: 'Chat').joins(user_or_admin(current_user)).where("groupables.groupable_id = ?", current_user.id).ids
+    chat_with_groups = Group.where(member_type: 'Chat').joins(user_or_admin(@chat_with)).where("groupables.groupable_id = ?", @chat_with.id).ids
     groups = user_groups & chat_with_groups
     conversation = Conversation.OneToOne.where(chatable_id: groups).first
-    conversation || create_one_to_one_conversation
+    conversation ? conversation : create_one_to_one_conversation
   end
 
   def create_one_to_one_conversation
@@ -174,13 +177,17 @@ class Company::ConversationsController < Company::BaseController
     Conversation.OneToOne.create(chatable: group)
   end
 
+
   def set_activity_for_job_application
-    @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order('created_at desc') if @conversation&.job_application.present?
+    if @conversation&.job_application.present?
+      @activities = PublicActivity::Activity.where(recipient: @conversation.job_application).order("created_at desc")
+    end
   end
 
   def online_user
     current_user.present? ? current_user : current_candidate
   end
+
 
   def find_attachments
     @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
@@ -191,7 +198,7 @@ class Company::ConversationsController < Company::BaseController
   end
 
   def get_main_signer
-    candidate = @conversation.chatable.groupables.where(groupable_type: 'Candidate').first.groupable
+    candidate = @conversation.chatable.groupables.where(groupable_type: "Candidate").first.groupable
     candidate.present? ? candidate : current_company.users.find_by(id: params[:signers]&.last)
   end
 
@@ -242,4 +249,5 @@ class Company::ConversationsController < Company::BaseController
   #   # @groups = current_user.groups
   #   @conversations =  Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", "User", current_user.id, "User", current_user.id).order("conversation_messages.created_at DESC").uniq
   # end
+
 end

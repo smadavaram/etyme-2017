@@ -1,16 +1,143 @@
-%h4.auth-header Forget Password
-= form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'forgot-password-form', class: '',method: :post }) do |f|
-  = devise_error_messages!
-  - flash.each do |key, value|
-    %div{class: " #{flash_class(key.to_sym) }"}
-      = value
-  .form-group.field-group
-    %label{:for => "user_email"} Email
-    = f.email_field :email, autofocus: true,class:'form-control field',placeholder:"Enter Email",required: true
-    .help-block.form-text.with-errors.form-control-feedback
-    .pre-icon.os-icon.os-icon-email-2-at2
-  = f.submit 'Reset Password',class:'form-btn btn btn-primary'
+%body
+  %header.header-login
+    .container
+      .content
+        .row
+          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
+            %i.fa.fa-coffee
+            Forgot Password
+          %p Log in and get to work.
+  %section.banner-login
+    .container
+      .row
+        %main.main.main-signup.col-lg-12
+          .col-lg-6.col-lg-offset-3.text-center
+            .form-sign
+              = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'forgot-password-form', class: 'lockscreen animated flipInY',method: :post }) do |f|
+                = devise_error_messages!
+                .form-head
+                  %h3 Forgot Password
+                / /.form-head
+                .form-body
+                  - flash.each do |key, value|
+                    %div{class: " #{flash_class(key.to_sym) }"}
+                      = value
+                  .form-row
+                    .form-controls
+                      = f.email_field :email, autofocus: true,class:' field',placeholder:"Enter Email",required: true
+                .form-foot
+                  .form-actions
+                    = f.submit 'Reset Password',class:'form-btn'
+                  / /.form-actions
+                  .form-head
+                    = link_to 'Remember Password?', new_candidate_session_path ,class: "more-link"
 
 -content_for :scripts do
   :javascript
     $('#forgot-password-form').validate();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-#- content_for :html_id, "extr-page"
+-#- content_for :body_class, "animated fadeInDown"
+-#- content_for :top_right do
+  %span#extr-page-header-space
+    %span.hidden-mobile.hiddex-xs Need an account?
+    = link_to 'Create account', new_candidate_registration_path, class: 'btn btn-danger'
+/ MAIN CONTENT
+-##content.container
+  .row
+    .col-xs-12.col-sm-12.col-md-7.col-lg-8.hidden-xs.hidden-sm
+      %h1.txt-color-red.login-header-big #{SITE_NAME}
+      .hero
+        .pull-left.login-desc-box-l
+          %h4.paragraph-header It's Okay to be Smart. Experience the simplicity of SmartAdmin, everywhere you go!
+          .login-app-icons
+            %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Frontend Template
+            %a.btn.btn-danger.btn-sm{:href => "javascript:void(0);"} Find out more
+        = image_tag 'demo/iphoneview.png', class: 'pull-right display-image', alt: '', style: 'width:210px'
+      .row
+        .col-xs-12.col-sm-12.col-md-6.col-lg-6
+          %h5.about-heading About SmartAdmin - Are you up to date?
+          %p
+            Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa.
+        .col-xs-12.col-sm-12.col-md-6.col-lg-6
+          %h5.about-heading Not just your average template!
+          %p
+            Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi voluptatem accusantium!
+    .col-xs-12.col-sm-12.col-md-5.col-lg-4
+      .well.no-padding
+        = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'login-form', class: 'smart-form client-form',method: :post }) do |f|
+          = devise_error_messages!
+          %header
+            Forgot Password
+          %fieldset
+            %section
+              %label.label Enter your email address
+              %label.input
+                %i.icon-append.fa.fa-envelope
+                = f.email_field :email, autofocus: true
+                %b.tooltip.tooltip-top-right
+                  %i.fa.fa-envelope.txt-color-teal
+                  Please enter email address for password reset
+              .note
+                %a{href: new_candidate_session_path} I remembered my password!
+          %footer
+            %button.btn.btn-primary{:type => "submit"}
+              %i.fa.fa-refresh
+              Reset Password
+      %h5.text-center - Or sign in using -
+      %ul.list-inline.text-center
+        %li
+          %a.btn.btn-primary.btn-circle{:href => "javascript:void(0);"}
+            %i.fa.fa-facebook
+        %li
+          %a.btn.btn-info.btn-circle{:href => "javascript:void(0);"}
+            %i.fa.fa-twitter
+        %li
+          %a.btn.btn-warning.btn-circle{:href => "javascript:void(0);"}
+            %i.fa.fa-linkedin
+
+
+
+
+
+
+-#<h2>Forgot your password?</h2>
+-#
+-#<%= simple_form_for(resource, as: resource_name, url: password_path(resource_name), html: { method: :post }) do |f| %>
+-#  <%= f.error_notification %>
+-#
+-#  <div class="form-inputs">
+-#    <%= f.input :email, required: true, autofocus: true %>
+-#  </div>
+-#
+-#  <div class="form-actions">
+-#    <%= f.button :submit, "Send me reset password instructions" %>
+-#  </div>
+-#<% end %>
+-#
+-#<%= render "candidates/shared/links" %>

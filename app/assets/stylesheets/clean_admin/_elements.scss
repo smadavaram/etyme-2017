@@ -1656,12 +1656,12 @@ a.el-tablo {
   border-radius: $global-border-radius;
   position: relative;
   &.purple {
-    //background-image: url('../img/cta-pattern-light.png'), linear-gradient(-180deg, #4B72FA 0%, #934BFA 100%);
+    background-image: url('../img/cta-pattern-light.png'), linear-gradient(-180deg, #4B72FA 0%, #934BFA 100%);
     background-size: cover;
     color: #fff;
   }
   &.orange {
-    //background-image: url('../img/cta-pattern-light.png'), linear-gradient(-180deg, #FF218E 0%, #E36C0F 100%);
+    background-image: url('../img/cta-pattern-light.png'), linear-gradient(-180deg, #FF218E 0%, #E36C0F 100%);
     background-size: cover;
     color: #fff;
 

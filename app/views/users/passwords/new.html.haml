@@ -1,12 +1,35 @@
-%h4.auth-header Forget Password
-= form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'new_user forgot-password-form', class: 'new_user',method: :post }) do |f|
-  .form-group.field-group
-    %label{:for => "user_email"} Email
-    = f.email_field :email, autofocus: true,id: 'user_email', class:'form-control field', placeholder: "Enter Email", required: true
-    .help-block.form-text.with-errors.form-control-feedback
-      %a{:href => "/register"} Don't have an account?
-    .pre-icon.os-icon.os-icon-email-2-at2
-  = f.submit 'Reset Password',class:'float form-btn btn btn-primary'
+%body
+  %header.header-login
+    .container
+      .content
+        .row
+          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
+            %i.fa.fa-coffee
+            Forgot Password
+          %p Log in and get to work.
+  %section.banner-login
+    .container
+      .row
+        %main.main.main-signup.col-lg-12
+          .col-lg-6.col-lg-offset-3.text-center
+            .form-sign
+              = form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'forgot-password-form', class: 'lockscreen animated flipInY',method: :post }) do |f|
+                = devise_error_messages!
+                .form-head
+                  %h3 Forgot Password
+                / /.form-head
+                .form-body
+                  - flash.each do |key, value|
+                    = flash_message(key,value)
+                  .form-row
+                    .form-controls
+                      = f.email_field :email, autofocus: true,class:' field',placeholder:"Enter Email",required: true
+                .form-foot
+                  .form-actions
+                    = f.submit 'Reset Password',class:'form-btn'
+                  / /.form-actions
+                  .form-head
+                    = link_to 'Remember password?', new_user_session_path ,class: "more-link"
 
 -content_for :scripts do
   :javascript

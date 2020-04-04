@@ -6,8 +6,6 @@
           %strong Document Submission Request
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
-      %div
-        = link_to 'Add Document', '/attachments', class: 'btn btn-primary pull-right mr-3', target: '_blank'
       =form_tag(company_conversation_chat_docusign_path(conversation)) do
         .modal-body#rate-confirmation-modal-body
           = hidden_field_tag 'conversation_id', conversation.id
@@ -22,7 +20,7 @@
                   %th Expiry Date
                   %th Is Require
                   %th Attachments
-                %tbody{"data-for": "Candidate", "data-require": "signature", "data-type": "Job"}
+                %tbody
                   - current_company.candidate_job_templates.each do |doc|
                     %tr.even{:role => "row"}
                       %td

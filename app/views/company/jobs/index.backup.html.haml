@@ -56,7 +56,7 @@
                           %td= job.created_by.full_name  rescue "  --"
                           %td= job.is_active? ? job.status : "Job expired"
                           %td{"style" => "min-width: 80px;"}
-                            - if job.try(:chat).present? && job.try(:chat).chat_user?(current_user)
+                            - if job.try(:chat).present? && job.try(:chat).is_chat_user?(current_user)
                               = link_to raw("<i class='fa fa-comment '></i>") , company_chat_path(job.try(:chat) ) ,target: '_blank' , class: '',title: "Chat of  #{truncate(job.title.titleize,length:50)}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                             - if has_permission?("manage_job")
                               = link_to raw("<i class='fa fa-edit '></i>") , edit_job_path(job) , class: '',title: "Edit  #{job.title.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"

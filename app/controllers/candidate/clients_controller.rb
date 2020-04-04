@@ -1,11 +1,9 @@
-# frozen_string_literal: true
-
 class Candidate::ClientsController < Candidate::BaseController
   before_action :set_client, only: :update
 
   def update
     if @client.update(client_params)
-      flash[:success] = 'Successfully updated Client Info'
+      flash[:success] = "Successfully updated Client Info"
     else
       flash[:errors] = @client.errors.full_messages
     end

@@ -99,6 +99,13 @@
 -content_for :scripts do
   :javascript
     $(document).ready(function(){
+    $(".market_place_field").change(function() {
+      $("#market_place_form").submit()
+    });
+    $(".ti-layout-grid2-thumb").click(function(){
+      $(".popup-custom").fadeToggle("slow");
+
+    });
     setcategories($("#candidate_category").val());
     $(document).on("change","#candidate_category", function(){
       setcategories($(this).val());
@@ -123,5 +130,11 @@
         }
       });
     }
+
+
+
+
+
+
       default_active_nav('.ln-4');
     })

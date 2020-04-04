@@ -9,6 +9,10 @@
     border-radius: 50%;
 }
 
+.image_bench img {
+    margin-left: 55px;
+}
+
 .image-35 {
     height: 35px;
     width: 35px;

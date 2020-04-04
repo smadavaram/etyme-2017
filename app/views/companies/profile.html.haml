@@ -298,3 +298,128 @@
           .element-box-tp
             There is no client.
   :css
+    #company_profile_pic:hover #company_info{
+      opacity: 0.7 !important;
+      transform: scaleY(1);
+      transition: all .4s;
+      transform-origin: bottom;
+    }
+    .profile-wrapper{
+      transform: scaleY(0);
+      transition: all .4s;
+      transform-origin: bottom;
+    }
+
+-##content
+-#  .panel
+-#    .panel-heading
+-#      %strong
+-#        .row
+-#          .col-sm-3
+-#            %a
+-#              = image_tag @company.logo.present? ? @company.logo : asset_path('default-lcom-ogo.png'), style: "width:100px;height:100px;"
+-#              %h2
+-#                = @company.name.titleize
+-#          .col-sm-4.col-sm-offset-5
+-#            -#%b
+-#            -#  = @company.name.titleize
+-#            -#%br/
+-#            -#%br/
+-#            = "Telephone:  #{@company.phone}"
+-#            %br/
+-#            Email:
+-#            %a= @company.email
+-#            %br/
+-#            %a= @company.google_url
+-#      %hr
+-#      %ul{:style => "list-style: none outside none;text-align:justify;padding:10px;overflow: auto;line-height:25px;"}
+-#        %b About
+-#        %li
+-#          = @company.description
+-#        %br
+-#        %b Locations
+-#        .row
+-#          .col-sm-12
+-#            - @company.locations.each do |location|
+-#              .col-sm-4
+-#                %br
+-#                %b= "#{location.name}"
+-#                %br
+-#                = location.address.address_1
+-#                %br
+-#                = "#{location.address.zip_code}   #{location.address.city.try(:titleize)}   #{CS.get(location.address.country)[location.address.state.to_sym]}"
+-#                %br
+-#                = CS.countries()[location.address.country.to_sym]
+-#        %br/
+-#        .row
+-#          .col-sm-12
+-#            %hr/
+-#            .padding-10
+-#              %ul.nav.nav-tabs.tabs-pull-right
+-#                %li.active
+-#                  %a{"data-toggle" => "tab", :href => "#a1"} Comments
+-#                - if @company.invited_by.present?
+-#                  %li
+-#                    %a{"data-toggle" => "tab", :href => "#a2"} Contacts
+-#              -#%li.pull-left
+-#              -#  %span.margin-top-10.display-inline
+-#              -#    %i.fa.fa-rss.text-success
+-#              -#    Activity
+-#              .tab-content.padding-top-10
+-#                #a1.tab-pane.fade.in.active
+-#                  .row
+-#                    .col-sm-12.col-lg-12
+-#                      .panel.panel-default
+-#                        .panel-body.status
+-#                          %ul.links
+-#                          %ul.comments
+-#                            - @company.comments.each do |comment|
+-#                              = render 'company/comments/partials/comment_li' , comment: comment
+-#                            %li.message
+-#                              = image_tag current_user.try(:photo) , class: 'online'
+-#                              %span.message-text
+-#                                = form_for Comment.new do |c|
+-#                                  .col-md-10
+-#                                    = c.text_field :body , class: 'form-control' , placeholder: "Post your comment..."
+-#                                    = c.hidden_field :commentable_type , value: 'Company'
+-#                                    = c.hidden_field :commentable_id   , value:  @company.id
+-#                                  .col-md-2
+-#                                    = c.button "Comment".html_safe, data: {disable_with: disable_spinning("Comment...")} , class: 'btn btn-primary btn-sm'
+-#                                  %br/
+-#                                  %br/
+-#                - if @company.try(:invited_by).present?
+-#                  #a2.tab-pane.fade.in
+-#                    .row
+-#                      .col-sm-12.col-lg-12
+-#                        / your contents here
+-#                        .panel.panel-default
+-#                          .panel-body.status
+-#                            #wid-id-5.no-border
+-#                              %div
+-#                                .widget-body
+-#                                  .col-md-12
+-#                                    .row
+-#                                      .col-xs-12.col-sm-3.col-md-3.col-lg-3.pull-right
+-#                                        %button.btn.btn-success.btn-md.pull-right.header-btn.hidden-mobile.margin-bottom-5{"data-target" => "#new-contract-company", "data-toggle" => "modal", :name => "button", :type => "submit"} Add
+-#                                    .table{:style => "width:100"}
+-#                                      %table#resultTable.table.table-striped.table-bordered.table-hover
+-#                                        %thead
+-#                                          %tr
+-#                                            %th Name
+-#                                            %th Email
+-#                                            %th Title
+-#                                            %th Phone
+-#                                        %tbody
+-#                                          - @company_contacts.each_with_index do |contact , index|
+-#                                            %tr
+-#                                              -#%td= image_tag consultant.photo, alt: '', width: '20'
+-#                                              %td= link_to contact.try(:full_name) , "#"
+-#                                              %td= contact.try(:email)
+-#                                              %td= contact.try(:title)
+-#                                              %td= contact.try(:phone)
+-#                              -#= digg_pagination(@company_contacts)
+-#                              -#                      %br/
+-#                              -#                      %br/
+-#- content_for :modals do
+-#  #job_invitation
+-#  = render 'company/companies/partials/new_company'

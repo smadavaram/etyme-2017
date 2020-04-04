@@ -11,7 +11,7 @@
                   .controls-above-table
                     .row.mr-1.ml-1
                       .col-sm-6
-                        =link_to 'Add User' , new_company_company_path , local: true , class: 'btn btn-primary', target: '_blank'
+                        =link_to 'NEW' , new_company_company_path , local: true , class: 'btn btn-primary', target: '_blank'
                       .col-sm-6
                         .form-inline.justify-content-sm-end
                           %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'company_admin_search'}
@@ -22,6 +22,7 @@
                           %th{"data-hide" => "phone"} Name
                           %th Phone Number
                           %th Email
+                          %th Type
                           %th Roles
                           %th{"data-hide" => "phone,tablet"}
                             Actions
@@ -29,16 +30,17 @@
                         - @admins.each_with_index do |admin , index|
                           %tr
                             %td= link_to admin.full_name , company_user_profile_path(admin)  , target: '_blank'
-                            %td= admin.phone
+                            %td= link_to admin.phone, company_user_profile_path(admin)  , target: '_blank'
                             %td= link_to admin.email, company_user_profile_path(admin)  , target: '_blank'
+                            %td= admin.type
                             %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
-                            %td.no-wrap
-                              = link_to raw("<i class='fa fa-bell-o '></i>"),company_company_add_reminder_path(admin)  ,class: 'data-table-icons', remote: :true,title: "Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                              = link_to raw("<i class='fa fa-edit '></i>") , edit_admin_path(admin) , class: 'data-table-icons' ,remote: true,title: "Edit #{admin.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                              = link_to raw("<i class='fa fa-users '></i>"), company_user_assign_groups_path(admin) , remote:true,class: 'data-table-icons',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                              = link_to raw("<i class='fa fa-trash '></i>"), company_user_path(admin) ,class: 'data-table-icons',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top", :method=>:delete
+                            %td
+                              = link_to raw("<i class='fa fa-bell '></i>"),company_company_add_reminder_path(admin)  ,class: 'btn  btn-xs btn-default margin-bottom-5', remote: :true,title: "Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-edit '></i>") , edit_admin_path(admin) , class: 'btn btn-xs btn-default  margin-bottom-5' ,remote: true,title: "Edit #{admin.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-users '></i>"), company_user_assign_groups_path(admin) , remote:true,class: 'btn btn-xs btn-default margin-bottom-5',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-trash-o '></i>"), company_user_path(admin) ,class: 'btn btn-xs btn-default margin-bottom-5',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top", :method=>:delete
                               -if admin.roles.where(name: "Manager").present?
-                                = link_to raw("<i class='os-icon os-icon-users'></i>"), admin_add_member_path(admin) ,class: 'data-table-icons',title: "Add Team Member",'data-toggle'=>"tooltip" ,'data-placement'=>"top", remote: true
+                                = link_to raw("<i class='os-icon os-icon-users'></i>"), admin_add_member_path(admin) ,class: 'btn btn-xs btn-default margin-bottom-5',title: "Add Team Member",'data-toggle'=>"tooltip" ,'data-placement'=>"top", remote: true
                               -#= link_to raw("<i class='fa fa-times '></i>") , admin_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,title: "Delete #{admin.full_name}" ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}
                     - if @admins.count >15
                       .dt-toolbar-footer

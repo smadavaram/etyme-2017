@@ -36,4 +36,4 @@
         %ul
           -@job.education_list.each do |el|
             %li=el
-    = link_to 'Apply',apply_bench_path(@job, candidate_id: current_candidate.id), class: "btn btn-sm btn-primary margin-bottom-5 #{'disableClick' if current_candidate.already_applied?(@job.id)}",title: "Assign Groups", method: :post, remote: true, disabled: current_candidate.already_applied?(@job.id)
+    = link_to 'Apply',apply_bench_path(@job, candidate_id: current_candidate.id), class: "btn btn-sm btn-primary margin-bottom-5 #{'disableClick' if current_candidate.is_already_applied?(@job.id)}",title: "Assign Groups", method: :post, remote: true, disabled: current_candidate.is_already_applied?(@job.id)

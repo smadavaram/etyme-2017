@@ -1,11 +1,33 @@
-%h4.auth-header Sign In
-= form_tag signin_path,id: 'new_user',class: 'new_user', method: :post do
-  .form-group.field-group
-    %label{:for => "user_email"} Email
-    = email_field_tag :email,nil ,placeholder: 'Enter Work Email', required: true,class: 'form-control',id: 'user_email'
-    .help-block.form-text.with-errors.form-control-feedback
-      %a{:href => "/register"} Don't have an account?
-    .pre-icon.os-icon.os-icon-email-2-at2
-  = submit_tag :continue, class: "float btn btn-primary form-btn"
+- provide(:body_class, 'full-screen')
 
-:css
+#sectionIntro.intro-w.layout-v1
+  .os-container
+    .fade2
+    .call-to-action.p-0
+      .h3.cta-header
+        %i.fa.fa-coffee
+        Company Login
+      .h3.cta-header
+        %p Log in and get to work.
+
+%section.banner-login
+  .container
+    .row
+      %main.main.main-signup.col-lg-12
+        .col-lg-6.offset-lg-3.text-center
+          .form-sign
+            %form.lockscreen.animated.flipInY{method: 'post' , url: signin_path}
+              .form-head
+                %h3 Sign in to your team
+              / /.form-head
+              .form-body
+                - flash.each do |key, value|
+                  = flash_message(key,value)
+                .form-row
+                  %input.field{:name => "email", :placeholder => "Enter Your Email", :type => "email", required: true }/
+              .form-foot
+                .form-actions
+                  %input.form-btn{:type => "submit", :value => "Continue"}/
+                / /.form-actions
+                .form-head
+                  = link_to 'Are Already Signup there?', new_candidate_password_path ,class: "more-link"

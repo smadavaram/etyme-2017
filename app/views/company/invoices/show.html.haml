@@ -1,76 +1,147 @@
-- invoice = @invoice
-.contract-fields_wrapper.m-4
-  %div{style: "display: inline-block;"}
-    = image_tag(asset_url('etyme-logo-dark.png'),style: "width: 60px;height: 60px;")
-  %div{style: "display: inline-block; float: right; padding-top: 10px;"}
-    %b Sent Date
-    %span{style: 'color: #1AAE9F;'}= invoice.contract.start_date.strftime('%d/%m/%Y')
-    %br
-    %b Due Date
-    %span{style: 'color: #1AAE9F;'}= invoice.due_date
-  %div{style: "margin-top: 20px;"}
-    %div
-      %div{style: "text-align: center;font-size: 20px;"}
-        %p= invoice.contract.title.capitalize
+%body
+  - content_for :ribbon do
+    #ribbon
+      %span.ribbon-button-alignment
+        %span#refresh.btn.btn-ribbon{"data-action" => "resetWidgets", "data-html" => "true", "data-original-title" => "<i class='text-warning fa fa-warning'></i> Warning! This will reset all your widget settings.", "data-placement" => "bottom", "data-title" => "refresh", :rel => "tooltip"}
+          %i.fa.fa-refresh
+      %ol.breadcrumb
+        %li Home
+        %li Miscellaneous
+        %li Invoice
+  #content
+    %section#widget-grid
+      .row
+        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
+          #wid-id-0.jarviswidget.well.jarviswidget-color-darken{"data-widget-colorbutton" => "false", "data-widget-deletebutton" => "false", "data-widget-editbutton" => "false", "data-widget-sortable" => "false"}
+            %div
+              .jarviswidget-editbox
+              .widget-body.no-padding
+                .widget-body-toolbar
+                  .text-center
+                    %h1.font-400
+                      = @contract.title
+                    %h2.font-xl
+                      %label Invoice#
+                      = @invoice.id
+                    %h2.font-xl
+                      = @invoice.start_date.to_s(:long)+" -- " + @invoice.end_date.to_s(:long)
+                  .clearfix
+                  %br/
+                  %br/
+                  .row
+                    .col-sm-3.pull-left{style:"margin-left: 22px;"}
+                      %br/
+                      %strong.font-xl From
+                      %h4.semi-bold= @contract.company.name.titleize
+                      %address
+                        %strong= @contract.job.company.name.titleize
+                        %br/
+                        = @contract.job.location
+                        %br/
+                        = @contract.job.company.phone
+                    .col-sm-3.pull-right{style:"margin-right: -56px;"}
+                      %br/
+                      %strong.font-xl To
+                      %h4.semi-bold= @contract.respond_by.company.name.titleize
+                      %address
+                        %strong= @contract.respond_by.full_name.titleize
+                        %br/
+                        =#show_address(@contract.assignee.try(:primary_address_id)).address_1
+                        =#show_address(@contract.assignee.try(:primary_address_id)).city
+                        =#show_address(@contract.assignee.try(:primary_address_id)).zip_code
+                        =#show_address(@contract.assignee.try(:primary_address_id)).country
+                        %br/
+                        =# @contract.assignee.company.phone
+                    .col-sm-3
+                      %div
+                        %div
+                          -#%strong INVOICE NO :
+                          -#%span.pull-right.text-center # #{@invoice.id}
+                      -#%div
+                      -#  .font-md
+                      -#    %strong START DATE :
+                      -#    %span.pull-right
+                      -#      %i.fa.fa-calendar
+                      -#      = @invoice.start_date.strftime('%m/%d/%y')
+                      -#%div
+                      -#  .font-md
+                      -#    %strong END DATE :
+                      -#    %span.pull-right
+                      -#      %i.fa.fa-calendar
+                      -#      = @invoice.end_date.strftime('%m/%d/%y')
+                      -#%br/
+                      -#.well.well-sm.bg-color-darken.txt-color-white.no-border
+                      -#  .fa-lg
+                      -#    Total Due :
+                      -#    %span.pull-right 4,972 USD**
+                      -#%br/
+                      %br/
+                  %table.table.table-hover
+                    %thead
+                      %tr
+                        %th.text-center #
+                        %th
+                        %th DATE
+                        %th PRICE
+                        %th HOURS
+                        %th SUBTOTAL
+                    %tbody
+                      - total_amount = 0.0
+                      - @timesheet_logs.order(transaction_day: :desc).each_with_index do |timesheet_log , index|
+                        - total_amount = total_amount + (@invoice.rate * timesheet_log.accepted_hours)
+                        %tr
+                          %td.text-center
+                            %strong= index +1
+                          %td
+                          %td
+                            = link_to timesheet_log.transaction_day.strftime('%B %d, %Y') , timesheet_timesheet_log_path(timesheet_log.timesheet, timesheet_log) ,  target: '_blank'
+                            -#%a{:href => "javascript:void(0);"} #{}
+                          -#-#%td Perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium totam rem aperiam xplicabo.
+                          %td $#{@invoice.rate}
+                          %td= timesheet_log.accepted_hours
+                          %td $#{@invoice.rate * timesheet_log.accepted_hours}
+                      %tr
+                        %td{:colspan => "5"} Total
+                        %td
+                          %strong $#{total_amount}
+                      -if @contract.is_received?(current_company)
+                        %tr
+                          %td{:colspan => "5"} Consultant Amount
+                          %td
+                            %strong $#{@invoice.consultant_amount}
+                        - if  @invoice.contract.is_commission
+                          %tr
+                            %td{:colspan => "5"} Commission
+                            %td
+                              %strong $#{@invoice.commission_amount}
+                  .invoice-footer
+                    .row
+                      .col-sm-7
+                        .payment-methods
+                      .col-sm-5
+                        .invoice-sum-total.pull-right
+                          -if @contract.is_received?(current_company)
+                            %h3
+                              %strong
+                                Gross Profit:
+                                %span.text-success #{@invoice.billing_amount > 0 ? '$'+ @invoice.billing_amount.to_s : '- $'+@invoice.billing_amount.to_s }
+                          -else
+                            %h3
+                              %strong
+                                Total:
+                                %span.text-success $#{@invoice.total_amount }
+                    .row
+                      .col-sm-12
+                        .btn-group.pull-left
+                          =link_to raw("Download") , download_contract_invoice_path(@contract,@invoice) , class: 'btn btn-sm btn-success'
+                        .btn-group.pull-right
 
-    .col-sm-6{style: "justify-content: space-between;"}
-      %div{style: "width: 100%;display: inline-block;" }
-        %div{style: "display: inline-block;"}
-          %b Sender Company
-          %p=invoice.sender_company.name
-        %div{style: "display: inline-block;float: right;"}
-          %b Receiver Company
-          %p=invoice.receiver_company.name
-
-  .row
-    .table-responsive.p-4
-      - if invoice.timesheet_invoice?
-        %b.mb-1 Added Timesheet(s)
-        %table.table.table-striped.table-bordered.table-v2.table-lg
-          %thead
-            %tr
-              %th Ts Id
-              %th Ts Type
-              %th Contract ID & Title - Client
-              %th From & To Date
-              %th Total Hr
-          %tbody
-            - invoice.invoice_items.each do |ii|
-              %tr
-                - ts = ii.itemable
-                - user = ts.contract_cycle.cycle_of.company
-                %td= ts.id
-                %td= ts.contract_cycle.cycle_frequency.capitalize
-                %td= ts.contract.title
-                %td= "#{ts.start_date} - #{ts.end_date}"
-                %td= ts.calculate_total_time
-      -else
-        %b.mb-1 Added Expense(s)
-        %table.table.table-striped.table-bordered.table-v2.table-lg
-          %thead
-            %tr
-              %th Exp ID
-              %th Exp Type
-              %th Contract ID & Title - Client
-              %th Customer
-              %th Status
-              %th From & To Date
-              %th Total Price
-          %tbody
-            - invoice.invoice_items.each do |ii|
-              - ce = ii.itemable
-              %tr
-                %td= ce.id
-                %td= ce.contract_cycle.cycle_frequency.capitalize
-                %td= ce.contract.title
-                %td=user_image(ce.company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{ce.company.full_name}" )
-
-                %td= snake_to_words(ce.status)
-                %td= "#{ce.start_date} - #{ce.end_date}"
-                %td= ce.amount
+                        -if @contract.is_received?(current_company) && @invoice.pending_submission? && current_user.is_admin?
+                          =link_to raw("Submit")  ,accept_invoice_contract_invoice_path(@contract,@invoice), method: :post ,class: 'btn btn-success pull-right  ', data: {confirm: "Are you sure you want to Submit this invoice ?", verify: 'Submit', verify_text: "Type 'Submit' to confirm"}
+                          =link_to raw("Cancelled")  ,reject_invoice_contract_invoice_path(@contract,@invoice),method: :post, class: 'btn btn-default pull-right  ', data: {confirm: "Are you sure you want to Cancelled this invoice ?", verify: 'Cancel', verify_text: "Type 'Cancel' to confirm"}
 
 
-  .row
-    .col-sm-12.pr-4.text-right{style: "font-weight: bold;"}
-      ="Total payable: #{invoice.total_amount}"
 
+                    .row
+                      .col-sm-12
+                        %p.note **To avoid any excess penalty charges, please make payments within 30 days of the due date. There will be a 2% interest charge per month on all late invoices.
