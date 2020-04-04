@@ -165,7 +165,8 @@ class Company::InvoicesController < Company::BaseController
 
   def client_expense_invoice
     @invoice = Invoice.find(params[:id])
-    @client_expenses = ClientExpense.approved.joins(:contract_cycle).where.not(id: @invoice.client_expenses).where("contract_cycles.contract_id": current_company.contracts.ids, "contract_cycles.cycle_of_type": 'SellContract')
+    # @client_expenses = ClientExpense.approved.joins(:contract_cycle).where.not(id: @invoice.client_expenses).where("contract_cycles.contract_id": current_company.contracts.ids, "contract_cycles.cycle_of_type": 'SellContract')
+    @client_expenses = @invoice.contract.client_expenses
   end
 
   def update_expense_invoice

@@ -69,19 +69,21 @@
                 - @client_expenses.each do |ce|
                   %tr
                     %td= ce.id
-                    %td= ce.contract_cycle.cycle_frequency.capitalize
+                    %td= ce.class != ClientExpense ? ce.bill_type.titleize : ce.contract_cycle.cycle_frequency.titleize
                     %td= ce.contract.title
-                    %td= user_image(ce.company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{ce.company.full_name}" )
+                    %td= user_image(current_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{current_company.full_name}" )
                     %td= snake_to_words(ce.status)
-                    %td= "#{ce.start_date} - #{ce.end_date}"
-                    %td= ce.amount
+                    %td= ce.class != ClientExpense ? "#{ce.bill_date} - #{ce.due_date}" : "#{ce.start_date} - #{ce.end_date}"
+                    %td= ce.class != ClientExpense ? ce.total_amount : ce.amount
                     %td
-                      - if ce.not_submitted? and ce.company != current_company
-                        = link_to "<i class='fa fa-check '></i>".html_safe,client_expense_submit_path(ce),class:'c_green',title: 'Submit Client Expense', :data => {:confirm => 'Are you sure?'}
-                        = link_to "<i class='fa fa-edit '></i>".html_safe,edit_client_expense_path(ce),class:'',title: 'Edit Client Expense'
-                      - elsif ce.submitted? and ce.company == current_company
-                        = link_to "<i class='fa fa-check '></i>".html_safe,client_expense_approve_path(ce),class:'c_green',title: 'Accept Client Expense', :data => {:confirm => 'Are you sure?'}
-                        = link_to "<i class='fa fa-times '></i>".html_safe,client_expense_reject_path(ce),class:'c_red',title: 'Reject Client Expense', :data => {:confirm => 'Are you sure?'}
+                      -# - if ce.not_submitted? and ce.company != current_company
+                      -#   = link_to "<i class='fa fa-check '></i>".html_safe,client_expense_submit_path(ce),class:'c_green',title: 'Submit Client Expense', :data => {:confirm => 'Are you sure?'}
+                      -#   = link_to "<i class='fa fa-edit '></i>".html_safe,edit_client_expense_path(ce),class:'',title: 'Edit Client Expense'
+                      -# - elsif ce.submitted? and ce.company == current_company
+                      -#   = link_to "<i class='fa fa-check '></i>".html_safe,client_expense_approve_path(ce),class:'c_green',title: 'Accept Client Expense', :data => {:confirm => 'Are you sure?'}
+                      -#   = link_to "<i class='fa fa-times '></i>".html_safe,client_expense_reject_path(ce),class:'c_red',title: 'Reject Client Expense', :data => {:confirm => 'Are you sure?'}
+                      -#
+
 
         .timesheet_pagination_wrap.mt-2
           .pagination_label

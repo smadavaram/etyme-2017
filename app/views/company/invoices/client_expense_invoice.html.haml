@@ -19,9 +19,9 @@
             %tr
               %td= "<input type='checkbox' id='ts_ids' name='ids[]' value='#{ce.id}'>".html_safe
               %td= ce.id
-              %td= ce.contract_cycle.cycle_frequency.capitalize
+              %td= ce.expense_items.pluck(:expense_type).join(",")
               %td= ce.contract.title
-              %td =user_image(ce.company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{ce.company.full_name}" )
+              %td= user_image(ce.company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{ce.company.full_name}" )
               %td= snake_to_words(ce.status)
               %td= "#{ce.start_date} - #{ce.end_date}"
               %td= ce.amount

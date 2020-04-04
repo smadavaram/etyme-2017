@@ -50,16 +50,22 @@ class Company::SalariesController < Company::BaseController
                                     .where("contracts.id": current_company.contracts.select(:id))
                                     .where('contract_cycles.start_date between ? and ? and contract_cycles.end_date between ? and ?', start, end_date, start, end_date)
                                     .order('created_at')
+
     @contract_cycles.each do |cc|
       next unless %i[pending open].include?(cc.cyclable.status.to_sym)
 
-      timesheets = Timesheet.approved.joins(:contract_cycle)
-                            .where("contract_cycles.contract_id": cc.contract_id, "contract_cycles.cycle_of_type": 'BuyContract', candidate: cc.contract.candidate)
-                            .where('timesheets.end_date <= ? ', cc.end_date.to_date)
+      # timesheets = Timesheet.approved.joins(:contract_cycle).where("contract_cycles.contract_id": cc.contract_id, "contract_cycles.cycle_of_type": 'BuyContract', candidate: cc.contract.candidate).where('timesheets.end_date <= ? ', cc.end_date.to_date)
+      timesheets = Timesheet.approved.joins(:contract_cycle).where("contract_cycles.contract_id": cc.contract_id)
       timesheets.each do |ts|
         cc.cyclable.salary_items.build(salaryable: ts).save
       end
-      expenses = cc.contract.expenses.where(bill_type: %i[salary_advanced company_expense]).where.not(status: :salaried)
+      # expenses = cc.contract.expenses.where(bill_type: %i[salary_advanced company_expense]).where.not(status: :salaried)
+      expenses = cc.contract.expenses.where(bill_type: %i[salary_advanced company_expense])
+      cc.cyclable.salary_items.each { |s| puts s.inspect }
+      cc.cyclable.contract_expenses = cc.contract.expenses.where(bill_type: "company_expense").sum(:total_amount)
+      cc.cyclable.salary_advance = cc.contract.expenses.where(bill_type: "salary_advanced").sum(:total_amount)
+      cc.cyclable.total_amount = (cc.cyclable.approved_amount || 0) + cc.cyclable.contract_expenses  +  cc.cyclable.salary_advance + (cc.cyclable.pending_amount || 0)
+      cc.cyclable.save
       expenses.each do |expense|
         cc.cyclable.salary_items.build(salaryable: expense).save if eval(expense.salary_ids).include?(cc.id.to_s)
       end

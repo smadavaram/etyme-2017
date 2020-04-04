@@ -16,8 +16,7 @@ function toogle_seller(target, selector) {
 
 
 $(document).ready(function () {
-    $(document).on('click', '.manager_team', function (e) {
-        $('#manager-team').modal('show');
+    $(document).on('change', '#sell_contract_company', function (e) {
         var endclientid = $('#select_clients').val();
         if (endclientid) {
             set_company_reporting_manger('#select_sell_company_contacts', "Please Select Or Add new Contacts-" + endclientid, "#sell_contract_company");
@@ -29,12 +28,19 @@ $(document).ready(function () {
         }
     });
 
-    $(document).on('change', '#sell_contract_company', function (e) {
-        console.log('changed');
+    $(document).on('change', '#select_clients', function (e) {
         var endclientid = $('#select_clients').val();
         if (endclientid) {
             set_company_reporting_manger('#select_sell_company_contacts', "Please Select Or Add new Contacts-" + endclientid, "#sell_contract_company");
         } else {
+            var sell_contract_company = $('#sell_contract_company').val();
+            if (sell_contract_company) {
+                set_company_reporting_manger('#select_sell_company_contacts', "Please Select Or Add new Contacts-" + sell_contract_company, "#sell_contract_company");
+            }
+        }
+    });
+    $('input[name="contract[is_client_customer]"]').change(function() {
+        if(this.value === "false"){
             var sell_contract_company = $('#sell_contract_company').val();
             if (sell_contract_company) {
                 set_company_reporting_manger('#select_sell_company_contacts', "Please Select Or Add new Contacts-" + sell_contract_company, "#sell_contract_company");
