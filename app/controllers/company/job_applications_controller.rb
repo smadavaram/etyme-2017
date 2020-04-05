@@ -28,7 +28,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def create
-    @job_application = current_company.sent_job_applications.new(job_application_params.merge!(applicationable_id: current_user.id, job_id: @job.id, job_invitation_id: @job_invitation.id, applicationable_type: 'User'))
+    @job_application = current_company.sent_job_applications.new(job_application_params.merge!(applicationable_id: current_user.id, job_id: @job.id, job_invitation_id: @job_invitation.id, applicationable_type: 'User', recruiter_company_id: 3))
     respond_to do |format|
       if @job_application.save
         format.js { flash.now[:success] = "Successfully Created." }
@@ -239,6 +239,8 @@ class Company::JobApplicationsController < Company::BaseController
 
     set_conversation(@job_application.applicationable)
     @activities = PublicActivity::Activity.where(recipient: @job_application).order("created_at desc")
+    @previous = JobApplication.where("id < ?", @job_application.id).sort.last
+    @next = JobApplication.where("id > ?", @job_application.id).sort.first
   end
 
   def open_inbox_conversation
@@ -325,6 +327,8 @@ class Company::JobApplicationsController < Company::BaseController
         group.groupables.create(groupable: user)
         group.groupables.create(groupable: current_user)
         group.groupables.create(groupable: user.associated_company.owner) if user.associated_company.owner
+        group.groupables.create(groupable: @job_application.recruiter_company) if user.associated_company.owner
+        group.groupables.create(groupable: @job_application.recruiter_company)  if @job_application.recruiter_company
       end
       @conversation = Conversation.create({chatable: group, topic: :JobApplication, job_application_id: @job_application.id}) if group.present?
     end
