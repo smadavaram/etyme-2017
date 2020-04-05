@@ -4,9 +4,14 @@
     <div class="element-wrapper pb-0">
       <div class="element-content">
         <div class="mt-2">
-          <div class="collapsible">
-            <h6 class="collapsible-click"><%=job_application.job.id %> : <%=job_application.job.title %><small>(<%=job_application.job.created_at.strftime("%d of %B, %Y") %>)</small></h6>
-
+          <div class="collapsible" style="display:inline-flex;">
+            <%if @previous%>
+              <span><%= link_to "<i class='fa fa-caret-left'></i>".html_safe, @previous,title:'Previous Job Application' %></span>
+            <%end%>
+             <span><h6 class="collapsible-click  align-job-header"><%=job_application.job.id %> : <%=job_application.job.title %><small>(<%=job_application.job.created_at.strftime("%d of %B, %Y") %>)</small></h6></span>
+            <%if @next%>
+              <span><%= link_to "<i class='fa fa-caret-right'></i>".html_safe, @next,title:'Next Job Application' %></span>
+            <%end%>
           </div>
           <div class="element-box w-100 text-justify job-application-collaps">
             <div class="col-lg-12">
@@ -40,21 +45,12 @@
             </div>
           </div>
         </div>
-        <% if local_assigns[:messages] && messages %>
-          <div class="mt-2">
-            <div class="collapsible">
-              <h6 class="collapsible-click" id="application_chat">Messages</h6>
-            </div>
-            <div class="element-box w-100 text-justify chat-collaps">
-              <%= render "company/conversations/job_conversation_box", conversation: conversation, nested_colap: nested_col %>
-              <%#= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable %>
-            </div>
-          </div>
-        <% end %>
       </div>
     </div>
   </div>
 </div>
+
+
 <%= content_for :modals do %>
   <div id="candidate_pre_screen_modal">
     <%= render 'shared/prescreen_modal', job_application: job_application, conversation: conversation %>

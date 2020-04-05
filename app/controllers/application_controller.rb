@@ -17,7 +17,6 @@ class ApplicationController < ActionController::Base
   # before_filter :authenticate_user!
 
   def set_permissions
-    #git test
     session[:permissions] ||= current_user.permissions.uniq.collect(&:name) if current_user
   end
 
