@@ -189,6 +189,10 @@ class Company::ContractsController < Company::BaseController
   def edit; end
 
   def update
+
+    puts '&&&' * 500
+    puts params.inspect
+
     @tab_number = params[:tab].to_i
     set_docusign_documents
     respond_to do |format|
@@ -239,6 +243,9 @@ class Company::ContractsController < Company::BaseController
   end
 
   def create
+
+    puts '&&&' * 500
+    puts params.inspect
     params[:contract][:company_id] = current_company.id
     @contract = current_company.sent_contracts.new(create_contract_params)
     @tab_number = params[:tab].to_i
