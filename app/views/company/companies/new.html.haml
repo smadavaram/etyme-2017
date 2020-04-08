@@ -30,7 +30,7 @@
                 .col-md-6= f.text_field :domain, placeholder: 'https://address.com', required: true, minlength: '3', data: { domain_field: true }
 
               = f.select :company_type, [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Patner", 'hiring_manager']], {include_blank: '-- Select Type --'}, :class => 'company_type select-height', style: "height: 45px;padding: 0px;", required: true, label: "Select type", data: {company_type_field: true}
-              = f.phone_field :phone, placeholder: 'Phone', data: {phone_field: true}
+              = f.phone_field :phone, label: 'Office', placeholder: 'Office Number', data: {phone_field: true}
 
               = f.fields_for :custom_fields do |lt|
                 = render 'shared/custom_fields', f: lt

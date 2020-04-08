@@ -407,7 +407,9 @@ function formatHrAdmins(user) {
     if (user.loading) {
         return user.text;
     }
-    var markup = "<div> <table style='width: 100%;'> <td>" + user.full_name + "</td><td> " + user.email + "</td><td>" + user.phone + "</td></table> </div>"
+    var photo_path = user.photo === undefined ? '/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png' : user.photo;
+    var markup = "<div> <table style='width: 100%;'><td><img src='" + photo_path + "'></td> <td>" + user.full_name + "</td><td> " + user.email + "</td><td>" + user.phone + "</td></table> </div>"
+
     return markup;
 }
 

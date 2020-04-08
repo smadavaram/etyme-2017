@@ -9,11 +9,12 @@
     .row
       .col-md-6
         .form-group
-          %label.control-label
+          %h6.control-label
             Project Name
             %sup.text-danger
           .contract-fild
-            = f.text_field :project_name ,class: "form-control" , required: 'true',disabled: 'disabled', placeholder: "#{SecureRandom.hex(5)} - #{current_company.name} - Auto generated"
+            -# = f.text_field :project_name ,class: "form-control" , required: 'true',disabled: 'disabled', placeholder: "#{SecureRandom.hex(5)} - #{current_company.name} - Auto generated"
+            %h5.mb-4.d-inline-block #{SecureRandom.hex(5)} - #{current_company.name}
       .col-md-3
         .form-group
           %label.control-label
@@ -38,20 +39,19 @@
             -#  - headers =  %w(domain name contact role(s) reminder action(s))
 
 
+    %hr
 
-
-    .mt-4.p-4
-      .row
-        .col-md-12
+    .row
+      .col-md-12
+        .form-group
+          %h5.mb-4.d-inline-block Contract Admin Team
+          %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
           .form-group
-            %h5.mb-4.d-inline-block Contract Admin Team
-            %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
-            .form-group
-              %label.control-label Hr Admins
-              .contract-fild
-                .plain-select
-                  = select_tag "user_ids[]", [] ,class:"form-control contract_admins", id: 'admin-user'
-                  -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins(event)'} Save
+            %label.control-label Hr Admins
+            .contract-fild
+              .plain-select
+                = select_tag "user_ids[]", [] ,class:"form-control contract_admins", id: 'admin-user'
+                -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins(event)'} Save
 
 
     %br/
@@ -105,20 +105,19 @@
       -#                %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
 
 
-    .mt-4.p-4
-      .row
-        .col-md-12
-          .form-group
-            %label.control-label Jobs
-            %label.control-label.pull-right
-              = link_to 'Add New', new_job_path,target:'_blank', class: 'btn btn-sm btn-primary'
-            .contract-fild
-              - if @contract.new_record?
-                .plain-select
-                  = f.select :job_id, '', {}, id: 'select_jobs', class: 'form-control',required: 'true'
-              - else
-                = text_field_tag :job_title , @contract.job.title, disabled: 'disabled'
-                = hidden_field_tag 'job_id', 	 @contract.job&.id, id: "job_id"
+    .row
+      .col-md-12
+        .form-group
+          %label.control-label Jobs
+          %label.control-label.pull-right
+            = link_to 'Add New', new_job_path,target:'_blank', class: 'btn btn-sm btn-primary'
+          .contract-fild
+            - if @contract.new_record?
+              .plain-select
+                = f.select :job_id, '', {}, id: 'select_jobs', class: 'form-control',required: 'true'
+            - else
+              = text_field_tag :job_title , @contract.job.title, disabled: 'disabled'
+              = hidden_field_tag 'job_id', 	 @contract.job&.id, id: "job_id"
   - if true #@contract.new_record? or @contract.buy_contract&.persisted?
     
 

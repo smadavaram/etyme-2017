@@ -8,6 +8,9 @@ class Candidate < ApplicationRecord
   validates :first_name, presence: true
   validates :last_name, presence: true
   has_paper_trail only: [:address]
+  validates :phone,
+            :numericality => true,
+            :length => { :minimum => 10, :maximum => 13 }
 
   include PublicActivity::Model
   include ArchilliCandidateProfileBuilder

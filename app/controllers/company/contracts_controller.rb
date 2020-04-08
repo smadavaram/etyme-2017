@@ -191,7 +191,7 @@ class Company::ContractsController < Company::BaseController
   def update
 
     puts '&&&' * 500
-    puts params.inspect
+    puts params
 
     @tab_number = params[:tab].to_i
     set_docusign_documents

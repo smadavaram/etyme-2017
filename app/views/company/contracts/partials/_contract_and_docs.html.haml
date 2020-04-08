@@ -188,7 +188,7 @@
                                 #collaborators
                                   = render 'company/contracts/partials/approval', approvals: @contract.sell_contract.approvals.where(approvable_type: 'timesheet')
                                 %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#collaborator_modal", id: 'timesheet', style: "color: #fff !important"}
-                                  Add Collaborators
+                                  Add CC
                             %br/
                             .row
                               .col-md-6
@@ -386,7 +386,7 @@
                             .select
                               .plain-select
                                 = sc.select :invoice_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
-                          %div{:class => "form-group biweek #{sc.object.invoice_terms_period != 'biweekly' ? 'hidden' : ''}"}
+                          %div{:class => "form-group hidden"}
                             %label.control-label
                               Select Second day of week for submission
                             .select
@@ -495,11 +495,11 @@
           .row
             .col-md-12.contract-attachment
               %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
-                %li.nav-item.active.mr-0.primary-nav
+                %li.nav-item.active.mr-0
                   %a{"data-toggle" => "tab", :href => "#doc-request", class: "nav-link cumstom_nav-tab"}
                     %span.badge.bg-color-blue.txt-color-white
                     Request documents
-                %li.nav-item.mr-0.primary-nav
+                %li.nav-item.mr-0
                   %a{"data-toggle" => "tab", :href => "#doc-submit", class: "nav-link cumstom_nav-tab"}
                     %span.badge.bg-color-blue.txt-color-white
                     Submit Documents
