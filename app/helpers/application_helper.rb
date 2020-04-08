@@ -1314,7 +1314,7 @@ module ApplicationHelper
     return if user.nil?
 
     if user.photo&.present?
-      image_tag(user.photo, style: (attrs[:style]).to_s, class: "data-table-image #{attrs[:class]}", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe
+      image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]}", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe
     else
       entity_image(user.first_name, user.last_name, 'circle', attrs[:class])
     end

@@ -10,7 +10,7 @@
 <div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
   <div class="logged-user-w avatar-inline p-1 m-1">
     <div class="logged-user-i">
-      <div class="avatar-w" style="height: 35px !important; width: 35px !important;">
+      <div class="avatar-w">
         <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1', title: "#{current_candidate&.associated_company&.full_name}") %>
       </div>
       <div class="logged-user-info-w">
