@@ -12,7 +12,7 @@ class Company::ConversationsController < Company::BaseController
       @query = nil
       @topic = nil
       format.html do
-        @conversations = Conversation.all_onversations(current_user).uniq.paginate(page: params[:page], per_page: 10)
+        @conversations = Conversation.all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 10)
         @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
         @favourites = current_user.favourables.uniq
         set_activity_for_job_application

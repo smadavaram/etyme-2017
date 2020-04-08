@@ -42,7 +42,7 @@
           <% end %>
         </div>
           <div class="chat-btn">
-              <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
+              <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;",id:"send-message", onclick: "send_message(#{conversation.id})") do %>
                 <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>
                <% end %>
           </div>
@@ -65,7 +65,15 @@
       function onCompanyFileUpload(event) {
           $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
       }
-
+      function send_message(id){
+          $.ajax({
+              url: `/company/conversations?conversation=${id}`,
+              type: "POST",
+              dataType: "script",
+              success: function (data) {
+              }
+          });
+      }
       $(document).ready(function () {
           set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
           <%# unless conversation&.job_application %>
@@ -81,6 +89,7 @@
               type: "GET",
               dataType: "script",
               success: function (data) {
+                  console.log(data);
                   $("#conversation_<%=conversation&.id||0 %>").parent().scrollTop($("#conversation_<%=conversation&.id||0 %>").parent()[0].scrollHeight);
               }
           });

@@ -1,4 +1,4 @@
-<% conversations.each do |con| %>
+<% conversations.uniq{|c| c.opt_participant(current_user).full_name}.each do |con| %>
   <% opt_usr = con.opt_participant(current_user) %>
   <div class="user-fav usr_<%= opt_usr.class.to_s+"_"+opt_usr.id.to_s %>" data-conversation="<%= con.id %>" >
     <%= render 'company/conversations/conversation_list', con: con, usr: opt_usr, is_favourite: false %>
