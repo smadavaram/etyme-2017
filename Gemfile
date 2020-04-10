@@ -34,6 +34,7 @@ gem 'tinymce-rails'
 gem 'uglifier', '>= 1.3.0'
 gem 'wicked_pdf'
 gem 'wkhtmltopdf-binary'
+gem 'jquery_mask_rails', '~> 0.1.0'
 
 gem 'bootstrap', '~> 4.0.0'
 gem 'popper_js', '~> 1.12.9'

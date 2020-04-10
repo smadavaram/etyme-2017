@@ -24,6 +24,9 @@
 // CUSTOM NOTIFICATION
 //= require notification/SmartNotification.min
 
+// Jquery Mask
+//= require jquery.mask
+
 
 // JQUERY VALIDATE
 //= require plugin/jquery-validate/jquery.validate.min

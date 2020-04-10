@@ -14,7 +14,7 @@
         = f.email_field :email , class: 'form-control ' , id: 'email' , placeholder: "email@address.com" , required: true
     .col-sm-6
       .col-md-12
-        = f.phone_field :phone , class: 'form-control ' ,data: {phone_field: true}, id: 'phone' , placeholder: "Phone Number"
+        = f.phone_field :phone , class: 'form-control phone_number' ,data: {phone_field: true}, id: 'phone' , placeholder: "Phone Number"
     .col-sm-6
       .col-md-12
         = f.text_field :location , class: 'form-control ' , id: 'location' , placeholder: "eg.1806 Beechwood Drive, Pittsburgh"
@@ -83,3 +83,5 @@
         event.preventDefault();
       }
     });
+
+    $('.phone_number').mask('(000) 0000-000000');

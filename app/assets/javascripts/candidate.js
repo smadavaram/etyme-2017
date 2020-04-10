@@ -23,6 +23,9 @@
 // BOOTSTRAP JS
 //= require bootstrap/bootstrap
 
+// Jquery Mask
+//= require jquery.mask
+
 // CUSTOM NOTIFICATION
 //= require notification/SmartNotification.min
 
