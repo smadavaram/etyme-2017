@@ -1,18 +1,23 @@
 <div class="chat_box with_border wrap-chat-box" data-conversation-id="<%= conversation.id if conversation.present? %>" id="conversation-chat-box">
   <div class="chat-head" style="flex-direction: column; align-items: stretch;">
     <div class="flex-row w-100 chat-heat_justify">
+
       <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
       <div>
         <span>To:</span>
-        <a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
+        <a class="d-inline badge badge-primary" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
       </div>
-      
+
     </div>
+
     <% if conversation&.job_application and nested_colap %>
+
       <div id="job_application_links">
         <%= render 'company/job_applications/partials/collapse_able_job_application', conversation: conversation, job_application: conversation.job_application %>
       </div>
+
     <% end %>
+
   </div>
   <div class="chat-content-w chat-content-scroll chat-content_height">
     <div class="chat-content" id="conversation_<%= conversation.id if conversation.present? %>">
