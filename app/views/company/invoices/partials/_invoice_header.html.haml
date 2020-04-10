@@ -13,14 +13,14 @@
         .col-sm-6
           %b Sender Company
           %p
-            -# =user_image(invoice.sender_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{invoice.sender_company.full_name}" )
-            =link_to(do_ellipsis(invoice.sender_company.name), profile_company_path(invoice.sender_company), class: 'data-table-font')
+            =user_image(invoice.sender_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invoice.sender_company.full_name}" )
+            =link_to(do_ellipsis(invoice.sender_company.name), profile_company_path(invoice.sender_company))
         .col-sm-6
           %b Receiver Company
           %p
-            -# =user_image(invoice.receiver_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{invoice.receiver_company.full_name}" )
+            =user_image(invoice.receiver_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invoice.receiver_company.full_name}" )
 
-            =link_to(do_ellipsis(invoice.receiver_company.name), profile_company_path(invoice.sender_company), class: 'data-table-font')
+            =link_to(do_ellipsis(invoice.receiver_company.name), profile_company_path(invoice.sender_company))
       .col-sm-12.ts_header
         .col-sm-6
           %b Invoice Type

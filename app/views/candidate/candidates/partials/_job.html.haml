@@ -8,7 +8,7 @@
       .ticket-reply
         .ticket-reply-info
           %a.author.no-decoration{:href => "#"}
-            =user_image(job.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{job.created_by&.full_name}" )
+            =user_image(job.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{job.created_by&.full_name}" )
             %span= job.created_by&.full_name
           %span.info-data.pull-right
             %span.value

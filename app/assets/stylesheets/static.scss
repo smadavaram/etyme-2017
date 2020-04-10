@@ -144,3 +144,19 @@ ul > li > p > span {
     //background-color: #0de5ab !important;
   }
 }
+
+.call-to-action-btn-wrapper {
+  margin-top: 40px;
+
+  .btn-primary:hover {
+    color: #fff !important;
+  }
+}
+
+.features-btn-wrapper {
+  text-align: center;
+
+  .btn-primary:hover {
+    color: #fff !important;
+  }
+}

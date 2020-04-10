@@ -39,13 +39,13 @@ class CompanyContactDatatable < ApplicationDatatable
   end
 
   def company_user_profile(user)
-    (link_to user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1', title: user.full_name.to_s), company_user_profile_path(user)) +
-      link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'data-table-font pl-2')
+    (link_to user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: user.full_name.to_s), company_user_profile_path(user)) +
+      link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'pl-2')
   end
 
   def company_profile(company)
-    image_tag(company.logo, class: 'data-table-image mr-1', title: company.name.to_s).html_safe +
-      link_to(do_ellipsis(company.name), profile_company_path(company), class: 'data-table-font')
+    image_tag(company.logo, class: 'data-table-image mr-2', title: company.name.to_s).html_safe +
+      link_to(do_ellipsis(company.name), profile_company_path(company))
   end
 
   def get_raw_records

@@ -7,7 +7,7 @@
     <div class="ticket-reply <%= notification.unread? ? 'highlight' : '' %>">
       <div class="ticket-reply-info">
         <a class="author with-avatar" href="#">
-          <%= user_image(notification.createable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{notification.createable.full_name}" )
+          <%= user_image(notification.createable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{notification.createable.full_name}" )
           %>
           <span><%= notification.createable&.full_name.capitalize %></span></a><span class="info-data"><span class="label">Created on</span><span class="value"><%= notification&.created_at.to_formatted_s(:long) %></span></span>
         <div class="actions" href="#"><i class="os-icon os-icon-ui-46"></i>

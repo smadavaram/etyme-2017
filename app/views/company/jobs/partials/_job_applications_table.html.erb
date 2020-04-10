@@ -12,7 +12,7 @@
     <% @job_applications.each do |application| %>
       <tr data-id="<%= application.id %>">
         <td>
-          <%= link_to user_image(application.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.user.full_name}" ), job_application_path(application)%>
+          <%= link_to user_image(application.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{application.user.full_name}" ), job_application_path(application)%>
         </td>
         <td>
           <% application.user.skills.each do |skill| %>

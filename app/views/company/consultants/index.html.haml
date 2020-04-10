@@ -29,8 +29,8 @@
                   - @consultants.each_with_index do |consultant , index|
                     %tr.even{:role => "row"}
                       %td.no-wrap
-                        = user_image(consultant, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{consultant.full_name}" )
-                        = link_to consultant.try(:full_name) , company_user_profile_path(consultant) , target: '_blank',class: 'data-table-font'
+                        = user_image(consultant, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{consultant.full_name}" )
+                        = link_to consultant.try(:full_name) , company_user_profile_path(consultant) , target: '_blank'
                       %td= consultant.try(:email)
                       %td= consultant.try(:phone)
                       %td= consultant.try(:visa_status)

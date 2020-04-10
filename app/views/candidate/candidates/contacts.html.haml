@@ -20,8 +20,8 @@
                   -@companies.each do |company|
                     %tr
                       %td
-                        =image_tag(company.logo, class: 'data-table-image mr-1', title: "#{company.name}").html_safe
-                        =link_to(do_ellipsis(company.name), profile_company_path(company), class: 'data-table-font')
+                        =image_tag(company.logo, class: 'data-table-image mr-2', title: "#{company.name}").html_safe
+                        =link_to(do_ellipsis(company.name), profile_company_path(company))
                       %td= company.users.count
                       %td
                         -#= contact_widget(company.owner&.email, company.owner&.phone, company.owner, chat_link: company.owner.present? ? chat_link(company.owner) : '#')

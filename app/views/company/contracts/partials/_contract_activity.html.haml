@@ -7,7 +7,7 @@
           .text-right
             -#= link_to 'NEW',new_contract_path ,class: 'btn btn-success btn-md pull-right header-btn '
         .table-responsive
-          %table#company-contracts-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+          %table#company-contracts-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped
             %thead
               %tr
                 %th Id
@@ -19,13 +19,13 @@
             %tbody
               - data.each do |activty|
                 %tr
-                  %td=link_to "#{activty.trackable.try(:number)} Contract" ,contract_path(activty.trackable),class: 'data-table-font'
+                  %td=link_to "#{activty.trackable.try(:number)} Contract" ,contract_path(activty.trackable)
                   %td=activty.trackable.try(:title)
                   %td{style: "color: #EFA544"}=activty.trackable.try(:status).camelcase
                   %td{style: "color: #1AAE9F"}= "#{time_ago_in_words(activty.trackable.try(:updated_at))} ago"
                   %td.no-wrap
-                    =user_image(activty.owner, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{activty.owner.full_name}" )
-                    = link_to do_ellipsis(activty.owner.full_name.capitalize,15).html_safe,company_user_profile_path(activty.owner.id),class: 'data-table-font'
+                    =user_image(activty.owner, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{activty.owner.full_name}" )
+                    = link_to do_ellipsis(activty.owner.full_name.capitalize,15).html_safe,company_user_profile_path(activty.owner.id)
                   %td Updated terms & conditions for contract
 .timesheet_pagination_wrap.pt-3
   .pagination_label

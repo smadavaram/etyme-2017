@@ -24,11 +24,11 @@
                 %tbody
                   - @sell_contracts.each_with_index  do |sc, index|
                     %tr.even{:role => "row"}
-                      %td= link_to sc.number, company_sell_contract_path(sc.number),class: 'data-table-font'
-                      %td= link_to sc.contract.try(:title) ,contract_path(sc.contract),class: 'data-table-font'
+                      %td= link_to sc.number, company_sell_contract_path(sc.number)
+                      %td= link_to sc.contract.try(:title) ,contract_path(sc.contract)
                       %td.no-wrap
-                        = image_tag(sc.company.logo, title: "#{sc.company.try(:full_name)}", class: 'data-table-image mr-1').html_safe
-                        = link_to(do_ellipsis(sc.company.try(:full_name),6), profile_company_path(sc.company.id), class: 'data-table-font mr-5')
+                        = image_tag(sc.company.logo, title: "#{sc.company.try(:full_name)}", class: 'data-table-image mr-2').html_safe
+                        = link_to(do_ellipsis(sc.company.try(:full_name),6), profile_company_path(sc.company.id), class: 'mr-5')
 
                       %td= sc.customer_rate
                       %td= sc.time_sheet

@@ -17,10 +17,10 @@
         - data.each do |d|
           %tr
             %td.no-wrap.pr-4
-              = user_image(d.prefer_vendor, class: 'data-table-image mr-1',title: "#{d.prefer_vendor&.full_name}")
+              = user_image(d.prefer_vendor, class: 'data-table-image mr-2',title: "#{d.prefer_vendor&.full_name}")
               = link_to do_ellipsis(d.prefer_vendor.name,8) ,profile_company_path(d.prefer_vendor)
             %td.no-wrap
-              = user_image(d.prefer_vendor.owner, class: 'data-table-image mr-1',title: "#{d.prefer_vendor.owner&.full_name}")
+              = user_image(d.prefer_vendor.owner, class: 'data-table-image mr-2',title: "#{d.prefer_vendor.owner&.full_name}")
               = do_ellipsis(d.prefer_vendor.owner.full_name,15)  rescue "  --"
             %td= do_ellipsis(d.prefer_vendor.owner.try(:email),15)
             %td= d.prefer_vendor.domain  rescue "  --"
