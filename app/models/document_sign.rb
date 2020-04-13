@@ -48,7 +48,7 @@ class DocumentSign < ApplicationRecord
                                     createable: signable,
                                     status: :unread, notification_type: :document_request)
     if documentable.is_require == 'signature'
-      notification.title = 'Document Signatured'
+      notification.title = 'Document Signed'
       notification.message = "#{signable.full_name.capitalize} has signed the document received through docusign"
     else
       notification.title = 'Document Submitted'

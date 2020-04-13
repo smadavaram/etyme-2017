@@ -25,14 +25,14 @@
                         .value
                           = current_company.jobs.not_system_generated.count
                         .label
-                          Job(s)
+                          Jobs
                   .col-sm-6.b-b
                     = link_to company_contacts_company_companies_path do
                       .el-tablo.centered.padded-v
                         .value
                           = current_company.company_contacts.count
                         .label
-                          contact(s)
+                          contacts
                      
                 .padded
                   .os-progress-bar.primary
@@ -137,7 +137,7 @@
           .element-wrapper
             -if @training.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Training(s)
+                %h6.mb-0 Trainings
                 =link_to "View All", jobs_path, class: "link-muted font-xs"
               .element-box
                 .table-responsive
@@ -155,14 +155,14 @@
                           %td.text-right= t.created_by.full_name
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Training(s)
+                %h6.mb-0 Trainings
                 =link_to "Create New", jobs_path(type: "Training"), class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Training Right now.
           .element-wrapper
             -if @products.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Product(s)
+                %h6.mb-0 Products
                 =link_to "View All", jobs_path, class: "link-muted font-xs"
               .element-box
                 .table-responsive
@@ -180,14 +180,14 @@
                           %td.text-right=p.created_by.full_name
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Product(s)
+                %h6.mb-0 Products
                 =link_to "Create New", jobs_path(type: "Product"), class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Products Right now.
           .element-wrapper
             - if @services.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Service(s)
+                %h6.mb-0 Services
                 =link_to "View All", jobs_path, class: "link-muted font-xs"
               .element-box
                 .table-responsive
@@ -205,7 +205,7 @@
                           %td.text-right= s.created_by.full_name
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Service(s)
+                %h6.mb-0 Services
                 =link_to "Create New", jobs_path(type: "Service"), class: "link-muted font-xs"
               .element-box.p-3.text-center
                 %h6.mb-0 There is no Services Right now.
