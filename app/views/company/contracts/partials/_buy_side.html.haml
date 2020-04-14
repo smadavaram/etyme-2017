@@ -44,6 +44,7 @@
           %thead
             %tr{:role => "row"}
               %th Rate
+              %th Overtime Rate
               %th Expected Hrs/Day
               %th Rate Type
               %th USCIS
@@ -54,8 +55,9 @@
               - if change_rate.persisted? && change_rate.present?
                 %tr
                   %td= change_rate.rate
+                  %td= change_rate.overtime_rate
                   %td= change_rate.working_hrs
-                  %td= colorfull_text(change_rate.rate_type,'#1AAE9F')
+                  %td= change_rate.rate_type.nil? ? 'N/A' : colorfull_text(change_rate.rate_type.upcase,'#1AAE9F')
                   %td= change_rate.uscis
                   %td= colorfull_text(change_rate.from_date,'orange')
                   %td= colorfull_text(change_rate.to_date,'red')

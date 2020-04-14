@@ -1,23 +1,38 @@
+- if usics == true
+  - c_contract = contract.buy_contract
+  - r_rates = c_contract.change_rates.first
+  - if r_rates.rate.nil?
+    - r_rates = nil
+- else
+  - c_contract = contract.sell_contract
+  - r_rates = rates
+
 .row
   .col-md-2
     .form-group
       %label.control-label
         Customer Rate
       .col-sm-12.pl-0
-        = f.number_field :rate,class: "form-control",placeholder: "i.e 2.5 or 3"
+        = f.number_field :rate,class: "form-control",placeholder: r_rates.present? ? r_rates.rate.to_s : "i.e 2.5 or 3"
+  .col-md-2
+    .form-group
+      %label.control-label
+        Overtime Rate
+      .col-sm-12.pl-0
+        = f.number_field :overtime_rate,class: "form-control",placeholder:  r_rates.present? ? r_rates.overtime_rate.to_s : "i.e 2.5 or 3"
   .col-md-2
     .form-group
       %label.control-label
         Expected Hrs
       .col-sm-12.pl-0
-        = f.number_field :working_hrs,class: "form-control",placeholder: "i.e 2.5 or 3", max: 24, min: 1
+        = f.number_field :working_hrs,class: "form-control",placeholder:  r_rates.present? ? r_rates.working_hrs.to_s : "i.e 2.5 or 3", max: 24, min: 1
   - if usics
     .col-md-2
       .form-group
         %label.control-label
           USCIS Rate
         .col-sm-12.pl-0
-          = f.number_field :uscis,class: "form-control"
+          = f.number_field :uscis,class: "form-control", placeholder: r_rates.present? ? r_rates.uscis.to_s : "i.e 2.5 or 3"
   .col-md-2
     .form-group
       %label.control-label

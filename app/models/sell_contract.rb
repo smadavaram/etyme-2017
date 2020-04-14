@@ -31,7 +31,7 @@ class SellContract < ApplicationRecord
   accepts_nested_attributes_for :change_rates, allow_destroy: true, reject_if: proc { |attributes| attributes['rate'].blank? || attributes['working_hrs'].blank? || attributes['working_hrs'].blank? || attributes['rate_type'].blank? || attributes['from_date'].blank? || attributes['to_date'].blank? }
 
   after_create :set_contract_customer_rate_history
-  after_update :set_contract_customer_rate_history, if: proc { customer_rate_changed? }
+  after_update :set_contract_customer_rate_history, if: proc { saved_change_to_customer_rate? }
 
   def set_contract_customer_rate_history
     contract_customer_rate_histories.create(customer_rate: customer_rate, change_date: Time.now)

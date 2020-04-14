@@ -189,10 +189,6 @@ class Company::ContractsController < Company::BaseController
   def edit; end
 
   def update
-
-    puts '&&&' * 500
-    puts params
-
     @tab_number = params[:tab].to_i
     set_docusign_documents
     respond_to do |format|
@@ -243,9 +239,6 @@ class Company::ContractsController < Company::BaseController
   end
 
   def create
-
-    puts '&&&' * 500
-    puts params.inspect
     params[:contract][:company_id] = current_company.id
     @contract = current_company.sent_contracts.new(create_contract_params)
     @tab_number = params[:tab].to_i
@@ -679,7 +672,7 @@ class Company::ContractsController < Company::BaseController
                                                      sell_request_documents_attributes: [:id, :doc_file, :request, :file_name, :file_size, :file_type, :when_expire, :is_sign_required, :creatable_type,
                                                                                          :creatable_id, :_destroy,
                                                                                          document_signs_attributes: %i[id signable_type signable_id _destroy]],
-                                                     change_rates_attributes: %i[id from_date to_date rate_type rate rateable_type rateable_id working_hrs _destroy]
+                                                     change_rates_attributes: %i[id from_date to_date rate_type rate rateable_type rateable_id working_hrs overtime_rate _destroy]
                                                    ],
                                                    buy_contract_attributes: [
                                                      :ts_2day_of_week, :ta_2day_of_week,
@@ -750,7 +743,7 @@ class Company::ContractsController < Company::BaseController
                                                          id signable_type signable_id _destroy
                                                        ]
                                                      ],
-                                                     change_rates_attributes: %i[id from_date to_date rate_type rate uscis rateable_type rateable_id working_hrs _destroy]
+                                                     change_rates_attributes: %i[id from_date to_date rate_type rate uscis rateable_type rateable_id working_hrs overtime_rate _destroy]
                                                    ],
                                                    contract_terms_attributes: %i[
                                                      id created_by contract_id status terms_condition rate note _destroy

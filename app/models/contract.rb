@@ -67,10 +67,10 @@ class Contract < ApplicationRecord
   # after_create :create_rate_change, unless: Proc.new {|contract| contract.draft?}
   # after_create :notify_recipient, if: Proc.new {|contract| contract.draft? and contract.not_system_generated?}
   # after_create :notify_company_about_contract, if: Proc.new{|contract|contract.parent_contract?}
-  after_update :notify_assignee_on_status_change, if: proc { |contract| contract.draft? && contract.status_changed? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present? && contract.accepted? }
-  after_update :notify_companies_admins_on_status_change, if: proc { |contract| contract.draft? && contract.status_changed? && contract.respond_by.present? && contract.not_system_generated? }
+  after_update :notify_assignee_on_status_change, if: proc { |contract| contract.draft? && contract.saved_change_to_status? && contract.not_system_generated? && contract.assignee? && contract.respond_by.present? && contract.accepted? }
+  after_update :notify_companies_admins_on_status_change, if: proc { |contract| contract.draft? && contract.saved_change_to_status? && contract.respond_by.present? && contract.not_system_generated? }
   # after_create :update_contract_application_status
-  after_save :create_timesheet, if: proc { |contract| contract.draft? && !contract.has_child? && contract.status_changed? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil? }
+  after_save :create_timesheet, if: proc { |contract| contract.draft? && !contract.has_child? && contract.saved_change_to_status? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil? }
   before_create :set_contractable, if: proc { |contract| contract.not_system_generated? }
   before_create :set_sub_contract_attributes, if: proc { |contract| contract.parent_contract? }
 
