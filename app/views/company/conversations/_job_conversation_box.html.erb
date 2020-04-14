@@ -5,7 +5,8 @@
       <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
       <div>
         <span>To:</span>
-        <a class="d-inline badge badge-primary" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
+        <% contract = get_contract(opt_obj) %>
+        <a class="d-inline badge badge-primary" target="_blank" href="<%= contract.nil? ? "#" : contract_path(contract) %>"><%= opt_obj.full_name if opt_obj.present? %></a>
       </div>
 
     </div>

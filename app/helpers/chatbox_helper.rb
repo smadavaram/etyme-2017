@@ -96,4 +96,21 @@ module ChatboxHelper
       current_candidate
     end
   end
+
+
+  def get_contract(usr)
+    contract = nil
+    if usr.group_name.present?
+      if usr.group_name.include? "BC"
+         contract = BuyContract.where(number: usr.group_name).first.contract
+      else
+         if usr.group_name.include? "SC"
+           contract = SellContract.where(number: usr.group_name).first.contract
+         end
+      end
+    end
+    contract
+  end
+
+
 end

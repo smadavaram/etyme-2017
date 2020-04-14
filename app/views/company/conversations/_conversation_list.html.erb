@@ -3,13 +3,14 @@
   <div class="avatar with-status status-green">
     <%= user_image(usr, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{usr.full_name}" ) %>
   </div>
+  <% contract = get_contract(usr) %>
   <div class="user-info">
     <div class="user-date"><%= chat_user_data[:last_msg_time] %></div>
     <div class="user-name"><%= usr.full_name %></div>
+    <div class="user-name"> <%= contract.project_name unless contract.nil?%> </div>
     <div class="last-message"><%= chat_user_data[:last_msg] %></div>
   </div>
 <% end %>
-
 <% if current_user.favourables.where(favourabled_id: usr.id, favourabled_type: usr.class.to_s).present? %>
     <a class="fav-btn fa fa-star"></a>
 <% else %>

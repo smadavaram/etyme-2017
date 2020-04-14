@@ -295,23 +295,23 @@ class Contract < ApplicationRecord
   end
 
   def extend_cycles(extended_date = nil)
-    ActiveRecord::Base.transaction do
-      if buy_contract.present?
-        buy_contract_time_sheet_cycles(extended_date)
-        buy_contract_time_sheet_aprove_cycle(extended_date)
-        buy_contract_salary_calculation_cycle(extended_date)
-        buy_contract_salary_process_cycle(extended_date)
-        buy_contract_salary_clear_cycle(extended_date)
-      end
-      if sell_contract.present?
-        sell_contract_time_sheet_cycles(extended_date)
-        sell_contract_time_sheet_aprove_cycle(extended_date)
-        sell_contract_invoice_cycle(extended_date)
-        sell_contract_client_expense_cycle(extended_date)
-        sell_contract_client_expense_approve_cycle(extended_date)
-        sell_contract_client_expense_invoice_cycle(extended_date)
-      end
-    end
+    # ActiveRecord::Base.transaction do
+    #   if buy_contract.present?
+    #     buy_contract_time_sheet_cycles(extended_date)
+    #     buy_contract_time_sheet_aprove_cycle(extended_date)
+    #     buy_contract_salary_calculation_cycle(extended_date)
+    #     buy_contract_salary_process_cycle(extended_date)
+    #     buy_contract_salary_clear_cycle(extended_date)
+    #   end
+    #   if sell_contract.present?
+    #     sell_contract_time_sheet_cycles(extended_date)
+    #     sell_contract_time_sheet_aprove_cycle(extended_date)
+    #     sell_contract_invoice_cycle(extended_date)
+    #     sell_contract_client_expense_cycle(extended_date)
+    #     sell_contract_client_expense_approve_cycle(extended_date)
+    #     sell_contract_client_expense_invoice_cycle(extended_date)
+    #   end
+    # end
   end
 
   def create_cycles

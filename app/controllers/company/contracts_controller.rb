@@ -66,7 +66,6 @@ class Company::ContractsController < Company::BaseController
                                                  approvable_type: approval_params[:approvable_type])
     if @approval.save
       flash.now[:success] = 'Collaborator Added'
-      render 'add_approval'
     else
       flash.now[:errors] = @approval.errors.full_messages
     end
@@ -565,7 +564,7 @@ class Company::ContractsController < Company::BaseController
     extended_date = Date.parse(params[:contract][:end_date])
     respond_to do |format|
       if @contract.end_date < extended_date
-        if ExtendContractCyclesJob.perform_later(@contract, params[:contract][:end_date])
+        if @contract.update(end_date: extended_date)
           flash[:success] = 'Request is added for processing'
         else
           flash[:errors] = ["Something wrong, job has't been added"]
