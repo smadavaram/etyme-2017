@@ -73,7 +73,6 @@
         .col-md-6
           .form-group
             %h3.control-label.pull-right.text-muted
-              = @contract.sell_contract.number
               - if @contract&.sell_contract&.conversation.present?
                 .floated-chat-btn
                   %i.os-icon.os-icon-mail-07

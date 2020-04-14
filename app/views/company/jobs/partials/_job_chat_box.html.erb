@@ -8,12 +8,7 @@
       </div>
     </div>
   </div>
-  <div class="chat-content-small chat-content-scroll chat-content_height">
-    <div class="p-2 small-chat-height" id="conversation_<%= conversation.id if conversation.present? %>">
-      <div id="all-infinite-scrolling-msg" style="display:none"></div>
-      <%= hidden_field_tag "prev_date", nil %>
-    </div>
-  </div>
+
   <div class="chat-controls">
     <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{conversation.id}"}) do |f| %>
       <div class="chat-input1 chat-input" style=" border-top: 1px solid rgba(0, 0, 0, 0.2);">
