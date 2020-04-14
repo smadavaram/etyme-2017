@@ -44,13 +44,13 @@
         <span>Network</span>
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= groups_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Group(s)</a>
+        <a href="<%= groups_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>
         <a href="<%= directories_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">My Directory</a>
-        <a href="<%= candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Candidate(s)</a>
+        <a href="<%= candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Candidates</a>
         <% if has_permission?('manage_company') %>
-          <a href="<%= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Company(s)</a>
+          <a href="<%= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>
         <% end %>
-        <a href="<%= company_contacts_company_companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contact(s)</a>
+        <a href="<%= company_contacts_company_companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>
       </div>
       <a class="ln-4 sidebar_collapsible side-bar_tab">
         <div class="icon-w">
@@ -60,9 +60,9 @@
       </a>
       <div class="pl-4 w-100 l2 text-justify nav-sidebar-collaps">
         <a href="<%= marketplace_path(company: 'on', 'search_by[term]': '', 'search_scope': '') %>" class=" side-bar_links nested_tab boarder_bottom">Marketplace</a>
-        <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Network Request(s)</a>
+        <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Network Requests</a>
         <% if has_permission?('manage_vendors') %>
-          <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Client(s) / Vendor(s)</a>
+          <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Clients / Vendors</a>
         <% end %>
         <a href="<%= vendor_activity_prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Vendor
           Activity</a>
@@ -77,7 +77,7 @@
         <a href="<%= company_bench_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">My Bench</a>
         <a href="<%= company_job_receives_path %>" class=" side-bar_links nested_tab boarder_bottom">Received</a>
         <a href="<%= company_public_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">Public</a>
-        <a href="<%= company_owen_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">Bench Job(s)</a>
+        <a href="<%= company_owen_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom">Bench Jobs</a>
       </div>
       <a class="ln-6 sidebar_collapsible side-bar_tab">
         <div class="icon-w">

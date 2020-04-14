@@ -39,7 +39,7 @@
                         <%= render 'conversations_list', conversations: @conversations %>
                         <div id="all-infinite-scrolling-con" style="display: none">
                           <% if @conversation.present? %>
-                            <%= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
+                            <%#= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
                           <% end %>
                         </div>
                       </ul>

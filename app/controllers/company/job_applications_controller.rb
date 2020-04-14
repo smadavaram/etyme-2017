@@ -37,7 +37,8 @@ class Company::JobApplicationsController < Company::BaseController
     end
   end
 
-  def creates_multiple_for_candidate
+  def create_multiple_for_candidate
+    find_job
     if request.post?
       Candidate.where(id: params[:temp_candidates]).each do |c|
         c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id)
