@@ -48,7 +48,7 @@
         .col-sm-12
           %ul.pager.wizard.no-margin.clearfix.p-0.no-steps-container
             %li.previous.disabled.pull-left
-              %a.btn.btn-primary{style: "background-color: #037bf8; color: white", :href => new_contract_path(contract_id: @contract.id || nil)} Contract Tab
+              %a.btn.btn-primary{style: "background-color: #037bf8; color: white", :href => new_contract_path(contract_id: @contract.id || nil)} Back
             %li.next.pull-right
               %a.btn.btn-primary{style: "background-color: #037bf8; color: white", :href => "javascript:void(0);"} Save & Continue
             %li.pull-right.finish{:style=>"di"}
@@ -66,6 +66,23 @@
 
 - content_for :scripts do
   :javascript
+
+    $(document).on('click', '.display_sell_chat',function(){
+      console.log('hi');
+      $('#sell_chat').show();
+      $('#buy_chat').hide();
+      $('.sell_chat').click();
+    })
+     $(document).on('click', '.display_buy_chat',function(){
+      $('#sell_chat').hide();
+      $('#buy_chat').show();
+      $('.buy_chat').click();
+    })
+    $(document).ready(function(){
+      $('#sell_chat').hide();
+      $('#buy_chat').hide();
+    });
+
     $( document ).ready(function() {
       if ($('#contract_is_client_customer_true')[0]){
         if ($('#contract_is_client_customer_true').checked) {

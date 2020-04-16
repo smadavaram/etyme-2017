@@ -10,11 +10,6 @@
         = sc.hidden_field :id
         .contract-fields_wrapper.mt-4.contract-border
           .row
-            -#.col-md-6
-            -#  .form-group
-            -#    %label.control-label  Customer Company
-            -#    .contract-fild
-            -#      = text_field_tag :customer_company, @contract.sell_contract.company.name.capitalize, disabled: "disabled"
             .col-md-6
               .form-group
                 %h3.control-label.text-muted
@@ -24,6 +19,11 @@
                       %i.os-icon.os-icon-mail-07
                       %span
                       = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id),class: 'ChatBtn',id: 'ChatBtn', remote: true
+            .col-md-6
+              .form-group
+                %label.control-label  Customer Company
+                .contract-fild
+                  = text_field_tag :customer_company, @contract.sell_contract.company.name.capitalize, disabled: "disabled"
           -#.row
           -#  .col-md-6
           -#    .form-group
