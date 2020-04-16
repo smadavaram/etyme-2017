@@ -210,7 +210,7 @@ class Company::ContractsController < Company::BaseController
         create_custom_activity(@contract, 'contracts.update', contract_params, @contract)
         format.html do
           flash[:success] = "#{@contract.title.titleize} updated successfully"
-          edirect_back fallback_location: root_path
+          redirect_back fallback_location: root_path
         end
         format.js do
           if @contract.pending?
@@ -227,7 +227,7 @@ class Company::ContractsController < Company::BaseController
       else
         format.html do
           flash[:errors] = @contract.errors.full_messages
-          edirect_back fallback_location: root_path
+          redirect_back fallback_location: root_path
         end
         format.js do
           flash.now[:errors] = @contract.errors.full_messages

@@ -18,14 +18,18 @@
               = render 'company/contracts/partials/contracts_links', contract: @contract
       %hr
       .row
-        .col-lg-12
+        .col-lg-6
           .element-box.element-box-show
+            %div.pull-right
+              %btn.show-chat-btn.display_sell_chat{style: 'position: inherit !important'}
+                %i.fa.fa-comment-o
             =render 'company/contracts/partials/sell_side',editable: @contract.company == current_company
-      - if current_company == @contract.company
-        %hr
-        .row
-          .col-lg-12
+        .col-lg-6
+          - if current_company == @contract.company
             .element-box.element-box-show
+              %div.pull-right
+                %btn.display_buy_chat.show-chat-btn{style: 'position: inherit !important'}
+                  %i.fa.fa-comment-o
               =render 'company/contracts/partials/buy_side',editable: @contract.company == current_company
 
 
@@ -67,7 +71,7 @@
       });
 
 - if @contract.sell_contract&.persisted?
-  %fieldset
+  %fieldset{id: 'sell_chat', style: 'display: none'}
     .contract-fields_wrapper.mt-4.contract-border
       .row
         .col-md-6
@@ -77,9 +81,21 @@
                 .floated-chat-btn
                   %i.os-icon.os-icon-mail-07
                   %span
-                  = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id), onclick: "open_chat(#{@contract.sell_contract.conversation.id})",class: 'ChatBtn',id: 'ChatBtn', remote: true
+                  = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id), onclick: "open_chat(#{@contract.sell_contract.conversation.id})",class: 'ChatBtn sell_chat',id: 'ChatBtn', remote: true
 
 
+- if @contract.buy_contract&.persisted?
+  %fieldset{id: 'buy_chat', style: 'display: none'}
+    .contract-fields_wrapper.mt-4.contract-border
+      .row
+        .col-md-6
+          .form-group
+            %h3.control-label.pull-right.text-muted
+              - if @contract&.buy_contract&.conversation.present?
+                .floated-chat-btn
+                  %i.os-icon.os-icon-mail-07
+                  %span
+                  = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id), onclick: "open_chat(#{@contract.buy_contract.conversation.id})",class: 'ChatBtn buy_chat',id: 'ChatBtn', remote: true
 
 
 - content_for :scripts do
@@ -94,7 +110,20 @@
     $(document).on('click', '.buy-change-rate', function(){
       $('#buy-change-rate').toggleClass('hidden');
     });
-
+    $(document).on('click', '.display_sell_chat',function(){
+      $('#sell_chat').show();
+      $('#buy_chat').hide();
+      $('.sell_chat').click();
+    })
+     $(document).on('click', '.display_buy_chat',function(){
+      $('#sell_chat').hide();
+      $('#buy_chat').show();
+      $('.buy_chat').click();
+    })
+    $(document).ready(function(){
+      $('#sell_chat').hide();
+      $('#buy_chat').hide();
+    });
     $(document).on('click', '.sell-change-rate', function(){
       $('#sell-change-rate').toggleClass('hidden');
     });

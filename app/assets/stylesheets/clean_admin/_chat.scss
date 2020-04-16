@@ -46,6 +46,41 @@ Chat Styles
   }
 }
 
+.show-chat-btn {
+  z-index: 800;
+  bottom: 10px;
+  right: 10px;
+  background: #097CFF;
+  box-shadow: 0 2px 20px 0 rgba(46,130,255,0.75);
+  border-radius: 75px;
+  color: #fff;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  vertical-align: middle;
+  font-size: $font-size-base * 1.2;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  i {
+    vertical-align: middle;
+    display: inline-block;
+    font-size: 24px;
+  }
+  span {
+    vertical-align: middle;
+    display: inline-block;
+    font-weight: $font-weight-bold;
+  }
+  i + span {
+    margin-left: 15px;
+  }
+  &:hover {
+    transform: scale(1.05);
+    background-color: darken(#097CFF, 10%);
+    box-shadow: 0 2px 30px 0 rgba(46,130,255,0.8);
+  }
+}
+
 .floated-chat-w {
   z-index: 9999;
   position: fixed;

@@ -17,12 +17,6 @@
                     = @contract.buy_contract.number
 
           .row
-            -#.col-md-6
-            -#  .form-group
-            -#    %label.control-label=  "Consultant/#{@contract.buy_contract.fetch_contract_type_label}"
-            -#    .contract-fild
-            -#      = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
-
             .col-md-6
               .form-group
                 - if @contract.buy_contract.company.present?
@@ -37,6 +31,12 @@
                         %i.os-icon.os-icon-mail-07
                         %span
                         = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id) ,class: 'ChatBtn',id: 'ChatBtn', remote: true
+            .col-md-6
+              .form-group
+                %label.control-label=  "Consultant/#{@contract.buy_contract.fetch_contract_type_label}"
+                .contract-fild
+                  = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
+
         %label.control-label.font-weight-bold.mt-2 Accounting
         .contract-fields_wrapper.mt-2.contract-border
           %div

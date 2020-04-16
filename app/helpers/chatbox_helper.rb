@@ -97,19 +97,38 @@ module ChatboxHelper
     end
   end
 
-
   def get_contract(usr)
     contract = nil
     if usr.group_name.present?
       if usr.group_name.include? "BC"
-         contract = BuyContract.where(number: usr.group_name).first.contract
+        contract = BuyContract.where(number: usr.group_name).first.contract
       else
-         if usr.group_name.include? "SC"
-           contract = SellContract.where(number: usr.group_name).first.contract
-         end
+        if usr.group_name.include? "SC"
+          contract = SellContract.where(number: usr.group_name).first.contract
+        end
       end
     end
     contract
+  end
+
+  def get_conversation_link(usr)
+    link = nil
+    if usr.group_name.present?
+      if usr.group_name.include? "BC"
+        obj = BuyContract.where(number: usr.group_name).first.contract
+        link = contract_path(obj)
+      elsif usr.group_name.include? "SC"
+        obj = SellContract.where(number: usr.group_name).first.contract
+        link = contract_path(obj)
+      elsif usr.group_name.include? "J"
+        conv = Conversation.find params[:conversation]
+        obj = conv.job
+        link = job_path(obj)
+      else
+        link = nil
+      end
+    end
+    link
   end
 
 
