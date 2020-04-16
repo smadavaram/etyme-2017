@@ -10,14 +10,15 @@
         %header{:role => "heading"}
           %ul.nav.nav-tabs.pull-left.in.margin-bottom-10.col-sm-12
             %li.nav-item
-              %a.nav-link.active{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#hr1"}
-                %span.hidden-mobile.hidden-tablet Vendor
+              %a.nav-link.active{"aria-expanded" => "true", "data-toggle" => "tab", :id => "tab1", :href => "#hr1"}
+                %span.hidden-mobile.hidden-tablet
+                  Vendor
             %li.nav-item
-              %a.nav-link{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr2"}
+              %a.nav-link{"aria-expanded" => "false", "data-toggle" => "tab", :id => "tab2", :href => "#hr2"}
                 %span.hidden-mobile.hidden-tablet
                   Candidate
             %li.nav-item
-              %a.nav-link{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#hr3"}
+              %a.nav-link{"aria-expanded" => "false", "data-toggle" => "tab", :id => "tab3", :href => "#hr3"}
                 %span.hidden-mobile.hidden-tablet
                   Direct Email
           .widget-body
@@ -57,6 +58,11 @@
      $('#direct_email_canidate').datepicker({
         dateFormat : 'dd/mm/yy'
      });
+     $('#tab2').on('click', function() {
+      $('#tab1').removeClass("active");
+     })
+
+
   });
 :css
   .select2 {
