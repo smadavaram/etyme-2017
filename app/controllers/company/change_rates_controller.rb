@@ -14,7 +14,7 @@ class Company::ChangeRatesController < Company::BaseController
   end
 
   def change_rate_params
-    params.require(:change_rate).permit(:from_date, :to_date, :rate_type, :rate, :uscis, :working_hrs, overtime_rate)
+    params.require(:change_rate).permit(:from_date, :to_date, :rate_type, :rate, :uscis, :working_hrs, :overtime_rate)
   end
 
   private
