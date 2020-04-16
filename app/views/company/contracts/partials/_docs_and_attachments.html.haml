@@ -74,7 +74,7 @@
                         .col-md-12.display-flex
                           =cr.hidden_field :rateable_type, value: bc.object.class.to_s
                           =cr.hidden_field :rateable_id, value: bc.object.id
-                          =render 'company/contracts/partials/rate_fields', f: cr, rates: @contract.sell_contract.change_rates.first, contract: @contract, usics: true
+                          =render 'company/contracts/partials/rate_fields', f: cr, usics: true
                     - if bc.object.change_rates.present?
                       .row
                         .table-responsive

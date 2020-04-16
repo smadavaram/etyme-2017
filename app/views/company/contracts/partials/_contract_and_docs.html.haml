@@ -119,7 +119,7 @@
                         =cr.hidden_field :rateable_type, value: sc.object.class.to_s
                         =cr.hidden_field :rateable_id, value: sc.object.id
                         .col-md-12.display-flex
-                          =render 'company/contracts/partials/rate_fields', f: cr, rates: sc.object.change_rates.first, contract: @contract , usics: false
+                          =render 'company/contracts/partials/rate_fields', f: cr, usics: false
                           %br
                     - if sc.object.change_rates.present?
                       .row
