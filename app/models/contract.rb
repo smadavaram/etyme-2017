@@ -107,7 +107,9 @@ class Contract < ApplicationRecord
   delegate :set_timesheet_submit, :invoice_generate, :find_next_date, to: :appraiser
 
   def set_name
-    update(project_name: "#{id}-#{job.title[0..20]}#{client.present? ? "-#{client.full_name.capitalize}" : ''}")
+    if project_name.to_s.include? "Auto generated"
+      update(project_name: "#{id}-#{job.title[0..20]}#{client.present? ? "-#{client.full_name.capitalize}" : ''}")
+    end
   end
 
   def after_create_callbacks

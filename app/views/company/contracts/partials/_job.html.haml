@@ -13,8 +13,8 @@
             Project Name
             %sup.text-danger
           .contract-fild
-            -# = f.text_field :project_name ,class: "form-control" , required: 'true',disabled: 'disabled', placeholder: "#{SecureRandom.hex(5)} - #{current_company.name} - Auto generated"
-            %h5.mb-4.d-inline-block #{SecureRandom.hex(5)} - #{current_company.name}
+            = f.text_field :project_name ,class: "form-control" , required: 'true',value: @contract&.project_name || "#{SecureRandom.hex(5)} - #{current_company.name} - Auto generated", placeholder: "#{SecureRandom.hex(5)} - #{current_company.name} - Auto generated"
+            -#%h5.mb-4.d-inline-block #{SecureRandom.hex(5)} - #{current_company.name}
       .col-md-3
         .form-group
           %label.control-label
@@ -188,8 +188,8 @@
             No
             %input{onchange: "toogle_seller(this,'.toggle_sell_contract')", :type => "radio",name: "toogle_seller_contract", :value => "no"}/
             %span.radio-checkmark
-        .row.toggle_sell_contract
-          =f.fields_for :sell_contract, @contract.sell_contract || @contract.build_sell_contract do |sc|
+        =f.fields_for :sell_contract, @contract.sell_contract || @contract.build_sell_contract do |sc|
+          .row.toggle_sell_contract
             .col-md-6
               .form-group
                 %label.control-label Customer(Bill To)
@@ -202,22 +202,23 @@
                   - else
                     = text_field_tag :customer_name, @contract.sell_contract.company.name.capitalize, disabled: "disabled"
                     = hidden_field_tag :sell_contract_company, @contract.sell_contract.company.id
-          .col-md-6
-            .form-group
-              %label.control-label Work location
-              .contract-fild{style: "margin-top: 8px;"}
-                = f.text_field :work_location, class: "form-control", placeholder: "Contract Work location"
-
-          .col-md-12
+            .col-md-6
+              .form-group
+                %label.control-label Work location
+                .contract-fild{style: "margin-top: 8px;"}
+                  = f.text_field :work_location, class: "form-control", placeholder: "Contract Work location"
+          %hr
+          .row.toggle_sell_contract
             - if @contract.new_record?
-              .form-group.mb-3.mt-3
-                %label.control-label.mr-4
-                  %b Is End Client different from your Customer ?
-                %span.is_client_customer_radio
-                  =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true,class: 'end_client'
-                  %label.control-label.mr-4 Yes
-                  =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?,class: 'end_client'
-                  %labe.control-label No
+              .col-md-6
+                .form-group.mb-3.mt-3
+                  %label.control-label.mr-4
+                    %b Do you want to Onboard Client?
+                  %span.is_client_customer_radio
+                    =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true,class: 'end_client'
+                    %label.control-label.mr-4 Yes
+                    =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?,class: 'end_client'
+                    %labe.control-label No
               .col-md-6
                 .form-group.contract_client{style: "display: none;"}
                   %label.control-label Client Company
@@ -232,7 +233,7 @@
             .row
         .col-md-12
           .form-group
-            %h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
+            %h5.mb-4.d-inline-block End Client/Reporting Manager for performance review
             %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
             .form-group
               %label.control-label Hr Admins

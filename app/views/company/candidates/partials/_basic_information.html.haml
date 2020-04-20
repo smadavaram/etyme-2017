@@ -30,7 +30,7 @@
     - if @candidate.new_record?
       .col-sm-6
         = f.check_box :send_invitation ,{}, true, false
-        %label.col-md-2.control-label Resume
+        %label.col-md-2.control-label
         .col-md-12
           = render 'shared/file_attachement',f:f,attr_name: :resume
           -#= f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"

@@ -296,7 +296,7 @@
                                     .select
                                       .plain-select
                                         = sc.select :ta_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                                  %div{:class => "form-group biweek #{sc.object.ts_approve != 'biweekly' ? 'hidden' : ''}"}
+                                  %div{:class => "form-group hidden"}
                                     %label.control-label
                                       Select Second day of week for submission
                                     .select
@@ -323,7 +323,7 @@
                                     #ts_approver
                                       = render 'company/contracts/partials/approval', approvals: @contract.sell_contract.approvals.where(approvable_type: 'timesheet_approve')
                                     %a.btn.btn-primary.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#collaborator_modal", id: 'timesheet_approve', style: "color: #fff !important;"}
-                                      Add Collaborators
+                                      Add CC
                             -#.row.client_expense
                             -#  .col-md-4
                             -#    %label.control-label
@@ -414,7 +414,7 @@
                         #invoice
                           = render 'company/contracts/partials/approval', approvals: @contract.sell_contract.approvals.where(approvable_type: 'invoice')
                         %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#collaborator_modal", id: 'invoice', style: "color: #fff !important;"}
-                          Add Collaborators
+                          Add CC
                     %br/
                     -#.row.client_expense
                     -#  .col-md-4
@@ -594,6 +594,25 @@
 
     $(".sell_users").click(function(){
       set_contract_admins(".sell_company_contract_admins","Select Admin-#{@sell_contract&.company&.id}");
+    });
+    $('.client_expense').hide();
+    $('#contract_sell_contract_attributes_is_client_expense').on("change", function(){
+        if (this.checked){
+          $('.client_expense').show();
+          }
+        else{
+          $('.client_expense').hide();
+        }
+      });
+
+    $('.performance_review').hide();
+    $('#contract_sell_contract_attributes_is_performance_review').on("change", function(){
+        if (this.checked){
+          $('.performance_review').show();
+          }
+        else{
+          $('.performance_review').hide();
+        }
     });
 
 

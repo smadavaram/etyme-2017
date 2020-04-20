@@ -84,8 +84,9 @@
           .element-wrapper
             -if @jobs.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Job(s)
-                =link_to "View All", jobs_path, class: "link-muted font-xs"
+                %h6.mb-0 Jobs
+                -# =link_to "View All", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", jobs_path(type='Job'), class: "link-muted font-xs"
               .element-box
                 .table-responsive
                   %table.table.table-lightborder
@@ -113,7 +114,8 @@
             -if @benches.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Bench
-                =link_to "View All", company_bench_jobs_path, class: "link-muted font-xs"
+                -# =link_to "View All", company_bench_jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", company_bench_jobs_path, class: "link-muted font-xs"
               .element-box
                 .table-responsive
                   %table.table.table-lightborder
@@ -137,8 +139,9 @@
           .element-wrapper
             -if @training.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
-                %h6.mb-0 Trainings
-                =link_to "View All", jobs_path, class: "link-muted font-xs"
+                %h6.mb-0 Training
+                -# =link_to "View All", jobs_path, class: "link-muted font-xs"\
+                =link_to "Create New", jobs_path(type: "Training"), class: "link-muted font-xs"
               .element-box
                 .table-responsive
                   %table.table.table-lightborder
@@ -163,7 +166,8 @@
             -if @products.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Products
-                =link_to "View All", jobs_path, class: "link-muted font-xs"
+                -# =link_to "View All", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", jobs_path(type: "Product"), class: "link-muted font-xs"
               .element-box
                 .table-responsive
                   %table.table.table-lightborder
@@ -188,7 +192,8 @@
             - if @services.present?
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Services
-                =link_to "View All", jobs_path, class: "link-muted font-xs"
+                -# =link_to "View All", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", jobs_path(type: "Service"), class: "link-muted font-xs"
               .element-box
                 .table-responsive
                   %table.table.table-lightborder

@@ -68,7 +68,6 @@
   :javascript
 
     $(document).on('click', '.display_sell_chat',function(){
-      console.log('hi');
       $('#sell_chat').show();
       $('#buy_chat').hide();
       $('.sell_chat').click();
@@ -629,24 +628,3 @@
       }
     });
 
-    $( document ).ready(function() {
-      $('.client_expense').hide();
-      $('#contract_sell_contract_attributes_is_client_expense').on("change", function(){
-        if (this.checked){
-          $('.client_expense').show();
-          }
-        else{
-          $('.client_expense').hide();
-        }
-      });
-
-      $('.performance_review').hide();
-      $('#contract_sell_contract_attributes_is_performance_review').on("change", function(){
-        if (this.checked){
-          $('.performance_review').show();
-          }
-        else{
-          $('.performance_review').hide();
-        }
-      });
-    });
