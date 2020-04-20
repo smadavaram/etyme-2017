@@ -2,7 +2,7 @@
 
 class ChangeRate < ApplicationRecord
   belongs_to :rateable, polymorphic: true
-  enum rate_type: {hourly: "hourly", daily: "daily", weekly: "monthly"}
+  enum rate_type: %i[hourly daily weekly monthly]
   validate :validate_other_booking_overlap
 
   private
