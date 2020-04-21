@@ -10,11 +10,21 @@
   <!--</h5>-->
   <!--</div>-->
   <!--</div>-->
-  <div class="element-box element-box-show">
-    <h5 class="form-header">Collaborators</h5>
-    <% if @conversation.present? %>
-      <div class="users-list-w">
-        <% if @conversation.chatable_type == "Group" %>
+  <div class="chat-info-section p-0 pb-3">
+    <div class="ci-header pl-1 display-flex">
+      <!--      <i class="icon-people"></i>-->
+      <span>Chat Member</span>
+      <a href="#" class="add-to-conversation ml-auto" data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %>>
+        <i class="fa fa-plus"></i></a>
+      <% if ConversationMute.where(conversation: @conversation, mutable: current_user).present? %>
+        <%= link_to "<i class='ti-bell'></i>".html_safe, unmute_company_conversation_path(@conversation), title: 'Unmute Conversation', 'data-toggle' => "tooltip", 'data-placement' => "top" %>
+      <% else %>
+        <%= link_to "<i class='fa fa-bell-slash-o' style='color: red;'></i>".html_safe, mute_company_conversation_path(@conversation), class: 'text-danger', title: 'Mute Conversation', 'data-toggle' => "tooltip", 'data-placement' => "top" %>
+      <% end %>
+    </div>
+    <div class="group-member">
+      <% if @conversation.chatable_type == "Group" %>
+        <ul>
           <% @conversation.chatable.groupables.each do |g| %>
             <% if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
               <li class="display-flex" style="border: none">
@@ -77,18 +87,9 @@
                 <% end %>
               </div>
             </div>
-            <!-- <div class="user-action">
-              <div class="os-icon os-icon-email-forward"></div>
-            </div> -->
           </div>
         <% end %>
       </div>
-    <% else %>
-      <div><i>Currently, there is no collaborator. Create a conversation to add collaborators</i></div>
     <% end %>
-    <div class="ci-header">
-      <a href="#" class="w-100 btn btn-default btn-primary add-to-conversation" data-conid=<%= @conversation.id %> data-cid=<%= @conversation.chatable.id %> data-ctype=<%= @conversation.chatable.class.to_s %>>Add
-        Collaborators</a>
-    </div>
   </div>
 <% end %>
