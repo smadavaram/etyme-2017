@@ -14,6 +14,8 @@ Rails.application.routes.draw do
   resources :messages, concerns: :commentable
   resources :articles, concerns: %i[commentable image_attachable]
 
+  get '/company/conversation/chat_members', to: 'company/conversations#chat_members'
+  get '/company/conversation/chat_candidates', to: 'company/conversations#chat_candidates'
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
   get 'register' => 'companies#new'
