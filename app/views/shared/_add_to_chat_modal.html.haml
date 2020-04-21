@@ -27,7 +27,6 @@
   :javascript
     $(document).ready(function() {
       var REGEX_EMAIL = "^[^@\s]+@[^@\s\.]+\.[^@\.\s]+$"
-      console.log(REGEX_EMAIL);
       let contacts = null
       let candidates = null
       $.ajax({
@@ -97,7 +96,6 @@
         dataType: "json",
         success: function (data) {
           candidates = data.data;
-          console.log(candidates);
           $('#candidateid').selectize({
             persist: false,
             maxItems: 1,
@@ -126,8 +124,6 @@
                   // email@address.com
               regex = new RegExp('^' + REGEX_EMAIL + '$', 'i');
               match = input.match(regex);
-              console.log(match);
-              console.log(this.options);
               if (match) return !this.options.hasOwnProperty(match[0]);
 
                   // name <email@address.com>
