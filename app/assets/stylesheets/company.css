@@ -17,6 +17,8 @@
  *= require shared/bootstrap-year-calendar
  *= require bootstarp-year-calendar
  *= require font-awesome
+ *= require selectize
+ *= require selectize.default
  *
  * SmartAdmin Styles : Caution! DO NOT change the order
  *= require smartadmin-production-plugins

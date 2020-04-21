@@ -47,5 +47,6 @@
 //= require global
 
 //= require home/scrolling-text
+//= require selectize
 
 // require cable

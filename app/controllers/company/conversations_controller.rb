@@ -107,9 +107,18 @@ class Company::ConversationsController < Company::BaseController
     if params[:directoryid].present?
       user = current_company.users.where(id: params[:directoryid]).first
     elsif params[:candidateid].present?
-      user = current_company.candidates.where(id: params[:candidateid]).first
+      if current_company.candidates.where(id: params[:candidateid]).first.nil?
+        user = add_candidate(params[:candidateid])
+      else
+        user = current_company.candidates.where(id: params[:candidateid]).first
+      end
     elsif params[:contactid].present?
-      user = current_company.company_contacts.where(id: params[:contactid]).first.user
+      if current_company.company_contacts.where(id: params[:contactid]).first.nil?
+        new_contact = add_new_contact(params[:contactid].to_s)
+        user = new_contact.user
+      else
+        user = current_company.company_contacts.where(id: params[:contactid]).first.user
+      end
     else
       flash[:error] = 'Select any one option.'
       redirect_to company_conversations_path(conversation: conversation.id)
@@ -152,7 +161,53 @@ class Company::ConversationsController < Company::BaseController
     redirect_to company_conversations_path(conversation: conversation.id)
   end
 
+  def chat_members
+    @company_contacts = current_company.company_contacts.map{|cc| {email: cc.email, id: cc.id, name: cc.full_name}}
+    render status: 200, json: {
+        message: 'Success!',
+        data: @company_contacts
+    }
+  end
+  def chat_candidates
+    @candidates = current_company.candidates.map{|cc| {email: cc.email, id: cc.id, name: cc.full_name}}
+    render status: 200, json: {
+        message: 'Success!',
+        data: @candidates
+    }
+  end
+
+
   private
+
+  def add_new_contact(email)
+    begin
+      CompanyContact.transaction do
+        email = email.downcase
+        next unless (email =~ /\A([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})\z/i).present?
+        user = DiscoverUser.new.discover_user(email)
+        contact = current_company.company_contacts.where(user: user).first_or_initialize(created_by: current_user, user_company: user.company, email: user.email)
+        contact.save! unless contact.persisted?
+        return contact
+      end
+    rescue ActiveRecord::RecordInvalid
+      flash[:errors] = ["Please check the contacts' email formats and try again"]
+    end
+  end
+
+  def add_candidate(email)
+    begin
+      CompanyContact.transaction do
+        email = email.downcase
+        next unless (email =~ /\A([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})\z/i).present?
+        candidate = DiscoverUser.new.discover_candidate(email)
+        company_candidate = current_company.candidates_companies.normal.where(candidate: candidate).first_or_initialize(candidate: candidate)
+        company_candidate.save! unless company_candidate.persisted?
+        return candidate
+      end
+    rescue ActiveRecord::RecordInvalid
+      flash[:errors] = ["Please check the candidates' email formats and try again"]
+    end
+  end
 
   def find_mini_chat_user
     params[:utype].constantize.find_by(id: params[:uid])

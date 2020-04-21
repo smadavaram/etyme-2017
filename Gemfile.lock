@@ -1233,6 +1233,7 @@ GEM
       rdoc (>= 5.0)
     select2-rails (3.5.9.3)
       thor (~> 0.14)
+    selectize-rails (0.12.6)
     sequence-sdk (2.2)
     sexp_processor (4.12.1)
     signature-pad-rails (1.0.1)
@@ -1406,6 +1407,7 @@ DEPENDENCIES
   sass-rails (~> 5.0)
   sdoc
   select2-rails (~> 3.5.9.1)
+  selectize-rails
   sequence-sdk
   signature-pad-rails
   simple_form

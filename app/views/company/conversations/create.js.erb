@@ -36,7 +36,7 @@ if ($("#conversation_<%= @conversation.id %>")[0]) {
 
 <% opt_usr = @conversation.opt_participant(current_user) %>
 $("#company-conversation-list .usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>").remove();
-$("#company-conversation-list").prepend("<div class='user-fav usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>'> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
+$("#company-conversation-list").prepend("<div  style='border-left: 4px solid #0ffc52' class='user-fav usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>'> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
 
 var coll = document.getElementsByClassName("collapsible-click");
 var i;

@@ -126,7 +126,7 @@ class Company::UsersController < Company::BaseController
           email = email.downcase
           next unless (email =~ /\A([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})\z/i).present?
 
-          user = discover_user(email)
+          user = DiscoverUser.new.discover_user(email)
           contact = current_company.company_contacts.where(user: user).first_or_initialize(created_by: current_user, user_company: user.company, email: user.email)
           contact.save! unless contact.persisted?
         end
@@ -148,7 +148,7 @@ class Company::UsersController < Company::BaseController
           email = email.downcase
           next unless (email =~ /\A([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})\z/i).present?
 
-          candidate = discover_candidate(email)
+          candidate = DiscoverUserdiscover_candidate(email)
           company_candidate = current_company.candidates_companies.normal.where(candidate: candidate).first_or_initialize(candidate: candidate)
           company_candidate.save! unless company_candidate.persisted?
         end
@@ -279,34 +279,6 @@ class Company::UsersController < Company::BaseController
 
   def find_user
     @user = User.find_by(id: params[:user_id] || params[:user_id]) || []
-  end
-
-  def discover_user(email)
-    user = discover_company_and_user(Mail::Address.new(email).domain, email)
-    unless user.persisted?
-      user.save!
-      user.send_password_reset_email if user.class.to_s == 'User'
-      user.company.update(owner_id: user.id) unless user.company.owner.present?
-    end
-    user
-  end
-
-  def discover_company_and_user(website, email)
-    domain = website.split('.').first
-    company = Company.where(domain: domain).first_or_initialize(name: domain, website: website)
-    user = nil
-    if company.persisted?
-      user = User.where(email: email).first_or_initialize(password_hash.merge(company: company))
-    else
-      user = Admin.where(email: email).first_or_initialize(password_hash.merge(company: company)) if company.save!
-    end
-    user
-  end
-
-  def discover_candidate(email)
-    candidate = Candidate.where(email: email).first_or_initialize(password_hash.merge(first_name: 'jhon', last_name: 'doe'))
-    candidate.persisted? ? candidate : candidate.save!
-    candidate
   end
 
   def with_company_domain?

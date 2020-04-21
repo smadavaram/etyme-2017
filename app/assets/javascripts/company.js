@@ -26,6 +26,7 @@
 
 // Jquery Mask
 //= require jquery.mask
+//= require selectize
 
 
 // JQUERY VALIDATE
