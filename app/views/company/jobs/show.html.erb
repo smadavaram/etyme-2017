@@ -61,9 +61,6 @@
                 </div>
               </div>
             </div>
-            <div class="form-group">
-              <%= raw(@job.description) %>
-            </div>
             <div class="form-desc"></div>
             <div class="form-desc">
               <div class="">
@@ -80,17 +77,6 @@
                   <span class="badge badge-warning ml-2"><%= tag.name %></span>
                 <% end %>
               </div>
-            </div>
-
-          </div>
-          <div class="element-box element-box-show p-2">
-            <h5 class="form-header">Applications</h5>
-            <div class="table-responsive">
-              <% if @job_applications.count > 0 %>
-                <%= render 'company/jobs/partials/job_applications_table' %>
-              <% else %>
-                <i>Currently, there is no application</i>
-              <% end %>
             </div>
           </div>
         </div>
@@ -126,6 +112,32 @@
               </button>
             </div>
           </div>
+       <!--    <div class="element-box element-box-show">
+            <button onclick="open_chat(<%=@conversation.id %>)" class="w-100 btn btn-default btn-primary open_chat">Conversation</button>
+          </div> -->
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12 element-box element-box-show">
+          <div class="form-group">
+            <%= raw(@job.description) %>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-8">
+          <div class="element-box element-box-show p-2">
+            <h5 class="form-header">Applications</h5>
+            <div class="table-responsive">
+              <% if @job_applications.count > 0 %>
+                <%= render 'company/jobs/partials/job_applications_table' %>
+              <% else %>
+                <i>Currently, there is no application</i>
+              <% end %>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
           <div class="element-box element-box-show">
             <h5 class="form-header">Collaborators</h5>
             <% if @conversation.present? %>
@@ -172,11 +184,7 @@
                 Collaborators</a>
             </div>
           </div>
-       <!--    <div class="element-box element-box-show">
-            <button onclick="open_chat(<%=@conversation.id %>)" class="w-100 btn btn-default btn-primary open_chat">Conversation</button>
-          </div> -->
         </div>
-
       </div>
     </div>
   </div>

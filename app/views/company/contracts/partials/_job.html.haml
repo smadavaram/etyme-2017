@@ -239,7 +239,7 @@
               %label.control-label Hr Admins
               .contract-fild
                 .plain-select
-                  = select_tag "company_contacts_ids[]", [] ,class:"sell_company_contract_admins w-100 form-control", id: 'select_sell_company_contacts'
+                  = select_tag "company_contacts_ids[]", [] ,class:"w-100", id: 'selectize_sell_company_contacts'
                   -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
 
 
@@ -277,13 +277,13 @@
     $('#admin-user').change( function() {
       save_hr_admins(null);
     });
-    $('#select_sell_company_contacts').change( function() {
+    $('#selectize_sell_company_contacts').change( function() {
       save_hr_admins_manager(null);
     });
     function save_hr_admins_manager(e){
       // e.preventDefault();
       let contract_id = $('#contract_id').val();
-      let user_ids = $('#select_sell_company_contacts').val();
+      let user_ids = $('#selectize_sell_company_contacts').val();
       let url = `/contracts//get_reporting_managers`;
       $.post(url, {contract_id: contract_id, company_contacts_ids: user_ids}).done(function (data) {
           flash_success("End Client Reporting Manager updated Successfully!")

@@ -493,12 +493,33 @@ class Company::ContractsController < Company::BaseController
   end
 
   def get_reporting_managers
-    @users = User.where(id: params[:company_contacts_ids]).to_a
+    contact_id = params[:company_contacts_ids]
+    if contact_id.to_s.include? "@"
+      contact = add_new_contact(params[:company_contacts_ids].to_s)
+      contact_id = contact.user.id
+    end
+    @users = User.where(id: contact_id).to_a
     @users += User.where(id: Contract.find_by(id: params[:contract_id])&.sell_contract&.contract_sell_business_details.pluck('user_id')).to_a if params[:contract_id].present?
     respond_to do |format|
       format.js {}
     end
   end
+
+  def add_new_contact(email)
+    begin
+      CompanyContact.transaction do
+        email = email.downcase
+        next unless (email =~ /\A([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})\z/i).present?
+        user = DiscoverUser.new.discover_user(email)
+        contact = current_company.company_contacts.where(user: user).first_or_initialize(created_by: current_user, user_company: user.company, email: user.email)
+        contact.save! unless contact.persisted?
+        return contact
+      end
+    rescue ActiveRecord::RecordInvalid
+      flash[:errors] = ["Please check the contacts' email formats and try again"]
+    end
+  end
+
 
   def delete_reporting_manager
     @contract = Contract.find_by(id: params[:contract_id])
