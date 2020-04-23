@@ -30,7 +30,7 @@
       let contacts = null
       let candidates = null
       $.ajax({
-        url: "conversation/chat_members",
+        url: `#{company_conversation_chat_members_path}`,
         type: "GET",
         dataType: "json",
         success: function (data) {
@@ -91,7 +91,7 @@
         }
       });
       $.ajax({
-        url: "conversation/chat_candidates",
+        url: `#{company_conversation_chat_candidates_path}`,
         type: "GET",
         dataType: "json",
         success: function (data) {
@@ -150,6 +150,5 @@
           });
         }
       });
-
     });
 
