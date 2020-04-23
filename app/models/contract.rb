@@ -73,7 +73,6 @@ class Contract < ApplicationRecord
   after_save :create_timesheet, if: proc { |contract| contract.draft? && !contract.has_child? && contract.saved_change_to_status? && contract.is_not_ended? && !contract.timesheets.present? && contract.in_progress? && contract.next_invoice_date.nil? }
   before_create :set_contractable, if: proc { |contract| contract.not_system_generated? }
   before_create :set_sub_contract_attributes, if: proc { |contract| contract.parent_contract? }
-
   before_create :set_number
   after_create :set_name
   validate :start_date_cannot_be_less_than_end_date, on: :create
@@ -107,6 +106,7 @@ class Contract < ApplicationRecord
   delegate :set_timesheet_submit, :invoice_generate, :find_next_date, to: :appraiser
 
   def set_name
+    update(cc_job: 1)
     if project_name.to_s.include? "Auto generated"
       update(project_name: "#{id}-#{job.title[0..20]}#{client.present? ? "-#{client.full_name.capitalize}" : ''}")
     end

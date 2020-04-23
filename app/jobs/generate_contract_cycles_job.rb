@@ -6,13 +6,17 @@ class GenerateContractCyclesJob < ApplicationJob
   after_perform :job_complete
 
   def perform(contract)
-    contract.create_cycles
-  rescue StandardError => e
-    arguments.first.update(cc_job: :errored)
-    ExceptionNotifier.notify_exception(
-      e,
-      data: { payload: contract }
-    )
+    begin
+      contract.create_cycles
+    rescue StandardError => e
+      arguments.first.update(cc_job: :errored)
+      logger.error e.message
+      e.backtrace.each { |line| logger.error line }
+      ExceptionNotifier.notify_exception(
+        e,
+        data: { payload: contract }
+      )
+    end
   end
 
   private
@@ -22,6 +26,6 @@ class GenerateContractCyclesJob < ApplicationJob
   end
 
   def job_complete
-    arguments.first.notify_contract_companies if arguments.first.update(cc_job: :finished, status: :in_progress)
+    arguments.first.notify_contract_companies if arguments.first.update!(cc_job: :finished, status: :in_progress)
   end
 end
