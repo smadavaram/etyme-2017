@@ -106,7 +106,7 @@ class Contract < ApplicationRecord
   delegate :set_timesheet_submit, :invoice_generate, :find_next_date, to: :appraiser
 
   def set_name
-    update(cc_job: 1)
+    update(cc_job: 0)
     if project_name.to_s.include? "Auto generated"
       update(project_name: "#{id}-#{job.title[0..20]}#{client.present? ? "-#{client.full_name.capitalize}" : ''}")
     end
