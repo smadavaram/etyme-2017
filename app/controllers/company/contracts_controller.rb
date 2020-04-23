@@ -385,15 +385,11 @@ class Company::ContractsController < Company::BaseController
 
   def generate_cycles
     if @contract.remaining?
-      @contract.create_cycles
-      @contract.update(cc_job: :started)
-      @contract.notify_contract_companies if @contract.update!(cc_job: :finished, status: :in_progress)
-
-      # if GenerateContractCyclesJob.perform_now(@contract)
+      if GenerateContractCyclesJob.perform_now(@contract)
         flash[:success] = 'Your request has been queued, will be processed momentarily'
-      # else
-      #   flash[:errors] = @contract.errors.full_messages << 'Errors while processing request'
-      # end
+      else
+        flash[:errors] = @contract.errors.full_messages << 'Errors while processing request'
+      end
     else
       flash[:errors] = @contract.errors.full_messages << 'Contract Cycles are already been generated or in processing queue'
     end
