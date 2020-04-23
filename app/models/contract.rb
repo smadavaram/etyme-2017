@@ -297,41 +297,41 @@ class Contract < ApplicationRecord
   end
 
   def extend_cycles(extended_date = nil)
-    # ActiveRecord::Base.transaction do
-    #   if buy_contract.present?
-    #     buy_contract_time_sheet_cycles(extended_date)
-    #     buy_contract_time_sheet_aprove_cycle(extended_date)
-    #     buy_contract_salary_calculation_cycle(extended_date)
-    #     buy_contract_salary_process_cycle(extended_date)
-    #     buy_contract_salary_clear_cycle(extended_date)
-    #   end
-    #   if sell_contract.present?
-    #     sell_contract_time_sheet_cycles(extended_date)
-    #     sell_contract_time_sheet_aprove_cycle(extended_date)
-    #     sell_contract_invoice_cycle(extended_date)
-    #     sell_contract_client_expense_cycle(extended_date)
-    #     sell_contract_client_expense_approve_cycle(extended_date)
-    #     sell_contract_client_expense_invoice_cycle(extended_date)
-    #   end
-    # end
+    ActiveRecord::Base.transaction do
+      if buy_contract.present?
+        buy_contract_time_sheet_cycles(extended_date)
+        buy_contract_time_sheet_aprove_cycle(extended_date)
+        buy_contract_salary_calculation_cycle(extended_date)
+        buy_contract_salary_process_cycle(extended_date)
+        buy_contract_salary_clear_cycle(extended_date)
+      end
+      if sell_contract.present?
+        sell_contract_time_sheet_cycles(extended_date)
+        sell_contract_time_sheet_aprove_cycle(extended_date)
+        sell_contract_invoice_cycle(extended_date)
+        sell_contract_client_expense_cycle(extended_date)
+        sell_contract_client_expense_approve_cycle(extended_date)
+        sell_contract_client_expense_invoice_cycle(extended_date)
+      end
+    end
   end
 
   def create_cycles
     ActiveRecord::Base.transaction do
       if buy_contract.present?
-        buy_contract_time_sheet_cycles
-        buy_contract_time_sheet_aprove_cycle
-        buy_contract_salary_calculation_cycle
-        buy_contract_salary_process_cycle
-        buy_contract_salary_clear_cycle
+        buy_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit', cycle_of: buy_contract).present?
+        buy_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove', cycle_of: buy_contract).present?
+        buy_contract_salary_calculation_cycle unless contract_cycles.where(cycle_type: 'SalaryCalculation', cycle_of: buy_contract).present?
+        buy_contract_salary_process_cycle unless contract_cycles.where(cycle_type: 'SalaryProcess', cycle_of: buy_contract).present?
+        buy_contract_salary_clear_cycle unless contract_cycles.where(cycle_type: 'SalaryClear', cycle_of: buy_contract).present?
       end
       if sell_contract.present?
-        sell_contract_time_sheet_cycles
-        sell_contract_time_sheet_aprove_cycle
-        sell_contract_invoice_cycle
-        sell_contract_client_expense_cycle
-        sell_contract_client_expense_approve_cycle
-        sell_contract_client_expense_invoice_cycle
+        sell_contract_time_sheet_cycles unless contract_cycles.where(cycle_type: 'TimesheetSubmit', cycle_of: sell_contract).present? && buy_contract.present?
+        sell_contract_time_sheet_aprove_cycle unless contract_cycles.where(cycle_type: 'TimesheetApprove', cycle_of: sell_contract).present?
+        sell_contract_invoice_cycle unless contract_cycles.where(cycle_type: 'InvoiceGenerate', cycle_of: sell_contract).present?
+        sell_contract_client_expense_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseSubmission', cycle_of: sell_contract).present?
+        sell_contract_client_expense_approve_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseApprove', cycle_of: sell_contract).present?
+        sell_contract_client_expense_invoice_cycle unless contract_cycles.where(cycle_type: 'ClientExpenseInvoice', cycle_of: sell_contract).present?
       end
     end
   end

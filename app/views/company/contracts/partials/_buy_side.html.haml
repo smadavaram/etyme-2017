@@ -23,7 +23,7 @@
             .pull-left= do_ellipsis(@contract.candidate.addresses.first&.address_1,15)
         .col-sm-6.pr-0.pl-0
           .rate_info.text-center.d-inline-block.p-0
-            %strong.rate_label{title: "Freelancer Rate"} Fre. Rate
+            %strong.rate_label{title: "Freelancer Rate"} Consultant Rate
             %span
               %br
               =  number_to_currency(@contract.buy_contract.today_rate.try(:rate)||0)
