@@ -20,6 +20,7 @@
 //= require plugin/jquery-validate/jquery.validate.min
 
 //= require js.cookie
+//= require jstz
 //= require browser_timezone_rails/set_time_zone
 
 // BOOTSTRAP 4 JS
