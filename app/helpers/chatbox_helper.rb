@@ -123,9 +123,9 @@ module ChatboxHelper
       elsif usr.group_name.include? "J"
         if params[:conversation].present?
           conv = Conversation.find params[:conversation]
+          obj = conv.job
+          link = job_path(obj)
         end
-        obj = conv.job
-        link = job_path(obj)
       else
         link = nil
       end
