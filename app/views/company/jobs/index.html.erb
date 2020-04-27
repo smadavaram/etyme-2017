@@ -50,7 +50,7 @@
                     <td><%= job.job_category %></td>
                     <td><%= colorfull_text(display_date_and_time(job.end_date || Time.now),'#1AAE9F') %></td>
                     <td><%= job.location %></td>
-                    <td class="no-wrap">
+                    <td class="">
                       <%#= user_image(job.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{job.created_by&.full_name}" ) %>
                       <%#= link_to do_ellipsis(job.created_by.full_name,8),company_user_profile_path(job.created_by.id) if job.created_by.present? %>
                       <% conversion =  job.conversation %>
