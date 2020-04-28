@@ -27,7 +27,8 @@
                       %th Actions
                 %tbody
                   - @received_job_applications.each do |application|
-                    %tr{"data-id" => "#{application.id}"}
+                    - if application.applicationable
+                      %tr{"data-id" => "#{application.id}"}
                       - candidate = application.applicationable
                       %td= check_box_tag "ids[]", application.id
                       %td
@@ -45,17 +46,17 @@
 
                       %td
                         %span
-                          = image_tag(application.applicationable.associated_company.logo,class: 'data-table-image', title: application.applicationable.associated_company.name)
+                          -#uncomment for production = image_tag(application.applicationable.associated_company.logo,class: 'data-table-image', title: application.applicationable.associated_company.name)
                           =do_ellipsis(application.recruiter_company&.email)
                       %td.no-wrap= colorfull_text( snake_to_words(application.status),application.status=='applied' ? 'orange' : 'green')
                       %td= application.job_invitation_id ? "Invited/#{application.application_type}" : "Direct/#{snake_to_words(application.application_type)}"
-                      %td= application.applicationable.candidate_visa
-                      %td= application.applicationable.total_experience
+                      %td= application.applicationable&.candidate_visa
+                      %td= application.applicationable.experiences.first
                       %td= do_ellipsis(application.applicationable.skill_list.join(', '))
                       %td.no-wrap
                         = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(application), title: 'View Detail', class: 'data-table-icons')
                         = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, candidate_add_reminder_path(application.applicationable_id), remote: :true, title: "Remind Me", class: 'data-table-icons')
-                        = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, application.applicant_resume, download: true, title: "Download Resume", class: 'data-table-icons')
+                        = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, application.applicant_resume || candidate.candidates_resumes.first.resume, target: "_blank", download: true, title: "Download Resume", class: 'data-table-icons')
                         = link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, make_company_candidate_path(application.applicationable), method: :post, title: 'Add to candidates', class: 'data-table-icons')
 
 

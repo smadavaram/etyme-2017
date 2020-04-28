@@ -187,7 +187,7 @@
                             = c.role
                         %strong Reference
                         - if c.candidate == current_candidate and !c.refrence_one.present?
-                          = render 'candidate/candidates/partials/update_ref_one', client: c
+                          -# = render 'candidate/candidates/partials/update_ref_one', client: c
                         - else
                           .element-inner-desc.pl-2
                             %p.m-0
