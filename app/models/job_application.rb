@@ -66,12 +66,12 @@ class JobApplication < ApplicationRecord
 
   def update_job_invitation_status
     job_invitation.accepted!
-    job.created_by.notifications.create(notification_type: :new_application, createable: applicationable, message: applicationable.full_name + " has #{job_invitation.status.humanize} <a href='http://#{job.created_by.company.etyme_url + job_application_path(self)}'> on your Job </a>#{job.title}", title: 'Job Invitation')
+    job.created_by.notifications.create(notification_type: :application, createable: applicationable, message: applicationable.full_name + " has #{job_invitation.status.humanize} <a href='http://#{job.created_by.company.etyme_url + job_application_path(self)}'> on your Job </a>#{job.title}", title: 'Job Invitation')
   end
 
   # Call after update
   def notify_recipient_on_status_change
-    applicationable.notifications.create(notification_type: :new_application, createable: job.company.owner, message: job.company.name + " has #{status.humanize} <a href='http://#{applicationable.etyme_url + job_application_path(self)}'> Job Application </a> #{job.title}", title: 'Job Application')
+    applicationable.notifications.create(notification_type: :application, createable: job.company.owner, message: job.company.name + " has #{status.humanize} <a href='http://#{applicationable.etyme_url + job_application_path(self)}'> Job Application </a> #{job.title}", title: 'Job Application')
   end
 
   def set_application_type
@@ -80,13 +80,13 @@ class JobApplication < ApplicationRecord
 
   def notify_job_owner_or_admins
     if applicationable.class.name == 'Candidate'
-      job.created_by.notifications.create(notification_type: :new_application, createable: applicationable, message: applicationable.full_name + " has <a href='http://#{job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> to your Job Application - #{job.title}", title: 'Job Application')
+      job.created_by.notifications.create(notification_type: :application, createable: applicationable, message: applicationable.full_name + " has <a href='http://#{job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> to your Job Application - #{job.title}", title: 'Job Application')
     else
       job.company.all_admins_has_permission?('manage_job_applications').each do |admin|
         if applicationable_id.blank?
-          admin.notifications.create(notification_type: :new_application, createable: applicationable, message: " has <a href='http://#{job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> your Job Application - #{job.title}", title: 'Job Application')
+          admin.notifications.create(notification_type: :application, createable: applicationable, message: " has <a href='http://#{job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> your Job Application - #{job.title}", title: 'Job Application')
         else
-          admin.notifications.create(notification_type: :new_application, createable: applicationable, message: applicationable.company.name + " has <a href='http://#{job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> your Job Application - #{job.title}", title: 'Job Application')
+          admin.notifications.create(notification_type: :application, createable: applicationable, message: applicationable.company.name + " has <a href='http://#{job.created_by.company.etyme_url + job_application_path(self)}'>apply</a> your Job Application - #{job.title}", title: 'Job Application')
         end
       end
     end
@@ -101,7 +101,6 @@ class JobApplication < ApplicationRecord
   end
 
   private
-
   def send_message
     if applicationable_id.blank?
 

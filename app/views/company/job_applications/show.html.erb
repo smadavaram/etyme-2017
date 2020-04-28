@@ -80,7 +80,7 @@
             <%end%>
           </div>
           <div class="col-lg-4 full-chat-right" id="conversation-r-section">
-            <%= render "company/conversations/conversation_right_side" %>
+            <%#= render "company/conversations/conversation_right_side" %>
           </div>
         </div>
       </div>
@@ -92,7 +92,7 @@
   <a onclick="open_chat(<%=@conversation.id %>)" class=" open_chat ChatBtn" style="margin-left:13px;" id="ChatBtn">Conversation</a>
 </div>
 
-
+</div>
 <% content_for :scripts do %>
   <script>
       $(document).ready(function () {
@@ -109,4 +109,5 @@
       $("#remind").datepicker({dateFormat: "yy-mm-dd"  });
 
   </script>
+
 <% end %>

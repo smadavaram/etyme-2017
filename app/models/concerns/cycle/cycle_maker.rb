@@ -7,9 +7,7 @@ module Cycle::CycleMaker
 
   def buy_contract_time_sheet_cycles(extended_date = nil)
     date_groups = get_date_groups(buy_contract, 'ts', 'time_sheet', extended_date)
-    counter = 0
     date_groups.each do |date_group|
-      break if counter > 2
       # contract_cycles.build(company)
       start_date = date_group.first
       end_date = date_group.last
@@ -29,15 +27,12 @@ module Cycle::CycleMaker
       date_group.each do |date|
         time_sheet.transactions.create!(status: :pending, start_time: date)
       end
-      counter += 1
     end
   end
 
   def buy_contract_time_sheet_aprove_cycle(extended_date = nil)
     date_groups = get_date_groups(buy_contract, 'ta', 'ts_approve', extended_date)
-    counter = 0
     date_groups.each do |date_group|
-      break if counter > 2
       start_date = date_group.first
       end_date = date_group.last
       contract_cycles.create!(cycle_type: 'TimesheetApprove',
@@ -48,15 +43,12 @@ module Cycle::CycleMaker
                              cycle_of: buy_contract,
                              cycle_frequency: buy_contract.ts_approve,
                              note: 'Timesheet approve')
-      counter += 1
     end
   end
 
   def buy_contract_salary_process_cycle(extended_date = nil)
     date_groups = get_date_groups(buy_contract.payroll_info, 'sp', 'payroll_type', extended_date)
-    counter = 0
     date_groups.each do |date_group|
-      break if counter > 2
       start_date = date_group.first
       end_date = date_group.last
       contract_cycles.create!(
@@ -69,15 +61,12 @@ module Cycle::CycleMaker
           cycle_frequency: buy_contract.salary_calculation,
           note: 'Salary Process'
       )
-      counter += 1
     end
   end
 
   def buy_contract_salary_clear_cycle(extended_date = nil)
     date_groups = get_date_groups(buy_contract.payroll_info, 'sclr', 'payroll_type', extended_date)
-    counter = 0
     date_groups.each do |date_group|
-      break if counter > 2
       start_date = date_group.first
       end_date = date_group.last
       contract_cycles.create!(
@@ -90,15 +79,12 @@ module Cycle::CycleMaker
           cycle_frequency: buy_contract.salary_calculation,
           note: 'Salary Clear'
       )
-      counter += 1
     end
   end
 
   def buy_contract_salary_calculation_cycle(extended_date = nil)
     date_groups = get_date_groups(buy_contract.payroll_info, 'sc', 'payroll_type', extended_date)
-    counter = 0
     date_groups.each do |date_group|
-      break if counter > 2
       start_date = date_group.first
       end_date = date_group.last
       salary = salaries.pending.build(candidate: candidate)
@@ -115,7 +101,6 @@ module Cycle::CycleMaker
           cycle_frequency: buy_contract.salary_calculation,
           note: 'Salary Calculation'
       )
-      counter += 1
     end
   end
 
@@ -123,9 +108,7 @@ module Cycle::CycleMaker
 
   def sell_contract_time_sheet_cycles(extended_date = nil)
     date_groups = get_date_groups(sell_contract, 'ts', 'time_sheet', extended_date)
-    counter = 0
     date_groups.each do |date_group|
-      break if counter > 2
       # contract_cycles.build(company)
       start_date = date_group.first
       end_date = date_group.last
@@ -144,15 +127,12 @@ module Cycle::CycleMaker
       date_group.each do |date|
         time_sheet.transactions.create!(status: :pending, start_time: date)
       end
-      counter += 1
     end
   end
 
   def sell_contract_time_sheet_aprove_cycle(extended_date = nil)
     date_groups = get_date_groups(sell_contract, 'ta', 'ts_approve', extended_date)
-    counter = 0
     date_groups.each do |date_group|
-      break if counter > 2
       start_date = date_group.first
       end_date = date_group.last
       contract_cycles.create!(cycle_type: 'TimesheetApprove',
@@ -163,15 +143,12 @@ module Cycle::CycleMaker
                              cycle_of: sell_contract,
                              cycle_frequency: sell_contract.ts_approve,
                              note: 'Timesheet approve')
-      counter += 1
     end
   end
 
   def sell_contract_invoice_cycle(extended_date = nil)
     date_groups = get_date_groups(sell_contract, 'invoice', 'invoice_terms_period', extended_date)
-    counter = 0
     date_groups.each do |date_group|
-      break if counter > 2
       start_date = date_group.first
       end_date = date_group.last
       invoice = invoices.timesheet_invoice.pending_invoice.build(sender_company_id: company.id, receiver_company_id: sell_contract.company.id, start_date: start_date, end_date: end_date)
@@ -184,16 +161,13 @@ module Cycle::CycleMaker
                              cycle_of: sell_contract,
                              cycle_frequency: sell_contract.invoice_terms_period,
                              note: 'Invoice generate')
-      counter += 1
     end
   end
 
   def sell_contract_client_expense_cycle(extended_date = nil)
     date_groups = get_date_groups(sell_contract, 'ce', 'client_expense', extended_date)
-    counter = 0
     unless date_groups.nil?
       date_groups.each do |date_group|
-      break if counter > 2
       start_date = date_group.first
       end_date = date_group.last
       client_expense = client_expenses.build(user: admin_user, company: sell_contract.company, job: job, start_date: start_date, end_date: end_date)
@@ -208,17 +182,14 @@ module Cycle::CycleMaker
                              cycle_of: sell_contract,
                              cycle_frequency: sell_contract.client_expense,
                              note: 'Client expense submission')
-      counter += 1
       end
     end
   end
 
   def sell_contract_client_expense_approve_cycle(extended_date = nil)
     date_groups = get_date_groups(sell_contract, 'ce_ap', 'ce_approve', extended_date)
-    counter = 0
     unless date_groups.nil?
       date_groups.each do |date_group|
-      break if counter > 2
       start_date = date_group.first
       end_date = date_group.last
       contract_cycles.create!(cycle_type: 'ClientExpenseApprove',
@@ -229,17 +200,14 @@ module Cycle::CycleMaker
                              cycle_of: sell_contract,
                              cycle_frequency: sell_contract.ce_approve,
                              note: 'Client expense Approval')
-      counter += 1
       end
     end
   end
 
   def sell_contract_client_expense_invoice_cycle(extended_date = nil)
     date_groups = get_date_groups(sell_contract, 'ce_in', 'ce_invoice', extended_date)
-    counter = 0
     unless date_groups.nil?
       date_groups.each do |date_group|
-      break if counter > 2
       start_date = date_group.first
       end_date = date_group.last
       invoice = invoices.client_expense_invoice.pending_invoice.build(sender_company_id: company.id, receiver_company_id: sell_contract.company.id, start_date: start_date, end_date: end_date)
@@ -252,8 +220,6 @@ module Cycle::CycleMaker
                              cycle_of: sell_contract,
                              cycle_frequency: sell_contract.ce_invoice,
                              note: 'Client Expense Invoice')
-
-      counter += 1
       end
     end
   end
