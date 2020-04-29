@@ -398,7 +398,7 @@ class Company::CompaniesController < Company::BaseController
       company_contact_params.to_h.map do |_key, contact_hash|
         user_params = contact_hash.slice(:first_name, :last_name, :email)
         user = User.find_by_email(contact_hash['email']) || Admin.create(user_params.merge(company_id: @company.id))
-        company_contact = current_com.company_contacts.build(contact_hash.merge(user_id: user.id, user_company_id: user.company.id, created_by_id: current_user.id))
+        company_contact = current_company.company_contacts.build(contact_hash.merge(user_id: user.id, user_company_id: user.company.id, created_by_id: current_user.id))
         company_contact.save
       end.all?
     end

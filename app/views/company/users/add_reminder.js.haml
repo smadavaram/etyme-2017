@@ -1,5 +1,5 @@
 
 $('.remote_container').html("#{ j render 'company/reminders/partials/form' , assignee: @user}");
 $('#reminder-#{@user.id}').modal('toggle');
-$("#remind").datepicker({dateFormat: "yy-mm-dd"  });
+$("#remind").datepicker({dateFormat: "mm-dd-yy"  });
 

@@ -19,7 +19,7 @@
             %strong.pull-left= "Contract Type: "
             .pull-left{title: @contract.buy_contract.fetch_contract_type_label}= @contract.buy_contract.contract_type
           .w-100
-            %strong.pull-left= "Address: "
+            %strong.pull-left= "Location: "
             .pull-left= do_ellipsis(@contract.candidate.addresses.first&.address_1,15)
         .col-sm-6.pr-0.pl-0
           .rate_info.text-center.d-inline-block.p-0
@@ -59,8 +59,10 @@
                   %td= change_rate.working_hrs
                   %td= change_rate.rate_type.nil? ? 'N/A' : colorfull_text(change_rate.rate_type.upcase,'#1AAE9F')
                   %td= change_rate.uscis
-                  %td= colorfull_text(change_rate.from_date,'orange')
-                  %td= colorfull_text(change_rate.to_date,'red')
+                  %td.no-wrap
+                    = colorfull_text(change_rate.from_date,'orange')
+                  %td.no-wrap
+                    = colorfull_text(change_rate.to_date,'red')
       %div
         .w-100
           %strong.pull-left Business Contacts

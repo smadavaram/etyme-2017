@@ -42,7 +42,7 @@
           %div
             .widget-body
               %ul#myTab1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
-                %li.nav-item.active.cumstom_nav-tab
+                %li.nav-item.active.cumstom_nav-tab{id: 'costing_tab'}
                   %a{"data-toggle" => "tab", :href => "#tab-buy-ct", class: "nav-link cumstom_nav-tab"}
                     %span.badge.bg-color-blue.txt-color-white
                     Costing
@@ -536,6 +536,7 @@
        $(".exp_date_ven_buy").datepicker({
           dateFormat : 'dd/mm/yy'
        });
+       $('#costing_tab').addClass("active");
     });
     $('#bc_timesheet').val($('#contract_buy_contracts_attributes_0_time_sheet').val());
     $('.add-commission').on('cocoon:after-insert', function(e, insertedItem) {

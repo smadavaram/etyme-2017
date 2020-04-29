@@ -172,14 +172,18 @@ class Company::InvoicesController < Company::BaseController
   def update_expense_invoice
     @invoice = Invoice.find(params[:id])
     @client_expenses = ClientExpense.where(id: params[:ids])
-    ClientExpense.transaction do
-      @client_expenses.each do |ce|
-        @invoice.invoice_items.build(itemable: ce).save
+    if @invoice.invoice_items.pluck(:itemable_id).include? params[:id]
+      ClientExpense.transaction do
+        @client_expenses.each do |ce|
+          @invoice.invoice_items.build(itemable: ce).save
+        end
+        @invoice.open! if @invoice.pending_invoice?
       end
-      @invoice.open! if @invoice.pending_invoice?
+      flash[:success] = 'Updated Successfully'
+    else
+      flash[:error] = 'Expense already exists.'
+      redirect_to invoices_path(tab: 'sent_invoices')
     end
-    flash[:success] = 'Updated Successfully'
-    redirect_to invoices_path(tab: 'sent_invoices')
   end
 
   def update

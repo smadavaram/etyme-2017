@@ -44,6 +44,8 @@ class Company::JobApplicationsController < Company::BaseController
         c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id)
       end
       @post = true
+      redirect_back(fallback_location: root_path)
+
     end
   end
 
