@@ -813,4 +813,7 @@ Rails.application.routes.draw do
     end
   end
   root 'static#index'
+
+  delete 'company/contracts/:id', to: 'company/contracts#destroy', as: :destroy_company_contract
+
 end

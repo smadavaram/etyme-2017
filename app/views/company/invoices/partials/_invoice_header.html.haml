@@ -4,6 +4,9 @@
       .col-sm-12
         %b Contract
         %p= invoice.contract.title
+
+        %b Consultant
+        %p= invoice.contract.candidate.full_name
       .col-sm-12
         %b Sent Date - Due Date
         %p{style: 'color: #1AAE9F;'}= "#{invoice.contract.start_date.strftime('%d/%m/%Y')} - #{invoice.due_date}"

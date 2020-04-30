@@ -43,10 +43,11 @@
               =contract.buy_contract.try(:payment_term)
             %td.no-wrap
               = colorfull_text(snake_to_words(contract.status), contract.status=="pending" ? 'orange' : 'green')
-            %td.no-wrap 
+            %td.no-wrap
+              = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, contract_path(contract.id), title: "Edit #{contract.title}", class: 'data-table-icons')
               - if ['pending','draft'].include?(contract.status)
                 = link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, new_contract_path(contract_id: contract.id), title: "Edit #{contract.title}", class: 'data-table-icons')
-              = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, contract_path(contract), title: "Edit #{contract.title}", class: 'data-table-icons')
+                = link_to(content_tag(:i, nil, class: 'fa fa-trash').html_safe, destroy_company_contract_path(contract), method: :delete, title: "Destroy #{contract.title}", class: 'data-table-icons')
 
 
 .timesheet_pagination_wrap.pt-3
