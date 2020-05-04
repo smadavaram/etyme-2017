@@ -116,11 +116,9 @@
               .plain-select
                 = f.select :job_id, '', {}, id: 'select_jobs', class: 'form-control',required: 'true'
             - else
-              = text_field_tag :job_title , @contract.job.title, disabled: 'disabled'
+              = f.select :job_id, '', {}, id: 'select_jobs',value:  @contract.job&.id, class: 'form-control'
               = hidden_field_tag 'job_id', 	 @contract.job&.id, id: "job_id"
   - if true #@contract.new_record? or @contract.buy_contract&.persisted?
-    
-
     .contract-fields_wrapper.mt-4.contract-border
       .row
         .col-md-12
@@ -145,8 +143,9 @@
                 .plain-select
                   = f.select :candidate_id, '', {}, id: 'select_candidates', required: true
               - else
-                = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
-
+                .plain-select
+                = f.select :candidate_id, '', {}, id: 'select_candidates'
+                -# = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
         =f.fields_for :buy_contract, @contract.buy_contract || @contract.build_buy_contract do |bc|
           .col-md-7
             .form-group
@@ -200,7 +199,8 @@
                     .plain-select
                       = sc.select :company_id, {}, {}, id: "sell_contract_company", required: true
                   - else
-                    = text_field_tag :customer_name, @contract.sell_contract.company.name.capitalize, disabled: "disabled"
+                    = sc.select :company_id, {}, {}, id: "sell_contract_company"
+                    -# = text_field_tag :customer_name, @contract.sell_contract.company.name.capitalize, disabled: "disabled"
                     = hidden_field_tag :sell_contract_company, @contract.sell_contract.company.id
             .col-md-6
               .form-group
@@ -209,22 +209,24 @@
                   = f.text_field :work_location, class: "form-control", placeholder: "Contract Work location"
           %hr
           .row.toggle_sell_contract
-            - if @contract.new_record?
-              .col-md-6
-                .form-group.mb-3.mt-3
-                  %label.control-label.mr-4
-                    %b Do you want to Onboard Client?
-                  %span.is_client_customer_radio
-                    =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true,class: 'end_client'
-                    %label.control-label.mr-4 Yes
-                    =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?,class: 'end_client'
-                    %labe.control-label No
-              .col-md-6
-                .form-group.contract_client{style: "display: none;"}
-                  %label.control-label Client Company
-                  .contract-fild
-                    .plain-select
-                      = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
+            -# - if @contract.new_record?
+            .col-md-6
+              .form-group.mb-3.mt-3
+                %label.control-label.mr-4
+                  %b Do you want to Onboard Client?
+                %span.is_client_customer_radio
+                  =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true,class: 'end_client'
+                  %label.control-label.mr-4 Yes
+                  =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?,class: 'end_client'
+                  %labe.control-label No
+            .col-md-6
+              .form-group.contract_client{style: "display: none;"}
+                %label.control-label Client Company
+                %label.control-label.pull-right
+                  %button{class: 'btn btn-sm btn-primary',type: 'button', "data-toggle": "modal", "data-target": "#new-contract-company"} Add New
+                .contract-fild
+                  .plain-select
+                    = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
       .contract-fields_wrapper.mt-4.toggle_sell_contract.contract-border
         -#%h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
         -#%h5.mb-4.d-inline-block.pull-right
@@ -245,8 +247,8 @@
 
         %br/
         .row.hr_reporting_admins_table_body
-          - unless @contract.new_record?
-            = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
+          -# - unless @contract.new_record?
+          = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
 
 
 
@@ -273,7 +275,11 @@
           flash_error(data.status)
       });
     }
-
+    function hide_modal(){
+      setTimeout( ()=> {
+        $('#close_modal').trigger('click');
+      }, 1000)
+    }
     $('#admin-user').change( function() {
       save_hr_admins(null);
     });
