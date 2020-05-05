@@ -71,7 +71,7 @@ class JobApplication < ApplicationRecord
 
   # Call after update
   def notify_recipient_on_status_change
-    applicationable.notifications.create(notification_type: :application, createable: job.company.owner, message: job&.company&.name.to_s + " has #{status.humanize} <a href='http://#{applicationable.etyme_url + job_application_path(self)}'> Job Application </a> #{job.title}", title: 'Job Application')
+    applicationable.notifications.create(notification_type: :application, createable: job.company.owner, message: "#{job&.company&.name.to_s} has #{status&.humanize} <a href='http://#{applicationable&.etyme_url + job_application_path(self)}'> Job Application </a> #{job&.title}".to_s, title: 'Job Application')
   end
 
   def set_application_type
