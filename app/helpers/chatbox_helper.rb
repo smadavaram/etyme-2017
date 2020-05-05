@@ -101,10 +101,10 @@ module ChatboxHelper
     contract = nil
     if usr.group_name.present?
       if usr.group_name.include? "BC"
-        contract = BuyContract.where(number: usr.group_name).first.contract
+        contract = BuyContract.where(number: usr.group_name).first&.contract
       else
         if usr.group_name.include? "SC"
-          contract = SellContract.where(number: usr.group_name).first.contract
+          contract = SellContract.where(number: usr.group_name).first&.contract
         end
       end
     end
@@ -115,10 +115,10 @@ module ChatboxHelper
     link = nil
     if usr.group_name.present?
       if usr.group_name.include? "BC"
-        obj = BuyContract.where(number: usr.group_name).first.contract
+        obj = BuyContract.where(number: usr.group_name).first&.contract
         link = contract_path(obj)
       elsif usr.group_name.include? "SC"
-        obj = SellContract.where(number: usr.group_name).first.contract
+        obj = SellContract.where(number: usr.group_name).first&.contract
         link = contract_path(obj)
       elsif usr.group_name.include? "J"
         if params[:conversation].present?

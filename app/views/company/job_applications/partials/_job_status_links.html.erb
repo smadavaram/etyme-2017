@@ -38,9 +38,9 @@
     <% end %>
   <%else %>
     <%#= link_to('Client Submission',submit_job_application_path(app),class: "btn-outline-primary btn btn-xs  #{@index<4 && (@index-4).abs==1 ? '' : 'disabled btn-to-gray' }")  %>
-    <%= link_to('Interview', '#', class: "btn-outline-primary btn btn-xs  #{@index<4 && (@index-4).abs==1 ? '' : 'disabled btn-to-gray' }", data: {toggle: "modal", target: "#candidate-interview-#{app.applicationable_id}" })%>
+    <%= link_to('Interview', '#', class: "btn-outline-primary btn btn-xs  #{@index<4 && (@index-4).abs==2 ? '' : 'disabled btn-to-gray' }", data: {toggle: "modal", target: "#candidate-interview-#{app.applicationable_id}" })%>
     <%#= link_to('Client Submission', '#', interviewing, data: {toggle: "modal", target: "#share_application_#{app.id}" })%>
-    <%= link_to('Hire', hire_job_application_path(app, conversation_id: conversation.id), method: :post, class: "btn-outline-primary btn btn-xs  #{@index<6 && (@index-6).abs==1 ? '' : 'disabled btn-to-gray' }")%>
+    <%= link_to('Hire', hire_job_application_path(app, conversation_id: conversation.id), method: :post, class: "btn-outline-primary btn btn-xs ")%>
     <%= link_to('Reject', reject_job_application_path(app, conversation_id: conversation.id), method: :post,  class: "btn-outline-danger btn btn-xs  #{@index<7 && (@index-7).abs==1 ? '' : 'disabled btn-to-gray' }")%>
     <% if app.is_candidate_applicant? && !current_company.consultants.where(candidate_id: app.applicationable_id).present? %>
       <%#= link_to('Start On-Boarding', new_job_application_consultant_path(app), class: "contract #{btn_size}#{  !app.hired? || app.contract.present? ? 'disabled' : "" }")%>
