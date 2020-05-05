@@ -11,7 +11,7 @@
   .sell-side.box
     .contract-customer-details
       .row
-        .col-sm-6.pr-0.customer_detail
+        .col-sm-5.pr-0.customer_detail
           .w-100
             %strong.pull-left= "Name: "
             .pull-left= do_ellipsis(@contract.candidate.full_name,15)
@@ -21,7 +21,7 @@
           .w-100
             %strong.pull-left= "Location: "
             .pull-left= do_ellipsis(@contract.candidate.addresses.first&.address_1,15)
-        .col-sm-6.pr-0.pl-0
+        .col-sm-4.pr-0.pl-0
           .rate_info.text-center.p-0
             %strong.rate_label{title: "Freelancer Rate"} Consultant Rate
             %span
@@ -31,6 +31,8 @@
               - if local_assigns[:editable] and editable
                 %span.btn.btn-primary.sell-change-rate{"data-toggle": "modal","data-target": "#freelancer_rate_change"} Add Rate
           %br
+
+        .col-sm-3.pr-0.pl-0
           .rate_info.text-center.p-0
             %strong.rate_label USCIS
             %span

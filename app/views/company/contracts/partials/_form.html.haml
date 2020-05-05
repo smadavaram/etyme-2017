@@ -95,20 +95,20 @@
         set_job_candidate_select('#select_candidates', "Please Select Or Add new Consultant", $("#select_jobs").val());
       })
       set_client_company_select('#select_clients', "Please Select Or Add new Client");
-      set_job_candidate_select('#select_candidates', `#{@contract.candidate.full_name.capitalize}`,!!job_id ? job_id : null);
 
       if(`#{@contract&.sell_contract&.company.present?.to_s}` == "true"){
+        set_job_candidate_select('#select_candidates', `#{@contract&.candidate&.full_name&.capitalize}`,!!job_id ? job_id : null);
         var endclientid = $('#select_clients').val();
         if (endclientid) {
             set_company_reporting_manger('#' + 'select_sell_company_contacts', "Please Select Or Add new Contacts-" + endclientid, "#sell_contract_company");
         }
         else {
-          var sell_contract_company = `#{@contract&.sell_contract&.company.id}`;
+          var sell_contract_company = `#{@contract&.sell_contract&.company&.id}`;
           if (sell_contract_company) {
               set_company_reporting_manger('#select_sell_company_contacts', "Please Select Or Add new Contacts-" + sell_contract_company, "#sell_contract_company");
           }
         }
-        set_company_select('#sell_contract_company', `#{@contract&.sell_contract&.company.name.capitalize}`);
+        set_company_select('#sell_contract_company', `#{@contract&.sell_contract&.company&.name&.capitalize}`);
       }else{
         set_company_select('#sell_contract_company', "Please Select Or Add new Company");
       }
