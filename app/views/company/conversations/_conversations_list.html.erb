@@ -3,11 +3,11 @@
   <% color = nil %>
   <% colors = %w[#fcba03 #fc0f33 #0ffc52] %>
   <% if opt_usr.group_name.include? "SC" %>
-    <% color = colors[0] %>
+    <% color = colors[2] %>
   <% elsif opt_usr.group_name.include? "BC" %>
     <% color = colors[1] %>
   <% else %>
-    <% color = colors[2] %>
+    <% color = colors[0] %>
   <% end %>
   <%# border = "4px solid #{color}" %>
     <div id="convo_box" style="border-left: 4px solid <%= color %>" class="user-fav usr_<%= opt_usr.class.to_s+"_"+opt_usr.id.to_s %>" data-conversation="<%= con.id %>" >
