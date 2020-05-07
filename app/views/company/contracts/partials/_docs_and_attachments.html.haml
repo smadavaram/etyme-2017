@@ -133,12 +133,12 @@
                                   %label.control-label
                                     Select date
                                   .select
-                                    = bc.text_field :ts_date_1, class: "date_1 #{'field_disable' unless @sc&.time_sheet.blank?}", placeholder: "DD/MM/YYYY", value: @sc&.ts_date_1
+                                    = bc.text_field :ts_date_1, class: "date_1 #{'field_disable' unless @sc&.time_sheet.blank?}", placeholder: "MM/DD/YYYY", value: @sc&.ts_date_1
                                 %div{:class => "form-group twice-month #{bc.object.time_sheet != 'twice a month' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select second date
                                   .select
-                                    = bc.text_field :ts_date_2, class: "date_1 #{'field_disable' unless @sc&.time_sheet.blank?}", placeholder: "DD/MM/YYYY", value: @sc&.ts_date_2
+                                    = bc.text_field :ts_date_2, class: "date_1 #{'field_disable' unless @sc&.time_sheet.blank?}", placeholder: "MM/DD/YYYY", value: @sc&.ts_date_2
                                 %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"}
                             -#.col-md-4
                               -#%label.control-label
@@ -148,7 +148,7 @@
                               #buy_collaborators
                                 = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet')
                               %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet', style: 'color: #fff !important;'}
-                                Add Collaborators
+                                Add CC
                   #tab-buy-ta.tab-pane.padding-top-15
                     .row
                       .col-md-12
@@ -203,7 +203,7 @@
                               #buy_ts_approver
                                 = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet_approve')
                               %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet_approve', style: 'color: #fff !important;'}
-                                Add Collaborators
+                                Add CC
                   #tab-buy-sc.tab-pane.padding-top-15
                     .row
                       .col-sm-12
@@ -213,7 +213,7 @@
                           .select
                             .plain-select
                               = bc.select :payroll_info_id, current_company.payroll_infos.map{|payroll| [payroll.title, payroll.id]}, {selected: bc.object.payroll_info.present? ? bc.object.payroll_info.id : current_company.payroll_infos.first&.id },{class: "form-control"}
-                    .buy_disabled_salary
+                    .div
                       .row
                         .col-md-12
                           .form-group
@@ -231,17 +231,17 @@
                                   Salary Calculation
                               .col-md-4
                                 .b-sal-cal
-                                  %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
+                                  %div{:class => "form-group daily"}
                                     %label.control-label.w-100
                                       Select Time
                                       = bc.text_field :sc_day_time, class: "form-contro con-time time-input"
-                                  %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' && bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
+                                  %div{:class => "form-group week"}
                                     %label.control-label
                                       Select day of week
                                     .select
                                       .plain-select
                                         = bc.select :sc_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: current_company&.payroll_infos&.first&.sc_day_of_week},{class: "form-contro" }
-                                  %div{:class => "form-group biweek #{bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
+                                  %div{:class => "form-group biweek"}
                                     %label.control-label
                                       Select Second day of week
                                     .select
@@ -251,17 +251,17 @@
                                           ["Every Thursday", "thu"],
                                           ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
                                           {}, {class: "form-control height-45"}
-                                  %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
+                                  %div{:class => "form-group month"}
                                     %label.control-label
                                       Select date
                                     .select
-                                      = bc.text_field :sc_date_1, class: "date_1", placeholder: "DD/MM/YYYY", value: current_company&.payroll_infos&.first&.sc_date_1
-                                  %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
+                                      = bc.text_field :sc_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sc_date_1
+                                  %div{:class => "form-group twice-month"}
                                     %label.control-label
                                       Select second date
                                     .select
-                                      = bc.text_field :sc_date_2, class: "date_1", placeholder: "DD/MM/YYYY", value: current_company&.payroll_infos&.first&.sc_date_2
-                                  %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
+                                      = bc.text_field :sc_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sc_date_2
+                                  %span{:class => "form-group month"}
                               .col-md-4
                                 %label.control-label
                                   Collaborators
@@ -270,7 +270,7 @@
                                     #buy_s_c
                                       = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_calculation')
                                     %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_calculation', style: "color: #fff !important;"}
-                                      Add Collaborators
+                                      Add CC
                       .row
                         .col-md-12
                           .form-group
@@ -305,12 +305,12 @@
                                     %label.control-label
                                       Select date
                                     .select
-                                      = bc.text_field :sp_date_1, class: "date_1", placeholder: "DD/MM/YYYY", value: current_company&.payroll_infos&.first&.sp_date_1
+                                      = bc.text_field :sp_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sp_date_1
                                   %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
                                     .select
-                                      = bc.text_field :sp_date_2, class: "date_1", placeholder: "DD/MM/YYYY", value: current_company&.payroll_infos&.first&.sp_date_2
+                                      = bc.text_field :sp_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sp_date_2
                                   %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                               .col-md-4
                                 %label.control-label
@@ -320,7 +320,7 @@
                                     #buy_s_p
                                       = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_process')
                                     %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_process', style: "color: #fff !important;"}
-                                      Add Collaborators
+                                      Add CC
 
                       .row
                         .col-md-12
@@ -352,12 +352,12 @@
                                     %label.control-label
                                       Select date
                                     .select
-                                      = bc.text_field :sclr_date_1, class: "date_1", placeholder: "DD/MM/YYYY", value: current_company&.payroll_infos&.first&.sclr_date_1
+                                      = bc.text_field :sclr_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sclr_date_1
                                   %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
                                     .select
-                                      = bc.text_field :sclr_date_2, class: "date_1", placeholder: "DD/MM/YYYY", value: current_company&.payroll_infos&.first&.sclr_date_2
+                                      = bc.text_field :sclr_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sclr_date_2
                                   %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                               .col-md-2
                                 .term-no
@@ -525,16 +525,16 @@
   :javascript
     $(document).ready(function() {
        $(".exp_date").datepicker({
-          dateFormat : 'dd/mm/yy'
+          dateFormat : 'mm/dd/yy'
        });
        $(".exp_date_buy").datepicker({
-          dateFormat : 'dd/mm/yy'
+          dateFormat : 'mm/dd/yy'
        });
        $(".exp_date_emp_buy").datepicker({
-          dateFormat : 'dd/mm/yy'
+          dateFormat : 'mm/dd/yy'
        });
        $(".exp_date_ven_buy").datepicker({
-          dateFormat : 'dd/mm/yy'
+          dateFormat : 'mm/dd/yy'
        });
     });
     $('#bc_timesheet').val($('#contract_buy_contracts_attributes_0_time_sheet').val());

@@ -85,7 +85,7 @@ $(document).ready(function () {
 
 $(document).ready(function () {
     $('#contract_start_date').datepicker({
-        dateFormat: 'dd/mm/yy',
+        dateFormat: 'mm/dd/yy',
         prevText: '<i class="fa fa-chevron-left"></i>',
         nextText: '<i class="fa fa-chevron-right"></i>',
         onSelect: function (selectedDate) {
@@ -128,23 +128,23 @@ $(document).ready(function () {
     })
 
     $('#contract_end_date').datepicker({
-        dateFormat: 'dd/mm/yy',
+        dateFormat: 'mm/dd/yy',
         prevText: '<i class="fa fa-chevron-left"></i>',
         nextText: '<i class="fa fa-chevron-right"></i>'
     });
     $(".cr_start_date, .cr_end_date, .pr_start_date, .pr_end_date, .date_1").datepicker({
-        dateFormat: 'dd/mm/yy'
+        dateFormat: 'mm/dd/yy'
     });
 
     $('.contract_rate_start_date').datepicker({
-        dateFormat : 'dd/mm/yy',
+        dateFormat : 'mm/dd/yy',
         defaultDate: "<%= @contract.start_date&.strftime('%d/%m/%Y')%>",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
     }).datepicker("setDate", "<%= @contract.start_date&.strftime('%d/%m/%Y')%>");
 
     $('.contract_rate_end_date').datepicker({
-        dateFormat : 'dd/mm/yy',
+        dateFormat : 'mm/dd/yy',
         defaultDate: "<%= @contract.end_date&.strftime('%d/%m/%Y')%>",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
@@ -602,10 +602,10 @@ $(document).ready(function () {
     toggleFields();
     $(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
     $('#contract_start_date').datepicker({
-        dateFormat: 'dd/mm/yy'
+        dateFormat: 'mm/dd/yy'
     });
     $('#contract_end_date').datepicker({
-        dateFormat: 'dd/mm/yy'
+        dateFormat: 'mm/dd/yy'
     });
     $("#contract_is_commission , #contract_commission_type").change(function () {
         toggleFields();
