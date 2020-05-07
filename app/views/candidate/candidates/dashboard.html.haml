@@ -27,13 +27,23 @@
       .slider-data-text
         .container
           .row
-            .col-sm-12.col-md-12.col-lg-2
+            .col-sm-6
               %div.profile-hover
                 %div.pictureContainer
                   = button_tag "Upload CV", class: 'm-0 resume btn btn-primary btn-lg', onclick: "upload_resume_file_in_slick()"
                   -#= link_to "Upload CV" ,"#",class: 'm-0 resume btn btn-primary btn-rounded btn-lg', style: "margin-bottom: 10px"
+                      .profile-tile.profile-tile-inlined
+                    -#= filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+            .col-sm-6
+              .pt-new-icon.img_pic_r.candi-profile-pic
+                = button_tag "Profile Picture", class: 'btn btn-primary btn-lg'
+
+
           #resume_on_slick
             = render 'candidate/candidates/partials/resumes_on_slick'
+
+
+
 
 .with-side-panel
   .content-i
@@ -90,5 +100,21 @@
   #job_application
 - content_for :scripts do
   :javascript
-
-
+    $(document).on("click", ".candi-profile-pic", function(){
+      upload_file_ajax(candidateLogoUpload);
+    });
+    function candidateLogoUpload(url,type){
+      photo_url = url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{ candidate_update_photo_path }",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.img_pic').removeClass('hidden').attr("src",photo_url);
+        $('.img_pic_r').remove();
+        location.reload();
+       }
+     });
+    }

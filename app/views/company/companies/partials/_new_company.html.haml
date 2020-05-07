@@ -21,10 +21,16 @@
                   .col-md-6
                     - f.object.company_contacts.build unless f.object.company_contacts.last&.new_record?
                     = f.fields_for :company_contacts do |contact|
-                      = render 'company/companies/partials/company_contact_fields', f: contact
-                    %br/
-                    .col-md-12
-                      = link_to_add_association '+ Add Contact', f, :company_contacts, partial: 'company/companies/partials/company_contact_fields', class: 'text-info pull-right'
+                      -# = render 'company/companies/partials/company_contact_fields', f: contact
+                      .nested-fields
+                        = contact.email_field :email ,  placeholder: 'Email' , required: true, data: { email_field: true }, onblur: 'validate_email();'
+                        .row
+                          .col-md-6
+                            = contact.text_field :first_name ,  placeholder: "First Name"
+                          .col-md-6
+                            = contact.text_field :last_name , placeholder: "Last Name"
+                        = contact.text_field :title ,  placeholder: 'Title '
+                        = contact.phone_field :phone , label: 'Mobile Phoneeee',  placeholder: 'Mobile Number ' , data: { phone_field: true }
                       %br/
                   .col-md-6
                     - if @company.new_record?
@@ -39,8 +45,14 @@
                       = f.fields_for :custom_fields do |lt|
                         = render 'shared/custom_fields', f: lt
                       %br/
-                      -#.links.col-sm-12
-                      -#  = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                .row
+                  .col-md-12
+                    %br
+                    %br
+                    = link_to_add_association '+ Add Contact', f, :company_contacts, partial: 'company/companies/partials/company_contact_fields', class: 'text-info'
+
+                -#.links.col-sm-12
+                -#  = link_to_add_association '+ Add Custom Field', f, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
                 .form-actions
                   .row
                     .col-md-12

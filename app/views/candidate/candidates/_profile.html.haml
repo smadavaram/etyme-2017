@@ -30,12 +30,13 @@
                 - else
                   = contact_widget(candidate.email,candidate.phone,nil,color: '#3E4B5B; !important',chat_link: register_path,remote_false: true)
               .col-sm-6.text-right
-                - if candidate.candidates_resumes.present?
+                - if candidate.candidates_resumes.try(:primary_resume).try(:resume).present?
+
                   -#%a.btn.btn-primary.btn-sm{:href => ""}
                   = link_to candidate.candidates_resumes.primary_resume.resume, class: "btn btn-primary btn-sm", target: "_blank" do
                     %i.os-icon.os-icon-arrow-down6
                     %span Resume
-                - elsif own
+                - else
                   %a.btn.btn-primary.btn-sm{:href => "/onboarding_profile?tag=verify-phone"}
                     %i.os-icon.os-icon-arrow-up6
                     %span Resume

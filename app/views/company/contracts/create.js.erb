@@ -18,6 +18,7 @@ $("li").removeClass('complete')
 $("li[data-target='#step3']").addClass('active')
 $("li[data-target='#step2']").addClass('complete')
 $("li[data-target='#step1']").addClass('complete')
+
 $('.next').removeClass('hidden')
 <% end %>
 <% end %>
@@ -48,6 +49,7 @@ $('.next').addClass('hidden')
 $('.previous').find('a').attr('href',"<%= new_contract_path(contract_id: @contract.id) %>")
 
 $(document).ready(function () {
+    $('#costing_tab').addClass("active");
     $(".buy_disabled_salary :input").prop("disabled", true);
     $(".add_contacts").click(function () {
 //        approval_approvable_type.value = this.id;
