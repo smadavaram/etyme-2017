@@ -179,11 +179,11 @@
                       =ssd.when_expire&.strftime('%d/%m/%Y')
                   .col-sm-2.col-md-2.col-lg-2
                     %span
-                      =ssd.creatable.full_name
+                      =ssd.creatable&.full_name
                   .col-sm-2.col-md-2.col-lg-2
                     %span
                       - ssd.document_signs.each do |ds|
-                        = ds.signable.full_name
+                        = ds.signable&.full_name
             
             %div.contract-custome-details.line-bottom
               %h5
@@ -217,11 +217,11 @@
                       =srd.when_expire&.strftime('%d/%m/%Y')
                   .col-sm-2.col-md-2.col-lg-2
                     %span
-                      =srd.creatable.full_name
+                      =srd.creatable&.full_name
                   .col-sm-2.col-md-2.col-lg-2
                     %span
                       - srd.document_signs.each do |ds|
-                        = ds.signable.full_name
+                        = ds.signable&.full_name
            
         .col-sm-6.col-md-6.col-lg-6
           %h3
@@ -287,13 +287,13 @@
                 -@contract.sell_contract.contract_sell_business_details.each do |csbd|
                   .col-sm-6.col-md-6.col-lg-6
                     %b
-                      =csbd.company_contact.full_name
+                      =csbd.company_contact&.full_name
                     %div
-                      =csbd.company_contact.phone
+                      =csbd.company_contact&.phone
                     %div
-                      =csbd.company_contact.email
+                      =csbd.company_contact&.email
                     %div
-                      =csbd.company_contact.department
+                      =csbd.company_contact&.department
             
             %div.contract-accounting
               %h5
@@ -363,7 +363,7 @@
                   -@contract.buy_contract.contract_sale_commisions.each do |csc|
                     %tr
                       %td
-                        =csc.csc_accounts.map{ |a|  a.accountable.full_name}.join(', ')
+                        =csc.csc_accounts.map{ |a|  a.accountable&.full_name}.join(', ')
                       %td
                         =csc.rate
                       %td
@@ -409,11 +409,11 @@
                       =link_to bsd.file_name, bsd.doc_file, target: "_blank", class: 'text-break'
                   .col-sm-2.col-md-2.col-lg-2
                     %span
-                      =bsd.creatable.full_name
+                      =bsd.creatable&.full_name
                   .col-sm-2.col-md-2.col-lg-2
                     %span
                       - bsd.document_signs.each do |ds|
-                        = ds.signable.full_name
+                        = ds.signable&.full_name
 
 
             %div.contract-custome-details.line-bottom
@@ -445,11 +445,11 @@
                       =link_to berd.file_name, berd.doc_file, target: "_blank", class: 'text-break'
                   .col-sm-2.col-md-2.col-lg-2
                     %span
-                      =berd.creatable.full_name
+                      =berd.creatable&.full_name
                   .col-sm-2.col-md-2.col-lg-2
                     %span
                       - berd.document_signs.each do |ds|
-                        = ds.signable.full_name
+                        = ds.signable&.full_name
 
             %div.row 
               -@contract.buy_contract.buy_ven_req_docs.each do |bvrd|
@@ -459,11 +459,11 @@
                     =link_to bvrd.file_name, bvrd.doc_file, target: "_blank", class: 'text-break'
                 .col-sm-2.col-md-2.col-lg-2
                   %span
-                    =bvrd.creatable.full_name
+                    =bvrd.creatable&.full_name
                 .col-sm-2.col-md-2.col-lg-2
                   %span
                     - bvrd.document_signs.each do |ds|
-                      = ds.signable.full_name
+                      = ds.signable&.full_name
 
                     
 - if @contract.pending? && !@contract.is_sent?(current_company)

@@ -50,9 +50,9 @@
                   %td= change_rate.working_hrs
                   %td= change_rate.rate_type.nil? ? 'N/A' : colorfull_text(change_rate.rate_type.upcase,'#1AAE9F')
                   %td.no-wrap
-                    = colorfull_text(change_rate.from_date,'orange')
+                    = colorfull_text(change_rate.from_date&.strftime("%d-%m-%Y"),'orange')
                   %td.no-wrap
-                    = colorfull_text(change_rate.to_date,'red')
+                    = colorfull_text(change_rate.to_date&.strftime("%d-%m-%Y"),'red')
       %div
 
         -#.contract_users_team

@@ -41,9 +41,9 @@
       .col-sm-12
         =text_area_tag "timesheet[transactions_attributes][#{index}][memo]",@cyclable.transactions.first.memo,placeholder:"Add Note", class: "w-100 p-2"
 .modal-footer
-  - if @cyclable.submitted? and @cycleable.can_approve?(current_company,current_user)
-    =link_to :approve, timesheet_approve_path(@cyclable), class: "btn btn-secondary btn-sm"
-    =link_to :reject, timesheet_reject_path(@cyclable), class: "btn btn-danger btn-sm"
+  -# - if @cyclable.submitted? and @cycleable.can_approve?(current_company,current_user)
+  =link_to :approve, timesheet_approve_path(@cyclable), class: "btn btn-secondary btn-sm"
+  =link_to :reject, timesheet_reject_path(@cyclable), class: "btn btn-danger btn-sm"
 
   -#=form_for @cyclable, method: "put" do |tf|
   -#  = select_tag "Status", options_for_select( [:submitted, :approved, :partially_approved, :rejected].map{|type| [type, type]}),{class: "form-control candidate_list", prompt: @cyclable.status}

@@ -136,7 +136,8 @@ $(document).ready(function () {
         dateFormat: 'mm/dd/yy'
     });
 
-    $('.contract_rate_start_date').datepicker({
+    $('.' +
+        'contract_rate_start_date').datepicker({
         dateFormat : 'mm/dd/yy',
         defaultDate: "<%= @contract.start_date&.strftime('%d/%m/%Y')%>",
         prevText : '<i class="fa fa-chevron-left"></i>',

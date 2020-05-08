@@ -63,9 +63,9 @@
                   %td= change_rate.rate_type.nil? ? 'N/A' : colorfull_text(change_rate.rate_type.upcase,'#1AAE9F')
                   %td= change_rate.uscis
                   %td.no-wrap
-                    = colorfull_text(change_rate.from_date,'orange')
+                    = colorfull_text(change_rate.from_date&.strftime("%d-%m-%Y"),'orange')
                   %td.no-wrap
-                    = colorfull_text(change_rate.to_date,'red')
+                    = colorfull_text(change_rate.to_date&.strftime("%d-%m-%Y"),'red')
       %div
         .w-100
           %strong.pull-left Business Contacts
@@ -313,9 +313,9 @@
         %strong
           Payroll date:
         %span
-          = @contract.buy_contract.payroll_date&.try(:strftime, '%e').to_s+' of each month'
+          = @contract.buy_contract.payroll_date.present? ? @contract.buy_contract.payroll_date&.try(:strftime, '%e').to_s+'th of each month' : ''
       %div.contract-custome-details
         %strong
-          Comissiom Payment terms:
+          Commission Payment terms:
         %span
           = @contract.buy_contract.commission_payment_term

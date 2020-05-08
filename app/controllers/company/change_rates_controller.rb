@@ -4,7 +4,7 @@ class Company::ChangeRatesController < Company::BaseController
   before_action :load_contract, only: :create
 
   def create
-    @change_rate = @contract.change_rates.create(change_rate_params)
+    @change_rate = @contract.change_rates.new(change_rate_params)
     if @change_rate.save
       flash[:notice] = 'New Rate is added successfully.'
     else

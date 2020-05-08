@@ -28,11 +28,11 @@ module Cycle::Utils::DateUtils
       tmp.empty? ? groups : groups << tmp
     end
 
-    def group_by_biweekly(day_one, day_two, start_date, end_date)
+    def group_by_biweekly(day_one, start_date, end_date)
       groups = []
       tmp = []
       range(start_date, end_date).each do |date|
-        if date.send(DAY_TRANSLATION[day_one.to_sym]) || date.send(DAY_TRANSLATION[day_two.to_sym])
+        if date.send(DAY_TRANSLATION[day_one.to_sym])
           tmp << date
           groups << tmp
           tmp = []

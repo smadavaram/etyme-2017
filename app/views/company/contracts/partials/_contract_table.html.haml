@@ -19,7 +19,7 @@
       %tbody
         - data.each do |contract|
           %tr
-            %td=link_to contract.try(:number) ,contract_path(contract)
+            %td=link_to "#{contract.try(:number)} - #{contract.project_name}"  ,contract_path(contract)
             %td=contract.try(:title)
             %td
               = contract.client.try(:full_name)

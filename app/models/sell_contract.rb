@@ -28,7 +28,7 @@ class SellContract < ApplicationRecord
   accepts_nested_attributes_for :sell_send_documents, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :sell_request_documents, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :approvals, allow_destroy: true, reject_if: :all_blank
-  accepts_nested_attributes_for :change_rates, allow_destroy: true, reject_if: proc { |attributes| attributes['rate'].blank? || attributes['working_hrs'].blank? || attributes['working_hrs'].blank? || attributes['rate_type'].blank? || attributes['from_date'].blank? || attributes['to_date'].blank? }
+  accepts_nested_attributes_for :change_rates, allow_destroy: true, reject_if: proc { |attributes| attributes['rate'].blank? || attributes['working_hrs'].blank? || attributes['rate_type'].blank? || attributes['from_date'].blank? || attributes['to_date'].blank? }
 
   after_create :set_contract_customer_rate_history
   after_update :set_contract_customer_rate_history, if: proc { saved_change_to_customer_rate? }
