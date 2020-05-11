@@ -217,12 +217,19 @@
                                       .plain-select
                                         = sc.select :ce_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
                                   -#%div{:class => "form-group biweek #{sc.object.client_expense != 'biweekly' ? 'hidden' : ''}"}
-                                  %div{:class => "form-group biweek hidden"}
-                                    %label.control-label
-                                      Select Second day of week for submission
-                                    .select
-                                      .plain-select
-                                        = sc.select :ce_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                  -#%div{:class => "form-group biweek hidden"}
+                                  -#  %label.control-label
+                                  -#    Select Second day of week for submission
+                                  -#  .select
+                                  -#    .plain-select
+                                  -#      = sc.select :ce_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                                                    -#%div{:class => "form-group biweek hidden"}
+                                  -#  %label.control-label
+                                  -#    Select Second day of week for submission
+                                  -#  .select
+                                  -#    .plain-select
+                                  -#      = sc.select :ce_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                  -#
                                   %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.client_expense) ? '' : 'hidden'}"}
                                     %label.control-label
                                       Select date
@@ -297,12 +304,13 @@
                                     .select
                                       .plain-select
                                         = sc.select :ta_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                                  %div{:class => "form-group hidden"}
-                                    %label.control-label
-                                      Select Second day of week for submission
-                                    .select
-                                      .plain-select
-                                        = sc.select :ta_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                  -#%div{:class => "form-group hidden"}
+                                  -#  %label.control-label
+                                  -#    Select Second day of week for submission
+                                  -#  .select
+                                  -#    .plain-select
+                                  -#      = sc.select :ta_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                  -#
                                   %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"}
                                     %label.control-label
                                       Select date
@@ -392,12 +400,13 @@
                             .select
                               .plain-select
                                 = sc.select :invoice_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
-                          %div{:class => "form-group hidden"}
-                            %label.control-label
-                              Select Second day of week for submission
-                            .select
-                              .plain-select
-                                = sc.select :invoice_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                          -#%div{:class => "form-group hidden"}
+                          -#  %label.control-label
+                          -#    Select Second day of week for submission
+                          -#  .select
+                          -#    .plain-select
+                          -#      = sc.select :invoice_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                          -#
                           %div{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"}
                             %label.control-label
                               Select date

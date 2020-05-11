@@ -123,12 +123,13 @@
                                   .select
                                     .plain-select
                                       = bc.select :ts_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: @sc&.ts_day_of_week},{class: "form-contro #{'field_disable' unless @sc&.time_sheet.blank?}" }
-                                %div{:class => "form-group biweek #{bc.object.time_sheet != 'biweekly' ? 'hidden' : ''}"}
-                                  %label.control-label
-                                    Select Second day of week for submission
-                                  .select
-                                    .plain-select
-                                      = bc.select :ts_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: @sc&.ts_2day_of_week},{class: "form-contro" }
+                                -#%div{:class => "form-group biweek #{bc.object.time_sheet != 'biweekly' ? 'hidden' : ''}"}
+                                -#  %label.control-label
+                                -#    Select Second day of week for submission
+                                -#  .select
+                                -#    .plain-select
+                                -#      = bc.select :ts_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: @sc&.ts_2day_of_week},{class: "form-contro" }
+                                -#
                                 %div{:class => "form-group month #{'field_disable' unless @sc&.time_sheet.blank?} #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"}
                                   %label.control-label
                                     Select date
@@ -175,13 +176,15 @@
                                     .plain-select
                                       = bc.select :ta_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: @sc&.ta_day_of_week},{class: "form-contro #{'field_disable' unless @sc&.ts_approve.blank?}" }
                                       -#=bc.hidden_field :ta_day_of_week, value: bc.object.contract.sell_contract.ta_day_of_week
-                                %div{:class => "form-group biweek #{bc.object.ts_approve != 'biweekly' ? 'hidden' : ''}"}
-                                  %label.control-label
-                                    Select Second day of week
-                                  .select
-                                    .plain-select
-                                      = bc.select :ta_2day_of_week,[["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],["Every Thursday", "thu"],["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],{selected: @sc&.ta_2day_of_week}, {class: "form-control #{'field_disable' unless @sc&.ts_approve.blank?}"}
+                                -#%div{:class => "form-group biweek #{bc.object.ts_approve != 'biweekly' ? 'hidden' : ''}"}
+                                -#  %label.control-label
+                                -#    Select Second day of week
+                                -#  .select
+                                -#    .plain-select
+                                -#      = bc.select :ta_2day_of_week,[["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],["Every Thursday", "thu"],["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],{selected: @sc&.ta_2day_of_week}, {class: "form-control #{'field_disable' unless @sc&.ts_approve.blank?}"}
+                                -#
                                       -#= bc.hidden_field :ta_2day_of_week, value: bc.object.contract.sell_contract.ta_2day_of_week
+
                                 %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"}
                                   %label.control-label
                                     Select date
@@ -241,16 +244,17 @@
                                     .select
                                       .plain-select
                                         = bc.select :sc_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: current_company&.payroll_infos&.first&.sc_day_of_week},{class: "form-contro" }
-                                  %div{:class => "form-group biweek"}
-                                    %label.control-label
-                                      Select Second day of week
-                                    .select
-                                      .plain-select
-                                        = bc.select :sc_2day_of_week,
-                                          [["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],
-                                          ["Every Thursday", "thu"],
-                                          ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
-                                          {}, {class: "form-control height-45"}
+                                  -#%div{:class => "form-group biweek"}
+                                  -#  %label.control-label
+                                  -#    Select Second day of week
+                                  -#  .select
+                                  -#    .plain-select
+                                  -#      = bc.select :sc_2day_of_week,
+                                  -#        [["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],
+                                  -#        ["Every Thursday", "thu"],
+                                  -#        ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
+                                  -#        {}, {class: "form-control height-45"}
+                                  -#
                                   %div{:class => "form-group month"}
                                     %label.control-label
                                       Select date
@@ -291,16 +295,17 @@
                                     .select
                                       .plain-select
                                         = bc.select :sp_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
-                                  %div{:class => "form-group biweek #{bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
-                                    %label.control-label
-                                      Select Second day of week
-                                    .select
-                                      .plain-select
-                                        = bc.select :sp_2day_of_week,
-                                          [["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],
-                                          ["Every Thursday", "thu"],
-                                          ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
-                                          {}, {class: "form-control height-45"}
+                                  -#%div{:class => "form-group biweek #{bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
+                                  -#  %label.control-label
+                                  -#    Select Second day of week
+                                  -#  .select
+                                  -#    .plain-select
+                                  -#      = bc.select :sp_2day_of_week,
+                                  -#        [["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],
+                                  -#        ["Every Thursday", "thu"],
+                                  -#        ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
+                                  -#        {}, {class: "form-control height-45"}
+                                  -#
                                   %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                                     %label.control-label
                                       Select date
@@ -342,12 +347,13 @@
                                     .select
                                       .plain-select
                                         = bc.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
-                                  %div{:class => "form-group biweek #{bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
-                                    %label.control-label
-                                      Select Second day of week
-                                    .select
-                                      .plain-select
-                                        = bc.select :sclr_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
+                                  -#%div{:class => "form-group biweek #{bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
+                                  -#  %label.control-label
+                                  -#    Select Second day of week
+                                  -#  .select
+                                  -#    .plain-select
+                                  -#      = bc.select :sclr_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
+                                  -#
                                   %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                                     %label.control-label
                                       Select date

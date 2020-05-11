@@ -1,6 +1,6 @@
 .modal{id: "reminder-#{assignee.id}" }
   .modal-dialog
-    .modal-content
+    .modal-content{style: 'width: 115% !important'}
       .modal-header
         %h4.modal-title
           %strong Add Reminders/Work Notes
@@ -18,7 +18,8 @@
               Work Notes
               %sup.text-danger *
             .col-md-12
-              = f.text_area :title , required: true ,class:'form-control' ,placeholder: "Work Notes here"
+              = f.trix_editor :title, required: true, autofocus: true,class: "trix-content trix-description", placeholder: "Work Notes here"
+              -# = f.text_area :title , required: true ,class:'form-control' ,placeholder: "Work Notes here"
           .form-group.some{:style => "padding-left:10px; padding-right:10px;"}
             %label.col-md-3.control-label
               Remind At
