@@ -440,6 +440,7 @@ Rails.application.routes.draw do
     resources :directories, only: [:index]
     resources :comments, only: [:create]
     resources :attachments, concerns: :paginatable, only: [:index]
+    get '/docu_mgmt(/page/:page)', to: 'attachments#index', as: 'docu_mgmt'
     resources :company_legal_docs
     delete 'delete_company_legal_docs', to: 'company_legal_docs#delete_company_legal_docs'
 

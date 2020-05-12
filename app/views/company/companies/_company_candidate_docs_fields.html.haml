@@ -1,25 +1,25 @@
 .row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
 
   .row.w-100
-    .col-md-4.col-12
-      .form-group.mr-top-30
+    -#.col-md-4.col-12
+    -#  .form-group.mr-top-30
+    -#    %label.radio-container
+    -#      Require Signature(s)
+    -#      = f.radio_button :is_require, "signature", checked:true, class: "template_type"
+    -#      %span.radio-checkmark
+    -#.col-md-4.col-12
+    -#  .form-group.mr-top-30
+    -#    %label.radio-container
+    -#      Require Document(s)
+    -#      = f.radio_button :is_require, "Document",class: "template_type"
+    -#      %span.radio-checkmark
+    .col-12
+      .form-group.mr-top-30.pull-right
         %label.radio-container
-          Require Signature(s)
-          = f.radio_button :is_require, "signature", checked:true, class: "template_type"
+          Website terms and conditions
+          = f.radio_button :is_require, "signature", checked:true,class: "template_type"
           %span.radio-checkmark
-    .col-md-4.col-12
-      .form-group.mr-top-30
-        %label.radio-container
-          Require Document(s)
-          = f.radio_button :is_require, "Document",class: "template_type"
-          %span.radio-checkmark
-    .col-md-4.col-12
-      .form-group.mr-top-30
-        %label.radio-container
-          Require Website(s)
-          = f.radio_button :is_require, "Website",class: "template_type"
-          %span.radio-checkmark
-  .row.mt-3
+  .row.mt-3{style: 'padding: 3%; box-shadow: 0px 5px 40px rgba(41,111,226,0.3);'}
     .col-md-6
       .form-group
         %p Title
@@ -27,7 +27,7 @@
        
     .col-md-6
       .form-group
-        %p Title Type
+        %p Doc Type
         / = f.text_field :title_type, placeholder: "Title",class: 'form-control  input' 
         = f.select :title_type , [["Job", 'Job'], ["Training", 'Training'],["Product", 'Product'],["Service", 'Service'],["Contract", 'Contract'],["USACS", 'USACS']],{} ,:class => 'form-control company_type'  
     .col-md-6
@@ -53,13 +53,13 @@
     .col-md-6.mt-3
       #upload_doc
         .d-flex
-          = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload Template",name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+          = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload",name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
           %p.d-inline-block.uploaded_file_name No Document Selected
     .col-md-6.mt-3
-      %button.btn.btn-secondary.pull-left{:type => "submit", :style=>"height: 38px;"}
-        Save Template
-      
-    
+      %button.btn.btn-primary.pull-left{:type => "submit", :style=>"height: 38px;"}
+        %i.ti-save
+
+
 - content_for :scripts do
   :javascript  
 

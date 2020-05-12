@@ -17,8 +17,8 @@
         = link_to nil, class:"nav-link" do
           Social
       %li.nav-item{:class => ("active" if params[:controller]=="company/attachments")}
-        = link_to attachments_path, class:"nav-link" do
-          Template
+        = link_to docu_mgmt_path, class:"nav-link" do
+          Checklist
       %li.nav-item{:class => ("active" if params[:controller]=="company/company_legal_docs")}
         = link_to company_legal_docs_path, class:"nav-link" do
           Legal Doc
