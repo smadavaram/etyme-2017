@@ -213,7 +213,7 @@ $(document).ready(function () {
         $('#company_admin').DataTable().search($(this).val()).draw();
     });
 
-    $('#company_attachments').dataTable();
+    $('#company_attachments').dataTable({mark: true});
     $('#company_attachments_search').keyup(function () {
         $('#company_attachments').DataTable().search($(this).val()).draw();
     });
