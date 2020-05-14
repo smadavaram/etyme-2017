@@ -69,7 +69,7 @@ function initialize() {
 google.maps.event.addDomListener(window, 'load', initialize);
 $(function () {
     $('#change_rate_from_date , #change_rate_to_date, #job_end_date,#job_start_date').datepicker({
-        dateFormat: 'mm/dd/yy',
+        dateFormat: 'yy/mm/dd',
         prevText: '<i class="fa fa-chevron-left"></i>',
         nextText: '<i class="fa fa-chevron-right"></i>',
     });

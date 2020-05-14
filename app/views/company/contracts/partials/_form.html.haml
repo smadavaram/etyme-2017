@@ -138,13 +138,13 @@
 
     $( document ).ready(function() {
       $('#contract_start_date').datepicker({
-        dateFormat : 'mm/dd/yy',
+        dateFormat : 'dd/mm/yy',
         defaultDate: "#{@contract.persisted? ? @contract.start_date&.strftime('%d/%m/%Y') : DateTime.now.strftime('%d/%m/%Y')}",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
       }).datepicker("setDate", "#{ @contract.persisted? ? @contract.start_date&.strftime('%d/%m/%Y') : DateTime.now.strftime('%d/%m/%Y')}")
       $('#contract_end_date').datepicker({
-        dateFormat : 'mm/dd/yy',
+        dateFormat : 'dd/mm/yy',
         defaultDate: "#{@contract.persisted? ? @contract.end_date&.strftime('%d/%m/%Y') : (DateTime.now + 1.year).strftime('%d/%m/%Y')}",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
@@ -194,12 +194,11 @@
       })
 
       $('#contract_end_date').datepicker({
-        dateFormat : 'mm/dd/yy',
+        dateFormat : 'dd/mm/yy',
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
       });
       $(".cr_start_date, .cr_end_date, .pr_start_date, .pr_end_date, .date_1").datepicker({
-          dateFormat : 'mm/dd/yy'
       });
 
       $('.con-time').timepicker();
@@ -623,11 +622,11 @@
       toggleFields();
       $(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
       $('#contract_start_date').datepicker({
-        dateFormat: 'mm/dd/yy',
+        dateFormat: 'dd/mm/yy',
         setDate: moment()
       });
       $('#contract_end_date').datepicker({
-        dateFormat : 'mm/dd/yy',
+        dateFormat : 'dd/mm/yy',
         setDate: moment('1/1/2099')
       });
       $("#contract_is_commission , #contract_commission_type").change(function () {

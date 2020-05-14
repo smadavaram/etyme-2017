@@ -1,4 +1,3 @@
-!!!
 %html.app{:lang => "en"}
   %head
     %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
@@ -467,14 +466,14 @@
                       = ds.signable&.full_name
 
                     
-- if @contract.pending? && !@contract.is_sent?(current_company)
-  - content_for :modals do
-    #ajax-modal
-    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
-    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
-  - content_for :scripts do
-    :javascript
-      $('.contract_progress').attr('data-content','0%');
-      $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
-      $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');
-
+-# - if @contract.pending? && !@contract.is_sent?(current_company)
+-#   - content_for :modals do
+-#     #ajax-modal
+-#     = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
+-#     = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
+-#   - content_for :scripts do
+-#     :javascript
+-#       $('.contract_progress').attr('data-content','0%');
+-#       $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
+-#       $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');
+-#

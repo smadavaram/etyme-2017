@@ -52,15 +52,15 @@
     $(document).ready(function() {
       $('.' +
         'contract_rate_start_date').datepicker({
-        dateFormat : 'mm/dd/yy',
-        defaultDate: "<%= @contract.start_date&.strftime('%m/%d/%Y')%>",
+        dateFormat : 'Y/mm/dd',
+        defaultDate: "<%= @contract.start_date&.strftime('%Y/%m/%d')%>",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
-       }).datepicker("setDate", "<%= @contract.start_date&.strftime('%m/%d/%Y')%>");
+       }).datepicker("setDate", "<%= @contract.start_date&.strftime('%Y/%m/%d')%>");
       $('.contract_rate_end_date').datepicker({
-          dateFormat : 'mm/dd/yy',
-          defaultDate: "<%= @contract.end_date&.strftime('%m/%d/%Y')%>",
+          dateFormat : 'Y/mm/dd',
+          defaultDate: "<%= @contract.end_date&.strftime('%Y/%m/%d')%>",
           prevText : '<i class="fa fa-chevron-left"></i>',
           nextText : '<i class="fa fa-chevron-right"></i>'
-      }).datepicker("setDate", "<%= @contract.end_date&.strftime('%m/%d/%Y')%>");
+      }).datepicker("setDate", "<%= @contract.end_date&.strftime('%Y/%m/%d')%>");
     });

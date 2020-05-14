@@ -80,12 +80,12 @@
                 = f.radio_button :weekend_sch_biweekly, false,checked: payroll.weekend_sch_biweekly == false ? true : false, class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 After Holiday
             %tr{"data-frequency": "monthly",style: "#{ 'display: none;' unless ['monthly','twice a month'].include?(@payroll.payroll_type)}"}
-              %td.p-0{"data-type": "sc_date_1"}= f.text_field :sc_date_1, class: "c_date form-control", placeholder: "MM/DD/YYYY"
-              %td.p-0{"data-type": "sp_date_1"}= f.text_field :sp_date_1, class: "c_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
+              %td.p-0{"data-type": "sc_date_1"}= f.text_field :sc_date_1, class: "p_date form-control", placeholder: "DD/MM/YYYY"
+              %td.p-0{"data-type": "sp_date_1"}= f.text_field :sp_date_1, class: "p_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
               %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_monthly, months , {}, {class: "form-control init_period payroll_term" }
               %td.p-0{"data-type": "term_no"}= f.select :term_no_monthly, days , {}, {class: "form-control init_period term_no" }
               %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_monthly, class: "form-control pay_period", readonly: true
-              %td.p-0{"data-type": "sclr_date_1"}= f.text_field :sclr_date_1, class: "c_date form-control", placeholder: "MM/DD/YYYY"
+              %td.p-0{"data-type": "sclr_date_1"}= f.text_field :sclr_date_1, class: "p_date form-control", placeholder: "DD/MM/YYYY"
               %td.no-wrap{"data-type": "event"}
                 = f.radio_button :weekend_sch_monthly, true,checked: payroll.weekend_sch_monthly ? true : false, class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 Before Holiday
@@ -93,12 +93,12 @@
                 = f.radio_button :weekend_sch_monthly, false,checked: payroll.weekend_sch_monthly == false ? true : false ,class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 After Holiday
             %tr{"data-frequency": "twice a month",style: "#{ 'display: none;' unless @payroll.payroll_type == 'twice a month'}"}
-              %td.p-0{"data-type": "sc_date_2"}= f.text_field :sc_date_2, class: "c_date form-control", placeholder: "MM/DD/YYYY"
-              %td.p-0{"data-type": "sp_date_2"}= f.text_field :sp_date_2, class: "c_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
+              %td.p-0{"data-type": "sc_date_2"}= f.text_field :sc_date_2, class: "p_date form-control", placeholder: "DD/MM/YYYY"
+              %td.p-0{"data-type": "sp_date_2"}= f.text_field :sp_date_2, class: "p_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
               %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_twice_a_month, months , {}, {class: "form-control init_period payroll_term" }
               %td.p-0{"data-type": "term_no"}= f.select :term_no_twice_a_month, days , {}, {class: "form-control init_period term_no" }
               %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_twice_a_monthly, class: "form-control pay_period", readonly: true
-              %td.p-0{"data-type": "sclr_date_2"}= f.text_field :sclr_date_2, class: "c_date form-control", placeholder: "MM/DD/YYYY"
+              %td.p-0{"data-type": "sclr_date_2"}= f.text_field :sclr_date_2, class: "p_date form-control", placeholder: "DD/MM/YYYY"
               %td.no-wrap{"data-type": "event"}
                 = f.radio_button :weekend_sch_twice_a_month,true,checked: payroll.weekend_sch_twice_a_month ? true : false, class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 Before Holiday
@@ -135,9 +135,9 @@
         var frequency = tr.data('frequency');
         var date = get_date(value,frequency);
         if( day == 32){
-          var period = moment(date).subtract(month,'months').endOf('month').format("MM-DD-YYYY");
+          var period = moment(date).subtract(month,'months').endOf('month').format("YYYY-MM-DD");
         }else{
-          var period = moment(date).subtract(month,'months').subtract(day,'days').format("MM-DD-YYYY");
+          var period = moment(date).subtract(month,'months').subtract(day,'days').format("YYYY-MM-DD");
         }
         console.log(period)
         tr.find(".pay_period").val(period)
@@ -189,10 +189,10 @@
     function adjust_holiday(date){
       switch (moment(date).day()){
         case 6:
-          return moment(date).subtract(1, "days").format("MM-DD-YYYY");
+          return moment(date).subtract(1, "days").format("YYYY-MM-DD");
           break;
         case 0:
-          return moment(date).add(1, "days").format("MM-DD-YYYY");
+          return moment(date).add(1, "days").format("YYYY-MM-DD");
           break;
         default:
           return date
@@ -201,13 +201,13 @@
     function get_date(value,frequency){
       switch(frequency) {
         case 'daily':
-          return moment().format("MM-DD-YYYY")
+          return moment().format("YYYY-MM-DD")
           break;
         case 'monthly' || 'twice a month':
           return value;
           break;
         case 'weekly' || 'biweekly':
-          return moment().day(value).format("MM-DD-YYYY");
+          return moment().day(value).format("YYYY-MM-DD");
           break;
       }
     }

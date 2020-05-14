@@ -136,16 +136,15 @@ $(document).ready(function () {
         dateFormat: 'mm/dd/yy'
     });
 
-    $('.' +
-        'contract_rate_start_date').datepicker({
-        dateFormat : 'mm/dd/yy',
+    $('.contract_rate_start_date').datepicker({
+        dateFormat : 'dd/mm/yy',
         defaultDate: "<%= @contract.start_date&.strftime('%d/%m/%Y')%>",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
     }).datepicker("setDate", "<%= @contract.start_date&.strftime('%d/%m/%Y')%>");
 
     $('.contract_rate_end_date').datepicker({
-        dateFormat : 'mm/dd/yy',
+        dateFormat : 'dd/mm/yy',
         defaultDate: "<%= @contract.end_date&.strftime('%d/%m/%Y')%>",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
