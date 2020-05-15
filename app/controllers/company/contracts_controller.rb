@@ -3,7 +3,7 @@
 class Company::ContractsController < Company::BaseController
   before_action :find_job, only: [:create]
   before_action :find_receive_contract, only: %i[open_contract update_contract_response create_sub_contract]
-  before_action :find_contract, only: %i[company_sell_contract company_buy_contract destroy show generate_cycles download update_attachable_doc change_invoice_date update edit update_contract_status extend_contract]
+  before_action :find_contract, only: %i[company_sell_contract company_buy_contract destroy show generate_cycles download update_attachable_doc change_invoice_date update edit update_contract_status extend_contract add_reminder]
   before_action :set_contracts, only: [:index]
   before_action :find_attachable_doc, only: [:update_attachable_doc]
   before_action :authorize_user_for_new_contract, only: :new
@@ -614,6 +614,9 @@ class Company::ContractsController < Company::BaseController
       format.js {}
     end
   end
+
+  # for assigning  of Reminder To Candidates
+  def add_reminder; end
 
   private
 
