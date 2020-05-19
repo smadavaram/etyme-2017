@@ -31,27 +31,27 @@
         </div>
         <span>Home</span>
       </a>
-      <a href="<%= company_conversations_path %>" class="ln-2 side-bar_tab side-bar_links" target="_blank">
-        <div class="icon-w">
-          <i class="os-icon os-icon-mail-14"></i>
-        </div>
-        <span>Inbox</span>
-      </a>
-      <a class="ln-3 sidebar_collapsible side-bar_tab">
-        <div class="icon-w">
-          <i class="ti-world"></i>
-        </div>
-        <span>Network</span>
-      </a>
-      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a href="<%= groups_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>
-        <a href="<%= directories_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">My Directory</a>
-        <a href="<%= candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Candidates</a>
-        <% if has_permission?('manage_company') %>
-          <a href="<%= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>
-        <% end %>
-        <a href="<%= company_contacts_company_companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>
-      </div>
+<!--      <a href="<%#= company_conversations_path %>" class="ln-2 side-bar_tab side-bar_links" target="_blank">-->
+<!--        <div class="icon-w">-->
+<!--          <i class="os-icon os-icon-mail-14"></i>-->
+<!--        </div>-->
+<!--        <span>Inbox</span>-->
+<!--      </a>-->
+<!--      <a class="ln-3 sidebar_collapsible side-bar_tab">-->
+<!--        <div class="icon-w">-->
+<!--          <i class="ti-world"></i>-->
+<!--        </div>-->
+<!--        <span>Network</span>-->
+<!--      </a>-->
+<!--      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">-->
+<!--        <a href="<%#= groups_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>-->
+<!--        <a href="<%#= directories_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">My Directory</a>-->
+<!--        <a href="<%#= candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Candidates</a>-->
+        <%# if has_permission?('manage_company') %>
+<!--          <a href="<%#= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>-->
+        <%# end %>
+<!--        <a href="<%#= company_contacts_company_companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>-->
+<!--      </div>-->
       <a class="ln-4 sidebar_collapsible side-bar_tab">
         <div class="icon-w">
           <i class="ti-bar-chart"></i>

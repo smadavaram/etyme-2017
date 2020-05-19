@@ -11,7 +11,7 @@ class Company::JobReceivesController < Company::BaseController
 
   def destroy
     SharedCandidate.where(id: params[:id]).destroy_all
-    flash[:notice] = ' Removed received candidate succeffully.'
+    flash[:notice] = 'Removed received candidate successfully.'
     redirect_to company_job_receives_path
   end
 end

@@ -13,6 +13,8 @@
       <% end %>
     </div>
 
+
+
     <!--   END Notifications -->
     <!--------------------START - Messages Link in secondary top menu-------------------->
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
@@ -36,6 +38,33 @@
       <!--      </div>-->
     </div>
     <!--------------------END - Messages Link in secondary top menu-------------------->
+
+    <!-- Network Start---->
+    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+      <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
+        <div class="logged-user-i">
+          <i class="ti-world"></i>
+          <div class="os-dropdown">
+            <div class="icon-w">
+              <i class="os-icon os-icon-ui-46"></i>
+            </div>
+            <ul>
+              <li>
+                <a href="<%= companies_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>
+              </li>
+              <li>
+                <a href="<%= contacts_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>
+              </li>
+              <li>
+                <a href="<%= groups_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Network End---->
+
     <!--------------------START - Features Link in secondary top menu-------------------->
     <div class="top-icon btn-header transparent pull-right open" id="quick-add">
       <i class="ti-plus"></i>

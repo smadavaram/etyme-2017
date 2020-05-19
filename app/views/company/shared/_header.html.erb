@@ -12,6 +12,43 @@
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
       <a href="<%= company_conversations_path %>" target="_blank"><i class="os-icon os-icon-mail-14"></i></a>
     </div>
+
+    <!-- Network Start---->
+    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+      <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
+        <div class="logged-user-i">
+          <i class="ti-world"></i>
+          <div class="os-dropdown">
+            <div class="icon-w">
+              <i class="os-icon os-icon-ui-46"></i>
+            </div>
+            <ul>
+              <li>
+                <a href="<%= groups_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>
+              </li>
+              <li>
+                <a href="<%= directories_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">My Directory</a>
+              </li>
+              <li>
+                <a href="<%= candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Candidates</a>
+              </li>
+              <% if has_permission?('manage_company') %>
+                <li>
+                  <a href="<%= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>
+                </li>
+              <% end %>
+              <li>
+                <a href="<%= company_contacts_company_companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Network End---->
+
+
+
     <div class="top-icon btn-header transparent pull-right open" id="quick-add">
       <i class="ti-plus"></i>
       <ul class="dropdown-menu project-dropdown" id="links_block" style="right: 120px !important; left: initial;">
