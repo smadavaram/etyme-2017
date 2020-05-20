@@ -93,7 +93,7 @@
               <% end %>
               <%= link_to "Company Candidates", job_create_multiple_for_candidate_path(@job), remote: true, method: :get, class: "mb-1 btn btn-primary" %>
               <br>
-              <div class="sharethis-inline-share-buttons" style="z-index: auto"></div>
+              <div class="sharethis-inline-share-buttons" data-url="<%= static_job_url(@job).to_s %>" style="z-index: auto"></div>
             </div>
           </div>
           <div class="element-box element-box-show">

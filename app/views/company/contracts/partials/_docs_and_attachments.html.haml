@@ -2,6 +2,7 @@
   =f.hidden_field :contractable_type , value: "Company"
   =f.hidden_field :status, value: "pending"
   =hidden_field_tag :tab, "4"
+  - @sc = @contract&.sell_contract
   - if params.has_key?('id')
     =f.hidden_field :parent_contract_id , value: params[:id]
   - if @contract.buy_contract&.persisted?
@@ -15,7 +16,6 @@
                 .form-group
                   %h3.control-label.text-muted
                     = @contract.buy_contract.number
-
           .row
             .col-md-6
               .form-group
@@ -108,7 +108,7 @@
                               %label.control-label
                                 Time sheet
                               .plain-select
-                                = bc.select :time_sheet, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: @sc&.time_sheet},{ class: "form-control sell-time-sheet height-45 #{'field_disable' unless @sc&.time_sheet.blank?}" }
+                                = bc.select :time_sheet, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: @sc&.time_sheet},{ class: "form-control disabled sell-time-sheet height-45 #{'field_disable' unless @sc&.time_sheet.blank?}" }
                             .col-md-6
                               .s-ts-set
                                 -bc.object.time_sheet=@sc&.time_sheet
@@ -116,7 +116,7 @@
                                 %div{:class => "form-group daily #{bc.object.time_sheet != 'daily' ? 'hidden' : ''}"}
                                   %label.control-label.w-100
                                     Select Time
-                                    = bc.text_field :ts_day_time, class: "form-contro con-time time-input ts_day_time_picker #{'field_disable' unless @sc&.time_sheet.blank?}", value: @sc&.ts_day_time
+                                    = bc.text_field :ts_day_time, class: "form-contro con-time time-input ts_day_time_picker #{'field_disable' unless @sc&.time_sheet.blank?}", value: @sc&.ts_day_time, disabled: @sc&.time_sheet.present?
                                 %div{:class => "form-group week #{bc.object.time_sheet != 'weekly' && bc.object.time_sheet != 'biweekly' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select day of week for submission
@@ -168,7 +168,7 @@
                                 %div{:class => "form-group daily #{bc.object.ts_approve != 'daily' ? 'hidden' : ''}"}
                                   %label.control-label.w-100
                                     Select Time
-                                    = bc.text_field :ta_day_time, class: "form-contro con-time time-input ta_day_time_picker #{'field_disable' unless @sc&.ts_approve.blank?}" , value: @sc&.ta_day_time
+                                    = bc.text_field :ta_day_time, class: "form-contro con-time time-input ta_day_time_picker #{'field_disable' unless @sc&.ts_approve.blank?}" , value: @sc&.ta_day_time, disabled: @sc&.time_sheet.present?
                                 %div{:class => "form-group week #{bc.object.ts_approve != 'weekly' && bc.object.ts_approve != 'biweekly' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select day of week

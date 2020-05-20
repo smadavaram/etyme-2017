@@ -18,4 +18,6 @@
                   = f.select :user_id, current_company&.company_contacts.map{|contact| contact.user.present? ? [contact.user.full_name, contact.user.id] : nil}.compact, {}, {class: 'form-control'}
             .form-row
               .col-12
-                = f.submit 'submit', class: 'btn btn-sm btn-secondary pull-right'
+                %button.btn.btn-default{"data-dismiss" => "modal", id: 'close_modal', :type => "button"}
+                  Cancel
+                = f.submit 'submit', onclick: 'hide_modal()', class: 'btn btn-sm btn-secondary pull-right'

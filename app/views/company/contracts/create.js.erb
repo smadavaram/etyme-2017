@@ -18,7 +18,6 @@ $("li").removeClass('complete')
 $("li[data-target='#step3']").addClass('active')
 $("li[data-target='#step2']").addClass('complete')
 $("li[data-target='#step1']").addClass('complete')
-
 $('.next').removeClass('hidden')
 <% end %>
 <% end %>
@@ -55,6 +54,19 @@ $(document).ready(function () {
 //        approval_approvable_type.value = this.id;
         $("#buy_approval_type").val(this.id);
     })
+    $("#expected_hrs").keydown(function () {
+        // Save old value.
+        if (!$(this).val() || (parseInt($(this).val()) <= 24 && parseInt($(this).val()) >= 1))
+            $(this).data("old", $(this).val());
+    });
+    $("#expected_hrs").keyup(function () {
+        // Check correct, else revert back to old value.
+        if (!$(this).val() || (parseInt($(this).val()) <= 24 && parseInt($(this).val()) >= 1))
+            ;
+        else
+            $(this).val($(this).data("old"));
+    });
+
     addeventatc.refresh();
     //company_contract_signers('#select_sell_company_signers',<%#= @contract.sell_contract.company.id %>);
     company_contract_signers('#select_sell_company_signers',1);

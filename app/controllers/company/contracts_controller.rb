@@ -78,7 +78,8 @@ class Company::ContractsController < Company::BaseController
   end
 
   def add_approval
-    @approval = Approval.find_or_initialize_by(approval_params.merge(company_id: current_company.id))
+    app_params = approval_params.except(:approvable_type).merge(company_id: current_company.id.to_i)
+    @approval = Approval.find_or_initialize_by(app_params)
     @approvals = current_company.approvals.where(contractable_type: approval_params[:contractable_type],
                                                  contractable_id: approval_params[:contractable_id],
                                                  approvable_type: approval_params[:approvable_type])

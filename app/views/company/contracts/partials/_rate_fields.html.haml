@@ -19,7 +19,7 @@
       %label.control-label
         Expected Hrs
       .col-sm-12.pl-0
-        = f.number_field :working_hrs,class: "form-control",placeholder: "i.e 2.5 or 3", max: 24, min: 1
+        = f.number_field :working_hrs, id: 'expected_hrs', class: "form-control",placeholder: "i.e 1 - 24", max: "24", min: "1", pattern: "[1-24]"
   - if usics
     .col-md-2
       .form-group
@@ -64,3 +64,4 @@
           nextText : '<i class="fa fa-chevron-right"></i>'
       }).datepicker("setDate", "<%= @contract.end_date&.strftime('%Y/%m/%d')%>");
     });
+
