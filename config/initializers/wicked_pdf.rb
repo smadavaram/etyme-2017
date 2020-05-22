@@ -15,8 +15,6 @@ WickedPdf.config = {
   # one of the wkhtmltopdf-binary family of gems.
   # exe_path: '/usr/local/bin/wkhtmltopdf'
   #   or
-  exe_path: Rails.env.production? ? '/path/to/bin/wkhtmltopdf' : '/usr/local/bin/wkhtmltopdf'
-
   # exe_path: Gem.bin_path('wkhtmltopdf-binary', 'wkhtmltopdf'),
   #:page_size  => "A4",
   #:dpi => '300',
