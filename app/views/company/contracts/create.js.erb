@@ -104,7 +104,9 @@ $(document).ready(function () {
             $('#contract_end_date').datepicker('option', 'minDate', selectedDate);
         }
     });
-
+    $('#collaborator_selectize').selectize({
+        maxItems: 10
+    });
     $(document).on('click', '.commission-user-type', function () {
         if (this.value == 'Admin') {
             $('#accountable_type').val("Admin")

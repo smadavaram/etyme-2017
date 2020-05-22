@@ -78,16 +78,17 @@ class Company::ContractsController < Company::BaseController
   end
 
   def add_approval
-    app_params = approval_params.except(:approvable_type).merge(company_id: current_company.id.to_i)
-    @approval = Approval.find_or_initialize_by(app_params)
+
+    app_params = approval_params.except(:approvable_type, :user_id).merge(company_id: current_company.id.to_i)
+    approval_params[:user_id].reject(&:blank?).each do |user|
+      app_params.merge!(user_id: user)
+      @approval = Approval.find_or_initialize_by(app_params)
+      @approval.save
+    end
     @approvals = current_company.approvals.where(contractable_type: approval_params[:contractable_type],
                                                  contractable_id: approval_params[:contractable_id],
                                                  approvable_type: approval_params[:approvable_type])
-    if @approval.save
-      flash.now[:success] = 'Collaborator Added'
-    else
-      flash.now[:errors] = @approval.errors.full_messages
-    end
+    flash.now[:success] = 'Collaborator(s) Added'
   end
 
   def download
@@ -622,7 +623,7 @@ class Company::ContractsController < Company::BaseController
   private
 
   def approval_params
-    params.require(:approval).permit(:id, :user_id, :approvable_type, :contractable_type, :contractable_id, :approvable_type)
+    params.require(:approval).permit(:id, :approvable_type, :contractable_type, :contractable_id, :approvable_type, user_id: [])
   end
 
   def filtering_params(params)

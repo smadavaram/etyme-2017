@@ -279,6 +279,7 @@
       setTimeout( ()=> {
         $('#close_modal').trigger('click');
       }, 1000)
+      $("#collaborator_selectize")[0].selectize.clear();
     }
     $('#admin-user').change( function() {
       save_hr_admins(null);
