@@ -7,7 +7,7 @@ class Contract < ApplicationRecord
   include Rails.application.routes.url_helpers
 
   include CandidateHelper
-
+  include DateParser
   enum status: %i[pending accepted rejected is_ended cancelled paused in_progress draft]
   enum billing_frequency: %i[weekly_invoice monthly_invoice]
   enum time_sheet_frequency: [:daily, :weekly, :biweekly, 'twice a month', :monthly]
@@ -84,7 +84,7 @@ class Contract < ApplicationRecord
   validates :commission_type, inclusion: { in: commission_types.keys }, on: :update, if: proc { |contract| contract.is_commission }
   # validates :contract_type ,      inclusion: {in: contract_types.keys}
   validates :is_commission, inclusion: { in: [true, false] }
-  validates :start_date, :end_date, presence: true
+  # validates :start_date, :end_date, presence: true
   validates :commission_amount, numericality: true, presence: true, if: proc { |contract| contract.is_commission }
   validates :max_commission, numericality: true, presence: true, if: proc { |contract| contract.is_commission && contract.percentage? }
   validates_uniqueness_of :job_id, scope: :job_application_id, message: 'You have already applied for this Job.', if: proc { |contract| contract.job_application.present? }

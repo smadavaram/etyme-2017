@@ -141,8 +141,8 @@
                                     %td= change_rate.overtime_rate
                                     %td= change_rate.working_hrs
                                     %td= change_rate.rate_type
-                                    %td= change_rate.from_date
-                                    %td= change_rate.to_date
+                                    %td= change_rate.from_date&.strftime('%m/%d/%Y')
+                                    %td= change_rate.to_date&.strftime('%m/%d/%Y')
 
                   #tab-sell-ts.tab-pane.padding-top-15
                     .row
@@ -178,12 +178,12 @@
                                     %label.control-label
                                       Select date
                                     .select
-                                      = sc.text_field :ts_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
+                                      = sc.text_field :ts_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ts_date_1&.strftime('%m/%d/%Y')
                                   %div{:class => "form-group twice-month #{sc.object.time_sheet != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
                                     .select
-                                      = sc.text_field :ts_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
+                                      = sc.text_field :ts_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ts_date_2&.strftime('%m/%d/%Y')
                                   %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.time_sheet) ? '' : 'hidden'}"}
 
                             .row
@@ -234,12 +234,12 @@
                                     %label.control-label
                                       Select date
                                     .select
-                                      = sc.text_field :ce_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
+                                      = sc.text_field :ce_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ce_date_1&.strftime('%m/%d/%Y')
                                   %div{:class => "form-group twice-month #{sc.object.client_expense != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
                                     .select
-                                      = sc.text_field :ce_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
+                                      = sc.text_field :ce_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ce_date_2&.strftime('%m/%d/%Y')
 
                             -#.row
                             -#  .col-md-4
@@ -315,12 +315,12 @@
                                     %label.control-label
                                       Select date
                                     .select
-                                      = sc.text_field :ta_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
+                                      = sc.text_field :ta_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ta_date_1&.strftime('%m/%d/%Y')
                                   %div{:class => "form-group twice-month #{sc.object.ts_approve != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
                                     .select
-                                      = sc.text_field :ta_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
+                                      = sc.text_field :ta_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ta_date_2&.strftime('%m/%d/%Y')
                                   %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.ts_approve) ? '' : 'hidden'}"}
 
                             .row
@@ -364,12 +364,12 @@
                                     %label.control-label
                                       Select date
                                     .select
-                                      = sc.text_field :ce_ap_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
+                                      = sc.text_field :ce_ap_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ce_ap_date_1&.strftime('%m/%d/%Y')
                                   %div{:class => "form-group twice-month #{sc.object.ce_approve != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
                                     .select
-                                      = sc.text_field :ce_ap_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
+                                      = sc.text_field :ce_ap_date_2, class: "date_1", placeholder: "DD/MM/YYYY", value: @contract&.sell_contract&.ce_ap_date_2&.strftime('%m/%d/%Y')
                               .col-md-4
                                 %label.control-label
                                   Collaborators
@@ -411,12 +411,12 @@
                             %label.control-label
                               Select date
                             .select
-                              = sc.text_field :invoice_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
+                              = sc.text_field :invoice_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.invoice_date_1&.strftime('%m/%d/%Y')
                           %div{:class => "form-group twice-month #{sc.object.invoice_terms_period != 'twice a month' ? 'hidden' : ''}"}
                             %label.control-label
                               Select second date
                             .select
-                              = sc.text_field :invoice_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
+                              = sc.text_field :invoice_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.invoice_date_2&.strftime('%m/%d/%Y')
                           %span{:class => "form-group month #{['twice a month', 'monthly'].include?(sc.object.invoice_terms_period) ? '' : 'hidden'}"}
                       -#.col-md-4
                         -#%label.control-label
@@ -457,13 +457,13 @@
                             %label.control-label
                               Select date
                             .select
-                              = sc.text_field :ce_in_date_1, class: "date_1", placeholder: "DD/MM/YYYY"
+                              = sc.text_field :ce_in_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ce_in_date_1&.strftime('%m/%d/%Y')
                           %div{:class => "form-group twice-month #{sc.object.ce_invoice != 'twice a month' ? 'hidden' : ''}"}
                             %label.control-label
                               Select second date
                             .select
-                              = sc.text_field :ce_in_date_2, class: "date_1", placeholder: "DD/MM/YYYY"
-                      .col-md-4
+                              = sc.text_field :ce_in_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ce_in_date_2&.strftime('%m/%d/%Y')
+                      .col-md-4MM
                         %label.control-label
                           Collaborators
                         .row
@@ -537,7 +537,7 @@
                                 - @request_documents.each do |docusign|
                                   %tr
                                     %td= docusign.documentable.title
-                                    %td= docusign.created_at.strftime("%Y-%m-%d")
+                                    %td= docusign.created_at&.strftime("%Y-%m-%d")
                                     %td= do_ellipsis(docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted",10)
                                     %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign_file(docusign), title: "Download Document" if docusign.is_sign_done
                   #doc-submit.tab-pane.padding-top-15
@@ -559,7 +559,7 @@
                                 - @signature_documents.each do |docusign|
                                   %tr
                                     %td= docusign.documentable.title
-                                    %td= docusign.created_at.strftime("%Y-%m-%d")
+                                    %td= docusign.created_at&.strftime("%Y-%m-%d")
                                     %td= docusign.is_sign_done ? "Signed" : "Pending"
                                     %td.d-flex= show_users(docusign)
                                     %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",10)
@@ -585,19 +585,19 @@
       });
 
      $(".exp_date").datepicker({
-        dateFormat : 'dd/mm/yy'
+        dateFormat : 'mm/dd/yy'
      });
 
      $(".exp_date_buy").datepicker({
-        dateFormat : 'dd/mm/yy'
+        dateFormat : 'mm/dd/yy'
      });
 
      $(".exp_date_emp_buy").datepicker({
-        dateFormat : 'dd/mm/yy'
+        dateFormat : 'mm/dd/yy'
      });
 
      $(".exp_date_ven_buy").datepicker({
-        dateFormat : 'dd/mm/yy'
+        dateFormat : 'mm/dd/yy'
      });
      set_user_select(".whois_sign:not([class*='added']", "Select User who is sign document");
      $(".whois_sign:not([class*='added']").addClass('added');

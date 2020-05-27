@@ -138,17 +138,17 @@
 
     $( document ).ready(function() {
       $('#contract_start_date').datepicker({
-        dateFormat : 'dd/mm/yy',
-        defaultDate: "#{@contract.persisted? ? @contract.start_date&.strftime('%d/%m/%Y') : DateTime.now.strftime('%d/%m/%Y')}",
+        dateFormat : 'mm/dd/yy',
+        defaultDate: "#{@contract.persisted? ? @contract.start_date&.strftime('%m/%d/%Y') : DateTime.now.strftime('%m/%d/%Y')}",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
-      }).datepicker("setDate", "#{ @contract.persisted? ? @contract.start_date&.strftime('%d/%m/%Y') : DateTime.now.strftime('%d/%m/%Y')}")
+      }).datepicker("setDate", "#{ @contract.persisted? ? @contract.start_date&.strftime('%m/%d/%Y') : DateTime.now.strftime('%m/%d/%Y')}")
       $('#contract_end_date').datepicker({
-        dateFormat : 'dd/mm/yy',
-        defaultDate: "#{@contract.persisted? ? @contract.end_date&.strftime('%d/%m/%Y') : (DateTime.now + 1.year).strftime('%d/%m/%Y')}",
+        dateFormat : 'mm/dd/yy',
+        defaultDate: "#{@contract.persisted? ? @contract.end_date&.strftime('%m/%d/%Y') : (DateTime.now + 1.year).strftime('%m/%d/%Y')}",
         prevText : '<i class="fa fa-chevron-left"></i>',
         nextText : '<i class="fa fa-chevron-right"></i>'
-      }).datepicker("setDate", "#{@contract.persisted? ? @contract.end_date&.strftime('%d/%m/%Y') : (DateTime.now + 1.year).strftime('%d/%m/%Y')}")
+      }).datepicker("setDate", "#{@contract.persisted? ? @contract.end_date&.strftime('%m/%d/%Y') : (DateTime.now + 1.year).strftime('%m/%d/%Y')}")
 
       $(document).on('click', '.commission-user-type', function(){
         if(this.value == 'Admin'){

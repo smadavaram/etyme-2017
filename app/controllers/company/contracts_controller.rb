@@ -210,8 +210,9 @@ class Company::ContractsController < Company::BaseController
   def update
     @tab_number = params[:tab].to_i
     set_docusign_documents
+    c_params = Contract.set_date_formats(contract_params)
     respond_to do |format|
-      if @contract.update(contract_params)
+      if @contract.update(c_params)
         @have_admin = @contract.sell_contract ? @contract.sell_contract.contract_sell_business_details.admin.count != 0 : false
         @contract_have_admin = @contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : false
         @sell_contract_have_admin = @contract.sell_contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : false
@@ -265,12 +266,13 @@ class Company::ContractsController < Company::BaseController
     @signature_templates = current_company.customer_contract_templates('signature')
     @documents_templates = current_company.customer_contract_templates('Document')
     @sell_contract = @contract.sell_contract
+    @contract[:start_date]  = Contract.foo(create_contract_params[:start_date])
+    @contract[:end_date]  = Contract.foo(create_contract_params[:end_date])
 
     if @contract.sell_contract
       @signature_documents = @contract.send('sell_contract').document_signs.where(part_of: @contract.sell_contract, signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
       @request_documents = @contract.send('sell_contract').document_signs.where(part_of: @contract.sell_contract, signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
     end
-
     respond_to do |format|
       if @contract.save
         if @contract.sell_contract

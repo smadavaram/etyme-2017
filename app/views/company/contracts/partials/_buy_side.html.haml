@@ -63,9 +63,9 @@
                   %td= change_rate.rate_type.nil? ? 'N/A' : colorfull_text(change_rate.rate_type.upcase,'#1AAE9F')
                   %td= change_rate.uscis
                   %td.no-wrap
-                    = colorfull_text(change_rate.from_date&.strftime("%d-%m-%Y"),'orange')
+                    = colorfull_text(change_rate.from_date&.strftime("%m-%d-%Y"),'orange')
                   %td.no-wrap
-                    = colorfull_text(change_rate.to_date&.strftime("%d-%m-%Y"),'red')
+                    = colorfull_text(change_rate.to_date&.strftime("%m-%d-%Y"),'red')
       %div
         .w-100
           %strong.pull-left Business Contacts
