@@ -47,7 +47,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
 
   def add_hrs
     @transaction = @timesheet.transactions.find_by(id: params[:transaction_id])
-    if @transaction.update(total_time: params[:total_hrs], memo: params[:memo] || "")
+    if @transaction.update(total_time: params[:total_hrs], memo: params[:memo] || "", file: params[:file])
       render json: {status: "Hours added successfully"}, status: :ok
     else
       render json: { status: @transaction.errors.full_messages }, status: :unprocessable_entity

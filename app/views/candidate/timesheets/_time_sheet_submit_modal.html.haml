@@ -18,6 +18,10 @@
               .form-group
                 %label Memo
                 %input{name: "memo", class: 'form-control', id: 't_memo', type: "text"}
+              .form-group
+                %label Attachment
+                %input{name: "file", class: 'form-control', id: 't_file', type: "hidden"}
+                = button_tag "Upload Attachment" , class: 'm-0 resume btn btn-primary btn-rounded btn-lg', onclick: "upload_timesheet_attachment()"
         .modal-footer
           %button.btn.btn-secondary.btn-sm.mr-1{"data-dismiss"=>"modal", "type"=>"button"} Cancel
           %button.btn.btn-secondary.btn-sm{type: "submit", onclick: 'submit_timesheet(event)'} Save
@@ -31,12 +35,19 @@
       let timesheet_id = $('#timesheet_id').val();
       let hrs = $('#t_total_time').val();
       let memo = $('#t_memo').val();
+      let file = $('#t_file').val();
       let url = `/candidate/timesheets/${timesheet_id}/transaction/${transaction_id}/update`
-      $.post(url, {total_hrs: hrs, memo: memo}).done(function (data) {
+      $.post(url, {total_hrs: hrs, memo: memo, file: file}).done(function (data) {
           $('#timesheet_submit_modal').modal('hide');
           flash_success(data.status)
       }).fail(function (data) {
           $('#timesheet_submit_modal').modal('hide');
           flash_error(data.status)
       });
+    }
+    function uploadTimesheetFile(url,type){
+      $('#t_file').val(url);
+    }
+    function upload_timesheet_attachment(){
+        upload_file_ajax(uploadTimesheetFile);
     }
