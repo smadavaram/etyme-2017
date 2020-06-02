@@ -34,6 +34,11 @@ class StaticController < ApplicationController
     redirect_to root_path
   end
 
+  def list
+    @jobs = current_company.jobs.paginate(page: params[:page], per_page: 4)
+    @jobs_group =  @jobs.group_by(&:job_category)
+  end
+
   def check_user
     user = @company.users.find_by(email: params[:email].downcase)
     if user.present?

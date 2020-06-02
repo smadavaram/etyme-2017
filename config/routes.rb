@@ -16,6 +16,7 @@ Rails.application.routes.draw do
 
   get '/company/conversation/chat_members', to: 'company/conversations#chat_members'
   get '/company/conversation/chat_candidates', to: 'company/conversations#chat_candidates'
+  get '/jobs/list', to: 'static#list', as: :static_company_jobs
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
   get 'register' => 'companies#new'
