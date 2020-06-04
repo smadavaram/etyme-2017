@@ -26,6 +26,7 @@ DomainChecker.prototype.checkForAvailableDomain = function(emailFieldValue) {
     data: { email: emailFieldValue },
 
     success: function(response) {
+        console.log(response);
       if(response.status == "ok"){
         _this.domainField.val(response.domain);
         _this.websiteField.val(response.website);
@@ -35,9 +36,11 @@ DomainChecker.prototype.checkForAvailableDomain = function(emailFieldValue) {
         _this.websiteField.prop('readonly', true);
         if (response.registred_in_company == false){
           _this.phoneField.val(response.phone);
+          _this.domainField.val(response.slug);
           _this.domainField.prop('readonly', false);
           _this.websiteField.prop('readonly', false);
-          _this.flashManager.hide()
+          _this.flashManager.show("Company already exists", 'alert-danger');
+          //   _this.flashManager.hide()
         }
         else{
           _this.flashManager.show(response.message, 'alert-success');

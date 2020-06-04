@@ -77,12 +77,17 @@ class Company::CompaniesController < Company::BaseController
       end
     elsif @company
       if @company != current_company
-        if create_current_company_contact(current_company)
-          flash[:success] = 'Company contact has been added to company'
+        if current_company.company_contacts.pluck(:email).include?company_contact_params["0"]["email"]
+          flash[:success] = 'Company contact already exists'
           redirect_to_new_company
         else
-          flash[:errors] = 'Something went wrong while creating the contact'
-          redirect_to new_company_company_path, errors: @company.errors.full_messages.first
+          if create_current_company_contact(current_company)
+            flash[:success] = 'Company contact has been added to company'
+            redirect_to_new_company
+          else
+            flash[:errors] = 'Something went wrong while creating the contact'
+            redirect_to new_company_company_path, errors: @company.errors.full_messages.first
+          end
         end
       end
     else
@@ -398,8 +403,7 @@ class Company::CompaniesController < Company::BaseController
       company_contact_params.to_h.map do |_key, contact_hash|
         user_params = contact_hash.slice(:first_name, :last_name, :email)
         user = User.find_by_email(contact_hash['email']) || Admin.create(user_params.merge(company_id: @company.id))
-        company_contact = current_company.company_contacts.build(contact_hash.except(:_destroy).merge(user_id: user.id, user_company_id: user.company.id, created_by_id: current_user.id))
-        company_contact.save
+        company_contact = current_company.company_contacts.create!(contact_hash.except(:_destroy).merge(user_id: user.id, user_company_id: user.company.id, created_by_id: current_user.id))
       end.all?
     end
   end
@@ -431,7 +435,12 @@ class Company::CompaniesController < Company::BaseController
   def add_company_admin(admin_hash)
     admin_hash = admin_hash.slice(:first_name, :last_name, :email)
     company_admin = @company.admins.build(admin_hash)
-    company_admin.save!
+    if company_admin.save
+      flash[:success] = "Successful!"
+    else
+      flash[:errors] = "Cannot Process!"
+    end
+
   end
 
   def add_new_company_admin(admin_hash)
