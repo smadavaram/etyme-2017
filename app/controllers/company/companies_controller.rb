@@ -48,6 +48,14 @@ class Company::CompaniesController < Company::BaseController
     end
   end
 
+  def company_jobs_url
+    @job_url= "/#{current_company.name.downcase}.#{current_company.domain}/jobs/list"
+  end
+
+  def site_jobs
+    company_jobs_url
+  end
+
   def new
     add_breadcrumb 'Companies', companies_path
 
