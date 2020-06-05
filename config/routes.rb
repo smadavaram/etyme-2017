@@ -20,7 +20,7 @@ Rails.application.routes.draw do
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
   get 'site_jobs' => 'company/companies#site_jobs', as: :site_job
-  get '/engintechnologies.engin/job/list', to: 'company/companies#site_jobs'
+  # get '/engintechnologies.engin/jobs/list', to: 'companies#site_jobs'
   get 'register' => 'companies#new'
   get 'signin', to: 'static#signin'
   post 'signin', to: 'static#signin'
