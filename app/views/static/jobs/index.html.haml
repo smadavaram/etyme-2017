@@ -19,8 +19,8 @@
               .list-group-item.active.cat-top
                 %em.fa.fa-fw.fa-coffee.text-white>
                    Categories
-                %span.badge= @jobs.count
-              - @jobs_groups.each do |category,jobs|
+                %span.badge= @job_all.count
+              - @job_categories.each do |category,jobs|
                 %a.list-group-item.cat-list{:href => static_jobs_path(category: category)}
                   %em.fa.fa-fw.fa-code.text-muted
                    #{truncate(category,length: 20)}
@@ -33,7 +33,7 @@
             = f.text_field :title_or_job_category_cont, class: "form-control", placeholder: "Search Jobs..."
             .clearfix
           -#%h6 We found 100 jobs matching: Web Development &amp; IT
-          - @jobs.each do |job|
+          - @job_all.each do |job|
             .job
               .row.top-sec
                 .col-lg-2.col-xs-12
