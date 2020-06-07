@@ -52,8 +52,7 @@ class Company::CompaniesController < Company::BaseController
     @job_url= "/#{current_company.name.downcase}.#{current_company.domain}/jobs/list"
   end
 
-  def site_jobs
-    company_jobs_url
+  def site_jobs;
   end
 
   def new
