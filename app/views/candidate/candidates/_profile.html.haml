@@ -15,13 +15,13 @@
                   %h2.up-header
                     = candidate.full_name
                   %h6.up-sub-header
-                    = candidate.associated_company.name.capitalize if candidate.associated_company.present?
+                    = candidate.associated_company&.name&.capitalize if candidate.associated_company.present?
             -else
               .up-main-info
                 %h2.up-header
                   = candidate.full_name
                 %h6.up-sub-header
-                  = candidate.associated_company.name.capitalize if candidate.associated_company.present?
+                  = candidate.associated_company&.name&.capitalize if candidate.associated_company.present?
           .up-controls
             .row
               .col-sm-6{style: "display: flex;justify-content: space-evenly;"}
@@ -192,7 +192,7 @@
                         - else
                           .element-inner-desc.pl-2
                             %p.m-0
-                              = "<strong>#{c.refrence_name.capitalize}</strong> endorse <strong>#{c.candidate.full_name}</strong> and their roles and responsibilities for the PROJECT".html_safe
+                              = "<strong>#{c&.refrence_name&.capitalize}</strong> endorse <strong>#{c.candidate.full_name}</strong> and their roles and responsibilities for the PROJECT".html_safe
                         -#%strong Reference
                         -#- if c.candidate == current_candidate and !c.refrence_two.present?
                         -#  = render 'candidate/candidates/partials/update_ref_two', client: c
