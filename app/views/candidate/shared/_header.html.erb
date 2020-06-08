@@ -68,9 +68,9 @@
     <!--------------------START - Features Link in secondary top menu-------------------->
     <div class="top-icon btn-header transparent pull-right open" id="quick-add">
       <i class="ti-plus"></i>
-      <ul class="dropdown-menu project-dropdown" style="right: 120px !important; left: initial;">
+      <ul class="dropdown-menu project-dropdown" style=" background-color: #047bf8;right: 120px !important; left: initial;">
         <li>
-          <div class=".sub-title">Timer(s)</div>
+          <div style="color: white; font-weight: bold;" class=".sub-title">Timer(s)</div>
           <ul>
             <li>
               <a href="<%= timeline_candidate_contracts_path(cycle_type: "timesheet") %>"><span>Add Timesheets</span></a>
@@ -78,7 +78,7 @@
           </ul>
         </li>
         <li>
-          <div class=".sub-title">Expense(s)</div>
+          <div style="color: white; font-weight: bold;" class=".sub-title">Expense(s)</div>
           <ul>
             <li>
               <a href="<%= new_candidate_expense_path(cycle_type: "timesheet") %>"><span>Request Expenses</span></a>
