@@ -1421,7 +1421,7 @@ input:checked + .slider1:before {
   margin:5px 0px;
 }
 .project-dropdown > li ul li a{
-  color: #3b5998;
+  color: white;
   font-size: 12px;
 }
 .project-dropdown > li ul li a:hover{
