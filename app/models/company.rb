@@ -275,6 +275,10 @@ class Company < ApplicationRecord
   end
 
   def create_defult_roles
+    payroll = self.payroll_infos.create!(title: "Default",payroll_type: "monthly", sc_date_1: Date.today, sp_date_1: Date.today + 1.month, payroll_term_monthly: "1", pay_period_monthly: Date.today + 1.month - 1.day, sclr_date_1: Date.today + 1.month, weekend_sch_monthly: false)
+    pr = PayrollCycles.new(payroll, self)
+    pr.create_update_payroll
+
     roles.create(name: 'Recruiter', permissions: Permission.where(name: %w[manage_consultants manage_jobs manage_vendors send_job_invitations manage_job_invitations manage_job_applications create_new_contracts show_contracts_details edit_contracts_terms]))
     roles.create(name: 'Sales - client requirement', permissions: Permission.where(name: ['show_invoices']))
     roles.create(name: 'HR admin', permissions: Permission.where(name: %w[manage_consultants manage_jobs manage_vendors send_job_invitations manage_job_invitations manage_job_applications create_new_contracts show_contracts_details edit_contracts_terms manage_leaves]))
