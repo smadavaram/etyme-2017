@@ -62,7 +62,7 @@
                   %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",15) if docusign.is_signable?
                   %td
                     - if docusign.documentable.is_require == "Website"
-                      = link_to content_tag(:i,'',class:'ti-world').html_safe, docusign.signed_file if docusign.is_sign_done
+                      = link_to content_tag(:i,'',class:'fa fa-users').html_safe, docusign.signed_file if docusign.is_sign_done
                     -else
                       = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
 

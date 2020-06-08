@@ -31,8 +31,9 @@
                         %td=  docusign.documentable.is_require.capitalize
                         %td
                           - if docusign.documentable.is_require == "Website"
-                            = link_to content_tag(:i,'',class:'ti-world').html_safe, docusign.signed_file if docusign.is_sign_done
-                            = link_to content_tag(:i,'',class:'ti-world').html_safe, candidate_document_sign_path(docusign), remote: true unless docusign.signed_file.present?
+                            = link_to content_tag(:i,'',class:'fa fa-users').html_safe, docusign.signed_file if docusign.is_sign_done
+                            = link_to content_tag(:i,'',class:'fa fa-users').html_safe, candidate_document_sign_path(docusign), remote: true unless docusign.signed_file.present?
+                            = link_to content_tag(:i,'',class:'fa fa-users').html_safe, candidate_document_sign_path(docusign), remote: true unless docusign.signed_file.present?
                           -else
                             = link_to content_tag(:i,'',class:'picons-thin-icon-thin-0089_upload_file').html_safe, candidate_document_sign_documents_path(docusign),remote: true, title: "Upload Document" if upload_doc?(docusign)
                             = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign_file(docusign), title: "Download Document" if docusign.is_sign_done
