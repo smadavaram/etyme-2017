@@ -150,7 +150,6 @@ class Candidate < ApplicationRecord
   end
 
   def etyme_url
-    (ENV['domain']).to_s if Rails.env.development?
     (ENV['domain']).to_s
   end
 
