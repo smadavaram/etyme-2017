@@ -88,10 +88,13 @@
                                 %th USCIS
                                 %th From
                                 %th To
+                                - if bc&.object&.contract&.status == "draft" || bc&.object&.contract&.status == "pending"
+                                  %th Action
+
                             %tbody
                               - bc.object.change_rates.each do |change_rate|
                                 -if change_rate.persisted?
-                                  %tr
+                                  %tr{:id => "change_rate_row#{change_rate.id}"}
                                     %td= change_rate.rate
                                     %td= change_rate.overtime_rate
                                     %td= change_rate.working_hrs
@@ -99,6 +102,9 @@
                                     %td= change_rate.uscis
                                     %td= change_rate.from_date&.strftime('%m/%d/%Y')
                                     %td= change_rate.to_date&.strftime('%m/%d/%Y')
+                                    - if bc&.object&.contract&.status == "draft" || bc&.object&.contract&.status == "pending"
+                                      %td= link_to "Delete", "",  onclick: "delete_change_rate(`#{change_rate.id}`)", remote: true
+
                   #tab-buy-ts.tab-pane.padding-top-15
                     .row
                       .col-md-12

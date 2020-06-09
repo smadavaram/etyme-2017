@@ -17,6 +17,14 @@ class Company::ChangeRatesController < Company::BaseController
     params.require(:change_rate).permit(:from_date, :to_date, :rate_type, :rate, :uscis, :working_hrs, :overtime_rate)
   end
 
+  def destroy
+    change_rate = ChangeRate.find(params[:id])
+    change_rate.rateable.change_rates.find{|c| c.id = params[:id] }.destroy
+    respond_to do |format|
+      format.js   {}
+    end
+  end
+
   private
 
   def load_contract

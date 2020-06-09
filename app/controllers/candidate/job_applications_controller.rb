@@ -61,7 +61,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
       if @interview.update(interview_params.merge(accept: true, accepted_by_recruiter: false, accepted_by_company: false))
         @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
-        body = current_candidate.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
+        body = current_candidate.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + static_job_url(@job_application.job).to_s}}'> with reference to the job </a>#{@job_application.job.title}."
         current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
         format.html { flash[:success] = 'Interview details updated, pending confirmation' }
       else
@@ -80,7 +80,7 @@ class Candidate::JobApplicationsController < Candidate::BaseController
         @job_application.interviewing! if @interview.is_accepted?
         @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation) if @interview.is_accepted?
-        body = current_candidate.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + job_application_path(@job_application)}'> with reference to the job </a>#{@job_application.job.title}."
+        body = current_candidate.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + static_job_url(@job_application.job).to_s}}'> with reference to the job </a>#{@job_application.job.title}."
         current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, resource_id: @interview_id)
         flash[:success] = 'Interview is accepted by candidate'
       else
