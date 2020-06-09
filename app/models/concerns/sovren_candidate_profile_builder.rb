@@ -16,7 +16,9 @@ module SovrenCandidateProfileBuilder
   def sovren_update_skill_list(user_area)
     return unless user_area
     user_area.extend Hashie::Extensions::DeepFind
-    update_attribute(:dob, user_area.deep_find('sov:DateOfBirth').dig('#text'))
+     if user_area.deep_find('sov:DateOfBirth').present?
+       update_attribute(:dob, user_area.deep_find('sov:DateOfBirth').dig('#text'))
+     end
     update_attribute(:skill_list, user_area.deep_find('sov:Skill').map { |skill| skill['@name'] }.sample(8).join(','))
   end
 
