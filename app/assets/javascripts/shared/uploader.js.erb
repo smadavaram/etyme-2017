@@ -1071,7 +1071,10 @@ function upload_file(selector, name_selector = false, multiple = false) {
                 files_path = upload.url
             }
             $(selector).val(files_path);
-            console.log(files_path);
+            if($(selector).hasClass("resume_field"))
+            {
+                $('.uploaded_resume').show();
+            }
         }
 });
     $(".powered-by-holder").remove();

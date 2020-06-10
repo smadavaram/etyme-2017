@@ -32,8 +32,18 @@
         = f.check_box :send_invitation ,{}, true, false
         %label.col-md-2.control-label
         .col-md-12
+          .document-display.clearfix.uploaded_resume
+            %p.float-left.mt-2.ml-1
+              %i.fa.fa-file-text-o.fa-lg.fa-fw
+              = "Resume"
+            .primary_doc.float-right
+              = link_to "", "", :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", remote: true, onclick: 'delete_resume()'
+
+          %br
           = render 'shared/file_attachement',f:f,attr_name: :resume
-          -#= f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+          -#= f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt
+
+
 
     -#.col-sm-6
     -#  = f.fields_for :custom_fields do |lt|
@@ -85,3 +95,8 @@
     });
 
     $('.phone_number').mask('(000) 0000-000000');
+    $('.uploaded_resume').hide();
+    function delete_resume() {
+      $('.resume_field').val("");
+      $('.uploaded_resume').hide();
+    }

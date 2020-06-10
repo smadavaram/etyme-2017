@@ -1,5 +1,5 @@
 <% id = SecureRandom.hex(5) %>
-<%= f.hidden_field attr_name, id: id, class: 'filepicker-attach-doc' %>
+<%= f.hidden_field attr_name, id: id, class: 'filepicker-attach-doc resume_field' %>
 <% is_multi = false %>
 <% unless local_assigns.has_key? :cstm_style %>
   <% cstm_style = '' %>
