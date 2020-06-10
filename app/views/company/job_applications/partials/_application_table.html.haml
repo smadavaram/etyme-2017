@@ -54,7 +54,7 @@
                     - data.each_with_index  do |application,index|
                       -if index%2==0
                         %tr.even{:role => "row"}
-                          %td= user_image(application.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{application.user.full_name}" )'
+                          %td= user_image(application.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{application.user.full_name}" )
                           %td= link_to application.user.full_name , '#'
                           %td= link_to application.job.title ,job_path(application.job)
                           %td= application.user.email
