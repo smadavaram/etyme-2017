@@ -3,25 +3,25 @@
     .col-sm-6
       .col-sm-12
         %b Contract
-        %p= invoice.contract.title
+        %p= invoice&.contract&.title
 
         %b Consultant
-        %p= invoice.contract.candidate.full_name
+        %p= invoice&.contract&.candidate&.full_name
       .col-sm-12
         %b Sent Date - Due Date
-        %p{style: 'color: #1AAE9F;'}= "#{invoice.contract.start_date.strftime('%d/%m/%Y')} - #{invoice.due_date}"
+        %p{style: 'color: #1AAE9F;'}= "#{invoice&.contract&.start_date&.strftime('%d/%m/%Y')} - #{invoice.due_date}"
 
     .col-sm-6
       .col-sm-12.ts_header
         .col-sm-6
           %b Sender Company
           %p
-            =user_image(invoice.sender_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invoice.sender_company.full_name}" )
+            =user_image(invoice.sender_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invoice&.sender_company&.full_name}" )
             =link_to(do_ellipsis(invoice.sender_company.name), profile_company_path(invoice.sender_company))
         .col-sm-6
           %b Receiver Company
           %p
-            =user_image(invoice.receiver_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invoice.receiver_company.full_name}" )
+            =user_image(invoice.receiver_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invoice&.receiver_company&.full_name}" )
 
             =link_to(do_ellipsis(invoice.receiver_company.name), profile_company_path(invoice.sender_company))
       .col-sm-12.ts_header
@@ -81,7 +81,7 @@
                 %td= ce.id
                 %td -
                 %td= ce.contract.title
-                %td= user_image(ce.company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{ce.company.full_name}" )
+                %td= user_image(ce.company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{ce&.company&.full_name}" )
 
                 %td= snake_to_words(ce.status)
                 %td= "#{ce.start_date} - #{ce.end_date}"
