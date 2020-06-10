@@ -180,7 +180,7 @@ class Company::JobApplicationsController < Company::BaseController
       if @interview.new_record? ? @interview.save : @interview.update(interview_params.merge(accept: false, accepted_by_recruiter: false, accepted_by_company: true))
         @conversation = @job_application.conversation
         @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
-        body = current_user.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + static_job_url(@job_application.job).to_s}'> with reference to the job </a>#{@job_application.job.title}."
+        body = current_user.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='#{static_job_url(@job_application.job).to_s}'> with reference to the job </a>#{@job_application.job.title}."
         current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
         format.html { flash[:success] = 'Interview is Scheduled, pending confirmation' }
       else
@@ -208,7 +208,7 @@ class Company::JobApplicationsController < Company::BaseController
         @job_application.interviewing!
         record_activity
       end
-      body = current_user.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='http://#{@job_application.job.created_by.company.etyme_url + static_job_url(@job_application.job).to_s}}'> with reference to the job </a>#{@job_application.job.title}."
+      body = current_user.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='#{static_job_url(@job_application.job).to_s}}'> with reference to the job </a>#{@job_application.job.title}."
       current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, resource_id: @interview_id)
       flash[:success] = 'Interview Schedule is accepted'
     else
