@@ -97,7 +97,6 @@ class ApplicationController < ActionController::Base
   end
 
   def current_company
-    return Company.first if Rails.env.development?
     @current_company = Company.find_by(slug: request.subdomain)
   end
 
