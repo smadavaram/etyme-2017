@@ -16,7 +16,8 @@ Rails.application.routes.draw do
 
   get '/company/conversation/chat_members', to: 'company/conversations#chat_members'
   get '/company/conversation/chat_candidates', to: 'company/conversations#chat_candidates'
-  get 'list', to: 'company/jobs#list', as: :current_company_jobs
+  get 'sites_jobs_preview', to: 'company/jobs#sites_jobs_preview', as: :sites_jobs_preview
+  get 'sites_jobs_iframe', to: 'company/jobs#sites_jobs_iframe', as: :sites_jobs_iframe
   get '/states/:country', to: 'application#states'
   get '/cities/:state/:country', to: 'application#cities'
   get 'site_jobs' => 'company/companies#site_jobs', as: :site_job
@@ -28,6 +29,7 @@ Rails.application.routes.draw do
   get 'privacy_policy', to: 'static#privacy_policy'
   get 'terms_of_use', to: 'static#terms_of_use'
   get 'contact_us', to: 'static#contact_us'
+
   namespace :feed do
     get 'job_feed' => 'rss_jobs#job_feed', format: 'rss'
     get 'product_feed' => 'rss_jobs#product_feed', format: 'rss'
@@ -35,6 +37,7 @@ Rails.application.routes.draw do
     get 'training_feed' => 'rss_jobs#training_feed', format: 'rss'
     get 'bench_feed' => 'rss_jobs#bench_feed', format: 'rss'
     get 'blog_feed' => 'rss_jobs#blog_feed', format: 'rss'
+    get 'company_job_feed' => 'rss_jobs#company_job_feed', format: 'rss'
 
     get 'feeds' => 'rss_jobs#feeds'
     get ':company_id/job_feed' => 'rss_jobs#job_feed', format: 'json'

@@ -38,10 +38,12 @@ class Company::JobsController < Company::BaseController
     add_breadcrumb 'EDIT', edit_job_path(@job), options: { title: 'NEW EDIT' }
   end
 
-  def list
+  def sites_jobs_preview
     @jobs = current_company.jobs.paginate(page: params[:page], per_page: 4)
     @jobs_group =  @jobs.group_by(&:job_category)
   end
+
+  def sites_jobs_iframe; end
 
   def create
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
