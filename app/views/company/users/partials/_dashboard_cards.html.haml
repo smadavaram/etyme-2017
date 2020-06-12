@@ -1,6 +1,6 @@
 .row
   .col-sm-4.col-xxxl-4.col-4.col-md-4
-    %a.element-box.el-tablo{:href => "#"}
+    %a.element-box.el-tablo{:href => "#{jobs_path(type: "Job")}"}
       .label
         Job
       .value
@@ -9,7 +9,8 @@
         %span= @current_user_cards["JOB"]
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
-    %a.element-box.el-tablo{:href => "#"}
+    %a.element-box.el-tablo{:href  => "#{company_bench_jobs_path}"}
+
       .label
         Bench
       .value
@@ -18,7 +19,7 @@
         %span=@current_user_cards["BENCH"]
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
-    %a.element-box.el-tablo{:href => "#"}
+    %a.element-box.el-tablo{:href => "#{company_owen_jobs_path}"}
       .label
         Bench Job
       .value
@@ -28,7 +29,7 @@
         %i.os-icon.os-icon-arrow-up2
 .row
   .col-sm-4.col-xxxl-4.col-4.col-md-4
-    %a.element-box.el-tablo{:href => "#"}
+    %a.element-box.el-tablo{:href => "#{job_applications_path}"}
       .label
         Application
       .value
