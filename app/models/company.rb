@@ -15,6 +15,7 @@ class Company < ApplicationRecord
   # Note: Do not change the through association order.
   belongs_to :owner, class_name: 'Admin', foreign_key: 'owner_id', optional: true
   belongs_to :currency, optional: true
+  has_many :etyme_transactions
   has_many :contract_admins
   has_many :locations, dependent: :destroy
   has_many :jobs, dependent: :destroy

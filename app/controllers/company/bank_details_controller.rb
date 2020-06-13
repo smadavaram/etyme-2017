@@ -16,6 +16,8 @@ class Company::BankDetailsController < Company::BaseController
   def create
     @bank_detail = current_company.bank_details.new(create_bank_detail_params)
     if @bank_detail.save
+      current_company.etyme_transactions.create!(transaction_type: 'positive', amount: create_bank_detail_params[:balance])
+      flash[:success] = 'Treasury updated successfully'
       flash[:success] = 'Bank Detail has been Added successfully'
     else
       flash[:errors] = @bank_detail.errors.full_messages
