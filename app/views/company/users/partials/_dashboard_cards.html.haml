@@ -38,7 +38,7 @@
         %span=@current_user_cards["APPLICATION"].count
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
-    %a.element-box.el-tablo{:href => "#"}
+    %a.element-box.el-tablo{:href => "#{job_applications_path}"}
       .label Prescreen
       .value
         = cards["STATUS"].where(status: :prescreen).present? ? cards["STATUS"].where(status: :prescreen).first.count : 0
@@ -46,7 +46,7 @@
         %span=@current_user_cards["APPLICATION"].prescreen.count
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
-    %a.element-box.el-tablo{:href => "#"}
+    %a.element-box.el-tablo{:href => "#{job_applications_path}"}
       .label Rate Confirmation
       .value
         = cards["STATUS"].where(status: :rate_confirmation).present? ? cards["STATUS"].where(status: :rate_confirmation).first.count : 0
@@ -55,7 +55,7 @@
         %i.os-icon.os-icon-arrow-up2
 .row
   .col-sm-4.col-xxxl-4.col-4.col-md-4
-    %a.element-box.el-tablo{:href => "#"}
+    %a.element-box.el-tablo{:href => "#{job_applications_path}"}
       .label Client Submission
       .value
         = cards["STATUS"].where(status: :client_submission).present? ? cards["STATUS"].where(status: :client_submission).first.count : 0
@@ -63,7 +63,7 @@
         %span=@current_user_cards["APPLICATION"].client_submission.count
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
-    %a.element-box.el-tablo{:href => "#"}
+    %a.element-box.el-tablo{:href => "#{job_applications_path}"}
       .label Interviewing
       .value
         = cards["STATUS"].where(status: :interviewing).present? ? cards["STATUS"].where(status: :interviewing).first.count : 0
@@ -71,7 +71,7 @@
         %span=@current_user_cards["APPLICATION"].interviewing.count
         %i.os-icon.os-icon-arrow-up2
   .col-sm-4.col-xxxl-4.col-4.col-md-4
-    %a.element-box.el-tablo{:href => "#"}
+    %a.element-box.el-tablo{:href => "#{job_applications_path}"}
       .label Hired
       .value
         = cards["STATUS"].where(status: :hired).present? ? cards["STATUS"].where(status: :hired).first.count : 0
