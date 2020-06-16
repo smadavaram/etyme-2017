@@ -101,6 +101,33 @@ class Api::Company::CompaniesController < ApplicationController
       end
     end
   end
+  def create_custom_company
+    data =  params["data"]["contact"]["fields"]
+    if data["email"].present? && data["first_name"].present?
+      domain = data["email"].split("@").last.split(".").first.downcase
+      user = User.find_by(email: data["email"])
+      unless user.present?
+        user = User.create(
+            first_name: data["first_name"].split(" ").first, last_name: data["first_name"].split(" ").last,
+            email: data["email"], type: 'Admin',
+            password: 'testing1234', password_confirmation: 'testing1234',
+            confirmed_at: DateTime.current
+        )
+      end
+      comp = Company.new(
+          name: domain.to_s.upcase, domain: domain, slug: domain, website: domain.to_s + ".com",
+          email: data["email"], owner: user
+      )
+      if comp.save
+        render json: { message: 'Company created successfully', data: { company: comp } }
+      else
+        render json: { message: 'Something went Wrong', data: { company: comp.errors.full_messages } }
+      end
+    else
+      render json: { message: 'Data incomplete!' }
+    end
+  end
+
 
   def update
     respond_to do |format|

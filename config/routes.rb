@@ -820,6 +820,6 @@ Rails.application.routes.draw do
   delete 'company/contracts/:id', to: 'company/contracts#destroy', as: :destroy_company_contract
   get 'company/contracts/:id/add_reminder', to: 'company/contracts#add_reminder', as: :contract_add_reminder
 
-  post 'api/company/create_company', to: 'api/company/companies#create_custom_company'
+  post 'api/company/', to: 'api/company/companies#create_custom_company'
 
 end
