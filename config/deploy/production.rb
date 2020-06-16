@@ -27,16 +27,20 @@
 # is considered to be the first unless any hosts have the primary
 # property set.  Don't declare `role :all`, it's a meta role.
 
-role :app, %w[deploy@157.230.90.106]
-role :web, %w[deploy@157.230.90.106]
-role :db,  %w[deploy@157.230.90.106]
-set :deploy_to, '/var/www/deploy'
-set :branch, 'deploy-dev'
+role :app, %w[deploy_user@13.58.123.32]
+role :web, %w[deploy_user@13.58.123.32]
+role :db,  %w[deploy_user@13.58.123.32]
+set :deploy_to, '/var/www/etyme2020'
+set :branch, 'drive-changes'
 
 # Extended Server Syntax
 # ======================
 # This can be used to drop a more detailed server definition into the
 # server list. The second argument is a, or duck-types, Hash and is
 # used to set extended properties on the server.
-
-server '157.230.90.106', user: 'deploy', password: 'Etyme123@', roles: %w[web app]
+set :ssh_options, {
+    keys: %w(etyme-2020-key.pem),
+    forward_agent: false,
+    auth_methods: %w(publickey password)
+}
+# server '3.134.81.77', user: 'deploy_user', password: 'Etyme123@', roles: %w[web app]

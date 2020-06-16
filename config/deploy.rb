@@ -5,7 +5,8 @@ lock '3.11.2'
 
 set :application, 'etyme'
 set :repo_url, 'git@github.com:smadavaram/etyme-2017.git'
-
+set :rvm_ruby_version, '2.6.5'
+set :passenger_restart_with_touch, true
 # Default branch is :master
 # ask :branch, proc { `git rev-parse --abbrev-ref HEAD`.chomp }.call
 
