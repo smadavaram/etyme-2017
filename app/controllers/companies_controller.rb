@@ -51,7 +51,7 @@ class CompaniesController < ApplicationController
   private
 
   def redirect_to_main_domain
-    return redirect_to "#{HOSTNAME}/register" if request.subdomain != 'app'
+    return redirect_to "#{HOSTNAME}/register" if request.subdomain.present?
   end
 
   def find_company
