@@ -237,13 +237,13 @@ Rails.application.routes.draw do
 
   class NakedEtymeDomain
     def self.matches?(request)
-      (request.subdomain.blank? || request.subdomain == 'www') # && request.domain == ENV['domain']
+      (request.subdomain == 'app') # && request.domain == ENV['domain']
     end
   end
 
   class Subdomain
     def self.matches?(request)
-      request.subdomain.present? && request.subdomain != 'www' && request.subdomain != 'app-etyme'
+      request.subdomain.present? && request.subdomain != 'app' && request.subdomain != 'app-etyme'
     end
   end
 
@@ -819,5 +819,7 @@ Rails.application.routes.draw do
 
   delete 'company/contracts/:id', to: 'company/contracts#destroy', as: :destroy_company_contract
   get 'company/contracts/:id/add_reminder', to: 'company/contracts#add_reminder', as: :contract_add_reminder
+
+  post 'api/company/create_company', to: 'api/company/companies#create_custom_company'
 
 end
