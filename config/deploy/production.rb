@@ -27,11 +27,11 @@
 # is considered to be the first unless any hosts have the primary
 # property set.  Don't declare `role :all`, it's a meta role.
 
-role :app, %w[deploy_user@13.58.123.32]
-role :web, %w[deploy_user@13.58.123.32]
-role :db,  %w[deploy_user@13.58.123.32]
+role :app, %w[deploy_user@3.128.51.36]
+role :web, %w[deploy_user@3.128.51.36]
+role :db,  %w[deploy_user@3.128.51.36]
 set :deploy_to, '/var/www/etyme2020'
-set :branch, 'drive-changes'
+set :branch, 'deploy-staging'
 
 # Extended Server Syntax
 # ======================

@@ -63,8 +63,8 @@ production:
   zoom_client_secret: '11EylRQ3O5vh5SOTxOm4jJntirEDhmCg'
   zoom_authorization_server: 'https://zoom.us'
   #AWS RDS Credentials
-  ETYME_DATABASE_PASSWORD: 'etyme2020'
-  ETYME_DATABASE_HOST: 'etyme2020.cq2rqobmckqn.us-east-2.rds.amazonaws.com'
+  ETYME_DATABASE_PASSWORD: 'etymestaging'
+  ETYME_DATABASE_HOST: 'etyme-staging.cq2rqobmckqn.us-east-2.rds.amazonaws.com'
   ETYME_DATABASE_PORT: '5432'
   HOSTNAME: 'http://app.etyme.com'
   COMPANY_URL: 'app.etyme.com'
