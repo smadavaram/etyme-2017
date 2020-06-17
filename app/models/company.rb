@@ -185,7 +185,7 @@ class Company < ApplicationRecord
   end
 
   def etyme_url
-    Rails.env.development? ? "#{slug}.#{ENV['domain']}" : "#{slug}.#{ENV['domain']}"
+    Rails.env.development? ? "#{slug}.#{ENV['domain']}" : "#{slug}.#{ENV['ETYME_DOMAIN']}"
   end
 
   def find_sent_or_received_invitation(invitation_id)
