@@ -9,7 +9,10 @@
         %h3= "Buy-  #{@contract.buy_contract.number}"
       - if @contract.buy_contract.present?
         %h3.contract_sub_heading
-          Vendor Details
+          -if @contract&.buy_contract&.contract_type == "C2C"
+            Vendor Details
+          -else
+            Consultant Details
         .sell-side.box
           .contract-customer-details
             .row

@@ -7,7 +7,11 @@
         =link_to 'Remove', '#', class: 'btn btn-danger'
 - if @contract.buy_contract.present?
   %h6.contract_sub_heading{style: "font-size: 15px"}
-    Vendor Details
+    -if @contract&.buy_contract&.contract_type == "C2C"
+      Vendor Details
+    -else
+      Consultant Details
+
   .sell-side.box
     .contract-customer-details
       .row

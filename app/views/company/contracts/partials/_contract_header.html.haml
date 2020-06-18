@@ -18,16 +18,26 @@
 .form-desc
 
 .row
-  %div.job-header.clearfix.col-sm-6
-    %h6
-      %span Client
-      %small= contract.client&.name
-    %h6
-      %span Candidate
-      %small= contract.candidate.try(:full_name)
-    %h6
-      %span Work Location
-      %small= contract.work_location
+  - if current_company == @contract.company
+    %div.job-header.clearfix.col-sm-6
+      %h6
+        %span Client
+        %small= contract.client&.name
+      %h6
+        %span Candidate
+        %small= contract.candidate.try(:full_name)
+      %h6
+        %span Work Location
+        %small= contract.work_location
+  -else
+    %div.job-header.clearfix.col-sm-6
+      %h6
+        %span Candidate
+        %small= contract.candidate.try(:full_name)
+      %h6
+        %span Work Location
+        %small= contract.work_location
+
   %div.col-sm-6.col-md-6.col-lg-6
     .d-flex.justify-content-between.mt-3
       %h6
