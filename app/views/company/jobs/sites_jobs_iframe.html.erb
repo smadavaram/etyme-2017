@@ -1,0 +1,336 @@
+<% provide(:body_class, 'full-screen') %>
+<section>
+  <div style="margin-top: 75px;" class="container">
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Object</th>
+          <th>Iframe - list</th>
+          <th>Iframe - slider</th>
+          <th>RSS/XML feed</th>
+          <th>Subdomain Link</th>
+        </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td>Jobs</td>
+        <td>
+          <div class="col-md-3 col-6">
+            <div class="feed">
+              <a class="modal-opener display-flex" data-target="#embedJobIframe" data-toggle="modal" href="#embedJobModal">
+                <div style="color: -webkit-link ;white-space: nowrap" class="link-part">Job Link</div>
+              </a>
+            </div>
+          </div>
+        </td>
+        <td>Job iframe slider</td>
+        <td>
+          <div class="col-md-3 col-6">
+            <div class="feed">
+              <a class="modal-opener display-flex" data-target="#embedRssModal" data-toggle="modal" href="#embedJobModal">
+                <div style="color: -webkit-link ;white-space: nowrap" class="link-part">Job XML feed</div>
+              </a>
+            </div>
+          </div></td>
+        <td>subdomain link</td>
+      </tr>
+      <tr>
+        <td>Company Jobs</td>
+        <td>
+          <div class="col-md-3 col-6">
+            <div class="feed">
+              <a class="modal-opener display-flex" data-target="#embedCompanyJobIframe" data-toggle="modal" href="#embedJobModal">
+                <div style="color: -webkit-link ;white-space: nowrap" class="link-part">Company job</div>
+              </a>
+            </div>
+          </div></td>
+        <td>Company Job  iframe slider</td>
+        <td>
+          <div class="col-md-3 col-6">
+            <div class="feed">
+              <a class="modal-opener display-flex" data-target="#embedJobRssModal" data-toggle="modal" href="#embedJobModal">
+                <div style="color: -webkit-link ;white-space: nowrap" class="link-part">Company job XML feed</div>
+              </a>
+            </div>
+          </div></td>
+        <td>subdomain link</td>
+      </tr>
+      <tr>
+        <td>Bench</td>
+        <td>
+          <div class="col-md-3 col-6">
+            <div class="feed">
+              <a class="modal-opener display-flex" data-target="#embedBenchIframeModal" data-toggle="modal" href="#embedJobModal">
+                <div style="color: -webkit-link ;white-space: nowrap" class="link-part">Bench Jobs</div>
+              </a>
+            </div>
+          </div></td>
+        <td>Bench  iframe slider</td>
+        <td>
+          <div class="col-md-3 col-6">
+            <div class="feed">
+              <a class="modal-opener display-flex" data-target="#embedBenchRssModal" data-toggle="modal" href="#embedBlogModal">
+                <div style="color: -webkit-link ;white-space: nowrap" class="link-part">Bench Rss Feed</div>
+              </a>
+            </div>
+          </div></td>
+        <td>subdomain link</td>
+      </tr>
+      <tr>
+        <td>Services</td>
+        <td>Service iframe</td>
+        <td>Service  iframe slider</td>
+        <td>
+          <div class="col-md-3 col-6">
+            <div class="feed">
+              <a class="modal-opener display-flex" data-target="#embedServiceRssModal" data-toggle="modal" href="#embedServiceModal">
+                <div style="color: -webkit-link;white-space: nowrap "class="link-part">Service Rss Feed</div>
+              </a>
+            </div>
+          </div></td>
+        <td>subdomain link</td>
+
+      </tr>
+      <tr>
+        <td>Products</td>
+        <td>Products iframe</td>
+        <td>Products iframe slider</td>
+        <td>
+          <div class="col-md-3 col-6">
+            <div class="feed">
+              <a class="modal-opener display-flex" data-target="#embedProductRssModal" data-toggle="modal" href="#embedProductModal">
+                <div style="color: -webkit-link;white-space: nowrap " class="link-part">Product Rss Feed</div>
+              </a>
+            </div>
+          </div></td>
+        <td>subdomain link</td>
+      </tr>
+      <tr>
+        <td>Training</td>
+        <td>Training iframe</td>
+        <td>Training iframe slider</td>
+        <td>
+          <div class="col-md-3 col-6">
+            <div class="feed">
+              <a class="modal-opener display-flex" data-target="#embedTrainingRssModal" data-toggle="modal" href="#embedProductModal">
+                <div style="color: -webkit-link;white-space: nowrap " class="link-part">Training Rss Feed</div>
+              </a>
+            </div>
+          </div></td>
+        <td>subdomain link</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!--embed job rss modal-->
+
+<div class="modal" id="embedRssModal" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-subtitle">
+              <%= "Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_job_feed_path,target: '_blank'} to open the rss feed".html_safe %>
+            </div>
+            <div class="p-4 border">
+              <code>
+                &lt;a href="https://<%=current_company.etyme_url%>/feed/job_feed" target="_blank"&gt;&lt;/a&gt;
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--embed bench rss modal-->
+
+<div class="modal" id="embedBenchRssModal" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-subtitle">
+              <%= "Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_bench_feed_path, target: '_blank'} to open the rss feed".html_safe %>
+            </div>
+            <div class="p-4 border">
+              <code>
+                &lt;a href="https://<%=current_company.etyme_url%>/feed/bench_feed" target="_blank"&gt;&lt;/a&gt;
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--embed service rss modal-->
+
+<div class="modal" id="embedServiceRssModal" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-subtitle">
+              <%= "Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_service_feed_path, target: '_blank'} to open the rss feed".html_safe %>
+            </div>
+            <div class="p-4 border">
+              <code>
+                &lt;a href="https://<%= current_company.etyme_url %>/feed/service_feed" target="_blank"&gt;&lt;/a&gt;
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--embed product rss modal-->
+
+<div class="modal" id="embedProductRssModal" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-subtitle">
+              <%= "Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_product_feed_path, target: '_blank'} to open the rss feed".html_safe %>
+            </div>
+            <div class="p-4 border">
+              <code>
+                &lt;a href="https://<%=current_company.etyme_url%>/feed/product_feed" target="_blank"&gt;&lt;/a&gt;
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--embed training rss modal-->
+
+<div class="modal" id="embedTrainingRssModal" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-subtitle">
+              <%= "Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_training_feed_path, target: '_blank'} to open the rss feed".html_safe %>
+            </div>
+            <div class="p-4 border">
+              <code>
+                &lt;a href="https://<%=current_company.etyme_url%>/feed/training_feed" target="_blank"&gt;&lt;/a&gt;
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--company rss-->
+<div class="modal" id="embedJobRssModal" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-subtitle">
+              <%= "Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_job_feed_path, target: '_blank'} to open the rss feed".html_safe %>
+            </div>
+            <div class="p-4 border">
+              <code>
+                &lt;a href="https://<%=current_company.etyme_url%>/feed/company_job_feed" target="_blank"&gt;&lt;/a&gt;
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!--IFRAME LINKS-->
+<div class="modal" id="embedJobIframe" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-subtitle">
+              <%= "Copy and paste the following code snippets where you want to display Job board".html_safe %>
+            </div>
+            <div class="p-4 border">
+              <code>
+                &lt;iframe src="https://<%= current_company.etyme_url %>/static/jobs" width="98%" height="600"&gt;&lt;/iframe&gt;
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal" id="embedCompanyJobIframe" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-subtitle">
+              <%= "Copy and paste the following code snippets where you want to display the company job board".html_safe %>
+            </div>
+            <div class="p-4 border">
+              <code>
+                &lt;iframe src="https://<%= current_company.etyme_url %>/sites_jobs_preview" width="98%" height="600"&gt;&lt;/iframe&gt;
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="embedBenchIframeModal" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-body">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-subtitle">
+              <%= "Copy and paste the following code snippets where you want to display the Bench board".html_safe %>
+            </div>
+            <div class="p-4 border">
+              <code>
+                &lt;iframe src="https://<%= current_company.etyme_url %>/company/bench_jobs" width="98%" height="600"&gt;&lt;/iframe&gt;
+              </code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<style
+  thead >tr>th
+  {font-weight: bold !important;  }
+
+  th, td {
+    padding: 15px !important;}
+</style>

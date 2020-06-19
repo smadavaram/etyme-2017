@@ -32,6 +32,17 @@ class Feed::RssJobsController < ApplicationController
     end
   end
 
+  def company_job_feed
+    if current_company.present?
+      @jobs = current_company.jobs.active.is_public.where(listing_type: 'Job').where(status: 'Published')
+      @company = current_company
+    end
+    respond_to do |format|
+      format.rss { render layout: false }
+      format.json { render json: { company: @company.as_json(include: :company_videos), jobs: @jobs } }
+    end
+  end
+
   def blog_feed
     @jobs = Job.where(listing_type: 'Blog').where(status: 'Published')
     if params[:company_id].present?
@@ -83,4 +94,5 @@ class Feed::RssJobsController < ApplicationController
       format.json { render json: { company: @company.as_json(include: :company_videos), jobs: @jobs } }
     end
   end
+
 end
