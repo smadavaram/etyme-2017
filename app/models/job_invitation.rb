@@ -95,8 +95,8 @@ class JobInvitation < ApplicationRecord
       recipient.notifications.create(message: recipient.full_name + ' Job Status has been changed to ' + status + " <a href='http://#{recipient.etyme_url + job_invitation_path(self)}'>#{job&.title}</a> <br/> <p> #{message} </p>", title: 'Job Invitation', createable: created_by) if job?
       recipient.notifications.create(message: recipient.full_name + ' Bench invitation Status has been changed to ' + status + " <a href='http://#{recipient.etyme_url + job_invitation_path(self)}'>#{job&.title}</a> <br/> <p> #{message} </p>", title: 'Job Invitation', createable: created_by) if bench?
     else
-      recipient.notifications.create(message:  recipient.name + ' has ' + status + " your request for <a href='http://#{created_by.company.etyme_url + job_invitation_path(self)}'>invitation</a>", title: 'Job Invitation') if job?
-      recipient.notifications.create(message:  recipient.name + ' has ' + status + " your request for <a href='http://#{created_by.company.etyme_url + job_invitation_path(self)}'>invitation</a>", title: 'Job Invitation') if bench?
+      sender.notifications.create(message:  recipient.name + ' has ' + status + " your request for <a href='http://#{company.etyme_url + job_invitation_path(self)}'>invitation</a>", title: 'Job Invitation') if job?
+      sender.notifications.create(message:  recipient.name + ' has ' + status + " your request for <a href='http://#{company.etyme_url + job_invitation_path(self)}'>invitation</a>", title: 'Job Invitation') if bench?
     end
   end
 

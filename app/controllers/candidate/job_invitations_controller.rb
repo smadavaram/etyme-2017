@@ -44,7 +44,7 @@ class Candidate::JobInvitationsController < Candidate::BaseController
     if @job_invitation.update(status: :accepted)
       @job_invitation.company.candidates_companies.where(candidate_id: @job_invitation.recipient_id).update_all(status: :hot_candidate)
       @job_invitation.recipient.update(associated_company: @job_invitation.company)
-      flash[:success] = 'Updates Successfully'
+      flash[:success] = 'Updated Successfully'
     else
       flash[:errors] = @job_invitation.errors.full_messages
     end
@@ -56,7 +56,7 @@ class Candidate::JobInvitationsController < Candidate::BaseController
     if @job_invitation.update(status: :rejected)
       @job_invitation.company.candidates_companies.where(candidate_id: @job_invitation.recipient_id).update_all(status: :normal)
       @job_invitation.recipient.update(associated_company: Company.get_freelancer_company)
-      flash[:success] = 'Updates Successfully'
+      flash[:success] = 'Rejected Successfully'
     else
       flash[:errors] = @job_invitation.errors.full_messages
     end
