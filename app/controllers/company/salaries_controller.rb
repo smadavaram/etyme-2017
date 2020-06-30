@@ -163,6 +163,7 @@ class Company::SalariesController < Company::BaseController
       next_salary = Salary.where(end_date: salary.end_date + 1.month, contract_id: salary.contract_id).first
       next_salary&.update(pending_amount: salary.balance)
       salary.total_amount = value[:salary_calculated].to_i
+      current_company.etyme_transactions.create!(amount: salary.total_amount * -1, transaction_type: 'negative', salary_id: salary.id, contract_id: salary.contract_id )
       salary.status = 'processed'
       salary.save
       cc = ContractCycle.find_by(id: salary.sp_cycle_id)
@@ -214,6 +215,7 @@ class Company::SalariesController < Company::BaseController
     respond_to do |format|
       if params[:payment].to_f + @salary.billing_amount <= @salary.total_amount
         if @salary.update(billing_amount: params[:payment].to_f + @salary.billing_amount)
+          current_company.etyme_transactions.create!(amount: @salary.billing_amount * -1, transaction_type: 'negative', salary_id: @salary.id, contract_id: @salary.contract_id )
           flash.now[:success] = 'Payment is added to salary'
           format.js {}
         else

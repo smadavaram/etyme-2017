@@ -272,7 +272,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def rate_negotiation
-    base_url = @job_application.applicationable.associated_company.owner ? "http://#{@job_application.applicationable.associated_company.etyme_url}" : HOSTNAME
+    base_url = @job_application.applicationable&.associated_company&.owner ? "http://#{@job_application&.applicationable&.associated_company&.etyme_url}" : HOSTNAME
     if @job_application.update(job_application_rate.merge(rate_initiator: current_user.full_name, accept_rate: false, accept_rate_by_company: false))
       @conversation = @job_application.conversation
       @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
@@ -321,14 +321,14 @@ class Company::JobApplicationsController < Company::BaseController
     unless @conversation.present?
       name = [user.full_name]
       name << current_user.full_name
-      name << user.associated_company.owner.full_name if user.associated_company.owner
+      # name << user.associated_company.owner.full_name if user.associated_company.owner
       group = nil
       Group.transaction do
         group = current_company.groups.create(group_name: name.join(', '), member_type: 'Chat')
         group.groupables.create(groupable: user)
         group.groupables.create(groupable: current_user)
-        group.groupables.create(groupable: user.associated_company.owner) if user.associated_company.owner
-        group.groupables.create(groupable: @job_application.recruiter_company) if user.associated_company.owner
+        # group.groupables.create(groupable: user.associated_company.owner) if user.associated_company.owner
+        # group.groupables.create(groupable: @job_application.recruiter_company) if user.associated_company.owner
         group.groupables.create(groupable: @job_application.recruiter_company)  if @job_application.recruiter_company
       end
       @conversation = Conversation.create(chatable: group, topic: :JobApplication, job_application_id: @job_application.id) if group.present?
