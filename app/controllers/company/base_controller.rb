@@ -6,7 +6,6 @@ class Company::BaseController < ApplicationController
   layout 'company'
 
   def has_access?(permission)
-    return true
     if current_user.has_permission(permission) || current_user.has_permission("manage_all") || current_user.is_owner?
       true
     else
