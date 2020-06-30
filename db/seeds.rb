@@ -24,6 +24,7 @@ Permission.create(name: 'show_invoices')
 Permission.create(name: 'manage_timesheets')
 Permission.create(name: 'manage_leaves')
 Permission.create(name: 'reversal_transaction')
+Permission.create(name: 'manage_all')
 
 Currency.create(name: 'USD')
 
