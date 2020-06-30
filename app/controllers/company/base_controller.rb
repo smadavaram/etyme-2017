@@ -6,7 +6,8 @@ class Company::BaseController < ApplicationController
   layout 'company'
 
   def has_access?(permission)
-    if true || current_user.is_owner?
+    return true
+    if current_user.has_permission(permission) || current_user.has_permission("manage_all") || current_user.is_owner?
       true
     else
       flash[:notice] = 'You are not Authorized to Access this Page'
