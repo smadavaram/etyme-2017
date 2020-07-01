@@ -27,7 +27,7 @@
     <%= form.trix_editor :description, required: true, autofocus: true,class: "trix-content trix-description" %>
     <div class="row">
       <div class="col-md-6">
-        <%= render 'company/jobs/partials/forms/field', form: form, attribute: :education, field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Educations and Certification", class: "form-control tagsinput", value: @job.education_list.join(", ")}, note: "Education are separated with comma" %>
+        <%= render 'company/jobs/partials/forms/field', form: form, attribute: :education_list, field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Educations and Certification", class: "form-control tagsinput", value: @job.education_list.join(", ")}, note: "Education are separated with comma" %>
       </div>
       <div class="col-md-6">
        <%= render 'company/jobs/partials/forms/field', form: form, attribute: :tag_list, title: "Skills", field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Skills are separated with comma", class: "form-control tagsinput", value: @job.tag_list.join(", ")}, note: "Skills are separated with comma" %>
