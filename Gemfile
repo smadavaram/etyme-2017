@@ -98,6 +98,7 @@ group :development, :test do
   gem 'letter_opener', '1.4.1'
   gem 'listen', '>= 3.0.5', '< 3.2'
   gem 'pry'
+  gem 'pry-rails'
   gem 'rails-erd'
   # Gem rbnacl-libsodium should be placed before then gem rbnacl else sodium pkg error may occour
   gem 'rbnacl-libsodium'
