@@ -141,6 +141,13 @@
                                     Select date
                                   .select
                                     = bc.text_field :ts_date_1, class: "date_1 #{'field_disable' unless @sc&.time_sheet.blank?}", placeholder: "MM/DD/YYYY", value: @sc&.ts_date_1&.strftime('%m/%d/%Y')
+                                  %label.control-label.bottom-padding
+                                    End of month?
+                                    - if @sc.ts_end_of_month
+                                      = bc.check_box :ts_end_of_month, checked: 'checked'
+                                    - else
+                                      = bc.check_box :ts_end_of_month
+                                  %br
                                 %div{:class => "form-group twice-month #{bc.object.time_sheet != 'twice a month' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select second date
@@ -197,6 +204,12 @@
                                   .select
                                     = bc.text_field :ta_date_1, class: "form-control #{'field_disable' unless @sc&.ts_approve.blank?}" , value: @sc&.ta_date_1&.strftime('%m/%d/%Y')
                                     -#= bc.hidden_field :ta_date_1, value: bc.object.contract.sell_contract.ta_date_1
+                                  %label.control-label.bottom-padding
+                                    End of month?
+                                  - if @sc.ta_end_of_month
+                                    = bc.check_box :ta_end_of_month, checked: 'checked'
+                                  - else
+                                    = bc.check_box :ta_end_of_month
                                 %div{:class => "form-group twice-month #{bc.object.ts_approve != 'twice a month' ? 'hidden' : ''}"}
                                   %label.control-label
                                     Select second date
@@ -233,7 +246,8 @@
                                 .select
                                   .plain-select
                                     = bc.select :salary_calculation, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: current_company&.payroll_infos&.first&.payroll_type},{class: "form-control buy-sal-cal" }
-
+                            %br
+                            %br
                             .row
                               .col-md-4
                                 %label.control-label.corp-corp-bill
@@ -266,6 +280,10 @@
                                       Select date
                                     .select
                                       = bc.text_field :sc_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sc_date_1&.strftime('%m/%d/%Y')
+                                    %label.control-label.bottom-padding
+                                      End of month?
+                                      = bc.check_box :sc_end_of_month
+                                    %br
                                   %div{:class => "form-group twice-month"}
                                     %label.control-label
                                       Select second date
@@ -317,6 +335,10 @@
                                       Select date
                                     .select
                                       = bc.text_field :sp_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sp_date_1&.strftime('%m/%d/%Y')
+                                    %label.control-label.bottom-padding
+                                      End of month?
+                                      = bc.check_box :sp_end_of_month
+                                    %br
                                   %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
@@ -365,6 +387,10 @@
                                       Select date
                                     .select
                                       = bc.text_field :sclr_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sclr_date_1&.strftime('%m/%d/%Y')
+                                    %label.control-label.bottom-padding
+                                      End of month?
+                                      = bc.check_box :sclr_end_of_month
+                                    %br
                                   %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
