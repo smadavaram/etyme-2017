@@ -15,7 +15,7 @@ class PayrollCycles
     when 'weekly'
       utils.group_by_weekly(buy_or_sell.send("#{resource_initial}_day_of_week"), sd, ed)
     when 'biweekly'
-      utils.group_by_biweekly(buy_or_sell.send("#{resource_initial}_day_of_week"), buy_or_sell.send("#{resource_initial}_2day_of_week"), sd, ed)
+      utils.group_by_biweekly(buy_or_sell.send("#{resource_initial}_day_of_week"), sd, ed)
     when 'monthly'
       utils.group_by_monthly(buy_or_sell.send("#{resource_initial}_date_1").try(:day), sd, ed)
     when 'twice a month'
