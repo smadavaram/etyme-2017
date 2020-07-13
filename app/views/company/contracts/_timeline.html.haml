@@ -89,11 +89,11 @@
             -#%b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize  }"
             - if cc.buy_contract?
               - if cc.candidate.present? && cc.candidate.full_name.present?
-                %b= cc.candidate.full_name.capitalize
+                %b= "Name: #{cc.candidate.full_name.capitalize}"
               - elsif cc.company.present? && cc.company.full_name.present?
-                %b= cc.company.full_name.capitalize
+                %b= "Name: #{cc.company.full_name.capitalize}"
               - elsif cc.user.present? && cc.user.full_name.present?
-                %b= cc.user.full_name.capitalize
+                %b= "Name: #{cc.user.full_name.capitalize}"
               - else
                 %b= 'N/A'
           %p Client: #{cc&.contract&.company&.full_name}
