@@ -14,6 +14,7 @@ class Candidate::ExpensesController < Candidate::BaseController
   def create
     @expense = Expense.new(expense_params)
     @expense.ce_ap_cycle_id = params[:ce_ap_ids][0].split(',').map(&:to_i) if params[:expense][:bill_type] == 'client_expense'
+    @expense.salary_ids = expense_params[:salary_ids].join(",")
     @expense.status = 'bill_generated'
     if @expense.save
       if params[:expense][:bill_type] == 'client_expense'

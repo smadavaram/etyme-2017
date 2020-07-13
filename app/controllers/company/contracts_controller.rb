@@ -427,6 +427,7 @@ class Company::ContractsController < Company::BaseController
   end
 
   def filter_timeline
+    
     @contract = if params[:contract_id]
                   Contract.find_by(id: params[:contract_id])
                 else
@@ -434,11 +435,16 @@ class Company::ContractsController < Company::BaseController
                       @contracts.first :
                       current_company.contracts.where.not(status: 'pending').first
                 end
-    @contract_cycles = ContractCycle.includes(:ts_submitteds, :candidate, contract: %i[sell_contract buy_contract company])
-                                    .where(params[:candidate_id].present? ?
-                                      { contract: current_company.contracts.where(candidate_id: params[:candidate_id]) } :
-                                      { contract: @contract })
-                                    .where(contract: @contract).cycle_type(params[:note])
+
+    if @contract.nil?
+      @contract_cycles = ContractCycle.all.includes(:ts_submitteds, :candidate, contract: %i[sell_contract buy_contract company])
+    else
+      @contract_cycles = ContractCycle.includes(:ts_submitteds, :candidate, contract: %i[sell_contract buy_contract company])
+                             .where(params[:candidate_id].present? ?
+                                        { contract: current_company.contracts.where(candidate_id: params[:candidate_id]) } :
+                                        { contract: @contract })
+                             .where(contract: @contract).cycle_type(params[:note].present? ? params[:note] : 'All')
+    end
   end
 
   def get_cyclable

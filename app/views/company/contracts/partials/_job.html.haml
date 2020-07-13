@@ -277,9 +277,9 @@
     }
     function hide_modal(){
       setTimeout( ()=> {
+        $("#collaborator_selectize")[0].selectize.clear();
         $('#close_modal').trigger('click');
-      }, 1000)
-      $("#collaborator_selectize")[0].selectize.clear();
+      }, 2000)
     }
     $('#admin-user').change( function() {
       save_hr_admins(null);

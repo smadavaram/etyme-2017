@@ -19,15 +19,15 @@ class UserMailer < ApplicationMailer
                end
     return unless @owner&.etyme_url
 
-    @link = @company.present? ? "http://#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : "http://#{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
+    @link = @company.present? ? "https://#{@company.etyme_url}/users/confirmation?confirmation_token=#{token}" : "https://#{@owner.etyme_url}/candidates/confirmation?confirmation_token=#{token}"
     mail(to: @owner.email, subject: 'Welcome to Etyme')
   end
 
   def reset_password_instructions(user, token, _opts = {})
     @user = user
     @link = @user.class.name != 'Candidate' ?
-              "http://#{@user.company.etyme_url}/users/password/edit?reset_password_token=#{token}" :
-              "http://#{@user.etyme_url}/candidates/password/edit?reset_password_token=#{token}"
+              "https://#{@user.company.etyme_url}/users/password/edit?reset_password_token=#{token}" :
+              "https://#{@user.etyme_url}/candidates/password/edit?reset_password_token=#{token}"
     subject = @user.encrypted_password? ? '' : 'Confirm email and '
     mail(to: user.email, subject: subject + 'Reset password instructions')
   end
@@ -40,7 +40,7 @@ class UserMailer < ApplicationMailer
   def invite_user(user)
     @user = user
     @name = @user.full_name
-    @link = "http://#{@user.company.etyme_url}/users/invitation/accept?invitation_token=#{@user.raw_invitation_token}"
+    @link = "https://#{@user.company.etyme_url}/users/invitation/accept?invitation_token=#{@user.raw_invitation_token}"
     mail(to: user.email, subject: "#{@user.company.name.titleize} Invited You to Etyme")
   end
 
@@ -70,7 +70,7 @@ class UserMailer < ApplicationMailer
       candidate = current_company.candidates.find(cid)
       @link_list.push(
         name: candidate.full_name,
-        url: "http://#{current_company.etyme_url}/static/companies/#{current_company.id}/candidates/#{cid}/resume",
+        url: "https://#{current_company.etyme_url}/static/companies/#{current_company.id}/candidates/#{cid}/resume",
         roles: candidate.try(:roles).present? ? candidate.roles.pluck(:name).to_sentence : '',
         skills: candidate.skills.pluck(:name).to_sentence,
         location: candidate.try(:location),

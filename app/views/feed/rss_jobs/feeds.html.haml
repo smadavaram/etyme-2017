@@ -22,6 +22,20 @@
 
             .col-md-3.col-6
               .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedJobModal", "data-toggle" => "modal", href: '#embedJobModal'}
+                  .icon-part
+                    .fa.fa-briefcase
+                  .link-part Company Job Feed
+
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedJobRssModal", "data-toggle" => "modal", href: '#embedJobModal'}
+                  .icon-part
+                    .fa.fa-briefcase
+                  .link-part Company Job Rss Feed
+
+            .col-md-3.col-6
+              .feed
                 %a.modal-opener.display-flex{"data-target" => "#embedProductModal", "data-toggle" => "modal", href: '#embedProductModal'}
                   .icon-part
                     .fa.fa-product-hunt
@@ -252,6 +266,32 @@
               .p-4.border
                 %code
                   &lt;a href="https://#{current_company.etyme_url}/feed/job_feed" target="_blank"&gt;&lt;/a&gt;
+
+  #embedJobRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_job_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/company_job_feed" target="_blank"&gt;&lt;/a&gt;
+
+
+  #embedJobModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;iframe paste below code &gt;&lt;/iframe&gt;</code> of your page where you want to see company jobs.".html_safe
+              .p-4.border
+                %code
+                  src="https://#{current_company.etyme_url}/sites_jobs_preview" width="98%" height="600"
+
 
   #embedTrainingModal.modal{:role => "dialog"}
     .modal-dialog

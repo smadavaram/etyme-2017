@@ -35,3 +35,10 @@
 
 body.modal-open {
 }
+.modal-header{
+  display: unset !important;
+  align-items: unset !important;
+}
+.modal-dialog{
+  padding-top: 5% !important;
+}

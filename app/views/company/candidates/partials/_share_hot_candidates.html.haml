@@ -2,12 +2,13 @@
   .modal-dialog.modal-md
     .modal-content
       .modal-header
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
         %h5#myModalLabel.modal-title
           %strong Share Hot Candidates
           %hr
           %p.muted Share your hot candidates with external users and you can also attach a custom message along with.
+
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
 
       .modal-body
         = form_for Candidate.new, url: share_hot_candidates_candidates_path, html: {class: 'form-horizontal'},method: :get do |f|
@@ -25,7 +26,7 @@
                 BCC
                 %sup.text-danger
               .col-md-12
-                = select_tag "emails_bcc",options_for_select(Group.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2',required: true ,:multiple => true}    
+                = select_tag "emails_bcc",options_for_select(Group.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2',required: true ,:multiple => true}
             .form-group
               %label.col-md-12.control-label
                 Subject

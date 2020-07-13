@@ -44,7 +44,7 @@
         %td= cc.cyclable.commission_amount
         %td= cc.cyclable.total_amount
         %td{id:"#{cc.cyclable.id}"}= cc.cyclable.billing_amount
-        %td= link_to "Pay", salary_pay_path(cc.cyclable), remote: true if cc.cyclable.calculated?
+        %td= link_to "Pay", salary_pay_path(cc.cyclable), remote: true
 
 
       %tr.disabled-row

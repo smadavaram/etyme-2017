@@ -442,12 +442,12 @@ class Company::CompaniesController < Company::BaseController
   def add_company_admin(admin_hash)
     admin_hash = admin_hash.slice(:first_name, :last_name, :email)
     company_admin = @company.admins.build(admin_hash)
+    company_admin.role_ids = Array(Role.all.joins(:permissions).where('permissions.name = ?', "manage_all").pluck(:id).first) #Set Default Permission
     if company_admin.save
       flash[:success] = "Successful!"
     else
       flash[:errors] = "Cannot Process!"
     end
-
   end
 
   def add_new_company_admin(admin_hash)

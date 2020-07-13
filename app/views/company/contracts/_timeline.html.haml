@@ -25,8 +25,9 @@
             .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
-            .col-sm-2.text-center #{cc&.contract&.sell_contract.expected_hour}
-            .col-sm-8.text-center
+            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+            .col-sm-7.text-center{style: "font-size: x-small"} #{cc.start_date.utc.strftime("%d %B %Y")} - #{cc.end_date.utc.strftime("%d %B %Y")}
+            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
 
             
 
@@ -60,12 +61,9 @@
             .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
-            .col-sm-2.text-center #{cc&.contract&.sell_contract.expected_hour}
-            .col-sm-8.text-center
-              / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
-            / .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}
-
-
+            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+            .col-sm-7.text-center{style: "font-size: x-small"} #{cc.start_date.utc.strftime("%d %B %Y")} - #{cc.end_date.utc.strftime("%d %B %Y")}
+            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
       
 .col-md-4
   .timeline-blockwrap
@@ -103,10 +101,10 @@
             .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
-            .col-sm-2.text-center #{cc&.contract&.sell_contract.expected_hour}
-            .col-sm-8.text-center
-              / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
-            / .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}
+            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+            .col-sm-7.text-center{style: "font-size: x-small"} #{cc.start_date.utc.strftime("%d %B %Y")} - #{cc.end_date.utc.strftime("%d %B %Y")}
+            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
+
 
 -#.timesheet_pagination_wrap.w-100.mt-3
 -#  .pagination_label
