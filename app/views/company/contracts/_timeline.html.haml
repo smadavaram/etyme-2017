@@ -79,10 +79,13 @@
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id, status: 'completed')
       - unless cc.cycle_of_type == "SellContract"
         .timeline-block
+          = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
+
           %span.badge.status-badge{style: "background-color: #{cc.color}"}
             = cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
           %span.due-txt
             #{cc.end_date.utc.strftime("%d %B %Y")}
+          %br
           %br
           %br
           Contract ID - #{cc.contract.id} - #{cc.contract&.project_name}
@@ -90,11 +93,11 @@
             -#%b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize  }"
             - if cc.buy_contract?
               - if cc.candidate.present? && cc.candidate.full_name.present?
-                %b= cc.candidate.full_name.capitalize
+                %b= "Name: #{cc.candidate.full_name.capitalize}"
               - elsif cc.company.present? && cc.company.full_name.present?
-                %b= cc.company.full_name.capitalize
+                %b= "Name: #{cc.company.full_name.capitalize}"
               - elsif cc.user.present? && cc.user.full_name.present?
-                %b= cc.user.full_name.capitalize
+                %b= "Name: #{cc.user.full_name.capitalize}"
               - else
                 %b= 'N/A'
           %p Client: #{cc&.contract&.company&.full_name}
