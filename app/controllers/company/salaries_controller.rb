@@ -29,7 +29,7 @@ class Company::SalariesController < Company::BaseController
   end
 
   def index
-    @tab = params[:tab].present? ? params[:tab] : 'calculate'
+    @tab = params[:tab].present? ? params[:tab] : 'commission'
     add_breadcrumb "#{@tab} Salaries", salaries_path
 
     @start_date = params[:start_date]
@@ -216,10 +216,7 @@ class Company::SalariesController < Company::BaseController
     respond_to do |format|
       if params[:payment].to_f + @salary.billing_amount <= @salary.total_amount
         if @salary.update(billing_amount: params[:payment].to_f + @salary.billing_amount)
-          if (params[:payment].to_f + @salary.billing_amount) < @salary.total_amount
-            current_company.etyme_transactions.create!(amount: (@salary.total_amount - (params[:payment].to_f + @salary.billing_amount)) * -1, transaction_type: 'Salary', salary_id: @salary.id, contract_id: @salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: @salary.candidate_id, is_processed: false)
-          end
-          current_company.etyme_transactions.create!(amount: @salary.billing_amount * -1, transaction_type: 'Salary', salary_id: @salary.id, contract_id: @salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: @salary.candidate_id, is_processed: true)
+          current_company.etyme_transactions.create!(amount: (params[:payment].to_f ) * -1, transaction_type: 'Salary', salary_id: @salary.id, contract_id: @salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: @salary.candidate_id, is_processed: true)
           flash.now[:success] = 'Payment is added to salary'
           format.js {}
         else
@@ -284,11 +281,13 @@ class Company::SalariesController < Company::BaseController
 
   def calculate_salary_commission
     Salary.where(id: params[:ids]).each do |salary|
-      salary.commission_amount = get_commission(salary)
-      send_commission(salary, salary.contract.buy_contract) unless salary.commission_calculated
-      salary.total_amount = salary.total_amount + salary.commission_amount
-      # current_company.etyme_transactions.create!(amount: (salary.commission_amount * -1), transaction_type: "commission", salary_id: salary.id, contract_id: salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: salary.candidate_id, is_processed: false)
-      salary.save
+      unless salary.commission_calculated
+        salary.commission_amount = get_commission(salary)
+        send_commission(salary, salary.contract.buy_contract) unless salary.commission_calculated
+        salary.total_amount = salary.total_amount + salary.commission_amount
+        # current_company.etyme_transactions.create!(amount: (salary.commission_amount * -1), transaction_type: "commission", salary_id: salary.id, contract_id: salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: salary.candidate_id, is_processed: false)
+        salary.save
+      end
     end
 
 
