@@ -62,6 +62,13 @@ class Company::ExpensesController < Company::BaseController
           ex.payment = ex.payment.to_i + params[:expense_account][:payment].to_i
           ex.balance_due = params[:expense_account][:balance_due]
           ex.pay_type = params[:pay_type]
+
+          if ex.status != 'cancelled'
+            current_company.etyme_transactions.create!(amount: (ex.payment * -1), transaction_type: "Expense", salary_id: ex.expense.salary_ids, contract_id: ex.expense.contract_id, transaction_user_type: 'candidate', transaction_user_id: ex.expense.account_id, is_processed: true)
+            if ex.balance_due > 0
+              current_company.etyme_transactions.create!(amount: (ex.balance_due * -1), transaction_type: "Expense", salary_id: ex.expense.salary_ids, contract_id: ex.expense.contract_id, transaction_user_type: 'candidate', transaction_user_id: ex.expense.account_id, is_processed: false)
+            end
+          end
           ex.save
 
           bd.update(balance: bd.balance.to_i - params[:expense_account][:payment].to_i)

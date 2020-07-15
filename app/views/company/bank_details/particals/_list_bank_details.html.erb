@@ -7,16 +7,29 @@
       <h6 class="element-header">Bank Details</h6>
       <div class="element-content" style="background-color: #f2f4f8">
         <div class="row">
-          <% bank_details.each do |bank| %>
+          <%# bank_details.each do |bank| %>
+<!--            <div class="col-sm-4 col-xxxl-3">-->
+<!--              <a class="element-box el-tablo" href="#">-->
+<!--                <div class="label"><%#=snake_to_words(bank.bank_name)%></div>-->
+<!--                <div class="value bank_balance">-->
+<!--                   $<%#= bank.balance %>-->
+<!--                </div>-->
+<!--              </a>-->
+<!--            </div>-->
+          <%#end%>
+
+          <%# bank_details.each do |bank| %>
             <div class="col-sm-4 col-xxxl-3">
               <a class="element-box el-tablo" href="#">
-                <div class="label"><%=snake_to_words(bank.bank_name)%></div>
+                <div class="label"><%=snake_to_words("Balance: ")%></div>
                 <div class="value bank_balance">
-                   $<%= bank.balance %>
+                  $<%= current_company.etyme_transactions.where(is_processed: true).sum(:amount) %>
                 </div>
               </a>
             </div>
-          <%end%>
+          <%#end%>
+
+
         </div>
         <h3>Transactions</h3>
         <div class="row">
@@ -27,19 +40,21 @@
                 <th>Transaction ID</th>
                 <th>Type</th>
                 <th>Amount</th>
+                <th>Is Processed?</th>
               </tr>
               </thead>
               <tbody>
-              <% current_company.etyme_transactions.all.each do |transaction| %>
+              <% current_company.etyme_transactions.all.reverse.each do |transaction| %>
               <tr>
                 <td><%= transaction.id %></td>
                 <td><%= transaction.transaction_type %></td>
                 <td><%= transaction.amount %></td>
+                <td><%= transaction.is_processed %></td>
               </tr>
               <% end %>
               </tbody>
             </table>
-            <label for="">Balance: $<%= current_company.etyme_transactions.sum(:amount) %></label>
+            <label for="">Balance: $<%= current_company.etyme_transactions.where(is_processed: true).sum(:amount) %></label>
           </div>
         </div>
 
