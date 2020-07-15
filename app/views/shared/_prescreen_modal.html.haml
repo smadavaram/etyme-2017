@@ -18,8 +18,12 @@
                 %span{:contenteditable => "true"}= reminder.title
 
       .modal-footer
+        = link_to("Take Note", candidate_add_reminder_path(job_application.applicationable_id), remote: :true, class: "btn btn-md  btn-primary mt-12 margin-right-40")
         = link_to('Accept', prescreen_job_application_path(job_application, conversation_id: conversation.id), method: :post, class: "btn btn-md  btn-primary mt-12 margin-right-5")
         = link_to('Reject', reject_job_application_path(job_application, conversation_id: conversation.id), method: :post, class: "btn btn-md  btn-danger mt-12 margin-right-5")
-        = link_to("Take Note", candidate_add_reminder_path(job_application.applicationable_id), remote: :true, class: "btn btn-md  btn-primary mt-12 margin-right-5")
-        %button.btn.mt-12.margin-right-5.btn-primary{"data-dismiss"=>"modal", "type"=>"button"} Cancel
+        -#%button.btn.mt-12.margin-right-5.btn-primary{"data-dismiss"=>"modal", "type"=>"button"} Cancel
 
+:css
+  .modal-footer > :not(:last-child) {
+   margin-right: 16.25rem;
+  }
