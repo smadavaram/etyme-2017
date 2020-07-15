@@ -5,7 +5,8 @@
     
     - @contract_cycles.pending.overdue.order(start_date: :desc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
-      - unless cc.cycle_of_type == "SellContract"
+
+      - if cc.cycle_of_type == "BuyContract" || cc.cycle_type == "InvoiceGenerate"
         .timeline-block
           %span.badge.status-badge{style: "background-color: #{cc.color}"}
             =cyclable_link(cc)
@@ -41,7 +42,7 @@
 
     - @contract_cycles.includes(:company).pending.todo.order(start_date: :asc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
-      - unless cc.cycle_of_type == "SellContract"
+      - if cc.cycle_of_type == "BuyContract" || cc.cycle_type == "InvoiceGenerate"
         .timeline-block
           = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
           %br
