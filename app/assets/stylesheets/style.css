@@ -1916,3 +1916,6 @@ flex: 0 0 220px;
     border: 1px solid #f0f2f3 !important;
     padding: 30px !important;
 }
+.circle-image{
+  border: 1px solid grey;
+}

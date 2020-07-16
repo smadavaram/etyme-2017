@@ -113,7 +113,7 @@ module ChatboxHelper
 
   def get_conversation_link(usr)
     link = nil
-    if usr.group_name.present?
+    if usr&.group_name.present?
       if usr.group_name.include? "BC"
         obj = BuyContract.where(number: usr.group_name).first&.contract
         link = contract_path(obj)
