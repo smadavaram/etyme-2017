@@ -26,7 +26,11 @@ class CompanyContact < ApplicationRecord
   end
 
   def full_name
-    user&.full_name
+    if user.present?
+      user&.full_name
+    else
+      ""
+    end
   end
 
   def photo
