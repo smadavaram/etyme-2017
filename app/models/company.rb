@@ -286,6 +286,7 @@ class Company < ApplicationRecord
     roles.create(name: 'Accountant', permissions: Permission.where(name: ['show_invoices']))
     roles.create(name: 'Sales - bench marketing', permissions: Permission.where(name: %w[manage_timesheets show_invoices]))
     roles.create(name: 'Timesheet admin', permissions: Permission.where(name: %w[manage_timesheets show_invoices]))
+    roles.create(name: 'Manager', permissions: Permission.where(name: %w[manage_all]))
   end
 
   def set_account_on_seq
