@@ -93,26 +93,27 @@
               <% end %>
               <%= link_to "Apply my Candidates", job_create_multiple_for_candidate_path(@job), remote: true, method: :get, class: "mb-1 btn btn-primary" %>
               <br>
-              <div class="sharethis-inline-share-buttons" data-url="<%= static_job_url(@job).to_s %>" style="z-index: auto"></div>
+              <!-- <div class="sharethis-inline-share-buttons" data-url="<%#= static_job_url(@job).to_s %>" style="z-index: auto"></div> -->
             </div>
           </div>
           <div class="element-box element-box-show">
-            <h5 class="form-header">Job Images</h5>
-            <div class="form-group">
-              <% if @job.files.present? %>
-                <% @job.files.split(',').each do |file| %>
-                  <a href="<%= file %>" target="_blank" class="mb-1">
-                    <%= image_tag(file, size: "50x50") %>
+            <h5 class="form-header">Share Job</h5>
+            <div class="sharethis-inline-share-buttons" data-url="<%= static_job_url(@job).to_s %>" style="z-index: auto"></div>
+            <!-- <div class="form-group">
+              <%# if @job.files.present? %>
+                <%# @job.files.split(',').each do |file| %>
+                  <a href="<%#= file %>" target="_blank" class="mb-1">
+                    <%#= image_tag(file, size: "50x50") %>
                   </a>
-                <% end %>
-              <% end %>
+                <%# end %>
+              <%# end %>
             </div>
             <div class="form-group">
               <%#= filepicker_field_tag "", class: "hidden media-file", onchange: "mediaUpload(event)", "data-fp-crop-ratio" => "2/2" %>
               <button type="button" class="w-100 btn btn-default btn-primary btn-upload-images" onclick="upload_multi_file_ajax(imagesUpload,false,true)">Upload
                 Images
               </button>
-            </div>
+            </div> -->
           </div>
        <!--    <div class="element-box element-box-show">
             <button onclick="open_chat(<%=@conversation.id %>)" class="w-100 btn btn-default btn-primary open_chat">Conversation</button>
