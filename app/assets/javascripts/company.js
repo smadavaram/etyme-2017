@@ -106,7 +106,6 @@
 //= require signature-pad/flashcanvas
 //= require signature-pad/json2.min
 
-//= require cable
 //= require addevent
 
 //= require data-confirm-modal
@@ -121,7 +120,6 @@
 //= require highcharts-exporting.js
 
 
-//=require cable
 //=require addevent
 
 //= require company/select_autocomplete
