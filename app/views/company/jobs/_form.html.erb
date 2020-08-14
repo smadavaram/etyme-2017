@@ -99,7 +99,7 @@
           <div class="custome-filed-item">
             <div class="clearfix">
               <div class="form-group">
-                <% form.fields_for :job_requirements do |jr| %>
+                <%= form.fields_for :job_requirements do |jr| %>
                   <%= render 'company/jobs/partials/job_requirement_fields', f: jr %>
                 <% end %>
               </div>
@@ -129,3 +129,99 @@
     margin-top: 25px;
   }
 </style>
+<% content_for :scripts do %>
+  <script type="text/javascript">
+    $(document).ready(function() {
+      pageSetUp();
+      // Job End Date
+      $( document ).on("click", "#company_video", function(){
+        $('#job_comp_video').val("#{current_company.video}");
+        $('#company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='remove_company_video'><i class='fa fa-times'></i></button>");
+        $('#company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='added_company_video'><i class='fa fa-check'> Added video</i></button>");
+        $('#company_video').remove();
+      });
+
+      $( document ).on("click", "#remove_company_video", function(){
+        $('#job_comp_video').val("");
+        $('#remove_company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='company_video'>Company Video</button>");
+        $('#remove_company_video').remove();
+        $('#added_company_video').remove();
+      });
+
+      $('#job_end_date , #job_start_date').datepicker({
+        dateFormat : 'mm/dd/yy',
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>',
+      });
+
+      //job_video_file
+      $(document).on('change', '#job_video_file',  function () {
+          $(this).parent('.videp-btn').siblings('span').text($(this).val().replace(/([^\\]*\\)*/,''))
+      });
+    });
+    $(".multi-ans-div").hide();
+    var wrapper         = $(".input_fields_wrap"); //Fields wrapper
+    var add_button      = $(".add_field_button"); //Add button ID
+
+    $(document).on('click', ".add_field_button",  function () {
+      $(this).parent(wrapper).find('.checkbox-option').append('<div><input type="text" name="mytext"/><a href="javascript:void(0);" class="remove_field">Remove</a></div>'); //add input box
+    });
+    $(document).on('click', '.remove_field',  function () {
+      $(this).parent('div').remove();
+    });
+    $(document).on('change', '.que-ans-type',  function () {
+      console.log($('option:selected', this).text())
+        if($('option:selected', this).text() == "Multiple Answer"){
+          $('.multi-ans-div').css({ display: "block" });
+        }
+        else{
+          $('.multi-ans-div').css({ display: "none" });
+          // $('.multi-ans-div').addClass('hidden');
+        }
+    });
+    $(document).on('click', '.save-req',  function (e) {
+      if($(e.target).closest(".req_form").find('.question').val() == ''){
+        alert("Job requirement blank not allow");
+        return false;
+      }
+      else{
+        $(e.target).closest(".nested-fields").find('.question-req').css({ display: "block" });
+        $(e.target).closest(".nested-fields").find('.question-req p').html($(e.target).closest(".req_form").find('.question').val())
+        $(e.target).closest(".nested-fields").find('.req_form').css({ display: "none" });
+        selectedValue = $(e.target).closest(".nested-fields").find('.que-ans-type')
+        if($('option:selected', selectedValue).text() == "Free Text"){
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.free-text').css({ display: "block" });
+        }
+        else if($('option:selected', selectedValue).text() == "Multiple Answer"){
+          $(e.target).closest(".nested-fields").find('.free-text').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "block" });
+            if($(e.target).closest(".req_form").find('.allow-multi-ans').prop("checked") == true){
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').empty();
+              $(e.target).closest(".req_form").find("input[name='mytext']").each(function() {
+                 $(e.target).closest(".nested-fields").find('.multiple-fiels-box').append("<div><input type='checkbox' class='set-checkbox'> "+$(this).val()+"</div>");
+              });
+            }else{
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').empty();
+              $(e.target).closest(".req_form").find("input[name='mytext']").each(function() {
+                   $(e.target).closest(".nested-fields").find('.multiple-fiels-box').append("<div><input type='radio' name='set-option' class='set-checkbox'> "+$(this).val()+"</div>");
+              });
+            }
+        }
+        else{
+            $(e.target).closest(".nested-fields").find('.free-text').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "block" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "none" });
+        }
+         ans = $(e.target).closest(".req_form").find("input[name='mytext']").serialize();
+         $(e.target).closest(".req_form").find(".multi-option-text").val(ans);
+       }
+    });
+    $(document).on('click', '.filed-edit',  function (e) {
+      $(e.target).closest(".nested-fields").find('.question-req').css({ display: "none" });
+      $(e.target).closest(".nested-fields").find('.req_form').css({ display: "block" })
+    });
+  </script>
+<% end %>
