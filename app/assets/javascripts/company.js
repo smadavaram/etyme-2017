@@ -122,6 +122,7 @@
 
 //=require addevent
 
+// require cable
 //= require company/select_autocomplete
 //= require company/chat_status
 

@@ -50,3 +50,4 @@
 //= require home/scrolling-text
 //= require selectize
 
+// require cable
