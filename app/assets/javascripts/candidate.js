@@ -166,7 +166,7 @@
 //= require signature-pad/flashcanvas
 //= require signature-pad/json2.min
 
-// require cable
+//= require cable
 //= require candidate/chat_status
 
 //= require load_more_chat
