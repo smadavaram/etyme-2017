@@ -24,7 +24,7 @@ Rails.application.routes.draw do
   get 'register' => 'companies#new'
   get 'signin', to: 'static#signin'
   post 'signin', to: 'static#signin'
-  get 'signup', to: 'static#signup'
+  # get 'signup', to: 'static#signup'
   get 'domain_suggestion', to: 'static#domain_suggestion'
   get 'privacy_policy', to: 'static#privacy_policy'
   get 'terms_of_use', to: 'static#terms_of_use'
