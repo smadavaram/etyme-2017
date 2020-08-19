@@ -207,48 +207,59 @@
                 %label.control-label Work location
                 .contract-fild{style: "margin-top: 8px;"}
                   = f.text_field :work_location, class: "form-control", placeholder: "Contract Work location"
-          %hr
-          .row.toggle_sell_contract
-            -# - if @contract.new_record?
-            .col-md-6
-              .form-group.mb-3.mt-3
-                %label.control-label.mr-4
-                  %b Do you want to Onboard Client?
-                %span.is_client_customer_radio
-                  =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true,class: 'end_client'
-                  %label.control-label.mr-4 Yes
-                  =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?,class: 'end_client'
-                  %labe.control-label No
-            .col-md-6
-              .form-group.contract_client{style: "display: none;"}
-                %label.control-label Client Company
-                %label.control-label.pull-right
-                  %button{class: 'btn btn-sm btn-primary',type: 'button', "data-toggle": "modal", "data-target": "#new-contract-company"} Add New
-                .contract-fild
-                  .plain-select
-                    = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
+          .row
+            .col-md-12
+              .form-group
+                -#%h5.mb-4.d-inline-block Customer Contacts
+                %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
+                .form-group
+                  %label.control-label Customer Contacts
+                  .contract-fild
+                    .plain-select
+                      = select_tag "company_contacts_ids[]", [] ,class:"w-100", id: 'selectize_sell_company_contacts'
+                      -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
+
+
       .contract-fields_wrapper.mt-4.toggle_sell_contract.contract-border
         -#%h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
         -#%h5.mb-4.d-inline-block.pull-right
         -#%button.btn.btn-primary.btn-sm.manager_team{type: "button"} Add Manager
         -# - headers =  %w(domain name contact role(s) reminder action(s))
             .row
-        .col-md-12
-          .form-group
-            %h5.mb-4.d-inline-block End Client/Reporting Manager for performance review
-            %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
-            .form-group
-              %label.control-label Hr Admins
+        .row.toggle_sell_contract
+          .col-md-6
+            .form-group.mb-3.mt-3
+              %label.control-label.mr-4
+                %b Do you want to Onboard Client?
+              %span.is_client_customer_radio
+                =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true,class: 'end_client'
+                %label.control-label.mr-4 Yes
+                =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?,class: 'end_client'
+                %labe.control-label No
+          .col-md-6
+            .form-group.contract_client{style: "display: none;"}
+              %label.control-label Client Company
+              %label.control-label.pull-right
+                %button{class: 'btn btn-sm btn-primary',type: 'button', "data-toggle": "modal", "data-target": "#new-contract-company"} Add New
               .contract-fild
                 .plain-select
-                  = select_tag "company_contacts_ids[]", [] ,class:"w-100", id: 'selectize_sell_company_contacts'
+                  = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
+        .col-md-12
+          .form-group
+            -#%h8.mb-4.d-inline-block Client Contacts
+            %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
+            .form-group
+              %label.control-label Client Contacts
+              .contract-fild
+                .plain-select
+                  = select_tag "company_contacts_ids[]", [] ,class:"w-100", id: 'selectize_sell_client_contacts'
                   -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
-
-
+        %hr
+        %h6 Contacts
         %br/
         .row.hr_reporting_admins_table_body
-          -# - unless @contract.new_record?
-          = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
+        -# - unless @contract.new_record?
+        = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
 
 
 
@@ -287,10 +298,31 @@
     $('#selectize_sell_company_contacts').change( function() {
       save_hr_admins_manager(null);
     });
+    $('#selectize_sell_client_contacts').change( function() {
+      save_client_admins_manager(null);
+    });
+    if($(".is_client_customer_radio input[type='radio']").val() == "true")
+    {
+        $('.contract_client').show();
+    }
     function save_hr_admins_manager(e){
       // e.preventDefault();
       let contract_id = $('#contract_id').val();
       let user_ids = $('#selectize_sell_company_contacts').val();
+      let url = `/contracts//get_reporting_managers`;
+      $.post(url, {contract_id: contract_id, company_contacts_ids: user_ids}).done(function (data) {
+          flash_success("End Client Reporting Manager updated Successfully!")
+      }).fail(function (data) {
+          flash_error(data.status)
+      });
+    }
+
+    function save_client_admins_manager(e){
+      // e.preventDefault();
+      let contract_id = $('#contract_id').val();
+      let user_ids = [];
+      user_ids.push($('#selectize_sell_client_contacts').val());
+      user_ids.push($('#selectize_sell_company_contacts').val());
       let url = `/contracts//get_reporting_managers`;
       $.post(url, {contract_id: contract_id, company_contacts_ids: user_ids}).done(function (data) {
           flash_success("End Client Reporting Manager updated Successfully!")

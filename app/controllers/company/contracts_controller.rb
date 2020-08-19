@@ -521,12 +521,15 @@ class Company::ContractsController < Company::BaseController
   end
 
   def get_reporting_managers
-    contact_id = params[:company_contacts_ids]
+    puts params.inspect
+
+    contact_id = params[:company_contacts_ids][0]
     if contact_id.to_s.include? "@"
       contact = add_new_contact(params[:company_contacts_ids].to_s)
       contact_id = contact.user.id
     end
-    @users = User.where(id: contact_id).to_a
+
+    @users = User.where('id IN (?)', params[:company_contacts_ids])
     @users += User.where(id: Contract.find_by(id: params[:contract_id])&.sell_contract&.contract_sell_business_details.pluck('user_id')).to_a if params[:contract_id].present?
     respond_to do |format|
       format.js {}
