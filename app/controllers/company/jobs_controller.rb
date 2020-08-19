@@ -46,6 +46,7 @@ class Company::JobsController < Company::BaseController
   def sites_jobs_iframe; end
 
   def create
+    params[:job][:description] = params[:job][:description].gsub("width: 100%","width: 350px")
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
     respond_to do |format|
       if @job.save
@@ -61,6 +62,7 @@ class Company::JobsController < Company::BaseController
   end
 
   def update
+    params[:job][:description] = params[:job][:description].gsub("width: 100%","width: 350px")
     respond_to do |format|
       if @job.update(company_job_params)
         format.html { redirect_to @job, notice: 'Job was successfully updated.' }
