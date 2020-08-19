@@ -37,7 +37,8 @@ development:
   sovren_service_key: 'x0pRSXIS5lmRB30L1GLpWbDGIBNtes3JUUM4Uvpi'
   sovren_api_path: "http://services.resumeparsing.com"
   # google api
-  google_search_location_api_key: 'AIzaSyAdf6df60vd1qmUPN7A8kwNDRc9qWx7CF4'
+  # google_search_location_api_key: 'AIzaSyAdf6df60vd1qmUPN7A8kwNDRc9qWx7CF4'
+  google_search_location_api_key: 'AIzaSyDplyJQu2eS1qNVdoBsGL4FGmJwMWFDDUQ'
   global_url: 'https://www.cloudepa.com'
 
 production:

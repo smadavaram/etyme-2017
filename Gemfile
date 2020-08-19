@@ -146,3 +146,6 @@ gem 'exception_notification'
 gem 'trix-rails', '~> 2.2', require: 'trix'
 
 gem 'activeadmin'
+gem 'serviceworker-rails'
+
+gem 'activeadmin_json_editor', '~> 0.0.7'
