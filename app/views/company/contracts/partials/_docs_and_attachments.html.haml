@@ -159,10 +159,10 @@
                               -#  Collaborators
                           .row
                             .col-md-12.d-flex
-                              #buy_collaborators
-                                = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet')
-                              %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet', style: 'color: #fff !important;'}
-                                Add CC
+                              -##buy_collaborators
+                              -#  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet')
+                              -#%a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet', style: 'color: #fff !important;'}
+                              -#  Add CC
                   #tab-buy-ta.tab-pane.padding-top-15
                     .row
                       .col-md-12
@@ -295,10 +295,10 @@
                                   Collaborators
                                 .row
                                   .col-md-12.d-flex
-                                    #buy_s_c
-                                      = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_calculation')
-                                    %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_calculation', style: "color: #fff !important;"}
-                                      Add CC
+                                    -##buy_s_c
+                                    -#  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_calculation')
+                                    -#%a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_calculation', style: "color: #fff !important;"}
+                                    -#  Add CC
                       .row
                         .col-md-12
                           .form-group
@@ -346,14 +346,14 @@
                                       = bc.text_field :sp_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sp_date_2&.strftime('%m/%d/%Y')
                                   %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
                               .col-md-4
-                                %label.control-label
-                                  Collaborators
-                                .row
-                                  .col-md-12.d-flex
-                                    #buy_s_p
-                                      = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_process')
-                                    %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_process', style: "color: #fff !important;"}
-                                      Add CC
+                                -#%label.control-label
+                                -#  Collaborators
+                                -#.row
+                                -#  .col-md-12.d-flex
+                                -#    #buy_s_p
+                                -#      = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_process')
+                                -#    %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_process', style: "color: #fff !important;"}
+                                -#      Add CC
 
                       .row
                         .col-md-12
