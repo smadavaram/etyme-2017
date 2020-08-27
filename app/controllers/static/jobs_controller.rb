@@ -12,6 +12,7 @@ class Static::JobsController < ApplicationController
   def index
     session[:previous_url] = request.url
     params[:category].present? ? (add_breadcrumb params[:category].titleize, static_jobs_path) : ''
+    render :layout => "kulkakit"
   end
 
   def get_attr_value(data_array, look)

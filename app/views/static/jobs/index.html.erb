@@ -1,0 +1,233 @@
+<section class="content-wrapper">
+  <div class="container">
+    <div class="row">
+      <div class="header pt-md-4">
+        <div class="col-12">
+          <div class="header-items bor-btm pt-3 pt-md-0 pb-3">
+            <div class="row align-items-center">
+              <div class="col-12 col-md-4 col-lg-6 mb-2 mb-md-0">
+                <div class="search-main position-relative d-flex align-items-center justify-content-between">
+                  <div class="d-inline-block position-relative">
+                    <%= search_form_for @search , url: search_static_jobs_path , method: :get,class:"list-search revealOnScroll " ,"data-animation" => "fadeInDown", "data-timeout" => "200" do |f| %>
+                        <!-- <input type="text" placeholder="Search" class="search-style f-14 f-mon-med txt-dark"> -->
+                        <%= f.text_field :title_or_job_category_cont, class: "search-style f-14 f-mon-med txt-dark", placeholder: "Search"%>
+                        <div class="btn-search">
+                          <button class="btn border-0 bg-transparent">
+                           <%= image_tag(image_path('search.svg'), class: "img-fluid") %>
+                        </button>
+                    <% end %>
+                  </div>
+                </div>
+                <div class="d-inline-block text-right">
+                  <span class="openbtn txt-dark d-md-none">
+                    <i class="fa fa-bars f-20" aria-hidden="true"></i>
+                  </span>
+                </div>
+
+              </div>
+
+            </div>
+            <div class="col-12 col-md-8 col-lg-6 mb-2 mb-md-0 login-btns text-right">
+              <div class="d-inline-block  dropdown">
+                <button class="btn txt-dark f-18 f-mon-sembol dropdown-toggle bg-transparent" type="button" data-toggle="dropdown">
+                  Login 
+                  <%= image_tag(image_path('login-drop-arrow.svg'), class: "img-fluid ml-1") %>
+                </button>
+                <div class="dropdown-menu">
+                  <%= link_to 'Company', request.subdomain.present? ? new_user_session_path : signin_path , class: 'dropdown-item' %>
+                  <% if candidate_signed_in? %>
+                    <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path, class: 'dropdown-item' %>
+                  <% else %>
+                    <%= link_to 'Candidate', new_candidate_session_path , class: 'dropdown-item' %>
+                  <% end %>
+                </div>
+              </div>
+              <div class="d-inline-block mx-2 mx-lg-3 dropdown">
+                <button class="btn btn-register text-white f-18 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
+                  Register 
+                  <%= image_tag(image_path('register-drop-arrow.svg'), class: "img-fluid ml-1") %>
+                </button>
+                <div class="dropdown-menu">
+                  <%= link_to 'Company', register_path , class: 'dropdown-item' %>
+                  <%= link_to 'Candidate', new_candidate_registration_path , class: 'dropdown-item' %>
+                </div>
+              </div>
+              <!-- <div class="d-none d-md-inline-block log-prof">
+                <%#= image_tag(image_path('user.png'), class: "img-fluid") %>
+                <div class="log-drop">
+                  <%#= image_tag(image_path('drop.svg'), class: "img-fluid") %>
+                </div>
+              </div> -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 content-main">
+      <div class="tab-content pt-4">
+        <!-- JOBS -->
+        <div class="tab-pane fade show active">
+          <div class="row">
+            <div class="order-1 order-xl-0 col-12 col-xl-9 feed-main">
+              <div class="filter-list mb-4">
+                <ul class="list-unstyled d-md-flex align-items-center p-0 m-0">
+                  <li class="d-inline-block">
+                    <button class="btn filter-btn d-flex align-items-center justify-content-center txt-dark f-18 f-mon-sembol">
+                      <%= image_tag(image_path('filter.svg'), class: "img-fluid mr-3") %>
+                      Filter
+                    </button>
+                  </li>
+                </ul>
+              </div>
+
+              <!-- Feed Blocks Start -->
+              <% @job_all.each do |job| %>
+              <div class="col-12 mb-4 p-0">
+                <div class="feed-block bg-white p-3">
+                  <div class="row align-items-center">
+                    <div class="col-12 col-lg-2 text-center text-lg-left mb-3 mb-lg-0">
+                      <!-- <img class="mr-3 img-fluid" src="images/feeds/digital-marketing.svg" alt="digital marketing"> -->
+                      <% unless job.created_by&.photo.blank? %>
+                        <%= image_tag(job.created_by&.photo, class: "img-fluid mr-3") %>
+                      <% else %>
+                        <%= image_tag 'https://etymeclub.herokuapp.com/static/js/jobs.png' ,class: "img-fluid mr-3"%>
+                      <% end %>
+                    </div>
+                    <div class="col-12 col-lg-10">
+                      <div class="row justify-content-between">
+                        <div class="col-12 col-md-6 col-lg-7 text-center text-md-left d-flex align-self-center">
+                          <h3 class="f-18 f-mon-sembol txt-black"><%= link_to truncate(job.title,length: 50) ,static_job_path(job)%></h3>
+                        </div>
+                        <div class="col-12 col-md-6 col-lg-5 text-center text-md-right">
+                          <div class="col-12 p-0">
+                            <ul class="list-unstyled m-0">
+                              <li class="d-inline-block">
+                                <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
+                                  <!-- <img src="images/feeds/black-suitcase.svg" class="img-fluid mr-2" alt="share"> -->
+                                  <%= image_tag(image_path('black-suitcase.svg'), class: "img-fluid mr-2") %>
+                                  <%= job&.job_category %>
+                                </span>
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                        <div class="col-12 col-md-6 col-lg-4 my-2 my-md-0">
+                          <ul class="list-unstyled m-0 p-0">
+                            <li class="d-block mb-2">
+                              <p class="m-0 f-12 f-mon-med txt-black">
+                                <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/globalization.svg" alt="globe"> -->
+                                <%= image_tag(image_path('globalization.svg'), class: "img-fluid w-15 mr-2") %>
+                                <%= job&.company&.website %>
+                              </p>
+                            </li>
+                            <li class="d-block mb-2">
+                              <p class="m-0 f-12 f-mon-med txt-black">
+                                <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/placeholder.svg" alt="placeholder"> -->
+                                <%= image_tag(image_path('placeholder.svg'), class: "img-fluid w-15 mr-2") %>
+                                <%= job&.location%>
+                              </p>
+                            </li>
+                            <li class="d-block mb-2">
+                              <p class="m-0 f-12 f-mon-med txt-black">
+                                <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/clock.svg" alt="clock"> -->
+                                <%= image_tag(image_path('clock.svg'), class: "img-fluid w-15 mr-2") %>
+                                <%= "#{time_ago_in_words(job.created_at)} ago" %>
+                              </p>
+                            </li>
+                          </ul>
+                        </div>
+                        <div class="col-12 col-lg-8 d-flex">
+                          <div class="col-12 text-lg-right align-self-end p-0">
+                            <div class="d-flex align-items-center">
+                              <ul class="list-unstyled ml-auto mb-0">
+                                <li class="d-inline-block mb-2 mb-0">
+                                  <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
+                                    <!-- <img src="images/feeds/like.svg" class="img-fluid mr-2" alt="like"> -->
+
+                                    <%= image_tag(image_path('like.svg'), class: "img-fluid mr-2") %>
+                                    Save Job
+                                  </span>
+                                </li>
+                                <li class="d-inline-block mb-2 mb-0 mx-2">
+                                  <span class="bg-lig-gry d-flex align-items-center ustify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
+                                    <!-- <img src="images/feeds/share.svg"     class="img-fluid mr-2" alt="share"> -->
+                                    <%= image_tag(image_path('share.svg'), class: "img-fluid mr-2") %>
+                                    Share
+                                  </span>
+                                </li>
+                                <li class="d-inline-block mb-2 mb-0">
+                                  <span class="common-blue-btn f-12 f-mon-bol">
+                                    <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true ,  class: "#{current_candidate.present? ? (current_candidate.already_applied?(job.id) ? 'disabled ' : '' ) : '' } ", data: { trigger_modal: true }%>
+                                  </span>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <% end %>
+              <!-- Feed Blocks End -->
+            </div>
+
+            <div class="order-0 order-xl-1 col-12 col-md-8 col-xl-3 category-sidebar">
+              <div class="mb-3">
+                <div class="row align-items-center justify-content-between">
+                  <div class="col-8">
+                    <p class="m-0 f-18 f-mon-sembol txt-black">Job Category</p>
+                  </div>
+                  <div class="col text-right">
+                    <p class="m-0 f-12 f-mon-sembol txt-blue">View All</p>
+                  </div>
+                </div>
+                <div class="col-12 p-0 category-list">
+                  <ul class="list-unstyled mt-3">
+                    <% @job_categories.each do |category,jobs| %>
+                    <li class="d-block mb-3">
+                      <label class="check-main"><%= category %>
+                        <input type="checkbox">
+                        <span class="checkmark"></span>
+                      </label>
+                    </li>
+                    <% end %>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<%= javascript_include_tag 'shared/hide_show_toggler'%>
+<script>
+    $(document).ready(function () {
+
+        $(".openbtn").click(function () {
+            $(".side-wrapper").addClass("side-active")
+        });
+
+        $(".closebtn").click(function () {
+            $(".side-wrapper").removeClass("side-active")
+            $(".side-wrapper").addClass("inactive")
+        });
+
+    });
+</script>
+<style type="text/css">
+  .bg-transparent{
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .txt-black a{
+    color: #2A2C34 !important;
+  }
+
+  .f-mon-bol a{
+    color: #fff !important;
+  }
+</style>
