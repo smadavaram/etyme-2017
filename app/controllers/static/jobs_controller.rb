@@ -156,10 +156,18 @@ class Static::JobsController < ApplicationController
   end
 
   def filter_jobs
-    if params[:selected_categories].present?
-      @job_all = Job.is_public.where(job_category: params[:selected_categories]).paginate(page: params[:page], per_page: 50) || []
+    @current_company = Company.find_by(slug: request.subdomain)
+    if request.subdomain == "app"
+      if params[:selected_categories].present?
+        @job_all = Job.is_public.where(job_category: params[:selected_categories]).paginate(page: params[:page], per_page: 50) || []
+      else
+        @job_all = Job.is_public.paginate(page: params[:page], per_page: 50) || []
     else
-      @job_all = Job.is_public.paginate(page: params[:page], per_page: 50) || []
+      if params[:selected_categories].present?
+        @job_all = @current_company.jobs.is_public.where(job_category: params[:selected_categories]).paginate(page: params[:page], per_page: 50) || []
+      else
+        @job_categories = @current_company.jobs.is_public.pluck(:job_category).uniq
+      end
     end
   end
 
@@ -168,18 +176,18 @@ class Static::JobsController < ApplicationController
   def set_jobs
     @current_company = Company.find_by(slug: request.subdomain)
     if request.subdomain == "app"
-      @search = params[:category].present? ? Job.active.is_public.where('job_category =?', params[:category]).search(params[:q]) : Job.active.is_public.search(params[:q])
+      @search = params[:category].present? ? Job.active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : Job.active.is_public.ransack(params[:q])
       @jobs = @search.result(distinct: true).paginate(page: params[:page], per_page: 50)
-      @search_q = Job.is_public.active.search(params[:q])
+      @search_q = Job.is_public.active.ransack(params[:q])
       @jobs_groups = @search_q.result.group_by(&:job_category)
       @job_all = Job.is_public.paginate(page: params[:page], per_page: 50) || []
       @job_categories =  Job.is_public.pluck(:job_category).uniq
     elsif @current_company.present?
-      @search = params[:category].present? ? @current_company.jobs.active.is_public.where('job_category =?', params[:category]).search(params[:q]) : @current_company.jobs.active.is_public.search(params[:q])
+      @search = params[:category].present? ? @current_company.jobs.active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : @current_company.jobs.active.is_public.ransack(params[:q])
       @job_all = @current_company.jobs.is_public.paginate(page: params[:page], per_page: 50) || []
       @job_categories = @current_company.jobs.is_public.pluck(:job_category).uniq
     else
-      @search = Job.active.is_public.search(params[:q])
+      @search = Job.active.is_public.ransack(params[:q])
       @job_all = []
       @job_categories = []
     end
