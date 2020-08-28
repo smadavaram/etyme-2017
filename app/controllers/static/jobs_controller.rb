@@ -178,14 +178,25 @@ class Static::JobsController < ApplicationController
     @current_company = Company.find_by(slug: request.subdomain)
     if request.subdomain == "app"
       @search = params[:category].present? ? Job.active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : Job.active.is_public.ransack(params[:q])
-      @jobs = @search.result(distinct: true).paginate(page: params[:page], per_page: 50)
-      @search_q = Job.is_public.active.ransack(params[:q])
-      @jobs_groups = @search_q.result.group_by(&:job_category)
+      jobs = @search.result(distinct: true).paginate(page: params[:page], per_page: 50)
+      # @search_q = Job.is_public.active.ransack(params[:q])
+      # @jobs_groups = @search_q.result.group_by(&:job_category)
+      if jobs.present?
+        @job_all = jobs
+      else
+        @job_all = @current_company.jobs.is_public.paginate(page: params[:page], per_page: 50) || []
+      end      
       @job_all = Job.is_public.paginate(page: params[:page], per_page: 50) || []
       @job_categories =  Job.is_public.pluck(:job_category).uniq
     elsif @current_company.present?
+      
       @search = params[:category].present? ? @current_company.jobs.active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : @current_company.jobs.active.is_public.ransack(params[:q])
-      @job_all = @current_company.jobs.is_public.paginate(page: params[:page], per_page: 50) || []
+      jobs = @search.result(distinct: true).paginate(page: params[:page], per_page: 50)
+      if jobs.present?
+        @job_all = jobs
+      else
+        @job_all = @current_company.jobs.is_public.paginate(page: params[:page], per_page: 50) || []
+      end
       @job_categories = @current_company.jobs.is_public.pluck(:job_category).uniq
     else
       @search = Job.active.is_public.ransack(params[:q])
