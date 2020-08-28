@@ -9,6 +9,7 @@ Rails.application.config.assets.version = '1.0'
 # Rails.application.config.assets.paths << Emoji.images_path
 # Add Yarn node_modules folder to the asset load path.
 Rails.application.config.assets.paths << Rails.root.join('node_modules')
+Rails.application.config.assets.paths << Rails.root.join("app", "assets", "fonts")
 
 # Precompile additional assets.
 # application.js, application.css, and all non-JS/CSS in the app/assets
@@ -28,6 +29,9 @@ Rails.application.config.assets.precompile += %w[libs/jquery-2.1.1.min.js]
 Rails.application.config.assets.precompile += %w[home.scss]
 Rails.application.config.assets.precompile += %w[home.js]
 Rails.application.config.assets.precompile += %w[company_account.css]
+Rails.application.config.assets.precompile += %w[kulkakit.css]
+Rails.application.config.assets.precompile += %w[kulkakit.js]
+Rails.application.config.assets.precompile << /\.(?:svg|eot|woff|ttf)$/
 
 # Needed for BulletTrain, since it uses helpers in scss.erb files
 Rails.application.config.assets.configure do |env|
