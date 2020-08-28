@@ -155,6 +155,14 @@ class Static::JobsController < ApplicationController
     p '3333333333333333333333333333333333'
   end
 
+  def filter_jobs
+    if params[:selected_categories].present?
+      @job_all = Job.is_public.where(job_category: params[:selected_categories]).paginate(page: params[:page], per_page: 50) || []
+    else
+      @job_all = Job.is_public.paginate(page: params[:page], per_page: 50) || []
+    end
+  end
+
   private
 
   def set_jobs
@@ -163,7 +171,7 @@ class Static::JobsController < ApplicationController
     @search_q = Job.is_public.active.search(params[:q])
     @jobs_groups = @search_q.result.group_by(&:job_category)
     @job_all = Job.is_public.paginate(page: params[:page], per_page: 50) || []
-    @job_categories =  Job.is_public.group_by(&:job_category)
+    @job_categories =  @job_all.pluck(:job_category)
   end
 
   def find_job
