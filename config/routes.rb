@@ -70,6 +70,7 @@ Rails.application.routes.draw do
       # get 'job_appication_without_registeration' ,to: 'job_applications#job_appication_without_registeration'
       post :job_appication_without_registeration
       post :job_appication_with_recruiter
+      post :filter_jobs, on: :collection
       # post :import_job
     end
     resources :companies, only: [] do

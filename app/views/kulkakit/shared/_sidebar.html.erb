@@ -8,8 +8,14 @@
 
             <div class="col-12">
                 <div class="bor-btm pb-3 pl-2">
+                  <% if request.subdomain == "app" %>
+                    <%= image_tag(image_path('etyme-logo-dark.png'), class: "img-fluid m-auto") %>
+                  <% elsif @current_company.present? && @current_company.logo.present? %>
+                    <%= image_tag @current_company.logo , class: "img-fluid m-auto" %>
+                  <% else %>
                     <!-- <img src="images/KuklaKit-logo.svg" class="img-fluid m-auto" alt="logo"> -->
                     <%= image_tag(image_path('etyme-logo-dark.png'), class: "img-fluid m-auto") %>
+                  <% end %>
                 </div>
             </div>
 
