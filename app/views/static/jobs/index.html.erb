@@ -69,16 +69,6 @@
         <div class="tab-pane fade show active">
           <div class="row">
             <div class="order-1 order-xl-0 col-12 col-xl-9 feed-main">
-              <div class="filter-list mb-4">
-                <ul class="list-unstyled d-md-flex align-items-center p-0 m-0">
-                  <li class="d-inline-block">
-                    <button class="btn filter-btn d-flex align-items-center justify-content-center txt-dark f-18 f-mon-sembol">
-                      <%= image_tag(image_path('filter.svg'), class: "img-fluid mr-3") %>
-                      Filter
-                    </button>
-                  </li>
-                </ul>
-              </div>
 
               <!-- Feed Blocks Start -->
               <% @job_all.each do |job| %>
@@ -111,8 +101,13 @@
                             </ul>
                           </div>
                         </div>
-                        <div class="col-12 col-md-6 col-lg-4 my-2 my-md-0">
-                          <ul class="list-unstyled m-0 p-0">
+                        <div class="col-12 my-2 my-md-0">
+                          <ul class="list-unstyled m-0 mt-2">
+                            <li class="d-block mb-2">
+                              <p>
+                                <%= truncate(strip_tags(job.description),length: 250)%>
+                              </p>
+                            </li>
                             <li class="d-block mb-2">
                               <p class="m-0 f-12 f-mon-med txt-black">
                                 <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/globalization.svg" alt="globe"> -->
@@ -134,20 +129,19 @@
                                 <%= "#{time_ago_in_words(job.created_at)} ago" %>
                               </p>
                             </li>
+                            <li class="d-block mb-2">
+                              <% job.tags.each do |tag| %>
+                                <span class="badge badge-secondary">
+                                  <%= tag.name %>
+                                </span>
+                              <% end %>
+                            </li>
                           </ul>
                         </div>
-                        <div class="col-12 col-lg-8 d-flex">
+                        <div class="col-12 d-flex">
                           <div class="col-12 text-lg-right align-self-end p-0">
                             <div class="d-flex align-items-center">
                               <ul class="list-unstyled ml-auto mb-0">
-                                <li class="d-inline-block mb-2 mb-0">
-                                  <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                                    <!-- <img src="images/feeds/like.svg" class="img-fluid mr-2" alt="like"> -->
-
-                                    <%= image_tag(image_path('like.svg'), class: "img-fluid mr-2") %>
-                                    Save Job
-                                  </span>
-                                </li>
                                 <li class="d-inline-block mb-2 mb-0 mx-2">
                                   <span class="bg-lig-gry d-flex align-items-center ustify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
                                     <!-- <img src="images/feeds/share.svg"     class="img-fluid mr-2" alt="share"> -->
@@ -170,6 +164,10 @@
                 </div>
               </div>
               <% end %>
+              <div class="mt-3">
+                <%= digg_pagination(@job_all,class: "pagination ")%>
+              </div>
+
               <!-- Feed Blocks End -->
             </div>
 
