@@ -1,0 +1,100 @@
+<% @job_all.each do |job| %>
+  <div class="col-12 mb-4 p-0">
+    <div class="feed-block bg-white p-3">
+      <div class="row align-items-center">
+        <div class="col-12 col-lg-2 text-center text-lg-left mb-3 mb-lg-0">
+          <!-- <img class="mr-3 img-fluid" src="images/feeds/digital-marketing.svg" alt="digital marketing"> -->
+          <% unless job.created_by&.photo.blank? %>
+            <%= image_tag(job.created_by&.photo, class: "img-fluid mr-3") %>
+          <% else %>
+            <%= image_tag 'https://etymeclub.herokuapp.com/static/js/jobs.png' ,class: "img-fluid mr-3"%>
+          <% end %>
+        </div>
+        <div class="col-12 col-lg-10">
+          <div class="row justify-content-between">
+            <div class="col-12 col-md-6 col-lg-7 text-center text-md-left d-flex align-self-center">
+              <h3 class="f-18 f-mon-sembol txt-black"><%= link_to truncate(job.title,length: 50) ,static_job_path(job)%></h3>
+            </div>
+            <div class="col-12 col-md-6 col-lg-5 text-center text-md-right">
+              <div class="col-12 p-0">
+                <ul class="list-unstyled m-0">
+                  <li class="d-inline-block">
+                    <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
+                      <!-- <img src="images/feeds/black-suitcase.svg" class="img-fluid mr-2" alt="share"> -->
+                      <%= image_tag(image_path('black-suitcase.svg'), class: "img-fluid mr-2") %>
+                      <%= job&.job_category %>
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="col-12 my-2 my-md-0">
+              <ul class="list-unstyled m-0 mt-2">
+                <li class="d-block mb-2">
+                  <p>
+                    <%= truncate(strip_tags(job.description),length: 250)%>
+                  </p>
+                </li>
+                <% unless @current_company.present? %>
+                  <li class="d-block mb-2">
+                    <p class="m-0 f-12 f-mon-med txt-black">
+                      <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/globalization.svg" alt="globe"> -->
+                      <%= image_tag(image_path('globalization.svg'), class: "img-fluid w-15 mr-2") %>
+                      <%= job&.company&.website %>
+                    </p>
+                  </li>
+                <% end %>
+                <li class="d-block mb-2">
+                  <p class="m-0 f-12 f-mon-med txt-black">
+                    <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/placeholder.svg" alt="placeholder"> -->
+                    <%= image_tag(image_path('placeholder.svg'), class: "img-fluid w-15 mr-2") %>
+                    <%= job&.location%>
+                  </p>
+                </li>
+                <li class="d-block mb-2">
+                  <p class="m-0 f-12 f-mon-med txt-black">
+                    <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/clock.svg" alt="clock"> -->
+                    <%= image_tag(image_path('clock.svg'), class: "img-fluid w-15 mr-2") %>
+                    <%= "#{time_ago_in_words(job.created_at)} ago" %>
+                  </p>
+                </li>
+                <li class="d-block mb-2">
+                  <% job.tags.each do |tag| %>
+                    <span class="badge badge-secondary">
+                      <%= tag.name %>
+                    </span>
+                  <% end %>
+                </li>
+              </ul>
+            </div>
+            <div class="col-12 d-flex">
+              <div class="col-12 text-lg-right align-self-end p-0">
+                <div class="d-flex align-items-center">
+                  <ul class="list-unstyled ml-auto mb-0">
+                    <li class="d-inline-block mb-2 mb-0 mx-2">
+                      <span class="bg-lig-gry d-flex align-items-center ustify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
+                        <!-- <img src="images/feeds/share.svg"     class="img-fluid mr-2" alt="share"> -->
+                        <%= image_tag(image_path('share.svg'), class: "img-fluid mr-2") %>
+                        Share
+                      </span>
+                    </li>
+                    <li class="d-inline-block mb-2 mb-0">
+                      <span class="common-blue-btn f-12 f-mon-bol">
+                        <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true ,  class: "#{current_candidate.present? ? (current_candidate.already_applied?(job.id) ? 'disabled ' : '' ) : '' } ", data: { trigger_modal: true }%>
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <% end %>
+  <% if request.subdomain == "app" || @current_company.present? %>
+    <div class="mt-3">
+      <%= digg_pagination(@job_all,class: "pagination ")%>
+    </div>
+  <% end %>
