@@ -184,9 +184,8 @@ class Static::JobsController < ApplicationController
       if jobs.present?
         @job_all = jobs
       else
-        @job_all = @current_company.jobs.is_public.paginate(page: params[:page], per_page: 50) || []
-      end      
-      @job_all = Job.is_public.paginate(page: params[:page], per_page: 50) || []
+        @job_all = Job.is_public.paginate(page: params[:page], per_page: 50) || []
+      end
       @job_categories =  Job.is_public.pluck(:job_category).uniq
     elsif @current_company.present?
       
