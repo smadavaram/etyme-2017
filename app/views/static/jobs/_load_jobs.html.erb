@@ -35,13 +35,15 @@
                     <%= truncate(strip_tags(job.description),length: 250)%>
                   </p>
                 </li>
-                <li class="d-block mb-2">
-                  <p class="m-0 f-12 f-mon-med txt-black">
-                    <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/globalization.svg" alt="globe"> -->
-                    <%= image_tag(image_path('globalization.svg'), class: "img-fluid w-15 mr-2") %>
-                    <%= job&.company&.website %>
-                  </p>
-                </li>
+                <% unless @current_company.present? %>
+                  <li class="d-block mb-2">
+                    <p class="m-0 f-12 f-mon-med txt-black">
+                      <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/globalization.svg" alt="globe"> -->
+                      <%= image_tag(image_path('globalization.svg'), class: "img-fluid w-15 mr-2") %>
+                      <%= job&.company&.website %>
+                    </p>
+                  </li>
+                <% end %>
                 <li class="d-block mb-2">
                   <p class="m-0 f-12 f-mon-med txt-black">
                     <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/placeholder.svg" alt="placeholder"> -->
@@ -90,7 +92,9 @@
       </div>
     </div>
   </div>
-<% end %>
-<div class="mt-3">
-  <%= digg_pagination(@job_all,class: "pagination ")%>
-</div>
+  <% end %>
+  <% if request.subdomain == "app" || @current_company.present? %>
+    <div class="mt-3">
+      <%= digg_pagination(@job_all,class: "pagination ")%>
+    </div>
+  <% end %>
