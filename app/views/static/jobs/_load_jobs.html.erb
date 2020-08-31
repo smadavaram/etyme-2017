@@ -15,19 +15,22 @@
             <div class="col-12 col-md-6 col-lg-7 text-center text-md-left d-flex align-self-center">
               <h3 class="f-18 f-mon-sembol txt-black"><%= link_to truncate(job.title,length: 50) ,static_job_path(job)%></h3>
             </div>
-            <div class="col-12 col-md-6 col-lg-5 text-center text-md-right">
-              <div class="col-12 p-0">
-                <ul class="list-unstyled m-0">
-                  <li class="d-inline-block">
-                    <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                      <!-- <img src="images/feeds/black-suitcase.svg" class="img-fluid mr-2" alt="share"> -->
-                      <%= image_tag(image_path('black-suitcase.svg'), class: "img-fluid mr-2") %>
-                      <%= job&.job_category %>
-                    </span>
-                  </li>
-                </ul>
+
+            <% if job.job_category.present? %>
+              <div class="col-12 col-md-6 col-lg-5 text-center text-md-right">
+                <div class="col-12 p-0">
+                  <ul class="list-unstyled m-0">
+                    <li class="d-inline-block">
+                      <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
+                        <!-- <img src="images/feeds/black-suitcase.svg" class="img-fluid mr-2" alt="share"> -->
+                        <%= image_tag(image_path('black-suitcase.svg'), class: "img-fluid mr-2") %>
+                        <%= job&.job_category %>
+                      </span>
+                    </li>
+                  </ul>
+                </div>
               </div>
-            </div>
+            <% end %>
             <div class="col-12 my-2 my-md-0">
               <ul class="list-unstyled m-0 mt-2">
                 <li class="d-block mb-2">
@@ -44,13 +47,15 @@
                     </p>
                   </li>
                 <% end %>
-                <li class="d-block mb-2">
-                  <p class="m-0 f-12 f-mon-med txt-black">
-                    <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/placeholder.svg" alt="placeholder"> -->
-                    <%= image_tag(image_path('placeholder.svg'), class: "img-fluid w-15 mr-2") %>
-                    <%= job&.location%>
-                  </p>
-                </li>
+                <% if job.location.present? %>
+                  <li class="d-block mb-2">
+                    <p class="m-0 f-12 f-mon-med txt-black">
+                      <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/placeholder.svg" alt="placeholder"> -->
+                      <%= image_tag(image_path('placeholder.svg'), class: "img-fluid w-15 mr-2") %>
+                      <%= job&.location%>
+                    </p>
+                  </li>
+                <% end %>
                 <li class="d-block mb-2">
                   <p class="m-0 f-12 f-mon-med txt-black">
                     <!-- <img class="img-fluid w-15 mr-2" src="images/feeds/clock.svg" alt="clock"> -->
