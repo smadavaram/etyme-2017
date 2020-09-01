@@ -1,3 +1,4 @@
+
 # frozen_string_literal: true
 
 class Company::BaseController < ApplicationController
@@ -12,6 +13,12 @@ class Company::BaseController < ApplicationController
     #   true
     # else
     #   flash[:notice] = 'You are not Authorized to Acess this Page'
+    #   redirect_to dashboard_path
+    # end
+    # if current_user.has_permission(permission) || current_user.has_permission("manage_all") || current_user.is_owner?
+    #   true
+    # else
+    #   flash[:notice] = 'You are not Authorized to Access this Page'
     #   redirect_to dashboard_path
     # end
   end

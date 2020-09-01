@@ -47,7 +47,7 @@
           </div>
         </div>
 
-        <div class="row intro-text desktop_content" style="text-align: center; display: inherit">
+        <div class="row intro-text desktop_content">
           <img width="20px" height="19px" src="<%= image_path("static/img/business-icon.png") %>">
           <b style="color: black; padding-left: 1%"><a href="<%= register_path %>">Business Teams</a></b>&nbsp;
           |&nbsp;&nbsp;
@@ -85,42 +85,42 @@
 
 <% try_it_now = {icon: 'ti-desktop', label: 'Try It Now', url: '/users/sign_in'} %>
 <% features = [
-    {
-        title: 'Organized from Day one',
-        border_classes: 'b-l',
-        icon: 'ti-bolt',
-        description: "From the moment you get someone’s application, you’re able to manage every aspect of their HR lifecycle. Onboarding to invoicing payroll - one amazing platform."
-    },
-    {
-        title: 'HR Paperwork',
-        border_classes: 'b-l b-t',
-        icon: 'icon-diamond',
-        description: "Keep a full bench of contractors in electronic files, including all required paperwork, background & reference checks, and payroll information."
-    },
-    {
-        title: 'Automated Payment Platform',
-        border_classes: 'b-r b-l b-t',
-        icon: 'icon-credit-card',
-        description: "From invoicing customers to paying contractors, your entire payment system is managed through eTyme. With a single dashboard, you manage your entire payment lifecycle."
-    },
-    {
-        title: 'Total Collaboration',
-        border_classes: 'b-r b-t',
-        icon: 'icon-mailbox',
-        description: "Instant messaging, call automation, bulk notifications, and collaboration platforms, all contained in a single space - eTyme. No need for multiple programs to manage your team."
-    },
-    {
-        title: 'Easy Integrations',
-        border_classes: 'b-r',
-        icon: 'icon-directions',
-        description: "eTyme plays perfectly with all your existing programs and apps, including Quickbooks, Salesforce, and more. Add everything you need with ease."
-    },
-    {
-        title: 'Total Customer Support',
-        border_classes: 'b-l',
-        icon: 'icon-telephone',
-        description: "Our team is available 24 hours a day to answer questions and guide you through all of the thousands of features that eTyme provides."
-    },
+  {
+    title: 'Organized from Day one',
+    border_classes: 'b-l',
+    icon: 'ti-bolt',
+    description: "From the moment you get someone’s application, you’re able to manage every aspect of their HR lifecycle. Onboarding to invoicing payroll - one amazing platform."
+  },
+  {
+    title: 'HR Paperwork',
+    border_classes: 'b-l b-t',
+    icon: 'icon-diamond',
+    description: "Keep a full bench of contractors in electronic files, including all required paperwork, background & reference checks, and payroll information."
+  },
+  {
+    title: 'Automated Payment Platform',
+    border_classes: 'b-r b-l b-t',
+    icon: 'icon-credit-card',
+    description: "From invoicing customers to paying contractors, your entire payment system is managed through eTyme. With a single dashboard, you manage your entire payment lifecycle."
+  },
+  {
+    title: 'Total Collaboration',
+    border_classes: 'b-r b-t',
+    icon: 'icon-mailbox',
+    description: "Instant messaging, call automation, bulk notifications, and collaboration platforms, all contained in a single space - eTyme. No need for multiple programs to manage your team."
+  },
+  {
+    title: 'Easy Integrations',
+    border_classes: 'b-r',
+    icon: 'icon-directions',
+    description: "eTyme plays perfectly with all your existing programs and apps, including Quickbooks, Salesforce, and more. Add everything you need with ease."
+  },
+  {
+    title: 'Total Customer Support',
+    border_classes: 'b-l',
+    icon: 'icon-telephone',
+    description: "Our team is available 24 hours a day to answer questions and guide you through all of the thousands of features that eTyme provides."
+  },
 ] %>
 
 <div class="section-header-w" id="sectionFeatures">
@@ -139,24 +139,24 @@
     <div class="row no-gutters">
 
       <% features.each do |feature| %>
-        <div class="col-xl-4 col-sm-6 <%= feature[:border_classes] %> feature-cell">
-          <div class="feature-icon">
-            <i class="<%= feature[:icon] %>">
-            </i></div>
-          <h6 class="feature-title"><%= feature[:title] %></h6>
-          <% if feature[:coming] %>
-            <span class="badge badge-primary" style="background-color: #868686; margin-bottom: 10px; text-transform: uppercase;">Coming Soon</span>
+      <div class="col-xl-4 col-sm-6 <%= feature[:border_classes] %> feature-cell">
+        <div class="feature-icon">
+          <i class="<%= feature[:icon] %>">
+          </i></div>
+        <h6 class="feature-title"><%= feature[:title] %></h6>
+        <% if feature[:coming] %>
+          <span class="badge badge-primary" style="background-color: #868686; margin-bottom: 10px; text-transform: uppercase;">Coming Soon</span>
+        <% end %>
+        <div class="feature-text"><%= feature[:description] %></div>
+        <% if cta = feature[:cta] %>
+          <div class="bottom-aligned-link">
+          <%= link_to cta[:url], class: 'btn btn-primary', style: 'margin-top: 20px;', target: ('_blank' if cta[:offsite]) do %>
+            <i class="<%= cta[:icon] %>"></i>
+            <span><%= cta[:label] %></span>
           <% end %>
-          <div class="feature-text"><%= feature[:description] %></div>
-          <% if cta = feature[:cta] %>
-            <div class="bottom-aligned-link">
-              <%= link_to cta[:url], class: 'btn btn-primary', style: 'margin-top: 20px;', target: ('_blank' if cta[:offsite]) do %>
-                <i class="<%= cta[:icon] %>"></i>
-                <span><%= cta[:label] %></span>
-              <% end %>
-            </div>
-          <% end %>
-        </div>
+          </div>
+        <% end %>
+      </div>
       <% end %>
 
     </div>

@@ -30,13 +30,27 @@
         <%= render 'company/jobs/partials/forms/field', form: form, attribute: :education_list, field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Educations and Certification", class: "form-control tagsinput", value: @job.education_list.join(", ")}, note: "Education are separated with comma" %>
       </div>
       <div class="col-md-6">
+      <%= render 'company/jobs/partials/forms/select', form: form, attribute: :status, options: ["","Draft", "Bench", "Published", "Archived", "Cancelled"], field_attributes: {} %>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-lg-6">
+        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :department, options: department_list.unshift(''), field_attributes: {} %>
+      </div>
+      <div class="col-lg-6">
+        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :industry, options: industry_list.unshift(''), field_attributes: {} %>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-lg-6">
+        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :job_category, options: WORK_CATEGORIES.keys.unshift(""), field_attributes: {label:'Category'} %>
+
+      </div>
+      <div class="col-lg-6">
        <%= render 'company/jobs/partials/forms/field', form: form, attribute: :tag_list, title: "Skills", field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Skills are separated with comma", class: "form-control tagsinput", value: @job.tag_list.join(", ")}, note: "Skills are separated with comma" %>
       </div>
     </div>
     <div class="row">
-      <div class="col-lg-12">
-      <%= render 'company/jobs/partials/forms/select', form: form, attribute: :status, options: ["","Draft", "Bench", "Published", "Archived", "Cancelled"], field_attributes: {} %>
-      </div>
       <div class="col-lg-12 hidden">
         <%= render 'company/jobs/partials/forms/select', form: form, attribute: :listing_type, options: ["Job", "Training", "Service", "Product", "Blog"], field_attributes: {}, select_option: {selected: params[:type] || "Job"}, note: "If you choose \"Published\", We will show this job to all candidates in your system and will be posted on etyme. So anyone can apply. To control job applications by invitations only" unless form.object.persisted?%>
 
@@ -45,19 +59,6 @@
     <div class="row">
       <div class="col-lg-6">
         <%= render 'company/jobs/partials/forms/field', form: form, attribute: :location, field_type: :text_field, field_attributes: {id: 'google_search_location',autocomplete: 'off'} %>
-      </div>
-      <div class="col-lg-6">
-        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :job_category, options: WORK_CATEGORIES.keys.unshift(""), field_attributes: {label:'Category'} %>
-
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="col-lg-6">
-        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :industry, options: industry_list.unshift(''), field_attributes: {} %>
-      </div>
-      <div class="col-lg-6">
-        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :department, options: department_list.unshift(''), field_attributes: {} %>
       </div>
     </div>
     <div class="row">
@@ -76,13 +77,21 @@
         <%= render 'company/jobs/partials/forms/select', form: form, attribute: :job_type, options: ["","Contract", "Full Time", "Contract To Hire"], field_attributes: {} %>
       </div>
     </div>
-    <div class="d-flex">
-      <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Cover Image", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true %>
-      <p class="d-inline-block uploaded_file_name">No Image Selected</p>
+    <div class="row">
+      <div class="col-lg-6">
+        <div class="form-group mt-25">
+          <div class="d-flex">
+            <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Cover Image", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true %>
+            <p class="d-inline-block uploaded_file_name">No Image Selected</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <%= render 'company/jobs/partials/forms/field', form: form, attribute: :source,title: "Source", field_type: :text_field, field_attributes: {autofocus: true}, note: "Please Add Original Link" %>
+      </div>
     </div>
     <div class="mt-2"></div>
     <%#= render 'company/jobs/partials/forms/field', form: form, attribute: :description, field_type: :text_area, field_attributes: {} %>
- <%= render 'company/jobs/partials/forms/field', form: form, attribute: :source,title: "Source", field_type: :text_field, field_attributes: {autofocus: true}, note: "Please Add Original Link" %>
     <div class="custome">
       <legend><span>Add Additional Requirements</span></legend>
       <div class="row">
@@ -90,7 +99,7 @@
           <div class="custome-filed-item">
             <div class="clearfix">
               <div class="form-group">
-                <% form.fields_for :job_requirements do |jr| %>
+                <%= form.fields_for :job_requirements do |jr| %>
                   <%= render 'company/jobs/partials/job_requirement_fields', f: jr %>
                 <% end %>
               </div>
@@ -114,4 +123,108 @@
     <% end %>
   </div>
 
+<% end %>
+<style type="text/css">
+  .mt-25 {
+    margin-top: 25px;
+  }
+  .trix-content .attachment image, .trix-content .attachment img{
+    max-width: 350px !important;
+  }
+</style>
+<% content_for :scripts do %>
+  <script type="text/javascript">
+    $(document).ready(function() {
+      pageSetUp();
+      // Job End Date
+      $( document ).on("click", "#company_video", function(){
+        $('#job_comp_video').val("#{current_company.video}");
+        $('#company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='remove_company_video'><i class='fa fa-times'></i></button>");
+        $('#company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='added_company_video'><i class='fa fa-check'> Added video</i></button>");
+        $('#company_video').remove();
+      });
+
+      $( document ).on("click", "#remove_company_video", function(){
+        $('#job_comp_video').val("");
+        $('#remove_company_video').after("<button name='button' type='button' class='btn btn-primary btn-lg' id='company_video'>Company Video</button>");
+        $('#remove_company_video').remove();
+        $('#added_company_video').remove();
+      });
+
+      $('#job_end_date , #job_start_date').datepicker({
+        dateFormat : 'mm/dd/yy',
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>',
+      });
+
+      //job_video_file
+      $(document).on('change', '#job_video_file',  function () {
+          $(this).parent('.videp-btn').siblings('span').text($(this).val().replace(/([^\\]*\\)*/,''))
+      });
+    });
+    // $(".multi-ans-div").hide();
+    var wrapper         = $(".input_fields_wrap"); //Fields wrapper
+    var add_button      = $(".add_field_button"); //Add button ID
+
+    $(document).on('click', ".add_field_button",  function () {
+      $(this).parent(wrapper).find('.checkbox-option').append('<div><input type="text" name="mytext"/><a href="javascript:void(0);" class="remove_field">Remove</a></div>'); //add input box
+    });
+    $(document).on('click', '.remove_field',  function () {
+      $(this).parent('div').remove();
+    });
+    $(document).on('change', '.que-ans-type',  function () {
+      console.log($('option:selected', this).text())
+        if($('option:selected', this).text() == "Multiple Answer"){
+          $('.multi-ans-div').css({ display: "block" });
+        }
+        else{
+          $('.multi-ans-div').css({ display: "none" });
+          // $('.multi-ans-div').addClass('hidden');
+        }
+    });
+    $(document).on('click', '.save-req',  function (e) {
+      if($(e.target).closest(".req_form").find('.question').val() == ''){
+        alert("Job requirement blank not allow");
+        return false;
+      }
+      else{
+        $(e.target).closest(".nested-fields").find('.question-req').css({ display: "block" });
+        $(e.target).closest(".nested-fields").find('.question-req p').html($(e.target).closest(".req_form").find('.question').val())
+        $(e.target).closest(".nested-fields").find('.req_form').css({ display: "none" });
+        selectedValue = $(e.target).closest(".nested-fields").find('.que-ans-type')
+        if($('option:selected', selectedValue).text() == "Free Text"){
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.free-text').css({ display: "block" });
+        }
+        else if($('option:selected', selectedValue).text() == "Multiple Answer"){
+          $(e.target).closest(".nested-fields").find('.free-text').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "block" });
+            if($(e.target).closest(".req_form").find('.allow-multi-ans').prop("checked") == true){
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').empty();
+              $(e.target).closest(".req_form").find("input[name='mytext']").each(function() {
+                 $(e.target).closest(".nested-fields").find('.multiple-fiels-box').append("<div><input type='checkbox' class='set-checkbox'> "+$(this).val()+"</div>");
+              });
+            }else{
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').empty();
+              $(e.target).closest(".req_form").find("input[name='mytext']").each(function() {
+                   $(e.target).closest(".nested-fields").find('.multiple-fiels-box').append("<div><input type='radio' name='set-option' class='set-checkbox'> "+$(this).val()+"</div>");
+              });
+            }
+        }
+        else{
+            $(e.target).closest(".nested-fields").find('.free-text').css({ display: "none" });
+            $(e.target).closest(".nested-fields").find('.Attach-file').css({ display: "block" });
+            $(e.target).closest(".nested-fields").find('.multiple-fiels-box').css({ display: "none" });
+        }
+         ans = $(e.target).closest(".req_form").find("input[name='mytext']").serialize();
+         $(e.target).closest(".req_form").find(".multi-option-text").val(ans);
+       }
+    });
+    $(document).on('click', '.filed-edit',  function (e) {
+      $(e.target).closest(".nested-fields").find('.question-req').css({ display: "none" });
+      $(e.target).closest(".nested-fields").find('.req_form').css({ display: "block" })
+    });
+  </script>
 <% end %>

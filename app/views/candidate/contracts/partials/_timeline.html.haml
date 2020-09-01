@@ -10,7 +10,8 @@
           - if ['TimesheetSubmit'].include? cc.cycle_type
             = link_to "Submit Timesheet", submit_timesheet_candidate_contracts_path(timesheet_id: cc.cyclable.id), remote: :true,:style=>'color:#FFFFFF;'
           - else
-            = cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
+
+            = cc.cycle_type.tableize.split("_").join(" ").gsub("approves", "approve").capitalize
         %span.due-txt
           #{cc&.doc_date&.strftime("%d %B %Y")}
         %br
@@ -29,8 +30,9 @@
             .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
-            .col-sm-2.text-center #{cc&.contract&.sell_contract.expected_hour}
-            .col-sm-8.text-center
+            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+            .col-sm-7.text-center #{cc.id}
+            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
             
 
 .col-md-4
@@ -48,12 +50,12 @@
           - if ['Salary clear', 'Salary process', 'Salary calculation'].include? cc.cycle_type
             = link_to cc.note, final_salary_salaries_path(cycle_id: cc.id, note: cc.note)
           - else
-            = cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
+            = cc.cycle_type.tableize.split("_").join(" ").gsub("approves", "approve").capitalize
         %span.due-txt
           #{cc&.doc_date&.strftime("%d %B %Y")}
         %br
         %br
-        Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
+        Contract ID - #{cc.contract.id} - #{cc.contract&.project_name}
         %p.mb-0.submitted-name
           %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
           %b
@@ -66,9 +68,11 @@
             .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
-            .col-sm-2.text-center #{cc&.contract&.sell_contract.expected_hour}
-            .col-sm-8.text-center
-              / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
+            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+            .col-sm-7.text-center #{cc.id}
+            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
+
+            / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
             / .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}
 
 
@@ -83,10 +87,12 @@
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id, status: 'completed')
 
       .timeline-block
+        = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
         %span.badge.status-badge.skyblue-badge
           = cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
         %span.due-txt
           #{cc.end_date.utc.strftime("%d %B %Y")}
+        %br
         %br
         %br
         Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
@@ -100,7 +106,8 @@
             .col-sm-7.text-center Cycle
             .col-sm-2.text-center Actual
           .row
-            .col-sm-2.text-center #{cc&.contract&.sell_contract.expected_hour}
-            .col-sm-8.text-center
-              / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
+            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+            .col-sm-7.text-center #{cc.id}
+            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
+            / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
             / .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}
