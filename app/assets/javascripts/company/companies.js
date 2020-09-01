@@ -31,7 +31,7 @@ $(".close_slick").click(function () {
 $("#slideshow").slick({
     infinite: false,
     arrows: true,
-    prevArrow: "<span class='next'><i class='icon-feather-arrow-left'> Previous</i></span>",
+    prevArrow: "<span class='next'><i class='icon-feather-arrow-left'></i>Previous</span>",
     nextArrow: "<span class='pre'>&nbsp; Next<i class='icon-feather-arrow-right'></i></span>"
     // autoplay: true,
 });
