@@ -10,19 +10,19 @@
         %h4.modal-title Apply Now
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"} ×
       .modal-body
-        %section.panel-default
+        %section{class: 'panel-default p-5'}
           .row#apply_as_links
-            .col-md-8.margin-auto.mb-10
+            .col-6.margin-auto.text-center
               -#= link_to "Candidate", static_job_job_appication_without_registeration_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary btn-block"
-              %button{id: 'candidate_jb_apply', class: 'btn btn-block btn-primary' }Candidate
-            .col-md-8.margin-auto.mb-10
-              = link_to "Recruiter", static_job_job_appication_with_recruiter_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary btn-block"
+              %button{id: 'candidate_jb_apply', class: 'common-blue-btn btn w-100' }Candidate
+            .col-6.margin-auto.text-center
+              = link_to "Recruiter", static_job_job_appication_with_recruiter_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"common-blue-btn btn w-100"
 
-          .col-sm-12#candidate_jbapply_links{ style: 'display: none;', data: { apply_with_without_register: 'true' } }
-            .col-sm-8.margin-auto.mb-10
-              %a{ class: 'btn btn-primary btn-block', href: new_candidate_session_path}Apply with Registration
-            .col-sm-8.margin-auto.mb-10
-              = link_to "Apply Without Registration", static_job_job_appication_without_registeration_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"button btn btn-primary pull-right btn-block"
+          .row#candidate_jbapply_links{ style: 'display: none;', data: { apply_with_without_register: 'true' } }
+            .col-6.margin-auto.text-center
+              %a{ class: 'common-blue-btn btn w-100', href: new_candidate_session_path}Apply with Registration
+            .col-6.margin-auto.text-center
+              = link_to "Apply Without Registration", static_job_job_appication_without_registeration_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"common-blue-btn btn w-100"
             .col-sm-12{ style: "display:none;", data: { apply_with_register: 'true' } }
               %hr
               .col-sm-5

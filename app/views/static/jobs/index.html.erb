@@ -29,6 +29,11 @@
             </div>
             <div class="col-12 col-md-8 col-lg-6 mb-2 mb-md-0 login-btns text-right">
               <% if current_candidate.present? %>
+                <div class="d-inline-block mx-2 mx-lg-3 dropdown">
+                  <button class="btn btn-register text-white f-18 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
+                    <%= link_to "Dashboard", candidate_candidate_dashboard_path, class: "text-white" %>
+                  </button>
+                </div>
                 <div class="d-none d-md-inline-block log-prof">
                   <%= link_to candidate_candidate_dashboard_path do %>
                     <%= user_image(current_candidate, style: 'width: 35px; height: 35px; margin-top: 10px;', class: 'data-table-image mr-2', title: "#{current_candidate.full_name}") %>
@@ -38,6 +43,11 @@
                   </div>
                 </div>
               <% elsif current_user.present? %>
+                <div class="d-inline-block mx-2 mx-lg-3 dropdown">
+                  <button class="btn btn-register text-white f-18 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
+                    <%= link_to "Dashboard", dashboard_path, class: "text-white" %>
+                  </button>
+                </div>
                 <div class="d-none d-md-inline-block log-prof">
                   <%= link_to dashboard_path do %>
                     <%= user_image(current_user, style: 'width: 35px; height: 35px; margin-top: 10px;', class: 'data-table-image mr-2', title: "#{current_user.full_name}") %>
