@@ -5,29 +5,32 @@
     
     - @contract_cycles.pending.overdue.order(start_date: :desc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
-      .timeline-block
-        %span.badge.status-badge{style: "background-color: #{cc.color}"}
-          =cyclable_link(cc)
-        %span.due-txt
-          #{cc&.doc_date&.strftime("%d %B %Y")}
-        %br
-        %br
-        Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
-        %p.mb-0.submitted-name
-          %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contract.company&.full_name}
-          %b
-            = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
-        %p Client: #{cc&.contract&.company&.full_name}
-        %p Tax type: #{cc.contract.buy_contract.contract_type}
-        - if cc.note == 'Timesheet submit'
-          .row.border-top.pt-2
-            .col-sm-2.text-center Plan
-            .col-sm-7.text-center Cycle
-            .col-sm-2.text-center Actual
-          .row
-            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
-            .col-sm-7.text-center{style: "font-size: x-small"} #{cc.start_date.utc.strftime("%d %B %Y")} - #{cc.end_date.utc.strftime("%d %B %Y")}
-            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
+
+      - if cc.cycle_of_type == "BuyContract" || cc.cycle_type == "InvoiceGenerate"
+        .timeline-block
+          %span.badge.status-badge{style: "background-color: #{cc.color}"}
+            =cyclable_link(cc)
+          %span.due-txt
+            #{cc&.doc_date&.strftime("%d %B %Y")}
+          %br
+          %br
+          Contract ID - #{cc.contract.id} -  #{cc.contract&.project_name}
+          %p.mb-0.submitted-name
+            %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contract.company&.full_name}
+            %b
+              = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
+          %p Client: #{cc&.contract&.company&.full_name}
+          %p #{cc.start_date.utc.strftime("%d %B %Y")} - #{cc.end_date.utc.strftime("%d %B %Y")}
+          %p Tax type: #{cc.contract.buy_contract.contract_type}
+          - if cc.note == 'Timesheet submit'
+            .row.border-top.pt-2
+              .col-sm-2.text-center Plan
+              .col-sm-7.text-center Cycle
+              .col-sm-2.text-center Actual
+            .row
+              .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+              .col-sm-7.text-center #{cc.id}
+              .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
 
             
 
@@ -39,31 +42,32 @@
 
     - @contract_cycles.includes(:company).pending.todo.order(start_date: :asc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
-      .timeline-block
-        = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
-        %br
-        %span.badge.status-badge{style: "background-color: #{cc.color}"}
-          =cyclable_link(cc)
-        %span.due-txt
-          #{cc&.doc_date&.strftime("%d %B %Y")}
-        %br
-        %br
-        Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
-        %p.mb-0.submitted-name
-          %b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize unless cc.present?}"
-          %b
-            = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
-        %p Client: #{cc&.contract&.company&.full_name}
-        %p Tax type: #{cc.contract.buy_contract.contract_type}
-        - if cc.note == 'Timesheet submit'
-          .row.border-top.pt-2
-            .col-sm-2.text-center Plan
-            .col-sm-7.text-center Cycle
-            .col-sm-2.text-center Actual
-          .row
-            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
-            .col-sm-7.text-center{style: "font-size: x-small"} #{cc.start_date.utc.strftime("%d %B %Y")} - #{cc.end_date.utc.strftime("%d %B %Y")}
-            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
+      - if cc.cycle_of_type == "BuyContract" || cc.cycle_type == "InvoiceGenerate"
+        .timeline-block
+          = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
+          %br
+          %span.badge.status-badge{style: "background-color: #{cc.color}"}
+            =cyclable_link(cc)
+          %span.due-txt{style: "color: #{cc.color}"}
+            #{cc&.doc_date&.strftime("%d %B %Y")}
+          %br
+          %br
+          Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
+          %p.mb-0.submitted-name
+            %b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize unless cc.present?}"
+            %b
+              = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
+          %p Client: #{cc&.contract&.company&.full_name}
+          %p Tax type: #{cc.contract.buy_contract.contract_type}
+          - if cc.note == 'Timesheet submit'
+            .row.border-top.pt-2
+              .col-sm-2.text-center Plan
+              .col-sm-7.text-center Cycle
+              .col-sm-2.text-center Actual
+            .row
+              .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+              .col-sm-7.text-center #{cc.id}
+              .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
       
 .col-md-4
   .timeline-blockwrap
@@ -73,40 +77,43 @@
     
     - @contract_cycles.includes(:company).completed.order(id: :asc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id, status: 'completed')
+      - unless cc.cycle_of_type == "SellContract"
+        .timeline-block
+          = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
 
-      .timeline-block
-        %span.badge.status-badge{style: "background-color: #{cc.color}"}
-          = cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
-        %span.due-txt
-          #{cc.end_date.utc.strftime("%d %B %Y")}
-        %br
-        %br
-        Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
-        %p.mb-0.submitted-name
-          -#%b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize  }"
-          - if cc.buy_contract?
-            - if cc.candidate.present? && cc.candidate.full_name.present?
-              %b= cc.candidate.full_name.capitalize
-            - elsif cc.company.present? && cc.company.full_name.present?
-              %b= cc.company.full_name.capitalize
-            - elsif cc.user.present? && cc.user.full_name.present?
-              %b= cc.user.full_name.capitalize
-            - else
-              %b= 'N/A'
-        %p Client: #{cc&.contract&.company&.full_name}
-        %p Tax type: #{cc.contract.buy_contract.contract_type}
-        - if cc.note == 'Timesheet submit'
-          .row.border-top.pt2
-            .col-sm-2.text-center Plan
-            .col-sm-7.text-center Cycle
-            .col-sm-2.text-center Actual
-          .row
-            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
-            .col-sm-7.text-center{style: "font-size: x-small"} #{cc.start_date.utc.strftime("%d %B %Y")} - #{cc.end_date.utc.strftime("%d %B %Y")}
-            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
+          %span.badge.status-badge{style: "background-color: #{cc.color}"}
+            = cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
+          %span.due-txt
+            #{cc.end_date.utc.strftime("%d %B %Y")}
+          %br
+          %br
+          %br
+          Contract ID - #{cc.contract.id} - #{cc.contract&.project_name}
+          %p.mb-0.submitted-name
+            -#%b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize  }"
+            - if cc.buy_contract?
+              - if cc.candidate.present? && cc.candidate.full_name.present?
+                %b= "Name: #{cc.candidate.full_name.capitalize}"
+              - elsif cc.company.present? && cc.company.full_name.present?
+                %b= "Name: #{cc.company.full_name.capitalize}"
+              - elsif cc.user.present? && cc.user.full_name.present?
+                %b= "Name: #{cc.user.full_name.capitalize}"
+              - else
+                %b= 'N/A'
+          %p Client: #{cc&.contract&.company&.full_name}
+          %p Tax type: #{cc.contract.buy_contract.contract_type}
+          - if cc.note == 'Timesheet submit'
+            .row.border-top.pt2
+              .col-sm-2.text-center Plan
+              .col-sm-7.text-center Cycle
+              .col-sm-2.text-center Actual
+            .row
+              .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+              .col-sm-7.text-center #{cc.id}
+              .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
 
 
--#.timesheet_pagination_wrap.w-100.mt-3
--#  .pagination_label
--#    = page_entries_info @contract_cycles
--#  = will_paginate(@contract_cycles, {previous_label: "Previous",next_label: "Next",inner_window: 1,class: 'timeline_pagination_links',link_options: {'data-remote': true}})
+  -#.timesheet_pagination_wrap.w-100.mt-3
+  -#  .pagination_label
+  -#    = page_entries_info @contract_cycles
+  -#  = will_paginate(@contract_cycles, {previous_label: "Previous",next_label: "Next",inner_window: 1,class: 'timeline_pagination_links',link_options: {'data-remote': true}})

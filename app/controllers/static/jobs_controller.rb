@@ -12,6 +12,7 @@ class Static::JobsController < ApplicationController
   def index
     session[:previous_url] = request.url
     params[:category].present? ? (add_breadcrumb params[:category].titleize, static_jobs_path) : ''
+    render :layout => "kulkakit"
   end
 
   def get_attr_value(data_array, look)
@@ -154,15 +155,53 @@ class Static::JobsController < ApplicationController
     p '3333333333333333333333333333333333'
   end
 
+  def filter_jobs
+    @current_company = Company.find_by(slug: request.subdomain)
+    if request.subdomain == "app"
+      if params[:selected_categories].present?
+        @job_all = Job.active.is_public.where(job_category: params[:selected_categories]).paginate(page: params[:page], per_page: 50) || []
+      else
+        @job_all = Job.active.is_public.paginate(page: params[:page], per_page: 50) || []
+      end
+    else
+      if params[:selected_categories].present?
+        @job_all = @current_company.jobs.active.is_public.where(job_category: params[:selected_categories]).paginate(page: params[:page], per_page: 50) || []
+      else
+        @job_all = @current_company.jobs.active.is_public.paginate(page: params[:page], per_page: 50) || []
+      end
+    end
+  end
+
   private
 
   def set_jobs
-    @search = params[:category].present? ? Job.active.is_public.where('job_category =?', params[:category]).search(params[:q]) : Job.active.is_public.search(params[:q])
-    @jobs = @search.result(distinct: true).paginate(page: params[:page], per_page: 4)
-    @search_q = Job.is_public.active.search(params[:q])
-    @jobs_groups = @search_q.result.group_by(&:job_category)
-    @job_all = Job.is_public
-    @job_categories =  @job_all.group_by(&:job_category)
+    @current_company = Company.find_by(slug: request.subdomain)
+    if request.subdomain == "app"
+      @search = params[:category].present? ? Job.active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : Job.active.is_public.ransack(params[:q])
+      jobs = @search.result(distinct: true).paginate(page: params[:page], per_page: 50)
+      # @search_q = Job.is_public.active.ransack(params[:q])
+      # @jobs_groups = @search_q.result.group_by(&:job_category)
+      if jobs.present?
+        @job_all = jobs
+      else
+        @job_all = Job.active.is_public.paginate(page: params[:page], per_page: 50) || []
+      end
+      @job_categories =  Job.active.is_public.pluck(:job_category).uniq
+    elsif @current_company.present?
+      
+      @search = params[:category].present? ? @current_company.jobs.active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : @current_company.jobs.active.is_public.ransack(params[:q])
+      jobs = @search.result(distinct: true).paginate(page: params[:page], per_page: 50)
+      if jobs.present?
+        @job_all = jobs
+      else
+        @job_all = @current_company.jobs.active.is_public.paginate(page: params[:page], per_page: 50) || []
+      end
+      @job_categories = @current_company.jobs.active.is_public.pluck(:job_category).uniq
+    else
+      @search = Job.active.is_public.ransack(params[:q])
+      @job_all = []
+      @job_categories = []
+    end
   end
 
   def find_job

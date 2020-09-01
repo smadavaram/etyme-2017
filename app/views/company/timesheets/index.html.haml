@@ -63,8 +63,8 @@
                   %th From & To Date
                   %th Plan. Hr
                   %th Act. Hr
-                  %th Log
-                  %th Reference
+                  %th Comments
+                  %th Attachment
                   %th Actions
               %tbody
                 - @timesheets.each do |ts|
@@ -77,8 +77,8 @@
                     %td= "#{ts.start_date} - #{ts.end_date}"
                     %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs.nil? ? '-' : ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs * frequency_to_num(ts.contract_cycle.cycle_frequency)
                     %td= ts.calculate_total_time
-                    %td= 'TBD'
-                    %td= 'TBD'
+                    %td= ts&.transactions.first&.memo
+                    %td= link_to 'View', ts.transactions.first.file, target: "_blank" unless ts.transactions.first.file.nil?
                     %td
                       - if ts.submitted?
                         = link_to "<i class='fa fa-check '></i>".html_safe,timesheet_approve_path(ts),class:'c_green',title: 'Approve Timesheet', :data => {:confirm => 'Are you sure?'}

@@ -24,7 +24,7 @@ Rails.application.routes.draw do
   get 'register' => 'companies#new'
   get 'signin', to: 'static#signin'
   post 'signin', to: 'static#signin'
-  get 'signup', to: 'static#signup'
+  # get 'signup', to: 'static#signup'
   get 'domain_suggestion', to: 'static#domain_suggestion'
   get 'privacy_policy', to: 'static#privacy_policy'
   get 'terms_of_use', to: 'static#terms_of_use'
@@ -70,6 +70,7 @@ Rails.application.routes.draw do
       # get 'job_appication_without_registeration' ,to: 'job_applications#job_appication_without_registeration'
       post :job_appication_without_registeration
       post :job_appication_with_recruiter
+      post :filter_jobs, on: :collection
       # post :import_job
     end
     resources :companies, only: [] do
@@ -246,7 +247,7 @@ Rails.application.routes.draw do
 
   class Subdomain
     def self.matches?(request)
-      request.subdomain.present? && request.subdomain != 'www' && request.subdomain != 'app'
+      request.subdomain.present? && request.subdomain != 'www' && request.subdomain != 'app-etyme'
     end
   end
 

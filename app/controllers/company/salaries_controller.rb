@@ -29,7 +29,7 @@ class Company::SalariesController < Company::BaseController
   end
 
   def index
-    @tab = params[:tab].present? ? params[:tab] : 'calculate'
+    @tab = params[:tab].present? ? params[:tab] : 'commission'
     add_breadcrumb "#{@tab} Salaries", salaries_path
 
     @start_date = params[:start_date]
@@ -65,7 +65,7 @@ class Company::SalariesController < Company::BaseController
 
       cc.cyclable.contract_expenses = cc.contract.expenses.where(bill_type: "company_expense").map{|e|  e.total_amount if e.salary_ids.include? ( (cc.id.to_s) )  }.compact.sum
       cc.cyclable.salary_advance = cc.contract.expenses.where(bill_type: "salary_advanced").map{|e|  e.total_amount if e.salary_ids.include? ( (cc.id.to_s) )  }.compact.sum
-      cc.cyclable.total_amount = (cc.cyclable.approved_amount || 0) + cc.cyclable.contract_expenses  +  cc.cyclable.salary_advance + (cc.cyclable.pending_amount || 0)
+      cc.cyclable.total_amount = (cc.cyclable.approved_amount || 0) + cc.cyclable.contract_expenses  +  cc.cyclable.salary_advance + (cc.cyclable.pending_amount || 0) + (cc.cyclable&.commission_amount)
       cc.cyclable.save
       expenses.each do |expense|
         cc.cyclable.salary_items.build(salaryable: expense).save if expense.salary_ids.include? ( (cc.id.to_s) )
@@ -164,7 +164,7 @@ class Company::SalariesController < Company::BaseController
       next_salary = Salary.where(end_date: salary.end_date + 1.month, contract_id: salary.contract_id).first
       next_salary&.update(pending_amount: salary.balance)
       salary.total_amount = value[:salary_calculated].to_i
-      current_company.etyme_transactions.create!(amount: salary.total_amount * -1, transaction_type: 'negative', salary_id: salary.id, contract_id: salary.contract_id )
+      # current_company.etyme_transactions.create!(amount: salary.total_amount * -1, transaction_type: 'Salary', salary_id: salary.id, contract_id: salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: salary.candidate_id)
       salary.status = 'processed'
       salary.save
       cc = ContractCycle.find_by(id: salary.sp_cycle_id)
@@ -216,7 +216,7 @@ class Company::SalariesController < Company::BaseController
     respond_to do |format|
       if params[:payment].to_f + @salary.billing_amount <= @salary.total_amount
         if @salary.update(billing_amount: params[:payment].to_f + @salary.billing_amount)
-          current_company.etyme_transactions.create!(amount: @salary.billing_amount * -1, transaction_type: 'negative', salary_id: @salary.id, contract_id: @salary.contract_id )
+          current_company.etyme_transactions.create!(amount: (params[:payment].to_f ) * -1, transaction_type: 'Salary', salary_id: @salary.id, contract_id: @salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: @salary.candidate_id, is_processed: true)
           flash.now[:success] = 'Payment is added to salary'
           format.js {}
         else
@@ -280,11 +280,17 @@ class Company::SalariesController < Company::BaseController
   end
 
   def calculate_salary_commission
-    Salary.open.where(id: params[:ids]).each do |salary|
-      salary.commission_amount = get_commission(salary) unless salary.commission_calculated
-      send_commission(salary, salary.contract.buy_contract) unless salary.commission_calculated
-      salary.save
+    Salary.where(id: params[:ids]).each do |salary|
+      unless salary.commission_calculated
+        salary.commission_amount = get_commission(salary)
+        send_commission(salary, salary.contract.buy_contract) unless salary.commission_calculated
+        salary.total_amount = salary.total_amount + salary.commission_amount
+        # current_company.etyme_transactions.create!(amount: (salary.commission_amount * -1), transaction_type: "commission", salary_id: salary.id, contract_id: salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: salary.candidate_id, is_processed: false)
+        salary.save
+      end
     end
+
+
     flash[:success] = 'Commissions has been calculated and added for further processing'
     redirect_to salaries_path(tab: 'calculate')
   end
@@ -355,13 +361,16 @@ class Company::SalariesController < Company::BaseController
   end
 
   def get_commission(salary)
-    amount = 0
-    salary.earned_commissions.each do |commission|
-      if commission.salaried!
-        amount += commission.total_amount
-        salary.commission_ids << commission.id
-      end
-    end
+    comm = ContractSaleCommision.find_by(buy_contract_id: salary.contract_id)
+    amount = comm.frequency == 'perhour' ? (salary.approved_amount * comm.rate) / 100.0 : comm.limit
+    # amount = 0
+    # salary.earned_commissions.each do |commission|
+    #   if commission.salaried!
+    #     amount += commission.total_amount
+    #     salary.commission_ids << commission.id
+    #   end
+    # end
+
     amount
   end
 

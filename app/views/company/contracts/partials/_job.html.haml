@@ -245,7 +245,7 @@
                 .plain-select
                   = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
         .col-md-12
-          .form-group
+          .form-group.contract_client
             -#%h8.mb-4.d-inline-block Client Contacts
             %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
             .form-group
@@ -255,7 +255,6 @@
                   = select_tag "company_contacts_ids[]", [] ,class:"w-100", id: 'selectize_sell_client_contacts'
                   -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
         %hr
-        %h6 Contacts
         %br/
         .row.hr_reporting_admins_table_body
         -# - unless @contract.new_record?
@@ -305,6 +304,7 @@
     {
         $('.contract_client').show();
     }
+    $('.contract_client').hide();
     function save_hr_admins_manager(e){
       // e.preventDefault();
       let contract_id = $('#contract_id').val();

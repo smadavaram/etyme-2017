@@ -182,6 +182,9 @@
                                       Select date
                                     .select
                                       = sc.text_field :ts_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ts_date_1&.strftime('%m/%d/%Y')
+                                    %label.control-label.bottom-padding
+                                      End of month?
+                                      = sc.check_box :ts_end_of_month
                                   %div{:class => "form-group twice-month #{sc.object.time_sheet != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
@@ -191,10 +194,10 @@
 
                             .row
                               .col-md-12.d-flex
-                                #collaborators
-                                  = render 'company/contracts/partials/approval', approvals: @contract.sell_contract.approvals.where(approvable_type: 'timesheet')
-                                %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#collaborator_modal", id: 'timesheet', style: "color: #fff !important"}
-                                  Add CC
+                                -##collaborators
+                                -#  = render 'company/contracts/partials/approval', approvals: @contract.sell_contract.approvals.where(approvable_type: 'timesheet')
+                                -#%a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#collaborator_modal", id: 'timesheet', style: "color: #fff !important"}
+                                -#  Add CC
                             %br/
                             .row
                               .col-md-6
@@ -238,6 +241,9 @@
                                       Select date
                                     .select
                                       = sc.text_field :ce_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ce_date_1&.strftime('%m/%d/%Y')
+                                    %label.control-label.bottom-padding
+                                      End of month?
+                                      = sc.check_box :ce_end_of_month
                                   %div{:class => "form-group twice-month #{sc.object.client_expense != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
@@ -319,6 +325,10 @@
                                       Select date
                                     .select
                                       = sc.text_field :ta_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ta_date_1&.strftime('%m/%d/%Y')
+                                    %label.control-label.bottom-padding
+                                      End of month?
+                                      = sc.check_box :ta_end_of_month
+
                                   %div{:class => "form-group twice-month #{sc.object.ts_approve != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
@@ -368,6 +378,9 @@
                                       Select date
                                     .select
                                       = sc.text_field :ce_ap_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ce_ap_date_1&.strftime('%m/%d/%Y')
+                                    %label.control-label.bottom-padding
+                                      End of month?
+                                      = sc.check_box :ce_ap_end_of_month
                                   %div{:class => "form-group twice-month #{sc.object.ce_approve != 'twice a month' ? 'hidden' : ''}"}
                                     %label.control-label
                                       Select second date
@@ -415,6 +428,10 @@
                               Select date
                             .select
                               = sc.text_field :invoice_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.invoice_date_1&.strftime('%m/%d/%Y')
+                            %label.control-label.bottom-padding
+                              End of month?
+                              = sc.check_box :invoice_end_of_month
+                            %br
                           %div{:class => "form-group twice-month #{sc.object.invoice_terms_period != 'twice a month' ? 'hidden' : ''}"}
                             %label.control-label
                               Select second date
@@ -427,9 +444,9 @@
                     .row
                       .col-md-12.d-flex
                         #invoice
-                          = render 'company/contracts/partials/approval', approvals: @contract.sell_contract.approvals.where(approvable_type: 'invoice')
-                        %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#collaborator_modal", id: 'invoice', style: "color: #fff !important;"}
-                          Add CC
+                        -#   = render 'company/contracts/partials/approval', approvals: @contract.sell_contract.approvals.where(approvable_type: 'invoice')
+                        -# %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#collaborator_modal", id: 'invoice', style: "color: #fff !important;"}
+                        -#   Add CC
                     %br/
                     .row.client_expense
                       .col-md-4
@@ -461,19 +478,24 @@
                               Select date
                             .select
                               = sc.text_field :ce_in_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ce_in_date_1&.strftime('%m/%d/%Y')
+                            %label.control-label.bottom-padding
+                              End of month?
+                              = sc.check_box :ce_in_end_of_month
+                            %br
                           %div{:class => "form-group twice-month #{sc.object.ce_invoice != 'twice a month' ? 'hidden' : ''}"}
                             %label.control-label
                               Select second date
                             .select
                               = sc.text_field :ce_in_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: @contract&.sell_contract&.ce_in_date_2&.strftime('%m/%d/%Y')
-                      .col-md-4MM
-                        %label.control-label
-                          Collaborators
-                        .row
-                          .col-md-12.d-flex
-                            #expanse_invoice
-                              = render 'company/contracts/partials/approval', approvals: @contract.sell_contract.approvals.where(approvable_type: 'expanse_invoice')
-                            %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#collaborator_modal", id: 'expanse_invoice'}
+                      -#.col-md-4MM
+                      -#  %label.control-label
+                      -#    Collaborators
+                      -#  .row
+                      -#    .col-md-12.d-flex
+                      -#      #expanse_invoice
+                      -#        = render 'company/contracts/partials/approval', approvals: @contract.sell_contract.approvals.where(approvable_type: 'expanse_invoice')
+                      -#      %a.fa.fa-plus.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#collaborator_modal", id: 'expanse_invoice'}
+                      -#
                     .row
                       .col-md-6
                         %label.control-label.w-100
@@ -481,8 +503,9 @@
                         = number_field_tag :payment_terms,nil, class: 'form-control',min: 0, max: 365
                       .col-md-6
                         %label.control-label.w-100
-                          Collaborators
-                        = select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                        -#  Collaborators
+                        -#= select_tag 'assign_to', options_from_collection_for_select(current_company&.company_contacts, "id", 'full_name'), include_blank: 'Please select',class: 'form-control height-45'
+                        -#
                     .row.integration
                       .col-md-6
                         %label.control-label.w-100

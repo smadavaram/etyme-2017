@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+  <head>
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="user-type" content='<%= "#{user_signed_in? ? current_user.class.to_s == 'Candidate' ? 'Candidate' : 'User' : ''}" %>'/>
+    <title><%= "Etyme" %></title>
+    <%= stylesheet_link_tag "kulkakit" %>
+    <%= action_cable_meta_tag %>
+    <%= csrf_meta_tags %>
+    <!-- <link rel="stylesheet" href="css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <link rel="stylesheet" href="css/style.css"> -->
+    <title>Jobs - Etyme </title>
+  </head>
+  <body>
+    <%= javascript_include_tag "kulkakit" %>
+    <%= render 'kulkakit/shared/sidebar' %>
+    <div class="modals"></div>
+    <div id="modals" ></div>
+    <%= yield %>
+  </body>
+  <%= render 'shared/flash_messages'%>
+</html>
