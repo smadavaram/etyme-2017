@@ -63,11 +63,12 @@
                 -#%td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
                 %td= ts.calculate_total_time
               %tr
-                %td
+                %td{colspan: 6}
                   %table.table.table-striped.table-bordered.table-v2.table-lg
                     %thead
                       %tr
                         %th Transaction Id
+                        %th Day
                         %th Plan Hours
                         %th Hours Logged
                         %th Rate
@@ -76,6 +77,7 @@
                       - ts.transactions.each do |trans|
                         %tr
                           %td= trans.id
+                          %td= trans.start_time&.strftime("%A")
                           %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
                           %td= trans.total_time
                           %td= number_to_currency(ts.contract.buy_contract.today_rate.try(:rate)||0)
