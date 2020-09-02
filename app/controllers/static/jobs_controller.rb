@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Static::JobsController < ApplicationController
-  before_action :set_jobs, only: [:index]
+  before_action :set_jobs, only: [:index, :show]
   before_action :find_job, only: %i[show apply job_appication_without_registeration job_appication_with_recruiter iframe_apply]
 
   layout 'static'
@@ -117,14 +117,13 @@ class Static::JobsController < ApplicationController
   end
 
   def show
-    @current_company = Company.find_by(slug: request.subdomain)
     if @job.present?
       add_breadcrumb @job.title, static_job_path
+      render :layout => "kulkakit"
     else
       flash[:error] = 'Job not found.'
       redirect_to static_jobs_path
     end
-    render :layout => "kulkakit"
   end
 
   def apply

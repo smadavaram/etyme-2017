@@ -18,12 +18,15 @@
               <div class="col-12 col-md-4 col-lg-6 mb-2 mb-md-0">
                 <div class="search-main position-relative d-flex align-items-center justify-content-between">
                   <div class="d-inline-block position-relative">
-                    <input type="text" placeholder="Search" class="search-style f-14 f-mon-med txt-dark">
-                    <div class="btn-search">
-                        <button class="btn border-0">
-                            <%= image_tag(image_path('search.svg'), class: "img-fluid") %>
-                        </button>
-                    </div>
+                    <%= search_form_for @search , url: search_static_jobs_path , method: :get,class:"list-search revealOnScroll " ,"data-animation" => "fadeInDown", "data-timeout" => "200" do |f| %>
+                        <!-- <input type="text" placeholder="Search" class="search-style f-14 f-mon-med txt-dark"> -->
+                        <%= f.text_field :title_or_job_category_cont, class: "search-style f-14 f-mon-med txt-dark", placeholder: "Search"%>
+                        <div class="btn-search">
+                          <button class="btn border-0">
+                           <%= image_tag(image_path('search.svg'), class: "img-fluid") %>
+                          </button>
+                        </div>
+                    <% end %>
                   </div>
                 </div>
                 <div class="d-inline-block text-right">
@@ -87,9 +90,9 @@
                               <% end %>
                               <hr>
                               <p class="f-20 font-weight-bold mt-4">Criteria</p>
-                              <p><b>Education & Certification</b> : M.Sc IT, BCA, MCA</p>
-                              <p><b>Industry</b> : Energy & Utilities</p>
-                              <p><b>Department</b> : Production</p>
+                              <p><b>Education & Certification</b> : <%= @job&.education_list %></p>
+                              <p><b>Industry</b> : <%= @job&.industry %></p>
+                              <p><b>Department</b> : <%= @job&.department %></p>
                           </div>
                       </div>
                       <div class="col-12 mt-4 feed-main">

@@ -4,6 +4,7 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="user-id" content='<%= "#{user_signed_in? ? current_user.id : ''}" %>'/>
     <meta name="user-type" content='<%= "#{user_signed_in? ? current_user.class.to_s == 'Candidate' ? 'Candidate' : 'User' : ''}" %>'/>
     <% if params[:controller] == "static/jobs" && params[:action] ==  "index" && request.subdomain.present? %>
       <title><%= "#{request.subdomain} :: Jobs" %></title>
