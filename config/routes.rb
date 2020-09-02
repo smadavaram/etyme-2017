@@ -247,7 +247,7 @@ Rails.application.routes.draw do
 
   class Subdomain
     def self.matches?(request)
-      request.subdomain.present? && request.subdomain != 'www' && request.subdomain != 'app-etyme'
+      request.subdomain.present? && request.subdomain != 'www' && request.subdomain != 'app'
     end
   end
 
