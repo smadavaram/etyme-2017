@@ -117,12 +117,14 @@ class Static::JobsController < ApplicationController
   end
 
   def show
+    @current_company = Company.find_by(slug: request.subdomain)
     if @job.present?
       add_breadcrumb @job.title, static_job_path
     else
       flash[:error] = 'Job not found.'
       redirect_to static_jobs_path
     end
+    render :layout => "kulkakit"
   end
 
   def apply

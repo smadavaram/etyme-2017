@@ -1,0 +1,179 @@
+<% content_for :head do %>
+  <meta content="<%= candidate_job_url(@job.id) %>" property="og:url"/>
+  <meta content="<%= @job&.company&.name %>" property="og:title"/>
+  <meta content="summary" name="twitter:card"/>
+  <meta content="<%= @job&.title %>" name="twitter:title"/>
+  <meta content=" " property="fb:app_id"/>
+  <meta content="<%= @job&.description %>" property="og:description"/>
+  <meta content="article" property="og:type"/>
+<% end %>
+
+<section class="content-wrapper">
+  <div class="container">
+    <div class="row">
+      <div class="header pt-md-4">
+        <div class="col-12">
+          <div class="header-items bor-btm pt-3 pt-md-0 pb-3">
+            <div class="row align-items-center">
+              <div class="col-12 col-md-4 col-lg-6 mb-2 mb-md-0">
+                <div class="search-main position-relative d-flex align-items-center justify-content-between">
+                  <div class="d-inline-block position-relative">
+                    <input type="text" placeholder="Search" class="search-style f-14 f-mon-med txt-dark">
+                    <div class="btn-search">
+                        <button class="btn border-0">
+                            <%= image_tag(image_path('search.svg'), class: "img-fluid") %>
+                        </button>
+                    </div>
+                  </div>
+                </div>
+                <div class="d-inline-block text-right">
+                  <span class="openbtn txt-dark d-md-none">
+                    <i class="fa fa-bars f-20" aria-hidden="true"></i>
+                  </span>
+                </div>
+              </div>
+
+              <%= render 'kulkakit/shared/header' %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 content-main">
+      <div class="tab-content pt-4">
+          <!-- JOBS -->
+          <div class="row">
+              <div class="col-12 col-lg-8 mb-4">
+                  <h3 class="txt-black"><%= @job&.title %></h3>
+              </div>
+              <div class="col-12 col-lg-4 mt-2  mb-4 text-left text-lg-right">
+                  <span class="bg-lig-gry align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol"><span class="fa fa-briefcase"></span> <%= @job&.job_category %></span>
+              </div>
+
+              <div class="col-12 col-lg-8">
+                  <div class="row feed-main">
+                    <% if @job&.location.present? %>
+                      <div class="col-12 text-left mt-2">
+                          <p class="m-0 f-14 f-mon-med txt-black"><span class="fa fa-map-marker"></span> <b>Job Location</b> : <%= @job&.location %> </p>
+                      </div>
+                    <% end %>
+                      <div class="col-6  mt-2">
+                          <p class="f-14 f-mon-med txt-black"><span class="fa fa-briefcase"></span> <b>Job type</b> : 
+                            <% if @job&.job_type.present? && @job.job_type == "Full Time" %>
+                              <span class="badge badge-primary">Full Time</span>
+                            <% elsif @job&.job_type.present? && @job.job_type == "Contract" %>
+                              <span class="badge badge-info">Contract</span>
+                            <% elsif @job&.job_type.present? && @job.job_type == "Contract To Hire" %> 
+                              <span class="badge badge-success">Contract to Hire</span>
+                            <% end %>
+                          </p>
+                      </div>
+                      <div class="col-6 mt-2 text-left text-md-right">
+                          <p class="f-14 f-mon-med txt-black"><span class="fa fa-clock-o"></span> <b>Posted</b> : <%= "#{time_ago_in_words(@job.created_at)} ago" %></p>
+                      </div>
+                      <div class="col-12 mt-3">
+                          <div class="feed-block bg-white p-3">
+                              <p class="mb-4 f-20 font-weight-bold">Job Description</p>
+                              <div class="m-0">
+                                  <%= raw(@job&.description)%>
+                              </div>
+                          </div>
+                      </div>
+                      <div class="col-12 mt-4">
+                          <div class="feed-block bg-white p-3">
+                              <p class="f-20 font-weight-bold">Skills Required</p>
+                              <% @job.tags.each do |tag| %>
+                                <span class="badge badge-secondary"><%= tag.name %></span>
+                              <% end %>
+                              <hr>
+                              <p class="f-20 font-weight-bold mt-4">Criteria</p>
+                              <p><b>Education & Certification</b> : M.Sc IT, BCA, MCA</p>
+                              <p><b>Industry</b> : Energy & Utilities</p>
+                              <p><b>Department</b> : Production</p>
+                          </div>
+                      </div>
+                      <div class="col-12 mt-4 feed-main">
+                          <div class="feed-block bg-white p-3">
+                              <div class="row">
+                                  <div class="col-3 col-lg-3 text-left ">
+                                    <% if request.subdomain == "app" %>
+                                      <%= image_tag(image_path('etyme-logo-dark.png'), class: "mr-3 img-fluid") %>
+                                    <% elsif @current_company.present? && @current_company.logo.present? %>
+                                      <%= image_tag @current_company.logo , class: "mr-3 img-fluid" %>
+                                    <% else %>
+                                      <%= image_tag(image_path('etyme-logo-dark.png'), class: "mr-3 img-fluid") %>
+                                    <% end %>
+                                  </div>
+                                  <div class="col-9 col-lg-9 mb-2">
+                                      <p class="f-20 font-weight-bold">About Company</p>
+                                      <p class="m-0 f-12 f-mon-med txt-black"><%= image_tag(image_path('globalization.svg'), class: "img-fluid w-15 mr-2", alt: "globe") %>
+                                        <b>Company</b> : <%= @job.company&.name&.humanize %></p>
+                                      <% if @job&.company&.addresses.present? %>
+                                        <% @job&.company&.addresses.each do |address| %>
+                                          <p class="m-0 f-12 mt-2 f-mon-med txt-black"><%= image_tag(image_path('placeholder.svg'), class: "img-fluid w-15 mr-2", alt: "placeholder") %> 
+                                            <b>Company Location</b> : 
+                                            <% address_str = "" %>
+                                            <% if address.address_1.present? %>
+                                              <% address_str += "#{address.address_1}" %>
+                                            <% end %>
+                                            <% if address.address_2.present? %>
+                                              <% address_str += ", #{address.address_2}" %>
+                                            <% end %>
+                                            <% if address.city.present? %>
+                                              <% address_str += ", #{address.city}" %>
+                                            <% end %>
+                                            <% if address.zip_code.present? %>
+                                              <% address_str += "-#{address.zip_code}" %>
+                                            <% end %>
+                                            <% if address.state.present? %>
+                                              <% address_str += ", #{address.state}" %>
+                                            <% end %>
+                                            <% if address.country.present? %>
+                                              <% address_str += ", #{address.country}" %>
+                                            <% end %>
+
+                                            <%= address_str %> 
+                                          </p>
+                                        <% end %>
+                                      <% end %>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+
+              <!-- Feed Blocks Start -->
+              <div class="col-12 col-lg-4 ">
+                  <div class="row">
+                      <div class="col-12 text-center mt-4">
+                        <% unless @job.created_by&.photo.blank? %>
+                          <%= image_tag(@job.created_by&.photo, class: "img-fluid w-100 br-20") %>
+                        <% else %>
+                          <%= image_tag 'https://etymeclub.herokuapp.com/static/js/jobs.png' ,class: "img-fluid w-100 br-20"%>
+                        <% end %>
+                      </div>
+
+                      <div class="col-12 mt-4 mb-4 text-center d-none d-lg-block">
+                          <!-- <a href="#" class="apply-now-btn-lg f-20 f-mon-bol">Apply Now</a> -->
+                          <%= link_to "Apply Now",static_job_apply_path(@job,status: candidate_signed_in?), method: :post , remote: true ,  class: "apply-now-btn-lg f-20 f-mon-bol #{current_candidate.present? ? (current_candidate.already_applied?(job.id) ? 'disabled ' : '' ) : '' } ", data: { trigger_modal: true }%>
+                      </div>
+                      <div class="col-12 feed-block  p-3">
+                          <p class="f-20 font-weight-bold">Share Job</p>
+                          <div class="sharethis-inline-share-buttons" data-url="<%= static_job_url(@job).to_s %>" style="z-index: auto"></div>
+                      </div>
+                  </div>
+              </div>
+              <div class="col-6 col-lg-4 mt-4 mb-4 text-left">
+                  <a href="<%= static_jobs_path %>" class="txt-blue">Back to Listing</a>
+              </div>
+              <div class="col-6 col-lg-4 mt-4 mb-4 text-right">
+
+                  <!-- <a href="#" class="apply-now-btn-lg f-20 f-mon-bol">Apply Now</a> -->
+                  <%= link_to "Apply Now",static_job_apply_path(@job,status: candidate_signed_in?), method: :post , remote: true ,  class: "apply-now-btn-lg f-20 f-mon-bol #{current_candidate.present? ? (current_candidate.already_applied?(job.id) ? 'disabled ' : '' ) : '' } ", data: { trigger_modal: true }%>
+              </div>
+          </div>
+      </div>
+    </div>
+  </div>
+</section>
