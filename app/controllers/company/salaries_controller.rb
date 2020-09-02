@@ -48,14 +48,16 @@ class Company::SalariesController < Company::BaseController
                                     .joins(contract: [:buy_contract])
                                     .joins('INNER JOIN salaries ON salaries.id = contract_cycles.cyclable_id')
                                     .where("contracts.id": current_company.contracts.select(:id))
-                                    .where('contract_cycles.start_date between ? and ? and contract_cycles.end_date between ? and ?', start, end_date, start, end_date)
-                                    .order('created_at')
+                                    # .where('contract_cycles.start_date between ? and ? and contract_cycles.end_date between ? and ?', start, end_date, start, end_date)
+                                    # .order('created_at')
+
 
     @contract_cycles.each do |cc|
       next unless %i[pending open].include?(cc.cyclable.status.to_sym)
 
       # timesheets = Timesheet.approved.joins(:contract_cycle).where("contract_cycles.contract_id": cc.contract_id, "contract_cycles.cycle_of_type": 'BuyContract', candidate: cc.contract.candidate).where('timesheets.end_date <= ? ', cc.end_date.to_date)
       timesheets = Timesheet.approved.joins(:contract_cycle).where("contract_cycles.contract_id": cc.contract_id)
+
       timesheets.each do |ts|
         cc.cyclable.salary_items.build(salaryable: ts).save
       end
@@ -86,7 +88,7 @@ class Company::SalariesController < Company::BaseController
 
     @salary_cycles.each_with_index do |x, y|
       @timesheets[y] = Timesheet.includes(contract: :buy_contracts).where(status: 'approved', start_date: x[0]..x[1], contract_id: params[:contract_id])
-      @expenses = Expense.where(bill_type: 'salary_advanced', contract_id: current_company.contracts.ids, contract_id: params[:contract_id])
+      @expenses = Expense.where(bill_type: 'salary_advanced', contract_id: params[:contract_id])
     end
   end
 
@@ -362,6 +364,8 @@ class Company::SalariesController < Company::BaseController
 
   def get_commission(salary)
     comm = ContractSaleCommision.find_by(buy_contract_id: salary.contract_id)
+    return 0 if comm == nil
+
     amount = comm.frequency == 'perhour' ? (salary.approved_amount * comm.rate) / 100.0 : comm.limit
     # amount = 0
     # salary.earned_commissions.each do |commission|
