@@ -24,6 +24,7 @@
 /public/assets/
 /config/secrets.yml
 config/database.yml
+/config/deploy/production.rb
 *.DS_Store
 yarn.lock
 ngrok
