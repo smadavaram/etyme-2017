@@ -186,7 +186,11 @@ class Company < ApplicationRecord
   end
 
   def etyme_url
-    Rails.env.development? ? "#{slug}.#{ENV['domain']}" : "#{slug}.#{ENV['domain']}"
+    if ENV['ETYME_DOMAIN'].present?
+      Rails.env.development? ? "#{slug}.#{ENV['domain']}" : "#{slug}.#{ENV['ETYME_DOMAIN']}"
+    else
+      Rails.env.development? ? "#{slug}.#{ENV['domain']}" : "#{slug}.#{ENV['domain']}"
+    end
   end
 
   def find_sent_or_received_invitation(invitation_id)
@@ -286,6 +290,7 @@ class Company < ApplicationRecord
     roles.create(name: 'Accountant', permissions: Permission.where(name: ['show_invoices']))
     roles.create(name: 'Sales - bench marketing', permissions: Permission.where(name: %w[manage_timesheets show_invoices]))
     roles.create(name: 'Timesheet admin', permissions: Permission.where(name: %w[manage_timesheets show_invoices]))
+    roles.create(name: 'Manager', permissions: Permission.where(name: %w[manage_all]))
   end
 
   def set_account_on_seq

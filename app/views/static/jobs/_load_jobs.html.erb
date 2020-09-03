@@ -76,13 +76,6 @@
               <div class="col-12 text-lg-right align-self-end p-0">
                 <div class="d-flex align-items-center">
                   <ul class="list-unstyled ml-auto mb-0">
-                    <li class="d-inline-block mb-2 mb-0 mx-2">
-                      <span class="bg-lig-gry d-flex align-items-center ustify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                        <!-- <img src="images/feeds/share.svg"     class="img-fluid mr-2" alt="share"> -->
-                        <%= image_tag(image_path('share.svg'), class: "img-fluid mr-2") %>
-                        Share
-                      </span>
-                    </li>
                     <li class="d-inline-block mb-2 mb-0">
                       <span class="common-blue-btn f-12 f-mon-bol">
                         <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true ,  class: "#{current_candidate.present? ? (current_candidate.already_applied?(job.id) ? 'disabled ' : '' ) : '' } ", data: { trigger_modal: true }%>

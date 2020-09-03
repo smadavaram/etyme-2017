@@ -1,7 +1,8 @@
+<label class="toggle" for="toggle"></label>
 <div class="col-12 col-md-8 col-lg-6 mb-2 mb-md-0 login-btns text-right">
   <% if current_candidate.present? %>
     <div class="d-inline-block mx-2 mx-lg-3 dropdown">
-      <button class="btn btn-register text-white f-18 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
+      <button class="btn btn-register text-white f-18 f-mon-sembol" type="button">
         <%= link_to "Dashboard", candidate_candidate_dashboard_path, class: "text-white" %>
       </button>
     </div>
@@ -15,7 +16,7 @@
     </div>
   <% elsif current_user.present? %>
     <div class="d-inline-block mx-2 mx-lg-3 dropdown">
-      <button class="btn btn-register text-white f-18 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
+      <button class="btn btn-register text-white f-18 f-mon-sembol" type="button">
         <%= link_to "Dashboard", dashboard_path, class: "text-white" %>
       </button>
     </div>
