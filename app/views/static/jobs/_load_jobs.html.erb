@@ -7,7 +7,7 @@
           <% unless job.created_by&.photo.blank? %>
             <%= image_tag(job.created_by&.photo, class: "img-fluid mr-3") %>
           <% else %>
-            <%= image_tag 'https://etymeclub.herokuapp.com/static/js/jobs.png' ,class: "img-fluid mr-3"%>
+            <%= image_tag 'static-job.png' ,class: "img-fluid mr-3"%>
           <% end %>
         </div>
         <div class="col-12 col-lg-10">
