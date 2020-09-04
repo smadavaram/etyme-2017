@@ -1,15 +1,19 @@
 span.pre.slick-arrow  {
   position: absolute;
-  top: 346px;
+  top: 350px;
   left: 357px;
-  font-weight: bold;
-  font-family: 'feather' !important;
+  display: block;
+  font-family: "Avenir Next W01", "Proxima Nova W01", "Rubik", -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-weight: normal;
+  margin-left: 60px;
 }
 span.next.slick-arrow  {
   position:absolute;
   top:350px;
   left:7px;
   z-index: 999;
+  font-family: "Avenir Next W01", "Proxima Nova W01", "Rubik", -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  font-weight: normal;
 }
 span.icon-feather-x-circle{
 }

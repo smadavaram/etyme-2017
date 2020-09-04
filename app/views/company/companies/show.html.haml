@@ -4,7 +4,7 @@
     .active-slide.slide
       .slick_header.container.d-flex
         %h5 Invite Your Team
-        %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
+        %span.os-icon.os-icon-close.close_slick
       .slider-data-text.mt-2
         .container
           %h5.text-justify
@@ -18,7 +18,7 @@
     .slide
       .slick_header.container.d-flex
         %h5 Business Owner &nbsp; &nbsp;
-        %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
+        %span.os-icon.os-icon-close.close_slick
       .slider-data-text.mt-2
         .container
           %h5.text-justify
@@ -44,7 +44,7 @@
     .slide
       .slick_header.container.d-flex
         %h5 Invite Candidates &nbsp;
-        %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
+        %span.os-icon.os-icon-close.close_slick
       .slider-data-text.mt-2
         .container
           %h5.text-justify
@@ -58,7 +58,7 @@
     .slide
       .slick_header.container.d-flex
         %h5 Invite Contacts &nbsp; &nbsp;
-        %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
+        %span.os-icon.os-icon-close.close_slick
       .slider-data-text.mt-2
         .container
           %h5.text-justify
@@ -73,14 +73,15 @@
     .slide
       .slick_header.container.d-flex
         %h5 Company Settings
-        %span.os-icon.os-icon-close.close_slick{style: 'left:190px !important;'}
+        %span.os-icon.os-icon-close.close_slick
       .slider-data-text.mt-2
         .container
           %h5.text-justify
             %small.text-muted 2 more minutes.....setup your profile, phone, social, skype, watsapp, locations and get started.
-        .container.text-center.margin-top-100
+        .container.text-center
           %h3 Settings
           .data_on_slick_customer.scrole
+          = link_to "Lets setup your company for Success!!" , dashboard_path, class: 'col-lg-8 btn btn-md btn-primary mr-bottom-10 cmpny-btn'
 .content-box
   .element-wrapper
     .element-box

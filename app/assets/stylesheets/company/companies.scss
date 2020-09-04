@@ -68,7 +68,7 @@
   opacity: 0.7 !important;
 }
 .scrole{
-  height: 214px;
+  height: 195px;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -79,6 +79,12 @@
   border-radius: 4px;
 
 
+}
+.cmpny-btn{
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: 0 !important;
+  margin-top: 5px !important;
 }
 .show_file_icon{
   font-size: 20px;

@@ -17,8 +17,7 @@ class Static::JobApplicationsController < ApplicationController
         if params['job_application']['job_application_without_registrations']['email']
           data_params = params['job_application']['job_application_without_registrations']
           @freelance_company = Company.find_by(company_type: :vendor, domain: 'freelancer.com')
-          candidate = Candidate.find_by_email(data_params['email']) || Candidate.create(email: data_params['email'], first_name: data_params['first_name'], last_name: data_params['last_name'],
-                                                                                        phone: data_params['phone'], company_id: @freelance_company.id)
+          candidate = Candidate.find_by_email(data_params['email']) || Candidate.create(email: data_params['email'], first_name: data_params['first_name'], last_name: data_params['last_name'], phone: data_params['phone'], company_id: @freelance_company.id)
           @job_application = candidate.job_applications.new(job_application_params.merge(job_id: params[:job_id], application_type: :witout_registration, company_id: @job.company_id, recruiter_company_id: @freelance_company.id))
           save_job_application(@job_application)
         end

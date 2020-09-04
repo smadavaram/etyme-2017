@@ -26,9 +26,21 @@
                     %td{style: "border-top: none !important"}
                       - if transaction
                         %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100%", disabled: transaction.start_time <= DateTime.now ? false : true,:type => "number", :value => "#{transaction.total_time}"}/
+                        -# - tf.text_field "timesheet[transactions_attributes][#{index}][total_time]", id: "timesheet_transactions_attributes_#{index}_total_time", html: {style: 'width: 100%', disabled: transaction.start_time <= DateTime.now ? false : true, type: 'number', value: "#{transaction.total_time}"}
                         %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{transaction.id}"}/
+                        -# - tf.text_field "timesheet[transactions_attributes][#{index}][id]", id: "timesheet_transactions_attributes_#{index}_id", type: 'hidden', value: "#{transaction.id}"
+
                       - else
                         %input{name:"no_transaction", disabled: "disabled",:style => "width: 100%",value:"0", type:"number"}
+            .col-sm-12
+              =text_area_tag "timesheet[transactions_attributes][0][memo]",@timesheet.transactions.first.memo,placeholder:"Add Note", class: "w-100 p-2"
+            .col-sm-9
+              %label.d-block File
+              .file_selector{style: "display: flex;"}
+                %input{id: "timesheet_transactions_attributes_0_file",:name => "timesheet[transactions_attributes][0][file]", hidden: "hidden"}/
+                = button_tag "Pick File", type: 'button', style: "border-radius: 0; height:38px;", class: "btn btn-primary uploader", onclick: "upload_file('#timesheet_transactions_attributes_0_file','.uploaded_file_name',#{false})"
+                %p.d-inline-block.uploaded_file_name=  @timesheet.transactions.first.file.present? ? File.basename(@timesheet.transactions.first.file) : "No File Selected"
+
           -elsif ["monthly","twice a month"].include?(@timesheet.contract_cycle.cycle_frequency)
             -@timesheet.transactions.each_with_index do |transaction,index|
               .d-inline-block
@@ -51,6 +63,7 @@
                   %p.d-inline-block.uploaded_file_name=  @timesheet.transactions.first.file.present? ? File.basename(@timesheet.transactions.first.file) : "No File Selected"
               .col-sm-12
                 =text_area_tag "timesheet[transactions_attributes][#{index}][memo]",@timesheet.transactions.first.memo,placeholder:"Add Note", class: "w-100 p-2"
+
         .modal-footer
           = tf.submit :save,class: "btn btn-secondary btn-sm" unless @timesheet.submitted?
-          =link_to "Submit To Client", candidate_timesheet_submit_timesheet_path(@timesheet,redirect_url: "/candidate/timesheets?cycle_id=false&&contract_id=false&&tab=submitted_timesheets&&cycle_frequency=#{@timesheet.contract_cycle.cycle_frequency}"), class: "btn btn-secondary btn-sm" unless @timesheet.submitted?
+          -# =link_to "Submit To Client", candidate_timesheet_submit_timesheet_path(@timesheet,redirect_url: "/candidate/timesheets?cycle_id=false&&contract_id=false&&tab=submitted_timesheets&&cycle_frequency=#{@timesheet.contract_cycle.cycle_frequency}"), class: "btn btn-secondary btn-sm" unless @timesheet.submitted?
