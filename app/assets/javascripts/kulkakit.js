@@ -8,6 +8,7 @@
 //= require plugin/bootstrap-timepicker/bootstrap-timepicker.min
 // = require_tree ./clean_admin/.
 //= require custom
+//= require tinymce-jquery
 //= require trix
 //= require shared/uploader
 //= require notification/SmartNotification.min.js

@@ -1,5 +1,5 @@
 -if params[:status] == 'true'
-  $('.modals').empty().append(("#{ j render('partials/job_application_modal' , job: @job , job_application: @job_application )}"));
+  $('.modals').empty().append("#{ j render('partials/job_application_modal' , job: @job , job_application: @job_application )}");
   $('#job-apply-#{@job.id }').modal('toggle');
 -else
   $('.modals').empty().append(("#{ j render('static/candidates/partials/form')}"));
