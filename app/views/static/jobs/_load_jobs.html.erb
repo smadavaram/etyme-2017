@@ -78,7 +78,7 @@
                   <ul class="list-unstyled ml-auto mb-0">
                     <li class="d-inline-block mb-2 mb-0">
                       <span class="common-blue-btn f-12 f-mon-bol">
-                        <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true ,  class: "#{current_candidate.present? ? (current_candidate.already_applied?(job.id) ? 'disabled ' : '' ) : '' } ", data: { trigger_modal: true }%>
+                        <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
                       </span>
                     </li>
                   </ul>
