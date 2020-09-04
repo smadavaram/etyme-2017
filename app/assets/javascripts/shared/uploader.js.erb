@@ -1053,7 +1053,7 @@
 }]);
 
 function upload_file(selector, name_selector = false, multiple = false) {
-    new UploaderWindow("etyme-3").open().then(urls => {
+    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
         if (urls !== false) {
             let files_path;
             if (multiple) {
@@ -1083,7 +1083,7 @@ function upload_file(selector, name_selector = false, multiple = false) {
 
 function trix_upload(){
     let trix = document.querySelector("trix-editor")
-    new UploaderWindow("etyme-3").open().then(urls => {
+    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
         if( urls !== false ) {
           let upload = urls[0];
           if(trix){
@@ -1105,7 +1105,7 @@ function trix_upload(){
 }
 
 function upload_file_ajax(callback_function, id=false) {
-    new UploaderWindow("etyme-3").open().then(urls => {
+    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
     if (urls !== false) {
         let upload = urls[0];
         if (id) {
@@ -1121,7 +1121,7 @@ function upload_file_ajax(callback_function, id=false) {
     $('.tingle-modal__closeIcon').text('x');
 }
 function upload_multi_file_ajax(callback_function, id=false,multiple=false) {
-    new UploaderWindow("etyme-3").open().then(urls => {
+    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
     if (urls !== false) {
 
         let files_path;
