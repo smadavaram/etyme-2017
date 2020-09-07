@@ -4,7 +4,9 @@
       <div class="row align-items-center">
         <div class="col-12 col-lg-2 text-center text-lg-left mb-3 mb-lg-0">
           <!-- <img class="mr-3 img-fluid" src="images/feeds/digital-marketing.svg" alt="digital marketing"> -->
-          <% unless job.created_by&.photo.blank? %>
+          <% if job&.files.present? %>
+            <%= image_tag(job.files, class: "img-fluid mr-3") %>
+          <% elsif job.created_by&.photo.present? %>
             <%= image_tag(job.created_by&.photo, class: "img-fluid mr-3") %>
           <% else %>
             <%= image_tag 'static-job.png' ,class: "img-fluid mr-3"%>
