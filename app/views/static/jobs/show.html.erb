@@ -161,7 +161,9 @@
               <div class="col-12 col-lg-4 ">
                   <div class="row">
                       <div class="col-12 text-center mt-4">
-                        <% unless @job.created_by&.photo.blank? %>
+                        <% if @job&.files.present? %>
+                          <%= image_tag(@job&.files, class: "img-fluid w-100 br-20") %>
+                        <% elsif @job.created_by&.photo.present? %>
                           <%= image_tag(@job.created_by&.photo, class: "img-fluid w-100 br-20") %>
                         <% else %>
                           <%= image_tag 'https://etymeclub.herokuapp.com/static/js/jobs.png' ,class: "img-fluid w-100 br-20"%>
