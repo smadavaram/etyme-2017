@@ -167,7 +167,7 @@
     var add_button      = $(".add_field_button"); //Add button ID
 
     $(document).on('click', ".add_field_button",  function () {
-      $(this).parent(wrapper).find('.checkbox-option').append('<div><input type="text" name="mytext"/><a href="javascript:void(0);" class="remove_field">Remove</a></div>'); //add input box
+      $(this).parent(wrapper).find('.checkbox-option').append('<div style="margin-top: 10px;"><input type="text" name="mytext" placeholder="Option Answer"/><a href="javascript:void(0);" class="remove_field">Remove</a></div>'); //add input box
     });
     $(document).on('click', '.remove_field',  function () {
       $(this).parent('div').remove();
