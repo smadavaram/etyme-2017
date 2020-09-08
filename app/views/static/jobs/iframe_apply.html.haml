@@ -23,7 +23,7 @@
           %label.d-block Resume
           .file_selector{style: "display: flex;"}
             .form-group.d-inline-block
-              = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+              = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
             %p.d-inline-block.uploaded_file_name  No File Selected
         = f.fields_for :candidate_with_recruiter do |b|
           .col-sm-6
@@ -83,7 +83,7 @@
                       = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{class: 'set-checkbox d-inline-block'}
                       = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                 - else
-                  = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                  = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
       .nested-fields
         = f.fields_for :custom_fields do |custom|
           .form-group
@@ -107,7 +107,7 @@
           %label.d-block Resume
           .file_selector{style: "display: flex;"}
             .form-group.d-inline-block
-              = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+              = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
             %p.d-inline-block.uploaded_file_name  No File Selected
         = f.fields_for :job_application_without_registrations do |b|
           .col-sm-6
@@ -162,7 +162,7 @@
                       = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{class: 'set-checkbox d-inline-block'}
                       = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                 - else
-                  = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                  = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
       .nested-fields
         = f.fields_for :custom_fields do |custom|
           .form-group

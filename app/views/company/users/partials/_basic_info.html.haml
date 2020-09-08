@@ -44,7 +44,7 @@
       .form-group
     %label.col-md-2.control-label Resume
     .col-md-10
-      = render 'shared/file_attachement',f:f,attr_name: :resume
+      = render 'shared/file_attachement',f:f,attr_name: :resume, required_field: false
       -#= f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
   %br
   %h5.element-header

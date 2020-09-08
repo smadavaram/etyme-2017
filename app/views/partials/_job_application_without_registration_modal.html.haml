@@ -18,7 +18,7 @@
                 %label.d-block Resume
                 .file_selector{style: "display: flex;"}
                   .form-group.d-inline-block
-                    = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                    = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
                     -#= f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
                   %p.d-inline-block.uploaded_file_name  No File Selected
               = f.fields_for :job_application_without_registrations do |b|
@@ -67,14 +67,14 @@
                         - opt_array = s.split(" ")
                         - if r.multiple_ans
                           -opt_array.each do |a|
-                            = ja.check_box :app_multi_ans, {:multiple => true, class: 'set-checkbox d-inline-block'},"#{CGI.unescape(a)}"
+                            = ja.check_box :app_multi_ans, {:multiple => true, required: r.ans_mandatroy, class: 'set-checkbox d-inline-block'},"#{CGI.unescape(a)}"
                             = ja.label :app_multi_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                         - else
                           -opt_array.each do |a|
-                            = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{class: 'set-checkbox d-inline-block'}
+                            = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{required: r.ans_mandatroy, class: 'set-checkbox d-inline-block'}
                             = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                       - else
-                        = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                        = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: r.ans_mandatroy
                         -#= ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'
             .nested-fields
               = f.fields_for :custom_fields do |custom|
@@ -86,7 +86,7 @@
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
-            = f.button "Save".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Saving...')}
+            = f.button "Save".html_safe , class: 'btn btn-primary', id: "without_registration_save" , data: {disable_with: disable_spinning('Saving...')}
 
 
 

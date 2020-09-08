@@ -40,7 +40,7 @@
               = link_to "", "", :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", remote: true, onclick: 'delete_resume()'
 
           %br
-          = render 'shared/file_attachement',f:f,attr_name: :resume
+          = render 'shared/file_attachement',f:f,attr_name: :resume, required_field: false
           -#= f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt
 
 

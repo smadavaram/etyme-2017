@@ -13,3 +13,18 @@ $( ".req-file-pick" ).on('click',function() {
 $(".fp__overlay").css({'z-index':'99999'});
 });
 
+$("#recruiter_save").click(function() {
+var applicant_ans  = $("#" + "#{j @id.to_s}")
+if(!applicant_ans.val() && applicant_ans.attr('data-required') == "true") {
+alert("You must need to add applicant ans attachment.");
+return false;
+}
+var requiredCheckboxes = $(':checkbox[required]');
+requiredCheckboxes.change(function(){
+if(requiredCheckboxes.is(':checked')) {
+requiredCheckboxes.removeAttr('required');
+} else {
+requiredCheckboxes.attr('required', 'required');
+}
+});
+});
