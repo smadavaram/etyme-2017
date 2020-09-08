@@ -6,7 +6,7 @@
     .col-sm-8.d-flex.pt-4
       .file_selector{style: "display: flex;"}
       .form-group.d-inline-block
-        = render 'shared/file_attachement',f:f,attr_name: :file,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+        = render 'shared/file_attachement',f:f,attr_name: :file,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
       %p.d-inline-block.uploaded_file_name  No File Selected
 
       = f.hidden_field :file_type,class:"type"

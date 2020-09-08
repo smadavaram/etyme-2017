@@ -28,14 +28,14 @@
                         <%= image_tag(image_path('grid-active.svg'), class: "mr-3") %>
                         Feeds
                     </a>
-                    <a class="nav-link mb-3 f-20 pl-2 active" href="<%= static_jobs_path %>">
+                    <a class="nav-link mb-3 f-20 pl-2 <%= params[:controller] == "static/jobs" &&  (params[:action] == "index" || params[:action] == "show") ? "active" : ""  %>" href="<%= static_jobs_path %>">
                         <!-- <img src="images/side-nav/suitcase.svg" class="mr-3" alt="suitcase"> -->
                         <%= image_tag(image_path('suitcase.svg'), class: "mr-3") %>
                         <!-- <img src="images/side-nav/suitcase-active.svg" class="mr-3" alt="suitcase"> -->
                         <%= image_tag(image_path('suitcase-active.svg'), class: "mr-3") %>
                         Jobs
                     </a>
-                    <a class="nav-link mb-3 f-20 pl-2" href="#">
+                    <a class="nav-link mb-3 f-20 pl-2 <%= params[:controller] == "static/jobs" &&  params[:action] == "people" ? "active" : ""  %>" href="<%= people_static_jobs_path %>">
                         <!-- <img src="images/side-nav/group.svg" class="mr-3" alt="group"> -->
                         <%= image_tag(image_path('group.svg'), class: "mr-3") %>
                         <%= image_tag(image_path('group-active.svg'), class: "mr-3") %>

@@ -28,6 +28,16 @@ class Static::JobsController < ApplicationController
     found_attr_value
   end
 
+  def people
+    @current_company = Company.find_by(slug: request.subdomain)
+    if request.subdomain == "app"
+      @candidates = CandidatesCompany.hot_candidate.paginate(page: params[:page], per_page: 51)
+    elsif @current_company.present?
+      @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).paginate(page: params[:page], per_page: 51)
+    end
+    render :layout => "kulkakit"
+  end
+
   def iframe_apply
     @job_application = @job.job_applications.new
     # respond_to do |format|

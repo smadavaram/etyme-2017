@@ -1,0 +1,123 @@
+<section class="content-wrapper">
+  <div class="container">
+    <div class="row">
+      <div class="header pt-md-4">
+        <div class="col-12">
+          <div class="header-items bor-btm pt-3 pt-md-0 pb-3">
+            <div class="row align-items-center">
+              <div class="col-12 col-md-4 col-lg-6 mb-2 mb-md-0">
+                <div class="search-main position-relative d-flex align-items-center justify-content-between">
+                  <div class="d-inline-block position-relative">
+                    <input type="text" placeholder="Search" class="search-style f-14 f-mon-med txt-dark">
+                      <div class="btn-search">
+                        <button class="btn border-0">
+                            <%= image_tag(image_path('search.svg'), class: "img-fluid") %>
+                        </button>
+                      </div>
+                  </div>
+                </div>
+                <div class="d-inline-block text-right">
+                  <span class="openbtn txt-dark d-md-none">
+                    <i class="fa fa-bars f-20" aria-hidden="true"></i>
+                  </span>
+                </div>
+
+              </div>
+              <%= render 'kulkakit/shared/header' %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 content-main">
+      <div class="tab-content pt-4">
+        <div class="tab-pane fade show active">
+          <div class="row">
+            <div class="col-12 col-xl-10">
+              <div class="row">
+                <% if @candidates.present? %>
+                  <% @candidates.each_with_index do |c , index| %>
+                    <div class="col-12 col-md-6 col-lg-5 col-xl-4 mb-4 mb-md-5">
+                      <div class="people-card bg-white pb-3">
+                        <div class="cover-img">
+                          <%= image_tag 'people-a.png' ,class: "img-fluid cover-bg w-100", alt: "cover" %>
+                          <div class="love">
+                            <%= image_tag 'love.svg' ,class: "img-fluid", alt: "like" %>
+                          </div>
+                          <div class="designation">
+                            <span class="bg-white d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
+                              <%= image_tag 'black-suitcase.svg' ,class: "img-fluid mr-2", alt: "share" %>Illustration Artist</span>
+                          </div>
+                        </div>
+
+                        <div class="col-12 pt-3">
+                          <div class="media">
+                             <%#= image_tag 'follower-user.png' ,class: "mr-3", alt: "user" %>
+                             <%= link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),public_profile_static_candidates_path(c.candidate), class: "mr-3" %>
+                            <div class="media-body ">
+                              <h5 class="mt-0 f-14 f-mon-sembol txt-black"><%= c.candidate.try(:full_name).try(:titleize) %>
+                                <%= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
+                              </h5>
+                              <p class="m-0 f-12 f-mon-sembol txt-light"><%= c.candidate.try(:location) %></p>
+                              <p class="m-0 f-14 f-mon-sembol txt-black">
+                                <%= image_tag 'star.svg' ,class: "img-fluid mr-2", alt: "star" %>4.5</p>
+                              <p class="d-inline-block f-18 f-mon-sembol txt-dark">
+                                  $60.00/hr</p>
+                              <p class="d-inline-block pl-1 f-14 f-mon-sembol txt-light">
+                                  <del>$75.00/hr</del>
+                              </p>
+
+                            </div>
+                          </div>
+
+                          <div class="col-12 p-0 d-flex justify-content-between">
+                            <span class="bg-blue d-inline-block px-3 py-2 br-20 f-10 f-mon-sembol text-white">
+                              <%= image_tag 'microphone.svg' ,class: "img-fluid mr-2", alt: "microphone" %>Schedule Interview</span>
+                            <span class="bg-blue d-inline-block px-3 py-2 br-20 f-10 f-mon-sembol text-white">
+                              <%= image_tag 'chat.svg' ,class: "img-fluid mr-2", alt: "chat" %>Chat</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                <% else %>
+                  <div>No People Available</div>
+                <% end %>
+              </div>
+              <% if @candidates.present? %>
+                <div class="mt-3">
+                  <%= digg_pagination(@candidates,class: "pagination ")%>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+<style type="text/css">
+  .bg-transparent{
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .txt-black a{
+    color: #2A2C34 !important;
+  }
+
+  .f-mon-bol a{
+    color: #fff !important;
+  }
+  .circle {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    font-size: 15px;
+    color: #fff;
+    padding: 5px;
+    text-align: center;
+    background: gray;
+    display: inline-block;
+  }
+</style>
