@@ -48,7 +48,7 @@
                   %label.fancy
                     %input.set-checkbox{:type => "checkbox"}/
                     Bilable
-                  = render "shared/file_attachement", f:f,attr_name: :timesheet_attachment, button_name: "Pick File",multiple: false
+                  = render "shared/file_attachement", f:f,attr_name: :timesheet_attachment, button_name: "Pick File",multiple: false, required_field: false
                   -#= f.filepicker_field :timesheet_attachment, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary timesheet-filepicker-attachment'
                 - (@start_date..@end_date).each do |ti|
                   %td

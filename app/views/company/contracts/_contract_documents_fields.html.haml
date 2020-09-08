@@ -6,7 +6,7 @@
           %label.control-label
             Documents
           .contract-fild
-            = render "shared/file_attachement", f:f,attr_name: :doc_file,button_name: "Pick File",multiple: false
+            = render "shared/file_attachement", f:f,attr_name: :doc_file,button_name: "Pick File",multiple: false, required_field: false
             -#= f.filepicker_field :doc_file, :button_text => "Pick File", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc'
             = f.hidden_field :file_name, class: "doc-file-name"
             = f.hidden_field :file_size, class: "doc-file-size"

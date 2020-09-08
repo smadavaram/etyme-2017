@@ -107,7 +107,7 @@
       </div>
       <div class="chat-input-extra">
         <div class="chat-extra-actions">
-          <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded' %>
+          <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
           <% if @conversation.present? %>
             <div class="candidate-icon_widget">
               <%= mini_chat_contact_widget(current_candidate.email, current_candidate.phone,color: '#3E4B5B; !important') %>
