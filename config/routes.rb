@@ -66,6 +66,7 @@ Rails.application.routes.draw do
       match :search, action: :index, via: %i[get post], on: :collection
       post :apply
       get '/job_application', to: 'jobs#iframe_apply'
+      get '/people', to: 'jobs#people', on: :collection
       resources :job_applications, only: [:create]
       # get 'job_appication_without_registeration' ,to: 'job_applications#job_appication_without_registeration'
       post :job_appication_without_registeration
