@@ -60,13 +60,13 @@ Rails.application.routes.draw do
     end
   end
   namespace :static do
+    get '/people', to: 'jobs#people'
     resources :jobs, only: %i[index show] do
       post 'job_request', on: :collection
       get '(page/:page)', action: :index, on: :collection, as: ''
       match :search, action: :index, via: %i[get post], on: :collection
       post :apply
       get '/job_application', to: 'jobs#iframe_apply'
-      get '/people', to: 'jobs#people', on: :collection
       resources :job_applications, only: [:create]
       # get 'job_appication_without_registeration' ,to: 'job_applications#job_appication_without_registeration'
       post :job_appication_without_registeration
