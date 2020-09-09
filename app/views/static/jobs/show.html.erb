@@ -172,7 +172,11 @@
 
                       <div class="col-12 mt-4 mb-4 text-center d-none d-lg-block">
                           <!-- <a href="#" class="apply-now-btn-lg f-20 f-mon-bol">Apply Now</a> -->
-                          <%= link_to "Apply Now",static_job_apply_path(@job,status: candidate_signed_in?), method: :post , remote: true ,  class: "apply-now-btn-lg f-20 f-mon-bol", data: { trigger_modal: true }%>
+                          <% if current_candidate.present? && current_candidate.already_applied?(@job.id) %>
+                            <span class="apply-now-btn-lg f-20 f-mon-bol">Applied</span>
+                          <% else %>
+                            <%= link_to "Apply Now",static_job_apply_path(@job,status: candidate_signed_in?), method: :post , remote: true ,  class: "apply-now-btn-lg f-20 f-mon-bol", data: { trigger_modal: true }%>
+                          <% end %>
                       </div>
                       <div class="col-12 feed-block  p-3">
                           <p class="f-20 font-weight-bold">Share Job</p>
@@ -186,7 +190,11 @@
               <div class="col-6 col-lg-4 mt-4 mb-4 text-right">
 
                   <!-- <a href="#" class="apply-now-btn-lg f-20 f-mon-bol">Apply Now</a> -->
-                  <%= link_to "Apply Now",static_job_apply_path(@job,status: candidate_signed_in?), method: :post , remote: true ,  class: "apply-now-btn-lg f-20 f-mon-bol", data: { trigger_modal: true }%>
+                  <% if current_candidate.present? && current_candidate.already_applied?(@job.id) %>
+                    <span class="apply-now-btn-lg f-20 f-mon-bol">Applied</span>
+                  <% else %>
+                    <%= link_to "Apply Now",static_job_apply_path(@job,status: candidate_signed_in?), method: :post , remote: true ,  class: "apply-now-btn-lg f-20 f-mon-bol", data: { trigger_modal: true }%>
+                  <% end %>
               </div>
           </div>
       </div>
