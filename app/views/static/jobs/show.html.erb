@@ -50,7 +50,12 @@
                   <h3 class="txt-black"><%= @job&.title %></h3>
               </div>
               <div class="col-12 col-lg-4 mt-2  mb-4 text-left text-lg-right">
-                  <span class="bg-lig-gry align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol"><span class="fa fa-briefcase"></span> <%= @job&.job_category %></span>
+                  <span class="bg-lig-gry align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
+                    <% if @job&.job_category.present? %>
+                      <span class="fa fa-briefcase"></span> <%= @job&.job_category %></span>
+                    <% else %>
+                      <span>Not Assigned</span>
+                    <% end %>
               </div>
 
               <div class="col-12 col-lg-8">
@@ -68,6 +73,8 @@
                               <span class="badge badge-info">Contract</span>
                             <% elsif @job&.job_type.present? && @job.job_type == "Contract To Hire" %> 
                               <span class="badge badge-success">Contract to Hire</span>
+                            <% else %>
+                              <span>Not Assigned</span>
                             <% end %>
                           </p>
                       </div>
@@ -78,7 +85,11 @@
                           <div class="feed-block bg-white p-3">
                               <p class="mb-4 f-20 font-weight-bold">Job Description</p>
                               <div class="m-0">
+                                <% if @job&.description.present? %>
                                   <%= raw(@job&.description)%>
+                                <% else %>
+                                  <%= "-" %>
+                                <% end %>
                               </div>
                           </div>
                       </div>
@@ -90,9 +101,9 @@
                               <% end %>
                               <hr>
                               <p class="f-20 font-weight-bold mt-4">Criteria</p>
-                              <p><b>Education & Certification</b> : <%= @job&.education_list %></p>
-                              <p><b>Industry</b> : <%= @job&.industry %></p>
-                              <p><b>Department</b> : <%= @job&.department %></p>
+                              <p><b>Education & Certification</b> : <%= @job&.education_list.present? ? @job&.education_list : "-" %></p>
+                              <p><b>Industry</b> : <%= @job&.industry.present? ? @job&.industry : "-" %></p>
+                              <p><b>Department</b> : <%= @job&.department.present? ? @job&.department : "-" %></p>
                           </div>
                       </div>
                       <div class="col-12 mt-4 feed-main">
@@ -150,7 +161,9 @@
               <div class="col-12 col-lg-4 ">
                   <div class="row">
                       <div class="col-12 text-center mt-4">
-                        <% unless @job.created_by&.photo.blank? %>
+                        <% if @job&.files.present? %>
+                          <%= image_tag(@job&.files, class: "img-fluid w-100 br-20") %>
+                        <% elsif @job.created_by&.photo.present? %>
                           <%= image_tag(@job.created_by&.photo, class: "img-fluid w-100 br-20") %>
                         <% else %>
                           <%= image_tag 'https://etymeclub.herokuapp.com/static/js/jobs.png' ,class: "img-fluid w-100 br-20"%>
@@ -159,7 +172,11 @@
 
                       <div class="col-12 mt-4 mb-4 text-center d-none d-lg-block">
                           <!-- <a href="#" class="apply-now-btn-lg f-20 f-mon-bol">Apply Now</a> -->
-                          <%= link_to "Apply Now",static_job_apply_path(@job,status: candidate_signed_in?), method: :post , remote: true ,  class: "apply-now-btn-lg f-20 f-mon-bol", data: { trigger_modal: true }%>
+                          <% if current_candidate.present? && current_candidate.already_applied?(@job.id) %>
+                            <span class="apply-now-btn-lg f-20 f-mon-bol">Applied</span>
+                          <% else %>
+                            <%= link_to "Apply Now",static_job_apply_path(@job,status: candidate_signed_in?), method: :post , remote: true ,  class: "apply-now-btn-lg f-20 f-mon-bol", data: { trigger_modal: true }%>
+                          <% end %>
                       </div>
                       <div class="col-12 feed-block  p-3">
                           <p class="f-20 font-weight-bold">Share Job</p>
@@ -173,10 +190,37 @@
               <div class="col-6 col-lg-4 mt-4 mb-4 text-right">
 
                   <!-- <a href="#" class="apply-now-btn-lg f-20 f-mon-bol">Apply Now</a> -->
-                  <%= link_to "Apply Now",static_job_apply_path(@job,status: candidate_signed_in?), method: :post , remote: true ,  class: "apply-now-btn-lg f-20 f-mon-bol", data: { trigger_modal: true }%>
+                  <% if current_candidate.present? && current_candidate.already_applied?(@job.id) %>
+                    <span class="apply-now-btn-lg f-20 f-mon-bol">Applied</span>
+                  <% else %>
+                    <%= link_to "Apply Now",static_job_apply_path(@job,status: candidate_signed_in?), method: :post , remote: true ,  class: "apply-now-btn-lg f-20 f-mon-bol", data: { trigger_modal: true }%>
+                  <% end %>
               </div>
           </div>
       </div>
     </div>
   </div>
 </section>
+<style type="text/css">
+  .bg-transparent{
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .txt-black a{
+    color: #2A2C34 !important;
+  }
+
+  .f-mon-bol a{
+    color: #fff !important;
+  }
+  .circle {
+    width: 50px;
+    height: 37px;
+    border-radius: 50%;
+    font-size: 20px;
+    color: gray;
+    padding: 5px;
+    text-align: center;
+    display: inline-block;
+  }
+</style>

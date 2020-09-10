@@ -53,7 +53,7 @@
     .col-md-6.mt-3
       #upload_doc
         .d-flex
-          = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload",name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+          = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload",name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
           %p.d-inline-block.uploaded_file_name No Document Selected
     .col-md-6.mt-3
       %button.btn.btn-primary.pull-left{:type => "submit", :style=>"height: 38px;"}

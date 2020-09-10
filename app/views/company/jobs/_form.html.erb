@@ -15,7 +15,7 @@
       </div>
     </div>
     <div class="d-flex">
-      <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Attach Images", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true %>
+      <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Attach Images", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true, required_field: false %>
       <p class="d-inline-block uploaded_file_name">No Image(s) Selected</p>
     </div>
     <label>Description</label>
@@ -81,7 +81,7 @@
       <div class="col-lg-6">
         <div class="form-group mt-25">
           <div class="d-flex">
-            <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Cover Image", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true %>
+            <%= render 'shared/file_attachement', f: form, attr_name: :files, button_name: "Cover Image", name_selector: ".uploaded_file_name", cstm_style: "border-radius: 0; height:38px;", multiple: true, required_field: false %>
             <p class="d-inline-block uploaded_file_name">No Image Selected</p>
           </div>
         </div>
@@ -167,7 +167,7 @@
     var add_button      = $(".add_field_button"); //Add button ID
 
     $(document).on('click', ".add_field_button",  function () {
-      $(this).parent(wrapper).find('.checkbox-option').append('<div><input type="text" name="mytext"/><a href="javascript:void(0);" class="remove_field">Remove</a></div>'); //add input box
+      $(this).parent(wrapper).find('.checkbox-option').append('<div style="margin-top: 10px;"><input type="text" name="mytext" placeholder="Option Answer"/><a href="javascript:void(0);" class="remove_field">Remove</a></div>'); //add input box
     });
     $(document).on('click', '.remove_field',  function () {
       $(this).parent('div').remove();

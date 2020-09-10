@@ -41,7 +41,7 @@
           %label.d-block Resume
           .file_selector{style: "display: flex;"}
             .form-group.d-inline-block
-              = render 'shared/file_attachement',f:f,attr_name: :attachment,button_name: "Attach Document", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+              = render 'shared/file_attachement',f:f,attr_name: :attachment,button_name: "Attach Document", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
             %p.d-inline-block.uploaded_file_name No File Selected
       .row.pull-right
         = f.submit "Make Payment", class: 'btn btn-primary'

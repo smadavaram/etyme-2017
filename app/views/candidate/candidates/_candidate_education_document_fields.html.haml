@@ -14,7 +14,7 @@
     - slug = SecureRandom.hex(5)
     .file_selector{style: "display: flex;"}
       .form-group.d-inline-block
-        = render 'shared/file_attachement',f:f,attr_name: :file,button_name: "Document", name_selector: ".#{slug}",cstm_style: "border-radius: 0; height:38px;"
+        = render 'shared/file_attachement',f:f,attr_name: :file,button_name: "Document", name_selector: ".#{slug}",cstm_style: "border-radius: 0; height:38px;", required_field: false
       %p.d-inline-block.uploaded_file_name{class: slug}= f.object&.file.present?  ? File.basename(f.object.file) : "No File Selected"
     -#.form-group
     -#  %label Select Document

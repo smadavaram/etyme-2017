@@ -20,7 +20,7 @@
     .col-md-12
       %label Requirement
       =f.hidden_field :multiple_option, class: 'multi-option-text'
-      =f.text_area :questions , class: 'form-control question', :rows => 6, :cols => 60, placeholder: "Structure your Applicant Instructions as free text, a multiple choice question or file upload.", require: true
+      =f.text_field :questions , class: 'form-control question', :rows => 6, :cols => 60, placeholder: "Structure your Applicant Instructions as free text, a multiple choice question or file upload.", require: true
     .col-md-12.select-filed
       .col-md-3.pl-0
         %label Answer Type
@@ -38,7 +38,8 @@
         .col-md-12.input_fields_wrap
           .checkbox-option
             - opt_array.each do |a|
-              %input{:placeholder => "Option Answer", :type => "text", :name=>"mytext", :value=>"#{CGI.unescape(a)}"}/
+              %div{:style => "margin-top: 10px;"}
+                %input{:placeholder => "Option Answer", :type => "text", :name=>"mytext", :value=>"#{CGI.unescape(a)}"}/
         .col-md-12.add_field_button
           %a.filed-Add
             %i.fa.fa-plus>
@@ -51,8 +52,10 @@
       .multi-ans-div{style: "display:none"}
         .col-md-12.input_fields_wrap
           .checkbox-option
-            %input{:placeholder => "Option Answer", :type => "text", :name=>"mytext"}/
-            %input{:placeholder => "Option Answer", :type => "text", :name=>"mytext"}/
+            %div{:style => "margin-top: 10px;"}
+              %input{:placeholder => "Option Answer", :type => "text", :name=>"mytext"}/
+            %div{:style => "margin-top: 10px;"}
+              %input{:placeholder => "Option Answer", :type => "text", :name=>"mytext"}/
         .col-md-12.add_field_button
           %a.filed-Add
             %i.fa.fa-plus>

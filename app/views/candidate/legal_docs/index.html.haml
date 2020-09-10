@@ -30,7 +30,7 @@
                                 .form-group
                                   %p Select File
                                   .flex-row
-                                    = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload Document",name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                                    = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload Document",name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
                                     %p.uploaded_file_name No Document Selected
                               .col-sm-1.f-align_center
                                 %button.btn.btn-primary{:type => "submit"} Save

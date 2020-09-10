@@ -60,6 +60,7 @@ Rails.application.routes.draw do
     end
   end
   namespace :static do
+    get '/people', to: 'jobs#people'
     resources :jobs, only: %i[index show] do
       post 'job_request', on: :collection
       get '(page/:page)', action: :index, on: :collection, as: ''

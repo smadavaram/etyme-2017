@@ -96,7 +96,7 @@
                     %label.d-block Attachment
                     .file_selector{style: "display: flex;"}
                       .form-group.d-inline-block
-                        = render "shared/file_attachement", f:f,attr_name: :attachment,multiple: false,name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;"
+                        = render "shared/file_attachement", f:f,attr_name: :attachment,multiple: false,name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
                       %p.d-inline-block.uploaded_file_name  No File Selected
 
                   .col-md-6.total-amount
