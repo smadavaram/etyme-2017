@@ -44,6 +44,8 @@ class ApplicationController < ActionController::Base
     set_permissions
     if session[:previous_url]
       session[:previous_url]
+    elsif params[:allow_chat].present? && params[:allow_chat] == "true"
+      company_conversations_path
     elsif %w[Admin Consultant User].include?(class_name)
       if resource.sign_in_count == 1
         company_path(current_company.id)

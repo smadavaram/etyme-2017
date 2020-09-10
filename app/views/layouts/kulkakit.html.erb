@@ -10,6 +10,8 @@
       <title><%= "#{request.subdomain} :: Jobs" %></title>
     <% elsif params[:controller] == "static/jobs" && params[:action] ==  "show" && request.subdomain.present? %>
       <title><%= "#{request.subdomain} :: #{@job&.title}" %></title>
+    <% elsif params[:controller] == "static/jobs" && params[:action] ==  "people" && request.subdomain.present? %>
+      <title><%= "#{request.subdomain} :: People" %></title>
     <% else %>
       <title><%= "Etyme" %></title>
     <% end %>
