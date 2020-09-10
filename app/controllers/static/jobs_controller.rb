@@ -35,6 +35,9 @@ class Static::JobsController < ApplicationController
     elsif @current_company.present?
       @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).paginate(page: params[:page], per_page: 51)
     end
+    if (params[:is_chat_candidate].present? && params[:is_chat_candidate] == "true")
+      flash.now[:alert] = 'Please login with Company ID'
+    end
     render :layout => "kulkakit"
   end
 

@@ -73,8 +73,21 @@
                           <div class="col-12 p-0 d-flex justify-content-between">
                             <span class="bg-blue d-inline-block px-3 py-2 br-20 f-10 f-mon-sembol text-white">
                               <%= image_tag 'microphone.svg' ,class: "img-fluid mr-2", alt: "microphone" %>Schedule Interview</span>
-                            <span class="bg-blue d-inline-block px-3 py-2 br-20 f-10 f-mon-sembol text-white">
-                              <%= image_tag 'chat.svg' ,class: "img-fluid mr-2", alt: "chat" %>Chat</span>
+                            <span class="bg-blue d-inline-block px-3 py-2 br-20 f-10 f-mon-sembol text-white chat_img">
+                              <% if current_user.present? %>
+                                <%= link_to company_conversations_path do %>
+                                  <%= image_tag 'chat.svg' ,class: "img-fluid mr-2", alt: "chat" %>Chat
+                                <% end %>
+                              <% elsif current_candidate.present? %>
+                                <%= link_to static_people_path(is_chat_candidate: "true") do %>
+                                  <%= image_tag 'chat.svg' ,class: "img-fluid mr-2", alt: "chat" %>Chat
+                                <% end %>
+                              <% else %>
+                                <%= link_to request.subdomain.present? ? new_user_session_path(allow_chat: "true") : signin_path(allow_chat: "true") do %>
+                                  <%= image_tag 'chat.svg' ,class: "img-fluid mr-2", alt: "chat" %>Chat
+                                <% end %>
+                              <% end %>
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -130,5 +143,8 @@
     padding: 5px;
     text-align: center;
     display: inline-block;
+  }
+  .chat_img a {
+    color: #fff!important;
   }
 </style>
