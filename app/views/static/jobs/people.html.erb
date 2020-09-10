@@ -110,6 +110,20 @@
 
   </div>
 </section>
+<%= javascript_include_tag 'shared/hide_show_toggler'%>
+<script>
+    var selected_categories = [];
+    $(document).ready(function () {
+      $(".openbtn").click(function () {
+          $(".side-wrapper").addClass("side-active")
+      });
+
+      $(".closebtn").click(function () {
+          $(".side-wrapper").removeClass("side-active")
+          $(".side-wrapper").removeClass("inactive")
+      });
+    });
+</script>
 <style type="text/css">
   .bg-transparent{
     background: transparent !important;
