@@ -11,6 +11,7 @@
           ×
 
       .modal-body
+        .share_url{:style => "margin-bottom: 10px; margin-left: 12px;"} 
         = form_for Candidate.new, url: share_hot_candidates_candidates_path, html: {class: 'form-horizontal'},method: :get do |f|
           = hidden_field_tag 'candidates_ids',value ='',{class: "candidates_ids"}
           %fieldset

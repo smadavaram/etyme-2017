@@ -58,3 +58,13 @@
  *= require candidate/dashboard
 
  */
+ .icon-text{
+	font-size: 12px;
+    line-height: normal;
+    display: block;
+    color: #047bf8;
+}
+.new-messages-count{
+	top: -2px !important;
+    right: 0px !important;
+}
