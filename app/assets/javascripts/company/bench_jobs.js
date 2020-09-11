@@ -2,13 +2,15 @@
 $( "input[type=checkbox]" ).on( "click", function() {
 });
 // for share of checked rows
-var checkedRows = new Array();
 $(".share" ).on( "click", function() {
+    var checkedRows = new Array();
     $("input[name='ids[]']:checked").each(function(){
         checkedRows.push($(this).val());
     });
     if(checkedRows.length>0)
     {
+        var candidate_url = "http://company.lvh.me:3000/static/people?ids="+checkedRows
+        $('div.share_url').text(candidate_url);
         $('#candidates_ids').val(checkedRows);
         $('#share-candidates').modal('toggle');
     }

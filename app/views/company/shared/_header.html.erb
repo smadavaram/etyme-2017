@@ -3,14 +3,21 @@
     <div class="element-search autosuggest-search-activator os-dropdown-position-left">
       <input placeholder="Find reports and more" type="text">
     </div>
-    <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
-      <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications") %>"><i class="ti-bell"></i></a>
-      <% if current_user.notifications.unread.count > 0 %>
-        <div class="new-messages-count"><%= current_user.notifications.unread.count %></div>
-      <% end %>
+    <div class="icon-wrapper">
+      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
+        <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications") %>"><i class="ti-bell"></i></a>
+        <% if current_user.notifications.unread.count > 0 %>
+          <div class="new-messages-count"><%= current_user.notifications.unread.count %></div>
+        <% end %>
+      </div>
+      <span class="icon-text">Notification</span>
     </div>
-    <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
-      <a href="<%= company_conversations_path %>" target="_blank"><i class="os-icon os-icon-mail-14"></i></a>
+
+    <div>
+      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
+        <a href="<%= company_conversations_path %>" target="_blank"><i class="os-icon os-icon-mail-14"></i></a>
+      </div>
+      <span class="icon-text">Chat</span>
     </div>
 
     <!-- Network Start---->
@@ -48,12 +55,14 @@
     <!-- Network End---->
 
 
-
-    <div class="top-icon btn-header transparent pull-right open" id="quick-add">
-      <i class="ti-plus"></i>
-      <ul class="dropdown-menu project-dropdown" id="links_block" style=" background-color:#047bf8 ; color: white; right: 120px !important; left: initial;">
-        <%=render('company/shared/links_block') %>
-      </ul>
+    <div>
+      <div class="top-icon btn-header transparent pull-right open" id="quick-add">
+        <i class="ti-plus"></i>
+        <ul class="dropdown-menu project-dropdown" id="links_block" style=" background-color:#047bf8 ; color: white; right: 120px !important; left: initial;">
+          <%=render('company/shared/links_block') %>
+        </ul>
+      </div>
+      <span class="icon-text">Add</span>
     </div>
 
     <!--------------------END - Features Link in secondary top menu-------------------->

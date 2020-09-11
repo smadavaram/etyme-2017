@@ -29,11 +29,22 @@ class Static::JobsController < ApplicationController
   end
 
   def people
+    ids = params[:ids]
+    candidate_ids = ids.split(',').map(&:to_i) if ids.present?
+
     @current_company = Company.find_by(slug: request.subdomain)
     if request.subdomain == "app"
-      @candidates = CandidatesCompany.hot_candidate.paginate(page: params[:page], per_page: 51)
+      if candidate_ids.present?
+        @candidates = CandidatesCompany.hot_candidate.where(candidate_id: candidate_ids).paginate(page: params[:page], per_page: 51)
+      else
+        @candidates = CandidatesCompany.hot_candidate.paginate(page: params[:page], per_page: 51)
+      end
     elsif @current_company.present?
-      @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).paginate(page: params[:page], per_page: 51)
+      if candidate_ids.present?
+        @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id, candidate_id: candidate_ids).paginate(page: params[:page], per_page: 51)
+      else
+        @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).paginate(page: params[:page], per_page: 51)
+      end
     end
     if (params[:is_chat_candidate].present? && params[:is_chat_candidate] == "true")
       flash.now[:alert] = 'Please login with Company ID'
