@@ -9,6 +9,7 @@
                 .col-sm-6
                   = link_to "Share", '#', class: 'btn share btn-sm btn-secondary ml-2'
                   = link_to "New", "#candidate-bench_invite", :class => "btn btn-sm btn-secondary", "data-toggle" => "modal"
+                  = link_to "Public View", request.base_url + "/static/people", class: 'btn btn-sm btn-secondary ml-2', target: "_blank"
                 .col-sm-6
                   .form-inline.justify-content-sm-end
                     %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
@@ -21,12 +22,15 @@
                     %th Name
                     %th Role/Title
                     %th Skills
+                    %th Min Hourly Rate
+                    %th Max Hourly Rate
                     %th Location
                     %th Visa
                     %th Recuiter Name
                     %th Actions
                 %tbody
                   - @candidates.each_with_index do |c , index|
+                    - @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id)
                     %tr
                       %td
                         = check_box_tag "ids[]", c.candidate.id
@@ -45,6 +49,10 @@
                           %span
                             .label-info.badge.margin-bottom-5.badge-info
                               = skill.name
+                      %td
+                        = @c_bench_job.present? ? @c_bench_job&.min_hourly_rate : ""
+                      %td
+                        = @c_bench_job.present? ? @c_bench_job&.max_hourly_rate : ""
                       %td
                         = c.candidate.try(:location)
                       %td
