@@ -61,7 +61,7 @@
                         = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate) , remote:true,class: '',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                         = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: '',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                         = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(c.candidate) ,remote:true, method: :post ,  class: '',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                        = link_to raw("<i class='fa fa-pencil '></i>") , edit_company_candidate_path(c.candidate) , class: '', title: "Edit #{c.candidate.full_name}"
+                        = link_to raw("<i class='fa fa-pencil '></i>"), edit_job_invitation_company_bench_jobs_path(candidate_id: c.candidate.id, company_id: c.company.id), :remote => true, title: "Edit #{c.candidate.full_name}"
 
 :css
   .form-control
@@ -73,6 +73,7 @@
   = render 'company/candidates/partials/add_to_my_network'
   = render 'company/candidates/partials/share_hot_candidates'
   = render 'company/bench_jobs/candidate_bench_invite_modal'
+  #candidate_bench_job_invitation
 
 
 -content_for :scripts do
@@ -84,6 +85,41 @@
     if ("#{flash[:already_exist]}"){
         $('#add-network').modal('toggle');
     }
+
+    $('.end_date').datepicker({dateFormat : 'dd/mm/yy'});
+
+    $.validator.addMethod("greaterThan",
+    function (value, element, param) {
+      var $min = $(param);
+      if (this.settings.onfocusout) {
+        $min.off(".validate-greaterThan").on("blur.validate-greaterThan", function () {
+          $(element).valid();
+        });
+      }
+      return parseInt(value) > parseInt($min.val());
+    }, "Must be greater than to Min Hourly Rate");
+
+    $.validator.addMethod("lessThan",
+    function (value, element, param) {
+      var $min = $(param);
+      if (this.settings.onfocusout) {
+        $min.off(".validate-greaterThan").on("blur.validate-greaterThan", function () {
+          $(element).valid();
+        });
+      }
+      return parseInt(value) < parseInt($min.val());
+    }, "Must be less than to Max Hourly Rate");
+
+    $('form#candidate-val').validate({
+      rules: {
+        "job_invitation[max_hourly_rate]": {
+          greaterThan: '#job_invitation_min_hourly_rate'
+        },
+        "job_invitation[min_hourly_rate]": {
+          lessThan: '#job_invitation_max_hourly_rate'
+        }
+      }
+    });
     tinymce.init({
       selector: '.tinymce',
       menubar: false ,

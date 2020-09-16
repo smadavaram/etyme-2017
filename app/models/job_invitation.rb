@@ -24,6 +24,11 @@ class JobInvitation < ApplicationRecord
 
   validates :status, inclusion: { in: statuses.keys }
   validate :is_active?
+
+  validates_numericality_of :min_hourly_rate, :only_integer => true, :greater_than_or_equal_to => 0
+  validates_numericality_of :max_hourly_rate, :only_integer => true, :greater_than_or_equal_to => 0
+
+  validates :min_hourly_rate, :max_hourly_rate, presence: true, allow_blank: false
   # validates :expiry , presence: true,date: { after_or_equal_to: Proc.new { Date.today }, message: "Date must be at least #{(Date.today ).to_s}" }
 
   belongs_to :created_by, class_name: 'User', foreign_key: :created_by_id, optional: true

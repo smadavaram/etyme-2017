@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20200209041130) do
+ActiveRecord::Schema.define(version: 20200915111106) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1383,6 +1383,8 @@ ActiveRecord::Schema.define(version: 20200209041130) do
     t.integer "invitation_purpose", default: 0
     t.integer "sender_id"
     t.string "sender_type"
+    t.integer "min_hourly_rate"
+    t.integer "max_hourly_rate"
   end
 
   create_table "job_requirements", force: :cascade do |t|
