@@ -357,7 +357,12 @@ Rails.application.routes.draw do
     get 'download_company_template', to: 'jobs#download_company_template'
     get 'download_contacts_template', to: 'jobs#download_contacts_template'
 
-    resources :bench_jobs, only: %i[index destroy]
+    resources :bench_jobs, only: %i[index destroy] do
+      collection do
+        get :edit_job_invitation
+        patch :update_job_invitation
+      end
+    end
     resources :job_receives, only: %i[index destroy]
     resources :public_jobs, only: %i[index destroy] do
       get :job, on: :member

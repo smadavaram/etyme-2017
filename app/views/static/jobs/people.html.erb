@@ -40,14 +40,17 @@
                     <div class="col-12 col-md-6 col-lg-5 col-xl-4 mb-4 mb-md-5">
                       <div class="people-card bg-white pb-3">
                         <div class="cover-img">
-                          <%= image_tag 'people-a.png' ,class: "img-fluid cover-bg w-100", alt: "cover" %>
+                          <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
+                          <%= image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/no-image.jpg') : c.candidate.photo }" ,class: "img-fluid cover-bg w-100", alt: "cover" %>
                           <div class="love">
                             <%= image_tag 'love.svg' ,class: "img-fluid", alt: "like" %>
                           </div>
-                          <div class="designation">
-                            <span class="bg-white d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                              <%= image_tag 'black-suitcase.svg' ,class: "img-fluid mr-2", alt: "share" %>Illustration Artist</span>
-                          </div>
+                          <% if c&.candidate&.candidate_title.present? %>
+                            <div class="designation" title="<%= c.candidate.candidate_title %>">
+                              <span class="bg-white d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
+                                <%= image_tag 'black-suitcase.svg' ,class: "img-fluid mr-2", alt: "share" %><%= do_ellipsis(c&.candidate&.candidate_title,20) %></span>
+                            </div>
+                          <% end %>
                         </div>
 
                         <div class="col-12 pt-3">
@@ -59,14 +62,21 @@
                                 <%= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
                               </h5>
                               <p class="m-0 f-12 f-mon-sembol txt-light"><%= c.candidate.try(:location) %></p>
-                              <p class="m-0 f-14 f-mon-sembol txt-black">
-                                <%= image_tag 'star.svg' ,class: "img-fluid mr-2", alt: "star" %>4.5</p>
+                              <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
                               <p class="d-inline-block f-18 f-mon-sembol txt-dark">
-                                  $60.00/hr</p>
+                                  <%= "$#{@c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? ? number_with_precision(@c_bench_job&.min_hourly_rate, precision: 2) : ""}/hr" %></p>
                               <p class="d-inline-block pl-1 f-14 f-mon-sembol txt-light">
-                                  <del>$75.00/hr</del>
+                                  <del><%= "$#{@c_bench_job.present? && @c_bench_job&.max_hourly_rate.present? ? number_with_precision(@c_bench_job&.max_hourly_rate, precision: 2) : ""}/hr" %></del>
                               </p>
-
+                              <% else %>
+                                <p class="d-inline-block f-14 f-mon-sembol txt-dark">
+                                  Chat for Pricing
+                                </p>
+                              <% end %>
+                              <p class="m-0 f-14 f-mon-sembol txt-dark" title="<%= c.candidate.skills.pluck(:name).join(", ") if c.candidate.skills.present? %>">
+                                <%= do_ellipsis(c.candidate.skills.pluck(:name).join(", "),45) if c.candidate.skills.present? %>
+                              <p>
+                              </p>
                             </div>
                           </div>
 
