@@ -35,15 +35,15 @@ class Static::JobsController < ApplicationController
     @current_company = Company.find_by(slug: request.subdomain)
     if request.subdomain == "app"
       if candidate_ids.present?
-        @candidates = CandidatesCompany.hot_candidate.joins(candidate: :job_invitations).where("job_invitations.expiry > ?", Date.today).where(candidate_id: candidate_ids).paginate(page: params[:page], per_page: 51)
+        @candidates = CandidatesCompany.hot_candidate.where(candidate_id: candidate_ids).paginate(page: params[:page], per_page: 50)
       else
-        @candidates = CandidatesCompany.hot_candidate.joins(candidate: :job_invitations).where("job_invitations.expiry > ?", Date.today).paginate(page: params[:page], per_page: 51)
+        @candidates = CandidatesCompany.hot_candidate.paginate(page: params[:page], per_page: 50)
       end
     elsif @current_company.present?
       if candidate_ids.present?
-        @candidates = CandidatesCompany.hot_candidate.joins(candidate: :job_invitations).where("job_invitations.expiry > ?", Date.today).where(company_id: @current_company.id, candidate_id: candidate_ids).paginate(page: params[:page], per_page: 51)
+        @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id, candidate_id: candidate_ids).paginate(page: params[:page], per_page: 50)
       else
-        @candidates = CandidatesCompany.hot_candidate.joins(candidate: :job_invitations).where("job_invitations.expiry > ?", Date.today).where(company_id: @current_company.id).paginate(page: params[:page], per_page: 51)
+        @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).paginate(page: params[:page], per_page: 50)
       end
     end
     if (params[:is_chat_candidate].present? && params[:is_chat_candidate] == "true")
