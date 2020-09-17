@@ -18,6 +18,10 @@ class Static::CandidatesController < ApplicationController
 
   def candidate_profile
     @candidate = Candidate.find_by(id: params[:id])
+    if (params[:is_chat_candidate].present? && params[:is_chat_candidate] == "true")
+      flash.now[:alert] = 'Please login with Company ID'
+    end
+    render :layout => "kulkakit"
     redirect_back(fallback_location: root_path) unless @candidate
   end
 
