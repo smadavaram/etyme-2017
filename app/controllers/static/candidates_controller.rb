@@ -21,8 +21,11 @@ class Static::CandidatesController < ApplicationController
     if (params[:is_chat_candidate].present? && params[:is_chat_candidate] == "true")
       flash.now[:alert] = 'Please login with Company ID'
     end
-    render :layout => "kulkakit"
-    redirect_back(fallback_location: root_path) unless @candidate
+    unless @candidate
+      redirect_back(fallback_location: root_path)
+    else
+      render :layout => "kulkakit"
+    end
   end
 
   private
