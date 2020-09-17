@@ -133,6 +133,11 @@ class Candidate < ApplicationRecord
     days < 365 ? "<div class='value'>#{days}</div> <div class='label'>day(s) experience</div>" : "<div class='value'>#{days / 365}</div><div class='label'>year(s) experience</div>"
   end
 
+  def candidate_exp_words
+    days = (client_exp + designation_exp)
+    days < 365 ? "<h2>#{days}</h2> <p'>day(s) experience</p>" : "<h2>#{days / 365}</h2><p>year(s) experience</p>"
+  end
+
   def client_exp
     clients.map { |c| (c.end_date - c.start_date).to_i if c.start_date && c.end_date }.compact.sum
   end
