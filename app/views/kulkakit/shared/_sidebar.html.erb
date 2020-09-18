@@ -35,7 +35,7 @@
                         <%= image_tag(image_path('suitcase-active.svg'), class: "mr-3") %>
                         Jobs
                     </a>
-                    <a class="nav-link mb-3 f-20 pl-2 <%= params[:controller] == "static/jobs" &&  params[:action] == "people" ? "active" : ""  %>" href="<%= static_people_path %>">
+                    <a class="nav-link mb-3 f-20 pl-2 <%= (params[:controller] == "static/jobs" &&  params[:action] == "people") || (params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile") ? "active" : ""  %>" href="<%= static_people_path %>">
                         <!-- <img src="images/side-nav/group.svg" class="mr-3" alt="group"> -->
                         <%= image_tag(image_path('group.svg'), class: "mr-3") %>
                         <%= image_tag(image_path('group-active.svg'), class: "mr-3") %>
