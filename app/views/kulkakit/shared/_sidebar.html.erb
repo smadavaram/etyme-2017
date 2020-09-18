@@ -21,7 +21,7 @@
 
             <div class="col-12 sidenav-items">
                 <div class="nav flex-column nav-pills mt-5" >
-                    <a class="nav-link mb-3 f-20 pl-2 " href="#">
+                    <a class="nav-link mb-3 f-20 pl-2 <%= (params[:controller] == "static/jobs" &&  params[:action] == "static_feeds") ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
                         <!-- <img src="images/side-nav/grid.svg" class="mr-3" alt="grid"> -->
                         <%= image_tag(image_path('grid.svg'), class: "mr-3") %>
                         <!-- <img src="images/side-nav/grid-active.svg" class="mr-3" alt="grid"> -->
