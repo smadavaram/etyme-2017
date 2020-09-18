@@ -34,7 +34,7 @@
           <div class="col-12 col-lg-8">
             <div class="row">
               <div class="col-12 col-lg-4 text-center">
-                <%= image_tag "#{@candidate&.photo.blank? ? asset_path('avatars/m_sunny_big.png') : @candidate.photo }" ,class: "img-fluid w-100 br-20", alt: "cover" %>
+                <%= image_tag "#{@candidate&.photo.blank? ? asset_path('avatars/no_photo.jpg') : @candidate.photo }" ,class: "img-fluid w-100 br-20", alt: "cover" %>
               </div>
               <div class="col-12 col-lg-8">
                 <div class="row">
@@ -82,31 +82,46 @@
               </div>
               <div class="col-12">
                 <div class="row feed-main">
-                  <div class="col-12 mt-3">
+                  <div class="col-12 mt-3 mb-3">
                     <div class="feed-block bg-white p-3">
                       <p class="mb-4 f-20 font-weight-bold">Project History</p>
                       <div class="m-0">
                         <% if @candidate.designations.present? || (@candidate.ever_worked_with_company && @candidate.clients.present?) %>
                           <% @candidate.designations.each do |c| %>
                             <% unless c.comp_name && c.company_role %>
-                              <h4><%= "#{c.comp_name}" %></h4>
-                              <span><%=  "As #{c.company_role}" if c.company_role.present? %></span>
-                              <strong><%= "#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?}  #{c.end_date&.strftime('%B-%Y')}" %></strong>
+                              <hr>
+                              <p class="f-20 ">
+                                <b><%= "#{c.comp_name}" %></b><br>
+                                <small><%= "#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?}  #{c.end_date&.strftime('%B-%Y')}" %></small><br>
+                                <%  if c.company_role.present? %>
+                                  <p><b>Role(s) : </b><%=  "As #{c.company_role}" %></p>
+                                <% end %>
+                              </p>
                             <% end %>
                           <% end %>
-                          <hr>
                           <% @candidate.clients.each do |c| %>
-                            <h5><%= "#{c.name}" %></h5>
-                            <span><%=  "At #{c.industry}" if c.industry.present? %></span>
-                            <strong><%= "#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?} #{c.end_date&.strftime('%B-%Y')}" %></strong>
-                            <div><strong>Project Description</strong> <%= c.project_description.present? ? c.project_description : "-" %></div>
-                            <div><strong> Role(s) </strong> <%= c.role.present? ? c.role : "-" %></div><div>
-                              <strong> Reference </strong>
+                            <hr>
+                            <p class="f-20">
+                              <b><%= "#{c.name}" %></b><br>
+                              <%=  "At #{c.industry}" if c.industry.present? %><br>
+                              <small><%= "#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?} #{c.end_date&.strftime('%B-%Y')}" %></small> 
+                            </p>
+                            <% if c.project_description.present? %>
+                              <p>
+                                <b>Project Description : </b><%= c.project_description %>
+                              </p>
+                            <% end %>
+                            <% if c.role.present? %>
+                              <p><b>Role(s) : </b><%= c.role %></p>
+                            <% end %>
+                            <p>
+                              <b>Reference : </b>
                               <% if c.candidate == current_candidate and !c.refrence_one.present? %>
                               <% else %>
                                 <%= "<strong>#{c&.refrence_name&.capitalize}</strong> endorse <strong>#{c.candidate.full_name}</strong> and their roles and responsibilities for the PROJECT".html_safe %>
                               <% end %>
-                            </div>
+                            </p>
+                            <hr>
                           <% end %>
                         <% else %>
                           <p>No Project History</p>
@@ -127,22 +142,34 @@
                 <h2><%= @candidate.clients.present? ? @candidate.clients.count : "0" %></h2>
                 <p>Clients</p>
               </div>
+
+              <div class="col-12 text-right pt-3" style="border-top: 1px solid #ccc;">
+                <!-- <span class="fa fa-star-half-o" style="font-size:40px; color:#5555A5"></span> -->
+                <span class="fa fa-star" style="font-size:40px; color:#ccc"></span>
+                <span class="fa fa-star" style="font-size:40px; color:#ccc"></span>
+                <span class="fa fa-star" style="font-size:40px; color:#ccc"></span>
+                <span class="fa fa-star" style="font-size:40px; color:#ccc"></span>
+                <span class="fa fa-star" style="font-size:40px; color:#ccc"></span>
+
+                <span style="font-size: 40px;"> N/A</span> (No Review)
+              </div>
               <div class="col-12 mt-4 mb-4 text-left  pt-4" style="border-top: 1px solid #ccc;">
-                <p><b>Contact : </b> 
-                  <% if @candidate.phone.present? %>
-                    <a href="callto:<%= @candidate.phone %>"><%= @candidate.phone %></a>
-                  <% else %>
-                    -
-                  <% end %>
-                </p>
-                <p><b>Email : </b><a href="mailto:<%= @candidate&.email.downcase %>"><%= @candidate&.email.downcase %></a> <span class="text-success"><%= is_verify(!!@candidate.confirmed_at) %></span></p>
+                <% @c_job_invitation = @candidate.job_invitations.first %>
+                <% if (current_candidate.present? && current_candidate.id == @candidate.id) || (current_user.present? && @c_job_invitation.present? && current_user.email == @c_job_invitation&.created_by&.email) %>
+                  <p><b>Contact : </b> 
+                    <% if @candidate.phone.present? %>
+                      <a href="callto:<%= @candidate.phone %>"><%= @candidate.phone %></a>
+                    <% else %>
+                      -
+                    <% end %>
+                  </p>
+                  <p><b>Email : </b><a href="mailto:<%= @candidate&.email.downcase %>"><%= @candidate&.email.downcase %></a> <span class="text-success"><%= is_verify(!!@candidate.confirmed_at) %></span></p>
+                <% end %>
                 <p><b>Visa Status : </b><%= @candidate.visas.present? ? @candidate.visas.order(:created_at)&.last&.status : "-" %></p>
                 <p><b>SSN : </b><%= @candidate.ssn.present? ? 'Yes' : 'No'%></p>
-                <p><b>Skype ID : </b><%= @candidate.skypeid.present? ? @candidate.skypeid : "-" %></p>
                 <p><b>Linked ID : </b><%= @candidate.linkedin_url.present? ? @candidate.linkedin_url : "-" %></p>
               </div>
               <div class="col-12 text-center pt-4" style="border-top: 1px solid #ccc;">
-                <% @c_job_invitation = @candidate.job_invitations.first %>
                 <h2><%= @c_job_invitation.present? && @c_job_invitation.min_hourly_rate.present? && @c_job_invitation.max_hourly_rate.present? ? "$ #{@c_job_invitation.min_hourly_rate} - $ #{@c_job_invitation.max_hourly_rate}" : "-" %></h2>
                 <p>Hourly Rate</p>
               </div>

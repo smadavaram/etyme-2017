@@ -97,7 +97,7 @@
     </div>
   </div>
   <% end %>
-  <% if request.subdomain == "app" || @current_company.present? %>
+  <% if @job_all.present? %>
     <div class="mt-3">
       <%= digg_pagination(@job_all,class: "pagination ")%>
     </div>
