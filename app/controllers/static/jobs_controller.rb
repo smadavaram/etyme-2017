@@ -52,6 +52,27 @@ class Static::JobsController < ApplicationController
     render :layout => "kulkakit"
   end
 
+  def static_feeds
+    @current_company = Company.find_by(slug: request.subdomain)
+    @listing_type_type = params[:type] || 'Blog'
+    if request.subdomain == "app"
+      @search = Job.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
+      @company_jobs = @search.result.order(created_at: :desc)
+      @company_jobs = @company_jobs.where(listing_type: params[:type] || 'Blog').paginate(page: params[:page], per_page: 20)
+      @candidates = CandidatesCompany.hot_candidate.first(3)
+      @job_all = Job.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
+    else
+      if @current_company.present?
+        @search = @current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
+        @company_jobs = @search.result.order(created_at: :desc)
+        @company_jobs = @company_jobs.where(listing_type: params[:type] || 'Blog').paginate(page: params[:page], per_page: 20)
+        @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+        @job_all = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
+      end
+    end
+    render :layout => "kulkakit"
+  end
+
   def iframe_apply
     @job_application = @job.job_applications.new
     # respond_to do |format|
@@ -184,15 +205,15 @@ class Static::JobsController < ApplicationController
     @current_company = Company.find_by(slug: request.subdomain)
     if request.subdomain == "app"
       if params[:selected_categories].present?
-        @job_all = Job.active.is_public.where(job_category: params[:selected_categories]).order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
+        @job_all = Job.active.is_public.where(listing_type: 'Job').where(job_category: params[:selected_categories]).order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
       else
-        @job_all = Job.active.is_public.order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
+        @job_all = Job.active.is_public.where(listing_type: 'Job').order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
       end
     else
       if params[:selected_categories].present?
-        @job_all = @current_company.jobs.active.is_public.where(job_category: params[:selected_categories]).order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
+        @job_all = @current_company.jobs.active.is_public.where(listing_type: 'Job').where(job_category: params[:selected_categories]).order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
       else
-        @job_all = @current_company.jobs.active.is_public.order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
+        @job_all = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
       end
     end
   end
@@ -203,27 +224,27 @@ class Static::JobsController < ApplicationController
     @current_company = Company.find_by(slug: request.subdomain)
     if request.subdomain == "app"
       @search = params[:category].present? ? Job.active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : Job.active.is_public.ransack(params[:q])
-      jobs = @search.result(distinct: true).order(created_at: :desc).paginate(page: params[:page], per_page: 50)
+      jobs = @search.result(distinct: true).where(listing_type: 'Job').order(created_at: :desc).paginate(page: params[:page], per_page: 50)
       # @search_q = Job.is_public.active.ransack(params[:q])
       # @jobs_groups = @search_q.result.group_by(&:job_category)
       if jobs.present?
         @job_all = jobs
       else
-        @job_all = Job.active.is_public.order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
+        @job_all = Job.active.is_public.where(listing_type: 'Job').order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
       end
       @job_categories =  Job.active.is_public.pluck(:job_category).uniq
     elsif @current_company.present?
       
       @search = params[:category].present? ? @current_company.jobs.active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : @current_company.jobs.active.is_public.ransack(params[:q])
-      jobs = @search.result(distinct: true).order(created_at: :desc).paginate(page: params[:page], per_page: 50)
+      jobs = @search.result(distinct: true).where(listing_type: 'Job').order(created_at: :desc).paginate(page: params[:page], per_page: 50)
       if jobs.present?
         @job_all = jobs
       else
-        @job_all = @current_company.jobs.active.is_public.order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
+        @job_all = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
       end
       @job_categories = @current_company.jobs.active.is_public.pluck(:job_category).uniq
     else
-      @search = Job.active.is_public.ransack(params[:q])
+      @search = Job.active.is_public.where(listing_type: 'Job').ransack(params[:q])
       @job_all = []
       @job_categories = []
     end

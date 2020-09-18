@@ -12,6 +12,10 @@
       <title><%= "#{request.subdomain} :: #{@job&.title}" %></title>
     <% elsif params[:controller] == "static/jobs" && params[:action] ==  "people" && request.subdomain.present? %>
       <title><%= "#{request.subdomain} :: People" %></title>
+    <% elsif params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile" %>
+      <title><%= "#{@candidate&.full_name} - Etyme" %> </title>
+    <% elsif params[:controller] == "static/jobs" &&  params[:action] == "static_feeds" %>
+      <title>Feeds - Etyme </title>
     <% else %>
       <title><%= "Etyme" %></title>
     <% end %>
