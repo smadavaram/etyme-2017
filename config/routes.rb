@@ -61,6 +61,7 @@ Rails.application.routes.draw do
   end
   namespace :static do
     get '/people', to: 'jobs#people'
+    # get '/feeds', to: 'jobs#static_feeds'
     resources :jobs, only: %i[index show] do
       post 'job_request', on: :collection
       get '(page/:page)', action: :index, on: :collection, as: ''
@@ -752,9 +753,10 @@ Rails.application.routes.draw do
   }
   # Route set when subdomain present?
   constraints(Subdomain) do
-    devise_scope :user do
-      match '/' => 'devise/sessions#new', via: %i[get post]
-    end
+      match '/' => 'static/jobs#static_feeds',:as=> :root_static_feeds, via: %i[get]
+    # devise_scope :user do
+    #   # match '/' => 'devise/sessions#new', via: %i[get post]
+    # end
   end
 
   # Route set when subdomain is not present
