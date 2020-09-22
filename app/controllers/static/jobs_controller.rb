@@ -54,21 +54,16 @@ class Static::JobsController < ApplicationController
 
   def static_feeds
     @current_company = Company.find_by(slug: request.subdomain)
-    @listing_type_type = params[:type] || 'Blog'
-    if request.subdomain == "app"
-      @search = Job.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
+    if @current_company.present?
+      @search = @current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
       @company_jobs = @search.result.order(created_at: :desc)
-      @company_jobs = @company_jobs.where(listing_type: params[:type] || 'Blog').paginate(page: params[:page], per_page: 20)
-      @candidates = CandidatesCompany.hot_candidate.first(3)
-      @job_all = Job.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
-    else
-      if @current_company.present?
-        @search = @current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
-        @company_jobs = @search.result.order(created_at: :desc)
-        @company_jobs = @company_jobs.where(listing_type: params[:type] || 'Blog').paginate(page: params[:page], per_page: 20)
-        @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
-        @job_all = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
+      if params.has_key?(:selected_categories).present?
+        @company_jobs = @company_jobs.where(listing_type: params[:selected_categories].to_s.split(',')).paginate(page: params[:page], per_page: 20)
+      else
+        @company_jobs = @company_jobs.where.not(listing_type: 'Job').paginate(page: params[:page], per_page: 20)
       end
+      @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @job_all = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
     render :layout => "kulkakit"
   end

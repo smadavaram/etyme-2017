@@ -35,207 +35,46 @@
           <div class="tab-pane fade show active" >
             <div class="row">
               <div class="col-12 col-xl-9 feed-main">
-                <div class="filter-list mb-4">
-                    <ul class="list-unstyled d-md-flex align-items-center p-0 m-0">
-                        <li class="d-inline-block ml-3">
-                            <p class="f-14 f-mon-sembol m-0 <%= params[:type] == 'Blog' || !params[:type].present? ? 'common-blue-btn' : 'inactive-feed' %>"><a href="/">Blogs</a></p>
-                        </li>
-                        <li class="d-inline-block ml-4">
-                            <p class="f-14 f-mon-sembol m-0 <%= params[:type] == 'Product' ? 'common-blue-btn' : 'inactive-feed' %>"><a href="?type=Product">Product</a></p>
-                        </li>
-                        <li class="d-inline-block ml-3">
-                            <p class="f-14 f-mon-sembol m-0 <%= params[:type] == 'Service' ? 'common-blue-btn' : 'inactive-feed' %>"><a href="?type=Service">Services</a></p>
-                        </li>
-                        <li class="d-inline-block ml-3">
-                            <p class="f-14 f-mon-sembol m-0 <%= params[:type] == 'Training' ? 'common-blue-btn' : 'inactive-feed' %>"><a href="?type=Training">Training</a></p>
-                        </li>
-                    </ul>
+                <div class="col-12 p-0 category-list">
+                  <ul class="list-unstyled mt-3" id="main_feed_id">
+
+                    <label class="check-main mr-2">
+                      <input type="checkbox" class="selected_feed_category" id="Blog" checked>Blog
+                      <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
+                      <span class="checkmark">
+                        <!-- <input type="checkbox" value="Bike"> -->
+                      </span>
+                    </label>
+
+                    <label class="check-main mr-2">
+                      <input type="checkbox" class="selected_feed_category" id= "Product" checked>Product
+                      <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
+                      <span class="checkmark">
+                        <!-- <input type="checkbox" value="Bike"> -->
+                      </span>
+                    </label>
+
+                    <label class="check-main mr-2">
+                      <input type="checkbox" class="selected_feed_category" id= "Service" checked>Service
+                      <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
+                      <span class="checkmark">
+                        <!-- <input type="checkbox" value="Bike"> -->
+                      </span>
+                    </label>
+
+                    <label class="check-main mr-2">
+                      <input type="checkbox" class="selected_feed_category" id= "Training" checked>Training
+                      <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
+                      <span class="checkmark">
+                        <!-- <input type="checkbox" value="Bike"> -->
+                      </span>
+                    </label>
+
+                  </ul>
                 </div>
-                <% if @company_jobs.present? %>
-                  <% @company_jobs.each do |job| %>
-                    <% if @listing_type_type.present? && @listing_type_type == "Blog" %>
-                      <!-- Profile Block-->
-                      <div class="col-12 mb-4 p-0 p-lg-0">
-                        <div class="col-12 profile-block bg-white mb-3">
-                          <div class="row align-items-center">
-                            <div class="col-12 col-lg-3 text-center text-lg-left mb-md-0 p-3 p-lg-0" >
-                              <% if job.files.present? %>
-                                <% img_url = job.files.split(',') %>
-                                <%= image_tag img_url[0] ,class: "mr-3 img-fluid feed_image", alt: "photo" %>
-                              <% else %>
-                                <%= image_tag asset_path('avatars/no_photo.jpg') ,class: "mr-3 img-fluid feed_image", alt: "photo" %>
-                              <% end %>
-                            </div>
-                            <div class="col-12 col-lg-9 p-lg-3">
-                              <div class="col-12 pr-0">
-                                <h5 class="f-18 f-mon-sembol"><%= job.title if job.title.present? %></h5>
-                                <p class="f-12 f-mon-med txt-dark"><%= job.description.html_safe if job.description.present? %></p>
-
-                                <div class="row align-items-center">
-                                  <div class="col-12 mb-2 mb-xl-0">
-                                    <div class="row align-items-center no-gutters">
-                                      <div class="col-7">
-                                        <div class="media">
-                                          <%= link_to user_image(job.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image img-fluid mr-2',title: "#{job.created_by&.full_name}" ),"#" %>
-                                          <%#= image_tag 'user.png' ,class: "img-fluid mr-2", alt: "user" %>
-                                          <div class="media-body align-self-center">
-                                            <h5 class="m-0 f-12 f-mon-med txt-dark">
-                                              <%= job.created_by&.full_name %></h5>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div class="col-5 gavel-block text-right">
-                                        <small><%= job.created_at.strftime("%d %b %Y, %I:%M %p") %></small>
-                                      </div>
-                                      <!--
-                                      <div class="col-5 gavel-block">
-                                          <ul class="list-unstyled m-0 p-0">
-                                              <li class="d-inline-block mr-2">
-                                                  <span class="d-flex justify-content-center align-items-center"><img
-                                                          src="images/feeds/gavel.svg"
-                                                          class="img-fluid"
-                                                          alt="gavel"></span>
-                                              </li>
-                                              <li class="d-inline-block">
-                                                  <span class="d-flex justify-content-center align-items-center"><img
-                                                          src="images/feeds/world.svg"
-                                                          class="img-fluid"
-                                                          alt="world"></span>
-                                              </li>
-                                          </ul>
-                                      </div>
-                                        -->
-                                    </div>
-                                  </div>
-                                  <!--
-                                  <div class="col-12 pl-lg-0 col-xl-6 mb-2 mb-lg-0 text-md-right">
-                                      <ul class="list-unstyled ml-md-auto mb-0 align-items-center">
-                                          <li class="d-inline-block">
-                                              <p class="m-0 f-14 f-mon-bol txt-blue">Pinned</p>
-                                          </li>
-                                          <li class="d-inline-block mx-2">
-                                              <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol"><img
-                                                      src="images/feeds/share.svg"
-                                                      class="img-fluid mr-2"
-                                                      alt="share">Share</span>
-                                          </li>
-                                          <li class="d-inline-block">
-                                              <span class="common-blue-btn f-12 f-mon-bol">Listen</span>
-                                          </li>
-                                      </ul>
-                                  </div>
-                                  -->
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    <% else %>
-                      <!-- Feed Blocks Start -->
-                      <div class="col-12 mb-4 p-0">
-                        <div class="feed-block bg-white p-3">
-                          <div class="row align-items-center">
-                            <div class="col-12 col-lg-2 text-center text-lg-left mb-3 mb-lg-0">
-                              <% if job&.files.present? %>
-                                <%= image_tag(job.files, class: "img-fluid mr-3") %>
-                              <% elsif job.created_by&.photo.present? %>
-                                <%= image_tag(job.created_by&.photo, class: "img-fluid mr-3") %>
-                              <% else %>
-                                <%= image_tag 'static-job.png' ,class: "img-fluid mr-3"%>
-                              <% end %>
-                              <%#= image_tag 'kulkakit.svg' ,class: "img-fluid mr-3", alt: "kulka kit" %>
-                            </div>
-                            <div class="col-12 col-lg-10">
-                              <div class="row justify-content-between">
-                                <div class="col-12 col-md-6 col-lg-7 text-center text-md-left d-flex align-self-center">
-                                  <h3 class="f-18 f-mon-sembol txt-black"><%= link_to truncate(job.title,length: 50) ,static_job_path(job)%></h3>
-                                </div>
-                                <% if job.job_category.present? %>
-                                  <div class="col-12 col-md-6 col-lg-5 text-center text-md-right">
-                                    <div class="col-12 p-0">
-                                      <ul class="list-unstyled m-0">
-                                        <li class="d-inline-block">
-                                          <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                                            <%= image_tag 'black-suitcase.svg' ,class: "img-fluid mr-2", alt: "share" %>
-                                            <%= job&.job_category %>
-                                          </span>
-                                        </li>
-                                      </ul>
-                                    </div>
-                                  </div>
-                                <% end %>
-
-                                <div class="col-12 col-md-6 col-lg-4 my-2 my-md-0">
-                                  <ul class="list-unstyled m-0 p-0">
-                                    <li class="d-block mb-2">
-                                      <p class="m-0 f-12 f-mon-med txt-black">
-                                        <%= image_tag 'globalization.svg' ,class: "img-fluid w-15 mr-2", alt: "globe" %>
-                                        <%= job&.company&.website %>
-                                      </p>
-                                    </li>
-                                    <% if job.location.present? %>
-                                      <li class="d-block mb-2">
-                                        <p class="m-0 f-12 f-mon-med txt-black">
-                                          <%= image_tag 'placeholder.svg' ,class: "img-fluid w-15 mr-2", alt: "placeholder" %>
-                                          <%= job&.location%>
-                                        </p>
-                                      </li>
-                                    <% end %>
-                                    <li class="d-block mb-2">
-                                      <p class="m-0 f-12 f-mon-med txt-black">
-                                        <%= image_tag 'clock.svg' ,class: "img-fluid w-15 mr-2", alt: "clock" %>
-                                        <%= "#{time_ago_in_words(job.created_at)} ago" %>
-                                      </p>
-                                    </li>
-                                  </ul>
-                                </div>
-                                <div class="col-12 col-lg-8 d-flex">
-                                  <div class="col-12 text-lg-right align-self-end p-0">
-                                    <div class="d-flex align-items-center">
-                                      <ul class="list-unstyled ml-auto mb-0">
-                                        <li class="d-inline-block mb-2 mb-0">
-                                          <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                                            <%= image_tag 'like.svg' ,class: "img-fluid mr-2", alt: "like" %>
-                                            Save Job
-                                          </span>
-                                        </li>
-                                        <li class="d-inline-block mb-2 mb-0 mx-2">
-                                          <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                                            <%= image_tag 'share.svg' ,class: "img-fluid mr-2", alt: "share" %>
-                                            Share
-                                          </span>
-                                        </li>
-                                        <li class="d-inline-block mb-2 mb-0">
-                                          <span class="common-blue-btn f-12 f-mon-bol">
-                                            <% if current_candidate.present? && current_candidate.already_applied?(job.id) %>
-                                            Applied
-                                          <% else %>
-                                            <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
-                                          <% end %>
-                                          </span>
-                                        </li>
-                                      </ul>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      <!-- Feed Blocks End -->
-                    <% end %>
-                  <% end %>
-                <% else %>
-                   No data available
-                <% end %>
-
-                <% if @company_jobs.present? %>
-                  <div class="mt-3">
-                    <%= digg_pagination(@company_jobs,class: "pagination ")%>
-                  </div>
-                <% end %>
+                <div id="static_feeds">
+                  <%= render partial: 'load_feed_jobs', locals: {company_jobs: @company_jobs} %>
+                </div>
               </div>
 
               <div class="col-xl-3 d-block align-right">
@@ -290,8 +129,8 @@
                             <div class="media p-3 follower-block">
                               <% if c_job&.files.present? %>
                                 <%= image_tag(c_job.files, class: "mr-3 align-self-center") %>
-                              <% elsif c_job.created_by&.photo.present? %>
-                                <%= image_tag(c_job.created_by&.photo, class: "mr-3 align-self-center") %>
+                              <% elsif c_job&.created_by&.photo.present? %>
+                                <%= image_tag(c_job&.created_by&.photo, class: "mr-3 align-self-center") %>
                               <% else %>
                                 <%= image_tag 'static-job.png' ,class: "mr-3 align-self-center"%>
                               <% end %>
@@ -357,6 +196,41 @@
 <script>
     var selected_categories = [];
     $(document).ready(function () {
+      var selected_feeds = '<%= params[:selected_categories] %>'
+      if (selected_feeds != "" || window.location.search.includes('selected_categories') ) {
+        selected_categories = selected_feeds.split(',')
+      }else{
+        $("#main_feed_id").find("input").each(function(){ selected_categories.push(this.id); });
+      }
+
+      // Blog
+      if(selected_categories.includes('Blog')){
+        $("#Blog").attr("checked","checked");
+      }else{
+        $("#Blog").removeAttr("checked");
+      }
+
+      // Product
+      if(selected_categories.includes('Product')){
+        $("#Product").attr("checked","checked");
+      }else{
+        $("#Product").removeAttr("checked");
+      }
+
+      // Service
+      if(selected_categories.includes('Service')){
+        $("#Service").attr("checked","checked");
+      }else{
+        $("#Service").removeAttr("checked");
+      }
+
+      // Training
+      if(selected_categories.includes('Training')){
+        $("#Training").attr("checked","checked");
+      }else{
+        $("#Training").removeAttr("checked");
+      }
+
       $(".openbtn").click(function () {
           $(".side-wrapper").addClass("side-active")
       });
@@ -364,6 +238,21 @@
       $(".closebtn").click(function () {
           $(".side-wrapper").removeClass("side-active")
           $(".side-wrapper").removeClass("inactive")
+      });
+      $(".selected_feed_category").click(function () {
+          cat = this.id
+          selected_categories = selected_categories.filter(Boolean);
+          if($(this).is(':checked')){
+            selected_categories.push(cat)
+          }else{
+            if(selected_categories.includes(cat)){
+              i = selected_categories.indexOf(cat)
+
+              if ( ~i ) selected_categories.splice(i, 1);
+            }
+          }
+        var goto_url = '<%= root_static_feeds_path %>'+'?selected_categories='+selected_categories
+        window.location = goto_url;
       });
     });
 </script>
