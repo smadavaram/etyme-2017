@@ -15,11 +15,11 @@
                         </button>
                       </div>
                   </div>
-                </div>
-                <div class="d-inline-block text-right">
-                  <span class="openbtn txt-dark d-md-none">
-                    <i class="fa fa-bars f-20" aria-hidden="true"></i>
-                  </span>
+                  <div class="d-inline-block text-right">
+                    <span class="openbtn txt-dark d-md-none">
+                      <i class="fa fa-bars f-20" aria-hidden="true"></i>
+                    </span>
+                  </div>
                 </div>
 
               </div>
@@ -41,7 +41,7 @@
                       <div class="people-card bg-white pb-3">
                         <div class="cover-img">
                           <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
-                          <%= image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/no-image.jpg') : c.candidate.photo }" ,class: "img-fluid cover-bg w-100", alt: "cover" %>
+                          <%= link_to (image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/no-image.jpg') : c.candidate.photo }" ,class: "img-fluid cover-bg w-100", alt: "cover"), public_profile_static_candidates_path(c.candidate), target: "_blank"  %>
                           <div class="love">
                             <%= image_tag 'love.svg' ,class: "img-fluid", alt: "like" %>
                           </div>
@@ -56,9 +56,9 @@
                         <div class="col-12 pt-3">
                           <div class="media">
                              <%#= image_tag 'follower-user.png' ,class: "mr-3", alt: "user" %>
-                             <%= link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),public_profile_static_candidates_path(c.candidate), class: "mr-3" %>
+                             <%= link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),public_profile_static_candidates_path(c.candidate), target: "_blank", class: "mr-3" %>
                             <div class="media-body ">
-                              <h5 class="mt-0 f-14 f-mon-sembol txt-black"><%= c.candidate.try(:full_name).try(:titleize) %>
+                              <h5 class="mt-0 f-14 f-mon-sembol txt-black"><a href="<%= public_profile_static_candidates_path(c.candidate) %>" target="_blank"><%= c.candidate.try(:full_name).try(:titleize) %></a>
                                 <%= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
                               </h5>
                               <p class="m-0 f-12 f-mon-sembol txt-light"><%= c.candidate.try(:location) %></p>
