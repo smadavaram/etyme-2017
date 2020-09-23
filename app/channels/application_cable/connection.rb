@@ -13,10 +13,10 @@ module ApplicationCable
     end
 
     def find_verified_user
-      if current_user == User.find_by(id: cookies.signed[:userid])
-        current_user
-      elsif current_user == Candidate.find_by(id: cookies.signed[:candidateid])
-        current_user
+      if User.find_by(id: cookies.signed[:userid]).present?
+        User.find_by(id: cookies.signed[:userid])
+      elsif Candidate.find_by(id: cookies.signed[:candidateid]).present?
+        Candidate.find_by(id: cookies.signed[:candidateid])
       else
         reject_unauthorized_connection
       end

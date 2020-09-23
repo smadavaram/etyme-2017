@@ -1,1 +1,1 @@
-Rails.logger = ActiveSupport::Logger.new('log/production.log')
+# Rails.logger = ActiveSupport::Logger.new('log/production.log')

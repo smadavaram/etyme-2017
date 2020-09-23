@@ -6,6 +6,7 @@ $("#modals").html("<%= j render 'shared/prescreen_modal', job_application: @conv
 $("#modals").append("<%= j render 'shared/rate_confirmation_modal', job_application: @conversation.job_application, conversation: @conversation %>");
 $("#modals").append("<%= j render 'shared/interview_modal', job_application: @conversation.job_application, conversation: @conversation %>");
 $("#modals").append("<%= j render 'shared/chat_document_templates', conversation: @conversation %>");
+$("#conversation-r-section").html("<%= j render 'company/conversations/conversation_right_side' %>");
 $('#candidate-name').remove();
 $('.collapsible').css('padding', '6px 18px');
 $('#collapsible_job_application').removeClass('ml-2 mr-2')

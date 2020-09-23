@@ -2,7 +2,7 @@
 
 class DocsChannel < ApplicationCable::Channel
   def subscribed
-    stream_from "Doc_User_#{current_user.id}"
+    stream_from "Doc_User_#{current_user&.id}"
   end
 
   def unsubscribed; end
