@@ -105,6 +105,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
   end
 
   def submit_timesheet
+    
     if @timesheet.end_date <= DateTime.now
       if @timesheet.submitted
         flash[:status] = 'Timesheet submitted successfully'
@@ -120,12 +121,14 @@ class Candidate::TimesheetsController < Candidate::BaseController
   end
 
   def update
+
     if @timesheet.update(timesheet_params)
+      submit_timesheet
       flash[:success] = 'Timesheet is updated'
     else
       flash[:errors] = @timesheet.errors.full_messages
     end
-    redirect_back(fallback_location: root_path)
+    # redirect_back(fallback_location: root_path)
   end
 
   def submitted_timesheets
