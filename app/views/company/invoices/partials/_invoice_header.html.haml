@@ -46,7 +46,7 @@
               %th Contract ID & Title - Client
               %th Client
               %th From & To Date
-              %th Plan. Hr
+              -#%th Plan. Hr
               %th Act. Hr
           %tbody
             - invoice.invoice_items.each do |ii|
@@ -60,8 +60,27 @@
                 -#%td= user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
 
                 %td= "#{ts.start_date} - #{ts.end_date}"
-                %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
+                -#%td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
                 %td= ts.calculate_total_time
+              %tr
+                %td
+                  %table.table.table-striped.table-bordered.table-v2.table-lg
+                    %thead
+                      %tr
+                        %th Transaction Id
+                        %th Plan Hours
+                        %th Hours Logged
+                        %th Rate
+                        %th Cost
+                    %tbody
+                      - ts.transactions.each do |trans|
+                        %tr
+                          %td= trans.id
+                          %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
+                          %td= trans.total_time
+                          %td= number_to_currency(ts.contract.buy_contract.today_rate.try(:rate)||0)
+                          %td= (trans.total_time * (ts.contract.buy_contract.today_rate.try(:rate)||0))
+
       -else
         %b.mb-1 Added Expense(s)
         %table.table.table-striped.table-bordered.table-v2.table-lg
