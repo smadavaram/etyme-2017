@@ -11,7 +11,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
   def_delegator :@view, :ban_company_black_listers_path
   def_delegator :@view, :unban_company_black_listers_path
   def_delegator :@view, :candidate_remove_from_comapny_path
-  def_delegator :@view, :public_profile_static_candidates_path
+  def_delegator :@view, :profile_company_candidate_path
 
   def view_columns
     @view_columns ||= {
@@ -51,8 +51,8 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def candidate_profile(user)
-    (link_to user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: user.full_name.to_s), public_profile_static_candidates_path(user)) +
-      link_to(do_ellipsis(user.first_name), public_profile_static_candidates_path(user), class: 'pl-2')
+    (link_to user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: user.full_name.to_s), profile_company_candidate_path(user)) +
+      link_to(do_ellipsis(user.first_name), profile_company_candidate_path(user), class: 'pl-2')
   end
 
   def get_raw_records
