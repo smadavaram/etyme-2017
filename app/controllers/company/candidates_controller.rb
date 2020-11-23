@@ -29,6 +29,17 @@ class Company::CandidatesController < Company::BaseController
     @candidate = Candidate.find_by(id: params[:id])
   end
 
+  def profile
+    @user = Candidate.find_by(id: params[:id])
+    @user.addresses.build unless @user.addresses.present?
+    @user.educations.build unless @user.educations.present?
+    @user.certificates.build unless @user.certificates.present?
+    @user.clients.build unless @user.clients.present?
+    @user.designations.build unless @user.designations.present?
+    @sub_cat = WORK_CATEGORIES[@user.category]
+    render 'candidate/candidates/my_profile'
+  end
+
   def request_for_more_information
     @conversation = Conversation.find_by(id: params[:conversation_id])
     body = "#{params[:body]} <a href='http://#{@conversation.chatable.job.created_by.company.etyme_url + job_application_path(@conversation.chatable)}'> for your Job </a>#{@conversation.chatable.job.title}"
