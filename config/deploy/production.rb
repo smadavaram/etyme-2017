@@ -41,6 +41,6 @@ set :branch, 'deploy-staging'
 set :ssh_options, {
     keys: %w(etyme-2020-key.pem),
     forward_agent: false,
-    auth_methods: %w(publickey password)
+    auth_methods: %w(publickey)
 }
 # server '3.134.81.77', user: 'deploy_user', password: 'Etyme123@', roles: %w[web app]
