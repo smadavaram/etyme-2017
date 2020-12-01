@@ -30,7 +30,7 @@
             .col-sm-6
               %div.profile-hover
                 %div.pictureContainer
-                  = button_tag "Upload CV", class: 'm-0 resume btn btn-primary btn-lg', onclick: "upload_resume_file_in_slick()"
+                  = button_tag "Upload Resume", class: 'm-0 resume btn btn-primary btn-lg', onclick: "upload_resume_file_in_slick()"
                   -#= link_to "Upload CV" ,"#",class: 'm-0 resume btn btn-primary btn-rounded btn-lg', style: "margin-bottom: 10px"
                       .profile-tile.profile-tile-inlined
                     -#= filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
