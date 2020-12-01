@@ -10,7 +10,7 @@ $(".share" ).on( "click", function() {
     if(checkedRows.length>0)
     {
         var candidate_url = window.location.origin+"/static/people?ids="+checkedRows
-        $('div.share_url').text(candidate_url);
+        $("#candidate_share_url").text(candidate_url).attr("href", candidate_url);
         $('#candidates_ids').val(checkedRows);
         $('#share-candidates').modal('toggle');
     }

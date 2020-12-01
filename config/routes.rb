@@ -325,6 +325,7 @@ Rails.application.routes.draw do
     end
     resources :candidates do
       member do
+        get :profile
         post :company_candidate, as: :make
         post :request_for_more_information
       end
