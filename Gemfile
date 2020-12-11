@@ -81,6 +81,7 @@ gem 'paranoia' # , "~> 2.2"
 gem 'ransack' # , '~> 1.7'
 gem 'roo'
 gem 'whenever', require: false
+gem 'omnicontacts', '~> 0.3.7'
 
 group :development do
   gem 'rubocop', '~> 0.78.0', require: false
