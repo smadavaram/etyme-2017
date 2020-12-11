@@ -22,7 +22,7 @@
 /log/
 /public/uploads/
 /public/assets/
-/config/application.yml
+config/application.yml
 /config/secrets.yml
 config/database.yml
 /config/deploy/production.rb
