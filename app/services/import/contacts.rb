@@ -16,53 +16,20 @@ module Import
       return if @current_company.blank?
 
       contacts.each do |contact|
-        if candidate_email?(contact[:email])
-          create_candidate_account(contact)
-        else
-          create_company_account(contact)
+        begin
+          if candidate_email?(contact[:email])
+            create_candidate_account(contact)
+          else
+            create_company_account(contact)
+          end
+        rescue StandardError => e
+          Rails.logger.error "Import contact #{contact} failed due to exception #{e.message}"
         end
       end
     end
 
     private
 
-
-    #   @contacts=[
-    #     {
-    #       :id=>"http://www.google.com/m8/feeds/contacts/singh.nitin2502%40gmail.com/base/13ffa0f88f2a2ae2",
-    #       :first_name=>"ns20130",
-    #       :last_name=>nil,
-    #       :name=>"ns20130",
-    #       :emails=>[{:name=>"other", :email=>"ns20130@gmail.com"}],
-    #       :gender=>nil,
-    #       :birthday=>nil,
-    #       :profile_picture=>"https://www.google.com/m8/feeds/photos/media/singh.nitin2502%40gmail.com/13ffa0f88f2a2ae2?&access_token=ya29.a0AfH6SMAHNK4-G6s3llthpqseYrt5YcT8GwzBuqzSC9imPg4K15aTKip7a6HU-zhWMdLUlWEKx07TZChRKgXnlZOcQb9ZabBUo2B3DzkkqlXGeZgd8MrX8tHjbG6HnAkwuvzLRmQIY4T_KloC0sts6w8la8lxI5VCW2xLYJjqy28v2TwLtYzGkQ",
-    #       :relation=>nil,
-    #       :addresses=>[],
-    #       :phone_numbers=>[],
-    #       :dates=>nil,
-    #       :company=>nil,
-    #       :position=>nil,
-    #       :email=>"ns20130@gmail.com"
-    #   },
-    #   {
-    #     :id=>"http://www.google.com/m8/feeds/contacts/singh.nitin2502%40gmail.com/base/1b81f6670e3dc1e7",
-    #     :first_name=>"varmanitesh91",
-    #     :last_name=>nil,
-    #     :name=>"varmanitesh91",
-    #     :emails=>[{:name=>"other", :email=>"varmanitesh91@gmail.com"}],
-    #     :gender=>nil,
-    #     :birthday=>nil,
-    #     :profile_picture=>"https://www.google.com/m8/feeds/photos/media/singh.nitin2502%40gmail.com/1b81f6670e3dc1e7?&access_token=ya29.a0AfH6SMAHNK4-G6s3llthpqseYrt5YcT8GwzBuqzSC9imPg4K15aTKip7a6HU-zhWMdLUlWEKx07TZChRKgXnlZOcQb9ZabBUo2B3DzkkqlXGeZgd8MrX8tHjbG6HnAkwuvzLRmQIY4T_KloC0sts6w8la8lxI5VCW2xLYJjqy28v2TwLtYzGkQ",
-    #     :relation=>nil,
-    #     :addresses=>[],
-    #     :phone_numbers=>[],
-    #     :dates=>nil,
-    #     :company=>nil,
-    #     :position=>nil,
-    #     :email=>"varmanitesh91@gmail.com"
-    #   },
-    # ]
     def create_candidate_account(contact)
       candidate = Candidate.find_by(email: contact[:email]) || current_company.candidates.new
       if candidate.new_record?
@@ -83,6 +50,62 @@ module Import
       else
         Rails.logger.info "------Candidate account already exists for email #{candidate.email} and company #{current_company.id}-----"
       end
+    end
+
+    def create_company_account(contact)
+      if is_company_exist?(contact[:email])
+        if current_company == @company
+          company_admin = current_company.admins.build(email: contact[:email], first_name: contact[:first_name], last_name: contact[:last_name])
+          company_admin.role_ids = Array(Role.all.joins(:permissions).where('permissions.name = ?', "manage_all").pluck(:id).first)
+          if company_admin.save
+            Rails.logger.info 'Company Admin saved successfully'
+          else
+            Rails.logger.info 'Error while saving company admin'
+          end
+        else
+          unless current_company.company_contacts.pluck(:email).include? contact[:email]
+            create_current_company_contact(contact)
+          end
+        end
+      else
+        create_new_company(contact)
+      end
+    end
+
+    def is_company_exist?(email)
+      @company = Company.find_by(website: domain_from_email(email))
+    end
+
+    def create_new_company(contact)
+      company = Company.new
+      company.name = contact[:company]
+      company.company_type = 'vendor'
+      company.website = domain_from_email(contact[:email])
+      company.phone = ''
+      company.domain = domain_name(contact[:email])
+      if company.save
+        create_current_company_contact(contact)
+        company.update_attribute(:owner_id, company.admins.first.id)
+      end
+    end
+
+    def create_current_company_contact(contact)
+      user = User.find_by(email: contact[:email]) || Admin.create(
+        first_name: contact[:first_name],
+        last_name: contact[:last_name] || contact[:first_name],
+        email: contact[:email],
+        company_id: current_company.id
+      )
+      company_contact = company.company_contacts.build(
+        email: contact[:email],
+        first_name: contact[:first_name],
+        last_name: contact[:last_name]
+      )
+      company_contact.save
+    end
+
+    def domain_from_email(email)
+      domain_from_email(email)
     end
 
     def candidate_email?(email)
