@@ -49,6 +49,12 @@ Rails.application.routes.draw do
     get ':company_id/blog_feed' => 'rss_jobs#blog_feed', format: 'json'
   end
 
+  resources :contacts, only: :index do
+    get :import_contacts, on: :collection
+  end
+  get '/contacts/:importer/import_contacts' => 'contacts#import_contacts'
+  get '/contacts/failure' => 'contacts#failure'
+
   concern :paginatable do
     get '(page/:page)', action: :index, on: :collection, as: ''
     match :search, action: :index, via: %i[get post], on: :collection
@@ -410,6 +416,7 @@ Rails.application.routes.draw do
   end
 
   scope module: :company do
+
     resources :activities, only: [:index]
 
     post 'reject_vendor', to: 'prefer_vendors#reject'

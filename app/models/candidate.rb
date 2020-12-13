@@ -205,7 +205,7 @@ class Candidate < ApplicationRecord
   private
 
   def create_address
-    address = Address.new
+    address = self.addresses.new
     address.save(validate: false)
     update_column(:primary_address_id, address.try(:id))
   end

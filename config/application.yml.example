@@ -40,6 +40,9 @@ development:
   # google_search_location_api_key: 'AIzaSyAdf6df60vd1qmUPN7A8kwNDRc9qWx7CF4'
   google_search_location_api_key: 'AIzaSyDplyJQu2eS1qNVdoBsGL4FGmJwMWFDDUQ'
   global_url: 'https://www.cloudepa.com'
+  GMAIL_CLIENT_ID:
+  GMAIL_CLIENT_SECRET:
+
 
 production:
   mailgun_gun_api:  "key-65deee3bd721c9bba966ff557d3fc79b"
@@ -69,3 +72,5 @@ production:
   ETYME_DATABASE_PORT: '5432'
   HOSTNAME: 'http://demoetyme.com'
   COMPANY_URL: 'demoetyme.com'
+  GMAIL_CLIENT_ID:
+  GMAIL_CLIENT_SECRET:

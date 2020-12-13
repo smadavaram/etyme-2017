@@ -135,7 +135,7 @@ class CompaniesController < ApplicationController
     if @user.save
       redirect_to register_path, success: 'We have sent you an email confirmation email.'
     else
-      redirect_to register_path, error: 'Something went wrong. Please try again later'
+      redirect_to register_path, error: "#{@user.errors.full_messages.join(',')}"
     end
   end
 end
