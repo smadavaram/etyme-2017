@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 class ImportContactsJob < ApplicationJob
-  queue_as :h_contracts
+  queue_as :default
 
-  def perform(contacts)
-    Import::Contacts.perform(contacts)
+  def perform(contacts, company_id, user_id)
+    Import::Contacts.call(contacts, company_id: company_id, user_id: user_id)
   rescue StandardError => e
     ExceptionNotifier.notify_exception(
       e,

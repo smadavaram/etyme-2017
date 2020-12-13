@@ -9,12 +9,10 @@ class ContactsController < Company::BaseController
 
   def import_contacts
     @contacts = request.env['omnicontacts.contacts']
-    puts "------@contacts=#{@contacts.inspect}-------"
     @user = request.env['omnicontacts.user']
     puts "List of contacts of #{@user[:name]} obtained from #{params[:importer]}:"
-    @contacts.each do |contact|
-      puts "Contact found: name => #{contact[:name]}, email => #{contact[:email]}"
-    end
+    ImportContactsJob.perform_later(@contacts, current_company.id, current_user.id)
+    flash[:success] = 'Import Contacts process has been started.Please check candidate or contacts section after sometime.'
   end
 
 end

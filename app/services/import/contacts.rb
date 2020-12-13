@@ -18,8 +18,10 @@ module Import
       contacts.each do |contact|
         begin
           if candidate_email?(contact[:email])
+            Rails.logger.info "Candidate Contact Import has been started for email #{contact[:email]}"
             create_candidate_account(contact)
           else
+            Rails.logger.info "Company Contact Import has been started for email #{contact[:email]}"
             create_company_account(contact)
           end
         rescue StandardError => e
@@ -78,14 +80,17 @@ module Import
 
     def create_new_company(contact)
       company = Company.new
-      company.name = contact[:company]
+      company.name = contact[:company] || contact[:first_name] || contact[:last_name]
       company.company_type = 'vendor'
       company.website = domain_from_email(contact[:email])
       company.phone = ''
       company.domain = domain_name(contact[:email])
       if company.save
+        Rails.logger.info "------Successfully created new company  #{company.inspect}-----"
         create_current_company_contact(contact)
         company.update_attribute(:owner_id, company.admins.first.id)
+      else
+        Rails.logger.info "------Failed to create new Company  #{company.errors.full_messages}-----"
       end
     end
 
@@ -101,11 +106,11 @@ module Import
         first_name: contact[:first_name],
         last_name: contact[:last_name]
       )
-      company_contact.save
-    end
-
-    def domain_from_email(email)
-      domain_from_email(email)
+      if company_contact.save
+        Rails.logger.info "------Successfully created new company contact #{company_contact.inspect}-----"
+      else
+        Rails.logger.info "------Failed to create new Company contact #{company_contact.errors.full_messages}-----"
+      end
     end
 
     def candidate_email?(email)
