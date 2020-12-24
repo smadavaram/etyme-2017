@@ -2,7 +2,7 @@
 
 class Company < ApplicationRecord
   EXCLUDED_SUBDOMAINS = %w[admin www administrator admins owner etyme mail ftp].freeze
-  EXCLUDED_DOMAINS = %w[gmail.com facebook.com reddit.com yahoo.com rediff.com facebookmail.com fb.com].freeze
+  EXCLUDED_DOMAINS = %w[gmail facebook reddit yahoo rediff facebookmail fb].freeze
   include PublicActivity::Model
   include QuerySelector
 
