@@ -1,51 +1,37 @@
 <!-- Side Wrapper Start -->
-<section class="side-wrapper py-md-3">
+<section class="side-wrapper">
     <div class="container">
         <div class="row">
             <div class="col-12 text-right d-md-none">
                 <span><i class="closebtn fa fa-times txt-dark f-20 mt-2" aria-hidden="true"></i></span>
             </div>
-
-            <div class="col-12">
-                <div class="bor-btm pb-3 pl-2">
-                  <% if request.subdomain == "app" %>
-                    <%= image_tag(image_path('etyme-logo-dark.png'), class: "img-fluid m-auto") %>
-                  <% elsif @current_company.present? && @current_company.logo.present? %>
-                    <%= image_tag @current_company.logo , class: "img-fluid m-auto" %>
-                  <% else %>
-                    <!-- <img src="images/KuklaKit-logo.svg" class="img-fluid m-auto" alt="logo"> -->
-                    <%= image_tag(image_path('etyme-logo-dark.png'), class: "img-fluid m-auto") %>
-                  <% end %>
-                </div>
-            </div>
-
-            <div class="col-12 sidenav-items">
-                <div class="nav flex-column nav-pills mt-5" >
-                    <a class="nav-link mb-3 f-20 pl-2 <%= (params[:controller] == "static/jobs" &&  params[:action] == "static_feeds") ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
+            <div class="col-12 sidenav-items p-0">
+                <div class="nav flex-column nav-pills">
+                    <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "static_feeds") ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
                         <!-- <img src="images/side-nav/grid.svg" class="mr-3" alt="grid"> -->
-                        <%= image_tag(image_path('grid.svg'), class: "mr-3") %>
+                        <%= image_tag(image_path('sidebar-home.svg'), class: "mr-3") %>
                         <!-- <img src="images/side-nav/grid-active.svg" class="mr-3" alt="grid"> -->
-                        <%= image_tag(image_path('grid-active.svg'), class: "mr-3") %>
+                        <%= image_tag(image_path('sidebar-home-active.svg'), class: "mr-3") %>
                         Home
                     </a>
-                    <a class="nav-link mb-3 f-20 pl-2 <%= params[:controller] == "static/jobs" &&  (params[:action] == "index" || params[:action] == "show") ? "active" : ""  %>" href="<%= static_jobs_path %>">
+                    <a class="nav-link sidebar-link <%= params[:controller] == "static/jobs" &&  (params[:action] == "index" || params[:action] == "show") ? "active" : ""  %>" href="<%= static_jobs_path %>">
                         <!-- <img src="images/side-nav/suitcase.svg" class="mr-3" alt="suitcase"> -->
-                        <%= image_tag(image_path('suitcase.svg'), class: "mr-3") %>
+                        <%= image_tag(image_path('sidebar-jobs.svg'), class: "mr-3") %>
                         <!-- <img src="images/side-nav/suitcase-active.svg" class="mr-3" alt="suitcase"> -->
-                        <%= image_tag(image_path('suitcase-active.svg'), class: "mr-3") %>
+                        <%= image_tag(image_path('sidebar-jobs-active.svg'), class: "mr-3") %>
                         Jobs
                     </a>
-                    <a class="nav-link mb-3 f-20 pl-2 <%= (params[:controller] == "static/jobs" &&  params[:action] == "people") || (params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile") ? "active" : ""  %>" href="<%= static_people_path %>">
+                    <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "people") || (params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile") ? "active" : ""  %>" href="<%= static_people_path %>">
                         <!-- <img src="images/side-nav/group.svg" class="mr-3" alt="group"> -->
-                        <%= image_tag(image_path('group.svg'), class: "mr-3") %>
-                        <%= image_tag(image_path('group-active.svg'), class: "mr-3") %>
+                        <%= image_tag(image_path('sidebar-people.svg'), class: "mr-3") %>
+                        <%= image_tag(image_path('sidebar-people-active.svg'), class: "mr-3") %>
                         <!-- <img src="images/side-nav/group-active.svg" class="mr-3" alt="group"> -->
                         People
                     </a>
                 </div>
             </div>
 
-            <div class="powerby text-center py-4">
+            <div class="powerby text-center">
                 <div class="col-12">
                     <p class="m-0">Powered by
                         <!-- <img src="images/powerby-logo.png" class="img-fluid ml-2" alt="powerby"> -->
