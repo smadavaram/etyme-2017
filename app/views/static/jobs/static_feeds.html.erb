@@ -53,50 +53,55 @@
               <div class="col-12 col-xl-9 feed-main">
                 <div class="feed-top">
                 <div class="row">
-                  <div class="col-12 col-xl-9 pr-xl-0">
+                  <div class="col-12">
                     <div class="feed-slider-banners">
                     </div>
                   </div>
-                  <div class="col-12 col-xl-3">
-                    <div class="feed-top-companies">
-                    </div>
-                  </div>
                 </div>
-                <div class="col-12 p-0 category-list">
-                  <ul class="list-unstyled" id="main_feed_id">
-                    <label class="check-main mr-2">
-                      <input type="checkbox" class="selected_feed_category" id="Blog" checked>Blog
-                      <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
-                      <span class="checkmark">
-                        <!-- <input type="checkbox" value="Bike"> -->
-                      </span>
-                    </label>
-
-                    <label class="check-main mr-2">
-                      <input type="checkbox" class="selected_feed_category" id= "Product" checked>Product
-                      <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
-                      <span class="checkmark">
-                        <!-- <input type="checkbox" value="Bike"> -->
-                      </span>
-                    </label>
-
-                    <label class="check-main mr-2">
-                      <input type="checkbox" class="selected_feed_category" id= "Service" checked>Service
-                      <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
-                      <span class="checkmark">
-                        <!-- <input type="checkbox" value="Bike"> -->
-                      </span>
-                    </label>
-
-                    <label class="check-main mr-2">
-                      <input type="checkbox" class="selected_feed_category" id= "Training" checked>Training
-                      <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
-                      <span class="checkmark">
-                        <!-- <input type="checkbox" value="Bike"> -->
-                      </span>
-                    </label>
-
-                  </ul>
+                <div class="col-12 px-0 category-list">
+                  <div class="dropdown-container">
+                    <div class="dropdown-button">
+                      <span>Filters</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
+                    </div>
+                    <ul class="list-unstyled dropdown-content" id="main_feed_id">
+                      <label class="check-main mr-2">
+                        <input type="checkbox" class="selected_feed_category" id="Blog" checked>Blog
+                        <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
+                        <span class="checkmark">
+                          <!-- <input type="checkbox" value="Bike"> -->
+                        </span>
+                      </label>
+                      <label class="check-main mr-2">
+                        <input type="checkbox" class="selected_feed_category" id= "Product" checked>Product
+                        <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
+                        <span class="checkmark">
+                          <!-- <input type="checkbox" value="Bike"> -->
+                        </span>
+                      </label>
+                      <label class="check-main mr-2">
+                        <input type="checkbox" class="selected_feed_category" id= "Service" checked>Service
+                        <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
+                        <span class="checkmark">
+                          <!-- <input type="checkbox" value="Bike"> -->
+                        </span>
+                      </label>
+                      <label class="check-main mr-2">
+                        <input type="checkbox" class="selected_feed_category" id= "Training" checked>Training
+                        <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
+                        <span class="checkmark">
+                          <!-- <input type="checkbox" value="Bike"> -->
+                        </span>
+                      </label>
+                    </ul>
+                  </div>
+                  <div class="dropdown-container">
+                    <div class="dropdown-button">
+                      <span>Sort</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
+                    </div>
+                    <ul class="list-unstyled dropdown-content" id="main_feed_id">
+                      Under Construction
+                    </ul>
+                  </div>
                 </div>
                 </div>
                 <div id="static_feeds" class="static-feeds">
