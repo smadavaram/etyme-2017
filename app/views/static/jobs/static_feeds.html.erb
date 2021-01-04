@@ -21,10 +21,10 @@
                   </div>
                 </div>
                 <div class="header-right">
-                  <div class="col-12 col-md-4 col-lg-6 mb-2 mb-md-0">
+                  <div class="col-12 col-xl-9 mb-2 mb-md-0">
                     <div class="search-main position-relative d-flex align-items-center justify-content-between">
-                      <div class="d-inline-block position-relative">
-                        <input type="text" placeholder="<%="Search #{@current_company.name}..."%>" class="search-style f-14 f-mon-med txt-dark">
+                      <div class="d-inline-block position-relative w-100">
+                        <input type="text" placeholder="<%="Search #{@current_company.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
                           <div class="btn-search">
                             <button class="btn border-0">
                                 <%= image_tag(image_path('search.png'), class: "img-fluid") %>
@@ -59,11 +59,11 @@
                   </div>
                 </div>
                 <div class="col-12 px-0 category-list">
-                  <div class="dropdown-container">
-                    <div class="dropdown-button">
+                  <div class="dropdown dropdown-container">
+                    <button class="dropdown-toggle dropdown-button" id="dropdownMenuFilters" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
                       <span>Filters</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
-                    </div>
-                    <ul class="list-unstyled dropdown-content" id="main_feed_id">
+                    </button>
+                    <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuFilters">
                       <label class="check-main mr-2">
                         <input type="checkbox" class="selected_feed_category" id="Blog" checked>Blog
                         <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
@@ -94,16 +94,23 @@
                       </label>
                     </ul>
                   </div>
-                  <div class="dropdown-container">
-                    <div class="dropdown-button">
+                  <div class="dropdown dropdown-container">
+                    <button class="dropdown-toggle dropdown-button" id="dropdownMenuSort" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
                       <span>Sort</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
-                    </div>
-                    <ul class="list-unstyled dropdown-content" id="main_feed_id">
+                    </button>
+                    <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuSort">
                       Under Construction
                     </ul>
                   </div>
                 </div>
                 </div>
+
+                <div class="ask-a-question-wrapper">
+                  <button class="btn btn-ask-a-question">
+                    + Ask a Question
+                  </button>
+                </div>
+
                 <div id="static_feeds" class="static-feeds">
                   <%= render partial: 'load_feed_jobs', locals: {company_jobs: @company_jobs} %>
                 </div>
@@ -113,7 +120,7 @@
                 <div class="mb-3">
                   <div class="row align-items-center justify-content-between">
                     <div class="sidebar-right-header col-8">
-                      <p class="m-0 f-18 f-mon-sembol">Current Bench</p>
+                      <p class="m-0 f-18 f-mon-sembol">Experts</p>
                     </div>
                     <div class="sidebar-right-view-all col text-right">
                       <p class="m-0 f-12 f-mon-sembol"><a href="<%= static_people_path %>">View All</a></p>

@@ -899,6 +899,7 @@ span:hover {
 }
 
 .content-wrapper .feed-top {
+    padding-top: 15px;
     padding-left: 15px;
     padding-right: 15px;
     background-color: #ffffff;
@@ -920,8 +921,8 @@ span:hover {
 }
 
 .content-wrapper .dropdown-container {
-    position: relative;
-    cursor: pointer;
+    // position: relative;
+    // cursor: pointer;
 }
 
 .content-wrapper .dropdown-button {
@@ -943,11 +944,12 @@ span:hover {
     font-size: 14px;
     line-height: 140.8%;
     color: #212529;
+    background-color: #ffffff;
 }
 
 .content-wrapper .dropdown-content {
-    position: absolute;
-    display: none;
+    // position: absolute;
+    // display: none;
 
     margin-top: 2px;
     margin-bottom: 2px;
@@ -975,10 +977,6 @@ span:hover {
     }
 }
 
-.content-wrapper .dropdown-container:hover .dropdown-content {
-    display: block;
-}
-
 .content-wrapper .category-list {
     display: flex;
     justify-content: space-between;
@@ -988,40 +986,36 @@ span:hover {
 }
 
 .content-wrapper .category-list ul label {
-    display: block;
-//     position: relative;
-
-//     margin-left: 5px;
-//     margin-right: 5px;
-//     padding-left: 20px;
-//     padding-right: 20px;
-//     font-family: Rubik;
-//     font-style: normal;
-//     font-weight: 500;
-//     font-size: 14px;
-//     line-height: 17px;
-
-//     text-align: center;
-//     color: #121212;
-//     cursor: pointer;
+    display: flex;
+    align-items: center;
 }
 
-// .content-wrapper .category-list ul label input {
-//     appearance: none;
-// }
+.content-wrapper .ask-a-question-wrapper {
+    margin: 15px;
+    padding: 20px;
+    background-color: #ffffff;
+    box-shadow: 1px 3px 20px rgba(46, 46, 46, 0.02);
+    border-radius: 8px;
+}
 
-// .content-wrapper .category-list ul label input:checked:after {
-//     content: "";
-//     display: block;
+.content-wrapper .ask-a-question-wrapper .btn-ask-a-question {
+    width: 100%;
+    height: 36px;
+    left: 1208px;
+    top: 20px;
 
-//     width: 100%;
-//     position: absolute;
-//     bottom: 0;
-//     left: 0;
-//     right: 0;
-//     border-top: 4px solid #5555A5;
-//     border-radius: 4px 4px 0px 0px;
-// }
+    border: 1px solid #5555a5;
+    box-sizing: border-box;
+    border-radius: 2px;
+
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 14px;
+    line-height: 140.8%;
+    text-align: center;
+    color: #5555a5;
+}
 
 .content-wrapper .static-feeds {
     margin: 15px;
@@ -1029,6 +1023,182 @@ span:hover {
     background-color: #ffffff;
     box-shadow: 1px 3px 20px rgba(46, 46, 46, 0.02);
     border-radius: 8px;
+}
+
+.content-wrapper .static-feeds .feed-article {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 12px;
+    line-height: 140.8%;
+
+    color: #121212;
+
+    padding-top: 20px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #F9F9F9;
+}
+
+.content-wrapper .static-feeds .feed-article .feed-article-image {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+}
+
+.content-wrapper .static-feeds .feed-article .feed-article-title {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 18px;
+    line-height: 21px;
+    display: flex;
+    align-items: center;
+
+    color: #121212;
+    opacity: 0.8;
+}
+
+.content-wrapper .static-feeds .feed-article .feed-article-title a {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 18px;
+    line-height: 21px;
+
+    color: #121212;
+}
+
+.content-wrapper .static-feeds .feed-article .feed-article-category {
+    padding-top: 3px;
+    padding-bottom: 3px;
+    padding-left: 12px;
+    padding-right: 12px;
+
+    background: rgba(18, 18, 18, 0.05);
+    border: 1px solid rgba(18, 18, 18, 0.05);
+    box-sizing: border-box;
+    border-radius: 32px;
+    
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 10px;
+    line-height: 14px;
+
+    display: flex;
+    align-items: center;
+
+    color: rgba(18, 18, 18, 0.5)
+}
+
+.content-wrapper .static-feeds .feed-article .feed-article-description {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 12px;
+    line-height: 17px;
+
+    color: #121212;
+    opacity: 0.6;
+}
+
+
+.content-wrapper .static-feeds .feed-article .feed-article-website,
+.content-wrapper .static-feeds .feed-article .feed-article-location,
+.content-wrapper .static-feeds .feed-article .feed-article-time {
+    margin-top: 10px;
+    margin-bottom: 0;
+
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 12px;
+    line-height: 17px;
+
+    color: rgba(18, 18, 18, 0.8)
+}
+
+.content-wrapper .static-feeds .feed-article .feed-article-author {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 12px;
+    line-height: 17px;
+
+    color: #121212;
+    opacity: 0.8;
+}
+
+.content-wrapper .static-feeds .feed-article .feed-article-date {
+    ont-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 12px;
+    line-height: 17px;
+    text-align: right;
+
+    color: #121212;
+    opacity: 0.6;
+}
+
+.content-wrapper .static-feeds .feed-article .feed-article-btn-share {
+    display: flex;
+    align-items: center;
+
+    padding: 6px 14px;
+
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 12px;
+    line-height: 17px;
+    text-align: right;
+
+    color: rgba(18, 18, 18, 0.6);
+    background-color: transparent;
+}
+
+
+.content-wrapper .static-feeds .feed-article .feed-article-btn-save {
+    display: flex;
+    align-items: center;
+
+    padding: 6px 14px;
+
+    a {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 12px;
+    line-height: 17px;
+    text-align: right;
+
+    color: rgba(18, 18, 18, 0.8);
+    }
+
+    background-color: rgba(18, 18, 18, 0.05);
+    border-radius: 2px;
+} 
+
+.content-wrapper .static-feeds .feed-article .feed-article-btn-apply {
+    display: flex;
+    align-items: center;
+
+    padding: 6px 14px;
+
+    a {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 12px;
+    line-height: 17px;
+    text-align: right;
+
+    color: #ffffff;
+    }
+
+    background-color: #5555A5;
+    border-radius: 2px;
 }
 
 .content-wrapper .content-main .category-sidebar::-webkit-scrollbar {
@@ -1068,6 +1238,7 @@ span:hover {
 }
 
 .sidebar-right {
+    align-self: flex-start;
     padding-top: 96px;
     padding-left: 30px;
     padding-right: 20px;

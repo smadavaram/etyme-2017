@@ -1,12 +1,12 @@
 <label class="toggle" for="toggle"></label>
-<div class="mb-md-0 login-btns text-right">
+<div class="col-12 col-xl-3 mb-md-0 login-btns text-right">
   <% if current_candidate.present? %>
-    <div class="d-inline-block mx-2 mx-lg-3 dropdown">
+    <div class="d-inline-block mx-1 dropdown">
       <button class="btn btn-login text-white f-18 f-mon-sembol" type="button">
         <%= link_to "Dashboard", candidate_candidate_dashboard_path, class: "text-white" %>
       </button>
     </div>
-    <div class="d-inline-block  dropdown">
+    <div class="d-inline-block mx-1 dropdown">
       <div class="d-none d-md-inline-block log-prof" data-toggle="dropdown">
         <%= link_to candidate_candidate_dashboard_path do %>
           <%= user_image(current_candidate, style: 'width: 35px; height: 35px; margin-top: 10px;', class: 'data-table-image mr-2', title: "#{current_candidate.full_name}") %>
@@ -23,12 +23,12 @@
       </div>
     </div>
   <% elsif current_user.present? %>
-    <div class="d-inline-block mx-2 mx-lg-3 dropdown">
+    <div class="d-inline-block mx-1 dropdown">
       <button class="btn btn-signup text-white f-18 f-mon-sembol" type="button">
         <%= link_to "Dashboard", dashboard_path, class: "text-white" %>
       </button>
     </div>
-    <div class="d-inline-block  dropdown">
+    <div class="d-inline-block mx-1 dropdown">
       <div class="d-none d-md-inline-block log-prof" data-toggle="dropdown">
         <%= link_to dashboard_path do %>
           <%= user_image(current_user, style: 'width: 35px; height: 35px; margin-top: 10px;', class: 'data-table-image mr-2', title: "#{current_user.full_name}") %>
@@ -44,7 +44,7 @@
       </div>
     </div>
   <% else %>
-    <div class="d-inline-block  dropdown">
+    <div class="d-inline-block mx-1 dropdown">
       <button class="btn btn-login f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
         Login
         <%#= image_tag(image_path('login-drop-arrow.svg'), class: "img-fluid ml-1") %>
@@ -58,7 +58,7 @@
         <% end %>
       </div>
     </div>
-    <div class="d-inline-block mx-2 mx-lg-3 dropdown">
+    <div class="d-inline-block mx-1 dropdown">
       <button class="btn btn-signup text-white f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
         Sign Up
         <%#= image_tag(image_path('register-drop-arrow.svg'), class: "img-fluid ml-1") %>

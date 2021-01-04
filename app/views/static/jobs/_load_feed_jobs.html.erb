@@ -2,109 +2,69 @@
   <% company_jobs.each do |job| %>
     <% if job&.listing_type.present? && job&.listing_type == "Blog" %>
       <!-- Profile Block-->
-      <div class="col-12 mb-4 p-0 p-lg-0">
-        <div class="col-12 profile-block bg-white mb-3">
-          <div class="row align-items-center">
-            <div class="col-12 col-lg-3 text-center text-lg-left mb-md-0 p-3 p-lg-0" >
+      <div class="feed-article feed-blog-item col-12 px-0">
+          <div class="row align-items-start">
+            <div class="col-12 col-lg-2 px-0 text-center" >
               <% if job.files.present? %>
                 <% img_url = job.files.split(',') %>
-                <%= image_tag img_url[0] ,class: "mr-3 img-fluid feed_image", alt: "photo" %>
+                <%= image_tag img_url[0] ,class: "feed-article-image", alt: "photo" %>
               <% else %>
-                <%= image_tag asset_path('avatars/no_photo.jpg') ,class: "mr-3 img-fluid feed_image", alt: "photo" %>
+                <%= image_tag asset_path('avatars/no_photo.jpg') ,class: "feed-article-image", alt: "photo" %>
               <% end %>
             </div>
-            <div class="col-12 col-lg-9 p-lg-3">
-              <div class="col-12 pr-0">
-                <h5 class="f-18 f-mon-sembol"><%= job.title if job.title.present? %></h5>
-                <p class="f-12 f-mon-med txt-dark"><%= job.description.html_safe if job.description.present? %></p>
+            <div class="col-12 col-lg-10 pl-1 pr-3">
+              <div class="col-12 px-0">
+                <h5 class="feed-article-title"><%= job.title if job.title.present? %></h5>
+                <div class="feed-article-description pb-2">
+                  <%= job.description.html_safe if job.description.present? %>
+                </div>
 
                 <div class="row align-items-center">
                   <div class="col-12 mb-2 mb-xl-0">
                     <div class="row align-items-center no-gutters">
                       <div class="col-7">
                         <div class="media">
-                          <%= link_to user_image(job.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image img-fluid mr-2',title: "#{job.created_by&.full_name}" ),"#" %>
-                          <%#= image_tag 'user.png' ,class: "img-fluid mr-2", alt: "user" %>
                           <div class="media-body align-self-center">
-                            <h5 class="m-0 f-12 f-mon-med txt-dark">
-                              <%= job.created_by&.full_name %></h5>
+                            <h5 class="feed-article-author">
+                              by <%= job.created_by&.full_name %></h5>
                           </div>
                         </div>
                       </div>
-                      <div class="col-5 gavel-block text-right">
-                        <small><%= job.created_at.strftime("%d %b %Y, %I:%M %p") %></small>
+                      <div class="feed-article-date col-5 gavel-block text-right">
+                        <small><%= job.created_at.strftime("%d %b, %Y") %></small>
                       </div>
-                      <!--
-                      <div class="col-5 gavel-block">
-                          <ul class="list-unstyled m-0 p-0">
-                              <li class="d-inline-block mr-2">
-                                  <span class="d-flex justify-content-center align-items-center"><img
-                                          src="images/feeds/gavel.svg"
-                                          class="img-fluid"
-                                          alt="gavel"></span>
-                              </li>
-                              <li class="d-inline-block">
-                                  <span class="d-flex justify-content-center align-items-center"><img
-                                          src="images/feeds/world.svg"
-                                          class="img-fluid"
-                                          alt="world"></span>
-                              </li>
-                          </ul>
-                      </div>
-                        -->
                     </div>
                   </div>
-                  <!--
-                  <div class="col-12 pl-lg-0 col-xl-6 mb-2 mb-lg-0 text-md-right">
-                      <ul class="list-unstyled ml-md-auto mb-0 align-items-center">
-                          <li class="d-inline-block">
-                              <p class="m-0 f-14 f-mon-bol txt-blue">Pinned</p>
-                          </li>
-                          <li class="d-inline-block mx-2">
-                              <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol"><img
-                                      src="images/feeds/share.svg"
-                                      class="img-fluid mr-2"
-                                      alt="share">Share</span>
-                          </li>
-                          <li class="d-inline-block">
-                              <span class="common-blue-btn f-12 f-mon-bol">Listen</span>
-                          </li>
-                      </ul>
-                  </div>
-                  -->
                 </div>
               </div>
             </div>
           </div>
-        </div>
       </div>
     <% elsif job&.listing_type.present? && (job&.listing_type == "Training" || job&.listing_type == "Service" || job&.listing_type == "Product" ) %>
       <!-- Feed Blocks Start -->
-      <div class="col-12 mb-4 p-0">
-        <div class="feed-block bg-white p-3">
-          <div class="row align-items-center">
-            <div class="col-12 col-lg-2 text-center text-lg-left mb-3 mb-lg-0">
+      <div class="feed-article col-12 px-0">
+          <div class="row d-flex">
+            <div class="col-12 col-lg-2 px-0 text-center align-items-start" >
               <% if job&.files.present? %>
-                <%= image_tag(job.files, class: "img-fluid mr-3") %>
+                <%= image_tag(job.files, class: "feed-article-image") %>
               <% elsif job.created_by&.photo.present? %>
-                <%= image_tag(job.created_by&.photo, class: "img-fluid mr-3") %>
+                <%= image_tag(job.created_by&.photo, class: "feed-article-image") %>
               <% else %>
-                <%= image_tag 'static-job.png' ,class: "img-fluid mr-3"%>
+                <%= image_tag 'static-job.png' ,class: "feed-article-image"%>
               <% end %>
               <%#= image_tag 'kulkakit.svg' ,class: "img-fluid mr-3", alt: "kulka kit" %>
             </div>
-            <div class="col-12 col-lg-10">
+            <div class="col-12 col-lg-10 pl-1 pr-3 d-flex flex-column justify-content-between align-self-strech">
               <div class="row justify-content-between">
                 <div class="col-12 col-md-6 col-lg-7 text-center text-md-left d-flex align-self-center">
-                  <h3 class="f-18 f-mon-sembol txt-black"><%= link_to truncate(job.title,length: 50) ,static_job_path(job)%></h3>
+                  <h3 class="feed-article-title"><%= link_to truncate(job.title,length: 50) ,static_job_path(job)%></h3>
                 </div>
                 <% if job.job_category.present? %>
                   <div class="col-12 col-md-6 col-lg-5 text-center text-md-right">
                     <div class="col-12 p-0">
                       <ul class="list-unstyled m-0">
                         <li class="d-inline-block">
-                          <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                            <%= image_tag 'black-suitcase.svg' ,class: "img-fluid mr-2", alt: "share" %>
+                          <span class="feed-article-category">
                             <%= job&.job_category %>
                           </span>
                         </li>
@@ -112,25 +72,26 @@
                     </div>
                   </div>
                 <% end %>
-
+              </div>
+              <div class="row justify-content-between">
                 <div class="col-12 col-md-6 col-lg-4 my-2 my-md-0">
                   <ul class="list-unstyled m-0 p-0">
-                    <li class="d-block mb-2">
-                      <p class="m-0 f-12 f-mon-med txt-black">
+                    <li class="d-block">
+                      <p class="feed-article-website">
                         <%= image_tag 'globalization.svg' ,class: "img-fluid w-15 mr-2", alt: "globe" %>
                         <%= job&.company&.website %>
                       </p>
                     </li>
                     <% if job.location.present? %>
-                      <li class="d-block mb-2">
-                        <p class="m-0 f-12 f-mon-med txt-black">
+                      <li class="d-block">
+                        <p class="feed-article-location">
                           <%= image_tag 'placeholder.svg' ,class: "img-fluid w-15 mr-2", alt: "placeholder" %>
                           <%= job&.location%>
                         </p>
                       </li>
                     <% end %>
-                    <li class="d-block mb-2">
-                      <p class="m-0 f-12 f-mon-med txt-black">
+                    <li class="d-block">
+                      <p class="feed-article-time">
                         <%= image_tag 'clock.svg' ,class: "img-fluid w-15 mr-2", alt: "clock" %>
                         <%= "#{time_ago_in_words(job.created_at)} ago" %>
                       </p>
@@ -141,20 +102,19 @@
                   <div class="col-12 text-lg-right align-self-end p-0">
                     <div class="d-flex align-items-center">
                       <ul class="list-unstyled ml-auto mb-0">
-                        <li class="d-inline-block mb-2 mb-0">
-                          <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                            <%= image_tag 'like.svg' ,class: "img-fluid mr-2", alt: "like" %>
+                        <li class="d-inline-block mb-0 mr-2">
+                          <span class="feed-article-btn-share">
+                            Share
+                            <%= image_tag 'share.svg' ,class: "img-fluid ml-2", alt: "share" %>
+                          </span>
+                        </li>
+                        <li class="d-inline-block mb-0 mr-2">
+                          <span class="feed-article-btn-save">
                             Save Job
                           </span>
                         </li>
-                        <li class="d-inline-block mb-2 mb-0 mx-2">
-                          <span class="bg-lig-gry d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                            <%= image_tag 'share.svg' ,class: "img-fluid mr-2", alt: "share" %>
-                            Share
-                          </span>
-                        </li>
-                        <li class="d-inline-block mb-2 mb-0">
-                          <span class="common-blue-btn f-12 f-mon-bol">
+                        <li class="d-inline-block mb-0">
+                          <span class="feed-article-btn-apply">
                             <% if current_candidate.present? && current_candidate.already_applied?(job.id) %>
                             Applied
                           <% else %>
@@ -169,7 +129,6 @@
               </div>
             </div>
           </div>
-        </div>
       </div>
       <!-- Feed Blocks End -->
     <% end %>
