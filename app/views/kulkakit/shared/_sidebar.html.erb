@@ -31,13 +31,38 @@
                 </div>
             </div>
 
-            <div class="powerby text-center">
-                <div class="col-12">
-                    <p class="m-0">Powered by
-                        <!-- <img src="images/powerby-logo.png" class="img-fluid ml-2" alt="powerby"> -->
-                        <%= image_tag(image_path('powerby-logo.png'), class: "img-fluid ml-2") %>
-                    </p>
-                </div>
+            <% if !current_candidate.present? && !current_user.present? %>
+            <div class="roadmap">
+              <ul>
+                <li><i class="roadmap-border"></i>Step 1</li>
+                  <span>Join our Tribe</span>
+                <li><i class="roadmap-border"></i>Step 2</li>
+                  <span>Ask and Engage</span>
+                <li><i class="roadmap-border"></i>Step 3</li>
+                  <span>Hire, apply for jobs, & services</span>
+              </ul>
+            </div>
+            <% else %>
+            <div class="my-5 py-5 w-100">
+            </div>
+            <% end %>
+
+            <div class="d-flex flex-column justify-content-end">
+              <ul class="sidebar-left-links">
+                <li>About</li>
+                <li>Terms</li>
+                <li>Privacy</li>
+                <li>Contact</li>
+                <li>Help</li>
+              </ul>
+              <div class="powerby text-center">
+                  <div class="col-12">
+                      <p class="m-0">Powered by
+                          <!-- <img src="images/powerby-logo.png" class="img-fluid ml-2" alt="powerby"> -->
+                          <%= image_tag(image_path('powerby-logo.png'), class: "img-fluid ml-2") %>
+                      </p>
+                  </div>
+              </div>
             </div>
         </div>
     </div>

@@ -12,6 +12,13 @@ class Static::JobsController < ApplicationController
   def index
     session[:previous_url] = request.url
     params[:category].present? ? (add_breadcrumb params[:category].titleize, static_jobs_path) : ''
+
+    @current_company = Company.find_by(slug: request.subdomain)
+
+    if @current_company.present?
+      @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+    end
+
     render :layout => "kulkakit"
   end
 

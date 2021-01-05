@@ -1316,6 +1316,16 @@ module ApplicationHelper
     content_tag(:span, bind_initials(first_name, last_name), class: circle_div_class.to_s)
   end
 
+  def user_avatar(user)
+    return if user.nil?
+
+    if user.photo&.present?
+      image_tag(user.photo, title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe
+    else
+      image_tag(asset_path('avatars/male.png'), alt: "user").html_safe
+    end
+  end
+
   def user_image(user, attrs)
     return if user.nil?
 

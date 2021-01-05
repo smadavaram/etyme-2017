@@ -416,7 +416,6 @@ span:hover {
 
 .side-wrapper {
     width: 224px;
-    height: 100vh;
     padding-top: 116px;
     background: #ffffff;
     position: fixed;
@@ -434,10 +433,99 @@ span:hover {
     }
 }
 
+.side-wrapper .roadmap {
+    width: 100%;
+
+    margin: 64px 20px;
+    padding: 12px 24px;
+
+    background: rgba(85, 85, 165, 0.02);
+    border: 1px solid #5555A5;
+    border-radius: 8px;
+
+    ul {
+        padding-left: 8px;
+    }
+
+    li {
+        position: relative;
+
+        padding-top: 16px;
+        font-family: Rubik;
+        font-style: normal;
+        font-weight: normal;
+        font-size: 11px;
+        line-height: 13px;
+
+        color: rgba(18, 18, 18, 0.35);
+
+        i {
+            position: absolute;
+            top: 25px;
+            left: -8px;
+
+            display: block;
+            height: 47px;
+
+            border-left: solid 1px rgba(18, 18, 18, 0.35);
+        }
+    }
+
+    li:last-of-type {
+        color: #3CC975;
+
+        i {
+            display: none;
+        }
+    }
+
+    span {
+        display: block;
+
+        padding-left: 8px;
+        padding-bottom: 8px;
+        font-family: Rubik;
+        font-style: normal;
+        font-weight: normal;
+        font-size: 12px;
+        line-height: 14px;
+
+        color: #121212;
+    }
+}
+
+.side-wrapper .sidebar-left-links {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+
+    margin-top: 16px;
+    margin-bottom: 16px;
+
+    padding-left: 36px;
+    padding-right: 36px;
+
+    li {
+        margin-left: 16px;
+    }
+
+    li, a {
+        font-family: Rubik;
+        font-style: normal;
+        font-weight: normal;
+        font-size: 10px;
+        line-height: 12px;
+
+        color: rgba(18, 18, 18, 0.35);
+    }
+
+    :first-child {
+        list-style: none;
+        padding-left: 0;
+    }
+}
+
 .side-wrapper .powerby {
-    position: absolute;
-    bottom: 0;
-    left: 0;
     width: 100%;
 
     font-family: Rubik;
@@ -566,6 +654,34 @@ span:hover {
     flex-grow: 1;
     justify-content: space-between;
     align-items: center;
+
+    .login-btns {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }
+
+    .btn-header {
+        background-color: transparent;
+        border: none;
+    }
+
+    .avatar-header {
+        position: relative;
+
+        .avatar-image {
+            img {
+                border-radius: 50%;
+            }
+
+        }
+
+        .avatar-button {
+            position: absolute;
+            top: calc(50% - 12px);
+            right: -12px;
+        }
+    }
 }
 
 .content-wrapper .header .header-logo-frame {
@@ -1145,7 +1261,7 @@ span:hover {
     display: flex;
     align-items: center;
 
-    padding: 6px 14px;
+    padding: 6px 0;
 
     font-family: Rubik;
     font-style: normal;

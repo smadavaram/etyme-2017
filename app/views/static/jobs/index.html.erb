@@ -1,76 +1,174 @@
 <section class="content-wrapper">
-  <div class="container">
+  <div class="container-fluid">
     <div class="row">
-      <div class="header pt-md-4">
+      <div class="header">
         <div class="col-12">
-          <div class="header-items bor-btm pt-3 pt-md-0 pb-3">
+          <div class="header-items pt-3 pt-md-0">
             <div class="row align-items-center">
-              <div class="col-12 col-md-4 col-lg-6 mb-2 mb-md-0">
-                <div class="search-main position-relative d-flex align-items-center justify-content-between">
-                  <div class="d-inline-block position-relative">
-                    <%= search_form_for @search , url: search_static_jobs_path , method: :get,class:"list-search revealOnScroll " ,"data-animation" => "fadeInDown", "data-timeout" => "200" do |f| %>
-                        <!-- <input type="text" placeholder="Search" class="search-style f-14 f-mon-med txt-dark"> -->
-                        <%= f.text_field :title_or_job_category_cont, class: "search-style f-14 f-mon-med txt-dark", placeholder: "Search"%>
-                        <div class="btn-search">
-                          <button class="btn border-0 bg-transparent">
-                           <%= image_tag(image_path('search.svg'), class: "img-fluid") %>
-                          </button>
-                        </div>
-                    <% end %>
+                <div class="header-left">
+                  <div class="header-logo-frame">
+                  <% if request.subdomain == "app" %>
+                    <%= image_tag(image_path('etyme-logo-dark.png'), class: "header-logo-image img-fluid") %>
+                  <% elsif @current_company.present? && @current_company.logo.present? %>
+                    <%= image_tag @current_company.logo , class: "header-logo-image img-fluid" %>
+                  <% else %>
+                    <!-- <img src="images/KuklaKit-logo.svg" class="img-fluid m-auto" alt="logo"> -->
+                    <%= image_tag(image_path('etyme-logo-dark.png'), class: "header-logo-image img-fluid") %>
+                  <% end %>
                   </div>
-                  <div class="d-inline-block text-right">
-                    <span class="openbtn txt-dark d-md-none">
-                      <i class="fa fa-bars f-20" aria-hidden="true"></i>
-                    </span>
+                  <div class="header-logo-label mx-3">
+                    <%= @current_company.name %>
                   </div>
                 </div>
-
-              </div>
-              <%= render 'kulkakit/shared/header' %>
+                <div class="header-right">
+                  <div class="col-12 col-xl-9 mb-2 mb-md-0">
+                    <div class="search-main position-relative d-flex align-items-center justify-content-between">
+                      <div class="d-inline-block position-relative w-100">
+                        <input type="text" placeholder="<%="Search #{@current_company.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
+                          <div class="btn-search">
+                            <button class="btn border-0">
+                                <%= image_tag(image_path('search.png'), class: "img-fluid") %>
+                            </button>
+                          </div>
+                      </div>
+                      <div class="d-inline-block text-right">
+                        <span class="openbtn txt-dark d-md-none">
+                          <i class="fa fa-bars f-20" aria-hidden="true"></i>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <%= render 'kulkakit/shared/header' %>
+                </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-    <div class="col-12 content-main">
-      <div class="tab-content pt-4">
-        <!-- JOBS -->
-        <div class="tab-pane fade show active">
-          <div class="row">
-            <div class="order-1 order-xl-0 col-12 col-xl-9 feed-main">
 
-              <!-- Feed Blocks Start -->
-              <div id="static_jobs">
-                <%= render partial: 'load_jobs' %>
-              </div>
-
-              <!-- Feed Blocks End -->
-            </div>
-
-            <div class="order-0 order-xl-1 col-12 col-md-8 col-xl-3 category-sidebar">
-              <div class="mb-3">
-                <div class="row align-items-center justify-content-between">
-                  <div class="col-8">
-                    <p class="m-0 f-18 f-mon-sembol txt-black">Job Category</p>
-                  </div>
-                  <div class="col text-right">
-                    <p class="m-0 f-12 f-mon-sembol txt-blue"><%= link_to "View All", static_jobs_path %></p>
+      <div class="col-12 content-main">
+        <div class="tab-content">
+          <!-- FEED -->
+          <div class="tab-pane fade show active" >
+            <div class="row">
+              <div class="col-12 col-xl-9 feed-main">
+                <div class="feed-top">
+                <div class="row">
+                  <div class="col-12">
+                    <div class="feed-slider-banners">
+                    </div>
                   </div>
                 </div>
-                <div class="col-12 p-0 category-list">
-                  <ul class="list-unstyled mt-3">
-                    <% @job_categories.each do |category| %>
-                    <li class="d-block mb-3" >
-                      <label class="check-main"><%= category %>
-                        <input type="checkbox" class="selected_category" id= "<%= category %>" >
-                        <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
-                        <span class="checkmark">
-                          <!-- <input type="checkbox" value="Bike"> -->
-                        </span>
-                      </label>
-                    </li>
-                    <% end %>
-                  </ul>
+                <div class="col-12 px-0 category-list">
+                  <div class="dropdown dropdown-container">
+                    <button class="dropdown-toggle dropdown-button" id="dropdownMenuFilters" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                      <span>Filters</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
+                    </button>
+                    <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuFilters">
+                      <% @job_categories.each do |category| %>
+                        <label class="check-main">
+                          <input type="checkbox" class="selected_category" id="<%= category %>" checked><%= category %>
+                          <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
+                          <span class="checkmark">
+                          </span>
+                        </label>
+                      <% end %>
+                    </ul>
+                  </div>
+                  <div class="dropdown dropdown-container">
+                    <button class="dropdown-toggle dropdown-button" id="dropdownMenuSort" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+                      <span>Sort</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
+                    </button>
+                    <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuSort">
+                      Under Construction
+                    </ul>
+                  </div>
+                </div>
+                </div>
+
+                <div class="ask-a-question-wrapper">
+                  <button class="btn btn-ask-a-question">
+                    + Ask a Question
+                  </button>
+                </div>
+
+                <div id="static_feeds" class="static-feeds">
+                  <%= render partial: 'load_jobs' %>
+                </div>
+              </div>
+
+              <div class="sidebar-right col-xl-3 d-block align-right">
+                <div class="mb-3">
+                  <div class="row align-items-center justify-content-between">
+                    <div class="sidebar-right-header col-8">
+                      <p class="m-0 f-18 f-mon-sembol">Experts</p>
+                    </div>
+                    <div class="sidebar-right-view-all col text-right">
+                      <p class="m-0 f-12 f-mon-sembol"><a href="<%= static_people_path %>">View All</a></p>
+                    </div>
+                  </div>
+                  <% error %>
+                  <% if @candidates.present? %>
+                    <div class="col-12 p-0 follower-list">
+                      <ul class="list-unstyled mt-3">
+                        <% @candidates.each do |c| %>
+                         <li class="d-block mb-3">
+                            <div class="media p-3 follower-block">
+                              <%#= image_tag 'follower-user.png' ,class: "mr-3 align-self-center", alt: "user" %>
+                              <%= image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/male.png') : c.candidate.photo }" ,class: "mr-3 align-self-center", alt: "user" %>
+                              <div class="media-body ">
+                                <h5 class="candidate-name mt-0"><%= "#{c.candidate.full_name}" %>
+                                  <% if is_verify(!!c.candidate.confirmed_at) == "verified" %>
+                                    <%= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %></h5>
+                                  <% end %>
+                                <% if c&.candidate&.candidate_title.present? %>
+                                  <p class="candidate-title m-0"  title="<%= c.candidate.candidate_title %>"><%= do_ellipsis(c&.candidate&.candidate_title,20) %></p>
+                                <% end %>
+                              </div>
+                            </div>
+                          </li>
+                        <% end %>
+                      </ul>
+                    </div>
+                  <% end %>
+                </div>
+
+                <div class="open-jobs mb-3">
+                  <div class="row align-items-center justify-content-between">
+                    <div class="sidebar-right-header col-8">
+                      <p class="m-0 f-18 f-mon-sembol">Open Jobs</p>
+                    </div>
+                    <div class="sidebar-right-view-all col text-right">
+                      <p class="m-0 f-12 f-mon-sembol"><a href="<%= static_jobs_path %>">View All</a></p>
+                    </div>
+                  </div>
+                  <% if @job_all.present? %>
+                    <div class="col-12 p-0 follower-list">
+                      <ul class="list-unstyled mt-3">
+                        <% @job_all.each do |c_job| %>
+                          <li class="d-block mb-3">
+                            <div class="media follower-block">
+                              <%# if c_job&.files.present? %>
+                                <%#= image_tag(c_job.files, class: "mr-3 align-self-center") %>
+                              <%# elsif c_job&.created_by&.photo.present? %>
+                                <%#= image_tag(c_job&.created_by&.photo, class: "mr-3 align-self-center") %>
+                              <%# else %>
+                                <%#= image_tag 'static-job.png' ,class: "mr-3 align-self-center"%>
+                              <%# end %>
+                              <%#= image_tag 'follower-user.png' ,class: "mr-3 align-self-center", alt: "user" %>
+                              <div class="media-body ">
+                                <h5 class="job-title my-0" title="<%= c_job.title %>"><%= link_to do_ellipsis(c_job.title,20),static_job_path(c_job)%>
+                                  <%#= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
+                                </h5>
+                                <% if c_job.job_category.present? %>
+                                  <p class="job-category m-0"><%#= image_tag 'black-suitcase.svg' ,class: "img-fluid mr-2", alt: "suitcase" %><%= c_job&.job_category %></p>
+                                <% end %>
+                              </div>
+                            </div>
+                          </li>
+                        <% end %>
+                      </ul>
+                    </div>
+                  <% end %>
                 </div>
               </div>
             </div>
@@ -80,66 +178,37 @@
     </div>
   </div>
 </section>
-<%= javascript_include_tag 'shared/hide_show_toggler'%>
-<script>
-    var selected_categories = [];
-    $(document).ready(function () {
-      $(".openbtn").click(function () {
-          $(".side-wrapper").addClass("side-active")
-      });
 
-      $(".closebtn").click(function () {
-          $(".side-wrapper").removeClass("side-active")
-          $(".side-wrapper").removeClass("inactive")
-      });
-
-
-      $(".selected_category").click(function () {
-          cat = this.id
-          if($(this).is(':checked')){
-            selected_categories.push(cat)
-          }else{
-            if(selected_categories.includes(cat)){
-              i = selected_categories.indexOf(cat)
-              
-              if ( ~i ) selected_categories.splice(i, 1);
-            }
-          }
-        $.ajax({
-          url:  '<%= filter_jobs_static_jobs_path %>',
-          type: "POST",
-          dataType: "script",
-          data: {
-            selected_categories: selected_categories
-          },
-          // success: function(data) {
-
-          // }
-        });
-      });
-
-    });
-</script>
 <style type="text/css">
-  .bg-transparent{
-    background: transparent !important;
-    box-shadow: none !important;
+  .media .img-icon-size {
+    border-radius: 50%;
   }
-  .txt-black a{
+
+  .feed_image {
+    border-top-left-radius: 25px;
+    border-bottom-left-radius: 25px;
+  }
+
+  .common-blue-btn a {
+    color: #fff !important;
+  }
+
+  .inactive-feed a {
+    color: #AEB4C9 !important;
+  }
+
+  .txt-black a {
     color: #2A2C34 !important;
   }
 
-  .f-mon-bol a{
-    color: #fff !important;
+  .txt-blue a {
+    color: #5555A5 !important;
   }
-  .circle {
-    width: 50px;
-    height: 37px;
+
+  img.align-self-center {
     border-radius: 50%;
-    font-size: 20px;
-    color: gray;
-    padding: 5px;
-    text-align: center;
-    display: inline-block;
+    height: 40px;
+    width: 40px;
   }
+
 </style>

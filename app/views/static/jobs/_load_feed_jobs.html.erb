@@ -104,23 +104,36 @@
                       <ul class="list-unstyled ml-auto mb-0">
                         <li class="d-inline-block mb-0 mr-2">
                           <span class="feed-article-btn-share">
-                            Share
                             <%= image_tag 'share.svg' ,class: "img-fluid ml-2", alt: "share" %>
                           </span>
                         </li>
                         <li class="d-inline-block mb-0 mr-2">
-                          <span class="feed-article-btn-save">
-                            Save Job
+                          <span class="feed-article-btn-share">
+                            <%= image_tag 'like.svg' ,class: "img-fluid ml-2", alt: "save" %>
                           </span>
                         </li>
                         <li class="d-inline-block mb-0">
+                          <% if job&.listing_type.present? && job&.listing_type == "Training" %>
+                          <span class="feed-article-btn-apply">
+                            <%= link_to "View",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                          </span>
+                          <% elsif job&.listing_type.present? && job&.listing_type == "Service" %>
+                          <span class="feed-article-btn-apply">
+                            <%= link_to "View",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                          </span>
+                          <% elsif job&.listing_type.present? && job&.listing_type == "Product" %>
+                          <span class="feed-article-btn-apply">
+                            <%= link_to "Buy",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                          </span>
+                          <% else %>
                           <span class="feed-article-btn-apply">
                             <% if current_candidate.present? && current_candidate.already_applied?(job.id) %>
-                            Applied
-                          <% else %>
-                            <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
-                          <% end %>
+                              Applied
+                            <% else %>
+                              <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                            <% end %>
                           </span>
+                          <% end %>
                         </li>
                       </ul>
                     </div>
