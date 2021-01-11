@@ -73,28 +73,30 @@
       </div>
     </div>
   <% else %>
-    <div class="d-inline-block mx-1 dropdown">
-      <button class="btn btn-login f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
-        Login
-        <%#= image_tag(image_path('login-drop-arrow.svg'), class: "img-fluid ml-1") %>
-      </button>
-      <div class="dropdown-menu">
-        <%= link_to 'Company', request.subdomain.present? ? new_user_session_path : signin_path , class: 'dropdown-item' %>
-        <% if current_candidate.present? %>
-          <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path, class: 'dropdown-item' %>
-        <% else %>
-          <%= link_to 'Candidate', new_candidate_session_path , class: 'dropdown-item' %>
-        <% end %>
+    <div>
+      <div class="d-inline-block mx-1 dropdown">
+        <button class="btn btn-login f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
+          Login
+          <%#= image_tag(image_path('login-drop-arrow.svg'), class: "img-fluid ml-1") %>
+        </button>
+        <div class="dropdown-menu">
+          <%= link_to 'Company', request.subdomain.present? ? new_user_session_path : signin_path , class: 'dropdown-item' %>
+          <% if current_candidate.present? %>
+            <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path, class: 'dropdown-item' %>
+          <% else %>
+            <%= link_to 'Candidate', new_candidate_session_path , class: 'dropdown-item' %>
+          <% end %>
+        </div>
       </div>
-    </div>
-    <div class="d-inline-block mx-1 dropdown">
-      <button class="btn btn-signup text-white f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
-        Sign Up
-        <%#= image_tag(image_path('register-drop-arrow.svg'), class: "img-fluid ml-1") %>
-      </button>
-      <div class="dropdown-menu">
-        <%= link_to 'Company', register_path , class: 'dropdown-item' %>
-        <%= link_to 'Candidate', new_candidate_registration_path , class: 'dropdown-item' %>
+      <div class="d-inline-block mx-1 dropdown">
+        <button class="btn btn-signup text-white f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
+          Sign Up
+          <%#= image_tag(image_path('register-drop-arrow.svg'), class: "img-fluid ml-1") %>
+        </button>
+        <div class="dropdown-menu">
+          <%= link_to 'Company', register_path , class: 'dropdown-item' %>
+          <%= link_to 'Candidate', new_candidate_registration_path , class: 'dropdown-item' %>
+        </div>
       </div>
     </div>
   <% end %>

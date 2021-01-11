@@ -1,50 +1,7 @@
 <section class="content-wrapper">
   <div class="container-fluid">
     <div class="row">
-      <div class="header">
-        <div class="col-12">
-          <div class="header-items pt-3 pt-md-0">
-            <div class="row align-items-center">
-                <div class="header-left">
-                  <div class="header-logo-frame">
-                  <% if request.subdomain == "app" %>
-                    <%= image_tag(image_path('etyme-logo-dark.png'), class: "header-logo-image img-fluid") %>
-                  <% elsif @current_company.present? && @current_company.logo.present? %>
-                    <%= image_tag @current_company.logo , class: "header-logo-image img-fluid" %>
-                  <% else %>
-                    <!-- <img src="images/KuklaKit-logo.svg" class="img-fluid m-auto" alt="logo"> -->
-                    <%= image_tag(image_path('etyme-logo-dark.png'), class: "header-logo-image img-fluid") %>
-                  <% end %>
-                  </div>
-                  <div class="header-logo-label mx-3">
-                    <%= @current_company.name %>
-                  </div>
-                </div>
-                <div class="header-right">
-                  <div class="col-12 col-xl-9 mb-2 mb-md-0">
-                    <div class="search-main position-relative d-flex align-items-center justify-content-between">
-                      <div class="d-inline-block position-relative w-100">
-                        <input type="text" placeholder="<%="Search #{@current_company.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
-                          <div class="btn-search">
-                            <button class="btn border-0">
-                                <%= image_tag(image_path('search.png'), class: "img-fluid") %>
-                            </button>
-                          </div>
-                      </div>
-                      <div class="d-inline-block text-right">
-                        <span class="openbtn txt-dark d-md-none">
-                          <i class="fa fa-bars f-20" aria-hidden="true"></i>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <%= render 'kulkakit/shared/header' %>
-                </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      <%= render 'header_webflow' %>
       <div class="col-12 content-main">
         <div class="tab-content">
           <!-- FEED -->
@@ -115,81 +72,7 @@
                   <%= render partial: 'load_feed_jobs', locals: {company_jobs: @company_jobs} %>
                 </div>
               </div>
-
-              <div class="sidebar-right col-xl-3 d-block align-right">
-                <div class="mb-3">
-                  <div class="row align-items-center justify-content-between">
-                    <div class="sidebar-right-header col-8">
-                      <p class="m-0 f-18 f-mon-sembol">Experts</p>
-                    </div>
-                    <div class="sidebar-right-view-all col text-right">
-                      <p class="m-0 f-12 f-mon-sembol"><a href="<%= static_people_path %>">View All</a></p>
-                    </div>
-                  </div>
-                  <% if @candidates.present? %>
-                    <div class="col-12 p-0 follower-list">
-                      <ul class="list-unstyled mt-3">
-                        <% @candidates.each do |c| %>
-                         <li class="d-block mb-3">
-                            <div class="media p-3 follower-block">
-                              <%#= image_tag 'follower-user.png' ,class: "mr-3 align-self-center", alt: "user" %>
-                              <%= image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/male.png') : c.candidate.photo }" ,class: "mr-3 align-self-center", alt: "user" %>
-                              <div class="media-body ">
-                                <h5 class="candidate-name mt-0"><%= "#{c.candidate.full_name}" %>
-                                  <% if is_verify(!!c.candidate.confirmed_at) == "verified" %>
-                                    <%= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %></h5>
-                                  <% end %>
-                                <% if c&.candidate&.candidate_title.present? %>
-                                  <p class="candidate-title m-0"  title="<%= c.candidate.candidate_title %>"><%= do_ellipsis(c&.candidate&.candidate_title,20) %></p>
-                                <% end %>
-                              </div>
-                            </div>
-                          </li>
-                        <% end %>
-                      </ul>
-                    </div>
-                  <% end %>
-                </div>
-
-                <div class="open-jobs mb-3">
-                  <div class="row align-items-center justify-content-between">
-                    <div class="sidebar-right-header col-8">
-                      <p class="m-0 f-18 f-mon-sembol">Open Jobs</p>
-                    </div>
-                    <div class="sidebar-right-view-all col text-right">
-                      <p class="m-0 f-12 f-mon-sembol"><a href="<%= static_jobs_path %>">View All</a></p>
-                    </div>
-                  </div>
-                  <% if @job_all.present? %>
-                    <div class="col-12 p-0 follower-list">
-                      <ul class="list-unstyled mt-3">
-                        <% @job_all.each do |c_job| %>
-                          <li class="d-block mb-3">
-                            <div class="media follower-block">
-                              <%# if c_job&.files.present? %>
-                                <%#= image_tag(c_job.files, class: "mr-3 align-self-center") %>
-                              <%# elsif c_job&.created_by&.photo.present? %>
-                                <%#= image_tag(c_job&.created_by&.photo, class: "mr-3 align-self-center") %>
-                              <%# else %>
-                                <%#= image_tag 'static-job.png' ,class: "mr-3 align-self-center"%>
-                              <%# end %>
-                              <%#= image_tag 'follower-user.png' ,class: "mr-3 align-self-center", alt: "user" %>
-                              <div class="media-body ">
-                                <h5 class="job-title my-0" title="<%= c_job.title %>"><%= link_to do_ellipsis(c_job.title,20),static_job_path(c_job)%>
-                                  <%#= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
-                                </h5>
-                                <% if c_job.job_category.present? %>
-                                  <p class="job-category m-0"><%#= image_tag 'black-suitcase.svg' ,class: "img-fluid mr-2", alt: "suitcase" %><%= c_job&.job_category %></p>
-                                <% end %>
-                              </div>
-                            </div>
-                          </li>
-                        <% end %>
-                      </ul>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
+              <%= render 'sidebar_webflow_right' %>
             </div>
           </div>
         </div>

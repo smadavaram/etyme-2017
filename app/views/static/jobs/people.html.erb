@@ -1,139 +1,95 @@
 <section class="content-wrapper">
-  <div class="container">
+  <div class="container-fluid">
     <div class="row">
-      <div class="header">
-        <div class="col-12">
-          <div class="header-items pt-3 pt-md-0">
-            <div class="row align-items-center">
-                <div class="header-left">
-                  <div class="header-logo-frame">
-                  <% if request.subdomain == "app" %>
-                    <%= image_tag(image_path('etyme-logo-dark.png'), class: "header-logo-image img-fluid") %>
-                  <% elsif @current_company.present? && @current_company.logo.present? %>
-                    <%= image_tag @current_company.logo , class: "header-logo-image img-fluid" %>
-                  <% else %>
-                    <!-- <img src="images/KuklaKit-logo.svg" class="img-fluid m-auto" alt="logo"> -->
-                    <%= image_tag(image_path('etyme-logo-dark.png'), class: "header-logo-image img-fluid") %>
-                  <% end %>
-                  </div>
-                  <div class="header-logo-label mx-3">
-                    <%= @current_company.name %>
-                  </div>
-                </div>
-                <div class="header-right">
-                  <div class="col-12 col-xl-9 mb-2 mb-md-0">
-                    <div class="search-main position-relative d-flex align-items-center justify-content-between">
-                      <div class="d-inline-block position-relative w-100">
-                        <input type="text" placeholder="<%="Search #{@current_company.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
-                          <div class="btn-search">
-                            <button class="btn border-0">
-                                <%= image_tag(image_path('search.png'), class: "img-fluid") %>
-                            </button>
-                          </div>
-                      </div>
-                      <div class="d-inline-block text-right">
-                        <span class="openbtn txt-dark d-md-none">
-                          <i class="fa fa-bars f-20" aria-hidden="true"></i>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <%= render 'kulkakit/shared/header' %>
-                </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 content-main">
-      <div class="tab-content pt-4">
-        <div class="tab-pane fade show active">
-          <div class="row">
-            <div class="col-12 col-xl-10 feed-main">
-              <div class="row">
-                <% if @candidates.present? %>
-                  <% @candidates.each_with_index do |c , index| %>
-                    <div class="col-12 col-md-6 col-lg-5 col-xl-4 mb-4 mb-md-5">
-                      <div class="people-card bg-white pb-3">
-                        <div class="cover-img">
-                          <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
-                          <%= link_to (image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/no-image.jpg') : c.candidate.photo }" ,class: "img-fluid cover-bg w-100", alt: "cover"), public_profile_static_candidates_path(c.candidate), target: "_blank"  %>
-                          <div class="love">
-                            <%= image_tag 'love.svg' ,class: "img-fluid", alt: "like" %>
-                          </div>
-                          <% if c&.candidate&.candidate_title.present? %>
-                            <div class="designation" title="<%= c.candidate.candidate_title %>">
-                              <span class="bg-white d-flex align-items-center justify-content-center px-3 py-2 br-20 f-12 f-mon-sembol">
-                                <%= image_tag 'black-suitcase.svg' ,class: "img-fluid mr-2", alt: "share" %><%= do_ellipsis(c&.candidate&.candidate_title,20) %></span>
-                            </div>
-                          <% end %>
-                        </div>
+      <%= render 'header_webflow' %>
+      <div class="col-12 content-main">
+        <div class="tab-content pt-4">
+          <div class="tab-pane fade show active">
+            <div class="row">
+              <div class="col-12 col-xl-9 feed-main">
+                <div class="row mx-1">
+                  <% if @candidates.present? %>
+                    <% @candidates.each_with_index do |c , index| %>
+                      <div class="col-12 col-xl-4 mb-4">
+                        <div class="people-card">
+                        <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
 
-                        <div class="col-12 pt-3">
-                          <div class="media">
-                             <%#= image_tag 'follower-user.png' ,class: "mr-3", alt: "user" %>
-                             <%= link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),public_profile_static_candidates_path(c.candidate), target: "_blank", class: "mr-3" %>
-                            <div class="media-body ">
-                              <h5 class="mt-0 f-14 f-mon-sembol txt-black"><a href="<%= public_profile_static_candidates_path(c.candidate) %>" target="_blank"><%= c.candidate.try(:full_name).try(:titleize) %></a>
-                                <%= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
-                              </h5>
+                          <div class="cover-img">
+                            <%= link_to (image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/no-image.jpg') : c.candidate.photo }", class: "img-fluid", alt: "cover"), public_profile_static_candidates_path(c.candidate), target: "_blank"  %>
+                          </div>
+
+                          <div class="people-card-header d-flex justify-content-between">
+                            <div class="media">
+                              <%= link_to user_avatar(c.candidate), public_profile_static_candidates_path(c.candidate), target: "_blank" %>
+                              <%= link_to c.candidate.full_name, public_profile_static_candidates_path(c.candidate), target: "_blank"%>
+                            </div>
+                            <div>
                               <p class="m-0 f-12 f-mon-sembol txt-light"><%= c.candidate.try(:location) %></p>
-                              <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
-                              <p class="d-inline-block f-18 f-mon-sembol txt-dark">
-                                  <%= "$#{@c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? ? number_with_precision(@c_bench_job&.min_hourly_rate, precision: 2) : ""}/hr" %></p>
-                              <p class="d-inline-block pl-1 f-14 f-mon-sembol txt-light">
-                                  <del><%= "$#{@c_bench_job.present? && @c_bench_job&.max_hourly_rate.present? ? number_with_precision(@c_bench_job&.max_hourly_rate, precision: 2) : ""}/hr" %></del>
-                              </p>
-                              <% else %>
-                                <p class="d-inline-block f-14 f-mon-sembol txt-dark">
-                                  Chat for Pricing
-                                </p>
-                              <% end %>
-                              <p class="m-0 f-14 f-mon-sembol txt-dark" title="<%= c.candidate.skills.pluck(:name).join(", ") if c.candidate.skills.present? %>">
-                                <%= do_ellipsis(c.candidate.skills.pluck(:name).join(", "),45) if c.candidate.skills.present? %>
-                              <p>
-                              </p>
                             </div>
                           </div>
 
-                          <div class="col-12 p-0 d-flex justify-content-between">
-                            <span class="bg-blue d-inline-block px-3 py-2 br-20 f-10 f-mon-sembol text-white">
-                              <%= image_tag 'microphone.svg' ,class: "img-fluid mr-2", alt: "microphone" %>Schedule Interview</span>
-                            <span class="bg-blue d-inline-block px-3 py-2 br-20 f-10 f-mon-sembol text-white chat_img">
-                              <% if current_user.present? %>
-                                <%= link_to company_conversations_path do %>
-                                  <%= image_tag 'chat.svg' ,class: "img-fluid mr-2", alt: "chat" %>Chat
+                          <div class="people-card-content">
+                            <% if c&.candidate&.candidate_title.present? %>
+                              <%= c.candidate.candidate_title %>
+                            <% end %>
+                          </div>
+
+                          <div class="people-card-footer d-flex justify-content-between mb-2">
+                            <div class="card-footer-icons d-flex">
+                              <!-- Like Icon -->
+                              <div class="card-footer-like mr-2">
+                                <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
+                              </div>
+                              <!-- Chat Icon -->
+                              <div class="card-footer-chat">
+                                <% if current_user.present? %>
+                                  <%= link_to company_conversations_path do %>
+                                    <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %>
+                                  <% end %>
+                                <% elsif current_candidate.present? %>
+                                  <%= link_to static_people_path(is_chat_candidate: "true") do %>
+                                    <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "chat" %>
+                                  <% end %>
+                                <% else %>
+                                  <%= link_to request.subdomain.present? ? new_user_session_path(allow_chat: "true") : signin_path(allow_chat: "true") do %>
+                                    <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "chat" %>
+                                  <% end %>
                                 <% end %>
-                              <% elsif current_candidate.present? %>
-                                <%= link_to static_people_path(is_chat_candidate: "true") do %>
-                                  <%= image_tag 'chat.svg' ,class: "img-fluid mr-2", alt: "chat" %>Chat
-                                <% end %>
-                              <% else %>
-                                <%= link_to request.subdomain.present? ? new_user_session_path(allow_chat: "true") : signin_path(allow_chat: "true") do %>
-                                  <%= image_tag 'chat.svg' ,class: "img-fluid mr-2", alt: "chat" %>Chat
-                                <% end %>
-                              <% end %>
-                            </span>
+                              </div>
+                            </div>
+                            <!-- Price -->
+                            <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
+                              <div>
+                                <p class="d-inline-block card-people-footer-max-rate mb-0 mr-1">
+                                <del>
+                                  <%= "$#{@c_bench_job.present? && @c_bench_job&.max_hourly_rate.present? ? number_with_precision(@c_bench_job&.max_hourly_rate, precision: 2) : ""}/hr" %>
+                                </del>
+                                </p>
+                                <p class="d-inline-block card-people-footer-min-rate mb-0">
+                                <%= "$#{@c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? ? number_with_precision(@c_bench_job&.min_hourly_rate, precision: 2) : ""}/hr" %>
+                                </p>
+                              </div>
+                            <% end %>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    <% end %>
+                  <% else %>
+                    <div>No People Available</div>
                   <% end %>
-                <% else %>
-                  <div>No People Available</div>
+                </div>
+                <% if @candidates.present? %>
+                  <div class="mt-3">
+                    <%= digg_pagination(@candidates,class: "pagination ")%>
+                  </div>
                 <% end %>
               </div>
-              <% if @candidates.present? %>
-                <div class="mt-3">
-                  <%= digg_pagination(@candidates,class: "pagination ")%>
-                </div>
-              <% end %>
+              <%= render 'sidebar_webflow_right' %>
             </div>
           </div>
         </div>
       </div>
     </div>
-
   </div>
 </section>
 <%= javascript_include_tag 'shared/hide_show_toggler'%>

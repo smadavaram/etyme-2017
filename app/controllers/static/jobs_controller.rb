@@ -164,9 +164,15 @@ class Static::JobsController < ApplicationController
   end
 
   def show
+    @current_company = Company.find_by(slug: request.subdomain)
+
+    if @current_company.present?
+      @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+    end
+
     if @job.present?
       add_breadcrumb @job.title, static_job_path
-      render :layout => "kulkakit"
+      render layout: 'kulkakit'
     else
       flash[:error] = 'Job not found.'
       redirect_to static_jobs_path
@@ -253,6 +259,6 @@ class Static::JobsController < ApplicationController
   end
 
   def find_job
-    @job = Job.active.is_public.where(id: params[:id] || params[:job_id]).first
+    @job = Job.is_public.where(id: params[:id] || params[:job_id]).first
   end
 end

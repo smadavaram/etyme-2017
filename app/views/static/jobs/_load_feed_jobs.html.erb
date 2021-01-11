@@ -14,7 +14,7 @@
             </div>
             <div class="col-12 col-lg-10 pl-1 pr-3">
               <div class="col-12 px-0">
-                <h5 class="feed-article-title"><%= job.title if job.title.present? %></h5>
+                <h5 class="feed-article-title"><%= link_to truncate(job.title, lenght: 50), static_job_path(job) %></h5>
                 <div class="feed-article-description pb-2">
                   <%= job.description.html_safe if job.description.present? %>
                 </div>
