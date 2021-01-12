@@ -1,46 +1,17 @@
 <section class="content-wrapper">
   <div class="container-fluid">
     <div class="row">
-      <%= render 'header_webflow' %>
+      <%= render 'static/shared/webflow_header' %>
       <div class="col-12 content-main">
         <div class="tab-content">
           <!-- FEED -->
           <div class="tab-pane fade show active" >
             <div class="row">
               <div class="col-12 col-xl-9 feed-main">
-                <div class="feed-top">
-                <div class="row">
-                  <div class="col-12">
-                    <div class="feed-slider-banners">
-                    </div>
-                  </div>
-                </div>
-                <div class="col-12 px-0 category-list">
-                  <div class="dropdown dropdown-container">
-                    <button class="dropdown-toggle dropdown-button" id="dropdownMenuFilters" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-                      <span>Filters</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
-                    </button>
-                    <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuFilters">
-                      <% @job_categories.each do |category| %>
-                        <label class="check-main">
-                          <input type="checkbox" class="selected_category" id="<%= category %>" checked><%= category %>
-                          <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
-                          <span class="checkmark">
-                          </span>
-                        </label>
-                      <% end %>
-                    </ul>
-                  </div>
-                  <div class="dropdown dropdown-container">
-                    <button class="dropdown-toggle dropdown-button" id="dropdownMenuSort" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-                      <span>Sort</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
-                    </button>
-                    <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuSort">
-                      Under Construction
-                    </ul>
-                  </div>
-                </div>
-                </div>
+
+                <!-- .webflow_feed_header -->
+                <%= render '/static/shared/webflow_feed_header' %>
+                <!-- /.webflow_feed_header -->
 
                 <div class="ask-a-question-wrapper">
                   <button class="btn btn-ask-a-question">
@@ -61,6 +32,12 @@
   </div>
 </section>
 
+<%= javascript_include_tag 'shared/hide_show_toggler'%>
+<script>
+      $(".openbtn").click(function () {
+          $(".side-wrapper").toggleClass("side-active")
+      });
+</script>
 <style type="text/css">
   .media .img-icon-size {
     border-radius: 50%;

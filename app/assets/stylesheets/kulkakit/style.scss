@@ -204,7 +204,6 @@ textarea:focus {
 }
 
 .without-registration_modal {
-    //width: 70% !important;
     margin: 50px auto !important;
     position: relative;
     width: auto;
@@ -414,24 +413,6 @@ span:hover {
     }
 }
 
-.side-wrapper {
-    width: 224px;
-    padding-top: 116px;
-    background: #ffffff;
-    position: fixed;
-    left: 0;
-    top: 0;
-    z-index: 2;
-    display: inline-block;
-}
-
-@media screen and (max-width: 767px) {
-    .side-wrapper {
-        width: 0;
-        left: -210px;
-        transition: 0.9s ease;
-    }
-}
 
 .side-wrapper .roadmap {
     width: 100%;
@@ -609,11 +590,6 @@ span:hover {
     left: -210px;
 }
 
-.side-active {
-    width: 100%;
-    left: 0;
-}
-
 .content-wrapper {
     background: #f8faff;
     padding-left: 224px;
@@ -646,13 +622,30 @@ span:hover {
 
     background-color: #ffffff;
     border: 2px solid rgba(18, 18, 18, 0.03);
+
+    @media screen and (max-width: 767px) {
+        height: 60px;
+    }
 }
 
 .content-wrapper .header .header-left {
     width: 225px;
 
-    display: flex;
-    justify-content: center;
+    @media screen and (max-width: 767px) {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+    }
+}
+
+.content-wrapper .header .header-left-mobile,
+.content-wrapper .header .header-right-mobile {
+    display: none;
+
+    @media screen and (max-width: 767px) {
+        display: flex;
+    }
 }
 
 .content-wrapper .header .header-right {
@@ -839,12 +832,6 @@ span:hover {
     // margin-top: 76px;
 }
 
-@media screen and (max-width: 576px) {
-    .content-wrapper .content-main {
-        margin-top: 140px;
-    }
-}
-
 .content-wrapper .content-main .filter-list li {
     color: #aeb4c9;
 }
@@ -869,6 +856,10 @@ span:hover {
     border-left: 2px solid #fafafa;
     border-right: 2px solid #fafafa;
     background-color: transparent;
+
+    @media screen and (max-width: 576px) {
+        padding-top: 60px;
+    }
 }
 
 .content-wrapper .content-main .feed-main .profile-block {
@@ -1053,7 +1044,8 @@ span:hover {
     justify-content: space-between;
     align-items: center;
 
-    width: 248px;
+    width: 100%;
+    max-width: 248px;
     height: 36px;
 
     padding-left: 15px;

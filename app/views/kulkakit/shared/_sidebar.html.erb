@@ -2,9 +2,6 @@
 <section class="side-wrapper">
     <div class="container">
         <div class="row">
-            <div class="col-12 text-right d-md-none">
-                <span><i class="closebtn fa fa-times txt-dark f-20 mt-2" aria-hidden="true"></i></span>
-            </div>
             <div class="col-12 sidenav-items p-0">
                 <div class="nav flex-column nav-pills">
                     <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "static_feeds") ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">

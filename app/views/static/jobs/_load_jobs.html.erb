@@ -1,8 +1,8 @@
 <% @job_all.each do |job| %>
   <!-- Feed Blocks Start -->
   <div class="feed-article col-12 px-0">
-      <div class="row d-flex">
-        <div class="col-12 col-lg-2 px-0 text-center align-items-start" >
+      <div class="d-flex">
+        <div class="webflow-thumbnail-100-100 webflow-thumbnail-xs-80 width-100 mx-3">
           <% if job&.files.present? %>
             <%= image_tag(job.files, class: "feed-article-image") %>
           <% elsif job.created_by&.photo.present? %>
@@ -10,15 +10,14 @@
           <% else %>
             <%= image_tag 'static-job.png' ,class: "feed-article-image"%>
           <% end %>
-          <%#= image_tag 'kulkakit.svg' ,class: "img-fluid mr-3", alt: "kulka kit" %>
         </div>
-        <div class="col-12 col-lg-10 pl-1 pr-3 d-flex flex-column justify-content-between align-self-strech">
+        <div class="pl-1 pr-3 d-flex flex-column justify-content-between flex-fill">
           <div class="row justify-content-between">
             <div class="col-12 col-md-6 col-lg-7 text-center text-md-left d-flex align-self-center">
               <h3 class="feed-article-title"><%= link_to truncate(job.title,length: 50) ,static_job_path(job)%></h3>
             </div>
             <% if job.job_category.present? %>
-              <div class="col-12 col-md-6 col-lg-5 text-center text-md-right">
+              <div class="hidden-xs col-12 col-md-6 col-lg-5 text-center text-md-right">
                 <div class="col-12 p-0">
                   <ul class="list-unstyled m-0">
                     <li class="d-inline-block">

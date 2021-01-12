@@ -1,66 +1,17 @@
 <section class="content-wrapper">
   <div class="container-fluid">
     <div class="row">
-      <%= render 'header_webflow' %>
+      <%= render 'static/shared/webflow_header' %>
       <div class="col-12 content-main">
         <div class="tab-content">
           <!-- FEED -->
           <div class="tab-pane fade show active" >
             <div class="row">
               <div class="col-12 col-xl-9 feed-main">
-                <div class="feed-top">
-                <div class="row">
-                  <div class="col-12">
-                    <div class="feed-slider-banners">
-                    </div>
-                  </div>
-                </div>
-                <div class="col-12 px-0 category-list">
-                  <div class="dropdown dropdown-container">
-                    <button class="dropdown-toggle dropdown-button" id="dropdownMenuFilters" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-                      <span>Filters</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
-                    </button>
-                    <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuFilters">
-                      <label class="check-main mr-2">
-                        <input type="checkbox" class="selected_feed_category" id="Blog" checked>Blog
-                        <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
-                        <span class="checkmark">
-                          <!-- <input type="checkbox" value="Bike"> -->
-                        </span>
-                      </label>
-                      <label class="check-main mr-2">
-                        <input type="checkbox" class="selected_feed_category" id= "Product" checked>Product
-                        <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
-                        <span class="checkmark">
-                          <!-- <input type="checkbox" value="Bike"> -->
-                        </span>
-                      </label>
-                      <label class="check-main mr-2">
-                        <input type="checkbox" class="selected_feed_category" id= "Service" checked>Service
-                        <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
-                        <span class="checkmark">
-                          <!-- <input type="checkbox" value="Bike"> -->
-                        </span>
-                      </label>
-                      <label class="check-main mr-2">
-                        <input type="checkbox" class="selected_feed_category" id= "Training" checked>Training
-                        <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
-                        <span class="checkmark">
-                          <!-- <input type="checkbox" value="Bike"> -->
-                        </span>
-                      </label>
-                    </ul>
-                  </div>
-                  <div class="dropdown dropdown-container">
-                    <button class="dropdown-toggle dropdown-button" id="dropdownMenuSort" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-                      <span>Sort</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
-                    </button>
-                    <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuSort">
-                      Under Construction
-                    </ul>
-                  </div>
-                </div>
-                </div>
+
+                <!-- .webflow_feed_header -->
+                <%= render '/static/shared/webflow_feed_header' %>
+                <!-- /.webflow_feed_header -->
 
                 <div class="ask-a-question-wrapper">
                   <button class="btn btn-ask-a-question">
@@ -114,7 +65,6 @@
   }
 
 </style>
-<%= javascript_include_tag 'shared/hide_show_toggler'%>
 <script>
     var selected_categories = [];
     $(document).ready(function () {
@@ -153,14 +103,6 @@
         $("#Training").removeAttr("checked");
       }
 
-      $(".openbtn").click(function () {
-          $(".side-wrapper").addClass("side-active")
-      });
-
-      $(".closebtn").click(function () {
-          $(".side-wrapper").removeClass("side-active")
-          $(".side-wrapper").removeClass("inactive")
-      });
       $(".selected_feed_category").click(function () {
           cat = this.id
           selected_categories = selected_categories.filter(Boolean);

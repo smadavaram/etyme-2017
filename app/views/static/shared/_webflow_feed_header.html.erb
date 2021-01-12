@@ -1,0 +1,45 @@
+<div class="feed-top">
+  <div class="row">
+    <div class="col-12">
+      <div class="feed-slider-banners">
+      </div>
+    </div>
+  </div>
+  <div class="col-12 px-0 category-list">
+    <div class="dropdown dropdown-container col-6 d-flex justify-content-start">
+      <button class="dropdown-toggle dropdown-button" id="dropdownMenuFilters" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+        <span>Filters</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
+      </button>
+      <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuFilters">
+        <label class="check-main mr-2">
+          <input type="checkbox" class="selected_feed_category" id="Blog" checked>Blog
+          <span class="checkmark">
+          </span>
+        </label>
+        <label class="check-main mr-2">
+          <input type="checkbox" class="selected_feed_category" id= "Product" checked>Product
+          <span class="checkmark">
+          </span>
+        </label>
+        <label class="check-main mr-2">
+          <input type="checkbox" class="selected_feed_category" id= "Service" checked>Service
+          <span class="checkmark">
+          </span>
+        </label>
+        <label class="check-main mr-2">
+          <input type="checkbox" class="selected_feed_category" id= "Training" checked>Training
+          <span class="checkmark">
+          </span>
+        </label>
+      </ul>
+    </div>
+    <div class="dropdown dropdown-container col-6 d-flex justify-content-end">
+      <button class="dropdown-toggle dropdown-button" id="dropdownMenuSort" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+        <span>Sort</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
+      </button>
+      <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuSort">
+        Under Construction
+      </ul>
+    </div>
+  </div>
+</div>
