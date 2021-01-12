@@ -81,11 +81,23 @@ Rails.application.configure do
   # the I18n.default_locale when a translation cannot be found).
   config.i18n.fallbacks = true
 
-  config.action_mailer.delivery_method = :mailgun
-  config.action_mailer.mailgun_settings = {
-    api_key: ENV['mailgun_gun_api'],
-    domain: ENV['mailgun_domian']
-    # api_host: 'api.eu.mailgun.net'  # Uncomment this line for EU region domains
+  # config.action_mailer.delivery_method = :mailgun
+  # config.action_mailer.mailgun_settings = {
+  #   api_key: ENV['mailgun_gun_api'],
+  #   domain: ENV['mailgun_domian']
+  #   # api_host: 'api.eu.mailgun.net'  # Uncomment this line for EU region domains
+  # }
+
+
+  config.action_mailer.default_url_options = { host: ENV['host_url'] || 'etyme.com', protocol: ENV['host_protocol'] || 'https' }
+
+  config.action_mailer.smtp_settings = {
+    :address              => 'smtp.sendgrid.net',
+    :port                 => 587,
+    :user_name            => ENV['SENDGRID_USER_NAME'],
+    :password             => ENV['SENDGRID_API_KEY'],
+    :authentication       => 'plain',
+    :enable_starttls_auto => true
   }
 
   # Send deprecation notices to registered listeners.
