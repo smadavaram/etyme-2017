@@ -42,7 +42,7 @@ end
 company = Company.find_by(domain: 'cloudepa')
 unless company.present?
   company = Company.create(
-    name: 'Cloudepa', website: 'cloudepa.com', domain: 'cloudepa', slug: 'cloudepa',
+    name: 'CloudEPA', website: 'cloudepa.com', domain: 'cloudepa', slug: 'cloudepa',
     logo: 'https://etyme-cdn.sfo2.digitaloceanspaces.com/21-Aug-2019/image_2019_08_21T15_00_47_497Z.png',
     phone: '6097893890', email: 'info@cloudepa.com', company_type: 'vendor', owner: user
   )

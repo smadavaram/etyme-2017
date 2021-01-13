@@ -31,6 +31,8 @@ Rails.application.config.assets.precompile += %w[home.js]
 Rails.application.config.assets.precompile += %w[company_account.css]
 Rails.application.config.assets.precompile += %w[kulkakit.css]
 Rails.application.config.assets.precompile += %w[kulkakit.js]
+Rails.application.config.assets.precompile += %w[webflow.css]
+Rails.application.config.assets.precompile += %w[webflow.js]
 Rails.application.config.assets.precompile << /\.(?:svg|eot|woff|ttf)$/
 
 # Needed for BulletTrain, since it uses helpers in scss.erb files

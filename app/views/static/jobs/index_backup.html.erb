@@ -1,0 +1,145 @@
+<section class="content-wrapper">
+  <div class="container">
+    <div class="row">
+      <div class="header pt-md-4">
+        <div class="col-12">
+          <div class="header-items bor-btm pt-3 pt-md-0 pb-3">
+            <div class="row align-items-center">
+              <div class="col-12 col-md-4 col-lg-6 mb-2 mb-md-0">
+                <div class="search-main position-relative d-flex align-items-center justify-content-between">
+                  <div class="d-inline-block position-relative">
+                    <%= search_form_for @search , url: search_static_jobs_path , method: :get,class:"list-search revealOnScroll " ,"data-animation" => "fadeInDown", "data-timeout" => "200" do |f| %>
+                        <!-- <input type="text" placeholder="Search" class="search-style f-14 f-mon-med txt-dark"> -->
+                        <%= f.text_field :title_or_job_category_cont, class: "search-style f-14 f-mon-med txt-dark", placeholder: "Search"%>
+                        <div class="btn-search">
+                          <button class="btn border-0 bg-transparent">
+                           <%= image_tag(image_path('search.svg'), class: "img-fluid") %>
+                          </button>
+                        </div>
+                    <% end %>
+                  </div>
+                  <div class="d-inline-block text-right">
+                    <span class="openbtn txt-dark d-md-none">
+                      <i class="fa fa-bars f-20" aria-hidden="true"></i>
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+              <%= render 'kulkakit/shared/header' %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 content-main">
+      <div class="tab-content pt-4">
+        <!-- JOBS -->
+        <div class="tab-pane fade show active">
+          <div class="row">
+            <div class="order-1 order-xl-0 col-12 col-xl-9 feed-main">
+
+              <!-- Feed Blocks Start -->
+              <div id="static_jobs">
+                <%= render partial: 'load_jobs' %>
+              </div>
+
+              <!-- Feed Blocks End -->
+            </div>
+
+            <div class="order-0 order-xl-1 col-12 col-md-8 col-xl-3 category-sidebar">
+              <div class="mb-3">
+                <div class="row align-items-center justify-content-between">
+                  <div class="col-8">
+                    <p class="m-0 f-18 f-mon-sembol txt-black">Job Category</p>
+                  </div>
+                  <div class="col text-right">
+                    <p class="m-0 f-12 f-mon-sembol txt-blue"><%= link_to "View All", static_jobs_path %></p>
+                  </div>
+                </div>
+                <div class="col-12 p-0 category-list">
+                  <ul class="list-unstyled mt-3">
+                    <% @job_categories.each do |category| %>
+                    <li class="d-block mb-3" >
+                      <label class="check-main"><%= category %>
+                        <input type="checkbox" class="selected_category" id= "<%= category %>" >
+                        <%#= check_box_tag 'category', 'yes', true, class: 'checkmark' %>
+                        <span class="checkmark">
+                          <!-- <input type="checkbox" value="Bike"> -->
+                        </span>
+                      </label>
+                    </li>
+                    <% end %>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<%= javascript_include_tag 'shared/hide_show_toggler'%>
+<script>
+    var selected_categories = [];
+    $(document).ready(function () {
+      $(".openbtn").click(function () {
+          $(".side-wrapper").addClass("side-active")
+      });
+
+      $(".closebtn").click(function () {
+          $(".side-wrapper").removeClass("side-active")
+          $(".side-wrapper").removeClass("inactive")
+      });
+
+
+      $(".selected_category").click(function () {
+          cat = this.id
+          if($(this).is(':checked')){
+            selected_categories.push(cat)
+          }else{
+            if(selected_categories.includes(cat)){
+              i = selected_categories.indexOf(cat)
+              
+              if ( ~i ) selected_categories.splice(i, 1);
+            }
+          }
+        $.ajax({
+          url:  '<%= filter_jobs_static_jobs_path %>',
+          type: "POST",
+          dataType: "script",
+          data: {
+            selected_categories: selected_categories
+          },
+          // success: function(data) {
+
+          // }
+        });
+      });
+
+    });
+</script>
+<style type="text/css">
+  .bg-transparent{
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .txt-black a{
+    color: #2A2C34 !important;
+  }
+
+  .f-mon-bol a{
+    color: #fff !important;
+  }
+  .circle {
+    width: 50px;
+    height: 37px;
+    border-radius: 50%;
+    font-size: 20px;
+    color: gray;
+    padding: 5px;
+    text-align: center;
+    display: inline-block;
+  }
+</style>

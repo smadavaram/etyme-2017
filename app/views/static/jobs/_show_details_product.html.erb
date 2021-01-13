@@ -1,0 +1,104 @@
+<!-- Product Details -->
+<div class="webflow-content-inner webflow-blog webflow-product-single col-12">
+  <!-- Back to Listings -->
+  <div class="product-single-back">
+    <a href="#"><i class="fa fa-arrow-left mr-1" aria-hidden="true"></i> Back to Listings</a>
+  </div>
+
+  <!-- Header: Title, updated, share, save and buy -->
+  <div class="product-single-header">
+    <div>
+      <h1><%= @job.title %></h1>  
+      <span><i class="fa fa-clock-o mr-1" aria-hidden="true"></i> Updated 1 months ago</span>
+      <a href="#" >Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
+      <a href="#" >Save this <i class="fa fa-heart ml-1" aria-hidden="true"></i></a>
+    </div>
+    <a href="#" class="product-single-buy">Buy Now</a>
+  </div>
+
+  <!-- Thumbnails -->
+  <div class="product-single-thumbnails">
+    <% @job.files.split(',').each do |job_file| %>
+      <%= image_tag job_file %>
+    <% end %>
+  </div>
+
+  <!-- Description -->
+  <div class="product-single-subsection-title">
+    Description
+  </div>
+  <div class="product-single-subsection-content">
+    <%= @job.description.html_safe %>
+  </div>
+
+  <!-- About Company -->
+  <div class="product-single-subsection-title">
+    About Company 
+  </div>
+  <div class="product-single-company-card">
+    <div class="company-card-image">
+      <%= image_tag @job.company.logo %>
+    </div>
+    <div class="pl-3 align-self-center">
+      <div class="company-card-title">
+        <%= @job.company.name %>
+      </div>
+      <% if @job.company.website.present? %>
+      <div class="company-card-site">
+        <a href="<%= @job.company.website %>" class="company-card-website"><i class="fa fa-globe mr-2" aria-hidden="true"></i> <%= @job.company.website %></a>
+      </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<!-- Reviews -->
+<div class="webflow-content-inner webflow-comments col-12">
+  <div class="webflow-comments-header d-flex justify-content-between">
+    <div class="webflow-comments-title">Reviews <span>(24)</span></div>
+    <div class="webflow-comments-sort">Most Recent <i class="fa fa-angle-down" aria-hidden="true"></i></div>
+  </div>
+  <div>
+    <div class="webflow-comments-card d-flex">
+      <div class="webflow-comments-card-image">
+        <%= image_tag 'demo/s1.jpg' %>
+      </div>
+      <div class="pl-3">
+        <div class="webflow-comments-card-author">
+          John Doe <span class="webflow-comments-card-stars ml-2"><i class="fa fa-star" aria-hidden="true"></i> 4.2</span>
+        </div>
+        <div class="webflow-comments-card-company">
+          Company Name 
+        </div>
+        <div class="webflow-comments-card-text">
+          Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. 
+        </div>
+        <div class="webflow-comments-card-footer">
+          <span class="webflow-comments-card-time ml-0">Published 2 days ago</span>
+        </div>
+      </div>
+    </div>
+    <div class="webflow-comments-card d-flex">
+      <div class="webflow-comments-card-image">
+        <%= image_tag 'demo/s1.jpg' %>
+      </div>
+      <div class="pl-3">
+        <div class="webflow-comments-card-author">
+          John Doe <span class="webflow-comments-card-stars ml-2"><i class="fa fa-star" aria-hidden="true"></i> 4.2</span>
+        </div>
+        <div class="webflow-comments-card-company">
+          Company Name 
+        </div>
+        <div class="webflow-comments-card-text">
+          Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. 
+        </div>
+        <div class="webflow-comments-card-footer">
+          <span class="webflow-comments-card-time ml-0">Published 2 days ago</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="webflow-comments-load-more d-flex justify-content-center">
+    <a href="#">Load more</a>
+  </div>
+</div>
