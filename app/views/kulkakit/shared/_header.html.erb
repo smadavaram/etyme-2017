@@ -1,24 +1,24 @@
 <label class="toggle" for="toggle"></label>
-<div class="col-12 col-xl-3 mb-md-0 login-btns text-right d-flex justify-content-around">
+<div class="mx-2 mb-md-0 login-btns text-right d-flex justify-content-around">
   <% if current_candidate.present? %>
       <button class="btn-header" type="button">
         <%= link_to candidate_candidate_dashboard_path do %>
-          <%= image_tag(image_path('bell.svg'), class: "img-fluid") %>
+          <%= image_tag(image_path('bell.svg')) %>
         <% end %>
       </button>
       <button class="btn-header" type="button">
         <%= link_to candidate_candidate_dashboard_path do %>
-          <%= image_tag(image_path('messages.svg'), class: "img-fluid") %>
+          <%= image_tag(image_path('messages.svg')) %>
         <% end %>
       </button>
       <button class="btn-header" type="button">
         <%= link_to candidate_candidate_dashboard_path do %>
-          <%= image_tag(image_path('plus.svg'), class: "img-fluid") %>
+          <%= image_tag(image_path('plus.svg')) %>
         <% end %>
       </button>
       <button class="btn-header" type="button">
         <%= link_to candidate_candidate_dashboard_path do %>
-          <%= image_tag(image_path('dashboard.svg'), class: "img-fluid") %>
+          <%= image_tag(image_path('dashboard.svg')) %>
         <% end %>
       </button>
     <div class="d-inline-block mx-1 dropdown">
@@ -27,7 +27,7 @@
           <%= user_avatar(current_candidate) %>
         </div>
         <div class="avatar-button">
-          <%= image_tag(image_path('avatar-arrow-down.svg'), class: "img-fluid") %>
+          <%= image_tag(image_path('avatar-arrow-down.svg')) %>
         </div>
       </div>
       <div class="dropdown-menu">
@@ -39,22 +39,22 @@
   <% elsif current_user.present? %>
       <button class="btn-header" type="button">
         <%= link_to dashboard_path do %>
-          <%= image_tag(image_path('bell.svg'), class: "img-fluid") %>
+          <%= image_tag(image_path('bell.svg')) %>
         <% end %>
       </button>
       <button class="btn-header" type="button">
         <%= link_to dashboard_path do %>
-          <%= image_tag(image_path('messages.svg'), class: "img-fluid") %>
+          <%= image_tag(image_path('messages.svg')) %>
         <% end %>
       </button>
       <button class="btn-header" type="button">
         <%= link_to dashboard_path do %>
-          <%= image_tag(image_path('plus.svg'), class: "img-fluid") %>
+          <%= image_tag(image_path('plus.svg')) %>
         <% end %>
       </button>
       <button class="btn-header" type="button">
         <%= link_to dashboard_path do %>
-          <%= image_tag(image_path('dashboard.svg'), class: "img-fluid") %>
+          <%= image_tag(image_path('dashboard.svg')) %>
         <% end %>
       </button>
     <div class="d-inline-block mx-1 dropdown">
@@ -63,7 +63,7 @@
           <%= user_avatar(current_user) %>
         </div>
         <div class="avatar-button">
-          <%= image_tag(image_path('avatar-arrow-down.svg'), class: "img-fluid") %>
+          <%= image_tag(image_path('avatar-arrow-down.svg')) %>
         </div>
       </div>
       <div class="dropdown-menu">
@@ -73,11 +73,10 @@
       </div>
     </div>
   <% else %>
-    <div>
-      <div class="d-inline-block mx-1 dropdown">
+    <div class="d-flex">
+      <div class="mx-1 dropdown">
         <button class="btn btn-login f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
           Login
-          <%#= image_tag(image_path('login-drop-arrow.svg'), class: "img-fluid ml-1") %>
         </button>
         <div class="dropdown-menu">
           <%= link_to 'Company', request.subdomain.present? ? new_user_session_path : signin_path , class: 'dropdown-item' %>
@@ -91,7 +90,6 @@
       <div class="d-inline-block mx-1 dropdown">
         <button class="btn btn-signup text-white f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
           Sign Up
-          <%#= image_tag(image_path('register-drop-arrow.svg'), class: "img-fluid ml-1") %>
         </button>
         <div class="dropdown-menu">
           <%= link_to 'Company', register_path , class: 'dropdown-item' %>

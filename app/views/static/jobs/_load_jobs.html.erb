@@ -2,18 +2,20 @@
   <!-- Feed Blocks Start -->
   <div class="feed-article col-12 px-0">
       <div class="d-flex">
-        <div class="webflow-thumbnail-100-100 webflow-thumbnail-xs-80 width-100 mx-3">
-          <% if job&.files.present? %>
-            <%= image_tag(job.files, class: "feed-article-image") %>
-          <% elsif job.created_by&.photo.present? %>
-            <%= image_tag(job.created_by&.photo, class: "feed-article-image") %>
-          <% else %>
-            <%= image_tag 'static-job.png' ,class: "feed-article-image"%>
-          <% end %>
+        <div class="width-100 mx-0 mx-sm-3">
+          <div class="thumb-100 thumb-xs-80" >
+            <% if job&.files.present? %>
+              <%= image_tag(job.files) %>
+            <% elsif job.created_by&.photo.present? %>
+              <%= image_tag(job.created_by&.photo) %>
+            <% else %>
+              <%= image_tag 'static-job.png'%>
+            <% end %>
+          </div>
         </div>
         <div class="pl-1 pr-3 d-flex flex-column justify-content-between flex-fill">
           <div class="row justify-content-between">
-            <div class="col-12 col-md-6 col-lg-7 text-center text-md-left d-flex align-self-center">
+            <div class="col-12 col-md-6 col-lg-7 text-md-left d-flex align-self-center">
               <h3 class="feed-article-title"><%= link_to truncate(job.title,length: 50) ,static_job_path(job)%></h3>
             </div>
             <% if job.job_category.present? %>
@@ -43,7 +45,7 @@
                   <li class="d-block">
                     <p class="feed-article-location">
                       <%= image_tag 'placeholder.svg' ,class: "img-fluid w-15 mr-2", alt: "placeholder" %>
-                      <%= job&.location%>
+                      <%= job&.location&.country%>
                     </p>
                   </li>
                 <% end %>
@@ -59,14 +61,14 @@
               <div class="col-12 text-lg-right align-self-end p-0">
                 <div class="d-flex align-items-center">
                   <ul class="list-unstyled ml-auto mb-0">
-                    <li class="d-inline-block mb-0 mr-2">
+                    <li class="d-none d-md-inline-block mb-0 mr-2">
                       <span class="feed-article-btn-share">
-                        <%= image_tag 'share.svg' ,class: "img-fluid ml-2", alt: "share" %>
+                        <%= image_tag 'share.svg', alt: "share" %>
                       </span>
                     </li>
-                    <li class="d-inline-block mb-0 mr-2">
+                    <li class="d-none d-md-inline-block mb-0 mr-2">
                       <span class="feed-article-btn-share">
-                        <%= image_tag 'like.svg' ,class: "img-fluid ml-2", alt: "save" %>
+                        <%= image_tag 'like.svg', alt: "save" %>
                       </span>
                     </li>
                     <li class="d-inline-block mb-0">

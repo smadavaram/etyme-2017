@@ -1,7 +1,7 @@
 <div class="header">
 <div class="col-12">
 <div class="header-items">
-  <div class="row align-items-center justify-content-center">
+  <div class="d-flex align-items-center justify-content-center">
       <div class="header-left">
         <div class="header-left-mobile">
           <span class="sidebar-left-btn txt-dark mx-4">
@@ -11,14 +11,13 @@
             <i class="fa fa-search gray-30" aria-hidden="true"></i>
           </span>
         </div>
-        <div class="d-flex justify-content-center">
+        <div class="d-none d-md-flex justify-content-center">
           <div class="webflow-logo-50 webflow-logo-xs-40">
           <% if request.subdomain == "app" %>
             <%= image_tag(image_path('etyme-logo-dark.png')) %>
           <% elsif @current_company.present? && @current_company.logo.present? %>
             <%= image_tag @current_company.logo %>
           <% else %>
-            <!-- <img src="images/KuklaKit-logo.svg" class="img-fluid m-auto" alt="logo"> -->
             <%= image_tag(image_path('etyme-logo-dark.png')) %>
           <% end %>
           </div>
@@ -26,16 +25,10 @@
             <%= @current_company.name %>
           </div>
         </div>
-        <div class="header-right-mobile">
-          <div class="webflow-avatar-32-32 sidebar-right-btn mx-4">
-            <%= user_avatar(current_candidate) %>
-            <%= user_avatar(current_user) %>
-          </div>
-        </div>
       </div>
-      <div class="header-right hidden-xs">
-        <div class="col-12 col-xl-9 mb-2 mb-md-0">
-          <div class="search-main position-relative d-flex align-items-center justify-content-between">
+      <div class="header-right d-flex">
+        <div class="d-none d-md-flex flex-fill mb-2 mb-md-0 col-xl-9">
+          <div class="search-main position-relative d-flex flex-fill align-items-center justify-content-between">
             <div class="d-inline-block position-relative w-100">
               <input type="text" placeholder="<%="Search #{@current_company.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
                 <div class="btn-search">

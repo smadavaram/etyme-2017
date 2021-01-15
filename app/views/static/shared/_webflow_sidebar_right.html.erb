@@ -13,9 +13,11 @@
         <ul class="list-unstyled mt-3">
           <% @candidates_hot.each do |c| %>
            <li class="d-block mb-3">
-              <div class="media p-3 follower-block">
-                <%#= image_tag 'follower-user.png' ,class: "mr-3 align-self-center", alt: "user" %>
-                <%= image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/male.png') : c.candidate.photo }" ,class: "mr-3 avatar-50-50", alt: "user" %>
+              <div class="media p-3 follower-block d-flex align-items-center">
+                <div class="webflow-avatar-50-50 mr-2">
+                  <%= user_avatar(c&.candidate) %>
+                  <%# <%= image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/male.png') : c.candidate.photo }", alt: "user" %1> %>
+                </div>
                 <div class="media-body ">
                   <h5 class="candidate-name mt-0"><%= "#{c.candidate.full_name}" %>
                     <% if is_verify(!!c.candidate.confirmed_at) == "verified" %>

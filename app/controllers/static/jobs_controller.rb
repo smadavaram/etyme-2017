@@ -16,7 +16,8 @@ class Static::JobsController < ApplicationController
     @current_company = Company.find_by(slug: request.subdomain)
 
     if @current_company.present?
-      @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
 
     render :layout => "kulkakit"
@@ -40,6 +41,7 @@ class Static::JobsController < ApplicationController
     candidate_ids = ids.split(',').map(&:to_i) if ids.present?
 
     @current_company = Company.find_by(slug: request.subdomain)
+
     if request.subdomain == "app"
       if candidate_ids.present?
         @candidates = CandidatesCompany.hot_candidate.where(candidate_id: candidate_ids).paginate(page: params[:page], per_page: 50)
@@ -47,6 +49,9 @@ class Static::JobsController < ApplicationController
         @candidates = CandidatesCompany.hot_candidate.paginate(page: params[:page], per_page: 50)
       end
     elsif @current_company.present?
+      @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
+
       if candidate_ids.present?
         @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id, candidate_id: candidate_ids).paginate(page: params[:page], per_page: 50)
       else
@@ -61,6 +66,7 @@ class Static::JobsController < ApplicationController
 
   def static_feeds
     @current_company = Company.find_by(slug: request.subdomain)
+
     if @current_company.present?
       @search = @current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
       @company_jobs = @search.result.order(created_at: :desc)
@@ -69,8 +75,8 @@ class Static::JobsController < ApplicationController
       else
         @company_jobs = @company_jobs.where.not(listing_type: 'Job').paginate(page: params[:page], per_page: 20)
       end
-      @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
-      @job_all = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
+      @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
     render :layout => "kulkakit"
   end
@@ -167,7 +173,8 @@ class Static::JobsController < ApplicationController
     @current_company = Company.find_by(slug: request.subdomain)
 
     if @current_company.present?
-      @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
 
     if @job.present?

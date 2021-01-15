@@ -103,9 +103,53 @@
 }
 
 // Thumbnails
+.thumb-80 {
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+
+    height: 80px;
+    min-height: 80px;
+    max-height: 80px;
+
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
 .webflow-thumbnail-80-80 {
     width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+
     height: 80px;
+    min-height: 80px;
+    max-height: 80px;
+
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.thumb-100 {
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+
+    height: 100px;
+    min-height: 100px;
+    max-height: 100px;
+
     overflow: hidden;
 
     img {
@@ -118,7 +162,13 @@
 
 .webflow-thumbnail-100-100 {
     width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+
     height: 100px;
+    min-height: 100px;
+    max-height: 100px;
+
     overflow: hidden;
 
     img {
@@ -143,10 +193,37 @@
     }
 }
 
+.thumb-xs-80 {
+    @media (max-width: 575.98px) {
+        width: 80px;
+        min-width: 80px;
+        max-width: 80px;
+
+        height: 80px;
+        min-height: 80px;
+        max-height: 80px;
+
+        overflow: hidden;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+    }
+}
+
 .webflow-thumbnail-xs-80 {
     @media (max-width: 575.98px) {
         width: 80px;
+        min-width: 80px;
+        max-width: 80px;
+
         height: 80px;
+        min-height: 80px;
+        max-height: 80px;
+
         overflow: hidden;
 
         img {
