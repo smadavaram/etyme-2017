@@ -71,7 +71,7 @@ module ApplicationHelper
   def do_ellipsis(value, length = 20)
     if value
       post_fix = value.length > length ? '...' : ''
-      content_tag(:span, "#{value.capitalize[0..length].strip}#{post_fix}", class: 'ellipsis', title: value).html_safe
+      content_tag(:span, "#{value[0..length].strip}#{post_fix}", class: 'ellipsis', title: value).html_safe
     end
   end
 
@@ -1314,6 +1314,16 @@ module ApplicationHelper
 
   def default_user_img(first_name, last_name, circle_div_class = 'circle')
     content_tag(:span, bind_initials(first_name, last_name), class: circle_div_class.to_s)
+  end
+
+  def user_avatar(user)
+    return if user.nil?
+
+    if user.photo&.present?
+      image_tag(user.photo, alt: image_alt(user)).html_safe
+    else
+      image_tag(asset_path('avatars/male.png'), alt: "user").html_safe
+    end
   end
 
   def user_image(user, attrs)
