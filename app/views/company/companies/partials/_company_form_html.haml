@@ -68,6 +68,14 @@
           %strong
             .links
               = link_to_add_association '+ Add Branch', f, :branches, class: '', partial: 'company/companies/branch_fields'
+    .row.form-group
+      .col-lg-12.multi-field-wrapper
+        %p
+          %b Custom Domain
+        .row
+          .col-md-12
+            .form-group
+              = f.text_field :custom_domain, placeholder: "Custom Domain", class: 'form-control'
     .row
     .col-lg-12
       -#%button.btn.pull-left{:type => "button"}
@@ -75,4 +83,4 @@
       %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
         Next
       %button.btn.btn-primary.pull-right{:type => "submit"}
-        Saved
+        Save

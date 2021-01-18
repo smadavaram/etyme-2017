@@ -367,6 +367,11 @@ class Company::CompaniesController < Company::BaseController
     @company&.update_attributes(phone: params['phone_number'], is_number_verify: true)
   end
 
+  def update_custom_domain
+    @company = Company.find_by_id(params[:id])
+    @company&.update_attributes(custom_domain: params['custom_domain'])
+  end
+
   private
 
   def find_company_by_email
@@ -495,13 +500,11 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_params
-    params.require(:company).permit(:name, :company_type, :domain, :skill_list, :website, :logo, :description, :phone, :email, :linkedin_url, :facebook_url, :twitter_url, :google_url, :is_activated, :status, :time_zone, :tag_line, group_ids: [],
-                                                                                                                                                                                                                                       owner_attributes: %i[id type first_name last_name email password password_confirmation], locations_attributes: [:id, :name, :status, address_attributes: %i[id address_1 country city state zip_code]],
-                                                                                                                                                                                                                                       invited_by_attributes: %i[invited_by_company_id user_id])
+    params.require(:company).permit(:name, :company_type, :domain, :skill_list, :website, :logo, :description, :phone, :email, :linkedin_url, :facebook_url, :twitter_url, :google_url, :is_activated, :status, :time_zone, :tag_line, :custom_domain, group_ids: [], owner_attributes: %i[id type first_name last_name email password password_confirmation], locations_attributes: [:id, :name, :status, address_attributes: %i[id address_1 country city state zip_code]], invited_by_attributes: %i[invited_by_company_id user_id])
   end
 
   def create_params
-    params.require(:company).permit([:name, :email, :domain, :company_type, :currency_id, :phone, :fax_number, :send_email, :slug, :website, group_ids: [],
+    params.require(:company).permit([:name, :email, :domain, :company_type, :currency_id, :phone, :fax_number, :send_email, :slug, :website, :custom_domain, group_ids: [],
                                                                                                                                              company_contacts_attributes: %i[id type first_name last_name email company_id phone title _destroy],
                                                                                                                                              invited_by_attributes: %i[invited_by_company_id user_id],
                                                                                                                                              custom_fields_attributes: %i[id name value _destroy]],

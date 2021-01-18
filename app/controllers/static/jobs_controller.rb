@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Static::JobsController < ApplicationController
-  before_action :set_jobs, only: [:index, :show]
+  before_action :set_jobs, only: %i[index show]
   before_action :find_job, only: %i[show apply job_appication_without_registeration job_appication_with_recruiter iframe_apply]
 
   layout 'static'
@@ -11,16 +11,16 @@ class Static::JobsController < ApplicationController
 
   def index
     session[:previous_url] = request.url
-    params[:category].present? ? (add_breadcrumb params[:category].titleize, static_jobs_path) : ''
+    add_breadcrumb params[:category].titleize, static_jobs_path if params[:category].present?
 
-    @current_company = Company.find_by(slug: request.subdomain)
+    @current_company = current_company
 
     if @current_company.present?
       @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
 
-    render :layout => "kulkakit"
+    render layout: 'kulkakit'
   end
 
   def get_attr_value(data_array, look)
@@ -40,9 +40,9 @@ class Static::JobsController < ApplicationController
     ids = params[:ids]
     candidate_ids = ids.split(',').map(&:to_i) if ids.present?
 
-    @current_company = Company.find_by(slug: request.subdomain)
+    @current_company = current_company
 
-    if request.subdomain == "app"
+    if request.subdomain == 'app'
       if candidate_ids.present?
         @candidates = CandidatesCompany.hot_candidate.where(candidate_id: candidate_ids).paginate(page: params[:page], per_page: 50)
       else
@@ -58,18 +58,19 @@ class Static::JobsController < ApplicationController
         @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).paginate(page: params[:page], per_page: 50)
       end
     end
-    if (params[:is_chat_candidate].present? && params[:is_chat_candidate] == "true")
-      flash.now[:alert] = 'Please login with Company ID'
-    end
-    render :layout => "kulkakit"
+
+    flash.now[:alert] = 'Please login with Company ID' if params[:is_chat_candidate].present? && params[:is_chat_candidate] == 'true'
+
+    render layout: 'kulkakit'
   end
 
   def static_feeds
-    @current_company = Company.find_by(slug: request.subdomain)
+    @current_company = current_company
 
     if @current_company.present?
       @search = @current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
       @company_jobs = @search.result.order(created_at: :desc)
+
       if params.has_key?(:selected_categories).present?
         @company_jobs = @company_jobs.where(listing_type: params[:selected_categories].to_s.split(',')).paginate(page: params[:page], per_page: 20)
       else
@@ -78,7 +79,7 @@ class Static::JobsController < ApplicationController
       @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
-    render :layout => "kulkakit"
+    render layout: 'kulkakit'
   end
 
   def iframe_apply
@@ -170,7 +171,7 @@ class Static::JobsController < ApplicationController
   end
 
   def show
-    @current_company = Company.find_by(slug: request.subdomain)
+    @current_company = current_company
 
     if @current_company.present?
       @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
@@ -217,7 +218,7 @@ class Static::JobsController < ApplicationController
   end
 
   def filter_jobs
-    @current_company = Company.find_by(slug: request.subdomain)
+    @current_company = current_company
     if request.subdomain == "app"
       if params[:selected_categories].present?
         @job_all = Job.active.is_public.where(listing_type: 'Job').where(job_category: params[:selected_categories]).order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
@@ -236,8 +237,9 @@ class Static::JobsController < ApplicationController
   private
 
   def set_jobs
-    @current_company = Company.find_by(slug: request.subdomain)
-    if request.subdomain == "app"
+    @current_company = current_company
+
+    if request.subdomain == 'app'
       @search = params[:category].present? ? Job.active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : Job.active.is_public.ransack(params[:q])
       jobs = @search.result(distinct: true).where(listing_type: 'Job').order(created_at: :desc).paginate(page: params[:page], per_page: 50)
       # @search_q = Job.is_public.active.ransack(params[:q])
@@ -247,9 +249,8 @@ class Static::JobsController < ApplicationController
       else
         @job_all = Job.active.is_public.where(listing_type: 'Job').order(created_at: :desc).paginate(page: params[:page], per_page: 50) || []
       end
-      @job_categories =  Job.active.is_public.pluck(:job_category).uniq
+      @job_categories = Job.active.is_public.pluck(:job_category).uniq
     elsif @current_company.present?
-      
       @search = params[:category].present? ? @current_company.jobs.active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : @current_company.jobs.active.is_public.ransack(params[:q])
       jobs = @search.result(distinct: true).where(listing_type: 'Job').order(created_at: :desc).paginate(page: params[:page], per_page: 50)
       if jobs.present?
@@ -267,5 +268,18 @@ class Static::JobsController < ApplicationController
 
   def find_job
     @job = Job.is_public.where(id: params[:id] || params[:job_id]).first
+  end
+
+  def custom_domain?
+    request_domain_with_port = "#{request.domain}#{request.port_string}"
+    request_domain_with_port != ENV['domain']
+  end
+
+  def current_company
+    if custom_domain?
+      Company.find_by(custom_domain: request.domain)
+    else
+      Company.find_by(slug: request.subdomain)
+    end
   end
 end
