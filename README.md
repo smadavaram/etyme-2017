@@ -37,7 +37,7 @@ Open application in browser ```http://lvh.me:3000``` and login as a company.
 
 3- We use capistrano script for AWS deployments.
 
-4- Checkout locally in branch deploy-prod.
+4- Checkout locally in branch deploy-staging.
 
 5- Check the capistrano config present in deploy.rb and 'config/deploy/staging.rb'
 
@@ -49,3 +49,23 @@ Open application in browser ```http://lvh.me:3000``` and login as a company.
 
 9- IP Address of Staging - 3.128.51.36
 
+
+***Production ENV.***
+
+1- Create a PR of your branch with production branch 'deploy-prod'
+
+2- Merge your PR.
+
+3- We use capistrano script for AWS deployments.
+
+4- Checkout locally in branch deploy-prod.
+
+5- Check the capistrano config present in deploy.rb and 'config/deploy/production.rb'
+
+6- Either use your ssh keys or pem files for authentication.
+
+7- Once everything looks okay, check the deployment steps using command -  *cap production deploy --dry-run*
+
+8- After verification in step 7 run actual command to deploy the code - *cap production deploy*
+
+9- IP Address of Staging - 3.135.117.131
