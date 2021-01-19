@@ -68,6 +68,7 @@ Rails.application.routes.draw do
   namespace :static do
     get '/people', to: 'jobs#people'
     # get '/feeds', to: 'jobs#static_feeds'
+    post 'post_question', to: 'jobs#post_question'
     resources :jobs, only: %i[index show] do
       post 'job_request', on: :collection
       get '(page/:page)', action: :index, on: :collection, as: ''
@@ -265,13 +266,11 @@ Rails.application.routes.draw do
     end
   end
 
-
   class CustomOrSubDomain
     def self.matches?(request)
       request.domain != ENV['domain'] || (request.subdomain.present? && (request.subdomain != 'www' && request.subdomain != 'app'))
     end
   end
-
 
   # COMPANY ROUTES
   namespace :company do

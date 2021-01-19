@@ -9,6 +9,7 @@ class Job < ApplicationRecord
   validate :file_size
 
   belongs_to :created_by, class_name: 'User', foreign_key: :created_by_id, optional: true
+  belongs_to :created_by_candidate, class_name: 'Candidate', foreign_key: :created_by_candidate_id, optional: true
   belongs_to :company, optional: true
   # belongs_to   :location
   has_many :contracts, dependent: :destroy

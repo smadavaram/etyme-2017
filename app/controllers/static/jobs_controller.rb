@@ -76,6 +76,7 @@ class Static::JobsController < ApplicationController
       else
         @company_jobs = @company_jobs.where.not(listing_type: 'Job').paginate(page: params[:page], per_page: 20)
       end
+
       @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
@@ -234,6 +235,20 @@ class Static::JobsController < ApplicationController
     end
   end
 
+  def post_question
+    if current_user.present?
+      @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id, listing_type: 'Question'))
+      flash[:errors] = @job.errors.full_messages unless @job.save
+      redirect_to root_path
+    elsif current_candidate.present?
+      @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_company.owner.id, created_by_candidate_id: current_candidate.id, listing_type: 'Question'))
+      flash[:errors] = @job.errors.full_messages unless @job.save
+      redirect_to root_path
+    else
+      redirect_to login_path
+    end
+  end
+
   private
 
   def set_jobs
@@ -281,5 +296,23 @@ class Static::JobsController < ApplicationController
     else
       Company.find_by(slug: request.subdomain)
     end
+  end
+
+  def company_job_params
+    params.require(:job).permit([:status, :source, :title, :files, :description, :location, :job_category, :is_public, :start_date, :end_date, :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, custom_fields_attributes:
+        %i[
+          id
+          name
+          value
+          required
+          _destroy
+        ], job_requirements_attributes: %i[
+          id
+          questions
+          ans_type
+          ans_mandatroy
+          multiple_ans
+          multiple_option
+        ]])
   end
 end

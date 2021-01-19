@@ -15,6 +15,8 @@
       <div class="content-main col-12 col-xl-9"> <!-- Div Content Main -->
           <% if @job.listing_type == "Blog" %>
             <%= render 'show_details_blog' %>
+          <% elsif @job.listing_type == "Question" %>
+            <%= render 'show_details_question' %>
           <% elsif @job.listing_type == "Product" %>
             <%= render 'show_details_product' %>
           <% elsif @job.listing_type == "Service" %>

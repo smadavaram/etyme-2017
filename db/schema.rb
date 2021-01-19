@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20210117165010) do
+ActiveRecord::Schema.define(version: 20210119182724) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -1436,6 +1436,7 @@ ActiveRecord::Schema.define(version: 20210117165010) do
     t.text "files"
     t.float "latitude"
     t.float "longitude"
+    t.integer "created_by_candidate_id"
     t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
   end
 
