@@ -610,7 +610,7 @@ span:hover {
 
 .content-wrapper .header {
     position: fixed;
-    z-index: 2;
+    z-index: 5;
     top: 0;
     left: 0;
 
@@ -1013,16 +1013,26 @@ span:hover {
 }
 
 .content-wrapper .feed-top {
-    padding-top: 15px;
-    padding-left: 15px;
-    padding-right: 15px;
+    padding: 15px;
     background-color: #ffffff;
+
+    position: static;
+
+    top: 60px;
+    left: 0;
+    right: 0;
+
+    z-index: 3;
+
+
+    @media (max-width: 767.98px) {
+        position: fixed;
+    }
 }
 
 .content-wrapper .feed-top .feed-slider-banners {
     height: 184px;
     background: linear-gradient(21deg, #000000 10%, rgba(0, 0, 0, 0) 90%);
-    opacity: 0.5;
     filter: drop-shadow(1px 3px 20px rgba(46, 46, 46, 0.02));
     border-radius: 8px;
 }
@@ -1113,11 +1123,11 @@ span:hover {
     border-radius: 8px;
 }
 
-.content-wrapper .ask-a-question-wrapper .btn-ask-a-question {
+.content-wrapper .btn-ask-a-question {
     width: 100%;
     height: 36px;
     left: 1208px;
-    top: 20px;
+    top: 20px; 
 
     border: 1px solid #5555a5;
     box-sizing: border-box;
@@ -1138,6 +1148,10 @@ span:hover {
     background-color: #ffffff;
     box-shadow: 1px 3px 20px rgba(46, 46, 46, 0.02);
     border-radius: 8px;
+
+    @media (max-width: 767.98px) {
+        margin-top: 130px;
+    }
 }
 
 .content-wrapper .static-feeds .feed-article {
@@ -1167,10 +1181,14 @@ span:hover {
     font-size: 18px;
     line-height: 21px;
     display: flex;
-    align-items: center;
 
     color: #121212;
     opacity: 0.8;
+
+    @media (max-width: 767.98px) {
+        font-size: 14px;
+        line-height: 17px;
+    }
 }
 
 .content-wrapper .static-feeds .feed-article .feed-article-title a {
@@ -1181,6 +1199,11 @@ span:hover {
     line-height: 21px;
 
     color: #121212;
+
+    @media (max-width: 767.98px) {
+        font-size: 14px;
+        line-height: 17px;
+    }
 }
 
 .content-wrapper .static-feeds .feed-article .feed-article-category {
@@ -1215,6 +1238,11 @@ span:hover {
 
     color: #121212;
     opacity: 0.6;
+
+    @media (max-width: 767.98px) {
+        font-size: 10px;
+        line-height: 14px;
+    }
 }
 
 
@@ -1230,7 +1258,12 @@ span:hover {
     font-size: 12px;
     line-height: 17px;
 
-    color: rgba(18, 18, 18, 0.8)
+    color: rgba(18, 18, 18, 0.8);
+
+    @media (max-width: 767.98px) {
+        font-size: 10px;
+        line-height: 14px;
+    }
 }
 
 .content-wrapper .static-feeds .feed-article .feed-article-author {
@@ -1330,18 +1363,20 @@ span:hover {
 .content-wrapper .content-main .people-card .cover-img {
     width: 100%;
     height: 200px;
-    position: relative;
     overflow: hidden;
-}
 
-.content-wrapper .content-main .people-card .cover-img img {
-    object-fit: cover;
-    min-height: 100%;
-    min-width: 100%;
     border-radius: 8px 8px 0 0;
     border-top: 0.5px solid rgba(18, 18, 18, 0.3);
     border-left: 0.5px solid rgba(18, 18, 18, 0.3);
     border-right: 0.5px solid rgba(18, 18, 18, 0.3);
+}
+
+.content-wrapper .content-main .people-card .cover-img img {
+    object-fit: cover;
+    object-position: center;
+
+    width: 100%;
+    height: 100%;
 }
 
 .content-wrapper .content-main .people-card .people-card-header {

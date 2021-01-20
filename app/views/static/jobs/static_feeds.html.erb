@@ -13,17 +13,11 @@
                 <%= render '/static/shared/webflow_feed_header' %>
                 <!-- /.webflow_feed_header -->
 
-                <div class="ask-a-question-wrapper">
-                  <button class="btn btn-ask-a-question">
-                    + Ask a Question
-                  </button>
-                </div>
-
                 <div id="static_feeds" class="static-feeds">
-                  <%= render partial: 'load_feed_jobs', locals: {company_jobs: @company_jobs} %>
+                  <%= render partial: 'load_feed_jobs', locals: { company_jobs: @company_jobs } %>
                 </div>
               </div>
-              <%= render 'sidebar_webflow_right' %>
+              <%= render 'static/shared/webflow_sidebar_right' %>
             </div>
           </div>
         </div>
@@ -32,39 +26,7 @@
   </div>
 </section>
 
-<style type="text/css">
-  .media .img-icon-size {
-    border-radius: 50%;
-  }
-
-  .feed_image {
-    border-top-left-radius: 25px;
-    border-bottom-left-radius: 25px;
-  }
-
-  .common-blue-btn a {
-    color: #fff !important;
-  }
-
-  .inactive-feed a {
-    color: #AEB4C9 !important;
-  }
-
-  .txt-black a {
-    color: #2A2C34 !important;
-  }
-
-  .txt-blue a {
-    color: #5555A5 !important;
-  }
-
-  img.align-self-center {
-    border-radius: 50%;
-    height: 40px;
-    width: 40px;
-  }
-
-</style>
+<!-- Script to filter the categories -->
 <script>
     var selected_categories = [];
     $(document).ready(function () {

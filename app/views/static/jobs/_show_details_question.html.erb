@@ -1,16 +1,9 @@
 <!-- Main Blog Post -->
 <div class="webflow-content-inner webflow-blog col-12">
-  <div class="webflow-blog-banner">
-    <% if @job.files.present? %>
-      <%= image_tag @job.files.split(',').first %>
-    <% else %>
-      <%= image_tag 'demo/s1.jpg' %>
-    <% end %>
-  </div>
   <div class="webflow-blog-article">
     <div class="webflow-blog-header">
       <h1 class="title"><%= @job.title %></h1>  
-      <span class="author">by <%= @job.created_by.full_name %> </span>
+      <span class="author">by <%= @job.created_by_candidate.full_name || @job.created_by.full_name %> </span>
       <a href="#" class="share">Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
     </div>
     <div class="webflow-blog-content">
@@ -25,45 +18,6 @@
         <% end %>
       </ul>
       <% end %>
-    </div>
-  </div>
-</div>
-
-<!-- Related Content -->
-<div class="webflow-content-inner webflow-related col-12">
-  <h1 class="webflow-related-title">Related</h1>
-  <div class="row">
-    <div class="webflow-related-card col-12 col-md-6 mb-4 mb-sm-0 d-flex">
-      <div class="webflow-related-card-image">
-        <%= image_tag 'demo/s1.jpg' %>
-      </div>
-      <div class="pl-3">
-        <div class="webflow-related-card-title">
-          Blog Title
-        </div>
-        <div class="webflow-related-card-summary">
-          Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. 
-        </div>
-        <div class="webflow-related-card-author">
-          by John Doe
-        </div>
-      </div>
-    </div>
-    <div class="webflow-related-card col-12 col-md-6 mb-4 mb-sm-0 d-flex">
-      <div class="webflow-related-card-image">
-        <%= image_tag 'demo/s1.jpg' %>
-      </div>
-      <div class="pl-3">
-        <div class="webflow-related-card-title">
-          Blog Title
-        </div>
-        <div class="webflow-related-card-summary">
-          Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit.
-        </div>
-        <div class="webflow-related-card-author">
-          by John Doe
-        </div>
-      </div>
     </div>
   </div>
 </div>

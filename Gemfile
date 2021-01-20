@@ -83,6 +83,9 @@ gem 'roo'
 gem 'whenever', require: false
 gem 'omnicontacts', '~> 0.3.7'
 
+# Extract the dominant colors from an image.
+gem 'miro'
+
 group :development do
   gem 'rubocop', '~> 0.78.0', require: false
   gem 'rubocop-performance'
