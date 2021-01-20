@@ -262,13 +262,13 @@ Rails.application.routes.draw do
 
   class CustomDomain
     def matches?(request)
-      request.domain == ENV['domain']
+      request.domain == Rails.application.config.domain
     end
   end
 
   class CustomOrSubDomain
     def self.matches?(request)
-      request.domain != ENV['domain'] || (request.subdomain.present? && (request.subdomain != 'www' && request.subdomain != 'app'))
+      request.domain != Rails.application.config.domain || (request.subdomain.present? && (request.subdomain != 'www' && request.subdomain != 'app'))
     end
   end
 

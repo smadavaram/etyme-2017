@@ -287,7 +287,7 @@ class Static::JobsController < ApplicationController
 
   def custom_domain?
     request_domain_with_port = "#{request.domain}#{request.port_string}"
-    request_domain_with_port != ENV['domain']
+    request_domain_with_port != Rails.application.config.domain
   end
 
   def current_company
