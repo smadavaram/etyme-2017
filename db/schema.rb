@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20210119182724) do
+ActiveRecord::Schema.define(version: 20210120145757) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -601,6 +601,10 @@ ActiveRecord::Schema.define(version: 20210119182724) do
     t.string "verification_code"
     t.boolean "is_number_verify", default: false
     t.string "custom_domain"
+    t.string "banner_title"
+    t.string "banner_text"
+    t.string "banner_btn_label"
+    t.string "banner_btn_url"
     t.index ["owner_id"], name: "index_companies_on_owner_id"
   end
 

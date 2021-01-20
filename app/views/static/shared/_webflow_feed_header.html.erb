@@ -1,7 +1,20 @@
 <div class="feed-top">
   <div class="d-none d-md-flex row">
     <div class="col-12">
-      <div class="feed-slider-banners">
+      <div class="feed-banner d-flex flex-column justify-content-between p-4">
+        <div>
+          <div class="feed-banner-title">
+            <%= current_company&.banner_title %>
+          </div>
+          <div class="feed-banner-text">
+            <%= current_company&.banner_text %>
+          </div>
+        </div>
+        <div>
+          <% if current_company&.banner_btn_label %>
+            <a href="<%= current_company&.banner_btn_url %>" class="feed-banner-button"><%= current_company&.banner_btn_label %></a>
+          <% end %>
+        </div>
       </div>
     </div>
   </div>
