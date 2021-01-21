@@ -2,18 +2,18 @@
 <div class="webflow-content-inner webflow-blog col-12">
   <div class="webflow-blog-article">
     <div class="webflow-blog-header">
-      <h1 class="title"><%= @job.title %></h1>  
-      <span class="author">by <%= @job.created_by_candidate.full_name || @job.created_by.full_name %> </span>
+      <h1 class="title"><%= @job&.title %></h1>  
+      <span class="author">by <%= @job.&created_by_candidate&.full_name || @job&.created_by&.full_name %> </span>
       <a href="#" class="share">Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
     </div>
     <div class="webflow-blog-content">
-      <%= @job.description.html_safe %>
+      <%= @job&.description&.html_safe %>
     </div>
     <div class="webflow-blog-footer">
-      <% if @job.tag_list.present? %>
+      <% if @job&.tag_list.present? %>
       <h1>Tags</h1> 
       <ul>
-        <% @job.tag_list.each do |tag| %>
+        <% @job&.tag_list.each do |tag| %>
           <li><%= tag %></li>
         <% end %>
       </ul>
