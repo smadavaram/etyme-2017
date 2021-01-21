@@ -125,7 +125,10 @@ class Job < ApplicationRecord
 
   def create_job_chat
     create_chat(company: company)
-    try(:chat).try(:chat_users).create(userable: try(:created_by))
-    try(:chat).try(:messages).create(messageable: try(:created_by), body: "#{created_by.full_name} created Job #{title.humanize}")
+
+    job_created_by = created_by || created_by_candidate
+
+    try(:chat).try(:chat_users).create(userable: job_created_by)
+    try(:chat).try(:messages).create(messageable: job_created_by, body: "#{job_created_by.full_name} created Job #{title.humanize}")
   end
 end

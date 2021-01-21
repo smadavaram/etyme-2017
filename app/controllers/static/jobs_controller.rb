@@ -241,7 +241,7 @@ class Static::JobsController < ApplicationController
       flash[:errors] = @job.errors.full_messages unless @job.save
       redirect_to root_path
     elsif current_candidate.present?
-      @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_company.owner.id, created_by_candidate_id: current_candidate.id, listing_type: 'Question'))
+      @job = current_company.jobs.new(company_job_params.merge!(created_by_candidate_id: current_candidate.id, listing_type: 'Question'))
       flash[:errors] = @job.errors.full_messages unless @job.save
       redirect_to root_path
     else
