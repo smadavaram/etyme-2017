@@ -3,7 +3,7 @@
   <div class="webflow-blog-article">
     <div class="webflow-blog-header">
       <h1 class="title"><%= @job&.title %></h1>  
-      <span class="author">by <%= @job.&created_by_candidate&.full_name || @job&.created_by&.full_name %> </span>
+      <span class="author">by <%= @job&.created_by_candidate&.full_name || @job&.created_by&.full_name %> </span>
       <a href="#" class="share">Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
     </div>
     <div class="webflow-blog-content">

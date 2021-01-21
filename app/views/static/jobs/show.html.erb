@@ -1,5 +1,5 @@
 <% content_for :head do %>
-  <meta content="<%= candidate_job_url(@job.id) %>" property="og:url"/>
+  <meta content="<%= candidate_job_url(@job&.id) %>" property="og:url"/>
   <meta content="<%= @job&.company&.name %>" property="og:title"/>
   <meta content="summary" name="twitter:card"/>
   <meta content="<%= @job&.title %>" name="twitter:title"/>
