@@ -245,7 +245,8 @@ class Static::JobsController < ApplicationController
       flash[:errors] = @job.errors.full_messages unless @job.save
       redirect_to root_path
     else
-      redirect_to login_path
+      flash[:errors] = 'You must be logged in to post a question!'
+      redirect_to root_path
     end
   end
 
