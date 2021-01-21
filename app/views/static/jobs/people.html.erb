@@ -38,38 +38,38 @@
                             <div class="card-footer-icons d-flex">
                               <!-- Like Icon -->
                               <div class="card-footer-like mr-2">
-                                <%# <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %1> %>
+                                <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
                               </div>
                               <!-- Chat Icon -->
                               <div class="card-footer-chat">
-                                <%# <% if current_user.present? %1> %>
-                                <%#   <%= link_to company_conversations_path do %1> %>
-                                <%#     <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %1> %>
-                                <%#   <% end %1> %>
-                                <%# <% elsif current_candidate.present? %1> %>
-                                <%#   <%= link_to static_people_path(is_chat_candidate: "true") do %1> %>
-                                <%#     <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "chat" %1> %>
-                                <%#   <% end %1> %>
-                                <%# <% else %1> %>
-                                <%#   <%= link_to request.subdomain.present? ? new_user_session_path(allow_chat: "true") : signin_path(allow_chat: "true") do %1> %>
-                                <%#     <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "chat" %1> %>
-                                <%#   <% end %1> %>
-                                <%# <% end %1> %>
+                                <% if current_user.present? %>
+                                  <%= link_to company_conversations_path do %>
+                                    <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %>
+                                  <% end %>
+                                <% elsif current_candidate.present? %>
+                                  <%= link_to static_people_path(is_chat_candidate: "true") do %>
+                                    <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "chat" %>
+                                  <% end %>
+                                <% else %>
+                                  <%= link_to request.subdomain.present? ? new_user_session_path(allow_chat: "true") : signin_path(allow_chat: "true") do %>
+                                    <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "chat" %>
+                                  <% end %>
+                                <% end %>
                               </div>
                             </div>
                             <!-- Price -->
-                            <%# <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %1> %>
-                            <%#   <div> %>
-                            <%#     <p class="d-inline-block card-people-footer-max-rate mb-0 mr-1"> %>
-                            <%#     <del> %>
-                            <%#       <%= "$#{@c_bench_job.present? && @c_bench_job&.max_hourly_rate.present? ? number_with_precision(@c_bench_job&.max_hourly_rate, precision: 2) : ""}/hr" %1> %>
-                            <%#     </del> %>
-                            <%#     </p> %>
-                            <%#     <p class="d-inline-block card-people-footer-min-rate mb-0"> %>
-                            <%#     <%= "$#{@c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? ? number_with_precision(@c_bench_job&.min_hourly_rate, precision: 2) : ""}/hr" %1> %>
-                            <%#     </p> %>
-                            <%#   </div> %>
-                            <%# <% end %1> %>
+                            <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
+                              <div>
+                                <p class="d-inline-block card-people-footer-max-rate mb-0 mr-1">
+                                <del>
+                                  <%= "$#{@c_bench_job.present? && @c_bench_job&.max_hourly_rate.present? ? number_with_precision(@c_bench_job&.max_hourly_rate, precision: 2) : ""}/hr" %>
+                                </del>
+                                </p>
+                                <p class="d-inline-block card-people-footer-min-rate mb-0">
+                                <%= "$#{@c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? ? number_with_precision(@c_bench_job&.min_hourly_rate, precision: 2) : ""}/hr" %>
+                                </p>
+                              </div>
+                            <% end %>
                           </div>
                         </div>
                       </div>
