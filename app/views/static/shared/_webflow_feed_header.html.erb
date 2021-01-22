@@ -47,12 +47,22 @@
         </button>
         <ul class="list-unstyled dropdown-menu dropdown-content-right" id="main_feed_sort" aria-labelledby="dropdownMenuSort">
           <label class="check-main mr-2">
-            <input type="radio" class="selected_feed_sort" name='sort' value="trending">Trending
+            <input type="radio" class="selected_feed_sort" name='sort' value="created_desc" checked>Created: Descending
             <span class="radio">
             </span>
           </label>
           <label class="check-main mr-2">
-            <input type="radio" class="selected_feed_sort" name='sort' value="created" checked>Created
+            <input type="radio" class="selected_feed_sort" name='sort' value="created_asc">Created: Ascending
+            <span class="radio">
+            </span>
+          </label>
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="trending_desc">Trending: Descending
+            <span class="radio">
+            </span>
+          </label>
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="trending_asc">Trending: Ascending
             <span class="radio">
             </span>
           </label>
@@ -62,6 +72,7 @@
   </div>
 </div>
 <%= render 'static/shared/webflow_feed_post_modal' %>
+
 <!-- Script to filter the categories -->
 <script>
   let selectedFilter = '';
@@ -75,14 +86,36 @@
 
 
     $("#selectFilter").change(function () {
+      const urlParams = new URLSearchParams(window.location.search);
       let goto_url = ''
 
       if ( this.value == "all" ) {
-        goto_url = '<%= root_static_feeds_path %>';
+        urlParams.delete('selected_categories');
       } else {
-        goto_url = '<%= root_static_feeds_path %>' + '?selected_categories=' + this.value;
+        urlParams.set('selected_categories', this.value);
       }
-        window.location = goto_url;
-      });
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+    });
+  });
+</script>
+
+<!-- Script to sort the elements in the feed -->
+<script>
+  $(function() {
+    const paramsSort = '<%= params[:sort] %>';
+
+    if ( paramsSort != '' ) {
+      $('#main_feed_sort').find(`input[value=${paramsSort}]`).attr("checked","checked");
+    }
+
+    $('#main_feed_sort input[name="sort"]').change(function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+
+      urlParams.set('sort', this.value)
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+    });
   });
 </script>
