@@ -272,6 +272,10 @@ class Static::JobsController < ApplicationController
     end
   end
 
+  def post_job
+    redirect_to root_path
+  end
+
   private
 
   def set_jobs
