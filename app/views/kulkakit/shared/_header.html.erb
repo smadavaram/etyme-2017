@@ -73,7 +73,7 @@
       </div>
     </div>
   <% else %>
-    <div class="d-flex">
+    <div class="d-none d-md-flex">
       <div class="mx-1 dropdown">
         <button class="btn btn-login f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
           Login
@@ -94,6 +94,24 @@
         <div class="dropdown-menu">
           <%= link_to 'Company', register_path , class: 'dropdown-item' %>
           <%= link_to 'Candidate', new_candidate_registration_path , class: 'dropdown-item' %>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex d-md-none">
+      <div class="mx-1 dropdown">
+        <button class="dropdown-login dropdown-toggle" type="button" data-toggle="dropdown">
+          <i class="fa fa-sign-in" aria-hidden="true"></i>
+        </button>
+        <div class="dropdown-menu">
+          <%= link_to 'Login as Company', request.subdomain.present? ? new_user_session_path : signin_path , class: 'dropdown-item' %>
+          <% if current_candidate.present? %>
+            <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path, class: 'dropdown-item' %>
+          <% else %>
+            <%= link_to 'Login as Candidate', new_candidate_session_path , class: 'dropdown-item' %>
+          <% end %>
+          <%= link_to 'Sign Up as Company', register_path , class: 'dropdown-item' %>
+          <%= link_to 'Sign Up as Candidate', new_candidate_registration_path , class: 'dropdown-item' %>
         </div>
       </div>
     </div>

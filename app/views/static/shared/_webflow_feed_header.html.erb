@@ -1,7 +1,8 @@
 <div class="feed-top">
   <div class="d-none d-md-flex row">
     <div class="col-12">
-      <div class="feed-banner d-flex flex-column justify-content-between p-4">
+      <div class="feed-banner d-flex flex-column justify-content-between p-4"
+           style="background: linear-gradient(<%= current_company&.banner_color || "#000000" %>, #FFFFFF 110%);">
         <div>
           <div class="feed-banner-title">
             <%= current_company&.banner_title %>
@@ -18,48 +19,70 @@
       </div>
     </div>
   </div>
-  <div class="col-12 px-0 category-list">
-    <div class="dropdown dropdown-container col-6 d-flex justify-content-start">
-      <button class="dropdown-toggle dropdown-button" id="dropdownMenuFilters" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-        <span>Filters</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
-      </button>
-      <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuFilters">
-        <label class="check-main mr-2">
-          <input type="checkbox" class="selected_feed_category" id="Blog" checked>Blog
-          <span class="checkmark">
-          </span>
-        </label>
-        <label class="check-main mr-2">
-          <input type="checkbox" class="selected_feed_category" id= "Product" checked>Product
-          <span class="checkmark">
-          </span>
-        </label>
-        <label class="check-main mr-2">
-          <input type="checkbox" class="selected_feed_category" id= "Service" checked>Service
-          <span class="checkmark">
-          </span>
-        </label>
-        <label class="check-main mr-2">
-          <input type="checkbox" class="selected_feed_category" id= "Training" checked>Training
-          <span class="checkmark">
-          </span>
-        </label>
-      </ul>
+  <div class="col-12 px-0 category-list justify-content-between">
+    <select id="selectFilter" name="selectFilter" class="select-filter">
+      <option value="all">All</option>
+      <option value="Blog">Blogs</option>
+      <option value="Product">Products</option>
+      <option value="Service">Services</option>
+      <option value="Training">Trainings</option>
+    </select>
+    <div class="d-flex">
+      <div class="dropdown dropdown-container d-flex justify-content-end">
+        <button class="dropdown-toggle dropdown-sort" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+          <i class="fa fa-plus" aria-hidden="true"></i>
+        </button>
+        <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
+          <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostModal">
+            Question
+          </button>
+          <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedJobModal">
+            Job
+          </button>
+        </ul>
+      </div>
+      <div class="dropdown dropdown-container d-flex justify-content-end">
+        <button class="dropdown-toggle dropdown-sort" id="dropdownMenuSort" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+          <i class="fa fa-sort-alpha-asc" aria-hidden="true"></i>
+        </button>
+        <ul class="list-unstyled dropdown-menu dropdown-content-right" id="main_feed_sort" aria-labelledby="dropdownMenuSort">
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="trending">Trending
+            <span class="radio">
+            </span>
+          </label>
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="created" checked>Created
+            <span class="radio">
+            </span>
+          </label>
+        </ul>
+      </div>
     </div>
-    <div class="dropdown dropdown-container col-6 d-flex justify-content-end">
-      <button class="dropdown-toggle dropdown-button" id="dropdownMenuSort" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-        <span>Sort</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
-      </button>
-      <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuSort">
-        Under Construction
-      </ul>
-    </div>
-  </div>
-  <div class="d-flex col-12">
-    <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostModal">
-      + Post Question or Job
-    </button>
-    <%# <%= render 'static/shared/webflow_feed_post_modal' %1> %>
   </div>
 </div>
 <%= render 'static/shared/webflow_feed_post_modal' %>
+<!-- Script to filter the categories -->
+<script>
+  let selectedFilter = '';
+
+  $(function() {
+    const paramsSelectedFilter = '<%= params[:selected_categories] %>';
+
+    if ( paramsSelectedFilter != '' ) {
+      $('#selectFilter').find(`option[value=${paramsSelectedFilter}]`).attr("selected","selected");
+    }
+
+
+    $("#selectFilter").change(function () {
+      let goto_url = ''
+
+      if ( this.value == "all" ) {
+        goto_url = '<%= root_static_feeds_path %>';
+      } else {
+        goto_url = '<%= root_static_feeds_path %>' + '?selected_categories=' + this.value;
+      }
+        window.location = goto_url;
+      });
+  });
+</script>
