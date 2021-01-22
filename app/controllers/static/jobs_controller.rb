@@ -68,10 +68,32 @@ class Static::JobsController < ApplicationController
     @current_company = current_company
 
     if @current_company.present?
-      @search = @current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
-      @company_jobs = @search.result.order(created_at: :desc)
+      @search = @current_company.jobs.not_system_generated.includes(:created_by).search(params[:q])
+      @company_jobs = @search.result
 
-      if params.has_key?(:selected_categories).present?
+      if params.key?(:sort).present?
+        if params[:sort] == 'created_asc'
+          puts 'Sorting created_asc'
+          @company_jobs = @company_jobs.order(created_at: :asc)
+        elsif params[:sort] == 'created_desc'
+          puts 'Sorting created_desc'
+          @company_jobs = @company_jobs.order(created_at: :desc)
+        elsif params[:sort] == 'trending_asc'
+          puts 'Sorting trending_asc'
+          @company_jobs = @company_jobs.left_joins(:job_applications).group(:id).order('COUNT(job_applications.id) ASC');
+        elsif params[:sort] == 'trending_desc'
+          puts 'Sorting trending_desc'
+          @company_jobs = @company_jobs.left_joins(:job_applications).group(:id).order('COUNT(job_applications.id) DESC');
+        else
+          puts 'Sorting invalid input'
+          @company_jobs = @search.result.order(created_at: :desc)
+        end
+      else
+        puts 'Sorting not present'
+        @company_jobs = @search.result.order(created_at: :desc)
+      end
+
+      if params.key?(:selected_categories).present?
         @company_jobs = @company_jobs.where(listing_type: params[:selected_categories].to_s.split(',')).paginate(page: params[:page], per_page: 20)
       else
         @company_jobs = @company_jobs.where.not(listing_type: 'Job').paginate(page: params[:page], per_page: 20)
