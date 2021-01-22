@@ -1049,6 +1049,45 @@ span:hover {
     // cursor: pointer;
 }
 
+.content-wrapper .select-filter {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    width: 100%;
+    max-width: 248px;
+    height: 36px;
+
+    padding-left: 15px;
+    padding-right: 15px;
+
+    border: 1px solid #C2CFD9;
+    box-sizing: border-box;
+    border-radius: 3px;
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 14px;
+    line-height: 140.8%;
+    color: #212529;
+    background-color: #ffffff;
+}
+
+.content-wrapper .dropdown-sort {
+    width: 50px;
+    color: rgba(18, 18, 18, 0.7);
+    border: none;
+    background-color: transparent;
+}
+
+.content-wrapper .dropdown-login {
+    width: 50px;
+    color: rgba(18, 18, 18, 0.7);
+    border: none;
+    background-color: transparent;
+    font-size: 26px;
+}
+
 .content-wrapper .dropdown-button {
     display: flex;
     justify-content: space-between;
@@ -1102,6 +1141,36 @@ span:hover {
     }
 }
 
+.content-wrapper .dropdown-content-right {
+    // position: absolute;
+    // display: none;
+
+    margin-top: 2px;
+    margin-bottom: 2px;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    padding-left: 15px;
+    // width: 248px;
+
+    border: 1px solid #C2CFD9;
+    box-sizing: border-box;
+    border-radius: 3px;
+
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 14px;
+    line-height: 140.8%;
+    color: #212529;
+    background-color: #ffffff;
+
+    z-index: 10;
+
+    label input {
+        margin-right: 15px;
+    }
+}
+
 .content-wrapper .category-list {
     display: flex;
     justify-content: space-between;
@@ -1126,12 +1195,8 @@ span:hover {
 .content-wrapper .btn-ask-a-question {
     width: 100%;
     height: 36px;
-    left: 1208px;
-    top: 20px; 
 
-    border: 1px solid #5555a5;
-    box-sizing: border-box;
-    border-radius: 2px;
+    border: none;
 
     font-family: Rubik;
     font-style: normal;
@@ -1139,7 +1204,7 @@ span:hover {
     font-size: 14px;
     line-height: 140.8%;
     text-align: center;
-    color: #5555a5;
+    color: #121212;
 }
 
 .content-wrapper .static-feeds {
@@ -1150,7 +1215,7 @@ span:hover {
     border-radius: 8px;
 
     @media (max-width: 767.98px) {
-        margin-top: 130px;
+        margin-top: 95px;
     }
 }
 
