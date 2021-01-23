@@ -56,7 +56,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.candidates.includes(:companies, :candidates_companies)
+    current_company.candidates.includes(:companies, :candidates_companies).joins(:candidates_companies)
   end
 
   def contact_icon(record)
