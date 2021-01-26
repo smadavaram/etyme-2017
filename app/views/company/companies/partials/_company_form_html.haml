@@ -68,6 +68,31 @@
           %strong
             .links
               = link_to_add_association '+ Add Branch', f, :branches, class: '', partial: 'company/companies/branch_fields'
+    .row.form-group
+      .col-lg-12.multi-field-wrapper
+        %p
+          %b Custom Domain
+        .row
+          .col-md-12
+            .form-group
+              = f.text_field :custom_domain, placeholder: "Custom Domain", class: 'form-control'
+    .row.form-group
+      .col-lg-12.multi-field-wrapper
+        %p
+          %b Banner
+        .row
+          .col-md-12
+            .form-group
+              = f.text_field :banner_title, placeholder: "Banner Title", class: 'form-control'
+            .form-group
+              = f.text_field :banner_text, placeholder: "Banner Text", class: 'form-control'
+            .form-group
+              = f.text_field :banner_btn_label, placeholder: "Call to Action Label", class: 'form-control'
+            .form-group
+              = f.text_field :banner_btn_url, placeholder: "Call to Action URL", class: 'form-control'
+            .form-group
+              = label_tag :banner_color, "Background Color:"
+              = f.color_field :banner_color
     .row
     .col-lg-12
       -#%button.btn.pull-left{:type => "button"}
@@ -75,4 +100,4 @@
       %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
         Next
       %button.btn.btn-primary.pull-right{:type => "submit"}
-        Saved
+        Save

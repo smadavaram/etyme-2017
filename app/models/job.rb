@@ -9,6 +9,7 @@ class Job < ApplicationRecord
   validate :file_size
 
   belongs_to :created_by, class_name: 'User', foreign_key: :created_by_id, optional: true
+  belongs_to :created_by_candidate, class_name: 'Candidate', foreign_key: :created_by_candidate_id, optional: true
   belongs_to :company, optional: true
   # belongs_to   :location
   has_many :contracts, dependent: :destroy
@@ -124,7 +125,10 @@ class Job < ApplicationRecord
 
   def create_job_chat
     create_chat(company: company)
-    try(:chat).try(:chat_users).create(userable: try(:created_by))
-    try(:chat).try(:messages).create(messageable: try(:created_by), body: "#{created_by.full_name} created Job #{title.humanize}")
+
+    job_created_by = created_by || created_by_candidate
+
+    try(:chat).try(:chat_users).create(userable: job_created_by)
+    try(:chat).try(:messages).create(messageable: job_created_by, body: "#{job_created_by.full_name} created Job #{title.humanize}")
   end
 end

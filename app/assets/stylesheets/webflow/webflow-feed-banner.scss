@@ -1,0 +1,40 @@
+.feed-banner {
+    height: 184px;
+    // background: linear-gradient(#000000, #FFFFFF 110%);
+    border-radius: 8px;
+}
+
+.feed-banner-title {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 26px;
+    line-height: 40px;
+
+    color: #FFFFFF;
+}
+
+.feed-banner-text {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 14px;
+    line-height: 16px;
+
+    color: #FFFFFF;
+}
+
+.feed-banner-button {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 13px;
+    line-height: 15px;
+    text-align: center;
+
+    color: #5555A5;
+
+    padding: 8px 16px;
+    border-radius: 25px;
+    background-color: #FFFFFF;
+}

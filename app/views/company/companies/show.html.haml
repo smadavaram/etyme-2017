@@ -120,7 +120,9 @@
               - current_company.company_videos.each do |data|
                 -if data.video_type.include?('image')
                   = image_tag image_path(data.video),  style: "", fit: 'clip',:class =>" circle_img"
-            = button_tag "Upload Media", fit: 'clip',:class =>"video-pic img1 btn btn-xl btn-primary",style: 'width:100%;'
+            = button_tag "Upload Media", fit: 'clip',:class =>"mb-4 video-pic img1 btn btn-xl btn-primary",style: 'width:100%;'
+
+            %br
 
           .col-sm-12.col-md-12.col-lg-9
             #wid-id-7.jarviswidget{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}

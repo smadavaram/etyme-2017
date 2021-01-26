@@ -68,6 +68,8 @@ Rails.application.routes.draw do
   namespace :static do
     get '/people', to: 'jobs#people'
     # get '/feeds', to: 'jobs#static_feeds'
+    post 'post_question', to: 'jobs#post_question'
+    post 'post_job', to: 'jobs#post_job'
     resources :jobs, only: %i[index show] do
       post 'job_request', on: :collection
       get '(page/:page)', action: :index, on: :collection, as: ''
@@ -259,6 +261,18 @@ Rails.application.routes.draw do
     end
   end
 
+  class CustomDomain
+    def matches?(request)
+      request.domain == Rails.application.config.domain
+    end
+  end
+
+  class CustomOrSubDomain
+    def self.matches?(request)
+      request.domain != Rails.application.config.domain || (request.subdomain.present? && (request.subdomain != 'www' && request.subdomain != 'app'))
+    end
+  end
+
   # COMPANY ROUTES
   namespace :company do
     get 'activities/index'
@@ -416,7 +430,6 @@ Rails.application.routes.draw do
   end
 
   scope module: :company do
-
     resources :activities, only: [:index]
 
     post 'reject_vendor', to: 'prefer_vendors#reject'
@@ -759,9 +772,15 @@ Rails.application.routes.draw do
     confirmations: 'candidates/confirmations',
     invitations: 'candidate/invitations'
   }
-  # Route set when subdomain present?
-  constraints(Subdomain) do
-      match '/' => 'static/jobs#static_feeds',:as=> :root_static_feeds, via: %i[get]
+
+  # Route set when custom domain is present
+  # constraints(CustomDomain) do
+    # match '/' => 'static/jobs#static_feeds', :as => :root_static_feeds, via: %i[get]
+  # end
+
+  # Route set when subdomain is present
+  constraints(CustomOrSubDomain) do
+    match '/' => 'static/jobs#static_feeds', :as => :root_static_feeds, via: %i[get]
     # devise_scope :user do
     #   # match '/' => 'devise/sessions#new', via: %i[get post]
     # end
@@ -841,5 +860,4 @@ Rails.application.routes.draw do
   get 'company/contracts/:id/add_reminder', to: 'company/contracts#add_reminder', as: :contract_add_reminder
 
   post 'api/company/', to: 'api/company/companies#create_custom_company'
-
 end

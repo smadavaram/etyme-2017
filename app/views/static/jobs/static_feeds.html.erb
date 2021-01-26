@@ -13,17 +13,11 @@
                 <%= render '/static/shared/webflow_feed_header' %>
                 <!-- /.webflow_feed_header -->
 
-                <div class="ask-a-question-wrapper">
-                  <button class="btn btn-ask-a-question">
-                    + Ask a Question
-                  </button>
-                </div>
-
                 <div id="static_feeds" class="static-feeds">
-                  <%= render partial: 'load_feed_jobs', locals: {company_jobs: @company_jobs} %>
+                  <%= render partial: 'load_feed_jobs', locals: { company_jobs: @company_jobs } %>
                 </div>
               </div>
-              <%= render 'sidebar_webflow_right' %>
+              <%= render 'static/shared/webflow_sidebar_right' %>
             </div>
           </div>
         </div>
@@ -31,92 +25,3 @@
     </div>
   </div>
 </section>
-
-<style type="text/css">
-  .media .img-icon-size {
-    border-radius: 50%;
-  }
-
-  .feed_image {
-    border-top-left-radius: 25px;
-    border-bottom-left-radius: 25px;
-  }
-
-  .common-blue-btn a {
-    color: #fff !important;
-  }
-
-  .inactive-feed a {
-    color: #AEB4C9 !important;
-  }
-
-  .txt-black a {
-    color: #2A2C34 !important;
-  }
-
-  .txt-blue a {
-    color: #5555A5 !important;
-  }
-
-  img.align-self-center {
-    border-radius: 50%;
-    height: 40px;
-    width: 40px;
-  }
-
-</style>
-<script>
-    var selected_categories = [];
-    $(document).ready(function () {
-      var selected_feeds = '<%= params[:selected_categories] %>'
-      if (selected_feeds != "" || window.location.search.includes('selected_categories') ) {
-        selected_categories = selected_feeds.split(',')
-      }else{
-        $("#main_feed_id").find("input").each(function(){ selected_categories.push(this.id); });
-      }
-
-      // Blog
-      if(selected_categories.includes('Blog')){
-        $("#Blog").attr("checked","checked");
-      }else{
-        $("#Blog").removeAttr("checked");
-      }
-
-      // Product
-      if(selected_categories.includes('Product')){
-        $("#Product").attr("checked","checked");
-      }else{
-        $("#Product").removeAttr("checked");
-      }
-
-      // Service
-      if(selected_categories.includes('Service')){
-        $("#Service").attr("checked","checked");
-      }else{
-        $("#Service").removeAttr("checked");
-      }
-
-      // Training
-      if(selected_categories.includes('Training')){
-        $("#Training").attr("checked","checked");
-      }else{
-        $("#Training").removeAttr("checked");
-      }
-
-      $(".selected_feed_category").click(function () {
-          cat = this.id
-          selected_categories = selected_categories.filter(Boolean);
-          if($(this).is(':checked')){
-            selected_categories.push(cat)
-          }else{
-            if(selected_categories.includes(cat)){
-              i = selected_categories.indexOf(cat)
-
-              if ( ~i ) selected_categories.splice(i, 1);
-            }
-          }
-        var goto_url = '<%= root_static_feeds_path %>'+'?selected_categories='+selected_categories
-        window.location = goto_url;
-      });
-    });
-</script>

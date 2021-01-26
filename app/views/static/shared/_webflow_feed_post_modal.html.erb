@@ -1,0 +1,21 @@
+<!-- Modal -->
+<div class="modal fade webflow-modal" id="feedPostModal" tabindex="-1" role="dialog" aria-labelledby="feedPostModalLabel" aria-hidden="true">
+  <div class="modal-dialog webflow-modal-dialog" role="document">
+    <div class="modal-content webflow-modal-content">
+      <div class="webflow-modal-header">
+        <h5 class="webflow-modal-title" id="feedPostModalLabel">New Question</h5>
+      </div>
+      <%= form_with url: static_post_question_path, method: :post do |form| %>
+        <div class="webflow-modal-body">
+          <%= form.text_field 'job[title]', placeholder: 'Topic', class: 'webflow-input-text-field' %>
+          <%= form.text_area 'job[description]', placeholder: 'Write your post here...', class: 'webflow-input-text-area' %>
+        </div>
+        <div class="webflow-modal-footer">
+          <button type="button" class="webflow-btn-link f-12 l-17" data-dismiss="modal">Cancel</button>
+          <%= form.submit "Post", class: 'webflow-btn-primary f-12 l-17' %>
+        </div>
+      <% end %>
+      </form>
+    </div>
+  </div>
+</div>

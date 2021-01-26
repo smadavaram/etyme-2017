@@ -1,45 +1,122 @@
 <div class="feed-top">
-  <div class="row">
+  <div class="d-none d-md-flex row">
     <div class="col-12">
-      <div class="feed-slider-banners">
+      <div class="feed-banner d-flex flex-column justify-content-between p-4"
+           style="background: linear-gradient(<%= current_company&.banner_color || "#000000" %>, #FFFFFF 110%);">
+        <div>
+          <div class="feed-banner-title">
+            <%= current_company&.banner_title %>
+          </div>
+          <div class="feed-banner-text">
+            <%= current_company&.banner_text %>
+          </div>
+        </div>
+        <div>
+          <% if current_company&.banner_btn_label %>
+            <a href="<%= current_company&.banner_btn_url %>" class="feed-banner-button"><%= current_company&.banner_btn_label %></a>
+          <% end %>
+        </div>
       </div>
     </div>
   </div>
-  <div class="col-12 px-0 category-list">
-    <div class="dropdown dropdown-container col-6 d-flex justify-content-start">
-      <button class="dropdown-toggle dropdown-button" id="dropdownMenuFilters" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-        <span>Filters</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
-      </button>
-      <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuFilters">
-        <label class="check-main mr-2">
-          <input type="checkbox" class="selected_feed_category" id="Blog" checked>Blog
-          <span class="checkmark">
-          </span>
-        </label>
-        <label class="check-main mr-2">
-          <input type="checkbox" class="selected_feed_category" id= "Product" checked>Product
-          <span class="checkmark">
-          </span>
-        </label>
-        <label class="check-main mr-2">
-          <input type="checkbox" class="selected_feed_category" id= "Service" checked>Service
-          <span class="checkmark">
-          </span>
-        </label>
-        <label class="check-main mr-2">
-          <input type="checkbox" class="selected_feed_category" id= "Training" checked>Training
-          <span class="checkmark">
-          </span>
-        </label>
-      </ul>
-    </div>
-    <div class="dropdown dropdown-container col-6 d-flex justify-content-end">
-      <button class="dropdown-toggle dropdown-button" id="dropdownMenuSort" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-        <span>Sort</span><%= image_tag "login-drop-arrow.svg", class: "pr-2" %>
-      </button>
-      <ul class="list-unstyled dropdown-menu dropdown-content" id="main_feed_id" aria-labelledby="dropdownMenuSort">
-        Under Construction
-      </ul>
+  <div class="col-12 px-0 category-list justify-content-between">
+    <select id="selectFilter" name="selectFilter" class="select-filter">
+      <option value="all">All</option>
+      <option value="Blog">Blogs</option>
+      <option value="Product">Products</option>
+      <option value="Service">Services</option>
+      <option value="Training">Trainings</option>
+    </select>
+    <div class="d-flex">
+      <div class="dropdown dropdown-container d-flex justify-content-end">
+        <button class="dropdown-toggle dropdown-sort" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+          <i class="fa fa-plus" aria-hidden="true"></i>
+        </button>
+        <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
+          <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostModal">
+            Question
+          </button>
+          <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostJobModal">
+            Job
+          </button>
+        </ul>
+      </div>
+      <div class="dropdown dropdown-container d-flex justify-content-end">
+        <button class="dropdown-toggle dropdown-sort" id="dropdownMenuSort" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+          <i class="fa fa-sort-alpha-asc" aria-hidden="true"></i>
+        </button>
+        <ul class="list-unstyled dropdown-menu dropdown-content-right" id="main_feed_sort" aria-labelledby="dropdownMenuSort">
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="created_desc" checked>Created: Descending
+            <span class="radio">
+            </span>
+          </label>
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="created_asc">Created: Ascending
+            <span class="radio">
+            </span>
+          </label>
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="trending_desc">Trending: Descending
+            <span class="radio">
+            </span>
+          </label>
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="trending_asc">Trending: Ascending
+            <span class="radio">
+            </span>
+          </label>
+        </ul>
+      </div>
     </div>
   </div>
 </div>
+<%= render 'static/shared/webflow_feed_post_modal' %>
+<%= render 'static/shared/webflow_feed_post_job_modal' %>
+
+<!-- Script to filter the categories -->
+<script>
+  let selectedFilter = '';
+
+  $(function() {
+    const paramsSelectedFilter = '<%= params[:selected_categories] %>';
+
+    if ( paramsSelectedFilter != '' ) {
+      $('#selectFilter').find(`option[value=${paramsSelectedFilter}]`).attr("selected","selected");
+    }
+
+
+    $("#selectFilter").change(function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+
+      if ( this.value == "all" ) {
+        urlParams.delete('selected_categories');
+      } else {
+        urlParams.set('selected_categories', this.value);
+      }
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+    });
+  });
+</script>
+
+<!-- Script to sort the elements in the feed -->
+<script>
+  $(function() {
+    const paramsSort = '<%= params[:sort] %>';
+
+    if ( paramsSort != '' ) {
+      $('#main_feed_sort').find(`input[value=${paramsSort}]`).attr("checked","checked");
+    }
+
+    $('#main_feed_sort input[name="sort"]').change(function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+
+      urlParams.set('sort', this.value)
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+    });
+  });
+</script>

@@ -1,0 +1,99 @@
+.webflow-modal.show {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+.webflow-modal-dialog {
+    width: 100%;
+    max-width: 900px;
+
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+
+    color: rgba(18,18,18,1);
+}
+
+.webflow-modal-content {
+    background: #FFFFFF;
+    box-shadow: 1px 3px 20px rgba(46, 46, 46, 0.02);
+    border-radius: 8px;
+}
+
+.webflow-modal-header {
+    padding-top: 20px;
+    padding-bottom: 60px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    h5 {
+        font-family: Rubik;
+        font-style: normal;
+        font-weight: normal;
+        font-size: 16px;
+        line-height: 19px;
+
+        color: rgba(18, 18, 18, 0.8);
+    }
+}
+
+.webflow-modal-body {
+    display: flex;
+    flex-direction: column;
+
+    padding-left: 60px;
+    padding-right: 60px;
+    padding-bottom: 20px;
+}
+
+.webflow-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+
+    padding-left: 60px;
+    padding-right: 60px;
+    padding-bottom: 60px;
+}
+
+.webflow-input-text-field,
+.webflow-input-text-area,
+{
+    margin-bottom: 15px;
+    padding: 12px 16px;
+    
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 13px;
+    line-height: 15px;
+
+    color: rgba(18, 18, 18, 1.0);
+
+    background: #F9F9F9;
+    border: none;
+    border-radius: 4px;
+}
+
+.webflow-input-text-area {
+    height: 128px;
+}
+
+.webflow-input-select {
+    margin-bottom: 15px;
+    padding: 6px 8px;
+
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 13px;
+    line-height: 15px;
+
+    color: rgba(18, 18, 18, 1.0);
+
+    background: #F9F9F9;
+    border: none;
+    border-radius: 4px;
+}

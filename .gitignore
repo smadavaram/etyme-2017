@@ -29,3 +29,5 @@ config/database.yml
 *.DS_Store
 yarn.lock
 ngrok
+
+*.pem

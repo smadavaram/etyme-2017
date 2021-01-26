@@ -1,5 +1,5 @@
 <% content_for :head do %>
-  <meta content="<%= candidate_job_url(@job.id) %>" property="og:url"/>
+  <meta content="<%= candidate_job_url(@job&.id) %>" property="og:url"/>
   <meta content="<%= @job&.company&.name %>" property="og:title"/>
   <meta content="summary" name="twitter:card"/>
   <meta content="<%= @job&.title %>" name="twitter:title"/>
@@ -11,19 +11,23 @@
 <section class="content-wrapper"> <!-- Section Content Wrapper -->
   <div class="container-fluid"> <!-- Div Container Fluid -->
     <div class="row"> <!-- Div Row -->
-      <%= render 'header_webflow' %>
-      <div class="content-main col-9"> <!-- Div Content Main -->
+      <%= render 'static/shared/webflow_header' %>
+      <div class="content-main col-12 col-xl-9"> <!-- Div Content Main -->
           <% if @job.listing_type == "Blog" %>
             <%= render 'show_details_blog' %>
+          <% elsif @job.listing_type == "Question" %>
+            <%= render 'show_details_question' %>
           <% elsif @job.listing_type == "Product" %>
             <%= render 'show_details_product' %>
           <% elsif @job.listing_type == "Service" %>
             <%= render 'show_details_product' %>
           <% elsif @job.listing_type == "Training" %>
             <%= render 'show_details_product' %>
+          <% elsif @job.listing_type == "Job" %>
+            <%= render 'show_details_product' %>
           <% end %>
       </div> <!-- Div Content Main -->
-      <%= render 'sidebar_webflow_right' %>
+      <%= render 'static/shared/webflow_sidebar_right' %>
     </div> <!-- Div Row -->
   </div> <!-- Div Container Fluid -->
 </section> <!-- Content Wrapper -->
@@ -42,26 +46,3 @@
       });
     });
 </script>
-<style type="text/css">
-  .bg-transparent{
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-  .txt-black a{
-    color: #2A2C34 !important;
-  }
-
-  .f-mon-bol a{
-    color: #fff !important;
-  }
-  .circle {
-    width: 50px;
-    height: 37px;
-    border-radius: 50%;
-    font-size: 20px;
-    color: gray;
-    padding: 5px;
-    text-align: center;
-    display: inline-block;
-  }
-</style>
