@@ -10,7 +10,9 @@
           <%= form.text_field 'job[title]', placeholder: 'Write the title for the job here...', class: 'webflow-input-text-field' %>
           <%= form.text_area 'job[description]', placeholder: 'Write the description of the job here...', class: 'webflow-input-text-area' %>
           <%= form.text_field 'job[education]', placeholder: 'Enter a comma-separated list of certifications...', class: 'webflow-input-text-field' %>
-          <%= form.select 'job[status]', job_status, {}, {class: 'webflow-input-select'} %>
+          <% if current_user.present? %>
+            <%= form.select 'job[status]', job_status, {}, {class: 'webflow-input-select'} %>
+          <% end %>
           <%= form.select 'job[department]', department_list, {}, {class: 'webflow-input-select'} %>
           <%= form.select 'job[industry]', industry_list, {}, {class: 'webflow-input-select'} %>
           <%= form.select 'job[category]', WORK_CATEGORIES.keys, {}, {class: 'webflow-input-select'} %>
@@ -26,7 +28,7 @@
           </div>
           <%= form.text_field 'job[rate]', placeholder: 'Enter the rate for the job here...', class: 'webflow-input-text-field' %>
           <%= form.select 'job[type]', [['Contract', 1], ['Full Time', 2], ['Contract to Hire', 3]], {}, {class: 'webflow-input-select'} %>
-          <%= form.text_field 'job[source]', placeholder: 'Enter an original link here...', class: 'webflow-input-text-field' %>
+          <%= form.text_field 'job[source]', placeholder: 'Enter the URL of the parent job here...', class: 'webflow-input-text-field' %>
         </div>
         <div class="webflow-modal-footer">
           <button type="button" class="webflow-btn-link f-12 l-17" data-dismiss="modal">Cancel</button>
