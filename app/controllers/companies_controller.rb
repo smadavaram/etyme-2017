@@ -4,7 +4,7 @@ class CompaniesController < ApplicationController
   skip_before_action :authenticate_user!, only: %i[new create signup_success], raise: false
   before_action :find_company, only: :profile
   before_action :set_domain, only: %i[create]
-  before_action :redirect_to_main_domain, only: [:new]
+  # before_action :redirect_to_main_domain, only: [:new]
 
   include DomainExtractor
 

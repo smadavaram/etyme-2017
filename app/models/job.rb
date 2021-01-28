@@ -27,6 +27,8 @@ class Job < ApplicationRecord
   # has_many     :applicants , through: :job_applications , source: :applicationable ,source_type: "Candidate"
   has_one :chat, as: :chatable, dependent: :destroy
 
+  has_many :comments, as: :commentable
+
   accepts_nested_attributes_for :custom_fields, reject_if: :all_blank
   accepts_nested_attributes_for :job_requirements, reject_if: :all_blank
 

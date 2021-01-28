@@ -68,6 +68,7 @@ Rails.application.routes.draw do
   namespace :static do
     get '/people', to: 'jobs#people'
     # get '/feeds', to: 'jobs#static_feeds'
+    post 'post_comment', to: 'comments#post_comment'
     post 'post_question', to: 'jobs#post_question'
     post 'post_job', to: 'jobs#post_job'
     resources :jobs, only: %i[index show] do

@@ -9,6 +9,10 @@
         <div class="webflow-modal-body">
           <%= form.text_field 'job[title]', placeholder: 'Topic', class: 'webflow-input-text-field' %>
           <%= form.text_area 'job[description]', placeholder: 'Write your post here...', class: 'webflow-input-text-area' %>
+          <%= form.hidden_field 'job[files]', class: 'webflow-hidden-field-job-files'%>
+          <%= link_to 'Upload a Cover Image', '#',  onclick: "upload_file_ajax(uploadAttachment)", class: 'f-12 l-17'%>
+          <div class="webflow-question-banner-container">
+          </div>
         </div>
         <div class="webflow-modal-footer">
           <button type="button" class="webflow-btn-link f-12 l-17" data-dismiss="modal">Cancel</button>
@@ -19,3 +23,16 @@
     </div>
   </div>
 </div>
+
+<script>
+  function uploadAttachment(url, type) {
+    console.log('URL: ' + url)
+    console.log('TYPE: ' + type)
+
+    $('.webflow-question-banner-container').first().html(
+      `<div class="webflow-question-banner py-3"><img src="${url}"/></div>`
+    );
+
+    $('.webflow-hidden-field-job-files').attr("value", url);
+  }
+</script>
