@@ -1681,6 +1681,19 @@ span:hover {
     }
 }
 
+.webflow-question-banner {
+    height: 182px;
+    border-radius: 8px;
+    overflow: hidden;
+
+    img {
+        object-position: center;
+        object-fit: cover;
+        width: 100%;
+        height: 100%;
+    }
+}
+
 .webflow-product-thumbnails {
     margin-bottom: 30px;
 

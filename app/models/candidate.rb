@@ -97,6 +97,8 @@ class Candidate < ApplicationRecord
   has_many :legal_documents
   has_many :salaries
 
+  has_many :comments, class_name: 'Comment', foreign_key: :created_by_candidate_id
+
   attr_accessor :job_id, :expiry, :message, :invitation_type
   attr_accessor :send_welcome_email_to_candidate
   attr_accessor :send_invitation
