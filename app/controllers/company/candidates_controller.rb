@@ -25,6 +25,29 @@ class Company::CandidatesController < Company::BaseController
     @candidate = Candidate.new
   end
 
+  def invite
+    render 'company/candidates/invite'
+  end
+
+  def invite_create
+    @candidate = Candidate.find_by email: params[:email]
+
+    unless @candidate.present?
+      flash[:errors] = 'Candidate not found...'
+      redirect_to candidates_path and return
+    end
+
+    @candidates_company = CandidatesCompany.new candidate_id: @candidate.id, company_id: current_company.id, candidate_status: 'pending'
+
+    unless @candidates_company.save
+      flash[:errors] = @candidates_company.errors.full_messages
+      redirect_to candidates_path and return
+    end
+
+    flash[:success] = 'Candidate added to the company!'
+    redirect_to candidates_path and return
+  end
+
   def show
     @candidate = Candidate.find_by(id: params[:id])
   end
