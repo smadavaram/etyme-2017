@@ -327,6 +327,7 @@ Rails.application.routes.draw do
 
     resources :company_contacts, only: %i[index new create destroy]
 
+
     resources :companies, only: %i[new create update] do
       member do
         get 'plugin/:plugin_type', to: 'companies#plugin', as: :plugin
@@ -351,6 +352,9 @@ Rails.application.routes.draw do
         post :request_for_more_information
       end
     end
+
+    get 'invite_candidate', to: 'candidates#invite'
+    post 'invite_candidate', to: 'candidates#invite_create'
 
     get 'new_candidate_to_bench', to: 'candidates#new_candidate_to_bench'
     # get :new_candidate_to_banch

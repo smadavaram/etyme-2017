@@ -10,8 +10,11 @@
           <%= form.text_field 'job[title]', placeholder: 'Topic', class: 'webflow-input-text-field' %>
           <%= form.text_area 'job[description]', placeholder: 'Write your post here...', class: 'webflow-input-text-area' %>
           <%= form.hidden_field 'job[files]', class: 'webflow-hidden-field-job-files'%>
-          <%= link_to 'Upload a Cover Image', '#',  onclick: "upload_file_ajax(uploadAttachment)", class: 'f-12 l-17'%>
+          <%= link_to 'Upload a Cover Image', '#',  onclick: "upload_file_ajax(uploadBanner)", class: 'f-12 l-17'%>
           <div class="webflow-question-banner-container">
+          </div>
+          <%= link_to 'Upload Additional Images', '#',  onclick: "upload_file_ajax(uploadAttachment)", class: 'f-12 l-17'%>
+          <div class="webflow-question-images-container d-flex">
           </div>
         </div>
         <div class="webflow-modal-footer">
@@ -25,14 +28,27 @@
 </div>
 
 <script>
-  function uploadAttachment(url, type) {
-    console.log('URL: ' + url)
-    console.log('TYPE: ' + type)
-
+  function uploadBanner(url, type) {
     $('.webflow-question-banner-container').first().html(
       `<div class="webflow-question-banner py-3"><img src="${url}"/></div>`
     );
+    
+    let fileString = "";
+    fileString = fileString.concat($(".webflow-question-banner").first().children().first().attr('src'));
+    $('.webflow-question-images-container').children().each((i, e) => { fileString = fileString.concat(",", $(e).children().first().attr('src') ); });
+    console.log(fileString);
+    $('.webflow-hidden-field-job-files').attr("value", fileString);
+  }
 
-    $('.webflow-hidden-field-job-files').attr("value", url);
+  function uploadAttachment(url, type) {
+    $('.webflow-question-images-container').first().append(
+      `<div class="webflow-thumbnail-170-105 p-3"><img src="${url}"/></div>`
+    );
+
+    let fileString = "";
+    fileString = fileString.concat($(".webflow-question-banner").first().children().first().attr('src'));
+    $('.webflow-question-images-container').children().each((i, e) => { fileString = fileString.concat(",", $(e).children().first().attr('src') ); });
+    console.log(fileString);
+    $('.webflow-hidden-field-job-files').attr("value", fileString);
   }
 </script>

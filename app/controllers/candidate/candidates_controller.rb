@@ -300,9 +300,6 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.clients.build unless @user.clients.present?
     @user.designations.build unless @user.designations.present?
     @sub_cat = WORK_CATEGORIES[@user.category]
-
-    upload_file_ajax(candidateLogoUpload)
-    raise
   end
 
   def onboarding_profile

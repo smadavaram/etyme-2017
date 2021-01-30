@@ -13,8 +13,16 @@
       <span class="author">by <%= @job&.created_by_candidate&.full_name || @job&.created_by&.full_name %> </span>
       <a href="#" class="share">Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
     </div>
+    <!-- Thumbnails -->
     <div class="webflow-blog-content">
       <%= @job&.description&.html_safe %>
+    </div>
+    <div class="product-single-thumbnails d-flex">
+      <% @job.files.split(',').each do |job_file| %>
+      <div class="webflow-thumbnail-170-105 p-3">
+        <%= image_tag job_file %>
+      </div>
+      <% end %>
     </div>
     <div class="webflow-blog-footer">
       <% if @job&.tag_list.present? %>
