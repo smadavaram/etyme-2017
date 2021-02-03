@@ -381,9 +381,11 @@ class Company::CompaniesController < Company::BaseController
 
   def create_new_company
     @company = Company.new(company_params)
+
     if @company.save
       create_current_company_contact(@company)
-      @company.update_attribute(:owner_id, @company.admins.first.id)
+      # @company.update_attribute(:owner_id, @company.admins.first.id)
+
       respond_to do |format|
         format.html { redirect_to new_company_company_path, success: 'Successfully Created company.' }
         format.js { flash[:success] = 'Successfully Created company.' }

@@ -31,7 +31,9 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   end
 
   def get_raw_records
-    current_company.users.includes(%i[reminders statuses]).joins(:company)
+    current_company.directory.includes(%i[reminders statuses]).joins(:company)
+    # current_company.company_contacts_users.includes(%i[reminders statuses]).joins(:company)
+    # current_company.company_contacts.includes(%i[reminders statuses]).joins(:company)
   end
 
   def company_user_profile(user)
