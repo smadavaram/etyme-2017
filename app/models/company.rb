@@ -61,6 +61,8 @@ class Company < ApplicationRecord
   has_many :prefer_vendors
   has_many :perfer_vendor_companies, class_name: 'PreferVendor', foreign_key: 'vendor_id'
   has_many :company_contacts, class_name: 'CompanyContact', foreign_key: 'company_id', dependent: :destroy
+  has_many :company_contacts_users, through: :company_contacts, source: :user
+
   has_many :user_contacts, class_name: 'CompanyContact', foreign_key: 'user_company_id'
   has_many :comments, as: :commentable
   has_many :custom_fields, as: :customizable, dependent: :destroy
@@ -251,6 +253,10 @@ class Company < ApplicationRecord
 
   def is_vendor?(company)
     prefer_vendors.find_by_vendor_id(company.id)
+  end
+
+  def directory
+    User.left_outer_joins(:company_contacts).where('users.company_id = ? OR company_contacts.company_id = ?', id, id)
   end
 
   private
