@@ -19,7 +19,7 @@ class CompanyDirectoryDatatable < ApplicationDatatable
     records.map do |record|
       {
         id: record.id,
-        domain: record.company.website,
+        domain: record.company&.website,
         name: company_user_profile(record),
         title: record.type,
         roles_permissions: 'TBD',
@@ -37,12 +37,12 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   end
 
   def company_user_profile(user)
-    (link_to user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: user.full_name.to_s), company_user_profile_path(user)) +
+    (link_to user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: user.full_name&.to_s), company_user_profile_path(user)) +
       link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'pl-2')
   end
 
   def reminder_note(record)
-    content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: record.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
+    content_tag(:span, do_ellipsis(current_user.reminders&.where(reminderable_id: record.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1')&.html_safe
   end
 
   def contact_icon(record)
