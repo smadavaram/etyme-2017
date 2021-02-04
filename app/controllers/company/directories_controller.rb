@@ -7,7 +7,7 @@ class Company::DirectoriesController < Company::BaseController
     add_breadcrumb 'My Directory'
 
     respond_to do |format|
-      format.html {}
+      format.html { render plain: 'An error occured...' }
       format.json { render json: CompanyDirectoryDatatable.new(params, view_context: view_context) }
     end
   end
