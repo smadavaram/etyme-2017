@@ -87,6 +87,7 @@ gem 'omnicontacts', '~> 0.3.7'
 gem 'miro'
 
 gem 'seed_dump'
+gem 'better_errors' # , '~> 1.1.0'
 
 group :development do
   gem 'rubocop', '~> 0.78.0', require: false
@@ -96,7 +97,7 @@ end
 group :development, :test do
   gem 'annotate' # , '~> 2.7'
   gem 'bcrypt_pbkdf', '< 2.0'
-  gem 'better_errors' # , '~> 1.1.0'
+  # gem 'better_errors' # , '~> 1.1.0'
   gem 'binding_of_caller'
   gem 'byebug'
   gem 'ed25519', '< 2.0'
