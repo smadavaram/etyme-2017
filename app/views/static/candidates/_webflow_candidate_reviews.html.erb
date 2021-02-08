@@ -1,0 +1,35 @@
+<!-- Comments -->
+  <div class="webflow-comments-header d-flex justify-content-between">
+    <div class="webflow-comments-title">Reviews <span>(<%= @candidate&.comments&.length %>)</span></div>
+    <%# <div class="webflow-comments-sort">Most Recent <i class="fa fa-angle-down" aria-hidden="true"></i></div> %>
+  </div>
+  <div>
+    <% if @candidate.comments.blank? %>
+      No Comments
+    <% end %>
+    <% @candidate&.comments.each do |comment| %>
+    <div class="webflow-comments-card d-flex">
+      <div class="webflow-comments-card-image">
+        <%= user_avatar(comment&.created_by_candidate || comment&.created_by) %>
+      </div>
+      <div class="pl-3">
+        <div class="webflow-comments-card-author">
+          <%= comment&.created_by&.full_name || comment&.created_by_candidate&.full_name%>
+        </div>
+        <div class="webflow-comments-card-company">
+          <%= comment&.created_by&.company&.name || comment&.created_by_candidate&.associated_company&.name%>
+        </div>
+        <div class="webflow-comments-card-text">
+          <%= comment.body %>
+        </div>
+        <div class="webflow-comments-card-footer">
+          <%# <span class="webflow-comments-card-upvote"><i class="fa fa-caret-up" aria-hidden="true"></i> Upvote</span> %>
+          <span class="webflow-comments-card-time">posted <%= time_ago_in_words(comment.created_at)%> ago</span>
+        </div>
+      </div>
+    </div>
+    <% end %>
+  </div>
+  <%# <div class="webflow-comments-load-more d-flex justify-content-center"> %>
+  <%#   <a href="#">Load more</a> %>
+  <%# </div> %>

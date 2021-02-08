@@ -51,7 +51,7 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   end
 
   def delete_link_for_owner(record)
-    link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, admin_path(record), method: :delete, title: "Delete #{record.full_name}", class: 'data-table-icons') if (current_company.owner.id == current_user.id) && (record.id != current_user.id)
+    link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, admin_path(record), method: :delete, title: "Delete #{record.full_name}", class: 'data-table-icons') if (current_company.owner&.id == current_user.id) && (record.id != current_user.id)
   end
 
   def actions(record)

@@ -18,11 +18,13 @@
       <%= @job&.description&.html_safe %>
     </div>
     <div class="product-single-thumbnails d-flex">
+    <% if @job.files.present? %>
       <% @job.files.split(',').each do |job_file| %>
       <div class="webflow-thumbnail-170-105 p-3">
         <%= image_tag job_file %>
       </div>
       <% end %>
+    <% end %>
     </div>
     <div class="webflow-blog-footer">
       <% if @job&.tag_list.present? %>
