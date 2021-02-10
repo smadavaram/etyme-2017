@@ -21,7 +21,7 @@ set :deploy_to, '/var/www/etyme2020'
 set :repo_url, "git@github.com:smadavaram/etyme-2017.git"
 set :stage, :production
 
-server "3.128.51.36", user: "deploy_user", roles: %w{app db web}
+# server "3.128.51.36", user: "deploy_user", roles: %w{app db web}
 
 set :branch, 'deploy-staging'
 
