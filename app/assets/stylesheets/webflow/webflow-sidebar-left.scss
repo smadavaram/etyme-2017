@@ -23,9 +23,14 @@
         background-color: rgba(0, 0, 0, 0);
 
         .container {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+
             width: 0;
-            margin-left: 0;
             height: 100%;
+
+            margin-left: 0;
             background-color: #ffffff;
             transition: 0.5s ease;
 
