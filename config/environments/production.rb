@@ -130,5 +130,5 @@ Rails.application.configure do
                                             sender_address: %("notifier" <error@etyme.com>),
                                             exception_recipients: %w[hamad@enginetech.io]
                                           }
-  config.domain = 'etyme.com'
+  config.domain = 'demoetyme.com'
 end
