@@ -6,8 +6,8 @@ gem 'paper_trail'
 
 ruby '2.6.5'
 gem 'best_in_place'
-gem 'mina' # ,'~> 0.2.1'
-gem 'mina-multistage' # , '<= 1.0.1', require: false
+# gem 'mina' # ,'~> 0.2.1'
+# gem 'mina-multistage' # , '<= 1.0.1', require: false
 gem 'rails', '5.1.2'
 gem 'signature-pad-rails'
 
