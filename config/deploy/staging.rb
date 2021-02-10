@@ -14,6 +14,9 @@
 # server '157.230.90.106', user: 'deploy',  password: 'Etyme123@', roles: %w{web app}
 #
 
+role :app, %w[deploy_user@3.128.51.36]
+role :web, %w[deploy_user@3.128.51.36]
+role :db,  %w[deploy_user@3.128.51.36]
 set :deploy_to, '/var/www/etyme2020'
 set :repo_url, "git@github.com:smadavaram/etyme-2017.git"
 set :stage, :production
@@ -21,6 +24,12 @@ set :stage, :production
 # server "3.128.51.36", user: "deploy_user", roles: %w{app db web}
 
 set :branch, 'deploy-staging'
+
+set :ssh_options, {
+    keys: %w(etyme-2020-key.pem),
+    forward_agent: false,
+    auth_methods: %w(publickey)
+}
 
 # ask :git_http_username, fetch(:local_user)
 # ask :git_http_password, '', echo: false
