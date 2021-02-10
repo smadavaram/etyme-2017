@@ -415,8 +415,6 @@ span:hover {
 
 
 .side-wrapper .roadmap {
-    width: 100%;
-
     margin: 64px 20px;
     padding: 12px 24px;
 
@@ -1673,6 +1671,19 @@ span:hover {
     margin-right: -15px;
     border-radius: 8px 8px 0 0;
 
+    overflow: hidden;
+
+    img {
+        object-position: center;
+        object-fit: cover;
+        width: 100%;
+        height: 100%;
+    }
+}
+
+.webflow-question-banner {
+    height: 182px;
+    border-radius: 8px;
     overflow: hidden;
 
     img {

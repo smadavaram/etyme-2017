@@ -25,6 +25,29 @@ class Company::CandidatesController < Company::BaseController
     @candidate = Candidate.new
   end
 
+  def invite
+    render 'company/candidates/invite'
+  end
+
+  def invite_create
+    @candidate = Candidate.find_by email: params[:email]
+
+    unless @candidate.present?
+      flash[:errors] = 'Candidate not found...'
+      redirect_to candidates_path and return
+    end
+
+    @candidates_company = CandidatesCompany.new candidate_id: @candidate.id, company_id: current_company.id, candidate_status: 'pending'
+
+    unless @candidates_company.save
+      flash[:errors] = @candidates_company.errors.full_messages
+      redirect_to candidates_path and return
+    end
+
+    flash[:success] = 'Candidate added to the company!'
+    redirect_to candidates_path and return
+  end
+
   def show
     @candidate = Candidate.find_by(id: params[:id])
   end
@@ -91,6 +114,7 @@ class Company::CandidatesController < Company::BaseController
 
   def get_or_create_bench_candidate
     candidate = Candidate.find_by(email: params[:candidate][:email]) || current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: 'campany_candidate'))
+
     if candidate.new_record? && candidate.save
       flash[:success] = 'New Candidate Is Added'
       current_company.candidates << candidate
@@ -101,29 +125,41 @@ class Company::CandidatesController < Company::BaseController
     else
       flash[:errors] = candidate.errors.full_messages
     end
+
     candidate
   end
 
   def create
-    @candidate = get_or_create_bench_candidate
-    respond_to do |format|
-      if @candidate
-        format.html { redirect_back(fallback_location: current_company.etyme_url) }
-        format.js {}
+    @candidate = Candidate.find_by email: params[:candidate][:email]
+
+    if @candidate.present?
+      @candidates_company = CandidatesCompany.new candidate_id: @candidate.id, company_id: current_company.id, candidate_status: 'pending'
+
+      if @candidates_company.save
+        flash[:success] = 'Candidate added to the company!'
+        redirect_to candidates_path and return
+      else
+        flash[:errors] = @candidates_company.errors.full_messages
+        redirect_to candidates_path and return
+      end
+    else
+      @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: 'campany_candidate'))
+
+      if @candidate.save
+        flash[:success] = 'New Candidate Is Added'
+
+        current_company.candidates << @candidate
+        @candidate.create_activity :create, owner: current_company, recipient: current_company
+        CandidatesResume.create(candidate_id: @candidate.id, resume: @candidate.resume, is_primary: true)
+        Address.create(address_1: @candidate.location, addressable_type: 'Candidate', addressable_id: @candidate.id)
+        current_company.candidates_companies.where(candidate: @candidate).first.hot_candidate! if params['is_add_to_bench']
+
+        redirect_to candidates_path and return
+      else
+        flash[:errors] = @candidate.errors.full_messages
+        redirect_to candidates_path and return
       end
     end
-    # @candidates_company = current_company.candidates_companies.where(candidate: @candidate).first || current_company.candidates_companies.create(candidate: @candidate, status: :normal)
-    # if @candidates_company.normal? and @candidate
-    #   if params["is_add_to_bench"]
-    #     flash[:success] = "Candidate is added to the bench"
-    #     @candidates_company.hot_candidate!
-    #   else
-    #     flash[:notice] = "New candidate added successfully"
-    #   end
-    # else
-    #   @candidates_company.present? ? @candidates_company.hot_candidate! : current_company.candidates_companies.create(candidate: @candidate, status: :hot_candidate)
-    #   flash[:success] = "Candidate is added to the bench"
-    # end
   end
 
   def new_candidate_to_bench

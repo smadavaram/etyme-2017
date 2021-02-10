@@ -1,13 +1,30 @@
 <!-- Main Blog Post -->
 <div class="webflow-content-inner webflow-blog col-12">
+  <div class="webflow-blog-banner">
+    <% if @job.files.present? %>
+      <%= image_tag @job.files.split(',').first %>
+    <% else %>
+      <%= image_tag 'demo/s1.jpg' %>
+    <% end %>
+  </div>
   <div class="webflow-blog-article">
     <div class="webflow-blog-header">
       <h1 class="title"><%= @job&.title %></h1>  
       <span class="author">by <%= @job&.created_by_candidate&.full_name || @job&.created_by&.full_name %> </span>
       <a href="#" class="share">Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
     </div>
+    <!-- Thumbnails -->
     <div class="webflow-blog-content">
       <%= @job&.description&.html_safe %>
+    </div>
+    <div class="product-single-thumbnails d-flex">
+    <% if @job.files.present? %>
+      <% @job.files.split(',').each do |job_file| %>
+      <div class="webflow-thumbnail-170-105 p-3">
+        <%= image_tag job_file %>
+      </div>
+      <% end %>
+    <% end %>
     </div>
     <div class="webflow-blog-footer">
       <% if @job&.tag_list.present? %>
@@ -22,57 +39,4 @@
   </div>
 </div>
 
-<!-- Comments -->
-<div class="webflow-content-inner webflow-comments col-12">
-  <div class="webflow-comments-form d-flex">
-    <input type="text" name="comment" value="" placeholder="Post a public comment..." class="flex-grow-1">
-    <input type="submit" name="submit" value="Post">
-  </div>
-  <div class="webflow-comments-header d-flex justify-content-between">
-    <div class="webflow-comments-title">Comments <span>(24)</span></div>
-    <div class="webflow-comments-sort">Most Recent <i class="fa fa-angle-down" aria-hidden="true"></i></div>
-  </div>
-  <div>
-    <div class="webflow-comments-card d-flex">
-      <div class="webflow-comments-card-image">
-        <%= image_tag 'demo/s1.jpg' %>
-      </div>
-      <div class="pl-3">
-        <div class="webflow-comments-card-author">
-          John Doe
-        </div>
-        <div class="webflow-comments-card-company">
-          Company Name 
-        </div>
-        <div class="webflow-comments-card-text">
-          Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. 
-        </div>
-        <div class="webflow-comments-card-footer">
-          <span class="webflow-comments-card-upvote"><i class="fa fa-caret-up" aria-hidden="true"></i> Upvote</span> <span class="webflow-comments-card-time">2d</span>
-        </div>
-      </div>
-    </div>
-    <div class="webflow-comments-card d-flex">
-      <div class="webflow-comments-card-image">
-        <%= image_tag 'demo/s1.jpg' %>
-      </div>
-      <div class="pl-3">
-        <div class="webflow-comments-card-author">
-          John Doe
-        </div>
-        <div class="webflow-comments-card-company">
-          Company Name 
-        </div>
-        <div class="webflow-comments-card-text">
-          Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. 
-        </div>
-        <div class="webflow-comments-card-footer">
-          <span class="webflow-comments-card-upvote"><i class="fa fa-caret-up" aria-hidden="true"></i> Upvote</span> <span class="webflow-comments-card-time">2d</span>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="webflow-comments-load-more d-flex justify-content-center">
-    <a href="#">Load more</a>
-  </div>
-</div>
+<%= render 'webflow_job_comments' %>

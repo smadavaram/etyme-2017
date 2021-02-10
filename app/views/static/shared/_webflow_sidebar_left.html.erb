@@ -1,61 +1,59 @@
 <!-- Side Wrapper Start -->
 <section class="side-wrapper">
-    <div class="container">
-        <div class="row">
-            <div class="col-12 sidenav-items p-0">
-                <div class="nav flex-column nav-pills">
-                    <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "static_feeds") ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
-                        <%= image_tag(image_path('sidebar-home.svg'), class: "mr-3") %>
-                        <%= image_tag(image_path('sidebar-home-active.svg'), class: "mr-3") %>
-                        Home
-                    </a>
-                    <a class="nav-link sidebar-link <%= params[:controller] == "static/jobs" &&  (params[:action] == "index" || params[:action] == "show") ? "active" : ""  %>" href="<%= static_jobs_path %>">
-                        <%= image_tag(image_path('sidebar-jobs.svg'), class: "mr-3") %>
-                        <%= image_tag(image_path('sidebar-jobs-active.svg'), class: "mr-3") %>
-                        Jobs
-                    </a>
-                    <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "people") || (params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile") ? "active" : ""  %>" href="<%= static_people_path %>">
-                        <%= image_tag(image_path('sidebar-people.svg'), class: "mr-3") %>
-                        <%= image_tag(image_path('sidebar-people-active.svg'), class: "mr-3") %>
-                        People
-                    </a>
-                </div>
-            </div>
+  <div class="container">
+      <div class="sidenav-items p-0">
+          <div class="nav flex-column nav-pills">
+              <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "static_feeds") ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
+                  <%= image_tag(image_path('sidebar-home.svg'), class: "mr-3") %>
+                  <%= image_tag(image_path('sidebar-home-active.svg'), class: "mr-3") %>
+                  Home
+              </a>
+              <a class="nav-link sidebar-link <%= params[:controller] == "static/jobs" &&  (params[:action] == "index" || params[:action] == "show") ? "active" : ""  %>" href="<%= static_jobs_path %>">
+                  <%= image_tag(image_path('sidebar-jobs.svg'), class: "mr-3") %>
+                  <%= image_tag(image_path('sidebar-jobs-active.svg'), class: "mr-3") %>
+                  Jobs
+              </a>
+              <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "people") || (params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile") ? "active" : ""  %>" href="<%= static_people_path %>">
+                  <%= image_tag(image_path('sidebar-people.svg'), class: "mr-3") %>
+                  <%= image_tag(image_path('sidebar-people-active.svg'), class: "mr-3") %>
+                  People
+              </a>
+          </div>
+      </div>
 
-            <% if !current_candidate.present? && !current_user.present? %>
-            <div class="roadmap">
-              <ul>
-                <li><i class="roadmap-border"></i>Step 1</li>
-                  <span>Join our Tribe</span>
-                <li><i class="roadmap-border"></i>Step 2</li>
-                  <span>Ask and Engage</span>
-                <li><i class="roadmap-border"></i>Step 3</li>
-                  <span>Hire, apply for jobs, & services</span>
-              </ul>
-            </div>
-            <% else %>
-            <div class="my-5 py-5 w-100">
-            </div>
-            <% end %>
+      <% if !current_candidate.present? && !current_user.present? %>
+      <div class="roadmap">
+        <ul>
+          <li><i class="roadmap-border"></i>Step 1</li>
+            <span>Join our Tribe</span>
+          <li><i class="roadmap-border"></i>Step 2</li>
+            <span>Ask and Engage</span>
+          <li><i class="roadmap-border"></i>Step 3</li>
+            <span>Hire, apply for jobs, & services</span>
+        </ul>
+      </div>
+      <% else %>
+      <div class="my-5 py-5 w-100">
+      </div>
+      <% end %>
 
-            <div class="d-flex flex-column justify-content-end">
-              <ul class="sidebar-left-links">
-                <li>About</li>
-                <li>Terms</li>
-                <li>Privacy</li>
-                <li>Contact</li>
-                <li>Help</li>
-              </ul>
-              <div class="powerby text-center">
-                  <div class="col-12">
-                      <p class="m-0">Powered by
-                          <!-- <img src="images/powerby-logo.png" class="img-fluid ml-2" alt="powerby"> -->
-                          <%= image_tag(image_path('powerby-logo.png'), class: "img-fluid ml-2") %>
-                      </p>
-                  </div>
-              </div>
+      <div class="d-flex flex-column justify-content-end">
+        <ul class="sidebar-left-links">
+          <li>About</li>
+          <li>Terms</li>
+          <li>Privacy</li>
+          <li>Contact</li>
+          <li>Help</li>
+        </ul>
+        <div class="powerby text-center">
+            <div class="col-12">
+                <p class="m-0">Powered by
+                    <!-- <img src="images/powerby-logo.png" class="img-fluid ml-2" alt="powerby"> -->
+                    <%= image_tag(image_path('powerby-logo.png'), class: "img-fluid ml-2") %>
+                </p>
             </div>
         </div>
-    </div>
+      </div>
+  </div>
 </section>
 <!-- Side Wrapper End -->

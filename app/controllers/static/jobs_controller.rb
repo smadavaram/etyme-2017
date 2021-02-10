@@ -273,7 +273,40 @@ class Static::JobsController < ApplicationController
   end
 
   def post_job
-    redirect_to root_path
+    if current_user.present?
+      @job = current_company.jobs.new(company_user_job_params.merge!(created_by_id: current_user.id, listing_type: 'Job', status: 'Draft'))
+      flash[:errors] = @job.errors.full_messages unless @job.save
+      flash[:success] = 'The job was successfully created!'
+      redirect_to @job
+    elsif current_candidate.present?
+      @job = current_company.jobs.new(company_candidate_job_params.merge!(created_by_candidate_id: current_candidate.id, listing_type: 'Job', status: 'Draft'))
+      flash[:errors] = @job.errors.full_messages unless @job.save
+      flash[:success] = 'The job was successfully created! An admin will review it before it shows up in the feed.'
+
+      if current_company.owner.present?
+        current_company.owner.notifications.create(
+          title: "A new job listing created by #{@job.created_by_candidate.full_name} needs to be reviewed!",
+          message: "#{@job.created_by_candidate.full_name} has just created a new job listing! It needs to be reviewed before it can be published to the main feed. You can review it here: #{jobs_url(@job)}",
+          notification_type: 'job',
+          createable_id: @job.created_by_candidate_id,
+          createable_type: 'Candidate'
+        )
+      elsif current_company.admins.first.present?
+        current_company.owner.notifications.create(
+          title: "A new job listing created by #{@job.created_by_candidate.full_name} needs to be reviewed!",
+          message: "#{@job.created_by_candidate.full_name} has just created a new job listing! It needs to be reviewed before it can be published to the main feed. You can review it here: #{jobs_url(@job)}",
+          notification_type: 'job',
+          createable_id: @job.created_by_candidate_id,
+          createable_type: 'Candidate'
+        )
+
+      end
+
+      redirect_to root_path
+    else
+      flash[:errors] = 'You must be logged in to post a new job!'
+      redirect_to root_path
+    end
   end
 
   private
@@ -326,20 +359,78 @@ class Static::JobsController < ApplicationController
   end
 
   def company_job_params
-    params.require(:job).permit([:status, :source, :title, :files, :description, :location, :job_category, :is_public, :start_date, :end_date, :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, custom_fields_attributes:
-        %i[
-          id
-          name
-          value
-          required
-          _destroy
-        ], job_requirements_attributes: %i[
-          id
-          questions
-          ans_type
-          ans_mandatroy
-          multiple_ans
-          multiple_option
-        ]])
+    params
+      .require(:job)
+      .permit([:status,
+               :source,
+               :title,
+               :files,
+               :description,
+               :location,
+               :job_category,
+               :is_public,
+               :start_date,
+               :end_date,
+               :tag_list,
+               :video_file,
+               :industry,
+               :department,
+               :job_type,
+               :price,
+               :education_list,
+               :comp_video,
+               :listing_type,
+               custom_fields_attributes: %i[id name value required _destroy],
+               job_requirements_attributes: %i[id questions ans_type ans_mandatroy multiple_ans multiple_option]])
+  end
+
+  def company_user_job_params
+    params
+      .require(:job)
+      .permit([:status,
+               :source,
+               :title,
+               :files,
+               :description,
+               :location,
+               :job_category,
+               :is_public,
+               :start_date,
+               :end_date,
+               :tag_list,
+               :video_file,
+               :industry,
+               :department,
+               :job_type,
+               :price,
+               :education_list,
+               :comp_video,
+               :listing_type,
+               custom_fields_attributes: %i[id name value required _destroy],
+               job_requirements_attributes: %i[id questions ans_type ans_mandatroy multiple_ans multiple_option]])
+  end
+
+  def company_candidate_job_params
+    params
+      .require(:job)
+      .permit([:source,
+               :title,
+               :files,
+               :description,
+               :location,
+               :job_category,
+               :is_public,
+               :start_date,
+               :end_date,
+               :tag_list,
+               :video_file,
+               :industry,
+               :department,
+               :job_type,
+               :price,
+               :education_list,
+               :comp_video,
+               custom_fields_attributes: %i[id name value required _destroy],
+               job_requirements_attributes: %i[id questions ans_type ans_mandatroy multiple_ans multiple_option]])
   end
 end

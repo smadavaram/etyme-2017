@@ -94,7 +94,7 @@ end
 group :development, :test do
   gem 'annotate' # , '~> 2.7'
   gem 'bcrypt_pbkdf', '< 2.0'
-  gem 'better_errors' # , '~> 1.1.0'
+  # gem 'better_errors' # , '~> 1.1.0'
   gem 'binding_of_caller'
   gem 'byebug'
   gem 'ed25519', '< 2.0'

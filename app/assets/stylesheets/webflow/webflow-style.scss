@@ -249,6 +249,20 @@
     }
 }
 
+.webflow-thumbnail-170-105 {
+    width: 170px;
+    height: 105px;
+    border-radius: 4px;
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
 .thumb-xs-80 {
     @media (max-width: 575.98px) {
         width: 80px;

@@ -13,7 +13,7 @@
         <span class="profile-location"> USA </span>
       </div>
       <div class="profile-title">
-        Web Developer
+        <%= @candidate.candidate_title %>
       </div>
       <div class="profile-rating">
         <div class="profile-rating-stars">
@@ -26,14 +26,13 @@
         </div>
       </div>
       <div class="profile-reviews-links">
-        <span class="profile-reviews-link">24 Reviews</span>
-        <span class="profile-reviews-link">Read Reviews</span>
+        <span class="profile-reviews-link"><%= @candidate&.comments&.count %> Reviews</span>
         <span class="profile-reviews-link">Add a Review</span>
       </div>
       <div class="profile-stats">
         <div class="profile-stats-container">
           <div class="profile-stats-number">
-            122
+            2
           </div>
           <div class="profile-stats-label">
             Years of Experience
@@ -49,13 +48,15 @@
         </div>
       </div>
       <div class="mb-4">
+        <% if @candidate&.phone %>
         <div class="profile-contact">
           <i class="fa fa-phone" aria-hidden="true"></i>
-          (777) 7777-7777
+          <%= @candidate&.phone %>
         </div>
+        <% end %>
         <div class="profile-contact">
           <i class="fa fa-envelope" aria-hidden="true"></i>
-          john@doe.com
+          <%= @candidate&.email %>
           <span class="profile-contact-verified">Verified</span>
         </div>
       </div>
@@ -65,7 +66,7 @@
             Location
           </div>
           <div class="information-value">
-            Denver, CO
+            <%= @candidate&.location %>
           </div>
         </div>
         <div class="profile-information">
@@ -73,7 +74,11 @@
             Visa Status
           </div>
           <div class="information-value">
-            Unknown
+            <% if @candidate.visa %>
+              <%= @candidate.visa %>
+            <% else %>
+              Unknown
+            <% end %>
           </div>
         </div>
         <div class="profile-information">
@@ -81,7 +86,11 @@
             SSN
           </div>
           <div class="information-value">
-            No
+            <% if @candidate.ssn %>
+              <%= @candidate.ssn %>
+            <% else %>
+              Unknown
+            <% end %>
           </div>
         </div>
         <div class="profile-information">
@@ -121,10 +130,9 @@
           <div class="profile-section-line"></div>
         </div>
         <ul class="profile-skills-tags">
-          <li>lorem ipsum</li>
-          <li>lorem</li>
-          <li>lorem</li>
-          <li>lorem</li>
+          <% @candidate.skills.each do |skill| %>
+            <li><%= skill %></li>
+          <% end %>
         </ul>
       </div>
       <div class="profile-section">
@@ -132,12 +140,17 @@
           <div class="profile-section-title">Education</div>
           <div class="profile-section-line"></div>
         </div>
-        <div class="profile-section-content-label">
-          Degree Name
-        </div>
-        <div class="profile-section-content-value">
-          University Name, Lorem ipsum olor sit amet, 2006-2011
-        </div>
+        <% if @candidate.educations.blank? %>
+          Unknown
+        <% end %>
+        <% @candidate.educations.each do |education| %>
+          <div class="profile-section-content-label">
+            <%= education.degree_title %>
+          </div>
+          <div class="profile-section-content-value pb-2">
+            <%= education.institute %>, <%= education.description %>, <%= education.start_year&.year %>-<%= education.completion_year&.year %>
+          </div>
+        <% end %>
       </div>
       <div class="profile-section">
         <div class="profile-section-header">
@@ -146,10 +159,10 @@
         </div>
         <div class="row">
           <div class="profile-section-content-label col-4">
-            English
+            English (Lorem)
           </div>
           <div class="profile-section-content-value col-8">
-            Native
+            Native (Lorem)
           </div>
         </div>
       </div>
@@ -158,27 +171,34 @@
           <div class="profile-section-title">Certifications</div>
           <div class="profile-section-line"></div>
         </div>
+        <% if @candidate.certificates.blank? %>
+          Unknown
+        <% end %>
+        <% @candidate.certificates.each do |certificate| %>
         <div class="profile-section-content-label">
-          Certificate Name
+          <%= certificate.title %>
         </div>
-        <div class="profile-section-content-value">
-          University Name, Lorem ipsum olor sit amet, 2006-2011
+        <div class="profile-section-content-value pb-2">
+          <%= certificate.institute %>, <%= certificate.start_date&.year %>-<%= certificate.end_date&.year %>
         </div>
-        <div class="profile-section-content-label">
-          Certificate Name
-        </div>
-        <div class="profile-section-content-value">
-          University Name, Lorem ipsum olor sit amet, 2006-2011
-        </div>
+        <% end %>
       </div>
       <div class="profile-section">
         <div class="profile-section-header">
           <div class="profile-section-title">Projects History</div>
           <div class="profile-section-line"></div>
         </div>
-        <div class="profile-section-content-value">
-          No projects
+        <% if @candidate.portfolios.blank? %>
+          No Projects
+        <% end %>
+        <% @candidate.portfolios.each do |portfolio| %>
+        <div class="profile-section-content-label">
+          <%= portfolio.name %>
         </div>
+        <div class="profile-section-content-value pb-2">
+          <%= portfolio.description %>
+        </div>
+        <% end %>
       </div>
     </div>
   </div>
@@ -189,24 +209,30 @@
       <div class="d-flex justify-content-between mb-20">
         <div class="f-16 w-500 l-19 c-80">John's Portfolio</div>
       </div>
+        <% if @candidate.portfolios.blank? %>
+          No Projects
+        <% end %>
       <div class="row">
+        <% if @candidate.portfolios[-1] %>
         <div class="col-12 col-xl-6 mb-5 mb-xl-0">
           <div class="webflow-thumbnail-340-210 mb-16">
-            <%= image_tag 'demo/s1.jpg' %>
+            <%= image_tag @candidate.portfolios[-1].cover_photo %>
           </div>
           <div class="f-14 l-17 c-100">
-            Project Title
+            <%= @candidate.portfolios[-1].name %>
           </div>
         </div>
+        <% end %>
+        <% if @candidate.portfolios[-2] %>
         <div class="col-12 col-xl-6 mb-5 mb-xl-0">
           <div class="webflow-thumbnail-340-210 mb-16">
-            <%= image_tag 'demo/s2.jpg' %>
+            <%= image_tag @candidate.portfolios[-2].cover_photo %>
           </div>
           <div class="f-14 l-17 c-100">
-            Project Title
+            <%= @candidate.portfolios[-2].name %>
           </div>
         </div>
-        
+        <% end %>
       </div>
     </div>
 
@@ -215,83 +241,29 @@
       <div class="d-flex justify-content-between mb-30">
         <div class="f-16 w-500 l-19 c-80">Experience</div>
       </div>
+      <% if @candidate.experiences.blank? %>
+        No Experience
+      <% end %>
+      <% @candidate.experiences.each do |experience| %>
       <div class="mb-20">
         <div class="f-14 l-17 c-80 mb-2">
-          Project Name
+          <%= experience.experience_title %>
         </div>
         <div class="d-flex f-12 l-14">
           <div class="c-50 mr-12">
-            Company Name
+            <%= experience.institute %>
           </div>
           <div class="c-35">
-            From Jan 19 - May 20
+            From <%= experience.start_date %> to <%= experience.end_date %>
           </div>
         </div>
       </div>
-      <div class="">
-        <div class="f-14 l-17 c-80 mb-2">
-          Project Name
-        </div>
-        <div class="d-flex f-12 l-14">
-          <div class="c-50 mr-12">
-            Company Name
-          </div>
-          <div class="c-35">
-            From Jan 19 - May 20
-          </div>
-        </div>
-      </div>
+      <% end %>
     </div>
 
     <!-- Reviews -->
     <div class="webflow-profile-inner webflow-comments col-12">
-      <div class="webflow-comments-header d-flex justify-content-between">
-        <div class="webflow-comments-title">Reviews <span>(24)</span></div>
-        <div class="webflow-comments-sort">Most Recent <i class="fa fa-angle-down" aria-hidden="true"></i></div>
-      </div>
-      <div>
-        <div class="webflow-comments-card d-flex">
-          <div class="webflow-comments-card-image">
-            <%= image_tag 'demo/s1.jpg' %>
-          </div>
-          <div class="pl-3">
-            <div class="webflow-comments-card-author">
-              John Doe <span class="webflow-comments-card-stars ml-2"><i class="fa fa-star" aria-hidden="true"></i> 4.2</span>
-            </div>
-            <div class="webflow-comments-card-company">
-              Company Name 
-            </div>
-            <div class="webflow-comments-card-text">
-              Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. 
-            </div>
-            <div class="webflow-comments-card-footer">
-              <span class="webflow-comments-card-time ml-0">Published 2 days ago</span>
-            </div>
-          </div>
-        </div>
-        <div class="webflow-comments-card d-flex">
-          <div class="webflow-comments-card-image">
-            <%= image_tag 'demo/s1.jpg' %>
-          </div>
-          <div class="pl-3">
-            <div class="webflow-comments-card-author">
-              John Doe <span class="webflow-comments-card-stars ml-2"><i class="fa fa-star" aria-hidden="true"></i> 4.2</span>
-            </div>
-            <div class="webflow-comments-card-company">
-              Company Name 
-            </div>
-            <div class="webflow-comments-card-text">
-              Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. 
-            </div>
-            <div class="webflow-comments-card-footer">
-              <span class="webflow-comments-card-time ml-0">Published 2 days ago</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="webflow-comments-load-more d-flex justify-content-center">
-        <a href="#">Load more</a>
-      </div>
+      <%= render 'webflow_candidate_reviews' %>
     </div>
   </div>
 </div>

@@ -40,7 +40,7 @@ class Company::JobsController < Company::BaseController
 
   def sites_jobs_preview
     @jobs = current_company.jobs.paginate(page: params[:page], per_page: 4)
-    @jobs_group =  @jobs.group_by(&:job_category)
+    @jobs_group = @jobs.group_by(&:job_category)
   end
 
   def sites_jobs_iframe; end
