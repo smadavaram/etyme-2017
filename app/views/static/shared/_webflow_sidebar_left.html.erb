@@ -1,5 +1,6 @@
 <!-- Side Wrapper Start -->
 <section class="side-wrapper">
+  <div class="container">
       <div class="sidenav-items p-0">
           <div class="nav flex-column nav-pills">
               <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "static_feeds") ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
@@ -53,5 +54,6 @@
             </div>
         </div>
       </div>
+  </div>
 </section>
 <!-- Side Wrapper End -->
