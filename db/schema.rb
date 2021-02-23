@@ -429,8 +429,8 @@ ActiveRecord::Schema.define(version: 20210128131009) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2020-12-22 17:57:56"
-    t.datetime "updated_at", default: "2020-12-22 17:57:56"
+    t.datetime "created_at", default: "2020-10-23 13:04:35"
+    t.datetime "updated_at", default: "2020-10-23 13:04:35"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -463,7 +463,7 @@ ActiveRecord::Schema.define(version: 20210128131009) do
     t.integer "rateable_id"
     t.date "from_date"
     t.date "to_date"
-    t.integer "rate_type", default: 0
+    t.string "rate_type"
     t.float "rate"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false

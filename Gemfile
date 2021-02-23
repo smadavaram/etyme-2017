@@ -120,7 +120,8 @@ group :development, :test do
   gem 'capistrano', '3.11.2'
   gem 'capistrano-bundler'
   gem 'capistrano-passenger', '>= 0.1.1'
-  gem 'capistrano-rvm'
+  #gem 'capistrano-rvm'
+  gem 'capistrano-rbenv', '~> 2.2'
 
   # Remove the following if your app does not use Rails
   gem 'capistrano-rails'
