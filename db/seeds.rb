@@ -34,7 +34,7 @@ unless user.present?
   user = User.create(
     first_name: 'Haritha', last_name: 'Lokineni',
     email: 'hradmin@cloudepa.com', type: 'Admin',
-    password: 'testing1234', password_confirmation: 'testing1234',
+    password: 'Hr@dm!n#2021', password_confirmation: 'Hr@dm!n#2021',
     confirmed_at: DateTime.current
   )
 end
@@ -54,4 +54,4 @@ end
 # Package.create(id: 4, name: "Platinum", price: 60.0,  duration: 30)
 # Package.create(id: 5, name: "Monthly",                duration: 30)
 
-AdminUser.create!(email: 'sharath@demoetyme.com', password: 'testing1234', password_confirmation: 'testing1234') if Rails.env.development?
+AdminUser.create!(email: 'sharath@demoetyme.com', password: 'Adm!n#2@21', password_confirmation: 'Adm!n#2@21') if Rails.env.development?
