@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20210128131009) do
+ActiveRecord::Schema.define(version: 20210309194515) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -429,8 +429,8 @@ ActiveRecord::Schema.define(version: 20210128131009) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2020-10-23 13:04:35"
-    t.datetime "updated_at", default: "2020-10-23 13:04:35"
+    t.datetime "created_at", default: "2021-02-26 01:38:18"
+    t.datetime "updated_at", default: "2021-02-26 01:38:18"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -1204,6 +1204,13 @@ ActiveRecord::Schema.define(version: 20210128131009) do
     t.datetime "updated_at", null: false
     t.index ["favourable_type", "favourable_id"], name: "index_favourite_chats_on_favourable_type_and_favourable_id"
     t.index ["favourabled_type", "favourabled_id"], name: "index_favourite_chats_on_favourabled_type_and_favourabled_id"
+  end
+
+  create_table "free_email_providers", force: :cascade do |t|
+    t.string "domain_name"
+    t.boolean "published"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "group_msg_notifies", force: :cascade do |t|
