@@ -51,7 +51,7 @@ gem 'ancestry'
 gem 'awesome_print'
 gem 'pg', '~> 0.18'
 gem 'rails-jquery-autocomplete'
-gem 'rails_12factor', group: :production
+#gem 'rails_12factor', group: :production
 
 gem 'acts-as-taggable-on' # , '~> 4.0'
 gem 'mailgun-ruby', '~>1.1.6'
