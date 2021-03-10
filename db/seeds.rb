@@ -67,7 +67,7 @@ if FreeEmailProvider.count.zero?
 
   File.readlines(Rails.root.join('db', 'free_email_provider_domains.txt')).each do |line|
     # puts line
-    free_email_providers  << { domain_name: line, published: true }
+    free_email_providers  << { domain_name: line.gsub("\n", ""), published: true }
   end
 
   FreeEmailProvider.create(free_email_providers)
