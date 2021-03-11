@@ -35,10 +35,13 @@ end
 # Default Users
 user = User.find_by(email: 'hradmin@cloudepa.com')
 unless user.present?
-  user = User.create(
-    first_name: 'Haritha', last_name: 'Lokineni',
-    email: 'hradmin@cloudepa.com', type: 'Admin',
-    password: 'Hr@dm!n#2021', password_confirmation: 'Hr@dm!n#2021',
+  user = User.create!(
+    first_name: 'Haritha',
+    last_name: 'Lokineni',
+    email: 'hradmin@cloudepa.com',
+    type: 'Admin',
+    password: 'Hr@dm!n#2021',
+    password_confirmation: 'Hr@dm!n#2021',
     confirmed_at: DateTime.current
   )
 end
