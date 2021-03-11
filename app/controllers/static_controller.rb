@@ -70,7 +70,7 @@ class StaticController < ApplicationController
           if flash.present?
             redirect_to signin_path
           else
-            redirect_to "#{Rails.env.production? ? 'https' : 'http'}://#{@company.etyme_url}/?email=#{params[:email]}"
+            redirect_to "#{Rails.env.production? ? 'https' : 'http'}://#{@company.etyme_url}/users/login?email=#{params[:email]}"
           end
         else
           flash.now[:errors] = ['No such domain in the system']
