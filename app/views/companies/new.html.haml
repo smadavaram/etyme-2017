@@ -8,6 +8,9 @@
   .companies-new--column
     %h4.auth-header Sign Up
 
+    - if notice.present?
+      %p.text-danger= notice
+
     = form_for @company , html: {id: 'new_user smart-form-register' , class: 'new_user' }  do |f|
       - if params[:register].present?
         = hidden_field_tag 'register_company', true

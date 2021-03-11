@@ -73,6 +73,13 @@ class CompaniesController < ApplicationController
 
   def set_domain
     company_domain = domain_from_email(owner_params[:email])
+
+    if FreeEmailProvider.exists?(domain_name: company_domain)
+      flash[:notice] = "#{company_domain} is a public email provider. Please use your company email!"
+      redirect_to register_path
+      return
+    end
+
     @company = Company.find_by(website: company_domain)
 
     return if params[:register_company]

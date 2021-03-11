@@ -4,7 +4,9 @@
     %label{:for => "user_email"} Email
     = email_field_tag :email,nil ,placeholder: 'Enter Work Email', required: true,class: 'form-control',id: 'user_email'
     .help-block.form-text.with-errors.form-control-feedback
-      %a{:href => "/register"} Don't have an account?
+      = link_to 'Forgot password?', new_user_password_path, class: "more-link"
+    .help-block.form-text.with-errors.form-control-feedback
+      = link_to "Don't have an account?", register_path, class: "more-link"
     .pre-icon.os-icon.os-icon-email-2-at2
   = submit_tag :continue, class: "float btn btn-primary form-btn"
 

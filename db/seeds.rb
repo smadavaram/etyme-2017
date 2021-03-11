@@ -8,33 +8,40 @@
 #   cities = City.create([{ name: 'Chicago' }, { name: 'Copenhagen' }])
 #   Mayor.create(name: 'Emanuel', city: cities.first)
 
-Permission.create(name: 'manage_jobs')
-Permission.create(name: 'manage_consultants')
-Permission.create(name: 'manage_contracts')
-Permission.create(name: 'manage_company')
-Permission.create(name: 'manage_vendors')
-Permission.create(name: 'manage_company_docs')
-Permission.create(name: 'send_job_invitations')
-Permission.create(name: 'manage_job_invitations')
-Permission.create(name: 'manage_job_applications')
-Permission.create(name: 'create_new_contracts')
-Permission.create(name: 'edit_contracts_terms')
-Permission.create(name: 'show_contracts_details')
-Permission.create(name: 'show_invoices')
-Permission.create(name: 'manage_timesheets')
-Permission.create(name: 'manage_leaves')
-Permission.create(name: 'reversal_transaction')
-Permission.create(name: 'manage_all')
+if Permission.count.zero?
+  Permission.create(name: 'manage_jobs')
+  Permission.create(name: 'manage_consultants')
+  Permission.create(name: 'manage_contracts')
+  Permission.create(name: 'manage_company')
+  Permission.create(name: 'manage_vendors')
+  Permission.create(name: 'manage_company_docs')
+  Permission.create(name: 'send_job_invitations')
+  Permission.create(name: 'manage_job_invitations')
+  Permission.create(name: 'manage_job_applications')
+  Permission.create(name: 'create_new_contracts')
+  Permission.create(name: 'edit_contracts_terms')
+  Permission.create(name: 'show_contracts_details')
+  Permission.create(name: 'show_invoices')
+  Permission.create(name: 'manage_timesheets')
+  Permission.create(name: 'manage_leaves')
+  Permission.create(name: 'reversal_transaction')
+  Permission.create(name: 'manage_all')
+end
 
-Currency.create(name: 'USD')
+unless Currency.exists?(name: 'USD')
+  Currency.create(name: 'USD')
+end
 
 # Default Users
 user = User.find_by(email: 'hradmin@cloudepa.com')
 unless user.present?
-  user = User.create(
-    first_name: 'Haritha', last_name: 'Lokineni',
-    email: 'hradmin@cloudepa.com', type: 'Admin',
-    password: 'Hr@dm!n#2021', password_confirmation: 'Hr@dm!n#2021',
+  user = User.create!(
+    first_name: 'Haritha',
+    last_name: 'Lokineni',
+    email: 'hradmin@cloudepa.com',
+    type: 'Admin',
+    password: 'Hr@dm!n#2021',
+    password_confirmation: 'Hr@dm!n#2021',
     confirmed_at: DateTime.current
   )
 end
@@ -54,4 +61,17 @@ end
 # Package.create(id: 4, name: "Platinum", price: 60.0,  duration: 30)
 # Package.create(id: 5, name: "Monthly",                duration: 30)
 
-AdminUser.create!(email: 'sharath@demoetyme.com', password: 'Adm!n#2@21', password_confirmation: 'Adm!n#2@21') if Rails.env.development?
+unless AdminUser.exists?(email: 'sharath@demoetyme.com')
+  AdminUser.create!(email: 'sharath@demoetyme.com', password: 'Adm!n#2@21', password_confirmation: 'Adm!n#2@21') if Rails.env.development?
+end
+
+if FreeEmailProvider.count.zero?
+  free_email_providers = []
+
+  File.readlines(Rails.root.join('db', 'free_email_provider_domains.txt')).each do |line|
+    # puts line
+    free_email_providers  << { domain_name: line.gsub("\n", ""), published: true }
+  end
+
+  FreeEmailProvider.create(free_email_providers)
+end

@@ -1173,11 +1173,6 @@ GEM
       loofah (~> 2.2, >= 2.2.2)
     rails-jquery-autocomplete (1.0.5)
       rails (>= 3.2)
-    rails_12factor (0.0.3)
-      rails_serve_static_assets
-      rails_stdout_logging
-    rails_serve_static_assets (0.0.5)
-    rails_stdout_logging (0.0.5)
     railties (5.1.2)
       actionpack (= 5.1.2)
       activesupport (= 5.1.2)
@@ -1427,7 +1422,6 @@ DEPENDENCIES
   rails-assets-tether (>= 1.1.0)!
   rails-erd
   rails-jquery-autocomplete
-  rails_12factor
   ransack
   rbnacl (< 5.0)
   rbnacl-libsodium

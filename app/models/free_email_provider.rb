@@ -1,0 +1,2 @@
+class FreeEmailProvider < ApplicationRecord
+end
