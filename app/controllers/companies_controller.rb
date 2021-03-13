@@ -25,6 +25,7 @@ class CompaniesController < ApplicationController
   def create
     @company = Company.new(company_params.merge(website: domain_from_email(owner_params[:email])))
     @company.owner.confirmed_at = DateTime.now
+
     if @company.save
       render 'companies/signup_success', layout: 'static'
     else
@@ -138,6 +139,8 @@ class CompaniesController < ApplicationController
 
   def create_user
     @user = @company.users.new(owner_params)
+    role = @company.roles.find_by(name: "Manager")
+    @user.roles << role
 
     if @user.save
       redirect_to register_path, success: 'We have sent you an email confirmation email.'
