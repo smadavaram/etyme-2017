@@ -17,7 +17,10 @@ class Company::AdminsController < Company::BaseController
 
   def index
     add_breadcrumb 'Admins', admins_path, options: { title: 'Admins' }
-    @search = current_company.admins.search(params[:q])
+    #@search = current_company.admins.search(params[:q])
+    #@admins = @search.result.order(created_at: :desc).includes(:roles).paginate(page: params[:page], per_page: 30) || []
+    
+    @search = current_company.users.search(params[:q])
     @admins = @search.result.order(created_at: :desc).includes(:roles).paginate(page: params[:page], per_page: 30) || []
   end
 
