@@ -21,7 +21,7 @@ class CompanyDirectoryDatatable < ApplicationDatatable
         id: record.id,
         domain: record.company&.website,
         name: company_user_profile(record),
-        title: record.type,
+        title: company_user_role(record),
         roles_permissions: 'TBD',
         reminder_note: reminder_note(record),
         contact: contact_icon(record),
@@ -40,6 +40,12 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   def company_user_profile(user)
     (link_to user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: user.full_name&.to_s), company_user_profile_path(user)) +
       link_to(do_ellipsis(user.first_name), company_user_profile_path(user), class: 'pl-2')
+  end
+
+  def company_user_role(user)
+    return user.type unless user.type.nil?
+
+    user.roles.map(&:name).join(", ").gsub("_"," ")
   end
 
   def reminder_note(record)

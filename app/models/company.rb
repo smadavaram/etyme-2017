@@ -144,7 +144,7 @@ class Company < ApplicationRecord
   after_create :set_owner_company_id, if: proc { |com| com.owner.present? }
   # after_create :welcome_email_to_owner, if: Proc.new { |comp| !comp.invited_by.present? }
   after_create :create_defult_roles
-  after_create :create_associated_roles
+  #after_create :create_associated_roles
   after_create :send_owner_password_reset_email, if: proc { |com| com.owner.present? }
   # after_create  :set_account_on_seq
 
@@ -256,7 +256,7 @@ class Company < ApplicationRecord
   end
 
   def directory
-    User.left_outer_joins(:company_contacts).where('users.company_id = ? OR company_contacts.company_id = ?', id, id)
+    User.left_outer_joins(:company_contacts).where('users.company_id = ? OR company_contacts.company_id = ?', self.id, self.id)
   end
 
   private

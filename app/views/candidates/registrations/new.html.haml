@@ -17,7 +17,7 @@
     %label{:for => "user_email"} Email
     = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'form-control field',onblur: 'validate_email();'
     .help-block.form-text.with-errors.form-control-feedback
-      %a{:href => "#{new_candidate_session_path}"}  have an account?
+      = link_to 'Already have an account?', new_candidate_session_path  
     .pre-icon.os-icon.os-icon-email-2-at2
   .form-group.field-group
     %label{:for => "user_password"} Password

@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Candidates::RegistrationsController < Devise::RegistrationsController
+  include DomainExtractor
+
   # before_action :configure_sign_up_params, only: [:create]
   # before_action :configure_account_update_params, only: [:update]
   before_action :configure_permitted_parameters
@@ -17,10 +19,20 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
   # POST /resource
   def create
     # resource.invitsde!(configure_permitted_parameters , current_user)
+
+    candidate_domain = domain_from_email(sign_up_params[:email])
+
+    unless FreeEmailProvider.exists?(domain_name: candidate_domain)
+      flash[:notice] = "#{candidate_domain} is a company email domain. Please use your personal public email!"
+      redirect_to new_candidate_registration_path
+      return
+    end
+
     build_resource(sign_up_params)
 
     resource.save
     yield resource if block_given?
+
     if resource.persisted?
       if resource.active_for_authentication?
         set_flash_message! :notice, :signed_up
@@ -91,12 +103,29 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
   # my custom fields are :first_name, :last_name
   def configure_permitted_parameters
     devise_parameter_sanitizer.permit(:sign_up) do |u|
-      u.permit(:first_name, :last_name,
-               :email, :invited_by, :invited_by_id, :invitation_type, :invited_by_type, :job_id, :expiry, :message, :password, :password_confirmation)
+      u.permit(
+        :first_name,
+        :last_name,
+        :email,
+        :invited_by,
+        :invited_by_id,
+        :invitation_type,
+        :invited_by_type,
+        :job_id,
+        :expiry,
+        :message,
+        :password,
+        :password_confirmation)
     end
+
     devise_parameter_sanitizer.permit(:account_update) do |u|
-      u.permit(:first_name, :last_name,
-               :email, :password, :password_confirmation, :current_password)
+      u.permit(
+        :first_name,
+        :last_name,
+        :email,
+        :password,
+        :password_confirmation,
+        :current_password)
     end
   end
 end
