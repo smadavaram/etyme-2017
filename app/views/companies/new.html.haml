@@ -33,6 +33,8 @@
           %label{:for => "user_email"} Email
           = u.email_field :email, :placeholder => "Your Email", required: true, id: 'user_email', email: true, class: ' user_email form-control field', value: params[:email]
           .help-block.form-text.with-errors.form-control-feedback
+            = link_to 'Forgot password?', new_user_password_path, class: "more-link"
+          .help-block.form-text.with-errors.form-control-feedback
             = link_to "Already have Account?",signin_path ,class: " more-link"
             .pre-icon.os-icon.os-icon-email-2-at2
 
