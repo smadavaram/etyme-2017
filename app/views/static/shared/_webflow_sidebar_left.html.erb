@@ -6,7 +6,7 @@
               <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "static_feeds") ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
                   <%= image_tag(image_path('sidebar-home.svg'), class: "mr-3") %>
                   <%= image_tag(image_path('sidebar-home-active.svg'), class: "mr-3") %>
-                  Home
+                  Feed
               </a>
               <a class="nav-link sidebar-link <%= params[:controller] == "static/jobs" &&  (params[:action] == "index" || params[:action] == "show") ? "active" : ""  %>" href="<%= static_jobs_path %>">
                   <%= image_tag(image_path('sidebar-jobs.svg'), class: "mr-3") %>
@@ -16,7 +16,7 @@
               <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "people") || (params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile") ? "active" : ""  %>" href="<%= static_people_path %>">
                   <%= image_tag(image_path('sidebar-people.svg'), class: "mr-3") %>
                   <%= image_tag(image_path('sidebar-people-active.svg'), class: "mr-3") %>
-                  People
+                  Talent Pool
               </a>
           </div>
       </div>
