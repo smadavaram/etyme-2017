@@ -31,7 +31,7 @@ role :app, %w[deploy@143.198.24.253]
 role :web, %w[deploy@143.198.24.253]
 role :db,  %w[deploy@143.198.24.253]
 set :deploy_to, "/home/deploy/apps/#{fetch(:application)}"
-set :branch, 'release'
+set :branch, 'development'
 
 set :stage, :production
 

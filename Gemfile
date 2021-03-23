@@ -92,6 +92,7 @@ gem 'better_errors' # , '~> 1.1.0'
 group :development do
   gem 'rubocop', '~> 0.78.0', require: false
   gem 'rubocop-performance'
+  gem 'dotenv-rails', '~> 2.7', '>= 2.7.6'
 end
 
 group :development, :test do
