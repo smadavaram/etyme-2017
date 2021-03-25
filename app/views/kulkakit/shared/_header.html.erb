@@ -1,26 +1,19 @@
 <label class="toggle" for="toggle"></label>
 <div class="mx-2 mb-md-0 login-btns text-right d-flex justify-content-around">
   <% if current_candidate.present? %>
-      <button class="btn-header" type="button">
-        <%= link_to candidate_candidate_dashboard_path do %>
-          <%= image_tag(image_path('bell.svg')) %>
-        <% end %>
+    <div class="dropdown dropdown-container d-flex justify-content-end">
+      <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+        <i class="fa fa-plus-circle" aria-hidden="true"></i>
       </button>
-      <button class="btn-header" type="button">
-        <%= link_to candidate_candidate_dashboard_path do %>
-          <%= image_tag(image_path('messages.svg')) %>
-        <% end %>
-      </button>
-      <button class="btn-header" type="button">
-        <%= link_to candidate_candidate_dashboard_path do %>
-          <%= image_tag(image_path('plus.svg')) %>
-        <% end %>
-      </button>
-      <button class="btn-header" type="button">
-        <%= link_to candidate_candidate_dashboard_path do %>
-          <%= image_tag(image_path('dashboard.svg')) %>
-        <% end %>
-      </button>
+      <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
+        <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostModal">
+          Question
+        </button>
+        <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostJobModal">
+          Job
+        </button>
+      </ul>
+    </div>
     <div class="d-inline-block mx-1 dropdown">
       <div class="avatar-header" data-toggle="dropdown">
         <div class="avatar-50">
@@ -31,32 +24,26 @@
         </div>
       </div>
       <div class="dropdown-menu">
+        <%= link_to 'Dashboard', candidate_candidate_dashboard_path , class: 'dropdown-item' %>
         <%= link_to 'Onboarding', onboarding_profile_path , class: 'dropdown-item' %>
         <%= link_to 'Profile', my_profile_path , class: 'dropdown-item' %>
         <%= link_to "Logout", destroy_candidate_session_path, method: :delete, class: 'dropdown-item' %>
       </div>
     </div>
   <% elsif current_user.present? %>
-      <button class="btn-header" type="button">
-        <%= link_to dashboard_path do %>
-          <%= image_tag(image_path('bell.svg')) %>
-        <% end %>
+    <div class="dropdown dropdown-container d-flex justify-content-end">
+      <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+        <i class="fa fa-plus-circle" aria-hidden="true"></i>
       </button>
-      <button class="btn-header" type="button">
-        <%= link_to dashboard_path do %>
-          <%= image_tag(image_path('messages.svg')) %>
-        <% end %>
-      </button>
-      <button class="btn-header" type="button">
-        <%= link_to dashboard_path do %>
-          <%= image_tag(image_path('plus.svg')) %>
-        <% end %>
-      </button>
-      <button class="btn-header" type="button">
-        <%= link_to dashboard_path do %>
-          <%= image_tag(image_path('dashboard.svg')) %>
-        <% end %>
-      </button>
+      <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
+        <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostModal">
+          Question
+        </button>
+        <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostJobModal">
+          Job
+        </button>
+      </ul>
+    </div>
     <div class="d-inline-block mx-1 dropdown">
       <div class="avatar-header" data-toggle="dropdown">
         <div class="avatar-50">
@@ -67,8 +54,9 @@
         </div>
       </div>
       <div class="dropdown-menu">
-        <%= link_to 'Onboarding', company_path(current_company,onboarding: true) , class: 'dropdown-item' %>
-        <%= link_to 'Profile', company_user_path(current_user) , class: 'dropdown-item' %>
+        <%= link_to 'Dashboard', dashboard_path, class: 'dropdown-item' %>
+        <%= link_to 'Onboarding', company_path(current_company,onboarding: true), class: 'dropdown-item' %>
+        <%= link_to 'Profile', company_user_path(current_user), class: 'dropdown-item' %>
         <%= link_to "Logout", destroy_user_session_path, method: :delete, class: 'dropdown-item' %>
       </div>
     </div>

@@ -1045,6 +1045,11 @@ span:hover {
 .content-wrapper .dropdown-container {
     // position: relative;
     // cursor: pointer;
+
+    button.job-feed-plus-icon {
+      font-size: 24px; 
+      color: blue;
+    }
 }
 
 .content-wrapper .select-filter {
