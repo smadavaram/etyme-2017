@@ -16,7 +16,7 @@
         <div class="pl-1 pr-3 d-flex flex-column justify-content-between flex-fill">
           <div class="row justify-content-between">
             <div class="col-12 col-md-6 col-lg-7 text-md-left d-flex align-self-center">
-              <h3 class="feed-article-title"><%= link_to truncate(job.title,length: 50) ,static_job_path(job)%></h3>
+              <h3 class="feed-article-title"><%= link_to truncate(job.title,length: 50) ,static_job_path(job, type: 'job')%></h3>
             </div>
             <% if job.job_category.present? %>
               <div class="hidden-xs col-12 col-md-6 col-lg-5 text-center text-md-right">

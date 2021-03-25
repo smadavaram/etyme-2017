@@ -8,7 +8,7 @@
       </div>
       <div class="pl-1 pr-3 flex-fill">
         <div class="col-12 px-0">
-          <h5 class="feed-article-title"><%= link_to truncate(job.title, lenght: 50), static_job_path(job) %></h5>
+          <h5 class="feed-article-title"><%= link_to truncate(job.title, lenght: 50), static_job_path(job, type: 'feed') %></h5>
           <div class="feed-article-description pb-2">
             <%= truncate(strip_tags(job.description), length: 200) if job.description.present? %>
           </div>
