@@ -7,13 +7,17 @@
 
   <!-- Header: Title, updated, share, save and buy -->
   <div class="product-single-header">
-    <div>
+    <div class="feed-title">
       <h1><%= @job.title %></h1>  
       <span><i class="fa fa-clock-o mr-1" aria-hidden="true"></i> <%= "Created On #{@job.created_at.strftime('%B %e, %Y')}" %></span>
       <a href="#" >Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
       <a href="#" >Save this <i class="fa fa-heart ml-1" aria-hidden="true"></i></a>
     </div>
-    <a href="#" class="product-single-buy">Apply Now</a>
+    <div class="product-single-buy">
+      <span class="feed-article-btn-apply">
+        <%= link_to "Apply Now", static_job_apply_path(@job, status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true } %>
+      </span>
+    </div>
   </div>
 
   <!-- Thumbnails -->
