@@ -4,9 +4,11 @@ class Candidate < ApplicationRecord
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
-         :recoverable, :rememberable, :trackable # , :confirmable
+         :recoverable, :rememberable, :trackable, :confirmable
+
   validates :first_name, presence: true
   validates :last_name, presence: true
+
   has_paper_trail only: [:address]
 
 

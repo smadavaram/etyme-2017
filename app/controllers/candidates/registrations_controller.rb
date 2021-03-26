@@ -23,7 +23,7 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
     candidate_domain = domain_from_email(sign_up_params[:email])
 
     unless FreeEmailProvider.exists?(domain_name: candidate_domain)
-      flash[:notice] = "#{candidate_domain} is a company email domain. Please use your personal public email!"
+      flash[:notice] = "#{candidate_domain} is a work email. Please use your personal public email!"
       redirect_to new_candidate_registration_path
       return
     end
