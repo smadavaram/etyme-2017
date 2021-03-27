@@ -56,9 +56,9 @@ class Company::PreferVendorsController < Company::BaseController
 
         if params[:Candidates] == 'on'
           if params[:address].blank?
-             @data += apply_scopes(@search_scop_on ? current_company.candidates_companies.hot_candidate.joins(:candidate).where(company_id: Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id))).select('candidates.*') : Candidate.where(confirmed_at: nil))
+             @data += apply_scopes(@search_scop_on ? current_company.candidates_companies.hot_candidate.joins(:candidate).where(company_id: Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id))).select('candidates.*') : Candidate.where.not(confirmed_at: nil))
            else
-             @data += apply_scopes(@search_scop_on ? current_company.candidates_companies.hot_candidate.joins(:candidate).where(company_id: Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id))).select('candidates.*') : Candidate.where(confirmed_at: nil)).near(params['address'])
+             @data += apply_scopes(@search_scop_on ? current_company.candidates_companies.hot_candidate.joins(:candidate).where(company_id: Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id))).select('candidates.*') : Candidate.where.not(confirmed_at: nil)).near(params['address'])
            end
         end
 
