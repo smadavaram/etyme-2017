@@ -54,46 +54,45 @@
       .row.pl-3.pt-2
         .col-md-2
           - if params[:company].blank?
-            %input{:type => "checkbox", :name => "company",class: "market_place_field" }Agency/Vendor
+            %input{:type => "checkbox", :name => "company",class: "market_place_field" } Agency/Vendor
           - else
-            %input{:type => "checkbox", :name => "company",class: "market_place_field",checked: true }Agency/Vendor
+            %input{:type => "checkbox", :name => "company",class: "market_place_field",checked: true } Agency/Vendor
         .col-md-2
           - if params[:Candidates].blank?
-            %input{:type => "checkbox", :name => "Candidates",class: "market_place_field"}Candidates(S)
+            %input{:type => "checkbox", :name => "Candidates",class: "market_place_field"} Candidates(S)
           - else
-            %input{:type => "checkbox", :name => "Candidates",class: "market_place_field",checked: true}Candidates(S)
+            %input{:type => "checkbox", :name => "Candidates",class: "market_place_field",checked: true} Candidates(S)
         .col-md-1
           - if params[:Jobs].blank?
-            %input{:type => "checkbox", :name => "Jobs",class: "market_place_field"}Jobs
+            %input{:type => "checkbox", :name => "Jobs",class: "market_place_field"} Jobs
           - else
-            %input{:type => "checkbox", :name => "Jobs",class: "market_place_field",checked: true}Jobs
+            %input{:type => "checkbox", :name => "Jobs",class: "market_place_field",checked: true} Jobs
         .col-md-2
           - if params[:product].blank?
-            %input{:type => "checkbox", :name => "product",class: "market_place_field", value: 'Product'}Products
+            %input{:type => "checkbox", :name => "product",class: "market_place_field", value: 'Product'} Products
           - else
-            %input{:type => "checkbox", :name => "product",class: "market_place_field",checked: true, value: 'Product'}Products
+            %input{:type => "checkbox", :name => "product",class: "market_place_field",checked: true, value: 'Product'} Products
         .col-md-2
           -if params[:service].blank?
-            %input{:type => "checkbox", :name => "service",class: "market_place_field", value: 'Service'}Services
+            %input{:type => "checkbox", :name => "service",class: "market_place_field", value: 'Service'} Services
           - else
-            %input{:type => "checkbox", :name => "service",class: "market_place_field",checked: true, value: 'Service'}Services
+            %input{:type => "checkbox", :name => "service",class: "market_place_field",checked: true, value: 'Service'} Services
         .col-md-2
           - if params[:training].blank?
-            %input{:type => "checkbox", :name => "training",class: "market_place_field",value: 'Training'}Trainings
+            %input{:type => "checkbox", :name => "training",class: "market_place_field",value: 'Training'} Trainings
           - else
-            %input{:type => "checkbox", :name => "training",class: "market_place_field",checked: true, value: 'Training'}Trainings
+            %input{:type => "checkbox", :name => "training",class: "market_place_field",checked: true, value: 'Training'} Trainings
 
 
     .container
       .row
         .col-sm-12
           .element-wrapper
-            - if current_company.vendor?
-              - if @data.present?
-                .row
-                  - @data.each do |d|
-                    .col-md-6#dynamic-content{style: "width: 100%;"}
-                      = render "company/users/partials/#{d.class.name.downcase}_show" ,data: d,cached: true
+            - if current_company.vendor? && @data.present?
+              .row
+                - @data.each do |d|
+                  .col-md-6#dynamic-content{style: "width: 100%;"}
+                    = render "company/users/partials/#{d.class.name.downcase}_show", data: d, cached: true
 
 
 -content_for :scripts do

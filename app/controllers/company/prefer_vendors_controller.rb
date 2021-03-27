@@ -53,15 +53,15 @@ class Company::PreferVendorsController < Company::BaseController
 
                    end
         end
+
         if params[:Candidates] == 'on'
-          @data += if params[:address].blank?
-                     apply_scopes(@search_scop_on ?
-                                               current_company.candidates_companies.hot_candidate.joins(:candidate).where(company_id: Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id))).select('candidates.*') :
-                                               Candidate.all)
-                   else
-                     apply_scopes(@search_scop_on ? current_company.candidates_companies.hot_candidate.joins(:candidate).where(company_id: Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id))).select('candidates.*') : Candidate.all).near(params['address'])
-                   end
+          if params[:address].blank?
+             @data += apply_scopes(@search_scop_on ? current_company.candidates_companies.hot_candidate.joins(:candidate).where(company_id: Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id))).select('candidates.*') : Candidate.where(confirmed_at: nil))
+           else
+             @data += apply_scopes(@search_scop_on ? current_company.candidates_companies.hot_candidate.joins(:candidate).where(company_id: Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id))).select('candidates.*') : Candidate.where(confirmed_at: nil)).near(params['address'])
+           end
         end
+
         if params[:company] == 'on'
           @data += if params[:address].blank?
                      apply_scopes(@search_scop_on ? Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id)) : Company.all)
@@ -71,6 +71,7 @@ class Company::PreferVendorsController < Company::BaseController
 
                    end
         end
+
         @data = @data.sort { |y, z| z.created_at <=> y.created_at }
       end
     end
