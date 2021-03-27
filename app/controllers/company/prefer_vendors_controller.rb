@@ -63,13 +63,12 @@ class Company::PreferVendorsController < Company::BaseController
         end
 
         if params[:company] == 'on'
-          @data += if params[:address].blank?
-                     apply_scopes(@search_scop_on ? Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id)) : Company.all)
-                   else
-                     # @data += apply_scopes(@search_scop_on ? Address.near('lahire').joins(locations: :company).where(companies: {id: current_company.prefer_vendors.accepted.pluck(:vendor_id)}))
-                     apply_scopes(@search_scop_on ? Address.near(params['address']).joins(locations: :company).where(companies: { id: current_company.prefer_vendors.accepted.pluck(:vendor_id) }).select('companies.*') : Address.near(params['address']).joins(locations: :company).select('companies.*'))
-
-                   end
+          if params[:address].blank?
+             @data += apply_scopes(@search_scop_on ? Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id)) : Company.all)
+           else
+             # @data += apply_scopes(@search_scop_on ? Address.near('lahire').joins(locations: :company).where(companies: {id: current_company.prefer_vendors.accepted.pluck(:vendor_id)}))
+             @data += apply_scopes(@search_scop_on ? Address.near(params['address']).joins(locations: :company).where(companies: { id: current_company.prefer_vendors.accepted.pluck(:vendor_id) }).select('companies.*') : Address.near(params['address']).joins(locations: :company).select('companies.*'))
+           end
         end
 
         @data = @data.sort { |y, z| z.created_at <=> y.created_at }
