@@ -88,11 +88,11 @@
       .row
         .col-sm-12
           .element-wrapper
-            - if current_company.vendor? && @data.present?
-              .row
-                - @data.each do |d|
-                  .col-md-6#dynamic-content{style: "width: 100%;"}
-                    = render "company/users/partials/#{d.class.name.downcase}_show", data: d, cached: true
+            -# if current_company.vendor? && @data.present?
+            .row
+              - @data.each do |d|
+                .col-md-6#dynamic-content{style: "width: 100%;"}
+                  = render "company/users/partials/#{d.class.name.downcase}_show", data: d, cached: true
 
 
 -content_for :scripts do
