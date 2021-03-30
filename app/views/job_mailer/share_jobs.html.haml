@@ -41,7 +41,8 @@
               - @link_list.each do |link|
                 %tr
                   %td
-                    = link_to link[:title], link[:job_link]
+                    %a{ clicktracking: 'off', href: link[:job_link] }
+                      = link[:title]
                   %td
                     = link[:category]
                   %td
