@@ -1320,9 +1320,9 @@ module ApplicationHelper
     return if user.nil?
 
     if user.photo&.present?
-      image_tag(user.photo, alt: image_alt(user)).html_safe
+      image_tag(user.photo, alt: image_alt(user), class: 'figure-img img-fluid rounded-circle').html_safe
     else
-      image_tag(asset_path('avatars/male.png'), alt: "user").html_safe
+      image_tag(asset_path('avatars/male.png'), alt: "user", class: 'figure-img img-fluid rounded-circle').html_safe
     end
   end
 

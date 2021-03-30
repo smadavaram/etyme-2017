@@ -1,6 +1,6 @@
 <div class="sidebar-right col-xl-3 d-block align-right">
-  <div class="mb-3">
-    <div class="row align-items-center justify-content-between">
+  <div class="talent-pool">
+    <div class="row mb-3 align-items-center justify-content-between">
       <div class="sidebar-right-header col-8">
         <p class="m-0 f-18 f-mon-sembol">Talent Pool</p>
       </div>
@@ -9,28 +9,23 @@
       </div>
     </div>
     <% if @candidates_hot.present? %>
-      <div class="col-12 p-0 follower-list">
-        <ul class="list-unstyled mt-3">
-          <% @candidates_hot.each do |c| %>
-           <li class="d-block mb-3">
-              <div class="media p-3 follower-block d-flex align-items-center">
-                <div class="webflow-avatar-50-50 mr-2">
-                  <%= user_avatar(c&.candidate) %>
-                  <%# <%= image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/male.png') : c.candidate.photo }", alt: "user" %1> %>
-                </div>
-                <div class="media-body ">
-                  <h5 class="candidate-name mt-0"><%= "#{c.candidate.full_name}" %>
-                    <% if is_verify(!!c.candidate.confirmed_at) == "verified" %>
-                      <%= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %></h5>
-                    <% end %>
-                  <% if c&.candidate&.candidate_title.present? %>
-                    <p class="candidate-title m-0"  title="<%= c.candidate.candidate_title %>"><%= do_ellipsis(c&.candidate&.candidate_title,20) %></p>
-                  <% end %>
-                </div>
-              </div>
-            </li>
-          <% end %>
-        </ul>
+      <div class="row justify-content-start">
+        <% @candidates_hot.each do |c| %>
+          <div class="col-4">
+            <figure class="figure">
+              <div class="d-flex justify-content-center"><%= user_avatar(c&.candidate) %></div>
+              <figcaption class="figure-caption text-center">
+                <h5 class="candidate-name mt-0"><%= c&.candidate&.full_name %></h5>
+                <% if is_verify(!!c.candidate.confirmed_at) == "verified" %>
+                  <%= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
+                <% end %>
+                <% if c&.candidate&.candidate_title.present? %>
+                  <p class="candidate-title m-0"  title="<%= c.candidate.candidate_title %>"><%= do_ellipsis(c&.candidate&.candidate_title,20) %></p>
+                <% end %>
+              </figcaption>
+            </figure>
+          </div>
+        <% end %>
       </div>
     <% end %>
   </div>
