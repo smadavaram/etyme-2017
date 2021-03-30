@@ -91,6 +91,6 @@ class UserMailer < ApplicationMailer
   end
 
   def self.exception_admins
-    ['hamad@enginetech.io', 'tanays.tps@gmail.com', 'parulk.tps@gmail.com']
+    ENV['EXCEPTION_NOTIFICATION_EMAILS'].split(' ')
   end
 end

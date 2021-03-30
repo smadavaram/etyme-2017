@@ -32,3 +32,6 @@ yarn.lock
 ngrok
 
 *.pem
+
+.env
+

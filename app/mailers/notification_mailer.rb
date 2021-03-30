@@ -16,6 +16,6 @@ class NotificationMailer < ApplicationMailer
 
   def send_csv(csv)
     attachments['aggregate_salary.csv'] = { mime_type: 'text/csv', content: csv }
-    mail(to: 'tanays.tps@gmail.com', subject: 'My subject')
+    mail(to: ENV['CSV_NOTIFICATION_EMAIL'], subject: 'My subject')
   end
 end
