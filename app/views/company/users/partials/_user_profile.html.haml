@@ -30,7 +30,8 @@
                             %source{:src => user.video, :type => "#{user.video_type}"}
                         -else
                           = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
-                        = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1"
+                        %br
+                        = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1 mt-3"
 
 
             .col-sm-12.col-md-12.col-lg-9
