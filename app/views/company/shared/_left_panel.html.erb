@@ -2,11 +2,11 @@
   <div class="os-icon os-icon-hamburger-menu-1"></div>
 </div>
 <script>
-    function toglleMenu() {
-        var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
-        document.querySelector('#togglebutton').classList.toggle('leftChanged');
-        $('.lpm').hide();
-    }
+  function toglleMenu() {
+    var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
+    document.querySelector('#togglebutton').classList.toggle('leftChanged');
+    $('.lpm').hide();
+  }
 </script>
 <div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
   <div class="logged-user-w avatar-inline p-1 m-1">
@@ -18,12 +18,10 @@
         <div class="logged-user-name">
           <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
         </div>
-        <!--div class="logged-user-role">My Team</div-->
       </div>
     </div>
   </div>
   <div class="logged-user-w avatar-inline pl-4 pt-0 pr-0">
-    <!--    <div class="side-bar_nav w-100" style="height: 450px;overflow-y: auto;">-->
     <div id="side-bar-nav" class="side-bar_nav w-100 pr-2" style="height: calc(100vh - 136px);overflow-y: auto;">
       <a href="/dashboard" class="ln-1 side-bar_tab side-bar_links">
         <div class="icon-w">
@@ -31,27 +29,6 @@
         </div>
         <span>Home</span>
       </a>
-<!--      <a href="<%#= company_conversations_path %>" class="ln-2 side-bar_tab side-bar_links" target="_blank">-->
-<!--        <div class="icon-w">-->
-<!--          <i class="os-icon os-icon-mail-14"></i>-->
-<!--        </div>-->
-<!--        <span>Inbox</span>-->
-<!--      </a>-->
-<!--      <a class="ln-3 sidebar_collapsible side-bar_tab">-->
-<!--        <div class="icon-w">-->
-<!--          <i class="ti-world"></i>-->
-<!--        </div>-->
-<!--        <span>Network</span>-->
-<!--      </a>-->
-<!--      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">-->
-<!--        <a href="<%#= groups_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>-->
-<!--        <a href="<%#= directories_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">My Directory</a>-->
-<!--        <a href="<%#= candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Candidates</a>-->
-        <%# if has_permission?('manage_company') %>
-<!--          <a href="<%#= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>-->
-        <%# end %>
-<!--        <a href="<%#= company_contacts_company_companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>-->
-<!--      </div>-->
       <a class="ln-3 sidebar_collapsible side-bar_tab">
         <div class="icon-w">
           <i class="ti-world"></i>
@@ -79,8 +56,7 @@
         <% if has_permission?('manage_vendors') %>
           <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom">Clients / Vendors</a>
         <% end %>
-        <a href="<%= vendor_activity_prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Vendor
-          Activity</a>
+        <a href="<%= vendor_activity_prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom">Vendor Activity</a>
       </div>
       <a class="ln-5 sidebar_collapsible side-bar_tab">
         <div class="icon-w">
@@ -112,7 +88,6 @@
         <% end %>
       </div>
       <% if has_permission?('manage_contracts') %>
-
         <a class="ln-7 sidebar_collapsible side-bar_tab">
           <div class="icon-w">
             <i class="os-icon os-icon-hierarchy-structure-2"></i>
@@ -136,8 +111,7 @@
         <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
           <a href="<%= timesheets_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Timesheets</a>
           <a href="<%= client_timesheets_timesheets_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Appointments</a>
-          <a href="<%= client_expenses_path %>" class="l2 side-bar_links nested_tab boarder_bottom"> Client
-            Expenses</a>
+          <a href="<%= client_expenses_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Client Expenses</a>
         </div>
       <% end %>
       <a class="ln-9 sidebar_collapsible side-bar_tab" id="accounting_tab">
@@ -162,33 +136,9 @@
       </a>
       <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%=sites_jobs_iframe_path%>">Iframe</a>
-<!--        <a class="l2 side-bar_links nested_tab boarder_bottom" href="#">Templates</a>-->
-<!--        <a class="l2 side-bar_links nested_tab boarder_bottom" href="#">Settings</a>-->
         <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= sites_jobs_preview_path %>">Preview</a>
       </div>
-
-
     </div>
-    <!-- <div class="side-bar_icons">
-      <a class="left_project_menue_icon">
-        <div class="icon-w">
-          <i class="ti-plus"></i>
-        </div>
-      </a>
-      <a href="<%#= marketplace_path(company: 'on', 'search_by[term]': '', 'search_scope': '') %>" class="ti-bar-chart">
-        <div class="icon-w"></div>
-      </a>
-      <a href="<%#=ENV['global_url'] %>">
-        <div class="icon-w">
-          <i class="fa fa-users"></i>
-        </div>
-      </a>
-      <a href="<%#= company_path(current_company) %>">
-        <div class="icon-w">
-          <i class="ti-settings"></i>
-        </div>
-      </a>
-    </div> -->
     <div style="color: lightgrey">
       <p><i>Powered by  <%= image_tag 'etyme-logo-dark.png', class: "img-responsive", width:"76" ,height:"30" %></i></p>
     </div>
