@@ -74,8 +74,8 @@
             Visa Status
           </div>
           <div class="information-value">
-            <% if @candidate.visa %>
-              <%= @candidate.visa %>
+            <% if @candidate.candidate_visa %>
+              <%= @candidate.candidate_visa %>
             <% else %>
               Unknown
             <% end %>
@@ -103,7 +103,10 @@
         </div>
       </div>
       <div class="profile-rate-value">
-        $75-$80/hr
+        $<%= @candidate.job_invitations.last.min_hourly_rate%>
+        -
+        <%= @candidate.job_invitations.last.max_hourly_rate%>       
+        /hr
       </div>
       <div class="profile-rate-label">
         Hourly rate
