@@ -37,40 +37,69 @@
                       %td.no-wrap
                         =link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),public_profile_static_candidates_path(c.candidate)
                         = link_to  do_ellipsis(c.candidate.try(:full_name).try(:titleize),10),public_profile_static_candidates_path(c.candidate),class: "pr-5"
-                      %td
-                        - if c.candidate.try(:roles).present?
-                          - c.candidate.try(:roles).each do |role|
-                            %span
-                              .label-info.badge
-                                = role.try(:name)
-                        = c.candidate.candidate_title
-                      %td
-                        - c.candidate.skills.each do |skill|
+                      = form_for "job_invitation" , url: update_bench_job_company_bench_jobs_path, html:{ class:'form-horizontal',id: "edit-candidate-val-#{c.candidate.id}"} do |f|
+                        %input{:type => "hidden", :name => "candidate_id", :value => c.candidate.id}
+                        %input{:type => "hidden", :name => "company_id", :value => c.company.id}
+                        %td
+                          - if c.candidate.try(:roles).present?
+                            - c.candidate.try(:roles).each do |role|
+                              %span{:id => "role_#{c.candidate.id}"}
+                                .label-info.badge
+                                  = role.try(:name)
+                          %span{:id => "title_#{c.candidate.id}"}
+                            = c.candidate.candidate_title
+                          %span{:id => "input_title_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "text", :name => "job_invitation[candidate_title]", :placeholder => "Role/Title", :class => "mb-2 wi-100", value: c.candidate.candidate_title}/
+                          %span{:id => "input_role_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "text", :name => "Title", :placeholder => "title", :class => "wi-100", value: c.candidate.candidate_title}/
+                        %td
+                          %span{:id => "skills_#{c.candidate.id}"}
+                            - c.candidate.skills.each do |skill|
+                              %span
+                                .label-info.badge.margin-bottom-5.badge-info
+                                  = skill.name
+                          %span{:id => "input_skills_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "text", :name => "job_invitation[skill_list]", :placeholder => "Add Skills Comma seperated", :class => "wi-100", 'data-role'=>'tagsinput',value: (c.candidate.skill_list.present? ? c.candidate.skill_list.join(", ") : "")} 
+                        %td
+                          %span{:id => "input_min_rate_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "number", :name => "job_invitation[min_hourly_rate]", :placeholder => "Min Hourly Rate", :id => "job_invitation_min_hourly_rate_index", :class => "wi-100", value: (@c_bench_job.present? ? @c_bench_job&.min_hourly_rate : "")}/
+                          %span{:id => "min_rate_#{c.candidate.id}"}
+                            = @c_bench_job.present? ? @c_bench_job&.min_hourly_rate : ""
+                        %td
+                          %span{:id => "input_max_rate_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "number", :name => "job_invitation[max_hourly_rate]", :placeholder => "Max Hourly Rate", :id => "job_invitation_max_hourly_rate_index", :class => "wi-100", value: (@c_bench_job.present? ? @c_bench_job&.max_hourly_rate : "")}/
+                          %span{:id => "max_rate_#{c.candidate.id}"}
+                            = @c_bench_job.present? ? @c_bench_job&.max_hourly_rate : ""
+                        %td
+                          %span{:id => "location_#{c.candidate.id}"}
+                            = c.candidate.try(:location)
+                          %span{:id => "input_location_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "text", :name => "job_invitation[location]", :placeholder => "eg.1806 Beechwood Drive, Pittsburgh", :id => "input_field_location_#{c.candidate.id}", :class => "wi-100 location", value: c.candidate.try(:location), :candidate_id => c.candidate.id}/
+                        %td
+                          %span{:id => "visa_#{c.candidate.id}"}
+                            = c.candidate.candidate_visa
+                          %span{:id => "input_visa_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "text", :name => "job_invitation[candidate_visa]", :placeholder => "Visa", :id => "", :class => "wi-100", value: c.candidate.candidate_visa}/
+                        %td
                           %span
-                            .label-info.badge.margin-bottom-5.badge-info
-                              = skill.name
+                            -if c.candidate.invited_by_user.present?
+                              %span{:id => "recuiter_#{c.candidate.id}"}
+                                .label-info.badge.margin-bottom-5.badge-info
+                                  = c.candidate.invited_by_user.full_name
+                            %span{:id => "select_recuiter_#{c.candidate.id}", :class => "d-none"}
+                              = select_tag "job_invitation[sender_id]", options_from_collection_for_select(current_company.users, :id, :full_name, c.candidate.invited_by_user.id)
                       %td
-                        = @c_bench_job.present? ? @c_bench_job&.min_hourly_rate : ""
-                      %td
-                        = @c_bench_job.present? ? @c_bench_job&.max_hourly_rate : ""
-                      %td
-                        = c.candidate.try(:location)
-                      %td
-                        = c.candidate.candidate_visa
-                      %td
-                        %span
-                          -if c.candidate.invited_by_user.present?
-                            .label-info.badge.margin-bottom-5.badge-info
-                              = c.candidate.invited_by_user.full_name
-                      %td
-                        = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
-                        = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: '',title: "#{c.candidate.full_name} Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                        = link_to raw("<i class='fa fa-eye'></i>") , static_candidate_resume_path(c.candidate) , class: '',title: "Detail Show" ,target: "_blank",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                        = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate) , remote:true,class: '',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                        = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: '',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                        = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(c.candidate) ,remote:true, method: :post ,  class: '',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                        = link_to raw("<i class='fa fa-pencil '></i>"), edit_job_invitation_company_bench_jobs_path(candidate_id: c.candidate.id, company_id: c.company.id), :remote => true, title: "Edit #{c.candidate.full_name}"
-
+                        %span{:id => "bench_action_#{c.candidate.id}"}
+                          = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
+                          = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: '',title: "#{c.candidate.full_name} Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-eye'></i>") , static_candidate_resume_path(c.candidate) , class: '',title: "Detail Show" ,target: "_blank",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate) , remote:true,class: '',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: '',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(c.candidate) ,remote:true, method: :post ,  class: '',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-pencil '></i>"), "#", title: "Edit #{c.candidate.full_name}", class: "edit_bench", candidate_id: c.candidate.id, company_id: c.company.id
+                          =# link_to raw("<i class='fa fa-pencil '></i>"), edit_job_invitation_company_bench_jobs_path(candidate_id: c.candidate.id, company_id: c.company.id), :remote => true, title: "Edit #{c.candidate.full_name}"
+                        %span{:id => "bench_action_edit_#{c.candidate.id}", :class => "d-none"}
+                          = link_to "save", "#", title: "Edit #{c.candidate.full_name}", :style => "color: white;", :class => "btn btn-primary save_bench_job", candidate_id: c.candidate.id, company_id: c.company.id
 :css
   .form-control
   {
@@ -167,4 +196,24 @@
           .search( this.value )
           .draw();
     } );
+    });
+
+%script{:src => "https://maps.google.com/maps/api/js?key=AIzaSyDplyJQu2eS1qNVdoBsGL4FGmJwMWFDDUQ&sensor=false&libraries=places"}
+- content_for :scripts do
+  :javascript
+    $(document).on("keyup", ".location", function(){
+      var candidate_id = $(this).attr("candidate_id");
+      var places = new google.maps.places.Autocomplete(document.getElementById('input_field_location_' + candidate_id));
+      google.maps.event.addListener(places, 'place_changed', function () {
+        var place = places.getPlace();
+        $("#post_ad_latitude").val(place.geometry.location.lat());
+        $("#post_ad_longitude").val(place.geometry.location.lng());
+      });
+  
+      var input = document.getElementById('input_field_location_' + candidate_id);
+      google.maps.event.addDomListener(input, 'keydown', function(event) {
+        if (event.keyCode === 13) {
+          event.preventDefault();
+        }
+      });
     });

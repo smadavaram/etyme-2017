@@ -28,4 +28,9 @@ class Admin < User
     end
     where conditions.flatten.inject(:or)
   end
+
+  def full_name
+    "#{first_name} #{last_name}"
+  end
+
 end

@@ -388,6 +388,7 @@ Rails.application.routes.draw do
       collection do
         get :edit_job_invitation
         patch :update_job_invitation
+        post :update_bench_job
       end
     end
     resources :job_receives, only: %i[index destroy]

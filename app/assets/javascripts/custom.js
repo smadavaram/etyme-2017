@@ -258,3 +258,29 @@ function handle_input(event, candidate) {
     });
 }
 
+$(document).on("click",'.edit_bench', function (e) {
+    var candidate_id = $(this).attr("candidate_id");
+    $("#title_"+candidate_id).hide();
+    $("#input_title_"+candidate_id).removeClass("d-none");
+    $("#role_"+candidate_id).hide();
+    // $("#input_role_"+candidate_id).removeClass("d-none");
+    $("#min_rate_"+candidate_id).hide();
+    $("#input_min_rate_"+candidate_id).removeClass("d-none");
+    $("#max_rate_"+candidate_id).hide();
+    $("#input_max_rate_"+candidate_id).removeClass("d-none");
+    $("#location_"+candidate_id).hide();
+    $("#input_location_"+candidate_id).removeClass("d-none");
+    $("#visa_"+candidate_id).hide();
+    $("#input_visa_"+candidate_id).removeClass("d-none");
+    $("#recuiter_"+candidate_id).hide();
+    $("#select_recuiter_"+candidate_id).removeClass("d-none");
+    $("#skills_"+candidate_id).hide();
+    $("#input_skills_"+candidate_id).removeClass("d-none");
+    $("#bench_action_"+candidate_id).hide();
+    $("#bench_action_edit_"+candidate_id).removeClass("d-none");
+});
+
+$(document).on("click", ".save_bench_job", function(){
+    var candidate_id = $(this).attr("candidate_id");
+    $("#edit-candidate-val-"+candidate_id).submit();
+});
