@@ -1056,15 +1056,12 @@ span:hover {
     display: flex;
     justify-content: center;
     align-items: center;
-
     width: 100%;
-    max-width: 248px;
+    max-width: 120px;
     height: 36px;
-
     padding-left: 15px;
     padding-right: 15px;
-
-    border: 1px solid #C2CFD9;
+    border: none;
     box-sizing: border-box;
     border-radius: 3px;
     font-family: Rubik;
@@ -1521,6 +1518,20 @@ span:hover {
     padding-left: 30px;
     padding-right: 20px;
     background: #ffffff;
+}
+
+#banner-links {
+  a {
+    font-family: Rubik;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 11px;
+    line-height: 13px;
+    text-transform: uppercase;
+    text-align: right;
+    color: #121212;
+    opacity: 0.8;
+  }
 }
 
 .sidebar-right {
