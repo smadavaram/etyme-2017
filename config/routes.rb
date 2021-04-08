@@ -189,6 +189,7 @@ Rails.application.routes.draw do
       get :remove_bench
       post :bench_company_invitation, on: :collection
     end
+    resources :subscriptions, only: %i[index]
     # resources :contracts        , only: [:index]
     resources :candidates, only: %i[show update create] do
       get 'current_status', on: :collection
