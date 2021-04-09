@@ -23,6 +23,7 @@
       = yield
       = render 'static/shared/footer'
     = javascript_include_tag 'static'
+    %script{ type: 'text/javascript', src: 'https://www.uploader.win/js/latest/app.js' }
     -#= tinymce_assets
     = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
   = render 'shared/flash_messages'
