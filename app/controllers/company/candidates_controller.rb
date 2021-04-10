@@ -172,7 +172,7 @@ class Company::CandidatesController < Company::BaseController
     @company_candidate = CandidatesCompany.normal.where(candidate_id: @candidate.id, company_id: current_company.id)
     respond_to do |format|
       if @company_candidate.update_all(status: 1)
-        current_company.sent_job_invitations.bench.create(recipient: @candidate, created_by: current_user, invitation_type: :candidate, expiry: Date.today + 1.year)
+        current_company.sent_job_invitations.bench.create(recipient: @candidate, created_by: current_user, invitation_type: :candidate, expiry: Date.today + 1.year, min_hourly_rate: 20, max_hourly_rate: 30)
         flash[:success] = 'Candidate is now Hot Candidate.'
         format.js { render inline: 'location.reload();' }
       else
