@@ -103,9 +103,10 @@
         </div>
       </div>
       <div class="profile-rate-value">
-        $<%= @candidate.job_invitations.last.min_hourly_rate%>
+        <% job_invitation = @candidate.try(:job_invitations).try(:last) %>
+        $<%= job_invitation.present? ? job_invitation.min_hourly_rate : "NA" %>
         -
-        <%= @candidate.job_invitations.last.max_hourly_rate%>       
+        <%= job_invitation.present? ? job_invitation.max_hourly_rate : "NA" %>       
         /hr
       </div>
       <div class="profile-rate-label">
@@ -266,7 +267,7 @@
 
     <!-- Reviews -->
     <div class="webflow-profile-inner webflow-comments col-12">
-      <%= render 'webflow_candidate_reviews' %>
+      <%= render 'static/candidates/webflow_candidate_reviews' %>
     </div>
   </div>
 </div>
