@@ -31,6 +31,9 @@
                   <small><%= job.created_at.strftime("%d %b, %Y") %></small>
                 </div>
               </div>
+              <div class="row align-items-center no-gutters">
+                <small><%= link_to "#{job.comments.size} comments", static_job_path(job, type: 'feed') %></small>
+              </div>
             </div>
           </div>
         </div>
