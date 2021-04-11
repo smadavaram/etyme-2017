@@ -87,7 +87,7 @@
                                 .label-info.badge.margin-bottom-5.badge-info
                                   = c.candidate.invited_by_user.full_name
                             %span{:id => "select_recuiter_#{c.candidate.id}", :class => "d-none"}
-                              = select_tag "job_invitation[sender_id]", options_from_collection_for_select(current_company.users, :id, :full_name, c.candidate.invited_by_user.id)
+                              = select_tag "job_invitation[sender_id]", options_from_collection_for_select(current_company.users, :id, :full_name, c.candidate&.invited_by_user&.id)
                       %td
                         %span{:id => "bench_action_#{c.candidate.id}"}
                           = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
