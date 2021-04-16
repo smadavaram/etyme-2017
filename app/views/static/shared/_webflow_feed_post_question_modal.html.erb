@@ -5,11 +5,11 @@
       <div class="webflow-modal-header">
         <h5 class="webflow-modal-title" id="feedPostModalLabel">New Question</h5>
       </div>
-      <%= form_with url: static_post_question_path, method: :post do |form| %>
+      <%= form_with(model: Job.new, local: true, url: static_post_question_path, method: :post) do |form| %>
         <div class="webflow-modal-body">
-          <%= form.text_field 'job[title]', placeholder: 'Topic', class: 'webflow-input-text-field' %>
-          <%= form.text_area 'job[description]', placeholder: 'Write your post here...', class: 'webflow-input-text-area' %>
-          <%= form.hidden_field 'job[files]', class: 'webflow-hidden-field-job-files'%>
+          <%= form.text_field :title, placeholder: 'Topic', class: 'webflow-input-text-field' %>
+          <%= form.trix_editor :description, placeholder: 'Write your post here...', class: 'trix-content trix-description' %>
+          <%= form.hidden_field :files, class: 'webflow-hidden-field-job-files'%>
           <%= link_to 'Upload a Cover Image', '#',  onclick: "upload_file_ajax(uploadBanner)", class: 'f-12 l-17'%>
           <div class="webflow-question-banner-container">
           </div>
@@ -22,7 +22,6 @@
           <%= form.submit "Post", class: 'webflow-btn-primary f-12 l-17' %>
         </div>
       <% end %>
-      </form>
     </div>
   </div>
 </div>
