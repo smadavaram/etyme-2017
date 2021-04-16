@@ -8,7 +8,8 @@
       <%= form_with model: Job.new, url: static_post_job_path, method: :post do |form| %>
         <div class="webflow-modal-body">
           <%= form.text_field :title, placeholder: 'Write the title for the job here...', class: 'webflow-input-text-field' %>
-          <%= form.trix_editor :description, placeholder: 'Write the description of the job here...', class: 'trix-content trix-description' %>
+          <%= form.hidden_field :description, placeholder: 'Write the description of the job here...', id: :job_description, class: 'trix-content trix-description' %>
+          <trix-editor input="job_description" placeholder="Write the description of the job here..."></trix-editor>
           <br />
           <%= form.text_field :education_list, placeholder: 'Enter a comma-separated list of certifications...', class: 'webflow-input-text-field' %>
           <% if current_user.present? %>
