@@ -15,6 +15,9 @@
           <% if current_company&.banner_btn_label %>
             <a href="<%= current_company&.banner_btn_url %>" class="feed-banner-button"><%= current_company&.banner_btn_label %></a>
           <% end %>
+          <% if current_company&.banner_two_btn_label %>
+            <a href="<%= current_company&.banner_two_btn_url %>" class="feed-banner-button"><%= current_company&.banner_two_btn_label %></a>
+          <% end %>
         </div>
       </div>
     </div>
