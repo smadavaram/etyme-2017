@@ -51,9 +51,9 @@ function trix_upload(){
 }
 
 function upload_file_ajax(callback_function, id=false) {
-    //console.log('calling....')
+    console.log('calling....')
     new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
-        //console.log('url = ', urls);
+        console.log('url = ', urls);
         if (urls !== false) {
             let upload = urls[0];
             if (id) {
