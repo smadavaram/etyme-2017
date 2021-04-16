@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20210309194515) do
+ActiveRecord::Schema.define(version: 20210416114917) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -607,6 +607,8 @@ ActiveRecord::Schema.define(version: 20210309194515) do
     t.string "banner_btn_label"
     t.string "banner_btn_url"
     t.string "banner_color"
+    t.string "banner_two_btn_label"
+    t.string "banner_two_btn_url"
     t.index ["owner_id"], name: "index_companies_on_owner_id"
   end
 

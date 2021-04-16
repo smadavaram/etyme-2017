@@ -90,14 +90,20 @@
               = f.text_field :banner_btn_label, placeholder: "Call to Action Label", class: 'form-control'
             .form-group
               = f.text_field :banner_btn_url, placeholder: "Call to Action URL", class: 'form-control'
+              %p.mt-1
+                %a#banner-two{ href: '#' } + Add/Show
+            .form-group.d-none
+              = f.text_field :banner_two_btn_label, placeholder: "Call to Action Label", class: 'form-control'
+            .form-group.d-none
+              = f.text_field :banner_two_btn_url, placeholder: "Call to Action URL", class: 'form-control'
             .form-group
               = label_tag :banner_color, "Background Color:"
               = f.color_field :banner_color
     .row
-    .col-lg-12
-      -#%button.btn.pull-left{:type => "button"}
-      -#  Back
-      %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
-        Next
-      %button.btn.btn-primary.pull-right{:type => "submit"}
-        Save
+      .col-lg-12
+        -#%button.btn.pull-left{:type => "button"}
+        -#  Back
+        %button.btn.btn-primary.pull-right{:type => "button", style: "margin-left: 20px"}
+          Next
+        %button.btn.btn-primary.pull-right{:type => "submit"}
+          Save
