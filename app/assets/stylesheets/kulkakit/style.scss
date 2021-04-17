@@ -2773,3 +2773,9 @@ a.webflow-product-details-buy-now {
     }
 }
 
+trix-toolbar .trix-button-row {
+  display: flex; 
+  flex-wrap: nowrap; 
+  justify-content: space-between; 
+}
+
