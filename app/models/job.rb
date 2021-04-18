@@ -36,7 +36,7 @@ class Job < ApplicationRecord
 
   acts_as_taggable_on :education
   acts_as_taggable
-  acts_as_paranoid
+  #acts_as_paranoid # disable DELETED AT using paranoia gem
 
   mount_uploader :video_file, JobvideoUploader
 

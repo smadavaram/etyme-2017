@@ -68,7 +68,7 @@ class Static::JobsController < ApplicationController
     @current_company = current_company
 
     if @current_company.present?
-      @search = @current_company.jobs.not_system_generated.includes(:created_by).ransack(params[:q])
+      @search = @current_company.jobs.active.not_system_generated.includes(:created_by).ransack(params[:q])
       @company_jobs = @search.result
 
       if params.key?(:sort).present?
