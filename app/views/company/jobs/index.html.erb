@@ -52,15 +52,15 @@
                     <td><%= job.location %></td>
                     <td class="">
                       <%#= user_image(job.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{job.created_by&.full_name}" ) %>
-                      <%#= link_to do_ellipsis(job.created_by.full_name,8),company_user_profile_path(job.created_by.id) if job.created_by.present? %>
-                      <% conversion =  job.conversation %>
-                      <% if conversion.present?  && conversion.chatable_type == "Group"%>
-                        <% conversion.chatable.groupables.each do |g| %>
-                          <%=user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{g&.groupable&.full_name}" )%>
-                    <% end %>
-                      <% end %>
+                      <%= link_to job.created_by.full_name, company_user_profile_path(job.created_by) if job.created_by.present? %>
+                      <%# conversion =  job.conversation %>
+                      <%# if conversion.present?  && conversion.chatable_type == "Group"%>
+                        <%# conversion.chatable.groupables.each do |g| %>
+                          <%#= user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{g&.groupable&.full_name}" )%>
+                        <%# end %>
+                      <%# end %>
                     </td>
-                    <td><%= colorfull_text(job.status,job.status=='Published' ? '#1AAE9F' : 'orange') %></td>
+                    <td><%= colorfull_text(job.status, job.status == 'Published' ? '#1AAE9F' : 'orange') %></td>
                     <td class="no-wrap pr-5">
                       <% if (job.conversation ? true : job.create_job_conversation) %>
                         <%= link_to company_conversations_path(conversation: job.conversation.id), class: 'data-table-icons btn btn-link btn-sm m-0 p-0' do %>
