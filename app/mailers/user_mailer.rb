@@ -25,9 +25,10 @@ class UserMailer < ApplicationMailer
 
   def reset_password_instructions(user, token, _opts = {})
     @user = user
-    @link = @user.class.name != 'Candidate' ?
-              "https://#{@user.company.etyme_url}/users/password/edit?reset_password_token=#{token}" :
-              "https://#{@user.etyme_url}/candidates/password/edit?reset_password_token=#{token}"
+    @link = '#'
+    @link = "https://#{@user.company.etyme_url}/users/password/edit?reset_password_token=#{token}" unless @user.class.name == 'Candidate'
+    @link = "#{ENV.fetch('HOSTNAME')}/candidates/password/edit?reset_password_token=#{token}" if @user.class.name == 'Candidate'
+
     subject = @user.encrypted_password? ? '' : 'Confirm email and '
     mail(to: user.email, subject: subject + 'Reset password instructions')
   end
