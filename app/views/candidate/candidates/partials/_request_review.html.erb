@@ -1,0 +1,29 @@
+<div id="modal-window" class="modal hide fade" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">x</button>
+        <h4 class="modal-title" id="myModalLabel">Request Review</h4>
+      </div>
+      <%= form_for "review_request", url: "/review_request" do |f| %>
+        <div class="modal-body">
+            <div class="form-group">
+              <%= f.email_field :email, class: "form-control rounded-field", placeholder: "Enter email" %>
+              <%= f.text_area :request_body, class: "form-control mt-3 rounded-field", placeholder: "Description", required: true %>
+            </div>
+        </div>
+        <div class="modal-footer">
+          <%= f.submit "Save", class: "btn btn-primary" %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+<style>
+  .modal-dialog {
+    top: 25%;
+  }
+  .rounded-field{
+    border-radius: 5px !important;
+  }
+</style>

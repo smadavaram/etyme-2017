@@ -1,0 +1,134 @@
+<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card mt-3">
+        <div class="card-inner">
+          <% candidate_rating = CandidateReview.where(candidate_id: params[:cand], reviewer: params[:reviewer]).exists? %>
+          <% if candidate_rating %>
+            <div class="row">
+              <div class="col-md-12">
+                <div style="font-size: 16px; font-weight: 600; ">
+                  Your review has been submitted sucessfully!
+                </div>
+              </div>
+            </div>
+          <% else %>
+            <div class="row">
+              <div class="col-md-12 mt-2">
+                Seller communication
+              </div>
+              <div class="col-md-12 star-container">
+                <i class="fa fa-star fa-2x empty-star com-star" com_star_value="1"></i>
+                <i class="fa fa-star fa-2x empty-star com-star" com_star_value="2"></i>
+                <i class="fa fa-star fa-2x empty-star com-star" com_star_value="3"></i>
+                <i class="fa fa-star fa-2x empty-star com-star" com_star_value="4"></i>
+                <i class="fa fa-star fa-2x empty-star com-star" com_star_value="5"></i>
+              </div>
+              <div class="col-md-12 mt-2">
+                Service as described
+              </div>
+              <div class="col-md-12 star-container">
+                <i class="fa fa-star fa-2x empty-star ser-star" ser_star_value="1"></i>
+                <i class="fa fa-star fa-2x empty-star ser-star" ser_star_value="2"></i>
+                <i class="fa fa-star fa-2x empty-star ser-star" ser_star_value="3"></i>
+                <i class="fa fa-star fa-2x empty-star ser-star" ser_star_value="4"></i>
+                <i class="fa fa-star fa-2x empty-star ser-star" ser_star_value="5"></i>
+              </div>
+              <div class="col-md-12 mt-2">
+                Would recommend
+              </div>
+              <div class="col-md-12 star-container">
+                <i class="fa fa-star fa-2x empty-star rec-star" rec_star_value="1"></i>
+                <i class="fa fa-star fa-2x empty-star rec-star" rec_star_value="2"></i>
+                <i class="fa fa-star fa-2x empty-star rec-star" rec_star_value="3"></i>
+                <i class="fa fa-star fa-2x empty-star rec-star" rec_star_value="4"></i>
+                <i class="fa fa-star fa-2x empty-star rec-star" rec_star_value="5"></i>
+              </div>
+              <div class="col-md-12 mt-3 px-0">
+                <%= form_for "review", url:"/save_review" do |f| %>    
+                  <%= f.hidden_field "candidate_id", value: params[:cand] %>
+                  <%= f.hidden_field "reviewer", value: params[:reviewer] %>
+                  <%= f.hidden_field "communication_rating", value: "0" %>
+                  <%= f.hidden_field "service_rating", value: "0" %>
+                  <%= f.hidden_field "recommend_rating", value: "0" %>
+                  <div class="form-group">
+                    <label>You may response to this review</label>
+                    <label>(This will be public)</label>
+                    <%= f.text_area "rating_comment", class: "form-control", style: "border-radius: 10px !important;", placeholder: "Share your response" %>
+                  </div>
+                  <%= f.submit "Save", class: "btn btn-primary", style: "float: right;" %>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<style>
+  .card {
+    box-shadow: 0 0 1px rgba(0,0,0,.125),0 1px 3px rgba(0,0,0,.2);
+    border-radius: .25rem;
+    background: #fff;
+    display: -ms-flexbox;
+    display: flex;
+    margin-bottom: 1rem;
+    min-height: 80px;
+    padding: .5rem;
+    width: 60%;
+    margin: 0 auto;
+  }
+  .card-inner {
+    width: 50%;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .fa{
+    cursor: pointer;
+  }
+  .fa-star{
+    color: yellow;
+  }
+  .empty-star{
+    color: #eee7d966;
+  }
+  .star-container{
+    border: 1px solid #dde2ec;
+    padding: 10px;
+    border-radius: 100px;
+    text-align: center;
+  }
+</style>
+
+<script>
+  $(document).on("click", ".com-star", function(){
+    var star_value = $(this).attr("com_star_value");
+    $(".com-star").addClass("empty-star");
+    for (i = 1; i <= parseInt(star_value); i++) {
+      $("i[com_star_value="+i+"]").removeClass("empty-star");
+      $("input[name='review[communication_rating]']").val(star_value);
+    } 
+  });
+
+  $(document).on("click", ".ser-star", function(){
+    var star_value = $(this).attr("ser_star_value");
+    $(".ser-star").addClass("empty-star");
+    for (i = 1; i <= parseInt(star_value); i++) {
+      $("i[ser_star_value="+i+"]").removeClass("empty-star");
+      $("input[name='review[service_rating]']").val(star_value);
+    } 
+  });
+
+  $(document).on("click", ".rec-star", function(){
+    var star_value = $(this).attr("rec_star_value");
+    $(".rec-star").addClass("empty-star");
+    for (i = 1; i <= parseInt(star_value); i++) {
+      $("i[rec_star_value="+i+"]").removeClass("empty-star");
+      $("input[name='review[recommend_rating]']").val(star_value);
+    } 
+  });
+</script>

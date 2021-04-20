@@ -342,6 +342,18 @@ ActiveRecord::Schema.define(version: 20210416114917) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "candidate_reviews", force: :cascade do |t|
+    t.bigint "candidate_id"
+    t.integer "communication_rating"
+    t.integer "service_rating"
+    t.integer "recommend_rating"
+    t.text "rating_comment"
+    t.string "reviewer"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id"], name: "index_candidate_reviews_on_candidate_id"
+  end
+
   create_table "candidates", id: :serial, force: :cascade do |t|
     t.string "first_name", default: ""
     t.string "last_name", default: ""

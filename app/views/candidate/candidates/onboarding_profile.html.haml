@@ -51,45 +51,7 @@
             .tab-content
               #tab1.tab-pane{class: @tab.blank? ? "active" : "" }
                 %br/
-                %h4.element-header
-                  Verify phone number
-                .row
-                  .col-sm-12
-                    .row
-                      .col-sm-1
-                        .form-group
-                          %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+44"}/
-
-                      .col-sm-6
-                        .form-group
-                          .input-group
-                            .input-group-prepend
-                              .input-group-text
-                                %i.fa.fa-mobile-phone.fa-lg.fa-fw
-                            %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_candidate.phone}/
-
-                      .col-sm-4
-                        .form-group
-                          .input-group
-                            %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
-                %h4.element-header
-                  Verify Email
-                .row
-                  .col-sm-12
-                    .col-sm-4
-                      .os-progress-bar.primary.font-size-email
-                        .bar-labels
-                          .bar-label-left
-                            %span
-                              =current_candidate.email
-                          .bar-label-right
-                            %span.text-success
-                              = is_verify(!!current_candidate.confirmed_at)
-                %h5.element-header
-                  Social Media
-                .row
-                  .col-sm-12.col-md-12.col-lg-12#social-form
-                    =render partial: 'candidate/candidates/partials/social_form'
+                =render partial: 'candidate/candidates/partials/social_form'
               #tab2.tab-pane{class: @tab == "verify-phone" ? "active" : "" }
                 %br/
                 %h4.element-header
@@ -97,7 +59,7 @@
                 .row
                   .col-4.col-sm-3.col-xxl-2
                     .profile-tile.profile-tile-inlined
-                      -#= filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                      = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
                       .profile-tile-box.faded
                         =image_tag current_candidate.photo,style: 'width: 200px !important; height: 102px !important;' unless current_candidate&.photo.blank?
                         .pt-new-icon.img_pic_r.candi-profile-pic
@@ -122,7 +84,7 @@
                           .pt-new-icon.can_vid_r
                             %i.os-icon.os-icon-plus
                           .pt-user-name.can_vid_r
-                            Profile Video
+                            Upload Portfolio
                 .row
                   -#.col-sm-12.col-md-12.col-lg-2
                   -#  .panel-body.status.profile-margin

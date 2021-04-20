@@ -1,0 +1,21 @@
+/ Comments
+.webflow-comments-header.d-flex.justify-content-between
+  .webflow-comments-title
+    Reviews
+    %span
+      (#{@candidate.candidate_reviews.count})
+%div
+  - if @candidate.candidate_reviews.blank?
+    No Reviews
+  - @candidate&.candidate_reviews.each do |review|
+  .webflow-comments-card.d-flex
+    .pl-3
+      .webflow-comments-card-author
+        = review.reviewer
+      .webflow-comments-card-company
+        = current_company.name
+      .webflow-comments-card-text
+        = review.rating_comment
+      .webflow-comments-card-footer
+        %span.webflow-comments-card-time
+          posted #{time_ago_in_words(review.created_at)} ago

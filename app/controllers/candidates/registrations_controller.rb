@@ -19,7 +19,6 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
   # POST /resource
   def create
     # resource.invitsde!(configure_permitted_parameters , current_user)
-
     candidate_domain = domain_from_email(sign_up_params[:email])
 
     unless FreeEmailProvider.exists?(domain_name: candidate_domain)

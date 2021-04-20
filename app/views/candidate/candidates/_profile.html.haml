@@ -46,6 +46,23 @@
                     %i.os-icon.os-icon-arrow-up6
                     %span Resume
 
+            .row.m-t
+              .col-sm-12.text-center
+                .profile-rating
+                  .profile-rating-stars
+                    - candidate_rating = candidate.candidate_rating.round
+                    - (1..candidate_rating).each do |i|
+                      %i.fa.fa-star{"aria-hidden" => "true"}
+                    - empty_star = 5 - candidate_rating
+                    - (1..empty_star).each do |i|
+                      %i.fa.fa-star.empty-star{"aria-hidden" => "true", :rating_value => "2"}
+                    %span.profile-rating-number= candidate_rating
+                .profile-reviews-links
+                  %span.profile-reviews-link
+                    = candidate.candidate_reviews.count
+                    Reviews
+                  %span.profile-reviews-link
+                    = link_to 'Request Review', "",  {'data-toggle' =>  "modal", 'data-target' => '#modal-window'}
           .up-contents
             .m-b
               .row.m-b
@@ -66,21 +83,27 @@
                     .bar-label-right
                       %span=do_ellipsis(candidate.full_name,15)
                       %span.text-success
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=verify-phone", class: "edit-btn-margin"
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
                       %span Contact Info
                     .bar-label-right
-                      %span=do_ellipsis(candidate.phone,15)
+                      %span=do_ellipsis(candidate.phone,2)
                       %span.text-success
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=basic_info", class: "edit-btn-margin"
                   .os-progress-bar.primary
                     .bar-labels
                       .bar-label-left
                         %span Email
                       .bar-label-right
-                        %span=do_ellipsis(candidate.email.downcase,15)
+                        %span=do_ellipsis(candidate.email.downcase,2)
                         %span.text-success
-                          = is_verify(!!candidate.confirmed_at)
+                          -# = is_verify(!!candidate.confirmed_at)
+                          -if !!candidate.confirmed_at
+                            %i.fa.fa-certificate{:style => "color: green;"}   
+                          -else   
+                            %i.fa.fa-certificate
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
@@ -88,41 +111,75 @@
                     .bar-label-right
                       %span= pluralize((Date.today.to_s(:number).to_i - candidate.dob.to_s(:number).to_i) / 10000,'year') rescue 'N/A'
                       %span.text-success
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=verify-phone", class: "edit-btn-margin"
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
                       %span Visa Status
                     .bar-label-right
-                      %span=do_ellipsis('H1B',15)
+                      %span=do_ellipsis(candidate.visas.pluck(:status).join(", "),15)
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=verify-phone", class: "edit-btn-margin"
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
                       %span Current Location
                     .bar-label-right
                       %span=do_ellipsis(candidate.address,15)
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=verify-phone", class: "edit-btn-margin"
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span Skyp ID
+                      %span Facebook
                     .bar-label-right
-                      %span=do_ellipsis(candidate.skypeid,15)
+                      %span=do_ellipsis(candidate.facebook_url,15)
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=basic_info", class: "edit-btn-margin"       
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Twitter
+                    .bar-label-right
+                      %span=do_ellipsis(candidate.twitter_url,15)
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=basic_info", class: "edit-btn-margin"
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Linked ID
+                    .bar-label-right
+                      %span=do_ellipsis(candidate.linkedin_url,15)
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=basic_info", class: "edit-btn-margin"
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span G talk
+                    .bar-label-right
+                      %span=do_ellipsis(candidate.gtalk_url,15)
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=basic_info", class: "edit-btn-margin"         
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
                       %span Linkdin
                     .bar-label-right
                       %span=do_ellipsis(candidate.linkedin_url,15)
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=basic_info", class: "edit-btn-margin"
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Skype
+                    .bar-label-right
+                      %span=do_ellipsis(candidate.skypeid,15)
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=basic_info", class: "edit-btn-margin"                  
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
                       %span SSN(YES / NO)
                     .bar-label-right
                       %span= candidate.ssn.present? ? 'Yes' : 'No'
-
+                      = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=verify-phone", class: "edit-btn-margin"
         .element-wrapper
           .element-box
             %h4.element-header
               Education
+              = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=submit_doc", :style => "float: right;", class: "edit-btn-margin"
             .padded
               - candidate.educations.each do |edu|
                 .os-progress-bar.primary
@@ -136,6 +193,7 @@
           .element-box
             %h4.element-header
               Certification
+              = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=submit_doc", :style => "float: right;", class: "edit-btn-margin" 
             .padded
               - candidate.certificates.each do |cert|
                 .os-progress-bar.primary
@@ -148,6 +206,7 @@
           .element-box
             %h4.element-header
               Skills
+              = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=submit_doc", :style => "float: right;", class: "edit-btn-margin"
             .element-info.border-0
               .element-info-text
                 - candidate.skill_list.each do |sl|
@@ -163,6 +222,7 @@
                     %i.icon-badge
                   .element-info-text
                     %h4.element-inner-header Project History
+                    = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=submit_doc", :class => "edit-project-history edit-btn-margin"
               - if candidate.designations.present? || (candidate.ever_worked_with_company && candidate.clients.present?)
                 - candidate.designations.each do |c|
                   - unless c.comp_name && c.company_role
@@ -216,6 +276,44 @@
                         -if own
                           %P
                             = link_to "Add New One", '/onboarding_profile?tag=skill'
+              / Reviews
+              .webflow-profile-inner.webflow-comments.col-12
+                = render 'candidate/candidates/partials/request_review.html.erb'
+        .col-sm-12
+          .element-wrapper
+            .element-box
+              .element-info
+                .element-info-with-icon
+                  .element-info-icon
+                    %i.fa.fa-briefcase
+                  .element-info-text
+                    %h4.element-inner-header Experience
+                  .element-info-with-icon
+                    = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=submit_doc", :class => "edit-project-history edit-btn-margin"
+                  .element-info
+                    .element-info-text
+                      .mb-2
+                        %div
+                          - if candidate.experiences.blank?
+                            No Experience
+                          - candidate.experiences.each do |experience|
+                            .mb-20
+                              .f-14.l-17.c-80.mb-2
+                                = experience.experience_title
+                              .d-flex.f-12.l-14
+                                .c-50.mr-12
+                                  = experience.institute
+                                .c-35
+                                  From #{experience.start_date} to #{experience.end_date}
+        .col-sm-12
+          .element-wrapper
+            .element-box
+              .element-info
+                .element-info-with-icon
+                  .element-info-icon
+                    %i.fa.fa-star{:style => ""}
+                  .element-info-text
+                    %h4.element-inner-header Reviews (0)                
 
 
 :javascript

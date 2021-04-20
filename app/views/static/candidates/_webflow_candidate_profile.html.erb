@@ -17,22 +17,25 @@
       </div>
       <div class="profile-rating">
         <div class="profile-rating-stars">
-          <i class="fa fa-star" aria-hidden="true"></i>
-          <i class="fa fa-star" aria-hidden="true"></i>
-          <i class="fa fa-star" aria-hidden="true"></i>
-          <i class="fa fa-star" aria-hidden="true"></i>
-          <i class="fa fa-star" aria-hidden="true"></i>
-          <span class="profile-rating-number">4.5</span>
+          <% candidate_rating = @candidate.candidate_rating.round %>
+          <% (1..candidate_rating).each do |i| %>
+            <i class="fa fa-star" aria-hidden="true"></i>
+          <% end %>
+          <% empty_star = 5 - candidate_rating %>
+          <% (1..empty_star).each do |i| %>
+            <i class="fa fa-star empty-star" aria-hidden="true"></i>
+          <% end %>
+          <span class="profile-rating-number"><%= candidate_rating %></span>
         </div>
       </div>
       <div class="profile-reviews-links">
-        <span class="profile-reviews-link"><%= @candidate&.comments&.count %> Reviews</span>
+        <span class="profile-reviews-link"><%= @candidate.candidate_reviews.count %> Reviews</span>
         <span class="profile-reviews-link">Add a Review</span>
       </div>
       <div class="profile-stats">
         <div class="profile-stats-container">
           <div class="profile-stats-number">
-            2
+            <%= @candidate.total_experince %>
           </div>
           <div class="profile-stats-label">
             Years of Experience
@@ -51,12 +54,12 @@
         <% if @candidate&.phone %>
         <div class="profile-contact">
           <i class="fa fa-phone" aria-hidden="true"></i>
-          <%= @candidate&.phone %>
+          <%= do_ellipsis(@candidate.phone,2) %>
         </div>
         <% end %>
         <div class="profile-contact">
           <i class="fa fa-envelope" aria-hidden="true"></i>
-          <%= @candidate&.email %>
+          <%= do_ellipsis(@candidate.email,2) %>
           <span class="profile-contact-verified">Verified</span>
         </div>
       </div>
@@ -95,10 +98,62 @@
         </div>
         <div class="profile-information">
           <div class="information-label">
+            Facebook
+          </div>
+          <div class="information-value">
+            <% if @candidate.facebook_url %>
+              <%= link_to raw("<i class='fa fa-facebook-square fa-2x'></i>"), @candidate.facebook_url %>
+            <% else %>
+              <i class='fa fa-facebook-square fa-2x'></i>
+            <% end %>
+          </div>
+        </div>
+        <div class="profile-information">
+          <div class="information-label">
+            Twitter
+          </div>
+          <div class="information-value">
+            <% if @candidate.twitter_url %>
+              <%= link_to raw("<i class='fa fa-twitter-square fa-2x'></i>"), @candidate.twitter_url %>
+            <% else %>
+              <i class='fa fa-twitter-square fa-2x'></i>
+            <% end %>
+          </div>
+        </div>
+        <div class="profile-information">
+          <div class="information-label">
             Linked ID
           </div>
           <div class="information-value">
-            Unknown
+            <% if @candidate.linkedin_url %>
+              <%= link_to raw("<i class='fa fa-linkedin fa-2x'></i>"), @candidate.linkedin_url %>
+            <% else %>
+              <i class='fa fa-linkedin fa-2x'></i>
+            <% end %>
+          </div>
+        </div>
+        <div class="profile-information">
+          <div class="information-label">
+            G talk
+          </div>
+          <div class="information-value">
+            <% if @candidate.gtalk_url %>
+              <%= link_to raw("<i class='fa fa-microphone fa-2x'></i>"), @candidate.gtalk_url %>
+            <% else %>
+              <i class='fa fa-microphone fa-2x'></i>
+            <% end %>
+          </div>
+        </div>
+        <div class="profile-information">
+          <div class="information-label">
+            Skype
+          </div>
+          <div class="information-value">
+            <% if @candidate.skypeid %>
+              <%= link_to raw("<i class='fa fa-skype fa-2x'></i>"), @candidate.skypeid %>
+            <% else %>
+              <i class='fa fa-skype fa-2x'></i>
+            <% end %>
           </div>
         </div>
       </div>
@@ -267,7 +322,7 @@
 
     <!-- Reviews -->
     <div class="webflow-profile-inner webflow-comments col-12">
-      <%= render 'static/candidates/webflow_candidate_reviews' %>
+      <%= render 'static/candidates/partials/webflow_candidate_ratings' %>
     </div>
   </div>
 </div>

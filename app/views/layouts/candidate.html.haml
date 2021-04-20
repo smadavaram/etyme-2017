@@ -37,20 +37,23 @@
   %body.smart-style-6{class: "#{yield :body_class} menu-position-side menu-side-left full-screen"}
     .all-wrapper
       .layout-w
-        = render partial: 'candidate/shared/left_panel'
-        .content-w.fixed-height
-          = render partial: 'candidate/shared/header'
-          #main{:role => "main",style: "min-height: 750px !important; overflow-x: hidden;"}
-            #ribbon
-              %ol.breadcrumb
-                = render_breadcrumbs tag: :li, separator: " / "
-            -#= yield :ribbon
-            = yield
-          #modals
-            = yield :modals
-          = render partial: 'candidate/shared/footer'
-          = render partial: 'candidate/shared/tiles'
-          = render partial: 'shared/add_to_chat_from_candidate'
+        -if current_candidate.present?
+          = render partial: 'candidate/shared/left_panel'
+          .content-w.fixed-height
+            = render partial: 'candidate/shared/header'
+            #main{:role => "main",style: "min-height: 750px !important; overflow-x: hidden;"}
+              #ribbon
+                %ol.breadcrumb
+                  = render_breadcrumbs tag: :li, separator: " / "
+              -#= yield :ribbon
+              = yield
+            #modals
+              = yield :modals
+            = render partial: 'candidate/shared/footer'
+            = render partial: 'candidate/shared/tiles'
+            = render partial: 'shared/add_to_chat_from_candidate'
+        -else
+          = yield
     / END SHORTCUT AREA
     / ==================================================
     / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)

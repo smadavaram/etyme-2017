@@ -1,0 +1,15 @@
+<p>
+Hi,
+</p>
+<p>
+  <%= @body %>
+  <br>
+  <%
+    if ENV['ETYME_DOMAIN'].present?
+      url = Rails.env.development? ? "#{@slug}.#{ENV['domain']}" : "#{@slug}.#{ENV['ETYME_DOMAIN']}"
+    else
+      url = Rails.env.development? ? "#{@slug}.#{ENV['domain']}" : "#{@slug}.#{ENV['domain']}"
+    end
+  %>
+  <%= link_to "Click here for review", "#{Rails.env.production? ? 'https' : 'http'}://#{url}/candidate_review?cand=#{@current_candidate.id}&reviewer=#{@request_to}" %>
+</p> 

@@ -1,34 +1,20 @@
-.nested-fields
-  .form-group
-    %label.col-md-2.control-label
-      Degree Title
-      %sup.text-danger *
-    .col-md-10
-      = f.text_field :degree_title,placeholder: "Degree Title",class: 'form-control' ,required:true
-  .form-group
-    %label.col-md-2.control-label
-      Institute Name
-      %sup.text-danger *
-    .col-md-10
-      = f.text_field :institute,placeholder: "Institute Name",class: 'form-control'
-  .form-group
-    %label.col-md-2.control-label
-      Start Year
-      %sup.text-danger *
-    .col-md-10
-      = f.text_field :start_year,placeholder: "Start Year",class: 'form-control education_start_year',required:true
+.col-md-12
+  .nested-fields
     .form-group
-    %label.col-md-2.control-label
-      Completion Year
-      %sup.text-danger *
-    .col-md-10
-      = f.text_field :completion_year,placeholder:"Completion Year",class: 'form-control education_completion_year',required:true
-  .form-group
-    %label.col-md-2.control-label
-      Description
-      %sup.text-danger *
-    .col-md-10
-      = f.text_area :description,placeholder: "Description",class: 'form-control',required:true
-  .form-group
-    .col-md-12
-      = link_to_remove_association "Remove", f , class: 'btn btn-danger pull-right'
+      .col-md-10
+        = f.text_field :degree_title,placeholder: "Degree Title",class: 'form-control' ,required:true
+    .form-group
+      .col-md-10
+        = f.text_field :institute,placeholder: "Institute Name",class: 'form-control'
+    .form-group
+      .col-md-10
+        = f.text_field :start_year,placeholder: "Start Year",class: 'form-control education_start_year',required:true
+      .form-group
+      .col-md-10
+        = f.text_field :completion_year,placeholder:"Completion Year",class: 'form-control education_completion_year',required:true
+    .form-group
+      .col-md-10
+        = f.text_area :description,placeholder: "Description",class: 'form-control',required:true
+    .form-group
+      .col-md-12
+        = link_to_remove_association "Remove", f , class: 'btn btn-danger pull-right'

@@ -100,7 +100,7 @@ class Candidate < ApplicationRecord
   has_many :salaries
 
   has_many :comments, class_name: 'Comment', foreign_key: :created_by_candidate_id
-
+  has_many :candidate_reviews, dependent: :destroy
   attr_accessor :job_id, :expiry, :message, :invitation_type
   attr_accessor :send_welcome_email_to_candidate
   attr_accessor :send_invitation
@@ -162,6 +162,14 @@ class Candidate < ApplicationRecord
     (ENV['domain']).to_s
   end
 
+  def candidate_rating
+    communication_rating = self.candidate_reviews.average(:communication_rating)
+    service_rating = self.candidate_reviews.average(:service_rating)
+    recommend_rating = self.candidate_reviews.average(:recommend_rating)
+    total_rating = (communication_rating + service_rating + recommend_rating) / 3
+    total_rating
+  end
+  
   def full_name
     first_name.capitalize + ' ' + last_name.capitalize
   end
@@ -204,6 +212,15 @@ class Candidate < ApplicationRecord
 
   def first_resume?
     candidates_resumes.count == 1
+  end
+
+  def total_experince
+    years = 0
+    self.experiences.each do |e|
+      # years = years + TimeDifference.between(e.start_date, e.end_date).in_years
+      years = years + (e.end_date.to_s(:number).to_i - e.start_date.to_s(:number).to_i) / 10000
+    end
+    years
   end
 
   private

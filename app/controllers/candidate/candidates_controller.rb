@@ -3,7 +3,6 @@
 class Candidate::CandidatesController < Candidate::BaseController
   require 'will_paginate/array'
   respond_to :html, :json, :js
-
   before_action :set_candidate, only: %i[show update]
   before_action :set_chats, only: [:dashboard]
 
@@ -24,6 +23,10 @@ class Candidate::CandidatesController < Candidate::BaseController
     end
   end
 
+  def edit
+    @candidate = current_candidate
+  end
+    
   def companies
     @companies = Company.all
   end
@@ -163,7 +166,13 @@ class Candidate::CandidatesController < Candidate::BaseController
         format.json { respond_with current_candidate }
         format.html do
           flash[:success] = 'Candidate Updated'
-          redirect_to onboarding_profile_path(tag: params['tab']) unless @tab.eql?('fln_basic_info')
+          
+          if current_candidate.present?
+            redirect_to my_profile_path            
+          else
+            redirect_to onboarding_profile_path(tag: params['tab']) unless @tab.eql?('fln_basic_info')            
+          end
+          
         end
         format.js do
           flash.now[:success] = 'Candidate Profile Updated'
@@ -177,6 +186,39 @@ class Candidate::CandidatesController < Candidate::BaseController
     end
   end
 
+  def review_request
+    if params[:review_request][:email].present?
+      slug = current_company.slug
+      Candidate::CandidateMailer.review_request(params[:review_request][:email], params[:review_request][:request_body], slug, current_candidate).deliver_now
+      flash[:success] = 'Candidate Review request has been sent successfully!'    
+      redirect_to my_profile_path      
+    end
+  end
+  
+  def candidate_review
+  end
+
+  def save_review
+    candidate = Candidate.find(candidate_rating_params[:candidate_id])
+    if candidate.present?
+      @candidate_review = CandidateReview.new(candidate_rating_params)
+      
+      if @candidate_review.save
+        flash.now[:success] = 'Candidate Review save successfully!'
+      else
+        flash.now[:success] = 'Something went wrong!' 
+      end         
+    else 
+      flash.now[:success] = 'Something went wrong!'
+    end
+    if ENV['ETYME_DOMAIN'].present?
+      url = Rails.env.development? ? "#{request.subdomain}.#{ENV['domain']}" : "#{request.subdomain}.#{ENV['ETYME_DOMAIN']}"
+    else
+      url = Rails.env.development? ? "#{request.subdomain}.#{ENV['domain']}" : "#{request.subdomain}.#{ENV['domain']}"
+    end
+    redirect_to "#{Rails.env.production? ? 'https' : 'http'}://#{url}/candidate_review?cand=#{candidate.id}&reviewer=#{candidate_rating_params[:reviewer]}"
+  end
+  
   def build_profile
     resume = current_candidate.candidates_resumes.find_by(id: params[:id])
     response = ResumeParser.new(resume.resume).sovren_parse
@@ -337,6 +379,7 @@ class Candidate::CandidatesController < Candidate::BaseController
                                                               candidate_education_documents_attributes: %i[
                                                                 id education_id title file exp_date _destroy
                                                               ]],
+                                      experiences_attributes: [:id, :experience_title, :institute, :industry, :department, :start_date, :end_date, :description],                          
                                       certificates_attributes: [:id, :title, :start_date, :end_date, :institute, :_destroy,
                                                                 candidate_certificate_documents_attributes: %i[
                                                                   id certificate_id title file exp_date _destroy
@@ -349,4 +392,9 @@ class Candidate::CandidatesController < Candidate::BaseController
                                       visas_attributes: %i[id candidate_id title file visa_number start_date exp_date status _destroy],
                                       designations_attributes: %i[id comp_name recruiter_name recruiter_phone recruiter_email start_date end_date status company_role _destroy])
   end
+
+  def candidate_rating_params
+    params.require(:review).permit(:candidate_id, :reviewer, :communication_rating, :service_rating, :recommend_rating, :rating_comment)
+  end
+  
 end

@@ -54,3 +54,368 @@ span.icon-feather-x-circle{
 .slick_header.container h5{
   width: 178px;
 }
+
+// new csss for profile
+
+.webflow-profile-inner {
+	margin-top: 15px;
+	padding: 40px;
+
+	background: #FFFFFF;
+	box-shadow: 1px 3px 20px rgba(46, 46, 46, 0.02);
+	border-radius: 8px;
+}
+.profile-edit{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: #3CC975;
+
+  margin-top: -20px;
+  margin-right: -20px;
+}
+.profile-available {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: #3CC975;
+
+  margin-top: -20px;
+  margin-right: -20px;
+  
+  i {
+      font-size: 6px;
+      margin-right: 4px;
+  }
+}
+.profile-avatar {
+  margin-left: auto;
+  margin-right: auto;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.profile-name {
+  font-size: 20px;
+  line-height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px;
+  .profile-location {
+    font-size: 12px;
+    line-height: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-left: 10px;
+    color: rgba(18, 18, 18, 0.5);
+}
+}
+.profile-title {
+  font-size: 14px;
+  line-height: 17px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.profile-rating {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.profile-rating-stars {
+  color: #FFC100;
+}
+.profile-rating-number {
+  font-size: 13px;
+  line-height: 15px;
+  color: rgba(18, 18, 18, 0.8);
+  margin-left: 6px;
+}
+.profile-reviews-links {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+.profile-reviews-link:last-child {
+  border: none;
+}
+.profile-reviews-link {
+  font-size: 13px;
+  line-height: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: rgba(18, 18, 18, 0.5);
+  border-right: solid 2px rgba(18, 18, 18, 0.1);
+  margin-right: 8px;
+  padding-right: 8px;
+}
+.profile-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+.profile-stats-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width: 50%;
+  border-right: solid 2px rgba(18, 18, 18, 0.1);
+  .profile-stats-number {
+    font-size: 28px;
+    line-height: 33px;
+    color: rgba(18, 18, 18, 0.8);
+    margin-bottom: 10px;
+  }
+  .profile-stats-label {
+    font-size: 13px;
+    line-height: 15px;
+    color: rgba(18, 18, 18, 0.5);
+  }
+}
+.profile-stats-container:last-child {
+  border: none;
+}
+.profile-rate-value {
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: rgba(18, 18, 18, 0.8);
+  margin-bottom: 8px;
+}
+.profile-contact {
+  font-size: 13px;
+  line-height: 15px;
+  color: rgba(18, 18, 18, 0.8);
+  margin-bottom: 16px;
+}
+.profile-contact i {
+  color: rgba(18, 18, 18, 0.35);
+  margin-right: 8px;
+}
+.profile-contact {
+  font-size: 13px;
+  line-height: 15px;
+  color: rgba(18, 18, 18, 0.8);
+  margin-bottom: 16px;
+}
+.profile-contact i {
+  color: rgba(18, 18, 18, 0.35);
+  margin-right: 8px;
+}
+.profile-contact-verified {
+  font-weight: 500;
+  font-size: 9px;
+  line-height: 11px;
+  color: #3CC975;
+  opacity: 0.8;
+}
+.profile-information {
+  font-size: 13px;
+  line-height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  .information-label {
+    color: rgba(18, 18, 18, 0.5);
+  }
+  .information-value {
+    color: rgba(18, 18, 18, 0.8);
+  }
+}
+.profile-rate-value {
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: rgba(18, 18, 18, 0.8);
+  margin-bottom: 8px;
+}
+.profile-rate-label {
+  font-size: 13px;
+  line-height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: rgba(18, 18, 18, 0.5);
+  margin-bottom: 20px;
+}
+.profile-section {
+  margin-bottom: 40px;
+  .profile-section-header {
+    display: flex;
+    margin-bottom: 12px;
+    .profile-section-title {
+      font-weight: 500;
+      font-size: 14px;
+      line-height: 17px;
+      color: rgba(18, 18, 18, 0.8);
+    }
+    .profile-section-line {
+      margin-left: 4px;
+      margin-bottom: 3px;
+      border-bottom: 2px solid rgba(18, 18, 18, 0.05);
+      flex-grow: 1;
+    }
+  }
+  .profile-skills-tags {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    li {
+      margin: 4px;
+      padding: 6px 12px;
+      font-size: 10px;
+      line-height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(18, 18, 18, 0.5);
+      background: rgba(18, 18, 18, 0.05);
+      border: 1px solid rgba(18, 18, 18, 0.05);
+      box-sizing: border-box;
+      border-radius: 32px;
+  }
+  }
+}
+.intl-tel-input {
+  display: block !important;
+}
+.flag-container, .intl-tel-input.separate-dial-code .flag-container {
+  right: auto;
+  left: 0;
+}
+.flag-container {
+  position: absolute;
+  top: 16px;
+  left: 13px;
+  bottom: 0;
+  right: 0;
+  padding: 1px;
+}
+.selected-flag {
+  z-index: 1;
+  position: relative;
+  width: 36px;
+  height: 100%;
+  padding: 0 0 0 8px;
+  .iti-flag {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    margin: auto;
+  }
+}
+.selected-flag, .intl-tel-input.separate-dial-code .selected-flag {
+  width: 46px;
+}
+.iti-flag {
+  width: 20px;
+  height: 15px;
+  box-shadow: 0px 0px 1px 0px #888;
+  background-repeat: no-repeat;
+  background-color: #DBDBDB;
+  background-position: 20px 0;
+}
+.iti-arrow {
+  position: absolute;
+  top: 50%;
+  margin-top: -2px;
+  right: 6px;
+  width: 0;
+  height: 0;
+  border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
+  border-top: 4px solid #555;
+}
+.country-list {
+  position: absolute;
+  z-index: 2;
+  list-style: none;
+  text-align: left;
+  padding: 0;
+  margin: 0 0 0 -1px;
+  background-color: white;
+  border: 1px solid #CCC;
+  white-space: nowrap;
+  max-height: 200px;
+  overflow-y: scroll;
+}
+.intl-tel-input .hide {
+  display: none;
+}
+.intl-tel-input .country-list .country {
+  padding: 5px 10px;
+}
+.intl-tel-input .country-list .divider {
+  padding-bottom: 5px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid #CCC;
+}
+.divider {
+  flex-grow: 1;
+  border-bottom: 1px solid black;
+  margin: 5px;
+}
+.intl-tel-input.allow-dropdown input, .intl-tel-input.allow-dropdown input[type=text], .intl-tel-input.allow-dropdown input[type=tel], .intl-tel-input.separate-dial-code input, .intl-tel-input.separate-dial-code input[type=text], .intl-tel-input.separate-dial-code input[type=tel] {
+  padding-right: 6px;
+  padding-left: 52px;
+  margin-left: 0;
+}
+.intl-tel-input input, .intl-tel-input input[type=text], .intl-tel-input input[type=tel] {
+  position: relative;
+  z-index: 0;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-right: 36px;
+  margin-right: 0;
+}
+.country {
+  padding: 5px 10px;
+}
+.country.highlight {
+  background-color: rgba(0,0,0,0.05);
+}
+.flag-container:hover {
+  cursor: pointer;
+}
+.intl-tel-input .country-list .flag-box {
+  display: inline-block;
+  width: 20px;
+}
+.intl-tel-input .country-list .flag-box, .intl-tel-input .country-list .country-name, .intl-tel-input .country-list .dial-code {
+  vertical-align: middle;
+}
+.intl-tel-input .country-list .flag-box, .intl-tel-input .country-list .country-name {
+  margin-right: 6px;
+}
+.empty-star{
+  color: #f0e8d9;
+}
+.edit-project-history{
+  position: absolute;
+  right: 10px;
+  top: 40px;
+  width: 100px;
+  text-align: center;
+}
+.edit-btn-margin{
+  margin-left: 5px;
+}

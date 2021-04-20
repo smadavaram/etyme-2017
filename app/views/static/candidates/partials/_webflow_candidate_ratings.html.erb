@@ -1,0 +1,32 @@
+<!-- Comments -->
+  <div class="webflow-comments-header d-flex justify-content-between">
+    <div class="webflow-comments-title">Reviews <span>(<%= @candidate.candidate_reviews.count %>)</span></div>
+    <%# <div class="webflow-comments-sort">Most Recent <i class="fa fa-angle-down" aria-hidden="true"></i></div> %>
+  </div>
+  <div>
+    <% if @candidate.candidate_reviews.blank? %>
+      No Reviews
+    <% end %>
+    <% @candidate&.candidate_reviews.each do |review| %>
+    <div class="webflow-comments-card d-flex">
+      <div class="pl-3">
+        <div class="webflow-comments-card-author">
+          <%= review.reviewer %>
+        </div>
+        <div class="webflow-comments-card-company">
+          <%= current_company.name %>
+        </div>
+        <div class="webflow-comments-card-text">
+          <%= review.rating_comment %>
+        </div>
+        <div class="webflow-comments-card-footer">
+          <%# <span class="webflow-comments-card-upvote"><i class="fa fa-caret-up" aria-hidden="true"></i> Upvote</span> %>
+          <span class="webflow-comments-card-time">posted <%= time_ago_in_words(review.created_at)%> ago</span>
+        </div>
+      </div>
+    </div>
+    <% end %>
+  </div>
+  <%# <div class="webflow-comments-load-more d-flex justify-content-center"> %>
+  <%#   <a href="#">Load more</a> %>
+  <%# </div> %>

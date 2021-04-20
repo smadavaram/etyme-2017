@@ -20,4 +20,12 @@ class Candidate::CandidateMailer < ApplicationMailer
     @slug = slug
     mail(to: email, subject: 'Reference Etyme')
   end
+
+  def review_request(request_to, request_body, slug, current_candidate)
+    @body = request_body
+    @slug = slug
+    @request_to = request_to
+    @current_candidate = current_candidate
+    mail(to: request_to, subject: 'Review Request')
+  end
 end

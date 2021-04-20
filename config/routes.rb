@@ -143,6 +143,10 @@ Rails.application.routes.draw do
     get '/profile', to: 'candidates#show'
 
     get '/my_profile', to: 'candidates#my_profile'
+    get '/edit', to: 'candidates#edit'
+    post '/review_request', to: 'candidates#review_request'
+    get '/candidate_review', to: 'candidates#candidate_review'
+    post '/save_review', to: 'candidates#save_review'
     get '/onboarding_profile', to: 'candidates#onboarding_profile'
   end
 
