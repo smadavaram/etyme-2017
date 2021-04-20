@@ -259,11 +259,19 @@ class Static::JobsController < ApplicationController
 
   def post_question
     if current_user.present?
-      @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id, listing_type: 'Question'))
-      flash[:errors] = @job.errors.full_messages unless @job.save
+      @job            = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id, listing_type: 'Question'))
+      @job.start_date = Time.now
+      @job.end_date   = @job.start_date + 30.days
+      @job.status     = Job::STATUSES[:published]
+
+      flash[:errors]  = @job.errors.full_messages unless @job.save
       redirect_to root_path
     elsif current_candidate.present?
-      @job = current_company.jobs.new(company_job_params.merge!(created_by_candidate_id: current_candidate.id, listing_type: 'Question'))
+      @job            = current_company.jobs.new(company_job_params.merge!(created_by_candidate_id: current_candidate.id, listing_type: 'Question'))
+      @job.start_date = Time.now
+      @job.end_date   = @job.start_date + 30.days
+      @job.status     = Job::STATUSES[:published]
+
       flash[:errors] = @job.errors.full_messages unless @job.save
       redirect_to root_path
     else
