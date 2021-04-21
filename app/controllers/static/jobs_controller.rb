@@ -261,7 +261,7 @@ class Static::JobsController < ApplicationController
     if current_user.present?
       @job            = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id, listing_type: 'Question'))
       @job.start_date = Time.now
-      @job.end_date   = @job.start_date + 30.days
+      @job.end_date   = @job.start_date + 1000.years
       @job.status     = Job::STATUSES[:published]
 
       flash[:errors]  = @job.errors.full_messages unless @job.save
@@ -269,7 +269,7 @@ class Static::JobsController < ApplicationController
     elsif current_candidate.present?
       @job            = current_company.jobs.new(company_job_params.merge!(created_by_candidate_id: current_candidate.id, listing_type: 'Question'))
       @job.start_date = Time.now
-      @job.end_date   = @job.start_date + 30.days
+      @job.end_date   = @job.start_date + 1000.years
       @job.status     = Job::STATUSES[:published]
 
       flash[:errors] = @job.errors.full_messages unless @job.save
