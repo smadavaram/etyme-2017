@@ -2,8 +2,14 @@
 <div class="feed-article feed-blog-item col-12 px-0">
     <div class="d-flex align-items-start">
       <div class="width-100 mx-0 mx-sm-3">
-        <div class="avatar-100 avatar-xs-80" >
-          <%= user_avatar(job.created_by_candidate || job.created_by) %>
+        <div class="thumb-100 thumb-xs-80" >
+          <% if job&.files.present? %>
+            <%= image_tag(job.files) %>
+          <% elsif job.created_by&.photo.present? %>
+            <%= image_tag(job.created_by&.photo) %>
+          <% else %>
+            <div class="feed-blank-thumb-100">&nbsp;</div>
+          <% end %>
         </div>
       </div>
       <div class="pl-1 pr-3 flex-fill">
