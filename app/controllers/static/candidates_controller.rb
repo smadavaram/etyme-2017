@@ -18,7 +18,8 @@ class Static::CandidatesController < ApplicationController
 
   def candidate_profile
     @current_company  = Company.find_by(slug: request.subdomain)
-    @candidates_hot   = @current_company.present? ? CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3) : []
+    @candidates_hot   = []
+    @candidates_hot   = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3) unless @current_company.nil?
     @jobs_hot         = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     @candidate        = Candidate.find_by(id: params[:id])
 
