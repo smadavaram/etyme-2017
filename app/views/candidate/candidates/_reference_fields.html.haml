@@ -1,0 +1,22 @@
+.nested-fields4
+  .row
+    .col-sm-4
+      .form-group
+        %label Manager name
+        = f.text_field :reference_name,placeholder: "Jhon Doe",class: 'form-control input'
+
+    %div{class: "col-sm-4"}
+      .form-group
+        %label  Email
+        = f.text_field :reference_email, placeholder: "example@domain.com",class: 'form-control input'
+    .col-sm-2
+      .form-group
+      %label  &nbsp
+      = link_to 'Request Review', "",  {'data-toggle' =>  "modal", 'data-target' => '#modal-window'}
+    .col-sm-2
+      .form-group
+        %label  &nbsp
+        = link_to_remove_association f , wrapper_class: "nested-fields4", class: "bttn btn-add delete_icon" do
+          %i.fa.fa-trash
+
+= render 'candidate/candidates/partials/request_review.html.erb'

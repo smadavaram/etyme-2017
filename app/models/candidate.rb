@@ -101,6 +101,7 @@ class Candidate < ApplicationRecord
 
   has_many :comments, class_name: 'Comment', foreign_key: :created_by_candidate_id
   has_many :candidate_reviews, dependent: :destroy
+  has_many :candidate_social_medium, dependent: :destroy
   attr_accessor :job_id, :expiry, :message, :invitation_type
   attr_accessor :send_welcome_email_to_candidate
   attr_accessor :send_invitation
@@ -118,6 +119,7 @@ class Candidate < ApplicationRecord
   accepts_nested_attributes_for :criminal_check, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :visas, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :legal_documents, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :candidate_social_medium, allow_destroy: true, reject_if: :all_blank
 
   scope :search_by, ->(term, _search_scop) { Candidate.joins(:skills).where('lower(tags.name) like :term or lower(first_name) like :term or lower(last_name) like :term or lower(phone) like :term or lower(email) like :term ', term: "%#{term.downcase}%") }
   scope :application_status_count, lambda { |candidate, start_date, end_date|

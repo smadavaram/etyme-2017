@@ -32,52 +32,24 @@
         = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
 
   .row
-    .col-sm-4
-      .form-group
-        %label Manager name
-        = f.text_field :refrence_name,placeholder: "Jhon Doe",class: 'form-control input'
-
-    .col-sm-4
-      .form-group
-        %label  Phone
-        = f.text_field :refrence_phone, class: 'form-control input'
-    %div{class: f.object.refrence_one ? "col-sm-3" : "col-sm-4"}
-      .form-group
-        %label  Email
-        = f.text_field :refrence_email,placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_one ? 'Verified' :'Not Verified Yet'
-    - if f.object.refrence_one
-      .col-sm-1
-        %h3.text-success.mt-4
-          -#%strong
-          %i.fa.fa-check
-  .row
-    .col-sm-4
-      .form-group
-        %label Manager name
-        = f.text_field :refrence_two_name,placeholder: "Jhon Doe",class: 'form-control input'
-    .col-sm-4
-      .form-group
-        %label  Phone
-        = f.text_field :refrence_two_phone, class: 'form-control input'
-    %div{class: f.object.refrence_two ? "col-sm-3" : "col-sm-4"}
-      .form-group
-        %label  Email
-        = f.text_field :refrence_two_email,placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_two ? 'Verified' :'Not Verified Yet'
-    - if f.object.refrence_two
-      .col-sm-1
-        %h3.text-success.mt-4
-          -#%strong
-          %i.fa.fa-check
+    .col-md-12
+      = f.fields_for :references, f.object.references do |b|
+        = render "candidate/candidates/reference_fields", f: b
+      %strong
+        .links.pull-right
+          = link_to_add_association '+ Add Reference', f, :references, class: 'btn btn-primary', partial: 'candidate/candidates/reference_fields'
 
   .row
-    .col-md-6
+    .col-md-8
       .form-group
         %label Project Description
-        = f.text_area :project_description,placeholder: "Project Description",class: 'form-control input'
-    .col-md-6
+        = f.trix_editor :project_description, placeholder: "Project Description", autofocus: true, class: "trix-content"
+        -# = f.text_area :project_description,placeholder: "Project Description",class: 'form-control input'
+    .col-md-8
       .form-group
         %label Role
-        = f.text_area :role,placeholder: "My Role",class: 'form-control input'
+        = f.trix_editor :role, placeholder: "My Role", autofocus: true, class: "trix-content"
+        -# = f.text_area :role,placeholder: "My Role",class: 'form-control input'
 
   .row
     .col-md-12
@@ -101,7 +73,9 @@
     function radio_change(e){
       if(e.value == "employer"){
         $('#link_'+e.id).show()
+        $(".employer-container").hide()
       }else{
       $('#link_'+e.id).hide()
+        $(".employer-container").show()
       }
     }

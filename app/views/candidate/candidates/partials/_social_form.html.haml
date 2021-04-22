@@ -38,25 +38,31 @@
   .row
     .col-sm-12.col-md-12.col-lg-12#social-form
   .row
-    .col-sm-6
-      .form-group
-        %label Facebook
-        = f.text_field :facebook_url  ,:placeholder => "Enter facebook profile url",class:'form-control input'
-    .col-sm-6
-      .form-group
-        %label Twitter
-        = f.text_field :twitter_url  ,:placeholder => "Enter twitter profile url",class:'form-control input'
-  .row
-    .col-sm-6
-      .form-group
-        %label LinkedIn
-        = f.text_field :linkedin_url  ,:placeholder => "Enter linkedin profile url",class:'form-control input'
-    .col-sm-6
-      .form-group
-        %label G talk
-        = f.text_field :gtalk_url  ,:placeholder => "Enter gtalk profile url",class:'form-control input'
-  .row
-    .col-sm-12
-      .form-group
-        %label Skype
-        = f.text_field :skypeid  ,:placeholder => "Enter skype id",class:'form-control input'
+    .col-md-12
+      = f.fields_for :candidate_social_medium, f.object.candidate_social_medium do |b|
+        = render 'candidate/candidates/candidate_social_medium_fields', f: b
+      .links.education_links.pull-right  
+        = link_to_add_association '+ Add Social', f, :candidate_social_medium, class: 'btn btn-primary', partial: 'candidate/candidates/candidate_social_medium_fields'
+  -# .row
+  -#   .col-sm-6
+  -#     .form-group
+  -#       %label Facebook
+  -#       = f.text_field :facebook_url  ,:placeholder => "Enter facebook profile url",class:'form-control input'
+  -#   .col-sm-6
+  -#     .form-group
+  -#       %label Twitter
+  -#       = f.text_field :twitter_url  ,:placeholder => "Enter twitter profile url",class:'form-control input'
+  -# .row
+  -#   .col-sm-6
+  -#     .form-group
+  -#       %label LinkedIn
+  -#       = f.text_field :linkedin_url  ,:placeholder => "Enter linkedin profile url",class:'form-control input'
+  -#   .col-sm-6
+  -#     .form-group
+  -#       %label G talk
+  -#       = f.text_field :gtalk_url  ,:placeholder => "Enter gtalk profile url",class:'form-control input'
+  -# .row
+  -#   .col-sm-12
+  -#     .form-group
+  -#       %label Skype
+  -#       = f.text_field :skypeid  ,:placeholder => "Enter skype id",class:'form-control input'

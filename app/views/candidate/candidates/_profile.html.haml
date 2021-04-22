@@ -291,20 +291,7 @@
                   .element-info-with-icon
                     = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=submit_doc", :class => "edit-project-history edit-btn-margin"
                   .element-info
-                    .element-info-text
-                      .mb-2
-                        %div
-                          - if candidate.experiences.blank?
-                            No Experience
-                          - candidate.experiences.each do |experience|
-                            .mb-20
-                              .f-14.l-17.c-80.mb-2
-                                = experience.experience_title
-                              .d-flex.f-12.l-14
-                                .c-50.mr-12
-                                  = experience.institute
-                                .c-35
-                                  From #{experience.start_date} to #{experience.end_date}
+                                    
         .col-sm-12
           .element-wrapper
             .element-box

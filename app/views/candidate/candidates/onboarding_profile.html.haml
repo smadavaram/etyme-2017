@@ -454,16 +454,6 @@
     $(document).on("click", "#candidate_ever_worked_with_company_no", function(){
       $(".client_information_main_div").hide();
     })
-
-
-
-
-
-
-
-
-
-
     if("#{current_candidate.ever_worked_with_company}" == "Yes")
     {
       $(".client_information_main_div").show();
@@ -504,7 +494,9 @@
       document_url = event.fpfile.url
       $("#"+file_el.attr("id")).val(document_url)
     }
-
+    $('#candidate_skill_list').tagsinput({
+      maxTags: 8
+    });
     // function select_visa_file(prev){
     //   prev.trigger("click");
     // }

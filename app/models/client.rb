@@ -3,10 +3,12 @@
 class Client < ActiveRecord::Base
   belongs_to :candidate
   has_one :designation, dependent: :destroy
+  has_many :references, dependent: :destroy
 
   before_save :send_reference_mail
 
   accepts_nested_attributes_for :designation, reject_if: :all_blank, allow_destroy: true
+  accepts_nested_attributes_for :references, reject_if: :all_blank, allow_destroy: true
 
   def send_reference_mail
     if !refrence_one.present? && refrence_email_changed?

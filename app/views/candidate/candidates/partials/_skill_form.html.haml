@@ -27,11 +27,12 @@
                 .links.pull-right
                   = link_to_add_association '+ Add Project', f, :clients, class: 'btn btn-primary', partial: 'candidate/candidates/client_fields'
   %br/
-  %h4.element-header
-    Employer Information
-  .row
-    .col-sm-12.col-md-12.col-lg-12#designate-form
-      = render 'candidate/candidates/partials/designate_form',f: f
-      %strong
-        .links.pull-right
-          = link_to_add_association '+ Add Employer', f, :designations, class: 'btn btn-primary', partial: 'candidate/candidates/designations_fields'
+  %div.employer-container
+    %h4.element-header
+      Employer Information
+    .row
+      .col-sm-12.col-md-12.col-lg-12#designate-form
+        = render 'candidate/candidates/partials/designate_form',f: f
+        %strong
+          .links.pull-right
+            = link_to_add_association '+ Add Employer', f, :designations, class: 'btn btn-primary', partial: 'candidate/candidates/designations_fields'
