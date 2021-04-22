@@ -14,8 +14,8 @@ module DomainExtractor
       Mail::Address.new(email).domain.to_s.split('.')[0]
     end
 
-    def domain_name(email)
-      domain_from_email(email).split('.').first if email
+    def domain_name(email = nil)
+      domain_from_email(email).split('.').first unless email.nil?
     end
 
     def valid_email(email)

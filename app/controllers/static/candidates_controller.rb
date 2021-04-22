@@ -17,15 +17,15 @@ class Static::CandidatesController < ApplicationController
   end
 
   def candidate_profile
-    @current_company = Company.find_by(slug: request.subdomain)
-    @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
-    @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
-
-    @candidate = Candidate.find_by(id: params[:id])
+    @current_company  = Company.find_by(slug: request.subdomain)
+    @candidates_hot   = @current_company.present? ? CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3) : []
+    @jobs_hot         = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
+    @candidate        = Candidate.find_by(id: params[:id])
 
     if (params[:is_chat_candidate].present? && params[:is_chat_candidate] == "true")
       flash.now[:alert] = 'Please login with Company ID'
     end
+
     unless @candidate
       redirect_back(fallback_location: root_path)
     else
