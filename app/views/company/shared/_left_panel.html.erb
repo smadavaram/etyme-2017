@@ -12,11 +12,11 @@
   <div class="logged-user-w avatar-inline p-1 m-1">
     <div class="logged-user-i">
       <div class="avatar-w">
-        <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
+        <%= link_to image_tag(current_company&.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
       </div>
       <div class="logged-user-info-w">
         <div class="logged-user-name">
-          <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
+          <%= link_to content_tag(:span, current_company&.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
         </div>
       </div>
     </div>
