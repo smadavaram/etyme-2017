@@ -75,6 +75,11 @@
     border: 1px solid #cccccc;
     height: 100px;
     width: 100px;
+    
+    @media (max-width: 575.98px) {
+      height: 80px;
+      width: 80px;
+    }
 }
 
 // Avatars
