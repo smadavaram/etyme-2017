@@ -13,6 +13,8 @@
     = f.password_field :password, autocomplete: "off",class:'form-control field',placeholder:"Enter password" , required: true
     .help-block.form-text.with-errors.form-control-feedback
       = link_to 'Forgot password?', new_candidate_password_path ,class: "more-link"
+    .help-block.form-text.with-errors.form-control-feedback
+      = link_to 'Sign in as business user?', signin_path, class: "more-link"
     .pre-icon.os-icon.os-icon-fingerprint
   .field-group
     %input.btn.btn-primary.float{"data-disable-with" => "Sign In", :name => "commit", :type => "submit", :value => "Sign In"}/
