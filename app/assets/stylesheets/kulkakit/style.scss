@@ -1215,7 +1215,7 @@ span:hover {
     border-radius: 8px;
 
     @media (max-width: 767.98px) {
-        margin-top: 350px;
+        margin-top: 0px;
     }
 }
 
@@ -1515,9 +1515,14 @@ span:hover {
 .sidebar-right {
     align-self: flex-start;
     padding-top: 96px;
-    padding-left: 30px;
+    padding-left: 20px;
     padding-right: 20px;
     background: #ffffff;
+
+    @media (max-width: 767.98px) {
+      padding-top: 23px;
+      margin: 0 1rem 1rem 1rem;
+    }
 }
 
 #banner-links {
