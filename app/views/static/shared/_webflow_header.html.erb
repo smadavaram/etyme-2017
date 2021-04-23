@@ -11,7 +11,7 @@
                 <i class="fa fa-search gray-30" aria-hidden="true"></i>
               </span>
             </div>
-            <div class="d-none d-md-flex justify-content-center">
+            <div class="d-md-flex justify-content-center">
               <div class="webflow-logo-50 webflow-logo-xs-40">
               <% if request.subdomain == "app" %>
                 <%= image_tag(image_path('etyme-logo-dark.png')) %>
@@ -21,7 +21,7 @@
                 <%= image_tag(image_path('etyme-logo-dark.png')) %>
               <% end %>
               </div>
-              <div class="header-logo-label mx-3">
+              <div class="d-none d-lg-block header-logo-label m-3">
                 <%= @current_company&.name %>
               </div>
             </div>
