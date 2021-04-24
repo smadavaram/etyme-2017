@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
+  resources :coupons
   devise_for :admin_users, ActiveAdmin::Devise.config
   ActiveAdmin.routes(self)
   concern :commentable do
@@ -14,6 +15,9 @@ Rails.application.routes.draw do
   resources :messages, concerns: :commentable
   resources :articles, concerns: %i[commentable image_attachable]
 
+  resources :charges
+  
+  post 'add-coupon', to: 'charges#add_coupon',as: 'add_coupon'
   get '/company/conversation/chat_members', to: 'company/conversations#chat_members'
   get '/company/conversation/chat_candidates', to: 'company/conversations#chat_candidates'
   get 'sites_jobs_preview', to: 'company/jobs#sites_jobs_preview', as: :sites_jobs_preview
