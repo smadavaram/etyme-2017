@@ -54,8 +54,9 @@ class ConversationMessagesController < ApplicationController
   end
 
   def pop_messages
-    @prev_date = params[:prev_date] ||= nil
-    @messages = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 10)
+    @prev_date  = params[:prev_date] ||= nil
+    @messages   = []
+    @messages   = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 10) unless @conversation.nil?
   end
 
   private
