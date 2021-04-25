@@ -187,6 +187,7 @@ class Company::CandidatesController < Company::BaseController
     @company_candidate = CandidatesCompany.hot_candidate.where(candidate_id: params[:candidate_id], company_id: current_company.id)
     respond_to do |format|
       if @company_candidate.update_all(status: 0)
+        JobInvitation.where(recipient_id: params[:candidate_id], company_id: current_company.id).destroy_all
         @candidate.update(associated_company: Company.get_freelancer_company)
         flash[:success] = 'Candidate is now Normal Candidate.'
         format.js { render inline: 'location.reload();' }
