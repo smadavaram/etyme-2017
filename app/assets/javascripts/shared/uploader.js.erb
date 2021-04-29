@@ -1,5 +1,8 @@
+var uploader = "<%= Rails.env.development? ? 'localhost-test' : ENV['uploader']%>";
+//console.log('uploader = ', uploader);
+
 function upload_file(selector, name_selector = false, multiple = false) {
-    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
+    new UploaderWindow(uploader).open().then(urls => {
         if (urls !== false) {
             let files_path;
             if (multiple) {
@@ -29,7 +32,7 @@ function upload_file(selector, name_selector = false, multiple = false) {
 
 function trix_upload(){
     let trix = document.querySelector("trix-editor")
-    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
+    new UploaderWindow(uploader).open().then(urls => {
         if( urls !== false ) {
           let upload = urls[0];
           if(trix){
@@ -52,7 +55,7 @@ function trix_upload(){
 
 function upload_file_ajax(callback_function, id=false) {
     console.log('calling....')
-    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
+    new UploaderWindow(uploader).open().then(urls => {
         console.log('url = ', urls);
         if (urls !== false) {
             let upload = urls[0];
@@ -69,7 +72,7 @@ function upload_file_ajax(callback_function, id=false) {
 }
 
 function upload_multi_file_ajax(callback_function, id=false,multiple=false) {
-    new UploaderWindow("<%= ENV['uploader'] %>").open().then(urls => {
+    new UploaderWindow(uploader).open().then(urls => {
         if (urls !== false) {
             let files_path;
             if (multiple) {
