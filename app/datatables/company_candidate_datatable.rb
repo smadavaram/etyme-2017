@@ -47,7 +47,11 @@ class CompanyCandidateDatatable < ApplicationDatatable
       #recruiter_email = '' #company.owner ? company.owner.email : record.email
     #end
 
-    do_ellipsis(recruiter_email, 25)
+    html  = ''
+    html  += user_image(record.recruiter, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2') unless record.recruiter.blank?
+    html  += "&nbsp;"
+    html  += do_ellipsis(recruiter_email, 25)
+    html.html_safe
   end
 
   def company_profile(record)
