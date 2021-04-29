@@ -148,7 +148,6 @@ class Company::CandidatesController < Company::BaseController
           send_welcome_email_to_candidate: false,
           invited_by_id: current_user.id,
           invited_by_type: 'User',
-          recruiter_id: current_user.id,
           status: 'campany_candidate')
         )
 
@@ -294,7 +293,7 @@ class Company::CandidatesController < Company::BaseController
 
   def create_candidate_params
     params.require(:candidate).permit(:first_name, :invited_by_id, :send_invitation, :invited_by_type,
-                                      :resume, :description, :last_name, :dob, :phone,
+                                      :resume, :description, :last_name, :dob, :phone, :recruiter_id,
                                       :email, :skill_list, :location, :candidate_visa, :candidate_title, :candidate_roal,
                                       experiences_attributes: %i[id
                                                                  experience_title end_date
