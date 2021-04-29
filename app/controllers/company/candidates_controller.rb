@@ -143,7 +143,14 @@ class Company::CandidatesController < Company::BaseController
         redirect_to candidates_path and return
       end
     else
-      @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: 'campany_candidate'))
+      @candidate = current_company.candidates.new(
+        create_candidate_params.merge(
+          send_welcome_email_to_candidate: false,
+          invited_by_id: current_user.id,
+          invited_by_type: 'User',
+          recruiter_id: current_user.id,
+          status: 'campany_candidate')
+        )
 
       if @candidate.save
         flash[:success] = 'New Candidate Is Added'

@@ -40,8 +40,14 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def get_recruiter_email(record)
-    company = record.companies.find_by(id: current_company.id)
-    do_ellipsis(company.owner ? company.owner.email : record.email, 25)
+    recruiter_email = record.recruiter.blank? ? '' : record.recruiter.email
+
+    #if record.recruiter.blank?
+      #company         = record.companies.find_by(id: current_company.id)
+      #recruiter_email = '' #company.owner ? company.owner.email : record.email
+    #end
+
+    do_ellipsis(recruiter_email, 25)
   end
 
   def company_profile(record)
