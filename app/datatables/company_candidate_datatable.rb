@@ -28,7 +28,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
     records.map do |record|
       {
         id: record.id,
-        company: company_profile(record),
+        #company: company_profile(record),
         name: candidate_profile(record),
         recruiter: get_recruiter_email(record),
         contact: contact_icon(record),
@@ -41,7 +41,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
 
   def get_recruiter_email(record)
     company = record.companies.find_by(id: current_company.id)
-    do_ellipsis(company.owner ? company.owner.email : record.email, 15)
+    do_ellipsis(company.owner ? company.owner.email : record.email, 25)
   end
 
   def company_profile(record)
@@ -52,7 +52,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
 
   def candidate_profile(user)
     (link_to user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: user.full_name.to_s), profile_company_candidate_path(user)) +
-      link_to(do_ellipsis(user.first_name), profile_company_candidate_path(user), class: 'pl-2')
+      link_to(do_ellipsis(user.full_name), profile_company_candidate_path(user), class: 'pl-2')
   end
 
   def get_raw_records
@@ -74,7 +74,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def reminder_note(record)
-    content_tag(:span, do_ellipsis(record&.reminders.where(user_id: current_user.id)&.last&.title), class: 'bg-info badge mr-1').html_safe
+    content_tag(:span, record&.reminders.where(user_id: current_user.id)&.last&.title, class: 'bg-info badge mr-1').html_safe
   end
 
   def actions(record)

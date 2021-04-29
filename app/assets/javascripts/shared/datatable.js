@@ -399,7 +399,6 @@ $(document).ready(function () {
             {
                 data: "id"
             },
-            {data: "company"},
             {data: "name"},
             {
                 data: "recruiter",
