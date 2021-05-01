@@ -84,7 +84,10 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def reminder_note(record)
-    content_tag(:span, record&.reminders.where(user_id: current_user.id)&.last&.title, class: 'bg-info badge mr-1').html_safe
+    reminder  = record.reminders.where(user_id: current_user.id).last
+    html      = ''
+    html      += reminder.title unless reminder.blank?
+    html.html_safe
   end
 
   def actions(record)

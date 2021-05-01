@@ -49,7 +49,11 @@ class CompanyDirectoryDatatable < ApplicationDatatable
   end
 
   def reminder_note(record)
-    content_tag(:span, do_ellipsis(current_user.reminders&.where(reminderable_id: record.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1')&.html_safe
+    #content_tag(:span, do_ellipsis(current_user.reminders&.where(reminderable_id: record.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1')&.html_safe
+    reminder  = current_user.reminders.where(reminderable_id: record.id, reminderable_type: 'Admin').last
+    html      = ''
+    html      += reminder.title unless reminder.blank?
+    html.html_safe
   end
 
   def contact_icon(record)
