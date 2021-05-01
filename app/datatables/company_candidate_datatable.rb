@@ -34,6 +34,8 @@ class CompanyCandidateDatatable < ApplicationDatatable
         contact: contact_icon(record),
         status: ban_unban_link(record),
         reminder_note: reminder_note(record),
+        skills: prepare_skill_list(record),
+        visa: record.candidate_visa,
         actions: actions(record)
       }
     end
@@ -88,6 +90,16 @@ class CompanyCandidateDatatable < ApplicationDatatable
     html      = ''
     html      += reminder.title unless reminder.blank?
     html.html_safe
+  end
+
+  def prepare_skill_list(record)
+    content  =''
+
+    record.skill_list.each do |skill|
+      content += "<span class='bg-info badge mr-1'>#{skill}</span>"
+    end
+
+    content.html_safe
   end
 
   def actions(record)
