@@ -48,6 +48,12 @@ class Company::JobsController < Company::BaseController
   def create
     params[:job][:description] = params[:job][:description].gsub("width: 100%","width: 350px")
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
+
+    if @job.listing_type.eql?('Blog')
+      @job.start_date = Time.now
+      @job.end_date   = Time.now + 100.years
+    end
+
     respond_to do |format|
       if @job.save
         # CreateGoogleIndex.new(@job, "URL_UPDATED").index_job if @job.published?
