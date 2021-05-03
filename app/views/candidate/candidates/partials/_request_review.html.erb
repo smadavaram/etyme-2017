@@ -8,7 +8,8 @@
       <%= form_for "review_request", url: "/review_request" do |f| %>
         <div class="modal-body">
             <div class="form-group">
-              <%= f.email_field :email, class: "form-control rounded-field", placeholder: "Enter email" %>
+              <%= f.text_field :name, class: "form-control rounded-field", placeholder: "Enter Name" %>
+              <%= f.email_field :email, class: "form-control mt-3 rounded-field", placeholder: "Enter email" %>
               <%= f.text_area :request_body, class: "form-control mt-3 rounded-field", placeholder: "Description", required: true %>
             </div>
         </div>

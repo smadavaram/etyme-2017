@@ -216,7 +216,8 @@ class Candidate::CandidatesController < Candidate::BaseController
     else
       url = Rails.env.development? ? "#{request.subdomain}.#{ENV['domain']}" : "#{request.subdomain}.#{ENV['domain']}"
     end
-    redirect_to "#{Rails.env.production? ? 'https' : 'http'}://#{url}/candidate_review?cand=#{candidate.id}&reviewer=#{candidate_rating_params[:reviewer]}"
+    # redirect_to "#{Rails.env.production? ? 'https' : 'http'}://#{url}/candidate_review?cand=#{candidate.id}&reviewer=#{candidate_rating_params[:reviewer]}"
+    redirect_to "https://www.etyme.com/"
   end
   
   def build_profile
@@ -293,6 +294,11 @@ class Candidate::CandidatesController < Candidate::BaseController
     flash.now[:success] = 'Video Successfully Updated'
   end
 
+  def upload_portfolio_images
+    render json: current_candidate.candidate_portfolio_images.create(image_url: params[:photo])
+    flash.now[:success] = 'Image Successfully Uploaded'
+  end
+  
   def notification
     @notification = current_candidate.notifications.find_by(id: params[:id])
     @notification.read!
@@ -376,6 +382,7 @@ class Candidate::CandidatesController < Candidate::BaseController
     params.require(:candidate).permit(:first_name, :last_name, :invited_by, :ssn, :passport_number, :relocation, :visa_type, :job_id, :description, :last_nam, :dob, :email, :phone, :visa, :skill_list, :designate_list, :primary_address_id, :category, :subcategory, :dept_name, :industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status, :facebook_url, :twitter_url, :linkedin_url, :gtalk_url, :skypeid, :address,
                                       addresses_attributes: %i[id address_1 address_2 country city state zip_code from_date to_date _destroy],
                                       candidate_social_medium_attributes: %i[id social_media_name social_media_url _destroy],
+                                      candidate_languages_attributes: %i[id language_name language_level _destroy],
                                       educations_attributes: [:id, :degree_level, :degree_title, :grade, :completion_year, :start_year, :institute, :description, :_destroy,
                                                               candidate_education_documents_attributes: %i[
                                                                 id education_id title file exp_date _destroy
@@ -396,7 +403,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def candidate_rating_params
-    params.require(:review).permit(:candidate_id, :reviewer, :communication_rating, :service_rating, :recommend_rating, :rating_comment)
+    params.require(:review).permit(:candidate_id, :reviewer, :name, :communication_rating, :service_rating, :recommend_rating, :rating_comment)
   end
   
 end

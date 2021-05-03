@@ -22,15 +22,19 @@ class Static::CandidatesController < ApplicationController
     @candidates_hot   = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3) unless @current_company.nil?
     @jobs_hot         = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     @candidate        = Candidate.find_by(id: params[:id])
-
+    @candidate_reviews = @candidate.candidate_reviews.paginate(page: params[:page], per_page: 2)
     if (params[:is_chat_candidate].present? && params[:is_chat_candidate] == "true")
       flash.now[:alert] = 'Please login with Company ID'
     end
-
-    unless @candidate
-      redirect_back(fallback_location: root_path)
-    else
-      render :layout => "kulkakit"
+    respond_to do |format|
+      format.html{
+        unless @candidate
+          redirect_back(fallback_location: root_path)
+        else
+          render :layout => "kulkakit"
+        end
+      }
+      format.js
     end
   end
 

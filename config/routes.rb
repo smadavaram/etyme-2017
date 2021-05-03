@@ -156,6 +156,7 @@ Rails.application.routes.draw do
       get :upload_document
     end
     post 'update_photo', to: 'candidates#update_photo'
+    post 'upload_portfolio_images', to: 'candidates#upload_portfolio_images'
     delete 'delete_resume', to: 'candidates#delete_resume'
     get 'make_primary_resume', to: 'candidates#make_primary_resume'
     post 'update_mobile_number', to: 'candidates#update_mobile_number'

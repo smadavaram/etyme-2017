@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20210416114917) do
+ActiveRecord::Schema.define(version: 20210502182359) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -342,6 +342,23 @@ ActiveRecord::Schema.define(version: 20210416114917) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "candidate_languages", force: :cascade do |t|
+    t.bigint "candidate_id"
+    t.string "language_name"
+    t.string "language_level"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id"], name: "index_candidate_languages_on_candidate_id"
+  end
+
+  create_table "candidate_portfolio_images", force: :cascade do |t|
+    t.bigint "candidate_id"
+    t.string "image_url"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id"], name: "index_candidate_portfolio_images_on_candidate_id"
+  end
+
   create_table "candidate_reviews", force: :cascade do |t|
     t.bigint "candidate_id"
     t.integer "communication_rating"
@@ -351,7 +368,17 @@ ActiveRecord::Schema.define(version: 20210416114917) do
     t.string "reviewer"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "name"
     t.index ["candidate_id"], name: "index_candidate_reviews_on_candidate_id"
+  end
+
+  create_table "candidate_social_media", force: :cascade do |t|
+    t.bigint "candidate_id"
+    t.string "social_media_name"
+    t.text "social_media_url"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_id"], name: "index_candidate_social_media_on_candidate_id"
   end
 
   create_table "candidates", id: :serial, force: :cascade do |t|
@@ -1671,6 +1698,15 @@ ActiveRecord::Schema.define(version: 20210416114917) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["invoice_id"], name: "index_receive_payments_on_invoice_id"
+  end
+
+  create_table "references", force: :cascade do |t|
+    t.bigint "client_id"
+    t.string "reference_name"
+    t.string "reference_email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_references_on_client_id"
   end
 
   create_table "reminders", id: :serial, force: :cascade do |t|

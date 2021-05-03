@@ -18,6 +18,13 @@
       .form-group
         = f.text_field :ssn  ,:placeholder => "SSN Number",class:'form-control input'
         .help-block.form-text.text-muted.form-control-feedback We will not share without permission
+  .row
+    .col-md-12
+      = f.fields_for :candidate_languages do |b|
+        = render 'candidate/candidates/candidate_languages', f: b
+      %strong
+        .links.pull-right
+          = link_to_add_association '+ Add Language', f, :candidate_languages, class: 'btn btn-primary', partial: 'candidate/candidates/candidate_languages'
     -#.col-sm-6
     -#  %label Passport Number
     -#  .form-group

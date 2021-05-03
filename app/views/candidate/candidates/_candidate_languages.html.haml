@@ -1,0 +1,16 @@
+.nested-fields4
+  .row
+    .col-sm-5
+      .form-group
+        %label Add Language
+        = f.text_field :language_name, placeholder: "Add Language",class: 'form-control input', value: f.object.language_name
+
+    %div{class: "col-sm-5"}
+      .form-group
+        %label  Language Level
+        = f.select :language_level, options_for_select([["Basic", "basic"], ["Conversational", "Conversational"], ["Fluent", "fluent"], ["Native/Bilingual", "native_or_bilingual"]], f.object.language_level), {}, {class: 'form-control'}
+    .col-sm-2
+      .form-group
+        %label  &nbsp
+        = link_to_remove_association f , wrapper_class: "nested-fields4", class: "bttn btn-add delete_icon" do
+          %i.fa.fa-trash

@@ -17,20 +17,25 @@
       </div>
       <div class="profile-rating">
         <div class="profile-rating-stars">
-          <% candidate_rating = @candidate.candidate_rating.round %>
+          <%= render_stars(@candidate.candidate_rating)%>
+          <%
+=begin%>
+ <% candidate_rating = @candidate.candidate_rating.round %>
           <% (1..candidate_rating).each do |i| %>
             <i class="fa fa-star" aria-hidden="true"></i>
           <% end %>
           <% empty_star = 5 - candidate_rating %>
           <% (1..empty_star).each do |i| %>
             <i class="fa fa-star empty-star" aria-hidden="true"></i>
-          <% end %>
-          <span class="profile-rating-number"><%= candidate_rating %></span>
+          <% end %>           
+<%
+=end%>
+          <span class="profile-rating-number"><%= number_with_precision(@candidate.candidate_rating, :precision => 1) %></span>
         </div>
       </div>
       <div class="profile-reviews-links">
         <span class="profile-reviews-link"><%= @candidate.candidate_reviews.count %> Reviews</span>
-        <span class="profile-reviews-link">Add a Review</span>
+        <!-- <span class="profile-reviews-link">Add a Review</span> -->
       </div>
       <div class="profile-stats">
         <div class="profile-stats-container">
@@ -43,14 +48,16 @@
         </div>
         <div class="profile-stats-container">
           <div class="profile-stats-number">
-            4
+            <%= @candidate.clients.count %>
           </div>
           <div class="profile-stats-label">
             Clients
           </div>
         </div>
       </div>
-      <div class="mb-4">
+      <%
+=begin%>
+ <div class="mb-4">
         <% if @candidate&.phone %>
         <div class="profile-contact">
           <i class="fa fa-phone" aria-hidden="true"></i>
@@ -62,7 +69,9 @@
           <%= do_ellipsis(@candidate.email,2) %>
           <span class="profile-contact-verified">Verified</span>
         </div>
-      </div>
+      </div> 
+<%
+=end%>
       <div class="mb-5">
         <div class="profile-information">
           <div class="information-label">
@@ -84,7 +93,9 @@
             <% end %>
           </div>
         </div>
-        <div class="profile-information">
+        <%
+=begin%>
+ <div class="profile-information">
           <div class="information-label">
             SSN
           </div>
@@ -95,8 +106,22 @@
               Unknown
             <% end %>
           </div>
-        </div>
-        <div class="profile-information">
+        </div> 
+<%
+=end%>  
+        <% @candidate.candidate_social_medium.each do |sm| %>
+          <div class="profile-information">
+            <div class="information-label">
+              <%= sm.social_media_name.capitalize %>
+            </div>
+            <div class="information-value">
+              <%= sm.social_media_url %>
+            </div>
+          </div>
+        <% end %>
+        <%
+=begin%>
+ <div class="profile-information">
           <div class="information-label">
             Facebook
           </div>
@@ -155,7 +180,17 @@
               <i class='fa fa-skype fa-2x'></i>
             <% end %>
           </div>
+        </div> 
+<%
+=end%>
+      <div class="profile-information">
+        <div class="information-label">
+          Recruiter
         </div>
+        <div class="information-value">
+          <%= Admin.find_by(id: @candidate.try(:job_invitations).try(:last).try(:sender_id)).try(:full_name) %>
+        </div>
+      </div>
       </div>
       <div class="profile-rate-value">
         <% job_invitation = @candidate.try(:job_invitations).try(:last) %>
@@ -168,21 +203,21 @@
         Hourly rate
       </div>
       <div class="profile-buttons">
-        <a href="#" class="profile-button-add">
+        <!-- <a href="#" class="profile-button-add">
           Add as Candidate
-        </a>
+        </a> -->
         <a href="#" class="profile-button-chat">
-          <i class="fa fa-commenting mr-2" aria-hidden="true"></i> Chat
+          <i class="fa fa-commenting mr-2" aria-hidden="true"></i> Chat with recruiter
         </a>
       </div>
-      <div class="profile-links">
+      <!-- <div class="profile-links">
         <a href="#" class="profile-link-share">
           Share Profile <i class="fa fa-share-alt ml-1" aria-hidden="true"></i>
         </a>
         <a href="#" class="profile-link-download">
           Download Resume
         </a>
-      </div>
+      </div> -->
       <div class="profile-section">
         <div class="profile-section-header">
           <div class="profile-section-title">Skills</div>
@@ -216,14 +251,16 @@
           <div class="profile-section-title">Languages</div>
           <div class="profile-section-line"></div>
         </div>
-        <div class="row">
-          <div class="profile-section-content-label col-4">
-            English (Lorem)
+        <% @candidate.candidate_languages.each do |language| %>
+          <div class="row">
+            <div class="profile-section-content-label col-4">
+              <%= language.language_name.capitalize %>
+            </div>
+            <div class="profile-section-content-value col-8">
+              <%= language.language_level.capitalize %>
+            </div>
           </div>
-          <div class="profile-section-content-value col-8">
-            Native (Lorem)
-          </div>
-        </div>
+        <% end %>
       </div>
       <div class="profile-section">
         <div class="profile-section-header">
@@ -244,11 +281,11 @@
       </div>
       <div class="profile-section">
         <div class="profile-section-header">
-          <div class="profile-section-title">Projects History</div>
+          <div class="profile-section-title">Employers</div>
           <div class="profile-section-line"></div>
         </div>
         <% if @candidate.portfolios.blank? %>
-          No Projects
+          No Employers
         <% end %>
         <% @candidate.portfolios.each do |portfolio| %>
         <div class="profile-section-content-label">
@@ -266,10 +303,16 @@
     <!-- Portfolio -->
     <div class="webflow-profile-inner">
       <div class="d-flex justify-content-between mb-20">
-        <div class="f-16 w-500 l-19 c-80">John's Portfolio</div>
+        <div class="f-16 w-500 l-19 c-80"><%= "#{@candidate.first_name.capitalize}'s Portfolio" %></div>
       </div>
+        <% if @candidate.video.present? %>
+          <video height="95" width="150">
+            <source src="<%= current_candidate.video %>" type="<%= current_candidate.video_type %>"></source>
+          </video>
+        <% end %>
+
         <% if @candidate.portfolios.blank? %>
-          No Projects
+          <!-- No Projects -->
         <% end %>
       <div class="row">
         <% if @candidate.portfolios[-1] %>
@@ -303,17 +346,17 @@
       <% if @candidate.experiences.blank? %>
         No Experience
       <% end %>
-      <% @candidate.experiences.each do |experience| %>
+      <% @candidate.clients.each do |client| %>
       <div class="mb-20">
         <div class="f-14 l-17 c-80 mb-2">
-          <%= experience.experience_title %>
+          <%= client.name %>
         </div>
         <div class="d-flex f-12 l-14">
           <div class="c-50 mr-12">
-            <%= experience.institute %>
+            <%= client.industry %>
           </div>
           <div class="c-35">
-            From <%= experience.start_date %> to <%= experience.end_date %>
+            From <%= client.start_date %> to <%= client.end_date %>
           </div>
         </div>
       </div>
@@ -323,6 +366,14 @@
     <!-- Reviews -->
     <div class="webflow-profile-inner webflow-comments col-12">
       <%= render 'static/candidates/partials/webflow_candidate_ratings' %>
+      <div class="pagination-container" style="display: none;">
+        <%= will_paginate @candidate_reviews %>
+      </div>
+      <% if @candidate_reviews.next_page %>
+        <div class="load-more-container">
+          <%= link_to "+ See More", public_profile_static_candidates_path(id: @candidate.id, page: @candidate_reviews.next_page), style: "font-size: 16px; text-decoration: none;", :class => 'next_page', :remote => true %>
+        </div>
+      <% end %>
     </div>
   </div>
 </div>

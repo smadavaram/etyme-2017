@@ -1,0 +1,4 @@
+$("#static-profile-review").append("<%= j render 'static/candidates/webflow_candidate_rate' %>");
+<% unless @candidate_reviews.next_page %>
+    $(".next_page").hide();
+<% end %>

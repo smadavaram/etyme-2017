@@ -84,7 +84,17 @@
                           .pt-new-icon.can_vid_r
                             %i.os-icon.os-icon-plus
                           .pt-user-name.can_vid_r
-                            Upload Portfolio
+                            Profile Video
+                  .col-4.col-sm-3.col-xxl-2
+                    .profile-tile.profile-tile-inlined
+                      = filepicker_field_tag "" ,class: "hidden candi-portfolio-upload", onchange:"candidatePortfolioUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                      .profile-tile-box.faded                      
+                        .pt-new-icon.img_pic_r.candi-portfolio-upload
+                          %i.os-icon.os-icon-plus
+                        .pt-user-name.img_pic_r
+                          Upload Portfolio
+                  .col-4.col-sm-3.col-xxl-2
+                    = render partial: "candidate/candidates/portfolio_slider"
                 .row
                   -#.col-sm-12.col-md-12.col-lg-2
                   -#  .panel-body.status.profile-margin
@@ -201,8 +211,18 @@
                       %li.next.pull-right
                         %a.next_submit_link{:href => "javascript:void(0);"} Next
 
+= render 'candidate/candidates/partials/request_review.html.erb'
+
 - content_for :scripts do
   :javascript
+    $(document).on("click", ".request-review-link", function(){
+      var reference_email = $(this).attr("reference_email");
+      var reference_name = $(this).attr("reference_name");
+      $("#review_request_email").val(reference_email);
+      $("#review_request_name").val(reference_name);
+      $("#modal-window").modal('show');
+    });
+
     // Facebook Account Kit
     $(document).ready(function() {
       // initialize Account Kit with CSRF protection
@@ -290,6 +310,10 @@
 
     $(document).on("click", ".candi-profile-pic", function(){
       upload_file_ajax(candidateLogoUpload);
+    });
+
+    $(document).on("click", ".candi-portfolio-upload", function(){
+      upload_file_ajax(candidatePortfolioUpload);
     });
 
     $(document).on("click", '#myTab a', function(e) {
@@ -383,6 +407,22 @@
      });
     }
 
+    function candidatePortfolioUpload(url,type){
+      photo_url = url
+      console.log(photo_url)
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{ candidate_upload_portfolio_images_path }",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.img_pic').removeClass('hidden').attr("src",photo_url);
+        $('.img_pic_r').remove();
+        location.reload();
+       }
+     });
+    }
     function addressLookup() {
       var address = document.getElementsByClassName('p-location');
 

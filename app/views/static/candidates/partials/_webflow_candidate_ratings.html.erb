@@ -1,32 +1,56 @@
 <!-- Comments -->
   <div class="webflow-comments-header d-flex justify-content-between">
-    <div class="webflow-comments-title">Reviews <span>(<%= @candidate.candidate_reviews.count %>)</span></div>
-    <%# <div class="webflow-comments-sort">Most Recent <i class="fa fa-angle-down" aria-hidden="true"></i></div> %>
+    <div class="webflow-comments-title">Reviews
+      <span>(<%= @candidate.candidate_reviews.count %>)</span></div>
   </div>
   <div>
+    <div>
+      <%
+=begin%>
+ <div class="row">
+        <div class="col">
+          <div class="webflow-comments-card-author">
+            Seller communication
+            <br>
+            <br>
+            <span class="public-profile-rating">
+              <i class="fa fa-star" aria-hidden="true" style="color: #FFC100;"></i>
+              <span style="color: #FFC100;"><%= @candidate.candidate_reviews.average(:communication_rating).round || 0 %></span>
+            </span>
+          </div>
+        </div>
+        <div class="col">
+          <div class="webflow-comments-card-author">
+            Service as described
+            <br>
+            <br>
+            <span class="public-profile-rating">
+              <i class="fa fa-star" aria-hidden="true" style="color: #FFC100;"></i>
+              <span style="color: #FFC100;"><%= @candidate.candidate_reviews.average(:service_rating).round || 0 %></span>
+            </span>
+          </div>
+        </div>
+        <div class="col">
+          <div class="webflow-comments-card-author">
+            Would recommend
+            <br>
+            <br>
+            <span class="public-profile-rating">
+              <i class="fa fa-star" aria-hidden="true" style="color: #FFC100;"></i>
+              <span style="color: #FFC100;"><%= @candidate.candidate_reviews.average(:recommend_rating).round || 0 %></span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <hr> 
+<%
+=end%>
+    </div>
     <% if @candidate.candidate_reviews.blank? %>
       No Reviews
     <% end %>
-    <% @candidate&.candidate_reviews.each do |review| %>
-    <div class="webflow-comments-card d-flex">
-      <div class="pl-3">
-        <div class="webflow-comments-card-author">
-          <%= review.reviewer %>
-        </div>
-        <div class="webflow-comments-card-company">
-          <%= current_company.name %>
-        </div>
-        <div class="webflow-comments-card-text">
-          <%= review.rating_comment %>
-        </div>
-        <div class="webflow-comments-card-footer">
-          <%# <span class="webflow-comments-card-upvote"><i class="fa fa-caret-up" aria-hidden="true"></i> Upvote</span> %>
-          <span class="webflow-comments-card-time">posted <%= time_ago_in_words(review.created_at)%> ago</span>
-        </div>
-      </div>
+    <div id="static-profile-review">
+      <%= render "static/candidates/webflow_candidate_rate" %>
     </div>
-    <% end %>
   </div>
-  <%# <div class="webflow-comments-load-more d-flex justify-content-center"> %>
-  <%#   <a href="#">Load more</a> %>
-  <%# </div> %>
+  
