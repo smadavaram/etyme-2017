@@ -1,7 +1,7 @@
 <!-- Comments -->
 <div class="webflow-content-inner webflow-comments col-12 pt-3 pb-3">
   <%= form_with url: static_post_comment_path, method: :post do |form| %>
-    <div class="webflow-comments-form d-flex">
+    <div class="webflow-comments-form d-flex pb-4">
       <%= form.text_field 'comment[body]', placeholder: 'Post a public comment...', class: 'flex-grow-1' %>
       <%= form.hidden_field 'comment[commentable_id]', value: "#{ @job&.id }"%>
       <%= form.hidden_field 'comment[commentable_type]', value: "Job" %>
