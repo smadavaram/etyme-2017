@@ -1920,10 +1920,7 @@ span:hover {
 
 
 .webflow-comments {
-    margin-top: 0;
-    margin-bottom: 15px;
-
-    padding: 30px 40px 40px 40px;
+    margin: 0;
 
     .webflow-comments-form {
         padding-bottom: 40px;
@@ -1973,19 +1970,14 @@ span:hover {
         }
     }
 
-    .webflow-comments-header {
-        margin-bottom: 30px;
-    }
+    .webflow-comments-header {}
 
     .webflow-comments-title {
-        margin-bottom: 20px;
-
         font-family: Rubik;
         font-style: normal;
         font-weight: 500;
         font-size: 16px;
         line-height: 19px;
-
         color: #121212;
         opacity: 0.8;
 
