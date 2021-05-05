@@ -30,7 +30,15 @@
                   </div>
                 </div>
               </div>
-              <div class="row align-items-center no-gutters">
+              <div class="row align-items-center no-gutter">
+                <div class="col-12">
+                  <p class="feed-article-time">
+                    <%= image_tag 'clock.svg', class: "img-fluid w-15 mr-2", alt: "clock" %>
+                    <%= "#{time_ago_in_words(job.created_at)} ago" %>
+                  </p>
+                </div>
+              </div>
+              <div class="row align-items-center no-gutters mt-1">
                 <div class="col-5">
                   <small><%= link_to "#{job.comments.size} comments", static_job_path(job, type: 'feed') %></small>
                 </div>
@@ -38,7 +46,6 @@
                   <% if current_company.owner == current_user %>
                     <small class="mr-2"><%= link_to 'Delete', job, method: 'delete', class: 'text-danger' %></small>
                   <% end %>
-                  <small><%= job.created_at.strftime("%d %b, %Y") %></small>
                 </div>
               </div>
             </div>
