@@ -1683,6 +1683,8 @@ span:hover {
     background: #FFFFFF;
     box-shadow: 1px 3px 20px rgba(46, 46, 46, 0.02);
     border-radius: 8px;
+    
+    
 }
 
 .webflow-blog-banner {
@@ -2199,11 +2201,8 @@ a.webflow-product-details-buy-now {
 }
 
 .webflow-product-single {
-    padding: 40px;
 
     .product-single-back {
-        margin-bottom: 40px;
-
         a {
             font-family: Rubik;
             font-style: normal;
@@ -2221,8 +2220,6 @@ a.webflow-product-details-buy-now {
     .product-single-header {
         display: flex;
         justify-content: space-between;
-
-        padding-bottom:30px;
 
         h1 {
             font-family: Rubik;
@@ -2251,37 +2248,33 @@ a.webflow-product-details-buy-now {
         }
 
         a {
-            margin-left: 12px;
-
+            margin-left: 5px;
             font-family: Rubik;
             font-style: normal;
             font-weight: normal;
-            font-size: 12px;
+            font-size: 11px;
             line-height: 17px;
-
             color: rgba(18, 18, 18, 0.35);
         }
 
         .product-single-buy {
             .feed-article-btn-apply {
               display: flex;
-              align-items: center;
-
-              padding: 6px 14px;
+              justify-content: center;
+              padding: 5px 5px;
+              background-color: #5555A5;
+              border-radius: 2px;
 
               a {
+                margin-left: 0;
                 font-family: Rubik;
                 font-style: normal;
                 font-weight: 500;
                 font-size: 12px;
                 line-height: 17px;
-                text-align: right;
-
+                text-align: center;
                 color: #ffffff;
               }
-
-              background-color: #5555A5;
-              border-radius: 2px;
           }
         }
     }
@@ -2302,8 +2295,6 @@ a.webflow-product-details-buy-now {
     }
 
     .product-single-subsection-title {
-        margin-bottom: 10px;
-
         font-family: Rubik;
         font-style: normal;
         font-weight: 500;
@@ -2315,23 +2306,16 @@ a.webflow-product-details-buy-now {
     }
 
     .product-single-subsection-content {
-        margin-bottom: 40px;
-
         font-family: Rubik;
         font-style: normal;
         font-weight: normal;
         font-size: 14px;
         line-height: 22px;
-
-        text-indent: 24px;
+        text-indent: 0px;
         color: rgba(18, 18, 18, 0.6);
     }
 
     .product-single-company-card {
-        display: flex;
-
-        padding-top: 6px;
-        padding-bottom: 6px;
 
         .company-card-image {
             width: 56px;
