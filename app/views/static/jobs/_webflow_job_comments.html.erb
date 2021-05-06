@@ -15,7 +15,7 @@
   <div>
     <% @job&.comments.each do |comment| %>
     <div class="webflow-comments-card d-flex">
-      <div class="webflow-comments-card-image">
+      <div class="webflow-avatar-32-32">
         <%= user_avatar(comment&.created_by_candidate || comment&.created_by) %>
       </div>
       <div class="pl-3">
