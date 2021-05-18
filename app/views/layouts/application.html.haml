@@ -3,6 +3,13 @@
   %head
     -#%meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
     %title Etyme
+
+    %meta{content: "Etyme", property: "og:title"}/
+    %meta{content: "#{request.original_url}", property: "og:url"}/
+    %meta{content: "website", property: "og:type"}/
+    %meta{content: "cloudepa.etyme.com", property: "og:site_name"}/
+    %meta{content: "Etymw", property: "og:description"}/
+
     = action_cable_meta_tag
     = stylesheet_link_tag    'application'
     = csrf_meta_tags

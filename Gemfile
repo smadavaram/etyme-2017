@@ -40,6 +40,8 @@ gem 'selectize-rails'
 gem 'stripe'
 gem "httparty"
 
+gem 'ogp'
+
 gem 'bootstrap', '~> 4.0.0'
 gem 'popper_js', '~> 1.12.9'
 source 'https://rails-assets.org' do
