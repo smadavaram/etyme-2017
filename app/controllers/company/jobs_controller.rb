@@ -11,10 +11,10 @@ class Company::JobsController < Company::BaseController
   def index
     add_breadcrumb params[:type].blank? ? 'job(s)' : params[:type].to_s, jobs_path, options: { title: 'JOBS' }
 
-    @search = current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).search(params[:q])
+    @search       = current_company.jobs.not_system_generated.includes(:created_by).order(created_at: :desc).ransack(params[:q])
     @company_jobs = @search.result.order(created_at: :desc) # .paginate(page: params[:page], per_page: params[:per_page]||=15) || []
     @company_jobs = @company_jobs.where(listing_type: params[:type] || 'Job')
-    @job = current_company.jobs.new
+    @job          = current_company.jobs.new
   end
 
   def show
@@ -53,6 +53,12 @@ class Company::JobsController < Company::BaseController
   def create
     params[:job][:description] = params[:job][:description].gsub("width: 100%","width: 350px")
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
+
+    if @job.listing_type.eql?('Blog')
+      @job.start_date = Time.now
+      @job.end_date   = Time.now + 100.years
+    end
+
     respond_to do |format|
       if @job.save
         # CreateGoogleIndex.new(@job, "URL_UPDATED").index_job if @job.published?
@@ -112,10 +118,15 @@ class Company::JobsController < Company::BaseController
   end
 
   def destroy
-    @job.destroy
-    respond_to do |format|
-      format.html { redirect_to jobs_url, notice: 'Job was successfully destroyed.' }
-      format.json { head :no_content }
+    #@job.destroy
+    @job.deleted_at  = Time.now
+    @job.status       = Job::STATUSES[:cancelled]
+
+    if @job.save
+      respond_to do |format|
+        format.html { redirect_to jobs_url, notice: 'Job was successfully destroyed.' }
+        format.json { head :no_content }
+      end
     end
   end
 

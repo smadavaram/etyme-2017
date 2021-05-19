@@ -318,6 +318,7 @@
     });
 
     $(document).on("click", ".resume", function(){
+      console.log('upload resume..');
       upload_file_ajax(uploadResume);
     });
 
@@ -374,12 +375,13 @@
     }
 
     function uploadResume(url){
+      console.log('url = ', url);
       resume_url = url
       $.ajax({
        type: 'POST',
        dataType: 'script',
        url: " #{ upload_resume_candidates_path } ",
-       data: { resume: resume_url,authenticity_token: window._token },
+       data: { resume: resume_url, authenticity_token: window._token },
        success: function (data) {  }
      });
     }

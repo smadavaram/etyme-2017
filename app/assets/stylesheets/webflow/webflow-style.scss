@@ -71,6 +71,17 @@
     min-width: 100px;
 }
 
+.feed-blank-thumb-100 {
+    border: 1px solid #cccccc;
+    height: 100px;
+    width: 100px;
+    
+    @media (max-width: 575.98px) {
+      height: 80px;
+      width: 80px;
+    }
+}
+
 // Avatars
 .webflow-avatar-20-20 {
     width: 20px;
@@ -322,10 +333,12 @@
 
 .webflow-logo-xs-40 {
     @media (max-width: 575.98px) {
-        width: 40px;
-        height: 40px;
-        border-radius: 4px;
+        width: 10%;
+        height: 4.5vh;
         border: 0.5px solid rgba(18, 18, 18, 0.3);
+        position: absolute;
+        left: 45%;
+        bottom: 2px;
 
         img {
             width: 100%;

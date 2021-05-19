@@ -7,13 +7,13 @@
       <%= image_tag 'demo/s1.jpg' %>
     <% end %>
   </div>
-  <div class="webflow-blog-article">
-    <div class="webflow-blog-header">
+  <div class="webflow-blog-article pt-3 pb-3">
+    <div class="webflow-blog-header pb-3">
       <h1 class="title"><%= @job&.title %></h1>  
       <span class="author">by <%= @job&.created_by&.full_name %> </span>
       <a href="#" class="share">Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
     </div>
-    <div class="webflow-blog-content">
+    <div class="webflow-blog-content pb-3">
       <%= @job&.description&.html_safe %>
     </div>
     <div class="webflow-blog-footer">

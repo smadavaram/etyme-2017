@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20210424102952) do
+ActiveRecord::Schema.define(version: 20210429111148) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -418,9 +418,11 @@ ActiveRecord::Schema.define(version: 20210424102952) do
     t.string "visa_type"
     t.float "latitude"
     t.float "longitude"
+    t.integer "recruiter_id"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
+    t.index ["recruiter_id"], name: "index_candidates_on_recruiter_id"
     t.index ["reset_password_token"], name: "index_candidates_on_reset_password_token", unique: true
   end
 
@@ -607,6 +609,8 @@ ActiveRecord::Schema.define(version: 20210424102952) do
     t.string "banner_btn_label"
     t.string "banner_btn_url"
     t.string "banner_color"
+    t.string "banner_two_btn_label"
+    t.string "banner_two_btn_url"
     t.index ["owner_id"], name: "index_companies_on_owner_id"
   end
 

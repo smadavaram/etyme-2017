@@ -1,4 +1,4 @@
-<div class="feed-top">
+<div class="m-3">
   <div class="d-md-flex row">
     <div class="col-12">
       <div class="feed-banner d-flex flex-column justify-content-between p-4"
@@ -15,11 +15,14 @@
           <% if current_company&.banner_btn_label %>
             <a href="<%= current_company&.banner_btn_url %>" class="feed-banner-button"><%= current_company&.banner_btn_label %></a>
           <% end %>
+          <% if current_company&.banner_two_btn_label %>
+            <a href="<%= current_company&.banner_two_btn_url %>" class="feed-banner-button"><%= current_company&.banner_two_btn_label %></a>
+          <% end %>
         </div>
       </div>
     </div>
   </div>
-  <div class="col-12 px-0 category-list justify-content-between">
+  <div class="col-12 px-0 mt-3 d-flex justify-content-between">
     <select id="selectFilter" name="selectFilter" class="select-filter">
       <option value="all">All</option>
       <option value="Blog">Blogs</option>
@@ -27,7 +30,7 @@
       <option value="Service">Services</option>
       <option value="Training">Trainings</option>
     </select>
-    <div class="pt-1 d-sm-none" id="banner-links">
+    <div class="pt-1 d-none" id="banner-links">
       <%= link_to 'Talent pool', "#talent-pool" %>
       <%= link_to 'Open Jobs', "#open-jobs" %>
     </div>

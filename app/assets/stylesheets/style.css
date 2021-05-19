@@ -1919,3 +1919,7 @@ flex: 0 0 220px;
 .circle-image{
   border: 1px solid grey;
 }
+
+.dataTables_wrapper {
+  font-size: 11px;
+}

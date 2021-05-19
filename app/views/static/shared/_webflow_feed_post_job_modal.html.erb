@@ -2,22 +2,24 @@
 <div class="modal fade" id="feedPostJobModal" tabindex="-1" role="dialog" aria-labelledby="feedPostJobModalLabel" aria-hidden="true">
   <div class="modal-dialog webflow-modal-dialog" role="document">
     <div class="modal-content webflow-modal-content">
-      <div class="webflow-modal-header">
+      <div class="webflow-modal-header d-flex pt-3 pb-2 justify-content-center">
         <h5 class="webflow-modal-title" id="feedPostJobModalLabel">New Job</h5>
       </div>
-      <%= form_with url: static_post_job_path, method: :post do |form| %>
-        <div class="webflow-modal-body">
-          <%= form.text_field 'job[title]', placeholder: 'Write the title for the job here...', class: 'webflow-input-text-field' %>
-          <%= form.text_area 'job[description]', placeholder: 'Write the description of the job here...', class: 'webflow-input-text-area' %>
-          <%= form.text_field 'job[education]', placeholder: 'Enter a comma-separated list of certifications...', class: 'webflow-input-text-field' %>
+      <%= form_with model: Job.new, url: static_post_job_path, method: :post do |form| %>
+        <div class="webflow-modal-body p-3 p-sm-4">
+          <%= form.text_field :title, placeholder: 'Write the title for the job here...', class: 'webflow-input-text-field' %>
+          <%= form.hidden_field :description, placeholder: 'Write the description of the job here...', id: :job_description, class: 'trix-content trix-description' %>
+          <trix-editor input="job_description" placeholder="Write the description of the job here..."></trix-editor>
+          <br />
+          <%= form.text_field :education_list, placeholder: 'Enter a comma-separated list of certifications...', class: 'webflow-input-text-field' %>
           <% if current_user.present? %>
-            <%= form.select 'job[status]', job_status, {}, {class: 'webflow-input-select'} %>
+            <%= form.select :status, job_status, {}, {class: 'webflow-input-select'} %>
           <% end %>
-          <%= form.select 'job[department]', department_list, {}, {class: 'webflow-input-select'} %>
-          <%= form.select 'job[industry]', industry_list, {}, {class: 'webflow-input-select'} %>
-          <%= form.select 'job[category]', WORK_CATEGORIES.keys, {}, {class: 'webflow-input-select'} %>
-          <%= form.text_field 'job[skills]', placeholder: 'Enter a comma-separated list of skills...', class: 'webflow-input-text-field' %>
-          <%= form.text_field 'job[location]', placeholder: 'Enter the location of the job here...', class: 'webflow-input-text-field' %>
+          <%= form.select :department, department_list, {}, {class: 'webflow-input-select'} %>
+          <%= form.select :industry, industry_list, {}, {class: 'webflow-input-select'} %>
+          <%= form.select :job_category, WORK_CATEGORIES.keys, {}, {class: 'webflow-input-select'} %>
+          <%= form.text_field :tag_list, placeholder: 'Enter a comma-separated list of skills...', class: 'webflow-input-text-field' %>
+          <%= form.text_field :location, placeholder: 'Enter the location of the job here...', class: 'webflow-input-text-field' %>
           <div class='d-flex justify-content-between mx-2'>
             <div class="f-rubik f-12">Start Date:</div>
             <div><%= form.date_select :start_date, {}, { class: 'webflow-input-select' } %></div>
@@ -26,16 +28,15 @@
             <div class="f-rubik f-12">End Date:</div>
             <div><%= form.date_select :end_date, {}, { class: 'webflow-input-select' } %></div>
           </div>
-          <%= form.text_field 'job[rate]', placeholder: 'Enter the rate for the job here...', class: 'webflow-input-text-field' %>
-          <%= form.select 'job[type]', [['Contract', 1], ['Full Time', 2], ['Contract to Hire', 3]], {}, {class: 'webflow-input-select'} %>
-          <%= form.text_field 'job[source]', placeholder: 'Enter the URL of the parent job here...', class: 'webflow-input-text-field' %>
+          <%= form.text_field :price, placeholder: 'Enter the rate for the job here...', class: 'webflow-input-text-field' %>
+          <%= form.select :job_type, [['Contract', 1], ['Full Time', 2], ['Contract to Hire', 3]], {}, {class: 'webflow-input-select'} %>
+          <%= form.text_field :source, placeholder: 'Enter the URL of the parent job here...', class: 'webflow-input-text-field' %>
         </div>
         <div class="webflow-modal-footer">
           <button type="button" class="webflow-btn-link f-12 l-17" data-dismiss="modal">Cancel</button>
           <%= form.submit "Post", class: 'webflow-btn-primary f-12 l-17' %>
         </div>
       <% end %>
-      </form>
     </div>
   </div>
 </div>

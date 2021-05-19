@@ -7,24 +7,26 @@
       <%= image_tag 'demo/s1.jpg' %>
     <% end %>
   </div>
-  <div class="webflow-blog-article">
-    <div class="webflow-blog-header">
+  <div class="webflow-blog-article pt-3 pb-3">
+    <div class="webflow-blog-header pb-3">
       <h1 class="title"><%= @job&.title %></h1>  
       <span class="author">by <%= @job&.created_by_candidate&.full_name || @job&.created_by&.full_name %> </span>
       <a href="#" class="share">Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
     </div>
     <!-- Thumbnails -->
-    <div class="webflow-blog-content">
+    <div class="webflow-blog-content pb-3">
       <%= @job&.description&.html_safe %>
     </div>
     <div class="product-single-thumbnails d-flex">
-    <% if @job.files.present? %>
-      <% @job.files.split(',').each do |job_file| %>
-      <div class="webflow-thumbnail-170-105 p-3">
-        <%= image_tag job_file %>
-      </div>
+      <% if @job.files.present? %>
+        <% @job.files.split(',').each do |job_file| %>
+          <div class="pr-3">
+            <div class="webflow-thumbnail-170-105">
+              <%= image_tag job_file %>
+            </div>
+          </div>
+        <% end %>
       <% end %>
-    <% end %>
     </div>
     <div class="webflow-blog-footer">
       <% if @job&.tag_list.present? %>

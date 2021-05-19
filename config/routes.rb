@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
-  resources :coupons
-  devise_for :admin_users, ActiveAdmin::Devise.config
-  ActiveAdmin.routes(self)
+  
   concern :commentable do
     resources :comments
   end
@@ -12,6 +10,7 @@ Rails.application.routes.draw do
     resources :images, only: :index
   end
 
+  resources :coupons
   resources :messages, concerns: :commentable
   resources :articles, concerns: %i[commentable image_attachable]
 
@@ -871,4 +870,9 @@ Rails.application.routes.draw do
   get 'company/contracts/:id/add_reminder', to: 'company/contracts#add_reminder', as: :contract_add_reminder
 
   post 'api/company/', to: 'api/company/companies#create_custom_company'
+  
+  
+  devise_for :admin_users, ActiveAdmin::Devise.config
+  ActiveAdmin.routes(self)
+
 end

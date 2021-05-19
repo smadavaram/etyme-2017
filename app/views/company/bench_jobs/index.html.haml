@@ -22,13 +22,13 @@
                     %th Name
                     %th Role/Title
                     %th Skills
-                    %th Min Hourly Rate
-                    %th Max Hourly Rate
+                    %th Min
+                    %th Max
                     %th Location
                     %th Visa
                     %th Recuiter Name
                     %th Actions
-                %tbody
+                %tbody{:style => "font-size: 12px;"}
                   - @candidates.each_with_index do |c , index|
                     - @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id)
                     %tr
@@ -49,7 +49,7 @@
                           %span{:id => "title_#{c.candidate.id}"}
                             = c.candidate.candidate_title
                           %span{:id => "input_title_#{c.candidate.id}", :class => "d-none"}
-                            %input{:type => "text", :name => "job_invitation[candidate_title]", :placeholder => "Role/Title", :class => "mb-2 wi-100", value: c.candidate.candidate_title}/
+                            %input{:type => "text", :name => "job_invitation[candidate_title]", :placeholder => "Role/Title", style: "width: 70px !important;" ,:class => "mb-2", value: c.candidate.candidate_title}/
                           %span{:id => "input_role_#{c.candidate.id}", :class => "d-none"}
                             %input{:type => "text", :name => "Title", :placeholder => "title", :class => "wi-100", value: c.candidate.candidate_title}/
                         %td
@@ -62,32 +62,32 @@
                             %input{:type => "text", :name => "job_invitation[skill_list]", :placeholder => "Add Skills Comma seperated", :class => "wi-100", 'data-role'=>'tagsinput',value: (c.candidate.skill_list.present? ? c.candidate.skill_list.join(", ") : "")} 
                         %td
                           %span{:id => "input_min_rate_#{c.candidate.id}", :class => "d-none"}
-                            %input{:type => "number", :name => "job_invitation[min_hourly_rate]", :placeholder => "Min Hourly Rate", :id => "job_invitation_min_hourly_rate_index", :class => "wi-100", value: (@c_bench_job.present? ? @c_bench_job&.min_hourly_rate : "")}/
+                            %input{:type => "number", :name => "job_invitation[min_hourly_rate]", :placeholder => "Min Hourly Rate", :id => "job_invitation_min_hourly_rate_index", style: "width: 55px !important;", :class => "", value: (@c_bench_job.present? ? @c_bench_job&.min_hourly_rate : "")}/
                           %span{:id => "min_rate_#{c.candidate.id}"}
-                            = @c_bench_job.present? ? @c_bench_job&.min_hourly_rate : ""
+                            = @c_bench_job.present? ? "$#{@c_bench_job&.min_hourly_rate}" : ""
                         %td
                           %span{:id => "input_max_rate_#{c.candidate.id}", :class => "d-none"}
-                            %input{:type => "number", :name => "job_invitation[max_hourly_rate]", :placeholder => "Max Hourly Rate", :id => "job_invitation_max_hourly_rate_index", :class => "wi-100", value: (@c_bench_job.present? ? @c_bench_job&.max_hourly_rate : "")}/
+                            %input{:type => "number", :name => "job_invitation[max_hourly_rate]", :placeholder => "Max Hourly Rate", :id => "job_invitation_max_hourly_rate_index", style: "width: 55px !important;", :class => "", value: (@c_bench_job.present? ? @c_bench_job&.max_hourly_rate : "")}/
                           %span{:id => "max_rate_#{c.candidate.id}"}
-                            = @c_bench_job.present? ? @c_bench_job&.max_hourly_rate : ""
+                            = @c_bench_job.present? ? "$#{@c_bench_job&.max_hourly_rate}" : ""
                         %td
                           %span{:id => "location_#{c.candidate.id}"}
                             = c.candidate.try(:location)
                           %span{:id => "input_location_#{c.candidate.id}", :class => "d-none"}
-                            %input{:type => "text", :name => "job_invitation[location]", :placeholder => "eg.1806 Beechwood Drive, Pittsburgh", :id => "input_field_location_#{c.candidate.id}", :class => "wi-100 location", value: c.candidate.try(:location), :candidate_id => c.candidate.id}/
+                            %input{:type => "text", :name => "job_invitation[location]", :placeholder => "eg.1806 Beechwood Drive, Pittsburgh", :id => "input_field_location_#{c.candidate.id}", style: "width: 132px !important;", :class => "location", value: c.candidate.try(:location), :candidate_id => c.candidate.id}/
                         %td
                           %span{:id => "visa_#{c.candidate.id}"}
                             = c.candidate.candidate_visa
                           %span{:id => "input_visa_#{c.candidate.id}", :class => "d-none"}
-                            %input{:type => "text", :name => "job_invitation[candidate_visa]", :placeholder => "Visa", :id => "", :class => "wi-100", value: c.candidate.candidate_visa}/
+                            %input{:type => "text", :name => "job_invitation[candidate_visa]", :placeholder => "Visa", :id => "", style: "width: 55px !important;", :class => "", value: c.candidate.candidate_visa}/
                         %td
                           %span
                             -if c.candidate.invited_by_user.present?
                               %span{:id => "recuiter_#{c.candidate.id}"}
                                 .label-info.badge.margin-bottom-5.badge-info
-                                  = c.candidate.invited_by_user.full_name
+                                  = User.find_by(id: @c_bench_job.sender_id).try(:full_name)
                             %span{:id => "select_recuiter_#{c.candidate.id}", :class => "d-none"}
-                              = select_tag "job_invitation[sender_id]", options_from_collection_for_select(current_company.users, :id, :full_name, c.candidate.invited_by_user.id)
+                              = select_tag "job_invitation[sender_id]", options_from_collection_for_select(current_company.users, :id, :full_name, @c_bench_job.sender_id)
                       %td
                         %span{:id => "bench_action_#{c.candidate.id}"}
                           = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)

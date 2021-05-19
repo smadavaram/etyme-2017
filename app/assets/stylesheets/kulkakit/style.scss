@@ -1048,7 +1048,7 @@ span:hover {
 
     button.job-feed-plus-icon {
       font-size: 24px; 
-      color: blue;
+      color: #18a8d8;
     }
 }
 
@@ -1081,11 +1081,11 @@ span:hover {
 }
 
 .content-wrapper .dropdown-login {
-    width: 50px;
+    width: 20px;
     color: rgba(18, 18, 18, 0.7);
     border: none;
     background-color: transparent;
-    font-size: 26px;
+    font-size: 22px;
 }
 
 .content-wrapper .dropdown-button {
@@ -1215,7 +1215,7 @@ span:hover {
     border-radius: 8px;
 
     @media (max-width: 767.98px) {
-        margin-top: 350px;
+        margin-top: 0px;
     }
 }
 
@@ -1515,9 +1515,14 @@ span:hover {
 .sidebar-right {
     align-self: flex-start;
     padding-top: 96px;
-    padding-left: 30px;
+    padding-left: 20px;
     padding-right: 20px;
     background: #ffffff;
+
+    @media (max-width: 767.98px) {
+      padding-top: 23px;
+      margin: 0 1rem 1rem 1rem;
+    }
 }
 
 #banner-links {
@@ -1678,6 +1683,8 @@ span:hover {
     background: #FFFFFF;
     box-shadow: 1px 3px 20px rgba(46, 46, 46, 0.02);
     border-radius: 8px;
+    
+    
 }
 
 .webflow-blog-banner {
@@ -1726,7 +1733,7 @@ span:hover {
 }
 
 .webflow-blog-article {
-    padding: 40px;
+    padding: 0px;
 }
 
 .webflow-blog-header {
@@ -1736,18 +1743,14 @@ span:hover {
     color: #121212;
     opacity: 0.8;
 
-    padding-bottom:30px;
-
     h1.title {
         font-family: Rubik;
         font-style: normal;
         font-weight: normal;
         font-size: 20px;
         line-height: 24px;
-
         color: #121212;
         opacity: 0.8;
-
         margin-bottom: 12px;
     }
 
@@ -1786,14 +1789,9 @@ span:hover {
     font-weight: normal;
     font-size: 14px;
     line-height: 22px;
-
-    text-indent: 24px;
-
+    text-indent: 0px;
     color: #121212;
     opacity: 0.6;
-
-    padding-bottom: 40px;
-
 
     p {
         margin-bottom: 0;
@@ -1924,13 +1922,9 @@ span:hover {
 
 
 .webflow-comments {
-    margin-top: 0;
-    margin-bottom: 15px;
-
-    padding: 30px 40px 40px 40px;
+    margin: 0;
 
     .webflow-comments-form {
-        padding-bottom: 40px;
 
         input[type=text] {
             padding-left: 15px;
@@ -1977,19 +1971,14 @@ span:hover {
         }
     }
 
-    .webflow-comments-header {
-        margin-bottom: 30px;
-    }
+    .webflow-comments-header {}
 
     .webflow-comments-title {
-        margin-bottom: 20px;
-
         font-family: Rubik;
         font-style: normal;
         font-weight: 500;
         font-size: 16px;
         line-height: 19px;
-
         color: #121212;
         opacity: 0.8;
 
@@ -2212,11 +2201,8 @@ a.webflow-product-details-buy-now {
 }
 
 .webflow-product-single {
-    padding: 40px;
 
     .product-single-back {
-        margin-bottom: 40px;
-
         a {
             font-family: Rubik;
             font-style: normal;
@@ -2234,8 +2220,6 @@ a.webflow-product-details-buy-now {
     .product-single-header {
         display: flex;
         justify-content: space-between;
-
-        padding-bottom:30px;
 
         h1 {
             font-family: Rubik;
@@ -2264,37 +2248,33 @@ a.webflow-product-details-buy-now {
         }
 
         a {
-            margin-left: 12px;
-
+            margin-left: 5px;
             font-family: Rubik;
             font-style: normal;
             font-weight: normal;
-            font-size: 12px;
+            font-size: 11px;
             line-height: 17px;
-
             color: rgba(18, 18, 18, 0.35);
         }
 
         .product-single-buy {
             .feed-article-btn-apply {
               display: flex;
-              align-items: center;
-
-              padding: 6px 14px;
+              justify-content: center;
+              padding: 5px 5px;
+              background-color: #5555A5;
+              border-radius: 2px;
 
               a {
+                margin-left: 0;
                 font-family: Rubik;
                 font-style: normal;
                 font-weight: 500;
                 font-size: 12px;
                 line-height: 17px;
-                text-align: right;
-
+                text-align: center;
                 color: #ffffff;
               }
-
-              background-color: #5555A5;
-              border-radius: 2px;
           }
         }
     }
@@ -2315,8 +2295,6 @@ a.webflow-product-details-buy-now {
     }
 
     .product-single-subsection-title {
-        margin-bottom: 10px;
-
         font-family: Rubik;
         font-style: normal;
         font-weight: 500;
@@ -2328,23 +2306,16 @@ a.webflow-product-details-buy-now {
     }
 
     .product-single-subsection-content {
-        margin-bottom: 40px;
-
         font-family: Rubik;
         font-style: normal;
         font-weight: normal;
         font-size: 14px;
         line-height: 22px;
-
-        text-indent: 24px;
+        text-indent: 0px;
         color: rgba(18, 18, 18, 0.6);
     }
 
     .product-single-company-card {
-        display: flex;
-
-        padding-top: 6px;
-        padding-bottom: 6px;
 
         .company-card-image {
             width: 56px;
@@ -2771,5 +2742,11 @@ a.webflow-product-details-buy-now {
 
         color: rgba(18, 18, 18, 0.5);
     }
+}
+
+trix-toolbar .trix-button-row {
+  display: flex; 
+  flex-wrap: nowrap; 
+  justify-content: space-between; 
 }
 

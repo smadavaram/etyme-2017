@@ -68,6 +68,7 @@ class Users::PasswordsController < Devise::PasswordsController
   end
 
   def check_company_user
-    current_company.users.find_by(email: (params[:user][:email]).downcase).present?
+    current_company = User.where(email: params[:user][:email].downcase).first.company if current_company.nil?
+    current_company.users.find_by(email: params[:user][:email].downcase).present?
   end
 end

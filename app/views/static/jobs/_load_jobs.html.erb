@@ -36,25 +36,35 @@
             <div class="col-12 col-md-6 col-lg-4 my-2 my-md-0">
               <ul class="list-unstyled m-0 p-0">
                 <li class="d-block">
+                  <h5 class="feed-article-author">by <%= job&.created_by_candidate&.full_name || job&.created_by&.full_name %></h5>
+                </li>
+                <li class="d-block">
                   <p class="feed-article-website">
-                    <%= image_tag 'globalization.svg' ,class: "img-fluid w-15 mr-2", alt: "globe" %>
+                    <%= image_tag 'globalization.svg', class: "img-fluid w-15 mr-2", alt: "globe" %>
                     <%= job&.company&.website %>
                   </p>
                 </li>
                 <% if job.location.present? %>
                   <li class="d-block">
                     <p class="feed-article-location">
-                      <%= image_tag 'placeholder.svg' ,class: "img-fluid w-15 mr-2", alt: "placeholder" %>
+                      <%= image_tag 'placeholder.svg', class: "img-fluid w-15 mr-2", alt: "placeholder" %>
                       <%= job&.location %>
                     </p>
                   </li>
                 <% end %>
                 <li class="d-block">
                   <p class="feed-article-time">
-                    <%= image_tag 'clock.svg' ,class: "img-fluid w-15 mr-2", alt: "clock" %>
+                    <%= image_tag 'clock.svg', class: "img-fluid w-15 mr-2", alt: "clock" %>
                     <%= "#{time_ago_in_words(job.created_at)} ago" %>
                   </p>
                 </li>
+                <% if current_company&.owner == current_user %>
+                  <li class="d-block">
+                    <p class="feed-article-time">
+                      <small class="mr-3"><%= link_to 'Delete', job, method: 'delete', class: 'text-danger' %></small>
+                    </p>
+                  </li>
+                <% end %>
               </ul>
             </div>
             <div class="col-12 col-lg-8 d-flex">
@@ -73,25 +83,25 @@
                     </li>
                     <li class="d-inline-block mb-0">
                       <% if job&.listing_type.present? && job&.listing_type == "Training" %>
-                      <span class="feed-article-btn-apply">
-                        <%= link_to "View",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
-                      </span>
+                        <span class="feed-article-btn-apply">
+                          <%= link_to "View",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                        </span>
                       <% elsif job&.listing_type.present? && job&.listing_type == "Service" %>
-                      <span class="feed-article-btn-apply">
-                        <%= link_to "View",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
-                      </span>
+                        <span class="feed-article-btn-apply">
+                          <%= link_to "View",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                        </span>
                       <% elsif job&.listing_type.present? && job&.listing_type == "Product" %>
-                      <span class="feed-article-btn-apply">
-                        <%= link_to "Buy",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
-                      </span>
+                        <span class="feed-article-btn-apply">
+                          <%= link_to "Buy",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                        </span>
                       <% else %>
-                      <span class="feed-article-btn-apply">
-                        <% if current_candidate.present? && current_candidate.already_applied?(job.id) %>
-                          Applied
-                        <% else %>
-                          <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
-                        <% end %>
-                      </span>
+                        <span class="feed-article-btn-apply">
+                          <% if current_candidate.present? && current_candidate.already_applied?(job.id) %>
+                            Applied
+                          <% else %>
+                            <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                          <% end %>
+                        </span>
                       <% end %>
                     </li>
                   </ul>

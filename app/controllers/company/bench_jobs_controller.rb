@@ -28,7 +28,9 @@ class Company::BenchJobsController < Company::BaseController
           format.html { redirect_to company_bench_jobs_path, alert: 'Something went wrong' }
         end
       else
-        format.html { redirect_to company_bench_jobs_path, alert: 'Something went wrong' }
+        candidate = Candidate.find(params[:candidate_id])
+        current_company.sent_job_invitations.bench.create(job_invitation_params.merge(recipient: candidate, sender_id: params[:job_invitation][:sender_id], company_id: params[:company_id], invitation_type: :candidate, expiry: Date.today + 1.year))
+        format.html { redirect_to company_bench_jobs_path, alert: 'Bench job is successfully updated.' }
       end
     end
   end

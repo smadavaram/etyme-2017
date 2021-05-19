@@ -143,7 +143,13 @@ class Company::CandidatesController < Company::BaseController
         redirect_to candidates_path and return
       end
     else
-      @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: 'campany_candidate'))
+      @candidate = current_company.candidates.new(
+        create_candidate_params.merge(
+          send_welcome_email_to_candidate: false,
+          invited_by_id: current_user.id,
+          invited_by_type: 'User',
+          status: 'campany_candidate')
+        )
 
       if @candidate.save
         flash[:success] = 'New Candidate Is Added'
@@ -172,7 +178,7 @@ class Company::CandidatesController < Company::BaseController
     @company_candidate = CandidatesCompany.normal.where(candidate_id: @candidate.id, company_id: current_company.id)
     respond_to do |format|
       if @company_candidate.update_all(status: 1)
-        current_company.sent_job_invitations.bench.create(recipient: @candidate, created_by: current_user, invitation_type: :candidate, expiry: Date.today + 1.year)
+        current_company.sent_job_invitations.bench.create(recipient: @candidate, created_by: current_user, invitation_type: :candidate, expiry: Date.today + 1.year, min_hourly_rate: 20, max_hourly_rate: 30)
         flash[:success] = 'Candidate is now Hot Candidate.'
         format.js { render inline: 'location.reload();' }
       else
@@ -187,6 +193,7 @@ class Company::CandidatesController < Company::BaseController
     @company_candidate = CandidatesCompany.hot_candidate.where(candidate_id: params[:candidate_id], company_id: current_company.id)
     respond_to do |format|
       if @company_candidate.update_all(status: 0)
+        JobInvitation.where(recipient_id: params[:candidate_id], company_id: current_company.id).destroy_all
         @candidate.update(associated_company: Company.get_freelancer_company)
         flash[:success] = 'Candidate is now Normal Candidate.'
         format.js { render inline: 'location.reload();' }
@@ -286,7 +293,7 @@ class Company::CandidatesController < Company::BaseController
 
   def create_candidate_params
     params.require(:candidate).permit(:first_name, :invited_by_id, :send_invitation, :invited_by_type,
-                                      :resume, :description, :last_name, :dob, :phone,
+                                      :resume, :description, :last_name, :dob, :phone, :recruiter_id,
                                       :email, :skill_list, :location, :candidate_visa, :candidate_title, :candidate_roal,
                                       experiences_attributes: %i[id
                                                                  experience_title end_date

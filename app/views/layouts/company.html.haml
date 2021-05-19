@@ -61,7 +61,7 @@
           = render partial: 'company/shared/tiles'
           = render partial: 'shared/add_to_chat_modal'
     = javascript_include_tag 'company'
-
+    %script{ type: 'text/javascript', src: 'https://www.uploader.win/js/latest/app.js' }
   /[if IE 8]
   = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
   = render 'shared/flash_messages'

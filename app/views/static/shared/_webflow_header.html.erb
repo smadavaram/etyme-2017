@@ -1,49 +1,49 @@
 <div class="header">
-<div class="col-12">
-<div class="header-items">
-  <div class="d-flex align-items-center justify-content-center">
-      <div class="header-left">
-        <div class="header-left-mobile">
-          <span class="sidebar-left-btn txt-dark mx-4">
-            <i class="fa fa-bars f-20 purple-100" aria-hidden="true"></i>
-          </span>
-          <span class="text-dark">
-            <i class="fa fa-search gray-30" aria-hidden="true"></i>
-          </span>
-        </div>
-        <div class="d-none d-md-flex justify-content-center">
-          <div class="webflow-logo-50 webflow-logo-xs-40">
-          <% if request.subdomain == "app" %>
-            <%= image_tag(image_path('etyme-logo-dark.png')) %>
-          <% elsif @current_company.present? && @current_company.logo.present? %>
-            <%= image_tag @current_company.logo %>
-          <% else %>
-            <%= image_tag(image_path('etyme-logo-dark.png')) %>
-          <% end %>
+  <div class="col-12">
+    <div class="header-items">
+      <div class="d-flex align-items-center justify-content-center">
+        <div class="header-left">
+          <div class="header-left-mobile">
+            <span class="sidebar-left-btn txt-dark">
+              <i class="fa fa-bars f-20 purple-100" aria-hidden="true"></i>
+            </span>
+            <span class="text-dark mx-3">
+              <i class="fa fa-search gray-30" aria-hidden="true"></i>
+            </span>
           </div>
-          <div class="header-logo-label mx-3">
-            <%= @current_company&.name %>
+          <div class="d-md-flex justify-content-center">
+            <div class="webflow-logo-50 webflow-logo-xs-40">
+            <% if request.subdomain == "app" %>
+              <%= image_tag(image_path('etyme-logo-dark.png')) %>
+            <% elsif @current_company.present? && @current_company.logo.present? %>
+              <%= image_tag @current_company.logo %>
+            <% else %>
+              <%= image_tag(image_path('etyme-logo-dark.png')) %>
+            <% end %>
+            </div>
+            <div class="d-none d-lg-block header-logo-label m-3">
+              <%= @current_company&.name %>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="header-right d-flex">
-        <div class="d-none d-md-flex flex-fill mb-2 mb-md-0 col-xl-9">
-          <div class="search-main position-relative d-flex flex-fill align-items-center justify-content-between">
-            <div class="d-inline-block position-relative w-100">
-              <input type="text" placeholder="<%="Search #{@current_company&.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
+        <div class="header-right d-flex">
+          <div class="d-none d-md-flex flex-fill mb-2 mb-md-0 col-xl-9">
+            <div class="search-main position-relative d-flex flex-fill align-items-center justify-content-between">
+              <div class="d-inline-block position-relative w-100">
+                <input type="text" placeholder="<%="Search #{@current_company&.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
                 <div class="btn-search">
                   <button class="btn border-0">
                       <%= image_tag(image_path('search.png'), class: "img-fluid") %>
                   </button>
                 </div>
+              </div>
             </div>
           </div>
+          <%= render 'kulkakit/shared/header' %>
         </div>
-        <%= render 'kulkakit/shared/header' %>
       </div>
+    </div>
   </div>
-</div>
-</div>
 </div>
 
 <!-- JS Event Handler for the Left and Right Sidebar Togglers -->
