@@ -143,7 +143,13 @@ class Company::CandidatesController < Company::BaseController
         redirect_to candidates_path and return
       end
     else
-      @candidate = current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: 'campany_candidate'))
+      @candidate = current_company.candidates.new(
+        create_candidate_params.merge(
+          send_welcome_email_to_candidate: false,
+          invited_by_id: current_user.id,
+          invited_by_type: 'User',
+          status: 'campany_candidate')
+        )
 
       if @candidate.save
         flash[:success] = 'New Candidate Is Added'
@@ -287,7 +293,7 @@ class Company::CandidatesController < Company::BaseController
 
   def create_candidate_params
     params.require(:candidate).permit(:first_name, :invited_by_id, :send_invitation, :invited_by_type,
-                                      :resume, :description, :last_name, :dob, :phone,
+                                      :resume, :description, :last_name, :dob, :phone, :recruiter_id,
                                       :email, :skill_list, :location, :candidate_visa, :candidate_title, :candidate_roal,
                                       experiences_attributes: %i[id
                                                                  experience_title end_date

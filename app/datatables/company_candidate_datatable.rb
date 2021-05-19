@@ -28,20 +28,32 @@ class CompanyCandidateDatatable < ApplicationDatatable
     records.map do |record|
       {
         id: record.id,
-        company: company_profile(record),
+        #company: company_profile(record),
         name: candidate_profile(record),
         recruiter: get_recruiter_email(record),
         contact: contact_icon(record),
         status: ban_unban_link(record),
         reminder_note: reminder_note(record),
+        skills: prepare_skill_list(record),
+        visa: record.candidate_visa,
         actions: actions(record)
       }
     end
   end
 
   def get_recruiter_email(record)
-    company = record.companies.find_by(id: current_company.id)
-    do_ellipsis(company.owner ? company.owner.email : record.email, 15)
+    recruiter_email = record.recruiter.blank? ? '' : record.recruiter.email
+
+    #if record.recruiter.blank?
+      #company         = record.companies.find_by(id: current_company.id)
+      #recruiter_email = '' #company.owner ? company.owner.email : record.email
+    #end
+
+    html  = ''
+    html  += user_image(record.recruiter, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2') unless record.recruiter.blank?
+    html  += "&nbsp;"
+    html  += do_ellipsis(recruiter_email, 25)
+    html.html_safe
   end
 
   def company_profile(record)
@@ -52,7 +64,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
 
   def candidate_profile(user)
     (link_to user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: user.full_name.to_s), profile_company_candidate_path(user)) +
-      link_to(do_ellipsis(user.first_name), profile_company_candidate_path(user), class: 'pl-2')
+      link_to(do_ellipsis(user.full_name), profile_company_candidate_path(user), class: 'pl-2')
   end
 
   def get_raw_records
@@ -74,14 +86,30 @@ class CompanyCandidateDatatable < ApplicationDatatable
   end
 
   def reminder_note(record)
-    content_tag(:span, do_ellipsis(record&.reminders.where(user_id: current_user.id)&.last&.title), class: 'bg-info badge mr-1').html_safe
+    reminder  = record.reminders.where(user_id: current_user.id).last
+    html      = ''
+    html      += reminder.title unless reminder.blank?
+    html.html_safe
+  end
+
+  def prepare_skill_list(record)
+    content  =''
+
+    record.skill_list.each do |skill|
+      content += "<span class='bg-info badge mr-1'>#{skill}</span>"
+    end
+
+    content.html_safe
   end
 
   def actions(record)
+    resume_download_link  = record.resume.present? ? record.resume : '#'
+    resume_download_title = record.resume.present? ? 'Download Resume' : 'Resume Not Uploaded'
+
     # link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, '#', title: 'Follow/Unfollow', class: 'data-table-icons') +
     link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, candidate_add_reminder_path(record), remote: :true, title: 'Remind Me', class: 'data-table-icons') +
       get_edit_link(record) +
-      link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, record.resume, download: true, title: 'Download Resume', class: 'data-table-icons') +
+      link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, resume_download_link, download: true, target: :blank, title: resume_download_title, class: 'data-table-icons') +
       get_status_links(record)
   end
 

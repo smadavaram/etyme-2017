@@ -27,21 +27,30 @@
     .col-sm-6
       .col-md-12
         = f.text_field :candidate_title , class: 'form-control ' , id: 'candidate_title' , placeholder: "Add Title"
-    - if @candidate.new_record?
-      .col-sm-6
-        = f.check_box :send_invitation ,{}, true, false
-        %label.col-md-2.control-label
-        .col-md-12
-          .document-display.clearfix.uploaded_resume.hidden
-            %p.float-left.mt-2.ml-1
-              %i.fa.fa-file-text-o.fa-lg.fa-fw
-              = "Resume"
-            .primary_doc.float-right
-              = link_to "", "", :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", remote: true, onclick: 'delete_resume()'
 
-          %br
-          = render 'shared/file_attachement',f:f,attr_name: :resume, required_field: false
-          -#= f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt
+    -# if @candidate.persisted?
+    .col-sm-6
+      .col-md-12
+        = f.select(:recruiter_id, options_for_select(User.where(company_id: current_user.company_id).map{|u| [u.full_name, u.id]}, selected: @candidate.recruiter_id || current_user.id), { include_blank: 'select' }, { class: 'form-control', id: 'recruiter'})
+    .col-sm-6
+      .col-md-12
+        = ""
+
+    -# if @candidate.new_record?
+    .col-sm-6
+      = f.check_box :send_invitation ,{}, true, false
+      %label.col-md-2.control-label
+      .col-md-12
+        .document-display.clearfix.uploaded_resume.hidden
+          %p.float-left.mt-2.ml-1
+            %i.fa.fa-file-text-o.fa-lg.fa-fw
+            = "Resume"
+          .primary_doc.float-right
+            = link_to "", "", :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", remote: true, onclick: 'delete_resume()'
+
+        %br
+        = render 'shared/file_attachement',f:f,attr_name: :resume, required_field: false
+        -#= f.filepicker_field :resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker',"data-fp-extensions" => ".pdf,.doc,.docx,.txt
 
 
 

@@ -396,36 +396,15 @@ $(document).ready(function () {
         ],
         ajax: $('#company-candidates-datatable').data('source'),
         columns: [
-            {
-                data: "id"
-            },
-            {data: "company"},
-            {data: "name"},
-            {
-                data: "recruiter",
-                searchable: false,
-                orderable: false
-            },
-            {
-                data: "reminder_note",
-                searchable: false,
-                orderable: false
-            },
-            {
-                data: "status",
-                searchable: false,
-                orderable: false
-            },
-            {
-                data: "contact",
-                searchable: false,
-                orderable: false
-            },
-            {
-                data: 'actions',
-                searchable: false,
-                orderable: false
-            }
+            { data: "id" },
+            { data: "name" },
+            { data: "recruiter", searchable: false, orderable: false },
+            { data: "visa" },
+            { data: "skills" },
+            { data: "reminder_note", searchable: false, orderable: false },
+            { data: "status", searchable: false, orderable: false },
+            { data: "contact", searchable: false, orderable: false },
+            { data: 'actions', searchable: false, orderable: false }
         ]
 
     });

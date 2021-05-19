@@ -92,6 +92,7 @@ class Candidate < ApplicationRecord
   has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
   belongs_to :invited_by_user, class_name: 'User', foreign_key: :invited_by_id, optional: true
+  belongs_to :recruiter, class_name: 'User', foreign_key: :recruiter_id, optional: true
   belongs_to :associated_company, class_name: 'Company', foreign_key: :company_id, optional: true
 
   has_many :contract_sale_commisions, through: :csc_accounts

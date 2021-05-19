@@ -1,22 +1,24 @@
 <!-- Product Details -->
 <div class="webflow-content-inner webflow-blog webflow-product-single col-12">
   <!-- Back to Listings -->
-  <div class="product-single-back">
+  <div class="product-single-back pt-3 pb-3">
     <a href="#"><i class="fa fa-arrow-left mr-1" aria-hidden="true"></i> Back to Listings</a>
   </div>
 
   <!-- Header: Title, updated, share, save and buy -->
-  <div class="product-single-header">
-    <div class="feed-title">
-      <h1><%= @job.title %></h1>  
+  <div class="product-single-header row pb-3">
+    <div class="col-8 col-md-10 feed-title">
+      <h1><%= @job.title %></h1>
+    </div>
+    <div class="col-4 col-md-2 product-single-buy">
+      <div class="feed-article-btn-apply">
+        <%= link_to "Apply Now", static_job_apply_path(@job, status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true } %>
+      </div>
+    </div>
+    <div class="col-12">
       <span><i class="fa fa-clock-o mr-1" aria-hidden="true"></i> <%= "Created On #{@job.created_at.strftime('%B %e, %Y')}" %></span>
       <a href="#" >Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
       <a href="#" >Save this <i class="fa fa-heart ml-1" aria-hidden="true"></i></a>
-    </div>
-    <div class="product-single-buy">
-      <span class="feed-article-btn-apply">
-        <%= link_to "Apply Now", static_job_apply_path(@job, status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true } %>
-      </span>
     </div>
   </div>
 
@@ -30,22 +32,22 @@
   <% end %>
 
   <!-- Description -->
-  <div class="product-single-subsection-title">
-    Description
+  <div class="product-single-subsection-title pb-3">
+    <h7>Description</h7>
   </div>
-  <div class="product-single-subsection-content">
+  <div class="product-single-subsection-content pb-3">
     <%= @job.description.html_safe %>
   </div>
 
   <!-- About Company -->
-  <div class="product-single-subsection-title">
-    About Company 
+  <div class="product-single-subsection-title pb-3">
+    <h7>About Company</h7>
   </div>
-  <div class="product-single-company-card">
+  <div class="product-single-company-card d-flex pb-3">
     <div class="company-card-image">
       <%= image_tag @job.company.logo %>
     </div>
-    <div class="pl-3 align-self-center">
+    <div class="pl-3 mt-3 align-self-center">
       <div class="company-card-title">
         <%= @job.company.name %>
       </div>
