@@ -5,7 +5,7 @@
             <%= review.name.capitalize %>
             <span  style="color: #FFC100;">
               <i class="fa fa-star" aria-hidden="true"></i>
-              <%= review.total_rating %>
+              <%= number_with_precision(review.total_rating, :precision => 1) %>
             </span>
           </div>
           <div class="webflow-comments-card-company">

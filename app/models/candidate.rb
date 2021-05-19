@@ -138,8 +138,10 @@ class Candidate < ApplicationRecord
 
   validate :max_skill_size
   def exp_words
-    days = (client_exp + designation_exp)
-    days < 365 ? "<div class='value'>#{days}</div> <div class='label'>day(s) experience</div>" : "<div class='value'>#{days / 365}</div><div class='label'>year(s) experience</div>"
+    days = total_experince
+    "<div class='value'>#{days}</div> <div class='label'>day(s) experience</div>"
+    # days = (client_exp + designation_exp)
+    # days < 365 ? "<div class='value'>#{days}</div> <div class='label'>day(s) experience</div>" : "<div class='value'>#{days / 365}</div><div class='label'>year(s) experience</div>"
   end
 
   def candidate_exp_words

@@ -1,5 +1,5 @@
 <div class="slideshow-container">
-  <%current_candidate.candidate_portfolio_images.each do |image| %>
+  <% candidate.candidate_portfolio_images.each do |image| %>
     <div class="mySlides">
       <img src="<%= image.image_url %>" class="slider-img">
     </div>
@@ -12,7 +12,7 @@
 
 <style>
 .slideshow-container {
-  max-width: 100%;
+  max-width: 80%;
   position: relative;
   margin: auto;
   height: 200px;

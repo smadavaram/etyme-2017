@@ -50,13 +50,14 @@
               .col-sm-12.text-center
                 .profile-rating
                   .profile-rating-stars
-                    - candidate_rating = candidate.candidate_rating.round
-                    - (1..candidate_rating).each do |i|
-                      %i.fa.fa-star{"aria-hidden" => "true"}
-                    - empty_star = 5 - candidate_rating
-                    - (1..empty_star).each do |i|
-                      %i.fa.fa-star.empty-star{"aria-hidden" => "true", :rating_value => "2"}
-                    %span.profile-rating-number= candidate_rating
+                    = render_stars(candidate.candidate_rating)
+                    -# - candidate_rating = candidate.candidate_rating.round
+                    -# - (1..candidate_rating).each do |i|
+                    -#   %i.fa.fa-star{"aria-hidden" => "true"}
+                    -# - empty_star = 5 - candidate_rating
+                    -# - (1..empty_star).each do |i|
+                    -#   %i.fa.fa-star.empty-star{"aria-hidden" => "true", :rating_value => "2"}
+                    %span.profile-rating-number= number_with_precision(candidate.candidate_rating, :precision => 1)
                 .profile-reviews-links
                   %span.profile-reviews-link
                     = candidate.candidate_reviews.count
@@ -279,18 +280,6 @@
               / Reviews
               .webflow-profile-inner.webflow-comments.col-12
                 = render 'candidate/candidates/partials/request_review.html.erb'
-        .col-sm-12
-          .element-wrapper
-            .element-box
-              .element-info
-                .element-info-with-icon
-                  .element-info-icon
-                    %i.fa.fa-briefcase
-                  .element-info-text
-                    %h4.element-inner-header Experience
-                  .element-info-with-icon
-                    = link_to raw("<i class='fa fa-edit'></i>"), "/onboarding_profile?tag=submit_doc", :class => "edit-project-history edit-btn-margin"
-                  .element-info
                                     
         .col-sm-12
           .element-wrapper

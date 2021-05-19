@@ -305,15 +305,21 @@
       <div class="d-flex justify-content-between mb-20">
         <div class="f-16 w-500 l-19 c-80"><%= "#{@candidate.first_name.capitalize}'s Portfolio" %></div>
       </div>
-        <% if @candidate.video.present? %>
-          <video height="95" width="150">
-            <source src="<%= current_candidate.video %>" type="<%= current_candidate.video_type %>"></source>
-          </video>
-        <% end %>
+        <div class="row">
+          <div class="col-md-6">
+            <% if @candidate.video.present? %>
+              <video height="95" width="150">
+                <source src="<%= @candidate.video %>" type="<%= @candidate.video_type %>"> 
+              </video>
+            <% end %>
+          </div>
+          <div class="col-md-6">
+            <% if @candidate.portfolios.blank? %>
+              <%= render partial: "static/candidates/portfolio_slider", locals: {candidate: @candidate} %>
+            <% end %>
+          </div>
+        </div>
 
-        <% if @candidate.portfolios.blank? %>
-          <!-- No Projects -->
-        <% end %>
       <div class="row">
         <% if @candidate.portfolios[-1] %>
         <div class="col-12 col-xl-6 mb-5 mb-xl-0">
