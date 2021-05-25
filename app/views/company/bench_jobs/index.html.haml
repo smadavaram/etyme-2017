@@ -85,9 +85,9 @@
                             -if c.candidate.invited_by_user.present?
                               %span{:id => "recuiter_#{c.candidate.id}"}
                                 .label-info.badge.margin-bottom-5.badge-info
-                                  = User.find_by(id: @c_bench_job.sender_id).try(:full_name)
+                                  = User.find_by(id: @c_bench_job&.sender_id).try(:full_name)
                             %span{:id => "select_recuiter_#{c.candidate.id}", :class => "d-none"}
-                              = select_tag "job_invitation[sender_id]", options_from_collection_for_select(current_company.users, :id, :full_name, @c_bench_job.sender_id)
+                              = select_tag "job_invitation[sender_id]", options_from_collection_for_select(current_company.users, :id, :full_name, @c_bench_job&.sender_id)
                       %td
                         %span{:id => "bench_action_#{c.candidate.id}"}
                           = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
