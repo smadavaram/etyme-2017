@@ -40,6 +40,7 @@ class CompanyDatatable < ApplicationDatatable
   end
 
   def get_raw_records
+    # TODO: Fetch only subscribed companies of a company
     Company.all.includes(%i[reminders statuses])
   end
 
