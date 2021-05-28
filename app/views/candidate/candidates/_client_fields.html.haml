@@ -3,13 +3,12 @@
     .col-sm-4
       .form-group
         %label Name
-        = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
+        = f.text_field :name, placeholder: "Client Name", class: 'form-control input'
   .row
     .col-sm-4
       .form-group
         %label Industry
         = f.text_field :industry, placeholder: "Industry",class: 'form-control input'
-        -#= f.select :industry, industry_list,{},{class: 'form-control input'}
     .col-sm-4
       .form-group
         %label Start Date
@@ -21,7 +20,7 @@
   .row
     .col-sm-4
       .form-group
-        %label Manager name
+        %label Reference name
         = f.text_field :refrence_name,placeholder: "Jhon Doe",class: 'form-control input'
     .col-sm-4
       .form-group
@@ -39,7 +38,7 @@
   .row
     .col-sm-4
       .form-group
-        %label Manager name
+        %label Reference name
         = f.text_field :refrence_two_name,placeholder: "Jhon Doe",class: 'form-control input'
     .col-sm-4
       .form-group
@@ -58,11 +57,11 @@
     .col-md-6
       .form-group
         %label Project Description
-        = f.text_area :project_description,placeholder: "Project Description",class: 'form-control input'
+        = f.text_area :project_description, placeholder: "Project Description", class: 'form-control input'
     .col-md-6
       .form-group
-        %label Role
-        = f.text_area :role,placeholder: "My Role",class: 'form-control input'
+        %label Job Description
+        = f.text_area :role, placeholder: "Job Description",class: 'form-control input'
   .row
     .col-md-12
       - unless f.object.new_record?
@@ -70,19 +69,19 @@
           %h4.element-header
             Client Employer
           = f.fields_for :designation, f.object.designation.present? ?  f.object.designation : f.object.build_designation do |employer|
-            = render 'candidate/candidates/partials/skill_designation_fields',f: employer
+            = render 'candidate/candidates/partials/skill_designation_fields', f: employer
   .row
     .col-md-12
-      = link_to_remove_association f , wrapper_class: "nested-fields5", class: "bttn btn-add pull-right delete_icon" do
+      = link_to_remove_association f, wrapper_class: "nested-fields5", class: "bttn btn-add pull-right delete_icon" do
         %i.fa.fa-trash
 
 - content_for :scripts do
   :javascript
     function radio_change(e){
-      if(e.value == "employer"){
+      if(e.value == "employer") {
         $('#link_'+e.id).show()
-      }else{
-      $('#link_'+e.id).hide()
+      } else {
+        $('#link_'+e.id).hide()
       }
     }
 
