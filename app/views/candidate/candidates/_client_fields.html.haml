@@ -1,22 +1,10 @@
 .multi-field-container.nested-fields5
   .row
-    .col-sm-12
+    .col-sm-4
       .form-group
         %label Name
-        .col-sm-4.d-inline-block.p-0
-          = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
-        .col-sm-7.d-inline-block.pl-2
-          %b Is this
-          %label.radio-container
-            Client
-            %input{:checked => "checked",onchange: "radio_change(this)", :name => "client_or_employer_#{f.object.id}",id: f.object.id,class: "client_or_employer", :type => "radio", :value => "client"}/
-            %span.radio-checkmark
-          %label.radio-container
-            Employer
-            %input{:name => "client_or_employer_#{f.object.id}",onchange: "radio_change(this)",id: f.object.id,class: "client_or_employer", :type => "radio", :value => "employer"}/
-            %span.radio-checkmark
-          -#%a.btn.btn-primary.ml-2{id: "link_#{f.object.id}",href:move_to_employer_candidate_candidates_path(client_id: f.object.id), style: "display: none;"} Update
-          %button.btn.btn-primary.ml-2{id: "link_#{f.object.id}",type: "button",style: "display: none;", onclick: "$('#employer_#{f.object.id}').removeClass('display-none')"} Employer
+        = f.text_field :name,placeholder: "Client Name",class: 'form-control input'
+  .row
     .col-sm-4
       .form-group
         %label Industry
@@ -30,13 +18,11 @@
       .form-group
         %label End Date
         = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
-
   .row
     .col-sm-4
       .form-group
         %label Manager name
         = f.text_field :refrence_name,placeholder: "Jhon Doe",class: 'form-control input'
-
     .col-sm-4
       .form-group
         %label  Phone
@@ -68,7 +54,6 @@
         %h3.text-success.mt-4
           -#%strong
           %i.fa.fa-check
-
   .row
     .col-md-6
       .form-group
@@ -78,7 +63,6 @@
       .form-group
         %label Role
         = f.text_area :role,placeholder: "My Role",class: 'form-control input'
-
   .row
     .col-md-12
       - unless f.object.new_record?
@@ -87,14 +71,10 @@
             Client Employer
           = f.fields_for :designation, f.object.designation.present? ?  f.object.designation : f.object.build_designation do |employer|
             = render 'candidate/candidates/partials/skill_designation_fields',f: employer
-
   .row
     .col-md-12
       = link_to_remove_association f , wrapper_class: "nested-fields5", class: "bttn btn-add pull-right delete_icon" do
         %i.fa.fa-trash
-
-
-
 
 - content_for :scripts do
   :javascript
@@ -105,3 +85,4 @@
       $('#link_'+e.id).hide()
       }
     }
+
