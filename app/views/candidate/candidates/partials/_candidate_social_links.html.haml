@@ -1,0 +1,7 @@
+- candidate.social_links.each do |s|
+  .os-progress-bar.primary
+    .bar-labels
+      .bar-label-left
+        %span= s.link_name.capitalize
+      .bar-label-right
+        %span= do_ellipsis(s.link_value,15)

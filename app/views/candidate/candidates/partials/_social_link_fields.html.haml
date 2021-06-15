@@ -1,0 +1,14 @@
+.multi-field-container.nested-fields6
+  .row
+    .col-sm-4
+      .form-group
+        %label Social media name
+        = f.text_field :link_name  ,:placeholder => "Enter social media name",class:'form-control input'
+    .col-sm-4
+      .form-group
+        %label Social media url
+        = f.text_field :link_value  ,:placeholder => "Enter social media url",class:'form-control input'
+    .col-md-1
+      .form-group.mt-4
+        = link_to_remove_association f , wrapper_class: "nested-fields6", class: "bttn btn-add delete_icon" do
+          %i.fa.fa-trash

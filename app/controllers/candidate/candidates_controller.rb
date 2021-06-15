@@ -337,6 +337,7 @@ class Candidate::CandidatesController < Candidate::BaseController
                                                               candidate_education_documents_attributes: %i[
                                                                 id education_id title file exp_date _destroy
                                                               ]],
+                                      social_links_attributes: [:id, :link_name, :link_value, :_destroy],                        
                                       certificates_attributes: [:id, :title, :start_date, :end_date, :institute, :_destroy,
                                                                 candidate_certificate_documents_attributes: %i[
                                                                   id certificate_id title file exp_date _destroy

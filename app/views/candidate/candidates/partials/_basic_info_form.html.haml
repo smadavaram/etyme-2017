@@ -16,7 +16,7 @@
     .col-sm-6
       %label SSN
       .form-group
-        = f.text_field :ssn  ,:placeholder => "SSN Number",class:'form-control input'
+        = f.select :ssn, options_for_select(["Have", "Don't have"], f.object.ssn), {}, {:placeholder => "SSN Number",class:'form-control input'}
         .help-block.form-text.text-muted.form-control-feedback We will not share without permission
     -#.col-sm-6
     -#  %label Passport Number

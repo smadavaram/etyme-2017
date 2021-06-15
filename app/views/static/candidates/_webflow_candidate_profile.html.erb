@@ -1,10 +1,18 @@
 <div class="webflow-profile row">
   <div class="webflow-profile-left col-12 col-xl-4">
     <div class="webflow-profile-inner">
-      <div class="profile-available">
-        <i class="fa fa-circle" aria-hidden="true"></i>
-        Available
-      </div>
+      <% last_login = availability(Time.now.day, @candidate.last_sign_in_at.to_date.day) %>
+      <% if last_login > 7 %>
+        <div class="profile-available">
+          <i class="fa fa-circle" aria-hidden="true"></i>
+          Active (<%= last_login %> ago) 
+        </div>
+      <% else %>
+        <div class="profile-available">
+          <i class="fa fa-circle" aria-hidden="true"></i>
+          Available
+        </div>
+      <% end %>
       <div class="profile-avatar">
         <%= image_tag "#{@candidate&.photo&.blank? ? asset_path('avatars/male.png') : @candidate.photo }", alt: "#{@candidate.full_name}" %>
       </div>
@@ -32,7 +40,7 @@
       <div class="profile-stats">
         <div class="profile-stats-container">
           <div class="profile-stats-number">
-            2
+            <%= @candidate.exp_words(false) %>
           </div>
           <div class="profile-stats-label">
             Years of Experience
@@ -40,7 +48,7 @@
         </div>
         <div class="profile-stats-container">
           <div class="profile-stats-number">
-            4
+            <%= @candidate.clients.count %>
           </div>
           <div class="profile-stats-label">
             Clients
@@ -51,13 +59,13 @@
         <% if @candidate&.phone %>
         <div class="profile-contact">
           <i class="fa fa-phone" aria-hidden="true"></i>
-          <%= @candidate&.phone %>
+          <%= do_ellipsis(@candidate&.phone,3) %>
         </div>
         <% end %>
         <div class="profile-contact">
           <i class="fa fa-envelope" aria-hidden="true"></i>
-          <%= @candidate&.email %>
-          <span class="profile-contact-verified">Verified</span>
+          <%= do_ellipsis(@candidate&.email, 3) %>
+          <span class="profile-contact-verified"><%= is_verify(!!@candidate.confirmed_at) %> </span>
         </div>
       </div>
       <div class="mb-5">
@@ -93,32 +101,43 @@
             <% end %>
           </div>
         </div>
-        <div class="profile-information">
+          <% @candidate.social_links.each do |s| %>
+            <div class="profile-information">
+              <div class="information-label">
+                <%= s.link_name.capitalize %>
+              </div>
+              <div class="information-value">
+                <%= do_ellipsis(s.link_value,15) %>
+              </div>
+            </div>
+          <% end %>
+        <!-- <div class="profile-information">
           <div class="information-label">
             Linked ID
           </div>
           <div class="information-value">
             Unknown
-          </div>
-        </div>
-      </div>
-      <div class="profile-rate-value">
-        <% job_invitation = @candidate.try(:job_invitations).try(:last) %>
-        $<%= job_invitation.present? ? job_invitation.min_hourly_rate : "NA" %>
-        -
-        <%= job_invitation.present? ? job_invitation.max_hourly_rate : "NA" %>       
-        /hr
-      </div>
-      <div class="profile-rate-label">
-        Hourly rate
+          </div> 
+        </div> -->
       </div>
       <div class="profile-buttons">
+        <div class="profile-rate-value">
+          <% job_invitation = @candidate.try(:job_invitations).try(:last) %>
+          $<%= job_invitation.present? ? job_invitation.min_hourly_rate : "NA" %>
+          -
+          <%= job_invitation.present? ? job_invitation.max_hourly_rate : "NA" %>       
+          /hr
+        </div>
+    
         <a href="#" class="profile-button-add">
           Add as Candidate
         </a>
         <a href="#" class="profile-button-chat">
           <i class="fa fa-commenting mr-2" aria-hidden="true"></i> Chat
         </a>
+      </div>
+      <div class="profile-rate-label2">
+        Hourly rate
       </div>
       <div class="profile-links">
         <a href="#" class="profile-link-share">
@@ -156,7 +175,7 @@
           </div>
         <% end %>
       </div>
-      <div class="profile-section">
+      <!-- <div class="profile-section">
         <div class="profile-section-header">
           <div class="profile-section-title">Languages</div>
           <div class="profile-section-line"></div>
@@ -169,7 +188,7 @@
             Native (Lorem)
           </div>
         </div>
-      </div>
+      </div> -->
       <div class="profile-section">
         <div class="profile-section-header">
           <div class="profile-section-title">Certifications</div>
@@ -187,7 +206,7 @@
         </div>
         <% end %>
       </div>
-      <div class="profile-section">
+      <!-- <div class="profile-section">
         <div class="profile-section-header">
           <div class="profile-section-title">Projects History</div>
           <div class="profile-section-line"></div>
@@ -203,7 +222,7 @@
           <%= portfolio.description %>
         </div>
         <% end %>
-      </div>
+      </div> -->
     </div>
   </div>
 

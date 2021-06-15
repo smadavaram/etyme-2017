@@ -2584,7 +2584,7 @@ a.webflow-product-details-buy-now {
 
     .profile-rate-value {
         font-weight: 500;
-        font-size: 20px;
+        font-size: 16px;
         line-height: 24px;
         display: flex;
         align-items: center;
@@ -2593,6 +2593,7 @@ a.webflow-product-details-buy-now {
         color: rgba(18, 18, 18, 0.8);
 
         margin-bottom: 8px;
+        margin-right: 9px;
     }
 
     .profile-rate-label {
@@ -2610,8 +2611,8 @@ a.webflow-product-details-buy-now {
     .profile-buttons {
         display: flex;
         justify-content: flex-end;
-
-        margin-bottom: 30px;
+        // margin-bottom: 30px;
+        width: 300px;
     }
 
     .profile-button-add {
@@ -2622,14 +2623,17 @@ a.webflow-product-details-buy-now {
         box-sizing: border-box;
         border-radius: 2px;
 
-        font-size: 14px;
-        line-height: 20px;
+        font-size: 12px;
+        line-height: 12px;
 
         display: flex;
         align-items: center;
         justify-content: center;
 
         color: #5555A5;
+        height: 40px;
+        width: 33%;
+        text-decoration: none;
     }
 
     .profile-button-chat {
@@ -2647,6 +2651,7 @@ a.webflow-product-details-buy-now {
         justify-content: center;
 
         color: #FFFFFF;
+        height: 40px;
     }
 
     .profile-links {
@@ -2749,4 +2754,10 @@ trix-toolbar .trix-button-row {
   flex-wrap: nowrap; 
   justify-content: space-between; 
 }
-
+.profile-rate-label2{
+  font-size: 13px;
+  line-height: 15px;
+  align-items: center;
+  color: rgba(18, 18, 18, 0.5);
+  margin-bottom: 20px;
+}

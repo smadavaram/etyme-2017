@@ -101,6 +101,7 @@ class Candidate < ApplicationRecord
   has_many :salaries
 
   has_many :comments, class_name: 'Comment', foreign_key: :created_by_candidate_id
+  has_many :social_links
 
   attr_accessor :job_id, :expiry, :message, :invitation_type
   attr_accessor :send_welcome_email_to_candidate
@@ -119,6 +120,7 @@ class Candidate < ApplicationRecord
   accepts_nested_attributes_for :criminal_check, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :visas, allow_destroy: true, reject_if: :all_blank
   accepts_nested_attributes_for :legal_documents, allow_destroy: true, reject_if: :all_blank
+  accepts_nested_attributes_for :social_links, allow_destroy: true, reject_if: :all_blank
 
   scope :search_by, ->(term, _search_scop) { Candidate.joins(:skills).where('lower(tags.name) like :term or lower(first_name) like :term or lower(last_name) like :term or lower(phone) like :term or lower(email) like :term ', term: "%#{term.downcase}%") }
   scope :application_status_count, lambda { |candidate, start_date, end_date|
@@ -133,9 +135,14 @@ class Candidate < ApplicationRecord
   acts_as_taggable_on :skills, :designates
 
   validate :max_skill_size
-  def exp_words
-    days = (client_exp + designation_exp)
-    days < 365 ? "<div class='value'>#{days}</div> <div class='label'>day(s) experience</div>" : "<div class='value'>#{days / 365}</div><div class='label'>year(s) experience</div>"
+  def exp_words(lable=true)
+    days = (client_exp + designation_exp)    
+    if lable
+      days < 365 ? "<div class='value'>#{days}</div> <div class='label'>day(s) experience</div>" : "<div class='value'>#{days / 365}</div><div class='label'>year(s) experience</div>"    
+    else
+      days < 365 ? days : days / 365          
+    end
+    
   end
 
   def candidate_exp_words
