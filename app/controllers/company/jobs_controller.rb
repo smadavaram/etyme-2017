@@ -28,6 +28,11 @@ class Company::JobsController < Company::BaseController
   end
 
   def new
+    if current_company.jobs == 5 && current_user.paid != true
+      flash[:notice] == "Complete the Payment to perform this action"
+      redirect_to new_charge_path
+    end
+    
     add_breadcrumb params[:type].blank? ? 'job' : 'job ' + params[:type], jobs_path, options: { title: 'JOBS' }
     add_breadcrumb 'NEW', new_job_path, options: { title: 'NEW JOB' }
     @job = current_company.jobs.new

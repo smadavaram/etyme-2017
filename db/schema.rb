@@ -431,8 +431,8 @@ ActiveRecord::Schema.define(version: 20210429111148) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2021-03-11 20:32:26"
-    t.datetime "updated_at", default: "2021-03-11 20:32:26"
+    t.datetime "created_at", default: "2021-04-09 15:50:48"
+    t.datetime "updated_at", default: "2021-04-09 15:50:48"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -979,6 +979,14 @@ ActiveRecord::Schema.define(version: 20210429111148) do
     t.index ["chatable_type", "chatable_id"], name: "index_conversations_on_chatable_type_and_chatable_id"
     t.index ["recipientable_type", "recipientable_id"], name: "index_conversations_on_recipientable_type_and_recipientable_id"
     t.index ["senderable_type", "senderable_id"], name: "index_conversations_on_senderable_type_and_senderable_id"
+  end
+
+  create_table "coupons", force: :cascade do |t|
+    t.string "name"
+    t.datetime "validated_till"
+    t.integer "used_times"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "criminal_checks", force: :cascade do |t|
@@ -2043,6 +2051,8 @@ ActiveRecord::Schema.define(version: 20210429111148) do
     t.string "chat_status"
     t.string "temp_pass"
     t.string "ancestry"
+    t.integer "stripe_charge_id"
+    t.boolean "paid"
     t.index ["ancestry"], name: "index_users_on_ancestry"
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true
