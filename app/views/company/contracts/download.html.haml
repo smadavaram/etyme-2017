@@ -4,7 +4,7 @@
     %meta{:charset => "utf-8"}/
     %meta{:content => "width=device-width, initial-scale=1, maximum-scale=1", :name => "viewport"}/
     %title
-    = stylesheet_link_tag wicked_pdf_asset_base64("style.css")
+    = stylesheet_link_tag wicked_pdf_asset_base64("style.scss")
 %body
   #content.newsfeed.contracts
     %container
@@ -14,7 +14,7 @@
           .contract-top.clearfix
             %span.pull-left
               %b
-                %span Contract ID: 
+                %span Contract ID:
                 =@contract.number
               %h1.clearfix
                 =@contract&.job&.title
@@ -76,7 +76,7 @@
                         =address.address_1
                 .col-sm-6.col-md-6.col-lg-6.text-center
                   %div.rate_info
-                    %h5 
+                    %h5
                       Customer Rate
                     %span
                       = @contract&.buy_contract&.change_rates&.last&.rate
@@ -146,7 +146,7 @@
                 %div.row
                   .col-sm-12.col-md-12.col-lg-12
                     %span
-                      %b 
+                      %b
                         Show Accounting to employee:
                         = @contract.sell_contract.show_accounting_to_employee == true ? "Yes" : "No"
             %div.contract-custome-details.line-bottom
@@ -193,7 +193,7 @@
               %div.row
                 .col-sm-6.col-md-6.col-lg-6
                   %span
-                    %b 
+                    %b
                       Documents
                 .col-sm-2.col-md-2.col-lg-2
                   %span
@@ -296,7 +296,7 @@
                       =csbd.company_contact&.email
                     %div
                       =csbd.company_contact&.department
-            
+
             %div.contract-accounting
               %h5
                 Accounting & Work hours terms
@@ -426,7 +426,7 @@
               %div.row
                 .col-sm-6.col-md-6.col-lg-6
                   %span
-                    %b 
+                    %b
                       Documents
                 .col-sm-2.col-md-2.col-lg-2
                   %span
@@ -455,7 +455,7 @@
                       - berd.document_signs.each do |ds|
                         = ds.signable&.full_name
 
-            %div.row 
+            %div.row
               -@contract.buy_contract.buy_ven_req_docs.each do |bvrd|
                 .col-sm-6.col-md-6.col-lg-6
                   %span
@@ -469,7 +469,7 @@
                     - bvrd.document_signs.each do |ds|
                       = ds.signable&.full_name
 
-                    
+
 -# - if @contract.pending? && !@contract.is_sent?(current_company)
 -#   - content_for :modals do
 -#     #ajax-modal

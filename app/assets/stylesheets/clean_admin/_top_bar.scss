@@ -104,6 +104,10 @@
     padding: 7px 0px;
 
     .element-search {
+      @media only screen and (max-width: 600px) {
+        margin: 0px 0rem;
+        margin-right: 2%;
+      }
       position: relative;
       margin: 0px 1rem;
       &:before {
@@ -140,6 +144,9 @@
     position: relative;
     font-size: 24px;
     color: $primary;
+    @media only screen and (max-width: 600px) {
+      font-size: 18px;
+    }
     .new-messages-count {
       background-color: $danger;
       color: #fff;
@@ -158,6 +165,9 @@
     }
   }
   .top-icon {
+    @media only screen and (max-width: 600px) {
+      margin: 0px 0rem;
+    }
     margin: 0px 1rem;
     color: $primary;
     font-size: 26px;
@@ -284,9 +294,9 @@
   &.color-scheme-transparent {
     background-color: transparent;
     box-shadow: none;
-    border-bottom: 1px solid rgba(0,0,0,0.05);
+    //border-bottom: 1px solid rgba(0,0,0,0.05);
   }
-  
+
   &.color-scheme-light,
   &.color-scheme-transparent {
     .top-menu-controls .element-search input {

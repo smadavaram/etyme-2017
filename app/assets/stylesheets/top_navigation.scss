@@ -14,14 +14,14 @@
 }
 
 @media (max-width: 768px) {
-    .menu-mobile .mm-logo-buttons-w .mm-buttons
-    {
+  .menu-mobile .mm-logo-buttons-w .mm-buttons
+  {
     display: none;
-    }
-    .menu-mobile .mm-logo-buttons-w .mm-logo span
-    {
-      display: none;
-    }
+  }
+  .menu-mobile .mm-logo-buttons-w .mm-logo span
+  {
+    display: none;
+  }
   .top-menu-controls .top-icon{
     margin-left: 0px !important;
   }
@@ -50,7 +50,7 @@
 .togglebtncontainerinbox
 {
   position: absolute;
-  top: 4px;
+  //top: 4px;
   cursor: pointer;
   z-index: 999999;
   height: 50px;
@@ -75,7 +75,7 @@
 .top-bar .top-menu-controls .element-search input
 {
   @media (max-width:420px) {
-      width: 170px;
+    width: 170px;
   }
 }
 

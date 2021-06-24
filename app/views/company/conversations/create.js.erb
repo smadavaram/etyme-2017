@@ -43,8 +43,8 @@ if ($("#conversation_<%= @conversation.id %>")[0]) {
 <% else %>
 <% color = colors[0] %>
 <% end %>
-$("#company-conversation-list .usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>").remove();
-$("#company-conversation-list").prepend("<div  style='border-left: 4px solid <%= color %>' class='user-fav usr_<%= opt_usr.class.to_s+'_'+opt_usr.id.to_s %>'> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
+$("#company-conversation-list .conversation_user_<%= @conversation.id  %>").remove();
+$("#company-conversation-list").prepend("<div id='convo_box' class='row user-list-item-style  active-div-color conversation_user_<%=  @conversation.id  %> '> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
 
 var coll = document.getElementsByClassName("collapsible-click");
 var i;

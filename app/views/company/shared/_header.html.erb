@@ -1,76 +1,65 @@
-<div class="top-bar color-scheme-transparent" style="z-index: 1000;">
+<div class="top-bar color-scheme-transparent" style="height: 12vh;z-index: 100" >
   <div class="top-menu-controls w-100" style="display: flex; justify-content: flex-end;">
-    <div class="element-search autosuggest-search-activator os-dropdown-position-left">
-      <input placeholder="Find reports and more" type="text">
+
+
+    <!--    bread start-->
+    <div class="bread-style">
+      <div class="os-icon os-icon-hamburger-menu-1 bread-style1" ></div>
     </div>
+    <!--    bread end-->
+
+    <!--    search start-->
+    <div class="element-search autosuggest-search-activator os-dropdown-position-left" >
+      <input class="search-div-style" placeholder="Find reports and more" type="text" >
+    </div>
+    <!--    search end-->
+
+    <!--    notification start -->
     <div class="icon-wrapper">
-      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
-        <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications") %>"><i class="ti-bell"></i></a>
-        <% if current_user.notifications.unread.count > 0 %>
-          <div class="new-messages-count"><%= current_user.notifications.unread.count %></div>
-        <% end %>
-      </div>
-      <span class="icon-text">Notification</span>
-    </div>
-
-    <div>
-      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
-        <a href="<%= company_conversations_path %>" target="_blank"><i class="os-icon os-icon-mail-14"></i></a>
-      </div>
-      <span class="icon-text">Chat</span>
-    </div>
-
-    <!-- Network Start---->
-<!--     <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
-      <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
-        <div class="logged-user-i">
-          <i class="fa fa-users"></i>
-          <div class="os-dropdown">
-            <div class="icon-w">
-              <i class="os-icon os-icon-ui-46"></i>
-            </div>
-            <ul>
-              <li>
-                <a href="<%= groups_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>
-              </li>
-              <li>
-                <a href="<%= directories_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">My Directory</a>
-              </li>
-              <li>
-                <a href="<%= candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Candidates</a>
-              </li>
-              <%# if has_permission?('manage_company') %>
-                <li>
-                  <a href="<%= companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>
-                </li>
-              <%# end %>
-              <li>
-                <a href="<%= company_contacts_company_companies_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>
-              </li>
-            </ul>
-          </div>
+      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left div-style-1"   >
+        <div  class="div-style-2">
+          <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications") %>"><i class="ti-bell notification-icon" ></i></a>
+          <% if current_user.notifications.unread.count > 0 %>
+            <div class="new-messages-count"><%= current_user.notifications.unread.count %></div>
+          <% end %>
         </div>
       </div>
-    </div> -->
-    <!-- Network End---->
+      <span class="icon-text" style="color: black; margin-top: 7px">Notification</span>
+    </div>
+    <!--    notification end -->
 
-
+    <!--    chat start-->
     <div>
-      <div class="top-icon btn-header transparent pull-right open" id="quick-add">
-        <i class="ti-plus"></i>
+      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left div-style-3">
+        <div class="div-style-4" >
+          <a href="<%= company_conversations_path %>" target="_blank"><i class="os-icon chat-icon os-icon-mail-14 "  style=""></i></a>
+        </div>
+      </div>
+      <span class="icon-text" style="color: black;  margin-top: 7px">Chat</span>
+    </div>
+    <!--    chat end-->
+
+
+
+    <!--    add start-->
+    <div>
+      <div class="top-icon btn-header transparent pull-right open div-style-5" id="quick-add" >
+        <!--        <div  style="width: 51px; height: 51px; position: absolute; left: 8.2%; right: 8.2%; top: 8.2%; bottom: 8.2%; background: #047BF8; box-shadow: 0px 4px 15px rgba(180, 180, 180, 0.25); border-radius: 50px" >-->
+        <i class="ti-plus" style="font-size: 30px"></i>
         <ul class="dropdown-menu project-dropdown" id="links_block" style=" background-color:#047bf8 ; color: white; right: 120px !important; left: initial;">
           <%=render('company/shared/links_block') %>
         </ul>
       </div>
-      <span class="icon-text">Add</span>
+      <span class="icon-text" style="color: black;"> <label style="margin-top: 10px">Add</label></span>
     </div>
+    <!--    add end-->
 
     <!--------------------END - Features Link in secondary top menu-------------------->
     <!--------------------START - User Link in secondary top menu-------------------->
-    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+    <div class="top-icon mobile-user-icon top-settings os-dropdown-trigger os-dropdown-position-left">
       <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
         <div class="logged-user-i">
-          <div class="avatar-w">
+          <div class="avatar-w" style="height: 61px; width: 61px">
             <%= user_image(current_user,{}) %>
           </div>
           <div class="os-dropdown">
@@ -148,3 +137,5 @@
   </div>
   <!--------------------END - Top Menu Controls-------------------->
 </div>
+
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>

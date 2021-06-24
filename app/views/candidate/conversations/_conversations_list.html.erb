@@ -1,6 +1,6 @@
 <% conversations.each do |con| %>
   <% opt_usr = con.opt_participant(current_user) %>
-  <div class="user-fav usr_<%= opt_usr.class.to_s+"_"+opt_usr.id.to_s %>" data-conversation="<%= con.id %>">
+  <div style="border-radius: 25px; width: 95%" class="user-fav " data-conversation="<%= con.id %>">
     <%= render 'candidate/conversations/conversation_list', con: con, usr: opt_usr, is_favourite: false %>
   </div>
 <% end if conversations.present?  %>

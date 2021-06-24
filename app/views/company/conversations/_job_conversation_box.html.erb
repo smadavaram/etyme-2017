@@ -1,70 +1,140 @@
-<div class="chat_box with_border wrap-chat-box" data-conversation-id="<%= conversation.id if conversation.present? %>" id="conversation-chat-box">
-  <div class="chat-head" style="flex-direction: column; align-items: stretch;">
-    <div class="flex-row w-100 chat-heat_justify">
 
-      <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
-      <div>
-        <span>To:</span>
-        <% link = get_conversation_link(opt_obj) %>
-        <% if link.nil? %>
-          <text class="d-inline badge badge-primary"><%= opt_obj.full_name if opt_obj.present? %></text>
-        <% else %>
-          <a class="d-inline badge badge-primary" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= opt_obj.full_name if opt_obj.present? %></a>
-        <% end %>
-      </div>
 
+<div class="row margin-top-10" style="height: 5vh" >
+  <div class="col-6 branchout-back" onclick="myFunction()">
+    <div class="row branch-out" style="justify-content: flex-start">
+      <img src="/assets/collabs.png" style="margin-left: 45px; height: 24px; width: 27px;"></img>
     </div>
-
-    <% if conversation&.job_application and nested_colap %>
-
-      <div id="job_application_links">
-        <%= render 'company/job_applications/partials/collapse_able_job_application', conversation: conversation, job_application: conversation.job_application %>
-      </div>
-
-    <% end %>
-
   </div>
-  <div class="chat-content-w chat-content-scroll chat-content_height">
+  <div class="col-6 branchout-mobile" style="margin-left: 284px;">
+    <div class="row branch-out dropdown" style="justify-content: flex-end">
+      <button type="button" class="btn4-style dropbtn" onclick="btnClick()" id="btn1"><i class="fa fa-plus"></i> Branch Out</button>
+      <div class="dropdown-content" style="margin-left: -70px;font-size: 12px;">
+        <a href="#">Interview</a>
+        <a href="#">Document Collection</a>
+        <a href="#">Navigation</a>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-sm-10 col-md-10 col-lg-10" >
+    <div class="row branch-out-content" style="justify-content: flex-start">
+      <div>
+        <button type="button" class="btn1-style" >Main</button>
+      </div>
+      <div id="myDIV" style="display:none; ">
+        <div style=" display: flex">
+          <div>
+            <button type="button" class="btn2-style" >Interview</button>
+          </div>
+          <div>
+            <button type="button" class="btn3-style" >Document Collection</button>
+          </div>
+          <div>
+            <button type="button" class="btn2-style" >Navigation</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-0 col-sm-2 col-md-2 col-lg-2 branchout-desktop">
+    <div class="row branch-out" style="justify-content: flex-end">
+      <button type="button" class="btn4-style" id="clickon1"><i class="fa fa-plus"></i> Branch Out</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="row chat-box" style="background-color: white; height: 82vh">
+
+  <div class="row chat-box-header" >
+    <div class="col-sm-6 col-lg-6 col-md-6">
+      <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" >Etyme Flow</span></div>
+    </div>
+    <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
+
+    <div class="col-sm-6 col-lg-6 col-md-6">
+      <div class="row vidoebutton-style-div" >
+        <div class="row" id="videobutton" style="margin-right: 2px; display: none">
+          <div class="chat-div-style" id="myDIV2"><i class="fa fa-calendar calender-style"></i></div>
+          <div class="chat-div-style" id="myDIV3"><i class="fa icon-phone calender-style"></i></div>
+          <div class="chat-div-style" id="myDIV4"><i class="fa fa-video-camera calender-style"></i></div>
+        </div>
+        <div class="chat-div-style" onclick="showDivClick()" id="showdiv"><i class="fa fa-ellipsis-v calender-style" style="margin-left: 40%;"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="width: 100%; height: 58vh;  border-bottom: 1px solid #F2F4F8;overflow: scroll; padding: 10px">
+
     <div class="chat-content" id="conversation_<%= conversation.id if conversation.present? %>">
       <div id="all-infinite-scrolling-msg" style="display:none"></div>
       <%= hidden_field_tag "prev_date", nil %>
     </div>
-  </div>
-  <div class="chat-controls">
-    <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{conversation.id}"}) do |f| %>
-      <div class="chat-input1 chat-input">
-        <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
-      </div>
-      <div id="file-name_uploaded">
 
+    <div id="videobutton1" class="mobile-insidechat-icons">
+      <div class="row send-icons" style="justify-content: center">
+        <i class="fa fa-text-height" style="margin-right: 12px;margin-top: 8px;"></i>
+        <i class="fa fa-exclamation" style="margin-right: 12px;margin-top: 8px;"></i>
+        <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
+          <i class="fa fa-paperclip" style="margin-right: 12px;margin-top: 8px;"></i>
+        <% end %>
+        <i class="fa fa-smile-o" style="margin-right: 12px;margin-top: 8px;" ></i>
+        <img src="/assets/gif.png" style="margin-right: 12px;margin-top: 8px;"></img>
+        <img src="/assets/sticker.png" style="margin-right: 12px;margin-top: 8px;"></img>
+        <i class="fa fa-calendar" style="margin-right: 12px;margin-top: 8px;"></i>
+        <img src="/assets/flow.png" style="margin-right: 12px;margin-top: 8px;"></img>
+        <img src="/assets/bulb.png" style="margin-right: 12px;margin-top: 8px;"></img>
+        <img src="/assets/checked.png" style="margin-right: 12px;margin-top: 8px;"></img>
+        <i class="fa fa-ellipsis-h" style="margin-right: 12px;margin-top: 8px;"></i>
       </div>
-      <div class="chat-input-extra">
-        <div class="chat-extra-actions">
-          <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
-            <%= image_tag("/docusign.png",size: "20x25") %>
-          <% end %>
-          <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width: 31px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
-          <% if conversation.present? and conversation.JobApplication? %>
-            <div>
-              <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable %>
-              <%= mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) %>
-            </div>
-          <% end %>
-        </div>
-          <div class="chat-btn">
-              <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;",id:"send-message", onclick: "send_message(#{conversation.id})") do %>
-                <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>
-               <% end %>
-          </div>
-        </div>
-    <% end if conversation.present? %>
-  </div>
-  <% if conversation&.job_application %>
-    <div id="job_application_status_links">
-      <%#= render 'company/job_applications/partials/job_status_links', btn_size_class: 'btn-sm', app: @conversation.chatable%>
     </div>
-  <% end %>
+
+  </div>
+
+  <div  class="row message-send-row-mobile" >
+
+    <div class= "row" style="width: 100%;  height:50%;  margin-left: 17px" >
+      <div><button id="showdiv1" onclick="btnClick()" class="buttonstyle2"><i class="fa fa-ellipsis-v option-mobile-style"></i></button></div>
+      <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',id: "conversation_form_#{conversation.id}"}) do |f| %>
+        <%= f.text_field :body, class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
+      <% end %>
+      <%= button_tag(type: "submit", class: "btn p-0 button-style1", style: "background: transparent;box-shadow: none;",id:"send-message", onclick: "send_message(#{conversation.id})") do %>
+        <img src="/assets/send.png"></img>
+      <% end %>
+    </div>
+
+
+    <div class="row mobile-chat-send-icons" >
+      <div class="col-sm-8 col-md-8 col-lg-8">
+        <div class="row send-icons">
+          <i class="fa fa-text-height" style="margin-right: 15px"></i>
+          <i class="fa fa-exclamation" style="margin-right: 15px"></i>
+          <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
+            <i class="fa fa-paperclip" style="margin-right: 15px"></i>
+          <% end %>
+          <i class="fa fa-smile-o" style="margin-right: 15px" ></i>
+          <img src="/assets/gif.png" style="margin-right: 15px"></img>
+          <img src="/assets/sticker.png" style="margin-right: 15px"></img>
+          <i class="fa fa-calendar" style="margin-right: 15px"></i>
+          <img src="/assets/flow.png" style="margin-right: 15px"></img>
+          <img src="/assets/bulb.png" style="margin-right: 15px"></img>
+          <img src="/assets/checked.png" style="margin-right: 15px"></img>
+          <i class="fa fa-ellipsis-h" style="margin-right: 15px"></i>
+        </div>
+      </div>
+      <div class="col-sm-4 col-md-4 col-lg-4">
+        <div class="row send-line">
+          <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;",id:"send-message", onclick: "send_message(#{conversation.id})") do %>
+            <img src="/assets/send.png"></img>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
+
+
 
 <% content_for :modals do %>
   <%= render('shared/chat_document_templates', conversation: @conversation) if @conversation.present? %>
@@ -104,5 +174,29 @@
               }
           });
       });
+
+      // $("#btn1").on("click", function(){
+      //     console.log('btn clciked')
+      //     debugger
+      //     $("#myDIV").toggle('show');
+      // });
+      $("#clickon1").on("click", function(){
+          $("#myDIV").toggle('show');
+      });
+      // $("#showdiv").on("click", function(){
+      //
+      //     $("#videobutton").toggle('show');
+      // });
+      $("#showdiv1").on("click", function(){
+          $("#videobutton1").toggle('show');
+      });
+      function btnClick(){
+          $("#myDIV").toggle('show');
+      }
+
+      function showDivClick(){
+
+          $("#videobutton").toggle('show');
+      }
   </script>
 <% end %>
