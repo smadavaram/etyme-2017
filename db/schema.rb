@@ -981,6 +981,14 @@ ActiveRecord::Schema.define(version: 2021_04_29_111148) do
     t.index ["senderable_type", "senderable_id"], name: "index_conversations_on_senderable_type_and_senderable_id"
   end
 
+  create_table "coupons", force: :cascade do |t|
+    t.string "name"
+    t.datetime "validated_till"
+    t.integer "used_times"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "criminal_checks", force: :cascade do |t|
     t.integer "candidate_id"
     t.string "state"
@@ -2043,6 +2051,8 @@ ActiveRecord::Schema.define(version: 2021_04_29_111148) do
     t.string "chat_status"
     t.string "temp_pass"
     t.string "ancestry"
+    t.integer "stripe_charge_id"
+    t.boolean "paid"
     t.index ["ancestry"], name: "index_users_on_ancestry"
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true

@@ -5,6 +5,13 @@
     %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
     %meta{:content => "#{user_signed_in? ? current_user.id : ''}", :name => "user-id"}
     %meta{:content => "#{user_signed_in? ? current_user.class.to_s == "Candidate" ? "Candidate" : "User" : ''}", :name => "user-type"}
+
+    %meta{content: "Etyme", property: "og:title"}/
+    %meta{content: "#{request.original_url}", property: "og:url"}/
+    %meta{content: "website", property: "og:type"}/
+    %meta{content: "cloudepa.etyme.com", property: "og:site_name"}/
+    %meta{content: "Etymw", property: "og:description"}/
+
     %title Etyme
     = stylesheet_link_tag    'static'
     = action_cable_meta_tag
