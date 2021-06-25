@@ -24,7 +24,7 @@
       <div>
         <div class="row margin-top-5 name_and_message_style" >
           <div class=" col-sm-4 col-md-4 col-lg-4 "><div class="row chat-user-client-name-style"><%= messages.present?  ? "#{messages.last.userable.first_name}:" : "candidate: " %> </div></div>
-          <div class=" col-sm-6 col-md-6 col-lg-6  "><div class="row chat-user-message-style"><%= messages.present? ? messages.last.try(:body) : "message" %></div></div>
+          <div class=" col-sm-6 col-md-6 col-lg-6  "><div class="row chat-user-message-style"><%= messages.present? ? messages.last.try(:body).truncate(30) : "message" %></div></div>
           <div class=" col-sm-2 col-md-2 col-lg-2 "><div class="row chat-user-date-style"><%= messages.present? ? messages.where(is_read: false).count : "0" %></div></div>
         </div>
       </div>
