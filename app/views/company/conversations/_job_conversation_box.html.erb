@@ -95,10 +95,10 @@
 
     <div class= "row" style="width: 100%;  height:50%;  margin-left: 17px" >
       <div><button id="showdiv1" onclick="btnClick()" class="buttonstyle2"><i class="fa fa-ellipsis-v option-mobile-style"></i></button></div>
-      <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',id: "conversation_form_#{conversation.id}"}) do |f| %>
+      <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',class: "chat_form",id: "conversation_form_#{conversation.id}"}) do |f| %>
         <%= f.text_field :body, class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
       <% end %>
-      <%= button_tag(type: "submit", class: "btn p-0 button-style1", style: "background: transparent;box-shadow: none;",id:"send-message", onclick: "send_message(#{conversation.id})") do %>
+      <%= button_tag( class: "btn p-0 button-style1 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
         <img src="/assets/send.png"></img>
       <% end %>
     </div>
@@ -124,7 +124,7 @@
       </div>
       <div class="col-sm-4 col-md-4 col-lg-4">
         <div class="row send-line">
-          <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;",id:"send-message", onclick: "send_message(#{conversation.id})") do %>
+          <%= button_tag( class: "btn p-0 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
             <img src="/assets/send.png"></img>
           <% end %>
         </div>
@@ -198,5 +198,9 @@
 
           $("#videobutton").toggle('show');
       }
+      $('.send-message_class').on('click', function(e){
+          form_id = $(".chat_form").attr('id')
+          $('#'+form_id).submit()
+      });
   </script>
 <% end %>
