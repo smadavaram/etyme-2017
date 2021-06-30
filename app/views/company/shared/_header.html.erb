@@ -59,15 +59,8 @@
     <div class="top-icon mobile-user-icon top-settings os-dropdown-trigger os-dropdown-position-left">
       <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
         <div class="logged-user-i">
-
           <div class="avatar-w" style="height: 70px; width: 61px">
-            <span>
-              <%= user_image(current_user, style: 'width: 50px; height: 50px;' )%>
-              <%= image_tag("icons8-green-circle-48.png", :class => "green-dot")%>
-            </span>
-
-
-
+            <%= user_image(current_user, style: 'width: 50px; height: 50px;')%>
           </div>
           <div class="os-dropdown">
             <div class="icon-w">
