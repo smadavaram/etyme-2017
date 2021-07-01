@@ -2,7 +2,7 @@
 <!--new htmml -->
 <style scoped>
     .icon-side-bar{
-        display: block;
+        display: block !important;
     }
     @media only screen and (max-width: 600px) {
         .mobile-icon-side-bar-can {
@@ -193,5 +193,6 @@
           $(".right-sidebar").hide();
           $("#conversation-section").show();
       }
+      $('.icon-side-bar').show()
   </script>
 <% end %>
