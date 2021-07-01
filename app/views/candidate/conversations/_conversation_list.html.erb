@@ -17,16 +17,15 @@
     <div class="col-sm-10 col-md-10 col-lg-10 div-usermessage-style">
       <% contract = get_contract(usr) %>
       <div class="row name_and_date_style" >
-        <%# binding.pry %>
         <% messages = con.conversation_messages.where.not(userable_id: current_user) %>
         <div class=" col-sm-8 col-md-8 col-lg-8" ><div class="row chat-user-name-style"  ><%= usr.full_name.truncate(20) %></div> </div>
-        <div class="col-sm-4 col-md-4 col-lg-4  "><div class="row chat-user-date-style" ><%= messages.present? ? messages.last.created_at.strftime("%H:%M %p") : "7:10 PM" %></div></div>
+        <div class="col-sm-4 col-md-4 col-lg-4  "><div class="row chat-user-date-style" ><%= messages.present? && (messages.last.created_at  < DateTime.now - 24.hours) ? messages.last.created_at.strftime("%H:%M %p") : messages.present? && (messages.last.created_at  < DateTime.now - 24.hours) ? distance_of_time_in_words(Time.now,messages.last.created_at) : "" %></div></div>
       </div>
       <div>
         <div class="row margin-top-5 name_and_message_style" >
-          <div class=" col-sm-4 col-md-4 col-lg-4 "><div class="row chat-user-client-name-style" ><%= messages.present?  ? "#{messages.last.userable.first_name}:" : "candidate" %> </div></div>
-          <div class=" col-sm-6 col-md-6 col-lg-6  "><div class="row chat-user-message-style" ><%= messages.present? ? messages.last.try(:body).truncate(40) : "message" %></div></div>
-          <div class=" col-sm-2 col-md-2 col-lg-2 "><div class="row chat-user-date-style" ><%= messages.present? ? messages.where(is_read: false).count : "0" %></div></div>
+          <div class=" col-sm-4 col-md-4 col-lg-4 "><div class="row chat-user-client-name-style" ><%= messages.present?  ? "#{messages.last.userable.first_name}:" : "" %> </div></div>
+          <div class=" col-sm-6 col-md-6 col-lg-6  "><div class="row chat-user-message-style" ><%= messages.present? ? messages.last.try(:body).truncate(40) : "" %></div></div>
+          <div class=" col-sm-2 col-md-2 col-lg-2 "><div class="row chat-user-date-style" ><%= messages.present? ? messages.where(is_read: false).count : "" %></div></div>
         </div>
       </div>
     </div>

@@ -49,13 +49,12 @@
 </div>
 
 <div class="row chat-box" style="background-color: white; height: 82vh">
+  <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
 
   <div class="row chat-box-header" >
     <div class="col-sm-6 col-lg-6 col-md-6">
-      <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" >Etyme Flow</span></div>
+      <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a></span></div>
     </div>
-    <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
-
     <div class="col-sm-6 col-lg-6 col-md-6">
       <div class="row vidoebutton-style-div" >
         <div class="row" id="videobutton" style="margin-right: 2px; display: none">

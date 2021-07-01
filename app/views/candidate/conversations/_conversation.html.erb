@@ -1,4 +1,3 @@
-
 <div class="row margin-top-10" style="height: 5vh" >
   <div class="col-6 branchout-back" style="margin-bottom: -27px;">
     <div class="row branch-out" style="margin-left: 20px;margin-top: -11px;margin-bottom: -2px;">
@@ -50,10 +49,9 @@
 
   <div class="row chat-box-header"  >
     <div class="col-sm-6 col-lg-6 col-md-6">
-      <div ><span class=" row div-chat-middle-etymeflow" >Etyme Flow</span></div>
+      <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_candidate ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
+      <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a></span></div>
     </div>
-    <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_candidate ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
-
     <div class="col-sm-6 col-lg-6 col-md-6">
       <div class="row vidoebutton-style-div" >
         <div class="row" id="videobutton" style="margin-right: 2px; display: none">
