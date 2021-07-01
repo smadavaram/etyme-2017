@@ -3,8 +3,8 @@
     <div class="row branch-out" style="margin-left: 20px;margin-top: -11px;margin-bottom: -2px;">
       <i class="fa fa-arrow-circle-left" style="margin-right: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction1()"></i>
       <i class="fa fa-arrow-circle-right" style="margin-left: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction()"></i>
-<!--      <img src="/assets/collabs.png" onclick="myFunction()" style="margin-left: 45px; height: 24px; width: 27px; margin-bottom: -12%;"></img>-->
-<!--      <span>Collaborators</span>-->
+      <!--      <img src="/assets/collabs.png" onclick="myFunction()" style="margin-left: 45px; height: 24px; width: 27px; margin-bottom: -12%;"></img>-->
+      <!--      <span>Collaborators</span>-->
     </div>
   </div>
   <div class="col-6 branchout-mobile" style="margin-left: 284px;">
@@ -53,14 +53,14 @@
       <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a></span></div>
     </div>
     <div class="col-sm-6 col-lg-6 col-md-6">
-      <div class="row vidoebutton-style-div" >
-        <div class="row" id="videobutton" style="margin-right: 2px; display: none">
-          <div class="chat-div-style" ><i class="fa fa-calendar calender-style"></i></div>
-          <div class="chat-div-style" ><i class="fa icon-phone calender-style"></i></div>
-          <div class="chat-div-style"><i class="fa fa-video-camera calender-style"></i></div>
-        </div>
-        <div class="chat-div-style" id="showdiv"><i class="fa fa-ellipsis-v calender-style" style="margin-left: 40%;"></i></div>
-      </div>
+<!--      <div class="row vidoebutton-style-div" >-->
+<!--        <div class="row" id="videobutton" style="margin-right: 2px; display: none">-->
+<!--          <div class="chat-div-style" ><i class="fa fa-calendar calender-style"></i></div>-->
+<!--          <div class="chat-div-style" ><i class="fa icon-phone calender-style"></i></div>-->
+<!--          <div class="chat-div-style"><i class="fa fa-video-camera calender-style"></i></div>-->
+<!--        </div>-->
+<!--        <div class="chat-div-style" id="showdiv"><i class="fa fa-ellipsis-v calender-style" style="margin-left: 40%;"></i></div>-->
+<!--      </div>-->
     </div>
   </div>
 
@@ -97,42 +97,70 @@
       <% if @conversation.present? %>
         <%= form_for([@conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',class: "chat_form",id: "conversation_form_#{@conversation.try(:id)}"}) do |f| %>
           <%= f.text_field :body, style: "border:none", class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", required: true, placeholder: 'Type your message here...', "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{current_candidate.class}-#{current_candidate.id}" %>
-        <% end %>
-      <% end %>
-      <%= button_tag(type: "submit", class: "btn p-0 button-style1 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
-        <img src="/assets/send.png"></img>
-      <% end %>
-    </div>
-    <div class="row mobile-chat-send-icons" >
-      <div class="col-sm-8 col-md-8 col-lg-8">
-        <div class="row send-icons">
-          <i class="fa fa-text-height" style="margin-right: 15px"></i>
-          <i class="fa fa-exclamation" style="margin-right: 15px"></i>
-          <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{@conversation.try(:id)}"}').modal('show')" do %>
-            <i class="fa fa-paperclip" style="margin-right: 15px"></i>
-          <% end %>
-          <%#= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
-          <i class="fa fa-smile-o" style="margin-right: 15px" ></i>
-          <img src="/assets/gif.png" style="margin-right: 15px"></img>
-          <img src="/assets/sticker.png" style="margin-right: 15px"></img>
-          <i class="fa fa-calendar" style="margin-right: 15px"></i>
-          <img src="/assets/flow.png" style="margin-right: 15px"></img>
-          <img src="/assets/bulb.png" style="margin-right: 15px"></img>
-          <img src="/assets/checked.png" style="margin-right: 15px"></img>
-          <i class="fa fa-ellipsis-h" style="margin-right: 15px"></i>
-        </div>
-      </div>
-      <div class="col-sm-4 col-md-4 col-lg-4">
-        <div class="row send-line">
-          <%= button_tag(type: "submit", class: "btn p-0 send-message_class",id:"send-message", style: "background: transparent;box-shadow: none;") do %>
+
+          <%= button_tag(type: "submit", class: "btn p-0 button-style1 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
             <img src="/assets/send.png"></img>
           <% end %>
-        </div>
-      </div>
-    </div>
+          </div>
+          <div class="row mobile-chat-send-icons" >
+            <div class="col-sm-8 col-md-8 col-lg-8">
+              <div class="row send-icons" style="position: fixed">
+                <div class="chat-extra-actions">
+                  <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 22px; margin-right: 8px !important;  display: inline-block;  vertical-align: middle;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
+                  <% if @conversation.present? %>
+                    <div class="candidate-icon_widget">
+                      <%= mini_chat_contact_widget(current_candidate.email, current_candidate.phone,color: '#3E4B5B; !important') %>
+                    </div>
+                  <% end %>
 
-  </div>
-</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-sm-4 col-md-4 col-lg-4">
+              <div class="row send-line">
+                <%= button_tag(type: "submit", class: "btn p-0",id:"send-message", style: "background: transparent;box-shadow: none;") do %>
+                  <!--            <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>-->
+                  <img src="/assets/send.png"></img>
+                <% end %>
+        <% end %>
+        <% end %>
+        </div>
+
+        </div>
+        </div>
+        </div>
+        </div>
+
+
+
+        <!--<div class="chat-controls">-->
+        <%#= form_for([@conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
+        <!--    <div class="chat-input1 chat-input">-->
+        <%#= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", required: true, placeholder: 'Type your message here...', "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{current_candidate.class}-#{current_candidate.id}" %>
+        <!--    </div>-->
+        <!--    <div id="file-name_uploaded">-->
+
+        <!--    </div>-->
+        <!--    <div class="chat-input-extra">-->
+        <!--      <div class="chat-extra-actions">-->
+        <%#= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
+        <%# if @conversation.present? %>
+        <!--          <div class="candidate-icon_widget">-->
+        <%#= mini_chat_contact_widget(current_candidate.email, current_candidate.phone,color: '#3E4B5B; !important') %>
+        <!--          </div>-->
+        <%# end %>
+
+        <!--      </div>-->
+        <!--      <div class="chat-btn">-->
+        <%#= button_tag(type: "submit", class: "btn p-0",id:"send-message", style: "background: transparent;box-shadow: none;") do %>
+        <!--          <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>-->
+        <%# end %>
+        <!--      </div>-->
+        <!--    </div>-->
+
+
+      <%# end if @conversation.present? %>
+<!--      </div>-->
 
 
 <%= content_for :modals do %>
@@ -171,8 +199,8 @@
             $("#videobutton1").toggle('show');
         });
     });
-    $('.send-message_class').on('click', function(e){
-        form_id = $(".chat_form").attr('id')
-        $('#'+form_id).submit()
-    });
+    // $('.send-message_class').on('click', function(e){
+    //     form_id = $(".chat_form").attr('id')
+    //     $('#'+form_id).submit()
+    // });
 </script>
