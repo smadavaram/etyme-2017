@@ -4,8 +4,8 @@
 }
 
 .data-table-image {
-    height: 30px;
-    width: 30px;
+    height: 41px !important;
+    width: 41px !important;
     border-radius: 50%;
 }
 
