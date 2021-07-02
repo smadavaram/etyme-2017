@@ -509,10 +509,10 @@
 }
 .chat-middle-etymeflow{
   @media only screen and (max-width: 600px) {
-    font-size: 16px;
+    font-size: 12px;
 
   }
-  font-size: 30px;
+  font-size: 20px;
   line-height: 26px;
   text-align: left;
   color: #3D3C3C;
@@ -660,8 +660,8 @@
     margin-top: 4%;
   }
   align-items: center;
-  margin-top: 7%;
-  margin-left: 7%;
+  margin-top: 1%;
+  margin-left: 2%;
 }
 .vidoebutton-style-div{
   @media only screen and (max-width: 600px) {
@@ -672,12 +672,17 @@
 }
 .chat-box-header{
   @media only screen and (max-width: 600px) {
-    height: 9vh;
+    height: 12vh;
   }
   width: 100%;
-  height: 12vh;
+  height: 16vh;
   border-bottom: 1px solid #047bf8;
   margin-left: 1px;
+}
+.job-status-on-mobile{
+  @media only screen and (max-width: 600px) {
+    display: none;
+  }
 }
 .mobile-chat-send-icons{
   @media only screen and (max-width: 600px) {

@@ -51,33 +51,35 @@
   <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
   <% link = get_conversation_link(opt_obj) %>
   <div class="row chat-box-header" >
-    <div class="col-sm-6 col-lg-6 col-md-6">
-      <% if link.nil? %>
-      <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a></span></div>
-   <%else %>
-        <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= opt_obj.full_name if opt_obj.present? %></a></span></div>
-    <%end %>
-    </div>
-    <div class="col-sm-6 col-lg-6 col-md-6">
-<!--      <div class="row vidoebutton-style-div" >-->
-<!--        <div class="row" id="videobutton" style="margin-right: 2px; display: none">-->
-<!--          <div class="chat-div-style" id="myDIV2"><i class="fa fa-calendar calender-style"></i></div>-->
-<!--          <div class="chat-div-style" id="myDIV3"><i class="fa icon-phone calender-style"></i></div>-->
-<!--          <div class="chat-div-style" id="myDIV4"><i class="fa fa-video-camera calender-style"></i></div>-->
-<!--        </div>-->
-<!--        <div class="chat-div-style" onclick="showDivClick()" id="showdiv"><i class="fa fa-ellipsis-v calender-style" style="margin-left: 40%;"></i></div>-->
-<!--      </div>-->
-    </div>
-    <% if conversation&.job_application and nested_colap %>
-
-      <div id="job_application_links">
-        <%= render 'company/job_applications/partials/collapse_able_job_application', conversation: conversation, job_application: conversation.job_application %>
+      <div class="col-sm-10 col-lg-10 col-md-10">
+        <% if link.nil? %>
+          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a></span></div>
+        <%else %>
+          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= opt_obj.full_name if opt_obj.present? %></a></span></div>
+        <%end %>
       </div>
+      <div class="col-sm-2 col-lg-2 col-md-2">
+        <!--      <div class="row vidoebutton-style-div" >-->
+        <!--        <div class="row" id="videobutton" style="margin-right: 2px; display: none">-->
+        <!--          <div class="chat-div-style" id="myDIV2"><i class="fa fa-calendar calender-style"></i></div>-->
+        <!--          <div class="chat-div-style" id="myDIV3"><i class="fa icon-phone calender-style"></i></div>-->
+        <!--          <div class="chat-div-style" id="myDIV4"><i class="fa fa-video-camera calender-style"></i></div>-->
+        <!--        </div>-->
+        <!--        <div class="chat-div-style" onclick="showDivClick()" id="showdiv"><i class="fa fa-ellipsis-v calender-style" style="margin-left: 40%;"></i></div>-->
+        <!--      </div>-->
+      </div>
+    <div class="row" style="margin-top: -12px">
+      <% if conversation&.job_application and nested_colap %>
 
-    <% end %>
+        <div id="job_application_links">
+          <%= render 'company/job_applications/partials/collapse_able_job_application', conversation: conversation, job_application: conversation.job_application %>
+        </div>
+
+      <% end %>
+    </div>
   </div>
 
-  <div style="width: 100%; height: 58vh;  border-bottom: 1px solid #F2F4F8;overflow: scroll; padding: 10px">
+  <div style="width: 100%; height: 54vh;  border-bottom: 1px solid #F2F4F8;overflow: scroll; padding: 10px">
 
     <div class="chat-content" id="conversation_<%= conversation.id if conversation.present? %>">
       <div id="all-infinite-scrolling-msg" style="display:none"></div>
@@ -108,6 +110,9 @@
       <% if @conversation.present? %>
         <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',class: "chat_form",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
           <%= f.text_field :body, class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
+          <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
+            <%= image_tag("/docusign.png",size: "20x25") %>
+          <% end %>
       <%= button_tag( class: "btn p-0 button-style1 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
         <img src="/assets/send.png"></img>
       <% end %>
