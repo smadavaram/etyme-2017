@@ -89,7 +89,7 @@
     <div id="videobutton1" class="mobile-insidechat-icons">
       <div class="row send-icons" style="justify-content: center">
         <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
-          <%= image_tag("/docusign.png",size: "20x25") %>
+          <%= image_tag("/assets/docusign.png",size: "25x28") %>
         <% end %>
         <%#= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width: 31px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
         <% if conversation.present? and conversation.JobApplication? %>
@@ -110,9 +110,7 @@
       <% if @conversation.present? %>
         <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',class: "chat_form",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
           <%= f.text_field :body, class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
-          <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
-            <%= image_tag("/docusign.png",size: "20x25") %>
-          <% end %>
+
       <%= button_tag( class: "btn p-0 button-style1 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
         <img src="/assets/send.png"></img>
       <% end %>
@@ -123,7 +121,7 @@
       <div class="col-sm-8 col-md-8 col-lg-8">
         <div class="row send-icons">
           <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
-            <%= image_tag("/docusign.png",size: "20x25") %>
+            <%= image_tag("/assets/docusign.png",size: "25x28") %>
           <% end %>
           <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width: 31px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
           <% if conversation.present?  %>
