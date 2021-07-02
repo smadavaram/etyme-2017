@@ -56,7 +56,7 @@ module ApplicationHelper
 
   def mini_chat_contact_widget(email, phone, _user_id = nil, _options = {})
     mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2 mini_chat_widget pt-3').html_safe, title: email, class: 'data-table-icons') +
-      link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone mini_chat_widget').html_safe, '#', title: phone, class: 'data-table-icons') +
+      link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone mini_chat_widget').html_safe, "skype:#{phone.present? ? phone : ''}?call", title: phone, class: 'data-table-icons') +
       "<div title = 'Add to Calendar' class = 'addeventatc z-100'>
         <span class = 'start' >06/10/2019 08:00 AM</span>
         <span class='end'>06/10/2019 10:00 AM</span>
