@@ -422,7 +422,7 @@
   }
   width: 100%;
   margin-left: 17px;
-  margin-top: 17px
+  margin-top: 7px
 }
 .message-send-row-mobile{
   @media only screen and (max-width: 600px) {
@@ -584,8 +584,8 @@
 
 }
 .chat-middle-etymeflow{
-  font-size: 30px;
-  line-height: 26px;
+  font-size: 20px;
+  line-height: 20px;
   text-align: left;
   color: #3D3C3C;
 }
@@ -635,11 +635,11 @@
   }
   display: block;
 }
-.mobile-icon-side-bar{
+.mobile-icon-side-bar-can{
   @media only screen and (max-width: 600px) {
-    display: none;
+    display: none !important;
   }
-  display: block;
+  display: block !important;
 }
 .add-icon{
   @media only screen and (max-width: 600px) {
