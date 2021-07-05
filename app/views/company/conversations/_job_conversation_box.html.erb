@@ -94,7 +94,7 @@
         <%#= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width: 31px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
         <% if conversation.present? %>
           <div>
-            <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable.present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : conversation.chatable&.groupables.find_by_groupable_type(:User).groupable %>
+            <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : conversation.chatable&.groupables.find_by_groupable_type(:User).groupable %>
             <%= mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) %>
           </div>
         <% end %>
