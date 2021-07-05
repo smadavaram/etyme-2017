@@ -78,7 +78,7 @@
 .small-chat-height{
     max-height: 300px;
     min-height: 100px;
-    overflow-y: auto;
+    /*overflow-y: auto;*/
 }
 .chat_input{
     padding: 20px 20px 20px 0px;
