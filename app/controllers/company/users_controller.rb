@@ -274,7 +274,21 @@ class Company::UsersController < Company::BaseController
     user.delete unless user.blank?
     redirect_to admins_path
   end
-
+  def onlinestatus
+    @user = current_user
+    if @user.online == true
+      @user.update(:online => false)
+    else
+      @user.update(:online => true)
+    end
+    @user = current_user
+    if @user.online == true
+      @user = "Online"
+    else
+      @user = "Onway"
+    end
+    render json:{data: @user}
+  end
   private
 
   def find_user
