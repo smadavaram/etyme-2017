@@ -283,11 +283,11 @@ class Company::UsersController < Company::BaseController
     end
     @user = current_user
     if @user.online == true
-      @user = "Online"
+      ur = "Online"
     else
-      @user = "Onway"
+      ur = "Onway"
     end
-    render json:{data: @user}
+    render json:{data: ur}
   end
   private
 

@@ -306,13 +306,12 @@ $(document).on("click", ".save_bench_job", function () {
 
 // onlinebutton"
 $(document).on("click", ".onlinebutton", function () {
-  debugger;
   $.ajax({
     url: "/company/users/onlinestatus",
     type: "post",
     success: function (data) {
-      $(".onlinebuttonresult").text(data?.data);
-      if (data?.data == "Onway")
+      $(".onlinebuttonresult").text(data.data);
+      if (data.data == "Onway")
         $("#active").attr("style", "background: yellow");
       else $("#active").attr("style", "background: limegreen");
     },
