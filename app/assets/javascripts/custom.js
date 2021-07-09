@@ -311,10 +311,7 @@ $(document).on("click", ".onlinebutton", function () {
     url: "/company/users/onlinestatus",
     type: "post",
     success: function (data) {
-      debugger;
-      let a = $(".onlinebuttonresult");
-      //   $(".onlinebuttonresult").innerText = data;
-      a.text(data?.data);
+      $(".onlinebuttonresult").text(data?.data);
       if (data?.data == "Onway")
         $("#active").attr("style", "background: yellow");
       else $("#active").attr("style", "background: limegreen");
