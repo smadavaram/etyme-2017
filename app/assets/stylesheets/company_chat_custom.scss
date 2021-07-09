@@ -751,6 +751,18 @@ form{
   margin-left: 7px;
   border-bottom-left-radius: 0px;
 }
+.chat-message-divstyle-mini{
+  @media only screen and (max-width: 600px) {
+   // width: 44vh;
+   // margin-left: 67px;
+   // margin-top: -55px;
+  }
+  background-color: #fff9f0;
+  padding: 6px;
+  border-radius: 20px;
+  //margin-left: 7px;
+  border-bottom-left-radius: 0px;
+}
 .chat-messagediv-style{
   @media only screen and (max-width: 600px) {
     width: 44vh;
