@@ -125,10 +125,10 @@
     <div class="row" style="justify-content: flex-end; margin-left: 1px; width: 100%; ">
         <div class="col-sm-5 col-md-5 col-lg-5 chat-messagediv-style">
             <div class="chat-message-content-w">
-                <div class="chat-message-content ">
+                <div class="chat-message-content text-break">
                     <%= msg.body.html_safe %>
                     <% if msg.rate_confirmation? %>
-                    <a href="<%= get_current_user.class.to_s == 'Candidate' ? accept_rate_candidate_job_application_path(msg.conversation.job_application, msg.conversation) :
+                    <a href=" <%= get_current_user.class.to_s == 'Candidate' ? accept_rate_candidate_job_application_path(msg.conversation.job_application, msg.conversation) :
                              accept_rate_job_application_path(msg.conversation.job_application, msg.conversation)
 
               %>" data-method='post'>
@@ -179,10 +179,10 @@
     </div>
     <div class="col-sm-5 col-md-5 col-lg-5 chat-message-divstyle">
         <div class="chat-message-content-w">
-            <div class="chat-message-content">
+            <div class="chat-message-content text-break">
                 <%= msg.body.html_safe %>
                 <% if msg.rate_confirmation? %>
-                <a href="<%= get_current_user.class.to_s == 'Candidate' ? accept_rate_candidate_job_application_path(msg.conversation.job_application, msg.conversation) :
+                <a href=" <%= get_current_user.class.to_s == 'Candidate' ? accept_rate_candidate_job_application_path(msg.conversation.job_application, msg.conversation) :
                            accept_rate_job_application_path(msg.conversation.job_application, msg.conversation)
             %>" data-method='post'>
                     Click Here </a> to Accept or
