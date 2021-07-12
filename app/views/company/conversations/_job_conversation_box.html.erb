@@ -25,17 +25,20 @@
         <button type="button" class="btn1-style" >Main</button>
       </div>
       <div id="myDIV" style="display:none; ">
-        <div style=" display: flex">
-          <div>
-            <button type="button" class="btn2-style" >Interview</button>
-          </div>
-          <div>
-            <button type="button" class="btn3-style" >Document Collection</button>
-          </div>
-          <div>
-            <button type="button" class="btn2-style" >Navigation</button>
-          </div>
+        <div class="element-search autosuggest-search-activator">
+          <input class="input-field" placeholder="Please respond with Interview/Document Collection/Navigation" type="text" id="branch-out-text" value="">
         </div>
+<!--        <div style=" display: flex">-->
+<!--          <div>-->
+<!--            <button type="button" class="btn2-style" >Interview</button>-->
+<!--          </div>-->
+<!--          <div>-->
+<!--            <button type="button" class="btn3-style" >Document Collection</button>-->
+<!--          </div>-->
+<!--          <div>-->
+<!--            <button type="button" class="btn2-style" >Navigation</button>-->
+<!--          </div>-->
+<!--        </div>-->
       </div>
     </div>
   </div>
@@ -52,6 +55,7 @@
   <% link = get_conversation_link(opt_obj) %>
   <div class="row chat-box-header" style="<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 16vh;" : "height: 10vh;" %>" >
       <div class="col-sm-10 col-lg-10 col-md-10">
+
         <% if link.nil? %>
           <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a></span></div>
         <%else %>
@@ -212,6 +216,12 @@
       $('.send-message_class').on('click', function(e){
           form_id = $(".chat_form").attr('id')
           $('#'+form_id).submit()
+      });
+      $("#branch-out-text").on('keypress', function(e){
+          var dinput = this.value;
+          if (e.keyCode == 13){
+              return dinput;
+          }
       });
   </script>
 <% end %>
