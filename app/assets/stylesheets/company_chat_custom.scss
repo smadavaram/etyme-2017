@@ -78,10 +78,10 @@
     height:7%;
     //border-radius: 23px;
     margin-top: 5px;
-    border-bottom: 1px solid #047BF8;
+    border-bottom: 1px solid #4e9df1;
 }
 .active-div-color{
-    background-color: #047BF8;
+    background-color: #4e9df1;
     border-radius: 23px;
     .chat-user-name-style{
         color: white !important;
@@ -154,7 +154,7 @@
     color: #3D3C3C;
 }
 .user-list-item-style:hover {
-    background-color: #047BF8 !important;
+    background-color: #4e9df1 !important;
     border-radius: 23px;
     .chat-user-name-style{
         color: white !important;
@@ -672,10 +672,9 @@
 }
 .chat-box-header{
   @media only screen and (max-width: 600px) {
-    height: 12vh;
+    height: 10vh;
   }
   width: 100%;
-  height: 16vh;
   border-bottom: 1px solid #047bf8;
   margin-left: 1px;
 }
@@ -750,6 +749,18 @@ form{
   padding: 6px;
   border-radius: 20px;
   margin-left: 7px;
+  border-bottom-left-radius: 0px;
+}
+.chat-message-divstyle-mini{
+  @media only screen and (max-width: 600px) {
+   // width: 44vh;
+   // margin-left: 67px;
+   // margin-top: -55px;
+  }
+  background-color: #fff9f0;
+  padding: 6px;
+  border-radius: 20px;
+  //margin-left: 7px;
   border-bottom-left-radius: 0px;
 }
 .chat-messagediv-style{

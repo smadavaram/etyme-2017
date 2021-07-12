@@ -44,6 +44,7 @@ if ($("#conversation_<%= @conversation.id %>")[0]) {
 <% color = colors[0] %>
 <% end %>
 $("#company-conversation-list .conversation_user_<%= @conversation.id  %>").remove();
+$('.user-list-item-style').removeClass('active-div-color')
 $("#company-conversation-list").prepend("<div id='convo_box' class='row user-list-item-style  active-div-color conversation_user_<%=  @conversation.id  %> '> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
 
 var coll = document.getElementsByClassName("collapsible-click");

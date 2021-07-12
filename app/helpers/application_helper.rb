@@ -1336,6 +1336,16 @@ module ApplicationHelper
     end
   end
 
+  def user_image_mini_chat(user, attrs)
+    return if user.nil?
+
+    if user.photo&.present?
+      image_tag(user.photo, style: (attrs[:style]).to_s, title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe
+    else
+      entity_image(user.first_name, user.last_name )
+    end
+  end
+
   def entity_image(first_name, last_name, circle_div_class = 'circle', default_img_classes = '')
     if first_name == '' || last_name == ''
       image_tag(asset_path('avatars/camera-default.png'), class: "circle-image #{default_img_classes}")

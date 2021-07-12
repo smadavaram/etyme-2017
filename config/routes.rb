@@ -150,7 +150,9 @@ Rails.application.routes.draw do
   end
 
   namespace :candidate do
-    resources :document_signs, only: %i[index update show] do
+    resources :document_signs, only: %i[index update sh
+
+      ow] do
       get :documents
       get :upload_document
     end
@@ -313,6 +315,7 @@ Rails.application.routes.draw do
         get 'current_status'
         get 'status_update'
         get 'chat_status_update'
+        post 'onlinestatus'
         get :add_reminder
         get :import
         post :add_contacts

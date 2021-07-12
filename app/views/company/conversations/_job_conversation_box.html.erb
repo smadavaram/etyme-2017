@@ -50,7 +50,7 @@
 <div class="row chat-box" style="background-color: white; height: 82vh">
   <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
   <% link = get_conversation_link(opt_obj) %>
-  <div class="row chat-box-header" >
+  <div class="row chat-box-header" style="<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 16vh;" : "height: 10vh;" %>" >
       <div class="col-sm-10 col-lg-10 col-md-10">
         <% if link.nil? %>
           <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a></span></div>
@@ -78,8 +78,7 @@
       <% end %>
     </div>
   </div>
-
-  <div style="width: 100%; height: 54vh;  border-bottom: 1px solid #F2F4F8;overflow: scroll; padding: 10px">
+  <div style="width: 100%;  border-bottom: 1px solid #F2F4F8;overflow: scroll; padding: 10px; <%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 54vh;" : "height: 58vh;" %>">
 
     <div class="chat-content" id="conversation_<%= conversation.id if conversation.present? %>">
       <div id="all-infinite-scrolling-msg" style="display:none"></div>
@@ -88,14 +87,14 @@
 
     <div id="videobutton1" class="mobile-insidechat-icons">
       <div class="row send-icons" style="justify-content: center">
+        <% if conversation.present? %>
         <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
           <%= image_tag("/assets/docusign.png",size: "25x28") %>
         <% end %>
         <%#= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width: 31px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
-        <% if conversation.present? and conversation.JobApplication? %>
           <div>
-            <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable %>
-            <%= mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) %>
+            <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : "" %>
+            <%= candidate.present? ? mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) : mini_chat_contact_widget(nil, nil,nil) %>
           </div>
         <% end %>
       </div>
@@ -120,14 +119,14 @@
     <div class="row mobile-chat-send-icons" >
       <div class="col-sm-8 col-md-8 col-lg-8">
         <div class="row send-icons">
+          <% if conversation.present?   %>
           <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
             <%= image_tag("/assets/docusign.png",size: "25x28") %>
           <% end %>
           <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width: 31px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
-          <% if conversation.present?  %>
             <div>
-              <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable %>
-              <%= mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) %>
+              <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : "" %>
+              <%= candidate.present? ? mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) : mini_chat_contact_widget(nil, nil,nil) %>
             </div>
           <% end %>
         <% end %>

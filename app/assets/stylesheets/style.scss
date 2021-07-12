@@ -1576,6 +1576,17 @@ input:checked + .slider1:before {
      color: #fff;
      font-size: .63rem;
  }
+ .min_chat_more{
+     background-color: #047bf8;
+     display: inline-block;
+     vertical-align: middle;
+     position: relative;
+     left: -6px;
+     padding: 2px 7px;
+     border-radius: 12px;
+     color: #fff;
+     font-size: .63rem;
+ }
  .mini_chat_users .avatar{
     margin-left: -10px;
     width: 35px;
