@@ -23,9 +23,14 @@
         <button type="button" class="btn1-style" >Main</button>
       </div>
       <div id="myDIV" style="display: none">
-        <div class="element-search autosuggest-search-activator">
-          <input class="input-field" placeholder="Please respond with Interview/Document Collection/Navigation" type="text" id="branch-out-text" value="">
-        </div>
+        <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_candidate ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
+        <%= form_tag update_candidate_conversation_title_candidate_conversations_path, method: :post ,remote: :true do %>
+          <div class="element-search autosuggest-search-activator">
+            <input name="branchout" class="input-field" placeholder="Please respond with Interview/Document Collection/Navigation" type="text" id="branch-out-text" value="">
+            <%= hidden_field_tag 'group_id', opt_obj.id  %>
+          </div>
+
+        <% end %>
 <!--        <div style=" display: flex">-->
 <!--          <div>-->
 <!--            <button type="button" class="btn2-style" >Interview</button>-->

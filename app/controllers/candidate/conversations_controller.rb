@@ -35,6 +35,14 @@ class Candidate::ConversationsController < Candidate::BaseController
     end
   end
 
+  def update_candidate_conversation_title
+    group_data = Group.find_by(id: params[:group_id])
+    group_data.update(branchout: params[:branchout])
+    respond_to do |format|
+      format.js {render inline: "location.reload();" }
+    end
+  end
+
   def add_to_favourite
     @favourite = current_candidate.favourables.create(favourabled_type: params[:favourabled_type], favourabled_id: params[:favourabled_id])
   end

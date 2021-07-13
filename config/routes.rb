@@ -219,6 +219,7 @@ Rails.application.routes.draw do
     end
 
     resources :conversations do
+      post :update_candidate_conversation_title, on: :collection
       get :search, on: :collection
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection
@@ -410,6 +411,7 @@ Rails.application.routes.draw do
       get :batch_job, on: :member
     end
     resources :conversations do
+      post :update_company_conversation_title, on: :collection
       get :search, on: :collection
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection

@@ -76,6 +76,14 @@ class Company::ConversationsController < Company::BaseController
     end
   end
 
+  def update_company_conversation_title
+    group_data = Group.find_by(id: params[:group_id])
+    group_data.update(branchout: params[:branchout])
+    respond_to do |format|
+      format.js {render inline: "location.reload();" }
+    end
+  end
+
   def search
     @query = params[:keyword]
     @topic = params[:topic].present? ? params[:topic] : 'All'

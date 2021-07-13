@@ -47,7 +47,12 @@ class Group < ApplicationRecord
   end
 
   def full_name
-    group_name.to_s.titleize
+    if branchout.present?
+      branchout + ' ' + group_name.to_s.titleize
+    else
+      group_name.to_s.titleize
+    end
+
   end
 
   def group_emails
