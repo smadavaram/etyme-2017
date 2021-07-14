@@ -26,7 +26,7 @@
       </div>
       <div id="myDIV" style="display:none; ">
         <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
-        <%= form_tag update_company_conversation_title_company_conversationspath, method: :post ,remote: :true do %>
+        <%= form_tag update_company_conversation_title_company_conversations_path, method: :post ,remote: :true do %>
           <div class="element-search autosuggest-search-activator">
             <input name="branchout" class="input-field" placeholder="Please respond with Interview/Document Collection/Navigation" type="text" id="branch-out-text" value="">
             <%= hidden_field_tag 'group_id', opt_obj.id  %>
