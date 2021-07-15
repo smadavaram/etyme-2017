@@ -1,113 +1,117 @@
 <% content_for :google_address_search_api do %>
-  <script src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['google_search_location_api_key'] %>&libraries=places" type="text/javascript"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['google_search_location_api_key'] %>&libraries=places" type="text/javascript"></script>
 <% end %>
 <div class="no-border" id="content">
-  <div class="all-wrapper no-padding-content solid-bg-all">
-    <div class="layout-w">
-      <div class="content-w">
-        <div class="content-i">
-          <div class="content-box">
-            <div class="full-chat-w">
-              <div class="full-chat-i">
-                <div class="full-chat-middle" id="conversation-section">
-                  <%= render "company/job_applications/partials/collapse_able_job_application", conversation: @conversation, job_application: @job_application, messages: true, nested_col: false %>
-                </div>
-              </div>
-            </div>
-            <div class="element-wrapper" style="margin-top: 10px;">
-              <div class="full-chat-w">
-                <div class="full-chat-i">
-                  <div class="full-chat-middle">
-                    <h6 class="align-work-head">Work Notes</h6>
-                    <%= form_for Reminder.new,html:{ class:'form-horizontal',id: 'group-val'} do |f| %>
-                      <%= f.hidden_field :reminderable_id ,value: @job_application.id %>
-                      <%= f.hidden_field :reminderable_type ,value: @job_application.class %>
-                      <br/>
-                      <div class="form-group some" style="padding:10px">
-                        <label class="col-md-3 control-label">
-                          Work Notes
-                          <sup class="text-danger">*</sup>
-                        </label>
-                        <div class="col-md-12">
-                          <%= f.text_area :title , required: true ,class:'form-control' ,placeholder: "Work Notes here" %>
+    <div class="all-wrapper no-padding-content solid-bg-all">
+        <div class="layout-w">
+            <div class="content-w">
+                <div class="content-i">
+                    <div class="content-box">
+                        <div class="full-chat-w">
+                            <div class="full-chat-i">
+                                <div class="full-chat-middle" id="conversation-section">
+                                    <%= render "company/job_applications/partials/collapse_able_job_application", conversation: @conversation, job_application: @job_application, messages: true, nested_col: false %>
+                                </div>
+                            </div>
                         </div>
-                      </div>
-                      <div class="form-group some" style="padding-left:10px; padding-right:10px;">
-                        <label class="col-md-3 control-label">
-                          Remind At
-                          <sup class="text-danger"></sup>
-                        </label>
-                        <div class="col-md-12">
-                          <%= f.text_field :remind_at ,class:'form-control',id:"remind" %>
-                        </div>
-                      </div>
-                      <div class="modal-footer">
-                        <%= f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id' %>
-                        <button class="btn btn-default" data-dismiss="modal" type="button">
-                          Cancel
-                        </button>
-                      </div>
-                    <% end %>
+                        <div class="element-wrapper" style="margin-top: 10px;">
+                            <div class="full-chat-w">
+                                <div class="full-chat-i">
+                                    <div class="full-chat-middle">
+                                        <h6 class="align-work-head">Work Notes</h6>
+                                        <%= form_for Reminder.new,html:{ class:'form-horizontal',id: 'group-val'} do |f| %>
+                                        <%= f.hidden_field :reminderable_id ,value: @job_application.id %>
+                                        <%= f.hidden_field :reminderable_type ,value: @job_application.class %>
+                                        <br />
+                                        <div class="form-group some" style="padding:10px">
+                                            <label class="col-md-3 control-label">
+                                                Work Notes
+                                                <sup class="text-danger">*</sup>
+                                            </label>
+                                            <div class="col-md-12">
+                                                <%= f.text_area :title , required: true ,class:'form-control' ,placeholder: "Work Notes here" %>
+                                            </div>
+                                        </div>
+                                        <div class="form-group some" style="padding-left:10px; padding-right:10px;">
+                                            <label class="col-md-3 control-label">
+                                                Remind At
+                                                <sup class="text-danger"></sup>
+                                            </label>
+                                            <div class="col-md-12">
+                                                <%= f.text_field :remind_at ,class:'form-control',id:"remind" %>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <%= f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id' %>
+                                            <button class="btn btn-default" data-dismiss="modal" type="button">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                        <% end %>
 
-                  </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <% if job_application_activity_hash.present? %>
+                        <div class="full-chat-w">
+                            <div class="full-chat-i">
+                                <% if @conversation.topic == "JobApplication" %>
+                                <h6 class="align-work-head">Activity Log</h6>
+                                <div class="timed-activities compact" style="margin-top:70px;">
+                                    <% job_application_activity_hash.each do |key, value| %>
+                                    <div class="timed-activity">
+                                        <div class="ta-date">
+                                            <span>
+                                                <%= key %>
+                                            </span>
+                                        </div>
+                                        <div class="ta-record-w">
+                                            <% value.each do |activity| %>
+                                            <%= render_activity activity %>
+                                            <% end %>
+                                        </div>
+                                    </div>
+                                    <% end %>
+                                </div>
+                                <% end %>
+                            </div>
+                        </div>
+                        <%end%>
+                    </div>
+                    <div class="col-lg-4 full-chat-right" id="conversation-r-section">
+                        <%#= render "company/conversations/conversation_right_side" %>
+                    </div>
                 </div>
-              </div>
             </div>
-            <% if job_application_activity_hash.present? %>
-              <div class="full-chat-w">
-                <div class="full-chat-i">
-                  <% if @conversation.topic == "JobApplication" %>
-                    <h6 class="align-work-head">Activity Log</h6>
-                      <div class="timed-activities compact" style="margin-top:70px;">
-                        <% job_application_activity_hash.each do |key, value| %>
-                          <div class="timed-activity">
-                            <div class="ta-date">
-                              <span>
-                                <%= key %>
-                              </span>
-                            </div>
-                            <div class="ta-record-w">
-                              <% value.each do |activity| %>
-                                <%= render_activity activity %>
-                              <% end %>
-                            </div>
-                          </div>
-                        <% end %>
-                      </div>
-                  <% end %>
-                </div>
-              </div>
-            <%end%>
-          </div>
-          <div class="col-lg-4 full-chat-right" id="conversation-r-section">
-            <%#= render "company/conversations/conversation_right_side" %>
-          </div>
         </div>
-      </div>
-  </div>
-</div>
+    </div>
 
-<div class="floated-chat-btn">
-  <i class="os-icon os-icon-mail-07",style="padding-left: 15px;"></i>
-  <a onclick="open_chat(<%=@conversation.id %>)" class=" open_chat ChatBtn" style="margin-left:13px;" id="ChatBtn">Conversation</a>
-</div>
+    <div class="floated-chat-btn">
+        <i class="os-icon os-icon-mail-07" ,style="padding-left: 15px;"></i>
+        <a onclick="open_chat(<%=@conversation.id %>)" class=" open_chat ChatBtn" style="margin-left:13px;" id="ChatBtn">Conversation</a>
+    </div>
 
 </div>
 <% content_for :scripts do %>
-  <script>
-      $(document).ready(function () {
-          default_active_nav('.ln-6');
-      });
+<script>
+    $(document).ready(function() {
+        default_active_nav('.ln-6');
+    });
 
-      function open_chat(id){$.get(`/company/conversations/mini_chat?conversation_id=${id}`)}
+    function open_chat(id) {
+        $.get(`/company/conversations/mini_chat?conversation_id=${id}`)
 
-      $('.toggle_big_chat').on('click', function (e) {
-          $("#show-candidate-<%=@job_application.applicationable_id%>").modal('hide');
-          $("#application_chat").trigger('click');
-      })
+    }
 
-      $("#remind").datepicker({dateFormat: "mm-dd-yy"  });
+    $('.toggle_big_chat').on('click', function(e) {
+        $("#show-candidate-<%=@job_application.applicationable_id%>").modal('hide');
+        $("#application_chat").trigger('click');
+    })
 
-  </script>
+    $("#remind").datepicker({
+        dateFormat: "mm-dd-yy"
+    });
+</script>
 
 <% end %>
