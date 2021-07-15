@@ -34,7 +34,7 @@ module ApplicationHelper
     if options[:remote_false]
       link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
     else
-      link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', remote: true, title: 'chat', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', remote: true, title: 'Chat With Me!', class: 'data-table-icons')
 
     end
   end
@@ -49,9 +49,13 @@ module ApplicationHelper
           <span class='timezone'>America/Los_Angeles </span>
           <span class='title'></span>
           <span class = 'description' ></span>
-          <span class='os-icon os-icon-calendar' style='color: #{options[:color]}'></span>
+          <span class='os-icon os-icon-calendar' style='color: red'></span>
           <span class='attendees'></span>
         </div >".html_safe
+  end
+
+  def contact_widget_recuirter(email, phone, _user_id = nil, options = {})
+    chat_remote_link(options)
   end
 
   def mini_chat_contact_widget(email, phone, _user_id = nil, _options = {})
