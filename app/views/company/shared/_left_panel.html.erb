@@ -10,8 +10,20 @@
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
         $('.lpm').hide();
-        // $("#side-bar").hide();
+        $("#side-bar").removeClass('icon-side-bar');
+        $("#togglebutton1").addClass('togglebtncontainerinbox1');
+
     }
+    function toglleMenu1() {
+        var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
+        document.querySelector('#togglebutton').classList.toggle('rightChanged');
+        $('.lpm').hide();
+        $("#side-bar").addClass('icon-side-bar');
+        $("#togglebutton1").removeClass('togglebtncontainerinbox1');
+    }
+
+
+
 </script>
 <div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
   <div class="logged-user-w avatar-inline p-1 m-1">
@@ -22,6 +34,11 @@
       <div class="logged-user-info-w">
         <div class="logged-user-name">
           <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
+        </div>
+      </div>
+      <div class="icon-button-style1" style="display: none;" >
+        <div id="togglebutton" onclick="toglleMenu1()" class="<%= is_inbox_path ? 'togglebtncontainerinbox1' : 'togglebtncontainer' %>" style="display: none;">
+          <div class="os-icon os-icon-hamburger-menu-1 hamburger-icon" style="display: none;"></div>
         </div>
       </div>
     </div>
@@ -149,8 +166,4 @@
     </div>
   </div>
 </div>
-<style>
-  .icon-side-bar{
-      display: none;
-  }
-</style>
+
