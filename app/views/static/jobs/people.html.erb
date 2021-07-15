@@ -36,18 +36,22 @@
 
                                             <div class="people-card-footer d-flex justify-content-between mb-3">
                                                 <div class="card-footer-icons d-flex">
-                                                    <% 
+                                                    <%# 
                                                         @c_candidate = c&.candidate_id
                                                          %>
-                                                    <% 
+                                                    <%# 
                                                         @c_candidate_obj = Candidate.find_by(id: @c_candidate)
                                                          %>
-                                                    <% @c_recruiter = User.find_by(id: @c_candidate_obj&.recruiter_id)%>
+                                                    <%# @c_recruiter = User.find_by(id: @c_candidate_obj&.recruiter_id)%>
 
+                                                    <%
+=begin%>
                                                     <div class="logged-user-role d-block">
 
-                                                        <%= contact_widget_recuirter(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') if @c_recruiter.present? %>
+                                                        <%#= contact_widget_recuirter(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') if @c_recruiter.present? %>
                                                     </div>
+                                                    <%
+=end%>
                                                     <!-- Like Icon -->
                                                     <div class="card-footer-like mr-2">
                                                         <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
