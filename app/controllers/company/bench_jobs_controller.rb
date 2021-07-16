@@ -6,7 +6,6 @@ class Company::BenchJobsController < Company::BaseController
 
   def index
     add_breadcrumb 'My Bench'
-
     @candidates = CandidatesCompany.hot_candidate.where(company_id: current_company.id)
   end
 

@@ -14,6 +14,7 @@ set :rbenv_ruby, '2.6.5'
 #set :rbenv_map_bins, %w{rake gem bundle ruby rails}
 #set :rbenv_roles, :all # default value
 set :branch,"feature/chat_madule"
+# set :branch,"recruiter_chat"
 set :passenger_restart_with_touch, true
 # Default branch is :master
 # ask :branch, proc { `git rev-parse --abbrev-ref HEAD`.chomp }.call
