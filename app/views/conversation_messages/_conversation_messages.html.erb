@@ -16,7 +16,9 @@
     </span>
 </div>
 <% end %>
-<% if get_current_user.company_id.present? %>
+
+<% if  (request.referer && request.referer.split("marketplace").count >= 2) ||  (request.referer && request.referer.split("/static").count >= 2)%>
+
 <% if msg.userable == get_current_user %>
 <div class="chat-message self">
 
@@ -119,6 +121,7 @@
 </div>
 <% end %>
 <%else%>
+
 <% if msg.userable == get_current_user %>
 <div class="chat-message self">
 
@@ -165,6 +168,7 @@
     </div>
 
 </div>
+
 <% else %>
 
 <div class="row" style="margin-left: 1px;width: 100%">
