@@ -1,0 +1,34 @@
+/*
+
+ *= require style
+ *= require chat_box
+ *= require theme8
+ *= require select2
+ *= require select2-bootstrap
+ *= require conversation/chat
+ *= require bullettrain-public
+ *= require bullettrain-global
+ *= require shared/datatable
+ *= require company/job_applications
+ *= require jobs_small_chat
+ *= require intlTelInput
+ *= require calendar_custom
+
+ *= require company/prefer_vendors
+ *= require candidate/dashboard
+ *= require company/payroll
+ *= require custom
+ *= require company_chat_custom
+
+ */
+
+.icon-text {
+  font-size: 12px;
+  line-height: normal;
+  display: block;
+  color: #047bf8;
+}
+.new-messages-count {
+  top: -2px !important;
+  right: 0px !important;
+}
