@@ -25,21 +25,12 @@ class Candidate::ConversationsController < Candidate::BaseController
     @conversation = Conversation.where(id: params[:conversation]).first
     set_activity_for_job_application
     @favourites = current_candidate.favourables
-    @conversation.conversation_messages.where.not(userable_id: current_candidate.id).update_all(is_read: true)
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
     respond_to do |format|
       format.html do
         render 'index'
       end
       format.js
-    end
-  end
-
-  def update_candidate_conversation_title
-    group_data = Group.find_by(id: params[:group_id])
-    group_data.update(branchout: params[:branchout])
-    respond_to do |format|
-      format.js {render inline: "location.reload();" }
     end
   end
 

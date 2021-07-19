@@ -4,7 +4,7 @@
     <div class="element-wrapper pb-0">
       <div class="element-content">
         <div class="mt-2">
-          <div class="collapsible" style="display:inline-flex; display: none">
+          <div class="collapsible" style="display:inline-flex;">
             <%if @previous%>
               <span><%= link_to "<i class='fa fa-caret-left'></i>".html_safe, @previous,title:'Previous Job Application' %></span>
             <%end%>
@@ -19,9 +19,9 @@
             </div>
           </div>
         </div>
-        <div class="mt-2" >
-          <div class="collapsible job-status-on-mobile" style="margin-left: 1%">
-            <h6 class="collapsible-click ">Job Application</h6>
+        <div class="mt-2">
+          <div class="collapsible">
+            <h6 class="collapsible-click">Job Application</h6>
             <hr/>
             <%= render 'company/job_applications/partials/job_status_links', app: job_application, conversation: conversation, btn_size_class: 'btn-link mt-12 margin-right-5' %>
           </div>

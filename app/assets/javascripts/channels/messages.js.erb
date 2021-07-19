@@ -60,23 +60,17 @@ function set_conversation(data) {
         file_url = data.file_url ? "<hr/><a href='" + data.file_url + "' target='_blank'>Attachment</a>" : ''
         if (current_user_id == data.usr && current_user_type == (data.usr_typ == 'Candidate' ? "Candidate" : "User")) {
             $(data.dom).append("<div class='chat-message self'>" +
-                "<div class='row' style='justify-content: flex-end; margin-left: 1px; width: 100%; '>"+
-                "<div class='col-sm-5 col-md-5 col-lg-5 chat-messagediv-style' >" +
                 "<div class='chat-message-content-w'>" +
                 "<div class='chat-message-content'>" +
                 data.msg +
                 file_url +
                 "</div>" +
                 "</div>" +
-//                "<div class=chat-message-date>" +
-//                data.msg_time +
-//                "</div>" +
-                "</div>"+
-                "<div class='col-sm-1 col-md-1 col-lg-1 avatar-style' >"+
+                "<div class=chat-message-date>" +
+                data.msg_time +
+                "</div>" +
                 "<div class='chat-message-avatar'>" +
-                "<img src='" + data.msg_url + "' alt='"+ data.img_alt +"' class='image-35-imp'>" +
-                "</div>" +
-                "</div>" +
+                "<img src='" + data.msg_url + "' alt='"+ data.img_alt +"'>" +
                 "</div>" +
                 "</div>");
         } else {

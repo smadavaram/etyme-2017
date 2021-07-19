@@ -56,15 +56,15 @@
  *= require trix
  *= require slick-carousel/slick/slick
  *= require candidate/dashboard
- *= require candidate_chat_custom
+
  */
-.icon-text{
-    font-size: 12px;
+ .icon-text{
+	font-size: 12px;
     line-height: normal;
     display: block;
     color: #047bf8;
 }
 .new-messages-count{
-    top: -2px !important;
+	top: -2px !important;
     right: 0px !important;
 }

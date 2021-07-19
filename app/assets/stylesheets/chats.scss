@@ -83,23 +83,16 @@ body {
     color: #ccc;
   }
 }
-.os-animation {
+.os-animation{
   opacity: 0;
   &.animated {
     opacity: 1;
   }
 }
-.bg-selected {
+.bg-selected
+{
   background-color: paleturquoise !important;
 }
-.hover-bg:hover {
+.hover-bg:hover{
   background-color: paleturquoise !important;
-}
-
-.my_avatar {
-  width: 60px;
-  height: 60px;
-  border-bottom: 100%;
-  padding: 10px;
-  margin: 10px;
 }

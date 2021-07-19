@@ -40,10 +40,10 @@
         = render partial: 'candidate/shared/left_panel'
         .content-w.fixed-height
           = render partial: 'candidate/shared/header'
-          #main{:role => "main",style: "height: 87vh !important;"}
-            -##ribbon
-            -#  %ol.breadcrumb
-            -#    = render_breadcrumbs tag: :li, separator: " / "
+          #main{:role => "main",style: "min-height: 750px !important; overflow-x: hidden;"}
+            #ribbon
+              %ol.breadcrumb
+                = render_breadcrumbs tag: :li, separator: " / "
             -#= yield :ribbon
             = yield
           #modals
@@ -60,14 +60,14 @@
     = filepicker_js_include_tag
     = render partial: 'shared/flash_messages'
     /[if IE 8]
-= yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+    = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
 
 
 - content_for :scripts do
   :javascript
 
     $(".switch").on("click", function(){
-
+      
 
       var switch_status = $("#myonoffswitch").attr("checked");
 
@@ -77,9 +77,9 @@
 
       if(switch_status == "checked"){
         switch_status = true;
-
+        
         console.log("--------------------------")
-
+        
         $("#myonoffswitch").removeAttr("checked");
       }else{
           console.log("+++++++++++++++++++++++++++")
@@ -88,4 +88,4 @@
         //$("#myonoffswitch").removeAttr("checked");
         switch_status = false;
       }
-    });
+    }); 

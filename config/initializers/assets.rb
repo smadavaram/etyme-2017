@@ -17,8 +17,6 @@ Rails.application.config.assets.paths << Rails.root.join("app", "assets", "fonts
 # Rails.application.config.assets.precompile += %w( admin.js admin.css )
 Rails.application.config.assets.precompile += %w[company.js]
 Rails.application.config.assets.precompile += %w[company.css]
-Rails.application.config.assets.precompile += %w[mycompany.css]
-
 Rails.application.config.assets.precompile += %w[plugin/pace/pace.min.js]
 Rails.application.config.assets.precompile += %w[candidate.css]
 Rails.application.config.assets.precompile += %w[candidate.js]

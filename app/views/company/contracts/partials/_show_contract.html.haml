@@ -103,7 +103,6 @@
     function open_chat(id){
       $.get(`/company/conversations/mini_chat?conversation_id=${id}`)
     }
-    console.log("3333333333333333333333333333333")
     $('.contract_progress').attr('data-content','0%');
     $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
     $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');

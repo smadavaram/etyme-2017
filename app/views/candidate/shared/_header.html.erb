@@ -1,51 +1,82 @@
-<div class="top-bar color-scheme-transparent" style="height: 12vh; z-index: 1000;">
+<div class="top-bar color-scheme-transparent" style="z-index: 10000;">
   <!--------------------START - Top Menu Controls-------------------->
-  <div class="top-menu-controls w-100" style="display: flex; justify-content: flex-end;">
-
-
-    <!--    bread start-->
-    <div class="bread-style">
-      <div class="os-icon os-icon-hamburger-menu-1 bread-style1" ></div>
-    </div>
-    <!--    bread end-->
-
-
-    <!--    start search-->
+  <div class="top-menu-controls">
     <div class="element-search autosuggest-search-activator">
-      <input class="search-div-style" placeholder="Find reports and more" type="text" >
+      <input placeholder="Find reports and more" type="text">
     </div>
-    <!--    end search-->
-
     <!--   START Notifications -->
-    <div class="icon-wrapper">
-      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left div-style-1">
-        <div  class="div-style-2">
-          <a href="<%= notify_notifications_candidates_path(status: "unread", notification_type: "all_notifications") %>"><i class="ti-bell" style="width: 61px; height: 61px;  box-shadow: 0px 4px 15px rgba(255, 0, 0, 0.42); background: rgba(255, 0, 0, 0.61); border-radius: 50px; color: #FFFFFF"></i></a>
-          <% if current_candidate.notifications.unread.count > 0 %>
-            <div class="new-messages-count"><%= current_candidate.notifications.unread.count %></div>
-          <% end %>
-        </div>
+    <div>
+      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
+        <a href="<%= notify_notifications_candidates_path(status: "unread", notification_type: "all_notifications") %>"><i class="ti-bell"></i></a>
+        <% if current_candidate.notifications.unread.count > 0 %>
+          <div class="new-messages-count"><%= current_candidate.notifications.unread.count %></div>
+        <% end %>
       </div>
-      <span class="icon-text" style="color: black; margin-top: 7px">Notification</span>
+      <span class="icon-text">Notification</span>
     </div>
+
+
+
     <!--   END Notifications -->
-
-
     <!--------------------START - Messages Link in secondary top menu-------------------->
     <div>
-      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left div-style-3">
-        <div class="div-style-4">
-          <a href="<%= candidate_conversations_path %>" target="_blank"><i class="os-icon os-icon-mail-14" style="width: 61px; height: 61px; color: white"></i></a>
-        </div>
+      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
+        <a href="<%= candidate_conversations_path %>" target="_blank"><i class="os-icon os-icon-mail-14"></i></a>
+        <!-- Below is message count icon. Uncomment to add back in. -->
+        <!--div class="new-messages-count">1</div-->
+        <!--      <div class="os-dropdown light message-list">-->
+        <!--        <ul>-->
+        <!--          <li>-->
+        <!--            <a href="#">-->
+        <!--              <div class="user-avatar-w">-->
+        <%#= image_tag "avatars/m_sunny_big.png" %>
+        <!--              </div>-->
+        <!--              <div class="message-content">-->
+        <!--                <h6 class="message-from">John Mayers</h6>-->
+        <!--                <h6 class="message-title">Sample Message</h6>-->
+        <!--              </div>-->
+        <!--            </a>-->
+        <!--          </li>-->
+        <!--        </ul>-->
+        <!--      </div>-->
       </div>
-      <span class="icon-text" style="color: black;  margin-top: 7px">Chat</span>
+      <span class="icon-text">Chat</span>
     </div>
     <!--------------------END - Messages Link in secondary top menu-------------------->
 
+    <!-- Network Start---->
+    <div>
+      <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+        <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
+          <div class="logged-user-i">
+            <i class="fa fa-users"></i>
+            <div class="os-dropdown">
+              <div class="icon-w">
+                <i class="os-icon os-icon-ui-46"></i>
+              </div>
+              <ul>
+                <li>
+                  <a href="<%= companies_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>
+                </li>
+                <li>
+                  <a href="<%= contacts_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>
+                </li>
+                <li>
+                  <a href="<%= groups_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span class="icon-text">Contacts</span>
+    </div>
+    <!-- Network End---->
+
     <!--------------------START - Features Link in secondary top menu-------------------->
     <div>
-      <div class="top-icon btn-header transparent pull-right open div-style-5" id="quick-add">
-        <i class="ti-plus" style="font-size: 22px"></i>
+      <div class="top-icon btn-header transparent pull-right open" id="quick-add">
+        <i class="ti-plus"></i>
         <ul class="dropdown-menu project-dropdown" style=" background-color: #047bf8;right: 120px !important; left: initial;">
           <li>
             <div style="color: white; font-weight: bold;" class=".sub-title">Timer(s)</div>
@@ -65,19 +96,18 @@
           </li>
         </ul>
       </div>
-      <span class="icon-text" style="color: black;"><label style="margin-top: 10px">Add</label></span>
+      <span class="icon-text">Add</span>
     </div>
 
+
     <!--------------------END - Features Link in secondary top menu-------------------->
-
-
     <!--------------------START - User Link in secondary top menu-------------------->
-    <div class="top-icon mobile-user-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+    <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
       <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
         <div class="logged-user-i">
-          <div class="div-style-8 div-style-6" >
+          <div class="avatar-w">
             <%= link_to my_profile_path do %>
-              <%= user_image(current_candidate, class: 'data-table-image mr-2 div-style-7', title: "#{current_candidate.full_name}") %>
+              <%= user_image(current_candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate.full_name}") %>
             <% end %>
           </div>
           <div class="os-dropdown">
@@ -110,12 +140,6 @@
       </div>
     </div>
     <!--------------------END - User Link in secondary top menu-------------------->
-
-
-
   </div>
   <!--------------------END - Top Menu Controls-------------------->
 </div>
-
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
-

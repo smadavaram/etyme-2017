@@ -1,178 +1,134 @@
-<div class="row margin-top-10" style="height: 5vh" >
-  <div class="col-6 branchout-back" style="margin-bottom: -27px;">
-    <div class="row branch-out" style="margin-left: 20px;margin-top: -11px;margin-bottom: -2px;">
-      <i class="fa fa-arrow-circle-left" style="margin-right: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction1()"></i>
-      <i class="fa fa-arrow-circle-right" style="margin-left: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction()"></i>
-      <!--      <img src="/assets/collabs.png" onclick="myFunction()" style="margin-left: 45px; height: 24px; width: 27px; margin-bottom: -12%;"></img>-->
-      <!--      <span>Collaborators</span>-->
-    </div>
-  </div>
-  <div class="col-6 branchout-mobile" style="margin-left: 284px;">
-    <div class="row branch-out dropdown" style="justify-content: flex-end;">
-      <button type="button" class="btn4-style dropbtn" id="clickon"><i class="fa fa-plus"></i> Branch Out</button>
-      <div class="dropdown-content" style="margin-left: -70px;font-size: 12px;">
-        <a href="#">Interview</a>
-        <a href="#">Document Collection</a>
-        <a href="#">Navigation</a>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-sm-10 col-md-10 col-lg-10" >
-    <div class="row branch-out-content" style="justify-content: flex-start" >
-      <div>
-        <button type="button" class="btn1-style" >Main</button>
-      </div>
-      <div id="myDIV" style="display: none">
-        <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_candidate ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
-        <%= form_tag update_candidate_conversation_title_candidate_conversations_path, method: :post ,remote: :true do %>
-          <div class="element-search autosuggest-search-activator">
-            <input name="branchout" class="input-field" placeholder="Please respond with Interview/Document Collection/Navigation" type="text" id="branch-out-text" value="">
-            <%= hidden_field_tag 'group_id', opt_obj.id  %>
-          </div>
+<!--<div class="chat_box" data-conversation-id="<%#= @conversation.id if @conversation.present?%>" id="conversation-chat-box">-->
+<!--<div class="key_mgs_box">-->
+<!--<div class="keys_head">-->
+<!--<h5><%#= @conversation.senderable == current_candidate ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present? %></h5>-->
+<!--</div>-->
+<!--</div>-->
+<!--<div class="tab-content">-->
+<!--<div class="tab-pane active" id="home" role="tabpanel">-->
+<!--<div class="keystroke_msgs_box" id="conversation_<%#= @conversation.id if @conversation.present? %>">-->
+<!--<%# @messages.each do |msg| %>-->
+<!--<div class="<%#= msg.userable == current_candidate ? 'send_message' : 'receive_message' %>">-->
+<!--<span><%#= msg.body %></span>-->
+<!--</div>-->
+<!--<%# end if @messages.present? %>-->
+<!--</div>-->
+<!--</div>-->
+<!--</div>-->
+<!--<div class="panel-footer">-->
+<!--<%#= form_tag candidate_conversation_conversation_messages_path(@conversation||=0), remote: true ,method: :post do %>-->
+<!--<div class="input-group">-->
+<%#= text_field_tag 'conversation_message[body]', nil, class: 'form-control input-sm chat_input ',autocomplete: "off",
+                           placeholder: 'Type your message here...', required: true, id: "conversation_#{@conversation.id}_#{current_candidate.class.to_s}_#{current_candidate.id}" %>
+<!--<span class="input-group-btn">-->
+<!--<%#= submit_tag "Send", class: 'btn btn-primary btn-sm', id: "btn-chat" %>-->
+<!--</span>-->
+<!--</div>-->
+<!--<%# end if @conversation.present?  %>-->
+<!--</div>-->
+<!--</div>-->
 
-        <% end %>
-<!--        <div style=" display: flex">-->
-<!--          <div>-->
-<!--            <button type="button" class="btn2-style" >Interview</button>-->
-<!--          </div>-->
-<!--          <div>-->
-<!--            <button type="button" class="btn3-style" >Document Collection</button>-->
-<!--          </div>-->
-<!--          <div>-->
-<!--            <button type="button" class="btn2-style" >Navigation</button>-->
-<!--          </div>-->
-<!--        </div>-->
-      </div>
-    </div>
-  </div>
-  <div class="col-0 col-sm-2 col-md-2 col-lg-2 branchout-desktop">
-    <div class="row" style="justify-content: flex-end">
-      <button type="button" class="btn4-style" id="clickon1"><i class="fa fa-plus"></i> Branch Out</button>
-    </div>
-  </div>
 
-</div>
 
-<div class="row chat-box" style="background-color: white; height: 82vh">
-
-  <div class="row chat-box-header"  >
-    <div class="col-sm-6 col-lg-6 col-md-6">
+<div class="chat_box with_border wrap-chat-box" data-conversation-id="<%= @conversation.id if @conversation.present? %>" id="conversation-chat-box">
+  <div class="chat-head" style="flex-direction: column; align-items: stretch;">
+    <div class="flex-row w-100" style="justify-content: space-between;">
       <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_candidate ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
-      <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a></span></div>
-    </div>
-    <div class="col-sm-6 col-lg-6 col-md-6">
-<!--      <div class="row vidoebutton-style-div" >-->
-<!--        <div class="row" id="videobutton" style="margin-right: 2px; display: none">-->
-<!--          <div class="chat-div-style" ><i class="fa fa-calendar calender-style"></i></div>-->
-<!--          <div class="chat-div-style" ><i class="fa icon-phone calender-style"></i></div>-->
-<!--          <div class="chat-div-style"><i class="fa fa-video-camera calender-style"></i></div>-->
-<!--        </div>-->
-<!--        <div class="chat-div-style" id="showdiv"><i class="fa fa-ellipsis-v calender-style" style="margin-left: 40%;"></i></div>-->
-<!--      </div>-->
+      <div>
+        <span>To:</span>
+        <a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
+      </div>
+
     </div>
   </div>
 
-  <div style="width: 100%; height: 58vh;  border-bottom: 1px solid #F2F4F8;overflow: scroll; padding: 10px">
-
+  <div class="chat-content-w chat-content-scroll">
     <div class="chat-content" id="conversation_<%= @conversation.id if @conversation.present? %>">
+      <!--<%# prev_date = nil %>-->
+      <!--<%# @messages.each do |msg| %>-->
+      <!--<%# if prev_date != msg.created_at.strftime('%d %b, %Y') %>-->
+      <!--<%# prev_date = msg.created_at.strftime('%d %b, %Y') %>-->
+      <!--<div class="chat-date-separator">-->
+      <!--<span>-->
+      <!--<%# if Date.parse(prev_date) == Date.today %>-->
+      <!--Today-->
+      <!--<%# elsif Date.parse(prev_date) == Date.yesterday %>-->
+      <!--Yesterday-->
+      <!--<%# else %>-->
+      <!--<%#= prev_date %>-->
+      <!--<%# end %>-->
+      <!--</span>-->
+      <!--</div>-->
+      <!--<%# end %>-->
+
+      <!--<%# if msg.userable == current_candidate %>-->
+      <!--<div class="chat-message self">-->
+      <!--<div class="chat-message-content-w">-->
+      <!--<div class="chat-message-content">-->
+      <!--<%#= msg.body %>-->
+      <!--</div>-->
+      <!--</div>-->
+      <!--<div class="chat-message-date">-->
+      <!--<%#= msg.created_at.strftime("%l:%M%P") %>-->
+      <!--</div>-->
+      <!--<div class="chat-message-avatar">-->
+      <!--<%#= image_tag msg.userable.photo %>-->
+      <!--</div>-->
+      <!--</div>-->
+      <!--<%# else %>-->
+      <!--<div class="chat-message">-->
+      <!--<div class="chat-message-content-w">-->
+      <!--<div class="chat-message-content">-->
+      <!--<%#= msg.body %>-->
+      <!--</div>-->
+      <!--</div>-->
+      <!--<div class="chat-message-avatar">-->
+      <!--<%#= image_tag msg.userable.photo %>-->
+      <!--</div>-->
+      <!--<div class="chat-message-date">-->
+      <!--<%#= msg.created_at.strftime("%l:%M%P") %>-->
+      <!--</div>-->
+      <!--</div>-->
+      <!--<%# end %>-->
+      <!--<%# end if @messages.present? %>-->
+
       <div id="all-infinite-scrolling-msg" style="display:none"></div>
       <%= hidden_field_tag "prev_date", nil %>
-    </div>
 
-    <div id="videobutton1" class="mobile-insidechat-icons">
-      <div class="row send-icons" style="justify-content: center">
-        <i class="fa fa-text-height" style="margin-right: 12px;margin-top: 8px;"></i>
-        <i class="fa fa-exclamation" style="margin-right: 12px;margin-top: 8px;"></i>
-        <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{@conversation.try(:id)}"}').modal('show')" do %>
-          <i class="fa fa-paperclip" style="margin-right: 12px;margin-top: 8px;"></i>
-        <% end %>
-        <i class="fa fa-smile-o" style="margin-right: 12px;margin-top: 8px;" ></i>
-        <img src="/assets/gif.png" style="margin-right: 12px;margin-top: 8px;"></img>
-        <img src="/assets/sticker.png" style="margin-right: 12px;margin-top: 8px;"></img>
-        <i class="fa fa-calendar" style="margin-right: 12px;margin-top: 8px;"></i>
-        <img src="/assets/flow.png" style="margin-right: 12px;margin-top: 8px;"></img>
-        <img src="/assets/bulb.png" style="margin-right: 12px;margin-top: 8px;"></img>
-        <img src="/assets/checked.png" style="margin-right: 12px;margin-top: 8px;"></img>
-        <i class="fa fa-ellipsis-h" style="margin-right: 12px;margin-top: 8px;"></i>
-      </div>
     </div>
   </div>
+  <div class="chat-controls">
+    <%= form_for([@conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
+      <div class="chat-input1 chat-input">
+        <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", required: true, placeholder: 'Type your message here...', "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{current_candidate.class}-#{current_candidate.id}" %>
+      </div>
+      <div id="file-name_uploaded">
 
-  <div  class="row message-send-row-mobile" >
-
-    <div class= "row" style="width: 100%;  height:50%;  margin-left: 17px" >
-      <div><button id="showdiv1" class="buttonstyle2"><i class="fa fa-ellipsis-v option-mobile-style"></i></button></div>
-      <% if @conversation.present? %>
-        <%= form_for([@conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',class: "chat_form",id: "conversation_form_#{@conversation.try(:id)}"}) do |f| %>
-          <%= f.text_field :body, style: "border:none", class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", required: true, placeholder: 'Type your message here...', "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{current_candidate.class}-#{current_candidate.id}" %>
-
-          <%= button_tag(type: "submit", class: "btn p-0 button-style1 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
-            <img src="/assets/send.png"></img>
-          <% end %>
-          </div>
-          <div class="row mobile-chat-send-icons" >
-            <div class="col-sm-8 col-md-8 col-lg-8">
-              <div class="row send-icons" style="position: fixed">
-                <div class="chat-extra-actions">
-                  <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 22px; margin-right: 8px !important;  display: inline-block;  vertical-align: middle;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
-                  <% if @conversation.present? %>
-                    <div class="candidate-icon_widget">
-                      <%= mini_chat_contact_widget(current_candidate.email, current_candidate.phone,color: '#3E4B5B; !important') %>
-                    </div>
-                  <% end %>
-
-                </div>
-              </div>
+      </div>
+      <div class="chat-input-extra">
+        <div class="chat-extra-actions">
+          <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
+          <% if @conversation.present? %>
+            <div class="candidate-icon_widget">
+              <%= mini_chat_contact_widget(current_candidate.email, current_candidate.phone,color: '#3E4B5B; !important') %>
             </div>
-            <div class="col-sm-4 col-md-4 col-lg-4">
-              <div class="row send-line">
-                <%= button_tag(type: "submit", class: "btn p-0",id:"send-message", style: "background: transparent;box-shadow: none;") do %>
-                  <!--            <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>-->
-                  <img src="/assets/send.png"></img>
-                <% end %>
-        <% end %>
-        <% end %>
-        </div>
+          <% end %>
 
         </div>
+        <div class="chat-btn">
+          <%= button_tag(type: "submit", class: "btn p-0",id:"send-message", style: "background: transparent;box-shadow: none;") do %>
+            <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>
+          <% end %>
         </div>
-        </div>
-        </div>
+      </div>
 
 
-
-        <!--<div class="chat-controls">-->
-        <%#= form_for([@conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
-        <!--    <div class="chat-input1 chat-input">-->
-        <%#= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", required: true, placeholder: 'Type your message here...', "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{current_candidate.class}-#{current_candidate.id}" %>
-        <!--    </div>-->
-        <!--    <div id="file-name_uploaded">-->
-
-        <!--    </div>-->
-        <!--    <div class="chat-input-extra">-->
-        <!--      <div class="chat-extra-actions">-->
-        <%#= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
-        <%# if @conversation.present? %>
-        <!--          <div class="candidate-icon_widget">-->
-        <%#= mini_chat_contact_widget(current_candidate.email, current_candidate.phone,color: '#3E4B5B; !important') %>
-        <!--          </div>-->
-        <%# end %>
-
-        <!--      </div>-->
-        <!--      <div class="chat-btn">-->
-        <%#= button_tag(type: "submit", class: "btn p-0",id:"send-message", style: "background: transparent;box-shadow: none;") do %>
-        <!--          <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>-->
-        <%# end %>
-        <!--      </div>-->
-        <!--    </div>-->
-
-
-      <%# end if @conversation.present? %>
-<!--      </div>-->
-
+    <% end if @conversation.present? %>
+  </div>
+</div>
 
 <%= content_for :modals do %>
-  <% if @conversation.try(:job_application) %>
+  <% if @conversation&.job_application %>
     <div id="candidate_rate_confirmation_modal">
       <%= render 'shared/candidate_rate_confirmation', job_application: @conversation.job_application, conversation: @conversation %>
     </div>
@@ -181,34 +137,9 @@
     </div>
   <% end %>
 <% end %>
+
 <script>
-    function onFileUpload (event) {
-        $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
-    }
-    // function myFunction() {
-    //     var x = document.getElementById("myDIV");
-    //     if (x.style.display === "none") {
-    //         x.style.display = "block";
-    //     } else {
-    //         x.style.display = "none";
-    //     }
-    // }
-    $(document).ready(function(){
-        $("#showdiv").on("click", function(){
-            $("#videobutton").toggle('show');
-        });
-        $("#clickon").on("click", function(){
-            $("#myDIV").toggle('show');
-        });
-        $("#clickon1").on("click", function(){
-            $("#myDIV").toggle('show');
-        });
-        $("#showdiv1").on("click", function(){
-            $("#videobutton1").toggle('show');
-        });
-    });
-    // $('.send-message_class').on('click', function(e){
-    //     form_id = $(".chat_form").attr('id')
-    //     $('#'+form_id).submit()
-    // });
+  function onFileUpload (event) {
+    $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
+  }
 </script>

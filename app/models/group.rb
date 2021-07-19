@@ -47,12 +47,7 @@ class Group < ApplicationRecord
   end
 
   def full_name
-    if branchout.present?
-      branchout + ' ' + group_name.to_s.titleize
-    else
-      group_name.to_s.titleize
-    end
-
+    group_name.to_s.titleize
   end
 
   def group_emails
