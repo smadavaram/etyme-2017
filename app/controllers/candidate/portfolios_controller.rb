@@ -19,7 +19,7 @@ class Candidate::PortfoliosController < Candidate::BaseController
     else
       flash[:errors] = @portfolio.errors.full_messages
     end
-    respond_with @portfolio
+    respond_with @portfolio 
   end
 
   private
