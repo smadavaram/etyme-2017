@@ -5,6 +5,7 @@ class ConversationMessagesController < ApplicationController
   # skip_before_action :authenticate_user!, only: :mark_as_read
 
   def create
+    
     message = ConversationMessage.new(message_params.merge(conversation_id: @conversation.id))
     message.userable = get_current_user
     if message.save

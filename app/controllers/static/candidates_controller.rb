@@ -23,7 +23,7 @@ class Static::CandidatesController < ApplicationController
       flash[:alert] = 'Please try with company domain.'
       return redirect_to root_path
     end
-
+    
     @candidates_hot   = []
     @candidates_hot   = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3) unless @current_company.nil?
     @jobs_hot         = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)

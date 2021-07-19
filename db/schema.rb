@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_07_07_114017) do
+ActiveRecord::Schema.define(version: 2021_07_13_101518) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -431,8 +431,8 @@ ActiveRecord::Schema.define(version: 2021_07_07_114017) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2021-07-06 09:26:48"
-    t.datetime "updated_at", default: "2021-07-06 09:26:48"
+    t.datetime "created_at", default: "2021-07-19 12:12:47"
+    t.datetime "updated_at", default: "2021-07-19 12:12:47"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -1253,6 +1253,7 @@ ActiveRecord::Schema.define(version: 2021_07_07_114017) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "member_type"
+    t.string "branchout"
     t.index ["company_id"], name: "index_groups_on_company_id"
   end
 
