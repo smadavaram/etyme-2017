@@ -69,7 +69,7 @@
  *= require candidate/dashboard
  *= require company/payroll
  *= require custom
-
+ *= require company_chat_custom
 
  */
 

@@ -1,10 +1,19 @@
-<div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
-  <div class="os-icon os-icon-hamburger-menu-1"></div>
+<div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important;">
+  <div class="icon-button-style ">
+    <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
+      <div class="os-icon os-icon-hamburger-menu-1"></div>
+    </div>
+  </div>
 </div>
+
+<!--<div id="togglebutton" onclick="toglleMenu()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">-->
+<!--  <div class="os-icon os-icon-hamburger-menu-1"></div>-->
+<!--</div>-->
 <script>
     function toglleMenu() {
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
-        document.querySelector('#togglebutton').classList.toggle('leftChanged')
+        document.querySelector('#togglebutton').classList.toggle('rightChanged');
+        // $("#side-bar").hide();
     }
 </script>
 <div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
@@ -35,23 +44,23 @@
         </div>
         <span>Dashboard</span>
       </a>
-<!--      <a href="<%#= candidate_conversations_path %>" class="side-bar_tab side-bar_links" target="_blank">-->
-<!--        <div class="icon-w">-->
-<!--          <i class="os-icon os-icon-mail-14"></i>-->
-<!--        </div>-->
-<!--        <span>Inbox</span>-->
-<!--      </a>-->
-<!--      <a class="ln-1 sidebar_collapsible side-bar_tab">-->
-<!--        <div class="icon-w">-->
-<!--          <i class="ti-world"></i>-->
-<!--        </div>-->
-<!--        <span>Network</span>-->
-<!--      </a>-->
-<!--      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">-->
-<!--        <a href="<%#= companies_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>-->
-<!--        <a href="<%#= contacts_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>-->
-<!--        <a href="<%#= groups_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>-->
-<!--      </div>-->
+      <!--      <a href="<%#= candidate_conversations_path %>" class="side-bar_tab side-bar_links" target="_blank">-->
+      <!--        <div class="icon-w">-->
+      <!--          <i class="os-icon os-icon-mail-14"></i>-->
+      <!--        </div>-->
+      <!--        <span>Inbox</span>-->
+      <!--      </a>-->
+      <!--      <a class="ln-1 sidebar_collapsible side-bar_tab">-->
+      <!--        <div class="icon-w">-->
+      <!--          <i class="ti-world"></i>-->
+      <!--        </div>-->
+      <!--        <span>Network</span>-->
+      <!--      </a>-->
+      <!--      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">-->
+      <!--        <a href="<%#= companies_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>-->
+      <!--        <a href="<%#= contacts_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>-->
+      <!--        <a href="<%#= groups_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>-->
+      <!--      </div>-->
 
       <a class="ln-2 sidebar_collapsible side-bar_tab">
         <div class="icon-w">
@@ -137,3 +146,4 @@
   </div>
 </div>
 <%= render 'shared/candidate_bench_req_form' %>
+

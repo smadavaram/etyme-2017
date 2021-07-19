@@ -2,7 +2,7 @@
 
 class CandidatesCompany < ApplicationRecord
   enum status: %i[normal hot_candidate]
-  enum candidate_status: %i[pending accept reject]
+  # enum candidate_status: %i[pending accept reject]
 
   belongs_to :candidate, optional: true
   belongs_to :company, optional: true

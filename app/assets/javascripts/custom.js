@@ -1,286 +1,329 @@
-function flash(color, msg, icon, time=null) {
-    $.smallBox({
-        title: msg,
-        // content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
-        color: color,
-        iconSmall: icon + " bounce animated",
-        timeout: !!time ? time : 4000
-    });
+function flash(color, msg, icon, time = null) {
+  $.smallBox({
+    title: msg,
+    // content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
+    color: color,
+    iconSmall: icon + " bounce animated",
+    timeout: !!time ? time : 4000,
+  });
 }
 
 function flash_error(msg) {
-    $error = '#D04B2B';
-    flash($error, msg, 'fa fa-exclamation-triangle');
+  $error = "#D04B2B";
+  flash($error, msg, "fa fa-exclamation-triangle");
 }
 
-function flash_success(msg, time= null) {
-    var $success = '#80C14B';
-    flash($success, msg, 'fa fa-check', time);
+function flash_success(msg, time = null) {
+  var $success = "#80C14B";
+  flash($success, msg, "fa fa-check", time);
 }
 
 function flash_info(msg) {
-    var $info = '#35A4DA';
-    flash($info, msg, 'fa fa-info');
+  var $info = "#35A4DA";
+  flash($info, msg, "fa fa-info");
 }
 
 function flash_notice(msg) {
-    var $notice = '#80C14B';
-    flash($notice, msg, 'fa fa-thumbs');
+  var $notice = "#80C14B";
+  flash($notice, msg, "fa fa-thumbs");
 }
 
 function flash_alert(msg) {
-    var $alert = '#FFC333';
-    flash($alert, msg, 'fa fa-exclamation-triangle');
+  var $alert = "#FFC333";
+  flash($alert, msg, "fa fa-exclamation-triangle");
 }
 
 $(document).ready(function () {
-    $('body').on('click', function (e) {
-        if (e.target.id === 'head_links_block' || e.target.className === 'ti-plus') {
-        } else {
-            $(this).find('.project-dropdown').hide();
-        }
-    });
-    $('#quick-add').on('click', function (e) {
-        $(this).find('.project-dropdown').toggle();
-    })
-
-
-    $('.p_date').datepicker({dateFormat: "yy-mm-dd"});
-    $('.p_time').timepicker({template: false, showInputs: false, minuteStep: 5});
-
-    $("#status").on('click', function () {
-        $('#status-menue').toggle();
-    });
-    $("#type").on('click', function () {
-        $('#type-menu').toggle();
-    });
-    var coll = document.getElementsByClassName("collapsible-click");
-    var i;
-    for (i = 0; i < coll.length; i++) {
-        coll[i].addEventListener("click", function () {
-            $(this).parent()[0].classList.toggle("active");
-            var content = $(this).parent()[0].nextElementSibling;
-            if (content.style.display === "block") {
-                content.style.display = "none";
-            } else {
-                content.style.display = "block";
-            }
-        });
+  $("body").on("click", function (e) {
+    if (
+      e.target.id === "head_links_block" ||
+      e.target.className === "ti-plus"
+    ) {
+    } else {
+      $(this).find(".project-dropdown").hide();
     }
+  });
+  $("#quick-add").on("click", function (e) {
+    $(this).find(".project-dropdown").toggle();
+  });
 
-    $(".multi-select2").select2({
-        placeholder: $('#' + $('.multi-select2').attr('id')).attr('placeholder'),
-        tokenSeparators: [',', ' ']
-    })
+  $(".p_date").datepicker({ dateFormat: "yy-mm-dd" });
+  $(".p_time").timepicker({
+    template: false,
+    showInputs: false,
+    minuteStep: 5,
+  });
 
-    $("#comment_body").keypress(function (event) {
-        if (event.which == 13) {
-            event.preventDefault();
-            $("#new_comment").submit();
-        }
+  $("#status").on("click", function () {
+    $("#status-menue").toggle();
+  });
+  $("#type").on("click", function () {
+    $("#type-menu").toggle();
+  });
+  var coll = document.getElementsByClassName("collapsible-click");
+  var i;
+  for (i = 0; i < coll.length; i++) {
+    coll[i].addEventListener("click", function () {
+      $(this).parent()[0].classList.toggle("active");
+      var content = $(this).parent()[0].nextElementSibling;
+      if (content.style.display === "block") {
+        content.style.display = "none";
+      } else {
+        content.style.display = "block";
+      }
     });
-    if ($('#container-chart').length > 0) {
-        $('#container-chart').highcharts({
-            colors: ['#53C986', '#334A5E', '#ffc333', '#fb6b5b'],
-            chart: {
-                type: 'column'
-            },
-            title: {
-                text: 'Timesheet'
-            },
-            tooltip: {
-                pointFormat: '<span>{series.name}</span>: <b>{point.y}</b><br/>'
-            },
-            subtitle: {
-                text: 'Approved Hours / Day'
-            },
-            xAxis: {
-                categories: ['19th Dec', '21th Dec', '22th Dec', '23th Dec', '24th Dec', '25th Dec', '26th Dec', '27th Dec']
-            },
-            plotOptions: {
-                series: {
-                    minPointLength: 0,
-                    dataLabels: {
-                        enabled: true,
+  }
 
-                    },
-                }
-            },
-            yAxis: {
-                title: {
-                    text: 'Days'
-                }
+  $(".multi-select2").select2({
+    placeholder: $("#" + $(".multi-select2").attr("id")).attr("placeholder"),
+    tokenSeparators: [",", " "],
+  });
 
-            },
-            series: [{
-                name: 'Total Hours ',
-                data: [4, 7, 5, 7, 10, 7, 10, 4.4],
-                color: '#3b5998'
-            }]
-        })
+  $("#comment_body").keypress(function (event) {
+    if (event.which == 13) {
+      event.preventDefault();
+      $("#new_comment").submit();
     }
-    $('[data-form-prepend]').click(function (e) {
-        var obj = $($(this).attr('data-form-prepend'));
-        var time_stamp = (new Date()).getTime();
-        obj.find('input, select, textarea').each(function () {
-            $(this).attr('name', function () {
-                return $(this).attr('name').replace('new_record', time_stamp);
-            });
-        });
-        obj.insertBefore(this);
-        $('.education_start_year, .education_completion_year, .start_date, .end_date').datepicker({
-            autoclose: true,
-            todayHighlight: true,
-            format: "mm-dd-yy"
-        });
-        return false;
+  });
+  if ($("#container-chart").length > 0) {
+    $("#container-chart").highcharts({
+      colors: ["#53C986", "#334A5E", "#ffc333", "#fb6b5b"],
+      chart: {
+        type: "column",
+      },
+      title: {
+        text: "Timesheet",
+      },
+      tooltip: {
+        pointFormat: "<span>{series.name}</span>: <b>{point.y}</b><br/>",
+      },
+      subtitle: {
+        text: "Approved Hours / Day",
+      },
+      xAxis: {
+        categories: [
+          "19th Dec",
+          "21th Dec",
+          "22th Dec",
+          "23th Dec",
+          "24th Dec",
+          "25th Dec",
+          "26th Dec",
+          "27th Dec",
+        ],
+      },
+      plotOptions: {
+        series: {
+          minPointLength: 0,
+          dataLabels: {
+            enabled: true,
+          },
+        },
+      },
+      yAxis: {
+        title: {
+          text: "Days",
+        },
+      },
+      series: [
+        {
+          name: "Total Hours ",
+          data: [4, 7, 5, 7, 10, 7, 10, 4.4],
+          color: "#3b5998",
+        },
+      ],
     });
+  }
+  $("[data-form-prepend]").click(function (e) {
+    var obj = $($(this).attr("data-form-prepend"));
+    var time_stamp = new Date().getTime();
+    obj.find("input, select, textarea").each(function () {
+      $(this).attr("name", function () {
+        return $(this).attr("name").replace("new_record", time_stamp);
+      });
+    });
+    obj.insertBefore(this);
+    $(
+      ".education_start_year, .education_completion_year, .start_date, .end_date"
+    ).datepicker({
+      autoclose: true,
+      todayHighlight: true,
+      format: "mm-dd-yy",
+    });
+    return false;
+  });
 });
 
 function toggleFields() {
-    if ($('#contract_is_commission').val() == "true")
-        $("#contract-commision").show();
-    else
-        $("#contract-commision").hide();
+  if ($("#contract_is_commission").val() == "true")
+    $("#contract-commision").show();
+  else $("#contract-commision").hide();
 
-    if ($('#contract_commission_type option:selected').val() == "fixed")
-        $(".max-commission").hide();
-    else
-        $(".max-commission").show();
-
+  if ($("#contract_commission_type option:selected").val() == "fixed")
+    $(".max-commission").hide();
+  else $(".max-commission").show();
 }
 
 function contractToggleModel() {
-    if ($('#contract_toggle_modal_contract_toggle_modal').val() == "true") {
-        job_id = $('#toggle_contract_parent_job_id').val();
-        contract_id = $('#toggle_contract_parent_contract_id').val();
-        url = "/jobs/" + job_id + "/contracts/" + contract_id + "/create_sub_contract"
-        console.log(job_id);
-        console.log(contract_id);
-        $.post(url);
-        $("#contract-assign").hide();
-        $("#sub_contract_toggle").show();
-    } else if ($('#contract_toggle_modal_contract_toggle_modal').val() == "false") {
-        $("#contract-assign").show();
-        $("#sub_contract_toggle").hide();
-    } else {
-        $("#contract-assign").hide();
-        $("#sub_contract_toggle").hide();
-    }
+  if ($("#contract_toggle_modal_contract_toggle_modal").val() == "true") {
+    job_id = $("#toggle_contract_parent_job_id").val();
+    contract_id = $("#toggle_contract_parent_contract_id").val();
+    url =
+      "/jobs/" + job_id + "/contracts/" + contract_id + "/create_sub_contract";
+    console.log(job_id);
+    console.log(contract_id);
+    $.post(url);
+    $("#contract-assign").hide();
+    $("#sub_contract_toggle").show();
+  } else if (
+    $("#contract_toggle_modal_contract_toggle_modal").val() == "false"
+  ) {
+    $("#contract-assign").show();
+    $("#sub_contract_toggle").hide();
+  } else {
+    $("#contract-assign").hide();
+    $("#sub_contract_toggle").hide();
+  }
 }
 
 $(document).ready(function () {
-    // uploader initiation and function
+  // uploader initiation and function
 
+  toggleFields();
+  contractToggleModel();
+  $("#contract_is_commission , #contract_commission_type").change(function () {
     toggleFields();
+  });
+  $("#contract_toggle_modal_contract_toggle_modal").change(function () {
     contractToggleModel();
-    $("#contract_is_commission , #contract_commission_type").change(function () {
-        toggleFields();
-    });
-    $("#contract_toggle_modal_contract_toggle_modal").change(function () {
-        contractToggleModel();
-    });
-    $("#contract_toggle_modal_contract_toggle_modal").addClass('form-control');
-    $('[data-toggle="tooltip"]').tooltip();
-    $('[rel="tooltip"]').tooltip();
+  });
+  $("#contract_toggle_modal_contract_toggle_modal").addClass("form-control");
+  $('[data-toggle="tooltip"]').tooltip();
+  $('[rel="tooltip"]').tooltip();
 
-    $("#chat_topic").change(function () {
-        $('#company-conversation-list').html('')
-        callAjaxSearch('/company/conversations/search', "GET", {
-            keyword: $("#conversation-users-search").val(),
-            topic: $("#chat_topic").val()
-        })
+  $("#chat_topic").change(function () {
+    $("#company-conversation-list").html("");
+    callAjaxSearch("/company/conversations/search", "GET", {
+      keyword: $("#conversation-users-search").val(),
+      topic: $("#chat_topic").val(),
     });
+  });
 
-    $("#conversation-users-search").on("keyup", function () {
-        callAjaxSearch('/company/conversations/search', "GET", {
-            keyword: $("#conversation-users-search").val(),
-            topic: $("#chat_topic").val()
-        })
+  $("#conversation-users-search").on("keyup", function () {
+    callAjaxSearch("/company/conversations/search", "GET", {
+      keyword: $("#conversation-users-search").val(),
+      topic: $("#chat_topic").val(),
     });
+  });
 
-    $(window).load(function () {
-        if (!!$('#public_job_link')[0]) {
-            $('#public_job_link')[0].click();
-        }
-    });
-
-
+  $(window).load(function () {
+    if (!!$("#public_job_link")[0]) {
+      $("#public_job_link")[0].click();
+    }
+  });
 });
 $(document).on("click", ".remove-multi-fields", function () {
-    if ($(this).closest('div.multi-fields').find('div.multi-field-container').length > 1) {
-        $(this).closest('div.multi-field-container').remove();
-    } else {
-        alert("You have to at least one.")
-    }
+  if (
+    $(this).closest("div.multi-fields").find("div.multi-field-container")
+      .length > 1
+  ) {
+    $(this).closest("div.multi-field-container").remove();
+  } else {
+    alert("You have to at least one.");
+  }
 });
 
 $(document).on("click", ".chat-close", function () {
-    $('.floated-chat-w').remove()
-    $('.ChatBtn').show();
+  $(".floated-chat-w").remove();
+  $(".ChatBtn").show();
 });
 
 function callAjaxSearch(ajax_url, ajax_method, params_data) {
-    $.ajax({
-        type: ajax_method,
-        dataType: "script",
-        url: ajax_url,
-        data: params_data,
-        success: function (data) {
-        }
-    });
+  $.ajax({
+    type: ajax_method,
+    dataType: "script",
+    url: ajax_url,
+    data: params_data,
+    success: function (data) {},
+  });
 }
 
-$(document).on('trix-initialize', function () {
-    $('.trix-button--icon-attach').removeAttr('data-trix-action');
-    $('.trix-button--icon-attach').click(function () {
-        trix_upload();
-    });
+$(document).on("trix-initialize", function () {
+  $(".trix-button--icon-attach").removeAttr("data-trix-action");
+  $(".trix-button--icon-attach").click(function () {
+    trix_upload();
+  });
 });
-$(document).on('trix-file-accept', function (e) {
-    e.preventDefault();
+$(document).on("trix-file-accept", function (e) {
+  e.preventDefault();
 });
 
 function handle_input(event, candidate) {
-    let transaction_id = event.getAttribute('data-transaction');
-    let timesheet_id = event.getAttribute('data-timesheet');
-    let hrs = event.value;
-    let url = null
-    if (candidate == "candidate") {
-        url = `/candidate/timesheets/${timesheet_id}/transaction/${transaction_id}/update`
-    } else {
-        url = `/timesheets/${timesheet_id}/transaction/${transaction_id}/update`
-    }
-    $.post(url, {total_hrs: hrs}).done(function (data) {
-        flash_success(data.status)
-    }).fail(function (data) {
-        flash_error(data.status)
+  let transaction_id = event.getAttribute("data-transaction");
+  let timesheet_id = event.getAttribute("data-timesheet");
+  let hrs = event.value;
+  let url = null;
+  if (candidate == "candidate") {
+    url = `/candidate/timesheets/${timesheet_id}/transaction/${transaction_id}/update`;
+  } else {
+    url = `/timesheets/${timesheet_id}/transaction/${transaction_id}/update`;
+  }
+  $.post(url, { total_hrs: hrs })
+    .done(function (data) {
+      flash_success(data.status);
+    })
+    .fail(function (data) {
+      flash_error(data.status);
     });
 }
 
-$(document).on("click",'.edit_bench', function (e) {
-    var candidate_id = $(this).attr("candidate_id");
-    $("#title_"+candidate_id).hide();
-    $("#input_title_"+candidate_id).removeClass("d-none");
-    $("#role_"+candidate_id).hide();
-    // $("#input_role_"+candidate_id).removeClass("d-none");
-    $("#min_rate_"+candidate_id).hide();
-    $("#input_min_rate_"+candidate_id).removeClass("d-none");
-    $("#max_rate_"+candidate_id).hide();
-    $("#input_max_rate_"+candidate_id).removeClass("d-none");
-    $("#location_"+candidate_id).hide();
-    $("#input_location_"+candidate_id).removeClass("d-none");
-    $("#visa_"+candidate_id).hide();
-    $("#input_visa_"+candidate_id).removeClass("d-none");
-    $("#recuiter_"+candidate_id).hide();
-    $("#select_recuiter_"+candidate_id).removeClass("d-none");
-    $("#skills_"+candidate_id).hide();
-    $("#input_skills_"+candidate_id).removeClass("d-none");
-    $("#bench_action_"+candidate_id).hide();
-    $("#bench_action_edit_"+candidate_id).removeClass("d-none");
+$(document).on("click", ".edit_bench", function (e) {
+  var candidate_id = $(this).attr("candidate_id");
+  $("#title_" + candidate_id).hide();
+  $("#input_title_" + candidate_id).removeClass("d-none");
+  $("#role_" + candidate_id).hide();
+  // $("#input_role_"+candidate_id).removeClass("d-none");
+  $("#min_rate_" + candidate_id).hide();
+  $("#input_min_rate_" + candidate_id).removeClass("d-none");
+  $("#max_rate_" + candidate_id).hide();
+  $("#input_max_rate_" + candidate_id).removeClass("d-none");
+  $("#location_" + candidate_id).hide();
+  $("#input_location_" + candidate_id).removeClass("d-none");
+  $("#visa_" + candidate_id).hide();
+  $("#input_visa_" + candidate_id).removeClass("d-none");
+  $("#recuiter_" + candidate_id).hide();
+  $("#select_recuiter_" + candidate_id).removeClass("d-none");
+  $("#skills_" + candidate_id).hide();
+  $("#input_skills_" + candidate_id).removeClass("d-none");
+  $("#bench_action_" + candidate_id).hide();
+  $("#bench_action_edit_" + candidate_id).removeClass("d-none");
 });
 
-$(document).on("click", ".save_bench_job", function(){
-    var candidate_id = $(this).attr("candidate_id");
-    $("#edit-candidate-val-"+candidate_id).submit();
+$(document).on("click", ".save_bench_job", function () {
+  var candidate_id = $(this).attr("candidate_id");
+  $("#edit-candidate-val-" + candidate_id).submit();
 });
+
+// onlinebutton"
+$(document).on("click", ".onlinebutton", function () {
+  $.ajax({
+    url: "/company/users/onlinestatus",
+    type: "post",
+    success: function (data) {
+      $(".onlinebuttonresult").text(data.data);
+      if (data.data == "Onway")
+        $("#active").attr("style", "background: yellow");
+      else $("#active").attr("style", "background: limegreen");
+    },
+  });
+});
+//
+// function online_status($task) {
+//   $.ajax({
+//     url: "/books",
+//     type: "post",
+//     success: function (data) {
+//       Rails.$(".random-number")[0].innerHTML = data.html;
+//     },
+//   });
+// }

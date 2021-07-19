@@ -10,11 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20210429111148) do
+ActiveRecord::Schema.define(version: 2021_07_07_114017) do
 
   # These are extensions that must be enabled in order to support this database
-  enable_extension "plpgsql"
   enable_extension "hstore"
+  enable_extension "plpgsql"
 
   create_table "active_admin_comments", force: :cascade do |t|
     t.string "namespace"
@@ -431,8 +431,8 @@ ActiveRecord::Schema.define(version: 20210429111148) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2021-04-09 15:50:48"
-    t.datetime "updated_at", default: "2021-04-09 15:50:48"
+    t.datetime "created_at", default: "2021-07-06 09:26:48"
+    t.datetime "updated_at", default: "2021-07-06 09:26:48"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -2053,6 +2053,7 @@ ActiveRecord::Schema.define(version: 20210429111148) do
     t.string "ancestry"
     t.integer "stripe_charge_id"
     t.boolean "paid"
+    t.boolean "online", default: true
     t.index ["ancestry"], name: "index_users_on_ancestry"
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true

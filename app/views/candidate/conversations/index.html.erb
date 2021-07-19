@@ -1,122 +1,198 @@
-<!--<div class="no-border" id="content">-->
-<!--<div class="col-lg-12 col-md-12 col-sm-12 keystroke_tabs_bs">-->
-<!--<div class="row justify-content-center no-gutters">-->
-<!--<div class="col-lg-4 col-md-4 col-sm-3 col-xs-4 col-4 border_r">-->
-<!--<div class="keystroke_tabs">-->
-<!--<div class="key_tab_h">-->
-<!--<h5>MESSAGES</h5>-->
-<!--<div class="prfil-follower-following-search search_message">-->
-<!--<input type="text" class="form-control" placeholder="Search Company/Candidates" id="conversation-users-search">-->
-<!--</div>-->
-<!--</div>-->
-<!--<div class="key_tabs_inner">-->
-<!--<div class="row">-->
-<!--<div class="col-md-12">-->
-<!--<ul class="nav nav-tabs tab-top" role="tablist">-->
-<!--<li role="presentation" class="active"><a href="#Company"  role="tab" data-toggle="tab"><i class="fa fa-building"></i>Company</a></li>-->
-<!--<li role="presentation"><a href="#Candidates" role="tab" data-toggle="tab"><i class="fa fa-user"></i> Candidates</a></li>-->
-<!--</ul>-->
-<!--<div class="tab-content">-->
-<!--<div role="tabpanel" class="tab-pane active" id="Company">-->
-<!--<ul class="nav flex-column nav-tabs" role="tablist" id="company-conversation-list">-->
-<!--<%#= render 'conversation_users', users: @companies %>-->
-<!--</ul>-->
-<!--</div>-->
-<!--<div role="tabpanel" class="tab-pane" id="Candidates">-->
-<!--<ul class="nav flex-column nav-tabs" role="tablist" id="candidate-conversation-list">-->
-<!--<%#= render 'conversation_users', users: @candidates %>-->
-<!--</ul>-->
-<!--</div>-->
-<!--</div>-->
-<!--</div>-->
-<!--</div>-->
-<!--</div>-->
-<!--</div>-->
-<!--</div>-->
-<!--<div class="col-lg-8 col-md-8 col-sm-9 col-xs-8 col-8 messages_bs" id="conversation-section">-->
-<!--<%#= render "candidate/conversations/conversation" %>-->
-<!--</div>-->
-<!--</div>-->
-<!--</div>-->
-<!--</div>-->
 
+<!--new htmml -->
+<style scoped>
+    .icon-side-bar{
+        display: block !important;
+    }
+    @media only screen and (max-width: 600px) {
+        .mobile-icon-side-bar-can {
+            display: none !important;
+        }
+    }
+</style>
+<div class="row " style="height: 87vh">
 
+  <!--  left side start-->
+  <div class="col-sm-3 col-md-3 col-lg-3" style="margin-top: -6%;z-index: 100000" >
+    <div class="row left-chat-bar row candidate-left-chat-bar" style="height: 100vh">
+      <div class="full-chat-left1" style="width: 100%;border-radius: 25px;" >
+        <div class="os-tabs-w">
+          <ul class="nav nav-tabs upper centered">
 
-<div class="no-border" id="content">
-  <div class="all-wrapper no-padding-content solid-bg-all">
-    <div class="layout-w">
-      <div class="content-w">
-        <div class="content-i">
-          <div class="content-box">
-            <div class="full-chat-w">
-              <div class="full-chat-i">
-                <div class="full-chat-left">
-                  <div class="os-tabs-w">
-                    <ul class="nav nav-tabs upper centered">
-                      <li class="nav-item active">
-                        <a class="nav-link" data-toggle="tab" href="#Company"><i class="os-icon os-icon-ui-93"></i></a>
-                      </li>
-                      <li class="nav-item">
-                        <a class="nav-link" data-toggle="tab" href="#Favourites"><i class="os-icon os-icon-ui-02"></i></a>
-                      </li>
-                    </ul>
-                  </div>
-                  <div class="tab-content user-list">
-                    <div role="tabpanel" class="tab-pane active" id="Company">
-                      <div class="chat-search d-flex">
-                        <div class="element-actions w-75" >
-                          <select class="form-control rounded pl-2 height-45" id="chat_topic">
-                            <option value="All">All</option>
-                            <option value="JobApplication">Application</option>
-                            <option value="BuyContract">Contract</option>
-                            <option value="GroupChat">Group</option>
-                          </select>
-                        </div>
-                        <div class="element-search w-100">
-                          <input type="text" class="form-control rounded height-45" placeholder="Search Company/Candidates" id="conversation-users-search">
-                        </div>
-                      </div>
-                      <ul class="nav flex-column nav-tabs nav-tabs_height company-conversation-scorll" role="tablist" id="company-conversation-list">
-                        <%= render 'conversations_list', conversations: @conversations %>
-                        <div id="all-infinite-scrolling-con" style="display: none">
-                          <%= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
-                        </div>
-                        <%#= render 'conversation_users', users: @companies, candidates: @candidates, groups: @groups %>
-                      </ul>
-                    </div>
-                    <div role="tabpanel" class="tab-pane" id="Favourites">
-                      <ul class="nav flex-column nav-tabs" role="tablist" id="favourite-conversation-list">
-                        <%= render 'conversation_favourites', favourites: @favourites %>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-                <div class="full-chat-middle" id="conversation-section">
-                  <%= render "candidate/conversations/conversation" %>
-                </div>
-                <div class="full-chat-right" id="conversation-r-section">
-                  <%= render "candidate/conversations/conversation_right_side" %>
-                </div>
-              </div>
+          </ul>
+        </div>
+        <div class="row chat-search d-flex margin-top-10  left-side-header-style">
+          <div class="col-sm-4 col-md-4 col-lg-4 left-side-select-style">
+
+            <div class="form-control rounded  select-style" style=" border: none; " id="chat_topic">
+              <label>
+                <select style="width: 75px; border: none; background-color: white">
+                  <option value="All">All</option>
+                  <option value="JobApplication">Application</option>
+                  <option value="BuyContract">Contract</option>
+                  <option value="GroupChat">Group</option>
+                </select>
+              </label>
             </div>
+
+            <!--          <select class="form-control rounded  select-style"  style="border: none; margin-left: 2px" id="chat_topic">-->
+            <!--            <option value="All">All</option>-->
+            <!--            <option value="Job">Job/Offer</option>-->
+            <!--            <option value="JobApplication">Application</option>-->
+            <!--            <option value="SellContract">SellContract</option>-->
+            <!--            <option value="BuyContract">BuyContract</option>-->
+            <!--            <option value="GroupChat">Group</option>-->
+            <!--          </select>-->
           </div>
+          <div class="col-sm-7 col-md-7 col-lg-7">
+            <input type="text" class="form-control input-search-style" placeholder="Search Conversation" id="conversation-users-search">
+          </div>
+<!--          <div class="col-sm-2 col-md-2 col-lg-2 left-side-plus-icon" >-->
+<!--            <i class="fa fa-plus-circle plus-circle-style" style="font-size:24px;color: #047bf8"></i>-->
+<!--          </div>-->
+        </div>
+        <div class="row  margin-top-21 "  >
+
+          <ul class="  chat-user-list_height company-conversation-scorll" role="tablist" id="company-conversation-list" >
+            <%= render 'conversations_list', conversations: @conversations %>
+            <div id="all-infinite-scrolling-con" style="display: none">
+              <% if @conversation.present? %>
+                <%= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
+              <% end %>
+            </div>
+          </ul>
+
         </div>
       </div>
+      <!--        <div role="tabpanel" class="tab-pane" id="Favourites">-->
+      <!--          <ul class="nav flex-column nav-tabs" role="tablist" id="favourite-conversation-list">-->
+      <%#= render 'conversation_favourites', favourites: @favourites %>
+      <!--          </ul>-->
+      <!--        </div>-->
+      <!--      </div>-->
+      <!--    </div>-->
     </div>
   </div>
+  <!--  left side end-->
+
+  <!--  middle screen start-->
+  <div class="col-sm-6 col-md-6 col-lg-6 candidate-conversation"  id="conversation-section">
+    <%= render "candidate/conversations/conversation" %>
+  </div>
+  <!--  middle screen end-->
+
+  <!--  right side start-->
+  <div class="col-sm-3 col-md-3 col-lg-3" >
+    <div class=" " id="conversation-r-section">
+      <%= render "candidate/conversations/conversation_right_side" %>
+    </div>
+  </div>
+  <!--  right side end-->
+
+
 </div>
+
+
+<!--#old html-->
+<!--<div class="no-border" id="content">-->
+<!--  <div class="all-wrapper no-padding-content solid-bg-all">-->
+<!--    <div class="layout-w">-->
+<!--      <div class="content-w">-->
+<!--        <div class="content-i">-->
+<!--          <div class="content-box">-->
+<!--            <div class="full-chat-w">-->
+<!--              <div class="full-chat-i">-->
+
+<!--                <div class="col-sm-3 col-md-3 col-lg-3">-->
+<!--                <div class="full-chat-left">-->
+<!--                  <div class="os-tabs-w">-->
+<!--                    <ul class="nav nav-tabs upper centered">-->
+<!--                      <li class="nav-item active">-->
+<!--                        <a class="nav-link" data-toggle="tab" href="#Company"><i class="os-icon os-icon-ui-93"></i></a>-->
+<!--                      </li>-->
+<!--                      <li class="nav-item">-->
+<!--                        <a class="nav-link" data-toggle="tab" href="#Favourites"><i class="os-icon os-icon-ui-02"></i></a>-->
+<!--                      </li>-->
+<!--                    </ul>-->
+<!--                  </div>-->
+<!--                  <div class="tab-content user-list">-->
+<!--                    <div role="tabpanel" class="tab-pane active" id="Company">-->
+<!--                      <div class="chat-search d-flex">-->
+<!--                        <div class="element-actions w-75" >-->
+<!--                          <select class="form-control rounded pl-2 height-45" id="chat_topic">-->
+<!--                            <option value="All">All</option>-->
+<!--                            <option value="JobApplication">Application</option>-->
+<!--                            <option value="BuyContract">Contract</option>-->
+<!--                            <option value="GroupChat">Group</option>-->
+<!--                          </select>-->
+<!--                        </div>-->
+<!--                        <div class="element-search w-100">-->
+<!--                          <input type="text" class="form-control rounded height-45" placeholder="Search Company/Candidates" id="conversation-users-search">-->
+<!--                        </div>-->
+<!--                      </div>-->
+<!--                      <ul class="nav flex-column nav-tabs nav-tabs_height company-conversation-scorll" role="tablist" id="company-conversation-list">-->
+<%#= render 'conversations_list', conversations: @conversations %>
+<!--                        <div id="all-infinite-scrolling-con" style="display: none">-->
+<%#= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
+<!--                        </div>-->
+<%#= render 'conversation_users', users: @companies, candidates: @candidates, groups: @groups %>
+<!--                      </ul>-->
+<!--                    </div>-->
+<!--                    <div role="tabpanel" class="tab-pane" id="Favourites">-->
+<!--                      <ul class="nav flex-column nav-tabs" role="tablist" id="favourite-conversation-list">-->
+<%#= render 'conversation_favourites', favourites: @favourites %>
+<!--                      </ul>-->
+<!--                    </div>-->
+<!--                  </div>-->
+<!--                </div>-->
+<!--                </div>-->
+
+<!--                <div class="col-sm-6 col-md-6 col-lg-6">-->
+
+<!--                <div class="full-chat-middle" id="conversation-section">-->
+<%#= render "candidate/conversations/conversation" %>
+<!--                </div>-->
+<!--                </div>-->
+
+<!--                <div class="col-sm-1 col-md-1 col-lg-1">-->
+<!--                <div class="full-chat-right" id="conversation-r-section">-->
+<%#= render "candidate/conversations/conversation_right_side" %>
+<!--                </div>-->
+<!--                </div>-->
+
+<!--              </div>-->
+<!--            </div>-->
+<!--          </div>-->
+<!--        </div>-->
+<!--      </div>-->
+<!--    </div>-->
+<!--  </div>-->
+<!--</div>-->
 
 
 <% content_for :scripts do %>
   <script>
-    $(document).ready(function () {
-      $.ajax({
-        url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
-        type: "GET",
-        dataType: "script",
-        success: function (data) {
-        }
+      $(document).ready(function () {
+          $.ajax({
+              url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
+              type: "GET",
+              dataType: "script",
+              success: function (data) {
+              }
+          });
       });
-    });
+      function myFunction(){
+          $("#conversation-section").hide();
+          $(".right-sidebar").show();
+      }
+      function myFunction1(){
+          $("#conversation-section").hide();
+          $(".left-chat-bar").show();
+      }
+      function backtochat(){
+          $(".right-sidebar").hide();
+          $("#conversation-section").show();
+      }
+      $('.icon-side-bar').show()
   </script>
 <% end %>

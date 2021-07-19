@@ -150,7 +150,9 @@ Rails.application.routes.draw do
   end
 
   namespace :candidate do
-    resources :document_signs, only: %i[index update show] do
+    resources :document_signs, only: %i[index update sh
+
+      ow] do
       get :documents
       get :upload_document
     end
@@ -217,6 +219,7 @@ Rails.application.routes.draw do
     end
 
     resources :conversations do
+      post :update_candidate_conversation_title, on: :collection
       get :search, on: :collection
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection
@@ -313,6 +316,7 @@ Rails.application.routes.draw do
         get 'current_status'
         get 'status_update'
         get 'chat_status_update'
+        post 'onlinestatus'
         get :add_reminder
         get :import
         post :add_contacts
@@ -407,6 +411,7 @@ Rails.application.routes.draw do
       get :batch_job, on: :member
     end
     resources :conversations do
+      post :update_company_conversation_title, on: :collection
       get :search, on: :collection
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection

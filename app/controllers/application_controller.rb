@@ -8,7 +8,7 @@ class ApplicationController < ActionController::Base
 
   rescue_from Exception, with: :render_generic_exception if Rails.env.production?
   rescue_from ActionController::RoutingError, with: :render_not_found if Rails.env.production?
-  rescue_from ActionController::UnknownController, with: :render_not_found if Rails.env.production?
+  # rescue_from ActionController::UnknownController, with: :render_not_found if Rails.env.production?
   rescue_from AbstractController::ActionNotFound, with: :render_not_found if Rails.env.production?
   rescue_from ActiveRecord::RecordNotFound, with: :render_not_found if Rails.env.production?
   rescue_from StandardError, with: :render_not_found if Rails.env.production?

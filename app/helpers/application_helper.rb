@@ -34,7 +34,7 @@ module ApplicationHelper
     if options[:remote_false]
       link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
     else
-      link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', remote: true, title: 'chat', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', remote: true, title: 'Chat With Me!', class: 'data-table-icons')
 
     end
   end
@@ -49,14 +49,18 @@ module ApplicationHelper
           <span class='timezone'>America/Los_Angeles </span>
           <span class='title'></span>
           <span class = 'description' ></span>
-          <span class='os-icon os-icon-calendar' style='color: #{options[:color]}'></span>
+          <span class='os-icon os-icon-calendar' style='color: red'></span>
           <span class='attendees'></span>
         </div >".html_safe
   end
 
+  def contact_widget_recuirter(email, phone, _user_id = nil, options = {})
+    chat_remote_link(options)
+  end
+
   def mini_chat_contact_widget(email, phone, _user_id = nil, _options = {})
     mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2 mini_chat_widget pt-3').html_safe, title: email, class: 'data-table-icons') +
-      link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone mini_chat_widget').html_safe, '#', title: phone, class: 'data-table-icons') +
+      link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone mini_chat_widget').html_safe, "skype:#{phone.present? ? phone : ''}?call", title: phone, class: 'data-table-icons') +
       "<div title = 'Add to Calendar' class = 'addeventatc z-100'>
         <span class = 'start' >06/10/2019 08:00 AM</span>
         <span class='end'>06/10/2019 10:00 AM</span>
@@ -1330,9 +1334,19 @@ module ApplicationHelper
     return if user.nil?
 
     if user.photo&.present?
-      image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]}", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe
+      image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe
     else
-      entity_image(user.first_name, user.last_name, 'circle', attrs[:class])
+      entity_image(user.first_name, user.last_name, 'circle company-div-style-7', attrs[:class])
+    end
+  end
+
+  def user_image_mini_chat(user, attrs)
+    return if user.nil?
+
+    if user.photo&.present?
+      image_tag(user.photo, style: (attrs[:style]).to_s, title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe
+    else
+      entity_image(user.first_name, user.last_name )
     end
   end
 

@@ -1,102 +1,166 @@
 <% if @conversation.present? %>
   <% user = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
-  <!--<div class="user-intro">-->
-  <!--<div class="avatar">-->
-  <!--<%#= image_tag user.photo %>-->
-  <!--</div>-->
-  <!--<div class="user-intro-info">-->
-  <!--<h5 class="user-name">-->
-  <!--<%#= user.full_name %>-->
-  <!--</h5>-->
-  <!--</div>-->
-  <!--</div>-->
-  <div class="chat-info-section p-0 pb-3">
-    <div class="ci-header pl-1 display-flex">
-      <!--      <i class="icon-people"></i>-->
-      <span>Chat Member</span>
-      <a href="#" class="add-to-conversation ml-auto" data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %>>
-        <i class="fa fa-plus"></i></a>
-      <% if ConversationMute.where(conversation: @conversation, mutable: current_user).present? %>
-        <%= link_to "<i class='ti-bell'></i>".html_safe, unmute_company_conversation_path(@conversation), title: 'Unmute Conversation', 'data-toggle' => "tooltip", 'data-placement' => "top" %>
-      <% else %>
-        <%= link_to "<i class='fa fa-bell-slash-o' style='color: red;'></i>".html_safe, mute_company_conversation_path(@conversation), class: 'text-danger', title: 'Mute Conversation', 'data-toggle' => "tooltip", 'data-placement' => "top" %>
-      <% end %>
-    </div>
-    <div class="group-member">
-      <% if @conversation.chatable_type == "Group" %>
-        <ul>
-          <% @conversation.chatable.groupables.each do |g| %>
-            <% if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
-              <li class="display-flex" style="border: none">
-                <a href="<%= company_user_profile_path(g.groupable&.id) %>">
-                  <%= user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'image-35 mr-1', title: "#{g.groupable&.full_name}") %>
-                </a>
 
-                <span class="align-self-center">
-                    <%= do_ellipsis(g.groupable&.full_name&.capitalize, 13) %>
-                </span>
-                <%= link_to "<i class='icon-feather-x'></i>".html_safe, remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id), class: "ml-auto align-self-center" %>
-              </li>
-            <% else %>
-              <li class="display-flex" style="border: none">
-                <a href="<%= company_user_profile_path(g.groupable.id) %>">
-                  <%= user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'image-35 mr-1', title: "#{g.groupable.full_name}") %>
-                </a>
-                <%#if g.groupable&.photo.blank? %>
-                <%#=entity_image(g.groupable&.first_name,g.groupable&.last_name)%>
-                <%#else%>
-                <%#= user_image( g.groupable ,class: 'superbox-img',style: 'border-radius: 50%;width:30px !important;height:30px !important',alt: g.groupable&.full_name)%>
-                <%#end%>
-
-                <span class="align-self-center">
-                  <%= do_ellipsis(g.groupable&.full_name&.capitalize, 15) %>
-                </span>
-              </li>
-            <% end %>
-          <% end %>
-
-          <% if current_company.id != @conversation.chatable.company_id %>
-            <li><%= link_to "Leave Group", leave_group_groups_path(group: @conversation.chatable_id) %></li>
-          <% end %>
-        </ul>
-      <% else %>
-        <ul>
-          <li>
-            <%= user.full_name %>
-          </li>
-        </ul>
-      <% end %>
-    </div>
-  </div>
-  <div class="chat-info-section p-0 pt-4">
-    <% if @conversation.topic == "JobApplication" %>
-      <div class="ci-header">
-        <i class="os-icon os-icon-documents-03"></i><span>Activity log</span>
+  <div class="right-sidebar ">
+    <div class="row collab-row" >
+      <div onclick="backtochat()">
+        <img class="left-arrow" src="/assets/left-arrow.png" style="margin-right: 10px; margin-top: 10px;"></img>
       </div>
-      <div class="timed-activities timed-activities_height compact pt-3">
-        <% if job_application_activity_hash.present? %>
-          <div class="col-sm-12">
-            <div class="element-wrapper">
-              <div class="timed-activities compact">
-                <% job_application_activity_hash.each do |key, value| %>
-                  <div class="timed-activity">
-                    <div class="ta-date">
-                      <span>
-                        <%= key %>
-                      </span>
-                    </div>
-                    <div class="ta-record-w">
-                      <% value.each do |activity| %>
-                        <%= render_activity activity %>
-                      <% end %>
-                    </div>
-                  </div>
-                <% end %>
+
+      <span class="collab-text">Collaborators</span>
+      <a href="#" class="add-to-conversation " data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %>>
+        <div class="icon-style-1">
+          <i class="fa fa-plus iconplus" ></i>
+        </div>
+      </a>
+    </div>
+
+    <div class="right-sidebar1" >
+      <% if @conversation.chatable_type == "Group" %>
+        <% @conversation.chatable.groupables.each do |g| %>
+          <% if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
+            <div class="row chats-rows" style="margin: 7% 7%">
+              <div class="col-sm-3 col-md-3 col-lg-3 ">
+                <div class="row" style="width: 12vh">
+                  <a href="<%= company_user_profile_path(g.groupable.id) %>">
+                    <!--        <img src="/assets/keanu.jpg">-->
+                    <%= user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'image-35 mr-1', title: "#{g.groupable&.full_name}") %>
+                  </a>
+                </div>
+              </div>
+              <div class="col-sm-6 col-md-6 col-lg-6 " >
+                <div class="row member-name">
+                  <span > <%= do_ellipsis(g.groupable&.full_name&.capitalize, 13) %></span>
+                </div>
+              </div>
+              <div class=" col-sm-3 col-md-3 col-lg-3 ">
+                <div class="row line-style">
+                  <a href="<%= remove_from_group_groups_path(groupable: g.id, conversation: @conversation.id) %>">
+                    <img src="/assets/image-line.png">
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
+          <%else %>
+            <div class="row chats-rows" style="margin: 7% 7%">
+              <div class="col-sm-3 col-md-3 col-lg-3 ">
+                <div class="row" style="width: 12vh">
+                  <a href="<%= company_user_profile_path(g.groupable.id) %>">
+                    <!--              <img src="/assets/keanu.jpg">-->
+                    <%= user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'image-35 mr-1', title: "#{g.groupable.full_name}") %>
+                  </a>
+                  <%#if g.groupable&.photo.blank? %>
+                  <%#=entity_image(g.groupable&.first_name,g.groupable&.last_name)%>
+                  <%#else%>
+                  <%#= user_image( g.groupable ,class: 'superbox-img',style: 'border-radius: 50%;width:30px !important;height:30px !important',alt: g.groupable&.full_name)%>
+                  <%#end%>
+                </div>
+              </div>
+              <div class="col-sm-6 col-md-6 col-lg-6 " >
+                <div class="row member-name">
+              <span >
+                  <%= do_ellipsis(g.groupable&.full_name&.capitalize, 12) %>
+              </span>
+                </div>
+              </div>
+              <!--            <div class=" col-sm-3 col-md-3 col-lg-3 line-style">-->
+              <!--              <img src="/assets/image-line.png">-->
+              <!--            </div>-->
+            </div>
+          <% end %>
         <% end %>
+      <% end %>
+      <div class="row shared-files" style="margin: 10% 10%;">
+        <div class="shared-text">Shared Files</div>
+        <img src="/assets/folder1.png" class=" file-icon">
+        <img src="/assets/folder2.png" class="file-icon" style="margin-left: -17px; margin-top: 10px">
       </div>
-    <% end %>
+    </div>
   </div>
+
+
 <% end %>
+<!--this is for natification -->
+<!--    <div class="ci-header pl-1 display-flex">-->
+<%# if ConversationMute.where(conversation: @conversation, mutable: current_user).present? %>
+<%#= link_to "<i class='ti-bell'></i>".html_safe, unmute_company_conversation_path(@conversation), title: 'Unmute Conversation', 'data-toggle' => "tooltip", 'data-placement' => "top" %>
+<%# else %>
+<%#= link_to "<i class='fa fa-bell-slash-o' style='color: red;'></i>".html_safe, mute_company_conversation_path(@conversation), class: 'text-danger', title: 'Mute Conversation', 'data-toggle' => "tooltip", 'data-placement' => "top" %>
+<%# end %>
+<!--    </div>-->
+
+
+
+<!--<div class="chat-info-section p-0 pb-3">-->
+
+<!--  <div class="group-member">-->
+<%# if @conversation.chatable_type == "Group" %>
+<!--      <ul>-->
+<%# @conversation.chatable.groupables.each do |g| %>
+<%# if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
+<%# else %>
+<!--            <li class="display-flex" style="border: none">-->
+<!--              <a href="<%#= company_user_profile_path(g.groupable.id) %>">-->
+<%#= user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'image-35 mr-1', title: "#{g.groupable.full_name}") %>
+<!--              </a>-->
+<%#if g.groupable&.photo.blank? %>
+<%#=entity_image(g.groupable&.first_name,g.groupable&.last_name)%>
+<%#else%>
+<%#= user_image( g.groupable ,class: 'superbox-img',style: 'border-radius: 50%;width:30px !important;height:30px !important',alt: g.groupable&.full_name)%>
+<%#end%>
+
+<!--              <span class="align-self-center">-->
+<%#= do_ellipsis(g.groupable&.full_name&.capitalize, 15) %>
+<!--                </span>-->
+<!--            </li>-->
+<%# end %>
+<%# end %>
+
+<%# if current_company.id != @conversation.chatable.company_id %>
+<!--          <li><%#= link_to "Leave Group", leave_group_groups_path(group: @conversation.chatable_id) %></li>-->
+<%# end %>
+<!--      </ul>-->
+<%# else %>
+<!--      <ul>-->
+<!--        <li>-->
+<%#= user.full_name %>
+<!--        </li>-->
+<!--      </ul>-->
+<%# end %>
+<!--  </div>-->
+<!--</div>-->
+
+
+
+
+<!--<div class="chat-info-section p-0 pt-4">-->
+<%# if @conversation.topic == "JobApplication" %>
+<!--    <div class="ci-header">-->
+<!--      <i class="os-icon os-icon-documents-03"></i><span>Activity log</span>-->
+<!--    </div>-->
+<!--    <div class="timed-activities timed-activities_height compact pt-3">-->
+<%# if job_application_activity_hash.present? %>
+<!--        <div class="col-sm-12">-->
+<!--          <div class="element-wrapper">-->
+<!--            <div class="timed-activities compact">-->
+<%# job_application_activity_hash.each do |key, value| %>
+<!--                <div class="timed-activity">-->
+<!--                  <div class="ta-date">-->
+<!--                      <span>-->
+<%#= key %>
+<!--                      </span>-->
+<!--                  </div>-->
+<!--                  <div class="ta-record-w">-->
+<%# value.each do |activity| %>
+<%#= render_activity activity %>
+<%# end %>
+<!--                  </div>-->
+<!--                </div>-->
+<%# end %>
+<!--            </div>-->
+<!--          </div>-->
+<!--        </div>-->
+<%# end %>
+<!--    </div>-->
+<%# end %>
+<!--</div>-->
