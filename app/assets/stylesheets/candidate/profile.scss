@@ -1,0 +1,53 @@
+.my-profile{
+  height: 100%;
+  overflow: auto;
+  .user-profile {
+    > div {
+      background-repeat: no-repeat;
+      background-size: contain;
+    }
+  }
+}
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.portfolio-slick {
+  max-width: 500px;
+
+  .slick-arrow{
+    z-index: 10;
+  }
+
+  .slick-next {
+    right: -30px;
+  }
+
+  .slick-prev {
+    left: -30px;
+  }
+
+  .slick-prev:before, .slick-next:before {
+    font-size: 30px;
+    color: gray;
+  }
+
+  .slide-container {
+    height: 300px !important;
+    display: flex !important;
+    align-items: center;
+  }
+
+  .slick-slide {
+    padding: 10px;
+    height: 100%;
+
+    img {
+      width: 100%;
+    }
+
+    video {
+      width: 100%;
+    }
+  }
+}
