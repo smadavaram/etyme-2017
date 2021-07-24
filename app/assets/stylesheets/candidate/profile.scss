@@ -1,0 +1,11 @@
+.my-profile{
+  height: 100%;
+  overflow: auto;
+
+  .user-profile {
+    > div {
+      background-repeat: no-repeat;
+      background-size: contain;
+    }
+  }
+}

@@ -38,9 +38,9 @@
     .all-wrapper
       .layout-w
         = render partial: 'candidate/shared/left_panel'
-        .content-w.fixed-height
+        .content-w.fixed-height-no-overflow.candidate-layout
           = render partial: 'candidate/shared/header'
-          #main{:role => "main",style: "min-height: 750px !important; overflow-x: hidden;"}
+          #main{:role => "main",style: "height: calc(100vh - 68px)"}
             #ribbon
               %ol.breadcrumb
                 = render_breadcrumbs tag: :li, separator: " / "
@@ -67,7 +67,7 @@
   :javascript
 
     $(".switch").on("click", function(){
-      
+
 
       var switch_status = $("#myonoffswitch").attr("checked");
 
@@ -77,9 +77,9 @@
 
       if(switch_status == "checked"){
         switch_status = true;
-        
+
         console.log("--------------------------")
-        
+
         $("#myonoffswitch").removeAttr("checked");
       }else{
           console.log("+++++++++++++++++++++++++++")
@@ -88,4 +88,4 @@
         //$("#myonoffswitch").removeAttr("checked");
         switch_status = false;
       }
-    }); 
+    });

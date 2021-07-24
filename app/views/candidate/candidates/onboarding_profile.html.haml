@@ -3,7 +3,7 @@
 %script{:src => "https://maps.google.com/maps/api/js?key=AIzaSyDplyJQu2eS1qNVdoBsGL4FGmJwMWFDDUQ&sensor=false&libraries=places"}
 -#%script{:src => "https://maps.googleapis.com/maps/api/js?key=AIzaSyD_faX-g1fbUqz_ecgZ0nXuw_Z6T1rBuSU"}
 
-%body
+.content-i.my-profile
   .content-box
     .element-wrapper
       .element-box
@@ -50,46 +50,7 @@
               .clearfix
             .tab-content
               #tab1.tab-pane{class: @tab.blank? ? "active" : "" }
-                %br/
-                %h4.element-header
-                  Verify phone number
-                .row
-                  .col-sm-12
-                    .row
-                      .col-sm-1
-                        .form-group
-                          %input#country_code.form-control.input-lg{:name => "country_code", :type => "text", :value=>"+44"}/
-
-                      .col-sm-6
-                        .form-group
-                          .input-group
-                            .input-group-prepend
-                              .input-group-text
-                                %i.fa.fa-mobile-phone.fa-lg.fa-fw
-                            %input#phone_no.form-control.input-lg{:name => "phone_no", :placeholder => "Enter Phone number", :type => "text", :value=>current_candidate.phone}/
-
-                      .col-sm-4
-                        .form-group
-                          .input-group
-                            %a.btn.btn-primary.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();"} Send OTP
-                %h4.element-header
-                  Verify Email
-                .row
-                  .col-sm-12
-                    .col-sm-4
-                      .os-progress-bar.primary.font-size-email
-                        .bar-labels
-                          .bar-label-left
-                            %span
-                              =current_candidate.email
-                          .bar-label-right
-                            %span.text-success
-                              = is_verify(!!current_candidate.confirmed_at)
-                %h5.element-header
-                  Social Media
-                .row
-                  .col-sm-12.col-md-12.col-lg-12#social-form
-                    =render partial: 'candidate/candidates/partials/social_form'
+                = render partial: 'candidate/candidates/partials/social_form'
               #tab2.tab-pane{class: @tab == "verify-phone" ? "active" : "" }
                 %br/
                 %h4.element-header

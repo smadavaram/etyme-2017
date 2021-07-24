@@ -35,8 +35,8 @@
                       %td
                         = check_box_tag "ids[]", c.candidate.id
                       %td.no-wrap
-                        =link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),public_profile_static_candidates_path(c.candidate)
-                        = link_to  do_ellipsis(c.candidate.try(:full_name).try(:titleize),10),public_profile_static_candidates_path(c.candidate),class: "pr-5"
+                        =link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),profile_company_candidate_path(c.candidate)
+                        = link_to  do_ellipsis(c.candidate.try(:full_name).try(:titleize),10),profile_company_candidate_path(c.candidate),class: "pr-5"
                       = form_for "job_invitation" , url: update_bench_job_company_bench_jobs_path, html:{ class:'form-horizontal',id: "edit-candidate-val-#{c.candidate.id}"} do |f|
                         %input{:type => "hidden", :name => "candidate_id", :value => c.candidate.id}
                         %input{:type => "hidden", :name => "company_id", :value => c.company.id}
@@ -59,7 +59,7 @@
                                 .label-info.badge.margin-bottom-5.badge-info
                                   = skill.name
                           %span{:id => "input_skills_#{c.candidate.id}", :class => "d-none"}
-                            %input{:type => "text", :name => "job_invitation[skill_list]", :placeholder => "Add Skills Comma seperated", :class => "wi-100", 'data-role'=>'tagsinput',value: (c.candidate.skill_list.present? ? c.candidate.skill_list.join(", ") : "")} 
+                            %input{:type => "text", :name => "job_invitation[skill_list]", :placeholder => "Add Skills Comma seperated", :class => "wi-100", 'data-role'=>'tagsinput',value: (c.candidate.skill_list.present? ? c.candidate.skill_list.join(", ") : "")}
                         %td
                           %span{:id => "input_min_rate_#{c.candidate.id}", :class => "d-none"}
                             %input{:type => "number", :name => "job_invitation[min_hourly_rate]", :placeholder => "Min Hourly Rate", :id => "job_invitation_min_hourly_rate_index", style: "width: 55px !important;", :class => "", value: (@c_bench_job.present? ? @c_bench_job&.min_hourly_rate : "")}/
@@ -92,7 +92,7 @@
                         %span{:id => "bench_action_#{c.candidate.id}"}
                           = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
                           = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: '',title: "#{c.candidate.full_name} Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                          = link_to raw("<i class='fa fa-eye'></i>") , static_candidate_resume_path(c.candidate) , class: '',title: "Detail Show" ,target: "_blank",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-eye'></i>") , public_profile_static_candidates_path(c.candidate) , class: '',title: "Detail Show" ,target: "_blank",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate) , remote:true,class: '',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: '',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(c.candidate) ,remote:true, method: :post ,  class: '',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
@@ -209,7 +209,7 @@
         $("#post_ad_latitude").val(place.geometry.location.lat());
         $("#post_ad_longitude").val(place.geometry.location.lng());
       });
-  
+
       var input = document.getElementById('input_field_location_' + candidate_id);
       google.maps.event.addDomListener(input, 'keydown', function(event) {
         if (event.keyCode === 13) {

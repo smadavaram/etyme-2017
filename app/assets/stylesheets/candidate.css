@@ -56,6 +56,7 @@
  *= require trix
  *= require slick-carousel/slick/slick
  *= require candidate/dashboard
+ *= require candidate/profile
 
  */
  .icon-text{
