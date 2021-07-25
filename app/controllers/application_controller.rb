@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 class ApplicationController < ActionController::Base
+  impersonates :candidate
   protect_from_forgery
   layout :set_devise_layout
 

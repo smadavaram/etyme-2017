@@ -92,8 +92,8 @@
                         %span{:id => "bench_action_#{c.candidate.id}"}
                           = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
                           = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: '',title: "#{c.candidate.full_name} Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                          = link_to raw("<i class='fa fa-eye'></i>") , public_profile_static_candidates_path(c.candidate) , class: '',title: "Detail Show" ,target: "_blank",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                          = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate) , remote:true,class: '',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-eye'></i>") , impersonate_company_candidate_path(c.candidate) , class: '',title: "Detail Show" ,target: "_blank",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate), remote:true,class: '',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: '',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(c.candidate) ,remote:true, method: :post ,  class: '',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-pencil '></i>"), "#", title: "Edit #{c.candidate.full_name}", class: "edit_bench", candidate_id: c.candidate.id, company_id: c.company.id

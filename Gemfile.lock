@@ -1139,6 +1139,8 @@ GEM
     pg (0.21.0)
     popper_js (1.12.9)
     power_assert (1.1.4)
+    pretender (0.3.4)
+      actionpack (>= 4.2)
     pry (0.12.2)
       coderay (~> 1.1.0)
       method_source (~> 0.9.0)
@@ -1431,6 +1433,7 @@ DEPENDENCIES
   paranoia
   pg (~> 0.18)
   popper_js (~> 1.12.9)
+  pretender (~> 0.3.2)
   pry
   pry-rails
   public_activity
