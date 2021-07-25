@@ -67,6 +67,7 @@
  *= require company/prefer_vendors
  *= require slick-carousel/slick/slick
  *= require candidate/dashboard
+ *= require candidate/profile
  *= require company/payroll
  *= require custom
 

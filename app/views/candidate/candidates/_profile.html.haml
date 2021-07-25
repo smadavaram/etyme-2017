@@ -3,8 +3,8 @@
     = yield :statuses
 .content-i.my-profile
   .content-box
-    .row
-      .col-sm-4.col-md-5.col-lg-5.col-xl-3
+    .row.p-4
+      .col-sm-4.col-md-5.col-lg-4.col-xl-4
         .user-profile.compact
           .up-head-w{:style => "background-image:url(#{candidate.photo.blank? ? asset_path('avatars/m_sunny_big.png') : candidate.photo})"}
             - if own
@@ -212,9 +212,25 @@
                 - candidate.skill_list.each do |sl|
                   .badge.badge-primary.p-2.mb-1
                     =sl
-      .col-sm-8.col-lg-7
+      .col-sm-8.col-xl-8
         .col-sm-12
           .element-wrapper
+            .element-box
+              .element-info
+                .element-info-with-icon
+                  .element-info-icon
+                    %i.icon-notebook
+                  .element-info-text
+                    %h4.element-inner-header Portfolio
+              %div.d-flex.w-100.justify-content-center
+                .portfolio-slick
+                  - if candidate.photo
+                    %div.slide-container
+                      %img{src: candidate.photo}
+                  - if candidate.video
+                    %div.slide-container
+                      %video{controls: true}
+                        %source{src: candidate.video}
             .element-box
               .element-info
                 .element-info-with-icon
@@ -276,12 +292,28 @@
                           %P
                             = link_to "Add New One", '/onboarding_profile?tag=skill'
 
-
 %script{:src => "https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"}
+%script{:src => "https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"}
+
+- content_for :head do
+  %link{:href => "https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.css", :rel => "stylesheet", :type => "text/css"}
+  %link{:href => "https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.5.8/slick-theme.min.css", :rel => "stylesheet", :type => "text/css"}
+
+- content_for :html_class, "overflow-hidden"
 :javascript
+  $('.portfolio-slick').slick({
+    infinite: true,
+    slidesToShow: 1,
+    dots:true,
+    arrows: true,
+    speed: 500,
+    fade: true,
+  });
+
   window.onscroll = function() {myFunction()};
   var navbar = document.getElementById("navbar");
   var sticky = navbar.offsetTop;
+
   function myFunction() {
     if (window.pageYOffset >= sticky) {
       navbar.classList.add("sticky")
@@ -289,7 +321,6 @@
       navbar.classList.remove("sticky");
     }
   }
-
 
   function candidateLogoUpload(url,type){
     photo_url = url
