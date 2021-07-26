@@ -34,7 +34,15 @@ module ApplicationHelper
     if options[:remote_false]
       link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
     else
-      link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', remote: true, title: 'Chat With Me!', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-comment-o ChatBtn').html_safe, options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons')
+
+    end
+  end
+  def chat_remote_link_talent(options)
+    if options[:remote_false]
+      link_to(image_tag("chat_iconn.svg", :class => "imag_css"), options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
+    else
+      link_to(image_tag("chat_iconn.svg", :class => "imag_css"), options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons')
 
     end
   end
@@ -55,7 +63,7 @@ module ApplicationHelper
   end
 
   def contact_widget_recuirter(email, phone, _user_id = nil, options = {})
-    chat_remote_link(options)
+    chat_remote_link_talent(options)
   end
 
   def mini_chat_contact_widget(email, phone, _user_id = nil, _options = {})
