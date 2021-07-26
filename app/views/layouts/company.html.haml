@@ -45,9 +45,9 @@
 
       .layout-w.flex-d-column
         = render partial: 'company/shared/left_panel'
-        .content-w.fixed-height
+        .content-w
           = render partial: 'company/shared/header'
-          #main{:role => "main" ,style: "height: 87vh !important"}
+          #main{:role => "main" ,style: ""}
             -##ribbon
               -#%ol.breadcrumb
                 -# = render_breadcrumbs tag: :li, separator: " / "
