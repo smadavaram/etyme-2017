@@ -14,14 +14,8 @@ class Company::BenchJobsController < Company::BaseController
 
   def update_bench_job
     respond_to do |format|
-      
-      binding.pry
-      
       if @job_invitation.present?
         if @job_invitation.update(job_invitation_params.merge(sender_id: params[:job_invitation][:sender_id]))
-          
-          binding.pry
-          
           @candidate = @job_invitation.recipient
           @candidate.update(candidate_title: params[:job_invitation][:candidate_title], 
             location: params[:job_invitation][:location],
@@ -33,9 +27,6 @@ class Company::BenchJobsController < Company::BaseController
           format.html { redirect_to company_bench_jobs_path, alert: 'Something went wrong' }
         end
       else
-        
-        binding.pry
-        
         candidate = Candidate.find(params[:candidate_id])
         current_company.sent_job_invitations.bench.create(job_invitation_params.merge(recipient: candidate, sender_id: params[:job_invitation][:sender_id], company_id: params[:company_id], invitation_type: :candidate, expiry: Date.today + 1.year))
         format.html { redirect_to company_bench_jobs_path, alert: 'Bench job is successfully updated.' }
