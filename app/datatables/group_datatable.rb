@@ -8,8 +8,6 @@ class GroupDatatable < ApplicationDatatable
 
   def view_columns
     
-    # binding.pry
-    
     @view_columns ||= {
       id: { source: 'Group.id' },
       name: { source: 'Group.group_name' },
