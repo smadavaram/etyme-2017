@@ -49,6 +49,7 @@ class GroupDatatable < ApplicationDatatable
   end
 
   def get_raw_records
+    # binding.pry
     current_company.groups.contact_groups
   end
 
