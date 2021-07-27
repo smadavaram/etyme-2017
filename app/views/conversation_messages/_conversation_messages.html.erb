@@ -1,3 +1,10 @@
+<style>
+.new-class-avatar{
+    width: 35px !important;
+    height: 35px !important;
+    border-radius: 50% !important;
+}
+</style>
 <% unless @prev_date.present? %>
 <% @prev_date = msg.created_at.strftime('%d %b, %Y') %>
 <% end %>
@@ -56,7 +63,7 @@
         <div class="col-sm-2 col-md-2 col-lg-2 avatar-style">
             <div class="chat-message-avatar">
                 <% if msg.userable.photo&.present? %>
-                <%= image_tag(msg.userable.photo, class: "image-35-imp", alt: image_alt(msg.userable)) %>
+                <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>
                 <% else %>
                 <%= entity_image(msg.userable.first_name, msg.userable.last_name, 'circle', "image-35-imp") %>
                 <% end %>
@@ -159,7 +166,7 @@
         <div class="col-sm-1 col-md-1 col-lg-1 avatar-style">
             <div class="chat-message-avatar">
                 <% if msg.userable.photo&.present? %>
-                <%= image_tag(msg.userable.photo, class: "image-35-imp", alt: image_alt(msg.userable)) %>
+                <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>
                 <% else %>
                 <%= entity_image(msg.userable.first_name, msg.userable.last_name, 'circle', "image-35-imp") %>
                 <% end %>
