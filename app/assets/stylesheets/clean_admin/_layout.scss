@@ -21,13 +21,13 @@ body {
     .all-wrapper {
       max-width: initial;
       border-radius: 0px;
-       > .top-bar {
+      > .top-bar {
         border-radius: 0px;
-       }
+      }
     }
     .menu-w,
     .top-bar {
-      border-radius: 0px!important;
+      border-radius: 0px !important;
     }
     .menu-position-side .logged-user-menu {
       left: 0px;
@@ -37,12 +37,13 @@ body {
   }
 }
 
-b, strong {
+b,
+strong {
   font-weight: $font-weight-bold;
 }
 
 .all-wrapper {
-  box-shadow: 0px 0px 40px rgba(0,0,0,0.1);
+  box-shadow: 0px 0px 40px rgba(0, 0, 0, 0.1);
   border-radius: $global-border-radius;
   max-width: 1600px;
   margin: 0px auto;
@@ -88,7 +89,7 @@ body.with-content-panel {
 .section-heading {
   padding: 5% 10%;
   font-size: $font-size-base * 1.4;
-  color: rgba(0,0,0,0.5);
+  color: rgba(0, 0, 0, 0.5);
   &.centered {
     text-align: center;
   }
@@ -108,7 +109,6 @@ body.with-content-panel {
     }
   }
 }
-
 
 /* Layout settings based on menu position */
 
@@ -148,7 +148,16 @@ body.menu-side-right {
   background-position: 20px 50px;
   vertical-align: top;
 }
-
+@media (min-width: 1025px) {
+  .cont-comany {
+    background-color: $content-bg !important;
+    /*background-image: asset-url('clean_admin/bg-pattern.png');*/
+    background-repeat: no-repeat !important;
+    background-position: 20px 50px !important;
+    vertical-align: top !important;
+    margin-left: 224px !important;
+  }
+}
 
 .content-i {
 }
@@ -158,14 +167,14 @@ body.menu-side-right {
   padding: 2rem 2.5rem;
   flex: 1;
   > .element-wrapper:first-child {
-    padding-top: 0px!important;
+    padding-top: 0px !important;
   }
 }
 
 .content-panel {
   vertical-align: top;
   flex: 0 0 $content-panel-width;
-  border-left: 1px solid rgba(0,0,0,0.05);
+  border-left: 1px solid rgba(0, 0, 0, 0.05);
   padding: 2rem 2.5rem;
   background-color: transparent;
   &.compact {
@@ -217,9 +226,6 @@ body.menu-side-right {
   }
 }
 
-
-
-
 /*
  SIDE PANEL IS ACTIVE - ADD STYLES
 */
@@ -234,10 +240,6 @@ body.menu-side-right {
     display: block;
   }
 }
-
-
-
-
 
 /* ICONS LIST FOR DEMO */
 
@@ -254,8 +256,8 @@ body.menu-side-right {
     font-size: 24px;
     vertical-align: middle;
     padding: 20px 15px;
-    border-right: 1px solid rgba(0,0,0,0.05);
-    border-bottom: 1px solid rgba(0,0,0,0.05);
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
     a {
       position: relative;
       color: #333;
