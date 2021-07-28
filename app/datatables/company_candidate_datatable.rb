@@ -17,10 +17,16 @@ class CompanyCandidateDatatable < ApplicationDatatable
     @view_columns ||= {
       id: { source: 'Candidate.id' },
       name: { source: 'Candidate.first_name' },
-      company: { source: 'Company.name' },
-      first_name: { source: 'Candidate.first_name' },
-      title: { source: 'Candidate.title' },
-      contact: { source: 'Candidate.phone' }
+      # company: { source: 'Company.name' },
+      # first_name: { source: 'Candidate.first_name' },
+      # title: { source: 'Candidate.title' },
+      recruiter: { source: 'Candidate.recruiter' },
+      contact: { source: 'Candidate.phone' },
+      status:  { source: 'Candidate.recruiter' },
+      reminder_note:  { source: 'Candidate.reminder_note' },
+      skills:  { source: 'Candidate.skills' },
+      visa:  { source: 'Candidate.visa' },
+      actions:  { source: 'Candidate.actions' }
     }
   end
 

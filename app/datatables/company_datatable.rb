@@ -9,7 +9,12 @@ class CompanyDatatable < ApplicationDatatable
   def view_columns
     @view_columns ||= {
       id: { source: 'Company.id' },
-      name: { source: 'Company.name' }
+      name: { source: 'Company.name' },
+      users: { source: 'Company.name' },
+      reminder_note: { source: 'Company.name' },
+      status: { source: 'Company.name' },
+      contact: { source: 'Company.name' },
+      actions:  { source: 'Company.name' },
     }
   end
 

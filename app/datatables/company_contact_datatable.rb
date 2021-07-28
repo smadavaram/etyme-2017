@@ -18,7 +18,12 @@ class CompanyContactDatatable < ApplicationDatatable
       id: { source: 'CompanyContact.id' },
       name: { source: 'Company.name' },
       first_name: { source: 'User.first_name' },
-      title: { source: 'CompanyContact.title' }
+      title: { source: 'CompanyContact.title' },
+      groups:  { source: 'CompanyContact.groups' },
+      reminder_note:  { source: 'CompanyContact.reminder_note' },
+      status:  { source: 'CompanyContact.status' },
+      contact: { source: 'CompanyContact.contact' },
+      actions:  { source: 'CompanyContact.actions' },
     }
   end
 
