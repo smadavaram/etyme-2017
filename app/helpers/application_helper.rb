@@ -38,13 +38,20 @@ module ApplicationHelper
 
     end
   end
-  def chat_remote_link_talent(options)
+  def chat_remote_link_talent(options, user)
     if options[:remote_false]
-      link_to(image_tag("chat_iconn.svg", :class => "imag_css"), options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
-    else
-      link_to(image_tag("chat_iconn.svg", :class => "imag_css"), options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons')
-
+      (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
+      link_to(image_tag(profile_photo, :class => "imag_css"), options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
+    else      
+      (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
+      link_to(image_tag(profile_photo, :class => "imag_css"), options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons') 
     end
+    
+# if user.photo&.present?
+#       image_tag(user.photo, alt: image_alt(user), class: 'figure-img img-fluid rounded-circle').html_safe
+#     else
+#       image_tag(asset_path('avatars/male.png'), alt: "user", class: 'figure-img img-fluid rounded-circle').html_safe
+#     end
   end
 
   def contact_widget(email, phone, _user_id = nil, options = {})
@@ -62,8 +69,8 @@ module ApplicationHelper
         </div >".html_safe
   end
 
-  def contact_widget_recuirter(email, phone, _user_id = nil, options = {})
-    chat_remote_link_talent(options)
+  def contact_widget_recuirter(email, phone, user, options = {})
+    chat_remote_link_talent(options, user)
   end
 
   def mini_chat_contact_widget(email, phone, _user_id = nil, _options = {})
