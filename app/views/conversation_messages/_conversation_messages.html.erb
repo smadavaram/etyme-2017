@@ -23,8 +23,7 @@
     </span>
 </div>
 <% end %>
-
-<% if  (request.referer && request.referer.split("marketplace").count >= 2) ||  (request.referer && request.referer.split("/static").count >= 2)%>
+<% if  (request.referer && request.env["HTTP_REFERER"].split("conversation").count <= 1)%>
 
 <% if msg.userable == get_current_user %>
 <div class="chat-message self">
