@@ -4,6 +4,9 @@
     position: fixed;
     width: 224px;
   }
+  .margin_class{
+    margin-left: 224px !important;
+  }
 }
 /* @media (min-width: 730px) */
 </style>
@@ -21,6 +24,9 @@
         $('.lpm').hide();
         $("#side-bar").removeClass('icon-side-bar');
         $("#togglebutton1").addClass('togglebtncontainerinbox1');
+        debugger
+        $(".cont-comany").addClass('margin_class');
+        console.log("add class")
 
     }
     function toglleMenu1() {
@@ -29,6 +35,8 @@
         $('.lpm').hide();
         $("#side-bar").addClass('icon-side-bar');
         $("#togglebutton1").removeClass('togglebtncontainerinbox1');
+        $(".cont-comany").removeClass('margin_class');
+        console.log("remove class")
     }
 
 
