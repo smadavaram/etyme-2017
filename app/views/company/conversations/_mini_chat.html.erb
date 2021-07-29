@@ -11,7 +11,7 @@
                 <div class=" d-flex justify-content-between w-100 align-items-center">
                     <% conversation.chatable.groupables.sample(4).each do |groupable| %>
                     <div class=" my_avatar">
-                        <%= user_image_mini_chat(groupable.groupable, style: 'width: 35px; height: 35px; border-radius: 50%; ', class: '', title: "#{groupable.groupable&.full_name}") %>
+                        <%= user_image_mini_chat(groupable.groupable, style: 'width: 45px; height: 45px; border-radius: 50%; ', class: '', title: "#{groupable.groupable&.full_name}") %>
                     </div>
                     <% end %>
                     <% if conversation.chatable.groupables.count > 4 %>
