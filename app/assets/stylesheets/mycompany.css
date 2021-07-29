@@ -8,7 +8,6 @@
  *= require conversation/chat
 
  *= require my-buttel-train
-
  *= require jobs_small_chat
 
 
@@ -25,4 +24,11 @@
 .new-messages-count {
   top: -2px !important;
   right: 0px !important;
+}
+body {
+  padding: 0px;
+}
+.new-class-margin {
+  margin-right: 5px;
+  color: black;
 }
