@@ -58,7 +58,7 @@ module ApplicationHelper
     chat_remote_link(options) +
         mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone ').html_safe, "skype:#{phone.present? ? phone : ''}?call", title: phone, class: 'data-table-icons') +
-        "<div title = 'Add to Calendar' class = 'addeventatc z-100' style= 'margin-top: 6px;'>
+        "<div title = 'Add to Calendar' class = 'addeventatc' style= 'margin-top: 6px; z-index: 0 !important;'>
           <span class = 'start' >06/10/2019 08:00 AM</span>
           <span class='end'>06/10/2019 10:00 AM</span>
           <span class='timezone'>America/Los_Angeles </span>
