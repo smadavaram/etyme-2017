@@ -34,11 +34,13 @@
         <% end %>
       </div>
       <% $the_array.push(opt_obj[:branchout]) if opt_obj[:branchout].present? && !($the_array.include? opt_obj[:branchout])%>
-      <% $the_array.each do |i| %>
-        <div>
-          <button type="button" class="btn1-style" ><%= i %></button>
-        </div>
-      <% end %>
+        <% $the_array.each do |i| %>
+          <div>
+            <button type="button" class="btn1-style" onclick="btnClick1()"><%= i %></button>
+            <%= hidden_field_tag 'group_id', opt_obj.id  %>
+            <%= hidden_field_tag 'branch_chat_name', i  %>
+          </div>
+        <% end %>
     </div>
   </div>
   <div class="col-0 col-sm-2 col-md-2 col-lg-2 branchout-desktop">
@@ -206,6 +208,9 @@
       });
       function btnClick(){
           $("#myDIV").toggle('show');
+      }
+      function btnClick1(){
+          window.location.reload();
       }
 
       function showDivClick(){
