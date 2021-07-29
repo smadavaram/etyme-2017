@@ -93,12 +93,6 @@
                                                     <div class="logged-user-role d-block">
                                                         <%if @c_recruiter.present?%>
                                                           <%= contact_widget_recuirter(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') %>
-                                                        <%else%>
-                                                          <%if @c_candidate_obj.photo.present?%>
-                                                            <%= link_to(image_tag(@c_candidate_obj.photo, :class => "imag_css"), "/company/conversations") %>
-                                                          <%else%>
-                                                            <%= link_to(image_tag("avatars/male.png", :class => "imag_css"), "/company/conversations") %>
-                                                          <%end%>
                                                         <%end%>
                                                     </div>
                                                 </div>
