@@ -4,7 +4,7 @@ class Company::ConversationsController < Company::BaseController
   skip_before_action :authenticate_user!, only: :search
   before_action :find_attachments, :find_signers, only: [:chat_docusign]
   add_breadcrumb 'Dashboard', :dashboard_path
-
+  $the_array = []
   def index
     add_breadcrumb 'Inbox'
 
