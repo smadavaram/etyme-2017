@@ -163,3 +163,4 @@ gem 'activeadmin'
 gem 'serviceworker-rails'
 
 gem 'activeadmin_json_editor', '~> 0.0.7'
+gem 'pretender', '~> 0.3.2'

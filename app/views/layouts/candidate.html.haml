@@ -38,7 +38,7 @@
     .all-wrapper
       .layout-w
         = render partial: 'candidate/shared/left_panel'
-        .content-w.fixed-height
+        .content-w.fixed-height-no-overflow.candidate-layout
           = render partial: 'candidate/shared/header'
           #main{:role => "main",style: "height: 87vh !important;"}
             -##ribbon

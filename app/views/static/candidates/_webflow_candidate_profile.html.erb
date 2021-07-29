@@ -63,10 +63,18 @@
       <div class="mb-5">
         <div class="profile-information">
           <div class="information-label">
+            Age
+          </div>
+          <div class="information-value">
+            <%= pluralize((Date.today.to_s(:number).to_i - @candidate.dob.to_s(:number).to_i) / 10000,'year') rescue 'N/A'%>
+          </div>
+        </div>
+        <div class="profile-information">
+          <div class="information-label">
             Location
           </div>
           <div class="information-value">
-            <%= @candidate&.location %>
+            <%= Candidate.last.criminal_check.last&.address&.split(",")&.drop(1)&.join(",") %>
           </div>
         </div>
         <div class="profile-information">
@@ -74,8 +82,8 @@
             Visa Status
           </div>
           <div class="information-value">
-            <% if @candidate.candidate_visa %>
-              <%= @candidate.candidate_visa %>
+            <% if @candidate.visas.last %>
+              <%= @candidate.visas.last&.status%>
             <% else %>
               Unknown
             <% end %>
@@ -83,30 +91,101 @@
         </div>
         <div class="profile-information">
           <div class="information-label">
-            SSN
+            SSN(YES / NO)
           </div>
           <div class="information-value">
             <% if @candidate.ssn %>
-              <%= @candidate.ssn %>
+              <%= @candidate.ssn.present? ? 'Yes' : 'No' %>
             <% else %>
               Unknown
             <% end %>
           </div>
         </div>
+
         <div class="profile-information">
           <div class="information-label">
-            Linked ID
+            Relocation
           </div>
           <div class="information-value">
-            Unknown
+            <% if @candidate.relocation %>
+              <%= @candidate.relocation ? 'Yes' : 'No' %>
+            <% else %>
+              Unknown
+            <% end %>
           </div>
+        </div>
+
+        <div class="d-flex justify-content-between flex-wrap w-100">
+
+          <% if @candidate.twitter_url.present? %>
+            <div class="os-progress-bar primary w-50 d-flex justify-content-center">
+              <div class="bar-labels">
+                <div class="bar-label-left font-weight-bold d-flex align-items-center">
+                  <i class="fi-social-skype"></i>
+                  <span class="ml-2"><%=do_ellipsis(@candidate.skypeid, 15)%></span>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
+          <% if @candidate.facebook_url.present? %>
+            <div class="os-progress-bar primary w-50 d-flex justify-content-center">
+              <div class="bar-labels">
+                <a href="<%= @candidate.facebook_url%>" target="_blank">
+                  <div class="bar-label-left font-weight-bold d-flex align-items-center">
+                    <i class="fi-social-facebook"></i>
+                    <span class="ml-2">Facebook</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          <% end %>
+
+          <% if @candidate.gtalk_url.present? %>
+            <div class="os-progress-bar primary w-50 d-flex justify-content-center">
+              <div class="bar-labels">
+                <a href="<%= @candidate.gtalk_url%>" target="_blank">
+                  <div class="bar-label-left font-weight-bold d-flex align-items-center">
+                    <i class="fi-social-google-plus"></i>
+                    <span class="ml-2">Google</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          <% end %>
+
+          <% if @candidate.twitter_url.present? %>
+            <div class="os-progress-bar primary w-50 d-flex justify-content-center">
+              <div class="bar-labels">
+                <a href="<%= @candidate.twitter_url%>" target="_blank">
+                  <div class="bar-label-left font-weight-bold d-flex align-items-center">
+                    <i class="fi-social-google-plus"></i>
+                    <span class="ml-2">Twitter</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          <% end %>
+
+          <% if @candidate.linkedin_url.present? %>
+            <div class="os-progress-bar primary w-50 d-flex justify-content-center">
+              <div class="bar-labels">
+                <a href="<%= @candidate.linkedin_url %>" target="_blank">
+                  <div class="bar-label-left font-weight-bold d-flex align-items-center">
+                    <i class="fi-social-linkedin"></i>
+                    <span class="ml-2">Linkedin</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          <% end %>
         </div>
       </div>
       <div class="profile-rate-value">
         <% job_invitation = @candidate.try(:job_invitations).try(:last) %>
         $<%= job_invitation.present? ? job_invitation.min_hourly_rate : "NA" %>
         -
-        <%= job_invitation.present? ? job_invitation.max_hourly_rate : "NA" %>       
+        <%= job_invitation.present? ? job_invitation.max_hourly_rate : "NA" %>
         /hr
       </div>
       <div class="profile-rate-label">
@@ -124,9 +203,13 @@
         <a href="#" class="profile-link-share">
           Share Profile <i class="fa fa-share-alt ml-1" aria-hidden="true"></i>
         </a>
-        <a href="#" class="profile-link-download">
-          Download Resume
-        </a>
+        <%if @candidate.candidates_resumes&.last.present? %>
+          <a href="<%=@candidate.candidates_resumes&.last.resume %>" download  class="profile-link-download" target="_blank">
+            Download Resume
+          </a>
+        <% else %>
+          <%= "No Ressume Available" %>
+        <% end %>
       </div>
       <div class="profile-section">
         <div class="profile-section-header">
@@ -149,10 +232,10 @@
         <% end %>
         <% @candidate.educations.each do |education| %>
           <div class="profile-section-content-label">
-            <%= education.degree_title %>
+            <%= "#{education.degree_title&.capitalize} - #{education.institute&.capitalize}" %>
           </div>
           <div class="profile-section-content-value pb-2">
-            <%= education.institute %>, <%= education.description %>, <%= education.start_year&.year %>-<%= education.completion_year&.year %>
+            <%= [education.degree_level, education.completion_year && ", Graduated #{education.completion_year.year}"].join %>
           </div>
         <% end %>
       </div>

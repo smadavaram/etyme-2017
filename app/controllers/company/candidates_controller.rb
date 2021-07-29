@@ -52,6 +52,13 @@ class Company::CandidatesController < Company::BaseController
     @candidate = Candidate.find_by(id: params[:id])
   end
 
+  def impersonate
+    candidate = Candidate.find(params[:id])
+    sign_in candidate
+    impersonate_candidate(candidate)
+    redirect_to my_profile_path
+  end
+
   def profile
     @user = Candidate.find_by(id: params[:id])
     @user.addresses.build unless @user.addresses.present?
