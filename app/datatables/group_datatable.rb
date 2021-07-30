@@ -7,11 +7,17 @@ class GroupDatatable < ApplicationDatatable
   def_delegator :@view, :unban_company_black_listers_path
 
   def view_columns
+    
     @view_columns ||= {
       id: { source: 'Group.id' },
       name: { source: 'Group.group_name' },
       type: { source: 'Group.member_type' },
-      created_at: { source: 'Group.created_at' }
+      member: { source: 'Group.member_type' },
+      reminder_note: { source: 'Group.reminder_note' },
+      created_at: { source: 'Group.created_at' },
+      status: { source: 'Group.status' },
+      contact: { source: 'Group.contact' },
+      actions: { source: 'Group.actions' },
     }
   end
 

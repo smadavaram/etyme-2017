@@ -1,3 +1,15 @@
+<style>
+@media (min-width: 1025px) {
+  .fixed-side{
+    position: fixed;
+    width: 224px;
+  }
+  .margin_class{
+    margin-left: 224px !important;
+  }
+}
+/* @media (min-width: 730px) */
+</style>
 <div  id="side-bar" class="icon-side-bar mobile-icon-side-bar" style="display: none;">
   <div class="icon-button-style ">
     <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
@@ -12,6 +24,9 @@
         $('.lpm').hide();
         $("#side-bar").removeClass('icon-side-bar');
         $("#togglebutton1").addClass('togglebtncontainerinbox1');
+        debugger
+        $(".cont-comany").addClass('margin_class');
+        console.log("add class")
 
     }
     function toglleMenu1() {
@@ -20,12 +35,14 @@
         $('.lpm').hide();
         $("#side-bar").addClass('icon-side-bar');
         $("#togglebutton1").removeClass('togglebtncontainerinbox1');
+        $(".cont-comany").removeClass('margin_class');
+        console.log("remove class")
     }
 
 
 
 </script>
-<div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
+<div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
   <div class="logged-user-w avatar-inline p-1 m-1">
     <div class="logged-user-i">
       <div class="avatar-w">

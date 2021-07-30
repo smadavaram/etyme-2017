@@ -38,20 +38,27 @@ module ApplicationHelper
 
     end
   end
-  def chat_remote_link_talent(options)
+  def chat_remote_link_talent(options, user)
     if options[:remote_false]
-      link_to(image_tag("chat_iconn.svg", :class => "imag_css"), options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
-    else
-      link_to(image_tag("chat_iconn.svg", :class => "imag_css"), options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons')
-
+      (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
+      link_to(image_tag(profile_photo, :class => "imag_css"), options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
+    else      
+      (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
+      link_to(image_tag(profile_photo, :class => "imag_css"), options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons') 
     end
+    
+# if user.photo&.present?
+#       image_tag(user.photo, alt: image_alt(user), class: 'figure-img img-fluid rounded-circle').html_safe
+#     else
+#       image_tag(asset_path('avatars/male.png'), alt: "user", class: 'figure-img img-fluid rounded-circle').html_safe
+#     end
   end
 
   def contact_widget(email, phone, _user_id = nil, options = {})
     chat_remote_link(options) +
         mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2').html_safe, title: email, class: 'data-table-icons') +
         link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone ').html_safe, "skype:#{phone.present? ? phone : ''}?call", title: phone, class: 'data-table-icons') +
-        "<div title = 'Add to Calendar' class = 'addeventatc z-100' style= 'margin-top: 6px;'>
+        "<div title = 'Add to Calendar' class = 'addeventatc' style= 'margin-top: 6px; z-index: 0 !important;'>
           <span class = 'start' >06/10/2019 08:00 AM</span>
           <span class='end'>06/10/2019 10:00 AM</span>
           <span class='timezone'>America/Los_Angeles </span>
@@ -62,8 +69,8 @@ module ApplicationHelper
         </div >".html_safe
   end
 
-  def contact_widget_recuirter(email, phone, _user_id = nil, options = {})
-    chat_remote_link_talent(options)
+  def contact_widget_recuirter(email, phone, user, options = {})
+    chat_remote_link_talent(options, user)
   end
 
   def mini_chat_contact_widget(email, phone, _user_id = nil, _options = {})
@@ -1348,7 +1355,7 @@ module ApplicationHelper
     if user.photo&.present?
       image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe
     else
-      entity_image(user.first_name, user.last_name, 'circle company-div-style-7', attrs[:class])
+      entity_image(user.first_name, user.last_name, 'circle', attrs[:class])
     end
   end
 

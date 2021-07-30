@@ -1,7 +1,7 @@
 <div class="floated-chat-w active zero-bottom">
     <div class="floated-chat-i">
         <div class="chat-close display-flex">
-            <a class="align-self-center rotate-45 no-hover" style="font-size: 15px;" href=<%= company_conversations_path(conversation: conversation.id) %> target="_blank">
+            <a class="align-self-center rotate-45 no-hover new-class-margin" style="font-size: 15px;" href=<%= company_conversations_path(conversation: conversation.id) %> target="_blank">
                 <i class="data-table-icons ti-arrows-horizontal"> </i>
             </a>
             <i class="os-icon os-icon-minus align-self-center"></i>
@@ -11,7 +11,7 @@
                 <div class=" d-flex justify-content-between w-100 align-items-center">
                     <% conversation.chatable.groupables.sample(4).each do |groupable| %>
                     <div class=" my_avatar">
-                        <%= user_image_mini_chat(groupable.groupable, style: 'width: 35px; height: 35px;', class: '', title: "#{groupable.groupable&.full_name}") %>
+                        <%= user_image_mini_chat(groupable.groupable, style: 'width: 45px; height: 45px; border-radius: 50%; ', class: '', title: "#{groupable.groupable&.full_name}") %>
                     </div>
                     <% end %>
                     <% if conversation.chatable.groupables.count > 4 %>

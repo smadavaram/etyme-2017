@@ -11,7 +11,11 @@ class CompanyDirectoryDatatable < ApplicationDatatable
       id: { source: 'User.id' },
       domain: { source: 'Company.website' },
       name: { source: 'User.first_name' },
-      title: { source: 'User.type' }
+      title: { source: 'User.type' },
+      roles_permissions: { source: 'User.roles_permissions' },
+      reminder_note: { source: 'User.reminder_note' },
+      contact: { source: 'User.contact' },
+      actions: { source: 'User.actions' },
     }
   end
 

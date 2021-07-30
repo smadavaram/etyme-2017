@@ -17,10 +17,16 @@ class CompanyCandidateDatatable < ApplicationDatatable
     @view_columns ||= {
       id: { source: 'Candidate.id' },
       name: { source: 'Candidate.first_name' },
-      company: { source: 'Company.name' },
-      first_name: { source: 'Candidate.first_name' },
-      title: { source: 'Candidate.title' },
-      contact: { source: 'Candidate.phone' }
+      # company: { source: 'Company.name' },
+      # first_name: { source: 'Candidate.first_name' },
+      # title: { source: 'Candidate.title' },
+      recruiter: { source: 'Candidate.recruiter' },
+      visa:  { source: 'Candidate.visa' },
+      skills:  { source: 'Candidate.skills' },
+      reminder_note:  { source: 'Candidate.reminder_note' },
+      status:  { source: 'Candidate.recruiter' },
+      contact: { source: 'Candidate.phone' },
+      actions:  { source: 'Candidate.actions' }
     }
   end
 
@@ -28,14 +34,14 @@ class CompanyCandidateDatatable < ApplicationDatatable
     records.map do |record|
       {
         id: record.id,
-        #company: company_profile(record),
+        # company: company_profile(record),
         name: candidate_profile(record),
         recruiter: get_recruiter_email(record),
-        contact: contact_icon(record),
-        status: ban_unban_link(record),
-        reminder_note: reminder_note(record),
-        skills: prepare_skill_list(record),
         visa: record.candidate_visa,
+        skills: prepare_skill_list(record),
+        reminder_note: reminder_note(record),
+        status: ban_unban_link(record),
+        contact: contact_icon(record),
         actions: actions(record)
       }
     end
