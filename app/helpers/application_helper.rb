@@ -94,6 +94,10 @@ module ApplicationHelper
     end
   end
 
+  def mask(string, all_but = 4, char = '#')
+    string.gsub(/.(?=.{#{all_but}})/, char)
+  end
+
   def user_age(dob)
     now = Time.now.utc.to_date
     now.year - dob.year - ((now.month > dob.month || (now.month == dob.month && now.day >= dob.day)) ? 0 : 1)

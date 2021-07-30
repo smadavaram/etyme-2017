@@ -1,10 +1,10 @@
 - unless own
   #navbar.text-right
     = yield :statuses
-.content-i
+.content-i.my-profile
   .content-box
-    .row
-      .col-sm-4
+    .row.p-4
+      .col-sm-4.col-md-5.col-lg-4.col-xl-4
         .user-profile.compact
           .up-head-w{:style => "background-image:url(#{candidate.photo.blank? ? asset_path('avatars/m_sunny_big.png') : candidate.photo})"}
             - if own
@@ -31,9 +31,12 @@
                   = contact_widget(candidate.email,candidate.phone,nil,color: '#3E4B5B; !important',chat_link: register_path,remote_false: true)
               .col-sm-6.text-right
                 - if own
-                  %a.btn.btn-primary.btn-sm{:href => "/onboarding_profile?tag=verify-phone"}
-                    %i.os-icon.os-icon-arrow-down6
-                    %span Resume
+                  - if candidate.candidates_resumes&.last.present?
+                    %a#resume-link.btn.btn-primary.btn-sm{:href => candidate.candidates_resumes&.last.resume, download: true, target: '_blank'}
+                      %i.os-icon.os-icon-arrow-down6
+                      %span Resume
+                  - else
+                    No Resume Available
                 - else
                   / - if candidate.candidates_resumes.try(:primary_resume).try(:first).try(:resume).present?
 
@@ -58,104 +61,176 @@
                       = candidate.clients.count
                     .label
                       Clients
-              .padded
+              %a.d-flex.justify-content-end{href: onboarding_profile_path}
+                %i.fi-pencil.pr-2
+                %span.bold
+                  Edit Information
+              .bar-label-left.font-weight-bold
+                %h6.mb-4 Contact Info
                 .os-progress-bar.primary
                   .bar-labels
-                    .bar-label-left
+                    .bar-label-left.font-weight-bold
                       %span Full Name
                     .bar-label-right
                       %span=do_ellipsis(candidate.full_name,15)
                       %span.text-success
                 .os-progress-bar.primary
                   .bar-labels
-                    .bar-label-left
-                      %span Contact Info
+                    .bar-label-left.font-weight-bold
+                      %span Phone number
                     .bar-label-right
-                      %span=do_ellipsis(candidate.phone,15)
+                      %span=mask(candidate.phone, 3, "*")
                       %span.text-success
-                  .os-progress-bar.primary
-                    .bar-labels
-                      .bar-label-left
-                        %span Email
-                      .bar-label-right
-                        %span=do_ellipsis(candidate.email.downcase,15)
-                        %span.text-success
-                          = is_verify(!!candidate.confirmed_at)
                 .os-progress-bar.primary
                   .bar-labels
-                    .bar-label-left
+                    .bar-label-left.font-weight-bold
+                      %span Email
+                    .bar-label-right
+                      %span=do_ellipsis(candidate.email.downcase,15)
+                      %span.text-success
+                        = is_verify(!!candidate.confirmed_at)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left.font-weight-bold
                       %span Age
                     .bar-label-right
                       %span= pluralize((Date.today.to_s(:number).to_i - candidate.dob.to_s(:number).to_i) / 10000,'year') rescue 'N/A'
                       %span.text-success
                 .os-progress-bar.primary
                   .bar-labels
-                    .bar-label-left
+                    .bar-label-left.font-weight-bold
                       %span Visa Status
                     .bar-label-right
-                      %span=do_ellipsis('H1B',15)
+                      %span=do_ellipsis(candidate.visas.last&.status,15)
                 .os-progress-bar.primary
                   .bar-labels
-                    .bar-label-left
+                    .bar-label-left.font-weight-bold
                       %span Current Location
                     .bar-label-right
-                      %span=do_ellipsis(candidate.address,15)
+                      %span=do_ellipsis(Candidate.last.criminal_check.last&.address&.split(",")&.drop(1)&.join(","), 16)
                 .os-progress-bar.primary
                   .bar-labels
-                    .bar-label-left
-                      %span Skyp ID
-                    .bar-label-right
-                      %span=do_ellipsis(candidate.skypeid,15)
-                .os-progress-bar.primary
-                  .bar-labels
-                    .bar-label-left
-                      %span Linkdin
-                    .bar-label-right
-                      %span=do_ellipsis(candidate.linkedin_url,15)
-                .os-progress-bar.primary
-                  .bar-labels
-                    .bar-label-left
+                    .bar-label-left.font-weight-bold
                       %span SSN(YES / NO)
                     .bar-label-right
                       %span= candidate.ssn.present? ? 'Yes' : 'No'
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left.font-weight-bold
+                      %span Relocation
+                    .bar-label-right
+                      %span= candidate.relocation ? 'Yes' : 'No'
+                %h6.my-4 Linked Information
+                %div.d-flex.justify-content-between.flex-wrap.w-100
+                  - if candidate.skypeid.present?
+                    .os-progress-bar.primary.w-50.justify-content-center
+                      .bar-labels
+                        .bar-label-left.font-weight-bold.d-flex.align-items-center
+                          %i.fi-social-skype
+                          %span.ml-2=do_ellipsis(candidate.skypeid, 15)
+
+                  - if candidate.facebook_url.present?
+                    .os-progress-bar.primary.w-50.justify-content-center
+                      .bar-labels
+                        %a{href: candidate.facebook_url, target: "_blank"}
+                          .bar-label-left.font-weight-bold.d-flex.align-items-center
+                            %i.fi-social-facebook
+                            %span.ml-2 Facebook
+
+                  - if candidate.gtalk_url.present?
+                    .os-progress-bar.primary.w-50.justify-content-center
+                      .bar-labels
+                        %a{href: candidate.gtalk_url, target: "_blank"}
+                          .bar-label-left.font-weight-bold.d-flex.align-items-center
+                            %i.fi-social-google-plus
+                            %span.ml-2 Google
+
+                  - if candidate.twitter_url.present?
+                    .os-progress-bar.primary.w-50.justify-content-center
+                      .bar-labels
+                        %a{href: candidate.twitter_url, target: "_blank"}
+                          .bar-label-left.font-weight-bold.d-flex.align-items-center
+                            %i.fi-social-twitter
+                            %span.ml-2 Twitter
+
+                  - if candidate.linkedin_url.present?
+                    .os-progress-bar.primary.w-50.justify-content-center
+                      .bar-labels
+                        %a{href: candidate.linkedin_url, target: "_blank"}
+                          .bar-label-left.font-weight-bold.d-flex.align-items-center
+                            %i.fi-social-linkedin
+                            %span.ml-2 Linkedin
 
         .element-wrapper
-          .element-box
-            %h4.element-header
-              Education
-            .padded
+          .element-box.px-4.py-3
+            %div.d-flex.justify-content-between.element-header.align-items-center
+              %h4.m-0
+                Education
+              %a.d-flex.justify-content-end{href: onboarding_profile_path}
+                %i.fi-pencil.pr-2
+                %span.bold
+                  Add new
+            %div
               - candidate.educations.each do |edu|
                 .os-progress-bar.primary
                   .bar-labels
                     .bar-label-left
-                      %span=edu.degree_level
-                    .bar-label-right
-                      %span=edu.degree_title
+                      %div
+                        %p.m-0="#{edu.degree_title&.capitalize} - #{edu.institute&.capitalize}"
+                      %div
+                        %p.m-0.text-muted=[edu.degree_level, edu.completion_year && ", Graduated #{edu.completion_year.year}"].join
 
         .element-wrapper
-          .element-box
-            %h4.element-header
-              Certification
-            .padded
+          .element-box.px-4.py-3
+            %div.d-flex.justify-content-between.element-header.align-items-center
+              %h4.m-0
+                Certification
+              %a.d-flex.justify-content-end{href: onboarding_profile_path}
+                %i.fi-pencil.pr-2
+                %span.bold
+                  Add new
+            %div
               - candidate.certificates.each do |cert|
-                .os-progress-bar.primary
+                .os-progress-bar
                   .bar-labels
                     .bar-label-left
-                      %span=cert.title
-                    .bar-label-right
-                      %span=cert.institute
+                      %div
+                        %p.m-0="#{cert.title} - #{cert.institute&.capitalize}"
+                      %div
+                        %p.m-0.text-muted="#{cert.start_date&.year} - #{cert.end_date&.year}"
         .element-wrapper
-          .element-box
-            %h4.element-header
-              Skills
+          .element-box.px-4.py-3
+            %div.d-flex.justify-content-between.element-header.align-items-center
+              %h4.m-0
+                Skills
+              %a.d-flex.justify-content-end{href: onboarding_profile_path}
+                %i.fi-pencil.pr-2
+                %span.bold
+                  Add new
             .element-info.border-0
               .element-info-text
                 - candidate.skill_list.each do |sl|
                   .badge.badge-primary.p-2.mb-1
                     =sl
-      .col-sm-8
+      .col-sm-8.col-xl-8
         .col-sm-12
           .element-wrapper
+            .element-box
+              .element-info
+                .element-info-with-icon
+                  .element-info-icon
+                    %i.icon-notebook
+                  .element-info-text
+                    %h4.element-inner-header Portfolio
+              %div.d-flex.w-100.justify-content-center
+                .portfolio-slick
+                  - if candidate.photo
+                    %div.slide-container
+                      %img{src: candidate.photo}
+                  - if candidate.video
+                    %div.slide-container
+                      %video{controls: true}
+                        %source{src: candidate.video}
             .element-box
               .element-info
                 .element-info-with-icon
@@ -217,11 +292,28 @@
                           %P
                             = link_to "Add New One", '/onboarding_profile?tag=skill'
 
+%script{:src => "https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"}
+%script{:src => "https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"}
 
+- content_for :head do
+  %link{:href => "https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.css", :rel => "stylesheet", :type => "text/css"}
+  %link{:href => "https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.5.8/slick-theme.min.css", :rel => "stylesheet", :type => "text/css"}
+
+- content_for :html_class, "overflow-hidden"
 :javascript
+  $('.portfolio-slick').slick({
+    infinite: true,
+    slidesToShow: 1,
+    dots:true,
+    arrows: true,
+    speed: 500,
+    fade: true,
+  });
+
   window.onscroll = function() {myFunction()};
   var navbar = document.getElementById("navbar");
   var sticky = navbar.offsetTop;
+
   function myFunction() {
     if (window.pageYOffset >= sticky) {
       navbar.classList.add("sticky")
@@ -229,6 +321,7 @@
       navbar.classList.remove("sticky");
     }
   }
+
   function candidateLogoUpload(url,type){
     photo_url = url
     $('.profile-pic').html('');
