@@ -8,11 +8,11 @@
     margin-left: 224px !important;
   }
 }
-  .icon-side-bar{
-
+  .cont-comany2{
+    margin-left: 0px !important;
   }
   .icon-side-bar{
-        display: block !important;
+        /* display: block !important; */
     }
   .togglebtncontainerinbox1
   {
@@ -30,6 +30,9 @@
   .chat-togle-css{
     display: none !important;
   }
+  .dis-no{
+    display:none !important;
+  }
   .icon-button-style1{
 
     height: 45px;
@@ -38,12 +41,13 @@
     border-radius: 50px;
     margin: 5px;
   }
+
     .hamburger-icon{
       display: block !important;
       padding-top: 15px;
       padding-left: 13px;
     }
-/* @media (min-width: 730px) */
+
 </style>
 <div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important;">
   <div class="icon-button-style ">
@@ -53,21 +57,29 @@
   </div>
 </div>
 
-<!--<div id="togglebutton" onclick="toglleMenu()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">-->
-<!--  <div class="os-icon os-icon-hamburger-menu-1"></div>-->
-<!--</div>-->
-
 
 <script>
+
+//       (()=>{
+// debugger
+        
+//         if (window.location.pathname == "/candidate/conversations")
+//       {
+// const r=      $("#candidate_panel").addClass('cont-comany2');
+// debugger
+//        console.log(window.location.pathname.toString())
+//       }})()
+    
     function toglleMenu() {
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
       $(".icon-button-style1").removeClass('chat-togle-css');
        $("#togglebutton").removeClass('togglebtncontainerinbox');
-      //$("#side-bar").hide()
 
-        $(".cont-comany2").addClass('margin_class');
-        console.log("add class")
+      $("#side-bar").addClass('dis-no')
+        
+        $(".cont-comany").addClass('margin_class');
+        $(".cont-comany").removeClass('cont-comany2');
 
     }
     function toglleMenu1() {
@@ -75,12 +87,12 @@
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
 
         $("#togglebutton").addClass('togglebtncontainerinbox');
-
+       $("#side-bar").removeClass('dis-no')
         $(".icon-button-style1").removeClass('chat-togle-css');
+$(".cont-comany").addClass('cont-comany2');
 
+        $(".cont-comany").removeClass('margin_class');
 
-        $(".cont-comany2").removeClass('margin_class');
-        console.log("remove class")
     }
 </script>
 
