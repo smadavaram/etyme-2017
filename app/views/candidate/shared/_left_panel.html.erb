@@ -4,7 +4,45 @@
     position: fixed;
     width: 224px;
   }
+  .margin_class{
+    margin-left: 224px !important;
+  }
 }
+  .icon-side-bar{
+
+  }
+  .icon-side-bar{
+        display: block !important;
+    }
+  .togglebtncontainerinbox1
+  {
+
+    position: absolute;
+    cursor: pointer;
+    z-index: 999999;
+    height: 50px;
+    width: 50px;
+    color: #ffffff;
+    border-radius: 6px;
+    justify-content: center;
+    align-items: center;
+  }
+  .chat-togle-css{
+    display: none !important;
+  }
+  .icon-button-style1{
+
+    height: 45px;
+    width: 45px;
+    background-color: #047BF8;
+    border-radius: 50px;
+    margin: 5px;
+  }
+    .hamburger-icon{
+      display: block !important;
+      padding-top: 15px;
+      padding-left: 13px;
+    }
 /* @media (min-width: 730px) */
 </style>
 <div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important;">
@@ -18,13 +56,38 @@
 <!--<div id="togglebutton" onclick="toglleMenu()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">-->
 <!--  <div class="os-icon os-icon-hamburger-menu-1"></div>-->
 <!--</div>-->
+
+
 <script>
     function toglleMenu() {
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
-        // $("#side-bar").hide();
+      $(".icon-button-style1").removeClass('chat-togle-css');
+       $("#togglebutton").removeClass('togglebtncontainerinbox');
+      //$("#side-bar").hide()
+
+        $(".cont-comany2").addClass('margin_class');
+        console.log("add class")
+
+    }
+    function toglleMenu1() {
+        var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
+        document.querySelector('#togglebutton').classList.toggle('rightChanged');
+
+        $("#togglebutton").addClass('togglebtncontainerinbox');
+
+        $(".icon-button-style1").removeClass('chat-togle-css');
+
+
+        $(".cont-comany2").removeClass('margin_class');
+        console.log("remove class")
     }
 </script>
+
+
+
+
+
 <div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
   <div class="logged-user-w avatar-inline p-1 m-1">
     <div class="logged-user-i">
@@ -42,6 +105,11 @@
           <% end %>
         </div>
         <!--div class="logged-user-role">My Team</div-->
+      </div>
+      <div class="icon-button-style1 chat-togle-css" >
+        <div id="togglebutton" onclick="toglleMenu1()" class="<%= is_inbox_path ? 'togglebtncontainerinbox1' : 'togglebtncontainer' %>">
+          <div class="os-icon os-icon-hamburger-menu-1 hamburger-icon"></div>
+        </div>
       </div>
     </div>
   </div>
