@@ -3,10 +3,19 @@
 class Designation < ActiveRecord::Base
   delegate :url_helpers, to: 'Rails.application.routes'
   after_create :notify_recruiter
+  scope :with_no_client,-> { where(client_id: nil) }
 
   belongs_to :candidate
   belongs_to :client, optional: true
+  has_many :portfolios, as: :portfolioable, dependent: :destroy
+
   enum confirmation: %i[unverified verified notified not_found]
+
+  accepts_nested_attributes_for :portfolios, reject_if: :all_blank, allow_destroy: true
+
+  def formatted_date
+    [start_date&.strftime('%B-%Y'), end_date&.strftime('%B-%Y')].join("-")
+  end
 
   def notify_recruiter
     recruiter = User.find_by_email(recruiter_email)

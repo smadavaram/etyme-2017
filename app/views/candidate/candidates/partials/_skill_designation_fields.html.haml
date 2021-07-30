@@ -2,6 +2,7 @@
   .row
     = f.hidden_field :client_id
     = f.hidden_field :candidate_id,value: current_candidate.id
+    = f.hidden_field :_destroy, class: "destroy_client_employer"
     .col-md-6
       .form-group
         %label Company Name

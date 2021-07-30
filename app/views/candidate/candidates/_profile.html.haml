@@ -171,14 +171,17 @@
                 %span.bold
                   Add new
             %div
-              - candidate.educations.each do |edu|
-                .os-progress-bar.primary
-                  .bar-labels
-                    .bar-label-left
-                      %div
-                        %p.m-0="#{edu.degree_title&.capitalize} - #{edu.institute&.capitalize}"
-                      %div
-                        %p.m-0.text-muted=[edu.degree_level, edu.completion_year && ", Graduated #{edu.completion_year.year}"].join
+              - if candidate.educations.count == 0
+                .gray-600 Add your Education
+              - else
+                - candidate.educations.each do |edu|
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %div
+                          %p.m-0="#{edu.degree_title&.capitalize} - #{edu.institute&.capitalize}"
+                        %div
+                          %p.m-0.text-muted=[edu.degree_level, edu.completion_year && ", Graduated #{edu.completion_year.year}"].join
 
         .element-wrapper
           .element-box.px-4.py-3
@@ -190,14 +193,18 @@
                 %span.bold
                   Add new
             %div
-              - candidate.certificates.each do |cert|
-                .os-progress-bar
-                  .bar-labels
-                    .bar-label-left
-                      %div
-                        %p.m-0="#{cert.title} - #{cert.institute&.capitalize}"
-                      %div
-                        %p.m-0.text-muted="#{cert.start_date&.year} - #{cert.end_date&.year}"
+
+              - if candidate.certificates.count == 0
+                .gray-600 Add your Certifications
+              - else
+                - candidate.certificates.each do |cert|
+                  .os-progress-bar
+                    .bar-labels
+                      .bar-label-left
+                        %div
+                          %p.m-0="#{cert.title} - #{cert.institute&.capitalize}"
+                        %div
+                          %p.m-0.text-muted="#{cert.start_date&.year} - #{cert.end_date&.year}"
         .element-wrapper
           .element-box.px-4.py-3
             %div.d-flex.justify-content-between.element-header.align-items-center
@@ -223,14 +230,38 @@
                   .element-info-text
                     %h4.element-inner-header Portfolio
               %div.d-flex.w-100.justify-content-center
-                .portfolio-slick
-                  - if candidate.photo
-                    %div.slide-container
-                      %img{src: candidate.photo}
-                  - if candidate.video
-                    %div.slide-container
-                      %video{controls: true}
-                        %source{src: candidate.video}
+                - if candidate.full_portfolios.present?
+                  .portfolio-slick
+                    - candidate.portfolios.each do |portfolio|
+                      - if url_image?(portfolio.cover_photo)
+                        %div.slide-container
+                          %img{src: portfolio.cover_photo}
+                      - if url_video?(portfolio.cover_photo)
+                        %div.slide-container
+                          %video{controls: true}
+                            %source{src: portfolio.cover_photo}
+                    - candidate.clients.each do |client|
+                      - client.portfolios.each do |portfolio|
+                        - if url_image?(portfolio.cover_photo)
+                          %div.slide-container
+                            %img{src: portfolio.cover_photo}
+                        - if url_video?(portfolio.cover_photo)
+                          %div.slide-container
+                            %video{controls: true}
+                              %source{src: portfolio.cover_photo}
+                    - candidate.designations.with_no_client.each do |client|
+                      - client.portfolios.each do |portfolio|
+                        - if url_image?(portfolio.cover_photo)
+                          %div.slide-container
+                            %img{src: portfolio.cover_photo}
+                        - if url_video?(portfolio.cover_photo)
+                          %div.slide-container
+                            %video{controls: true}
+                              %source{src: portfolio.cover_photo}
+                - else
+                  %div.w-100.pv-4.d-flex.justify-content-center
+                    %strong
+                      No portfolios
             .element-box
               .element-info
                 .element-info-with-icon
@@ -239,16 +270,21 @@
                   .element-info-text
                     %h4.element-inner-header Project History
               - if candidate.designations.present? || (candidate.ever_worked_with_company && candidate.clients.present?)
-                - candidate.designations.each do |c|
-                  - unless c.comp_name && c.company_role
-                    .element-info
-                      .element-info-text
-                        .mb-2
-                          %div
-                            %h5.mb-1.text-primary #{c.comp_name}
-                            %span.mb-1.h6.d-block.text-secondary=  "As #{c.company_role}" if c.company_role.present?
-                            %strong.font-weight-bold.font-sm.text-capitalize
-                              ="#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?}  #{c.end_date&.strftime('%B-%Y')}"
+                - candidate.designations.with_no_client.each do |c|
+                  .element-info
+                    .element-info-text
+                      .mb-2
+                        %div
+                          %h5.mb-1.text-primary #{c.comp_name}
+                          %span.mb-1.h6.d-block.text-secondary=  "As #{c.company_role}" if c.company_role.present?
+                          %strong.font-weight-bold.font-sm.text-capitalize
+                            ="#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?}  #{c.end_date&.strftime('%B-%Y')}"
+                          - if c.recruiter_name.present?
+                            %div
+                              %strong Recruiter
+                              .element-inner-desc
+                                %strong=c.recruiter_name
+
                 - candidate.clients.each do |c|
                   .element-info
                     .element-info-text
@@ -260,6 +296,10 @@
                             = "#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?} #{c.end_date&.strftime('%B-%Y')}"
                         .element-inner-desc
                           %P.m-0
+                            %strong Industry
+                            = c.industry
+                        .element-inner-desc
+                          %P.m-0
                             %strong Project Description
                             = c.project_description
                         .element-inner-desc
@@ -267,12 +307,17 @@
                             %strong Role(s)
                             = c.role
                         %strong Reference
-                        - if c.candidate == current_candidate and !c.refrence_one.present?
-                          -# = render 'candidate/candidates/partials/update_ref_one', client: c
-                        - else
+                        .element-inner-desc.pl-2
+                          %p.m-0
+                            %strong=c&.refrence_name&.capitalize
+                        .element-inner-desc.pl-2
+                          %p.m-0
+                            %strong=c&.refrence_two_name&.capitalize
+                        - if c.designation.present?
                           .element-inner-desc.pl-2
                             %p.m-0
-                              = "<strong>#{c&.refrence_name&.capitalize}</strong> endorse <strong>#{c.candidate.full_name}</strong> and their roles and responsibilities for the PROJECT".html_safe
+                              %strong="Recruiter: #{c&.designation&.recruiter_name&.capitalize}"
+
                         -#%strong Reference
                         -#- if c.candidate == current_candidate and !c.refrence_two.present?
                         -#  = render 'candidate/candidates/partials/update_ref_two', client: c
@@ -299,7 +344,6 @@
   %link{:href => "https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.css", :rel => "stylesheet", :type => "text/css"}
   %link{:href => "https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.5.8/slick-theme.min.css", :rel => "stylesheet", :type => "text/css"}
 
-- content_for :html_class, "overflow-hidden"
 :javascript
   $('.portfolio-slick').slick({
     infinite: true,
@@ -337,3 +381,4 @@
      }
    });
   }
+

@@ -59,7 +59,6 @@ gem 'rails-jquery-autocomplete'
 #gem 'rails_12factor', group: :production
 
 gem 'acts-as-taggable-on' # , '~> 4.0'
-gem 'mailgun-ruby', '~>1.1.6'
 gem 'will_paginate' # , '~> 3.1'
 
 gem 'bootstrap_form'
@@ -94,6 +93,8 @@ gem 'miro'
 gem 'seed_dump'
 gem 'better_errors' # , '~> 1.1.0'
 
+gem 'rating', '~> 0.11.0'
+
 group :development do
   gem 'rubocop', '~> 0.78.0', require: false
   gem 'rubocop-performance'
@@ -101,6 +102,7 @@ group :development do
 end
 
 group :development, :test do
+  gem 'mailgun-ruby', '~>1.1.6'
   gem 'annotate' # , '~> 2.7'
   gem 'bcrypt_pbkdf', '< 2.0'
   # gem 'better_errors' # , '~> 1.1.0'
@@ -133,7 +135,7 @@ group :development, :test do
   gem 'capistrano-rails'
 end
 
-gem 'mini_racer' # changed from therubyracer, since Bullettrain (or one of its dependencies) requires mini_racer
+# gem 'mini_racer' # changed from therubyracer, since Bullettrain (or one of its dependencies) requires mini_racer
 gem 'redis', '~> 3.3.3'
 gem 'select2-rails', '~> 3.5.9.1'
 

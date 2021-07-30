@@ -331,7 +331,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def candidate_params
-    params.require(:candidate).permit(:first_name, :last_name, :invited_by, :ssn, :passport_number, :relocation, :visa_type, :job_id, :description, :last_nam, :dob, :email, :phone, :visa, :skill_list, :designate_list, :primary_address_id, :category, :subcategory, :dept_name, :industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status, :facebook_url, :twitter_url, :linkedin_url, :gtalk_url, :skypeid, :address,
+    params.require(:candidate).permit(:first_name, :last_name, :invited_by, :ssn, :passport_number, :relocation, :visa_type, :job_id, :description, :last_nam, :dob, :email, :phone_country_code, :phone, :visa, :skill_list, :designate_list, :primary_address_id, :category, :subcategory, :dept_name, :industry_name, :selected_from_resume, :ever_worked_with_company, :designation_status, :facebook_url, :twitter_url, :linkedin_url, :gtalk_url, :skypeid, :address,
                                       addresses_attributes: %i[id address_1 address_2 country city state zip_code from_date to_date _destroy],
                                       educations_attributes: [:id, :degree_level, :degree_title, :grade, :completion_year, :start_year, :institute, :description, :_destroy,
                                                               candidate_education_documents_attributes: %i[
@@ -342,11 +342,14 @@ class Candidate::CandidatesController < Candidate::BaseController
                                                                   id certificate_id title file exp_date _destroy
                                                                 ]],
                                       clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email, :refrence_two_name, :refrence_two_phone, :refrence_two_email, :_destroy,
-                                                           designation_attributes: %i[id comp_name client_id candidate_id recruiter_name recruiter_phone recruiter_email start_date end_date status company_role _destroy]],
+                                                           designation_attributes: %i[id comp_name client_id candidate_id recruiter_name recruiter_phone recruiter_email start_date end_date status company_role _destroy],
+                                                           portfolios_attributes: %i[id name description cover_photo _destroy]],
+                                      portfolios_attributes: %i[id name description cover_photo _destroy],
                                       documents_attributes: %i[id candidate_id title file exp_date is_education is_legal_doc _destroy],
                                       legal_documents_attributes: %i[id candidate_id document_number start_date title file exp_date _destroy],
                                       criminal_check_attributes: %i[id candidate_id state address start_date end_date _destroy],
                                       visas_attributes: %i[id candidate_id title file visa_number start_date exp_date status _destroy],
-                                      designations_attributes: %i[id comp_name recruiter_name recruiter_phone recruiter_email start_date end_date status company_role _destroy])
+                                      designations_attributes: [:id, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_email, :start_date, :end_date, :status, :company_role, :_destroy,
+                                                                portfolios_attributes: %i[id name description cover_photo _destroy]])
   end
 end
