@@ -22,7 +22,7 @@
   <div class="col-12 col-sm-10 col-md-10 col-lg-10" >
     <div class="row branch-out-content" style="justify-content: flex-start">
       <div>
-        <button type="button" class="btn1-style" >Main</button>
+        <button type="button" class="btn1-style" onclick="btnClick1()">Main</button>
       </div>
       <div id="myDIV" style="display:none; ">
         <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
@@ -36,7 +36,10 @@
       <% $the_array.push(opt_obj[:branchout]) if opt_obj[:branchout].present? && !($the_array.include? opt_obj[:branchout])%>
         <% $the_array.each do |i| %>
           <div>
-            <button type="button" class="btn1-style" onclick="btnClick1()"><%= i %></button>
+            <button id="branchout-button" class="btn1-style">
+              <span  class="button-text" onclick="btnClick1()" ><%= i %></span>
+              <button type="button" class="minus-button" onclick="remove(this)"><i class="fa fa-minus"></i></button>
+            </button>
             <%= hidden_field_tag 'group_id', opt_obj.id  %>
             <%= hidden_field_tag 'branch_chat_name', i  %>
           </div>
@@ -221,6 +224,10 @@
           form_id = $(".chat_form").attr('id')
           $('#'+form_id).submit()
       });
+
+      function remove(elem){
+          elem.parentNode.remove(elem);
+      }
 
   </script>
 <% end %>
