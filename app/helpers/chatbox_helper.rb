@@ -10,6 +10,8 @@ module ChatboxHelper
       'SellContract'
     elsif conversation.buy_contract.present?
       'BuyContract'
+    elsif params[:utype] == "User"
+      'Proposal'
     else
       'Personal'
     end

@@ -33,11 +33,11 @@
         <div class="row">
             <%= render 'static/shared/webflow_header' %>
             <div class="col-12 content-main">
-                <div class="tab-content pt-4">
+                <div class="tab-content">
                     <div class="tab-pane fade show active">
                         <div class="row">
                             <div class="col-12 col-xl-9 feed-main">
-                                <div class="row mx-1 align-items-stretch">
+                                <div class="row mx-1 align-items-stretch mt-3">
                                     <% if @candidates.present? %>
                                     <% @candidates.each_with_index do |c , index| %>
                                     <div class="col-12 col-xl-4 mb-4">
@@ -91,14 +91,8 @@
                                                        <%@c_candidate_obj = Candidate.find_by(id: @c_candidate)%>
                                                        <% @c_recruiter = User.find_by(id: @c_candidate_obj&.recruiter_id)%>
                                                     <div class="logged-user-role d-block">
-                                                        <%if @c_recruiter.present?%>
+                                                        <%if @c_recruiter.present? && current_user != @c_recruiter%>
                                                           <%= contact_widget_recuirter(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') %>
-                                                        <%else%>
-                                                          <%if @c_candidate_obj.photo.present?%>
-                                                            <%= link_to(image_tag(@c_candidate_obj.photo, :class => "imag_css"), "/company/conversations") %>
-                                                          <%else%>
-                                                            <%= link_to(image_tag("avatars/male.png", :class => "imag_css"), "/company/conversations") %>
-                                                          <%end%>
                                                         <%end%>
                                                     </div>
                                                 </div>

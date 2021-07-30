@@ -2,7 +2,7 @@
 <!--new htmml -->
 <style scoped>
     .icon-side-bar{
-        display: block !important;
+        /* display: block !important; */
     }
     @media only screen and (max-width: 600px) {
         .mobile-icon-side-bar-can {
@@ -172,6 +172,15 @@
 
 <% content_for :scripts do %>
   <script>
+
+      (()=>{   
+        if (window.location.pathname == "/candidate/conversations")
+      {
+         $("#candidate_panel").addClass('cont-comany2');
+       console.log(window.location.pathname.toString())
+      }})()
+    
+    
       $(document).ready(function () {
           $.ajax({
               url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",

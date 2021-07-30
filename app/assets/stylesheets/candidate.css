@@ -57,6 +57,8 @@
  *= require slick-carousel/slick/slick
  *= require candidate/dashboard
  *= require candidate_chat_custom
+ *= require candidate/profile
+
  */
 .icon-text{
     font-size: 12px;
