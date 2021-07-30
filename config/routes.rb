@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
-  
+
   concern :commentable do
     resources :comments
   end
@@ -15,7 +15,7 @@ Rails.application.routes.draw do
   resources :articles, concerns: %i[commentable image_attachable]
 
   resources :charges
-  
+
   post 'add-coupon', to: 'charges#add_coupon',as: 'add_coupon'
   get '/company/conversation/chat_members', to: 'company/conversations#chat_members'
   get '/company/conversation/chat_candidates', to: 'company/conversations#chat_candidates'
@@ -356,6 +356,7 @@ Rails.application.routes.draw do
     resources :candidates do
       member do
         get :profile
+        get :impersonate
         post :company_candidate, as: :make
         post :request_for_more_information
       end
@@ -875,8 +876,8 @@ Rails.application.routes.draw do
   get 'company/contracts/:id/add_reminder', to: 'company/contracts#add_reminder', as: :contract_add_reminder
 
   post 'api/company/', to: 'api/company/companies#create_custom_company'
-  
-  
+
+
   devise_for :admin_users, ActiveAdmin::Devise.config
   ActiveAdmin.routes(self)
 

@@ -15,7 +15,7 @@
             .row
               .col-sm-12{style: "display: flex;justify-content: space-evenly;"}
                 =contact_widget_user(current_company.owner) if current_company.owner.present?
-                    
+
             .up-contents
               .m-b
                 .row.m-b
@@ -33,7 +33,7 @@
                           = current_company.company_contacts.count
                         .label
                           contacts
-                     
+
                 .padded
                   .os-progress-bar.primary
                     .bar-labels
