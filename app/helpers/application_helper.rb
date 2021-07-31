@@ -95,7 +95,7 @@ module ApplicationHelper
   end
 
   def mask(string, all_but = 4, char = '#')
-    string.gsub(/.(?=.{#{all_but}})/, char)
+    string.gsub(/.(?=.{#{all_but}})/, char) if string.present?
   end
 
   def user_age(dob)
