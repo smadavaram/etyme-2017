@@ -7,7 +7,7 @@
       .row
         .col-sm-1
           .form-group
-            %input#country_code.form-control.input-lg{:type => "text", :value=>"+44"}/
+            = f.text_field :phone_country_code, {:placeholder => "+00", :type => "text", :class => "country_code form-control input-lg", :id => "country_code"}
 
         .col-sm-6
           .form-group
@@ -15,7 +15,7 @@
               .input-group-prepend
                 .input-group-text
                   %i.fa.fa-mobile-phone.fa-lg.fa-fw
-              =f.text_field :phone, {:placeholder => "Enter Phone number", :type => "text", :class => "form-control input-lg", :id => "phone_no"}
+              = f.text_field :phone, {:placeholder => "Enter Phone number", :type => "text", :class => "form-control input-lg", :id => "phone_no"}
 
         .col-sm-4
           .form-group
