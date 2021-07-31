@@ -4,7 +4,8 @@ class Client < ActiveRecord::Base
   belongs_to :candidate
   has_one :designation, dependent: :destroy
 
-  before_save :send_reference_mail
+  # TODO: Not working. Clue: Slugs should be generated in a a before and the emai in an after
+  # before_save :send_reference_mail
 
   accepts_nested_attributes_for :designation, reject_if: :all_blank, allow_destroy: true
 

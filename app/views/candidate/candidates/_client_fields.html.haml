@@ -3,7 +3,7 @@
     .col-sm-4
       .form-group
         %label Name
-        = f.text_field :name, placeholder: "Client Name", class: 'form-control input'
+        = f.text_field :name, placeholder: "Company Name", class: 'form-control input'
   .row
     .col-sm-4
       .form-group
@@ -12,42 +12,48 @@
     .col-sm-4
       .form-group
         %label Start Date
-        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date cl_start_year input'
+        = f.text_field :start_date, placeholder: "YYYY-MM-DD",class: 'form-control p_date cl_start_year input'
     .col-sm-4
       .form-group
         %label End Date
-        = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
+        = f.text_field :end_date, placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
+  .row
+    .col-sm-12
+      %strong Main Reference
   .row
     .col-sm-4
       .form-group
-        %label Reference name
-        = f.text_field :refrence_name,placeholder: "Jhon Doe",class: 'form-control input'
+        %label Name
+        = f.text_field :refrence_name, placeholder: "Jhon Doe",class: 'form-control input'
     .col-sm-4
       .form-group
         %label  Phone
-        = f.text_field :refrence_phone, class: 'form-control input'
+        = f.text_field :refrence_phone, placeholder: '555-5555', class: 'form-control input'
     %div{class: f.object.refrence_one ? "col-sm-3" : "col-sm-4"}
       .form-group
         %label  Email
-        = f.text_field :refrence_email,placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_one ? 'Verified' :'Not Verified Yet'
+        = f.text_field :refrence_email, placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_one ? 'Verified' :'Not Verified Yet'
     - if f.object.refrence_one
       .col-sm-1
         %h3.text-success.mt-4
           -#%strong
           %i.fa.fa-check
   .row
+    .col-sm-12
+      %strong Second Reference
+  .row
     .col-sm-4
       .form-group
-        %label Reference name
-        = f.text_field :refrence_two_name,placeholder: "Jhon Doe",class: 'form-control input'
+        %label Name
+        = f.text_field :refrence_two_name, placeholder: "Jhon Doe",class: 'form-control input'
     .col-sm-4
       .form-group
         %label  Phone
-        = f.text_field :refrence_two_phone, class: 'form-control input'
+        = f.text_field :refrence_two_phone, placeholder: '555-5555', class: 'form-control input'
     %div{class: f.object.refrence_two ? "col-sm-3" : "col-sm-4"}
       .form-group
         %label  Email
-        = f.text_field :refrence_two_email,placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_two ? 'Verified' :'Not Verified Yet'
+        = f.text_field :refrence_two_email, placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_two ? 'Verified' :'Not Verified Yet'
     - if f.object.refrence_two
       .col-sm-1
         %h3.text-success.mt-4
@@ -84,4 +90,3 @@
         $('#link_'+e.id).hide()
       }
     }
-
