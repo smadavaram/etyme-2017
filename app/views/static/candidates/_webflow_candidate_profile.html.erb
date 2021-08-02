@@ -190,11 +190,8 @@
           Add as Candidate
         </a>
 
-
-        <a href="#" class="profile-button-chat">
-          <i class="fa fa-commenting mr-2" aria-hidden="true"></i> Chat
-          <% @c_recruiter = User.find_by(id: @candidate.recruiter_id)%>
-            <div class="logged-user-role d-block">
+        <div>         
+        <% @c_recruiter = User.find_by(id: @candidate.recruiter_id)%>
                 <%if @c_recruiter.present? && current_user != @c_recruiter%>
 
                   <%= contact_widget_recuirter_profile(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') %>
@@ -202,8 +199,19 @@
 
                   <%= contact_widget_recuirter_profile(@candidate.email, @candidate.phone,@candidate,chat_link: chat_link(@candidate),color: '#3E4B5B; !important') %>
                 <%end%>
-            </div>
-        </a>
+                
+        </div>
+
+        <%
+=begin%>
+ <a href="#" class="profile-button-chat">
+          <i class="fa fa-commenting mr-2" aria-hidden="true"></i> Chat
+                    
+
+        </a> 
+<%
+=end%>
+
 
 
 
