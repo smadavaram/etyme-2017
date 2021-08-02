@@ -1,3 +1,4 @@
+<%= stylesheet_link_tag "mycompany" %>
 <div class="webflow-profile row">
   <div class="webflow-profile-left col-12 col-xl-4">
     <div class="webflow-profile-inner">
@@ -188,9 +189,24 @@
         <a href="#" class="profile-button-add">
           Add as Candidate
         </a>
+
+
         <a href="#" class="profile-button-chat">
           <i class="fa fa-commenting mr-2" aria-hidden="true"></i> Chat
+          <% @c_recruiter = User.find_by(id: @candidate.recruiter_id)%>
+            <div class="logged-user-role d-block">
+                <%if @c_recruiter.present? && current_user != @c_recruiter%>
+
+                  <%= contact_widget_recuirter_profile(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') %>
+                <%else%>
+
+                  <%= contact_widget_recuirter_profile(@candidate.email, @candidate.phone,@candidate,chat_link: chat_link(@candidate),color: '#3E4B5B; !important') %>
+                <%end%>
+            </div>
         </a>
+
+
+
       </div>
       <div class="profile-links">
         <a href="#" class="profile-link-share">
