@@ -11,6 +11,10 @@ class Client < ActiveRecord::Base
   accepts_nested_attributes_for :designation, reject_if: :all_blank, allow_destroy: true
   accepts_nested_attributes_for :portfolios, reject_if: :all_blank, allow_destroy: true
 
+  def formatted_date
+    [start_date&.strftime('%B-%Y'), end_date&.strftime('%B-%Y')].join("-")
+  end
+
   def send_reference_mail
     if !refrence_one.present? && refrence_email_changed?
       self.slug_one = SecureRandom.hex(5)

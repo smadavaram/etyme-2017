@@ -151,6 +151,11 @@ class Candidate < ApplicationRecord
     designations.map { |c| (c.end_date - c.start_date).to_i if c.start_date && c.end_date }.compact.sum
   end
 
+
+  def full_experiences
+    [clients, designates].flat_map
+  end
+
   def max_skill_size
     errors[:skill_list] << '8 skills maximum' if skill_list.count > 8
   end

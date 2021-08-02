@@ -321,25 +321,94 @@
       <div class="d-flex justify-content-between mb-30">
         <div class="f-16 w-500 l-19 c-80">Experience</div>
       </div>
-      <% if candidate.experiences.blank? %>
+      <% if full_experiences.empty? %>
         No Experience
       <% end %>
-      <% candidate.experiences.each do |experience| %>
-      <div class="mb-20">
-        <div class="f-14 l-17 c-80 mb-2">
-          <%= experience.experience_title %>
-        </div>
-        <div class="d-flex f-12 l-14">
-          <div class="c-50 mr-12">
-            <%= experience.institute %>
+      <% candidate.clients.each do |client| %>
+        <div class="element-info">
+          <div class="element-info-text">
+            <div class="mb-2">
+              <div>
+                <h5 class="mb-1 text-primary">#{client.name}</h5>
+                <span class="mb-1 h6 d-block text-secondary">
+                  <%= "At #{client.industry}" if client.industry.present? %>
+                </span>
+                <strong class="font-weight-bold font-sm text-capitalize">
+                  <%= client.formatted_date %>
+                </strong>
+              </div>
+              <div class="element-inner-desc">
+                <P class="m-0">
+                  <strong>Industry</strong>
+                  <%= client.industry %>
+                </P>
+              </div>
+              <div class="element-inner-desc">
+                <P class="m-0">
+                  <strong>Project Description</strong>
+                  <%= client.project_description %>
+                </P>
+              </div>
+              <div class="element-inner-desc">
+                <P>
+                  <strong>Role(s)</strong>
+                  <%= client.role %>
+                </P>
+              </div>
+              <strong>Reference</strong>
+              <div class="element-inner-desc pl-2">
+                <p class="m-0">
+                  <strong>
+                    <%= client&.refrence_name&.capitalize %>
+                  </strong>
+                </p>
+              </div>
+              <div class="element-inner-desc pl-2">
+                <p class="m-0">
+                  <strong>
+                    <%= client&.refrence_two_name&.capitalize %>
+                  </strong>
+                </p>
+              </div>
+              <% if client.designation.present? %>
+                <div class="element-inner-desc pl-2">
+                  <p class="m-0">
+                    <strong>
+                      <%= "Recruiter: #{client&.designation&.recruiter_name&.capitalize}" %>
+                    </strong>
+                  </p>
+                </div>
+              <% end %>
+            </div>
           </div>
-          <div class="c-35">
-            From <%= experience.start_date %> to <%= experience.end_date %>
-          </div>
         </div>
-      </div>
       <% end %>
     </div>
+
+    <%# <!-- Project Experience --> %>
+    <%# <div class="webflow-profile-inner"> %>
+    <%#   <div class="d-flex justify-content-between mb-30"> %>
+    <%#     <div class="f-16 w-500 l-19 c-80">Experience</div> %>
+    <%#   </div> %>
+    <%#   <% if candidate.experiences.blank? %1> %>
+    <%#     No Experience %>
+    <%#   <% end %1> %>
+    <%#   <% candidate.experiences.each do |experience| %1> %>
+    <%#   <div class="mb-20"> %>
+    <%#     <div class="f-14 l-17 c-80 mb-2"> %>
+    <%#       <%= experience.experience_title %1> %>
+    <%#     </div> %>
+    <%#     <div class="d-flex f-12 l-14"> %>
+    <%#       <div class="c-50 mr-12"> %>
+    <%#         <%= experience.institute %1> %>
+    <%#       </div> %>
+    <%#       <div class="c-35"> %>
+    <%#         From <%= experience.start_date %1> to <%= experience.end_date %1> %>
+    <%#       </div> %>
+    <%#     </div> %>
+    <%#   </div> %>
+    <%#   <% end %1> %>
+    <%# </div> %>
 
     <!-- Reviews -->
     <div class="webflow-profile-inner webflow-comments col-12">
