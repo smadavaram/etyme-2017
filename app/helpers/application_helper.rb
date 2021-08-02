@@ -57,9 +57,9 @@ module ApplicationHelper
   
    def chat_remote_link_recruiter_profile(options)
     if options[:remote_false]
-      link_to(image_tag("reply.svg", :class => "img-fluid mr-2").html_safe, options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
+      link_to("<div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div>".html_safe, options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
     else
-      link_to(image_tag("reply.svg", :class => "img-fluid mr-2").html_safe, options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons')
+      link_to("<div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div>".html_safe, options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons')
     end
   end
 
