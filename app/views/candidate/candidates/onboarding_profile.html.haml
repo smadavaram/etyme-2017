@@ -468,16 +468,8 @@
     })
     $(document).on("click", "#candidate_ever_worked_with_company_no", function(){
       $(".client_information_main_div").hide();
+      $(".client-fields:not(:first) .remove_fields").trigger("click");
     })
-
-
-
-
-
-
-
-
-
 
     if("#{current_candidate.ever_worked_with_company}" == "Yes")
     {
@@ -491,10 +483,12 @@
     })
     $("#candidate_ever_worked_with_company_no").on("click", function(){
       $(".client_information_main_div").hide();
+      $(".client-fields:not(:first) .remove_fields").trigger("click");
     })
 
     $(document).ready(function () {
       addressLookup();
+
     });
 
     function addressLookup() {

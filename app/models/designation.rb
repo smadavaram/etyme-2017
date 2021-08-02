@@ -3,6 +3,7 @@
 class Designation < ActiveRecord::Base
   delegate :url_helpers, to: 'Rails.application.routes'
   after_create :notify_recruiter
+  scope :with_no_client,-> { where(client_id: nil) }
 
   belongs_to :candidate
   belongs_to :client, optional: true
