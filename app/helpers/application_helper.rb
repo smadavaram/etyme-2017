@@ -42,11 +42,11 @@ module ApplicationHelper
     if options[:remote_false]
       (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
       link_to(image_tag(profile_photo, :class => "imag_css"), options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
-    else      
+    else
       (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
-      link_to(image_tag(profile_photo, :class => "imag_css"), options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons') 
+      link_to(image_tag(profile_photo, :class => "imag_css"), options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons')
     end
-    
+
 # if user.photo&.present?
 #       image_tag(user.photo, alt: image_alt(user), class: 'figure-img img-fluid rounded-circle').html_safe
 #     else
@@ -101,6 +101,14 @@ module ApplicationHelper
   def user_age(dob)
     now = Time.now.utc.to_date
     now.year - dob.year - ((now.month > dob.month || (now.month == dob.month && now.day >= dob.day)) ? 0 : 1)
+  end
+
+  def rate_author(rate)
+    rate.author_type.constantize.find(rate.author_id)
+  end
+
+  def rating_starts(value, additional_classes='')
+    range_field_tag "rating", value, max: 5, step: 0.5, class: "rating #{additional_classes}", style: "--value:#{value}; cursor: auto;", disabled: true
   end
 
   private

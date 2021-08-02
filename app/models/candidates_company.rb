@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class CandidatesCompany < ApplicationRecord
+  rating
+
   enum status: %i[normal hot_candidate]
   # enum candidate_status: %i[pending accept reject]
 

@@ -1,0 +1,2 @@
+class RatingCategory < ApplicationRecord
+end

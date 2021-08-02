@@ -94,6 +94,8 @@ gem 'miro'
 gem 'seed_dump'
 gem 'better_errors' # , '~> 1.1.0'
 
+gem 'rating', '~> 0.11.0'
+
 group :development do
   gem 'rubocop', '~> 0.78.0', require: false
   gem 'rubocop-performance'
