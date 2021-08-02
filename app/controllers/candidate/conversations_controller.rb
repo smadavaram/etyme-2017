@@ -2,7 +2,7 @@
 
 class Candidate::ConversationsController < Candidate::BaseController
   add_breadcrumb 'DashBoard', :candidate_candidate_dashboard_path
-
+  $the_array1 = []
   def index
     add_breadcrumb 'Inbox'
 
