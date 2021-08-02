@@ -2,8 +2,8 @@
     <%= stylesheet_link_tag "mycompany" %>
     <style>
     .imag_css{
-    height: 20px;
-    width: 20px;
+    height: 17px;
+    width: 17px;
     margin-right: 5px;
     border-radius: 50%;
     }
@@ -71,8 +71,13 @@
                                                     <div class="card-footer-like mr-2">
                                                         <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
                                                     </div>
+
+
+
                                                     <!-- Chat Icon -->
-                                                    <div class="card-footer-chat">
+                                                    <%
+=begin%>
+ <div class="card-footer-chat">
                                                         <% if current_user.present? %>
                                                         <%= link_to company_conversations_path do %>
                                                         <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %>
@@ -86,13 +91,25 @@
                                                         <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "chat" %>
                                                         <% end %>
                                                         <% end %>
-                                                    </div>
+                                                    </div> 
+<%
+
+
+
+=end%>
                                                        <%@c_candidate = c&.candidate_id%>
                                                        <%@c_candidate_obj = Candidate.find_by(id: @c_candidate)%>
                                                        <% @c_recruiter = User.find_by(id: @c_candidate_obj&.recruiter_id)%>
                                                     <div class="logged-user-role d-block">
                                                         <%if @c_recruiter.present? && current_user != @c_recruiter%>
                                                           <%= contact_widget_recuirter(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') %>
+                                                        <%else%>
+                                                          <%= contact_widget_recuirter(@c_candidate_obj.email, @c_candidate_obj.phone,@c_candidate_obj,chat_link: chat_link(@c_candidate_obj),color: '#3E4B5B; !important') %>
+                                                        <%end%>
+                                                    </div>
+                                                    <div class="logged-user-role d-block">
+                                                        <%if @c_recruiter.present? && current_user != @c_recruiter%>
+                                                          <%= chat_recruiter_link_image(@c_recruiter) %>
                                                         <%end%>
                                                     </div>
                                                 </div>
