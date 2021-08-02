@@ -38,21 +38,52 @@ module ApplicationHelper
 
     end
   end
-    def chat_remote_link_recruiter(options)
+  def chat_remote_link_recruiter(options)
     if options[:remote_false]
       link_to(image_tag("reply.svg", :class => "img-fluid mr-2").html_safe, options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
     else
       link_to(image_tag("reply.svg", :class => "img-fluid mr-2").html_safe, options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons')
     end
   end
+
+
+
+
+
+
+
+  
+
+  
+   def chat_remote_link_recruiter_profile(options)
+    if options[:remote_false]
+      link_to(image_tag("reply.svg", :class => "img-fluid mr-2").html_safe, options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
+    else
+      link_to(image_tag("reply.svg", :class => "img-fluid mr-2").html_safe, options[:chat_link] || '#', remote: true, title: 'Chat', class: 'data-table-icons')
+    end
+  end
+
+
+
+  
+
+
+
+  
+
+
+
+  
+  
   
   def chat_recruiter_link_image(user)
     if (user.present?) && (user.photo.present?)
       (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
-      link_to(image_tag(profile_photo, :class => "imag_css"))
+      image_tag(profile_photo, :class => "imag_css")
     else      
       (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
-      link_to(image_tag(profile_photo, :class => "imag_css")) 
+      image_tag(profile_photo, :class => "imag_css")
+      # link_to(image_tag(profile_photo, :class => "imag_css")) 
     end
     
 # if user.photo&.present?
@@ -79,6 +110,9 @@ module ApplicationHelper
 
   def contact_widget_recuirter(email, phone, _user_id = nil, options = {})
     chat_remote_link_recruiter(options)
+  end
+  def contact_widget_recuirter_profile(email, phone, _user_id = nil, options = {})
+    chat_remote_link_recruiter_profile(options)
   end
 
   def mini_chat_contact_widget(email, phone, _user_id = nil, _options = {})
