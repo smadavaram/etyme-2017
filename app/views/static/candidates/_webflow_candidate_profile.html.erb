@@ -6,28 +6,21 @@
         Available
       </div>
       <div class="profile-avatar">
-        <%= image_tag "#{@candidate&.photo&.blank? ? asset_path('avatars/male.png') : @candidate.photo }", alt: "#{@candidate.full_name}" %>
+        <%= image_tag "#{candidate&.photo&.blank? ? asset_path('avatars/male.png') : candidate.photo }", alt: "#{candidate.full_name}" %>
       </div>
       <div class="profile-name">
-        <%= @candidate.full_name %>
+        <%= candidate.full_name %>
         <span class="profile-location"> USA </span>
       </div>
       <div class="profile-title">
-        <%= @candidate.candidate_title %>
+        <%= candidate.candidate_title %>
       </div>
       <div class="profile-rating">
-        <div class="profile-rating-stars">
-          <i class="fa fa-star" aria-hidden="true"></i>
-          <i class="fa fa-star" aria-hidden="true"></i>
-          <i class="fa fa-star" aria-hidden="true"></i>
-          <i class="fa fa-star" aria-hidden="true"></i>
-          <i class="fa fa-star" aria-hidden="true"></i>
-          <span class="profile-rating-number">4.5</span>
-        </div>
+        <%= rating_starts(candidate_company.rating&.average || 0) %>
       </div>
       <div class="profile-reviews-links">
-        <span class="profile-reviews-link"><%= @candidate&.comments&.count %> Reviews</span>
-        <span class="profile-reviews-link">Add a Review</span>
+        <span class="profile-reviews-link"><%= pluralize(candidate_company.rating&.total, 'Review') %></span>
+        <span class="profile-reviews-link" onclick="showReviewModal();">Add a Review</span>
       </div>
       <div class="profile-stats">
         <div class="profile-stats-container">
@@ -48,15 +41,15 @@
         </div>
       </div>
       <div class="mb-4">
-        <% if @candidate&.phone %>
+        <% if candidate&.phone %>
         <div class="profile-contact">
           <i class="fa fa-phone" aria-hidden="true"></i>
-          <%= @candidate&.phone %>
+          <%= candidate&.phone %>
         </div>
         <% end %>
         <div class="profile-contact">
           <i class="fa fa-envelope" aria-hidden="true"></i>
-          <%= @candidate&.email %>
+          <%= candidate&.email %>
           <span class="profile-contact-verified">Verified</span>
         </div>
       </div>
@@ -66,7 +59,7 @@
             Age
           </div>
           <div class="information-value">
-            <%= pluralize((Date.today.to_s(:number).to_i - @candidate.dob.to_s(:number).to_i) / 10000,'year') rescue 'N/A'%>
+            <%= pluralize((Date.today.to_s(:number).to_i - candidate.dob.to_s(:number).to_i) / 10000,'year') rescue 'N/A'%>
           </div>
         </div>
         <div class="profile-information">
@@ -82,8 +75,8 @@
             Visa Status
           </div>
           <div class="information-value">
-            <% if @candidate.visas.last %>
-              <%= @candidate.visas.last&.status%>
+            <% if candidate.visas.last %>
+              <%= candidate.visas.last&.status%>
             <% else %>
               Unknown
             <% end %>
@@ -94,8 +87,8 @@
             SSN(YES / NO)
           </div>
           <div class="information-value">
-            <% if @candidate.ssn %>
-              <%= @candidate.ssn.present? ? 'Yes' : 'No' %>
+            <% if candidate.ssn %>
+              <%= candidate.ssn.present? ? 'Yes' : 'No' %>
             <% else %>
               Unknown
             <% end %>
@@ -107,8 +100,8 @@
             Relocation
           </div>
           <div class="information-value">
-            <% if @candidate.relocation %>
-              <%= @candidate.relocation ? 'Yes' : 'No' %>
+            <% if candidate.relocation %>
+              <%= candidate.relocation ? 'Yes' : 'No' %>
             <% else %>
               Unknown
             <% end %>
@@ -117,21 +110,21 @@
 
         <div class="d-flex justify-content-between flex-wrap w-100">
 
-          <% if @candidate.twitter_url.present? %>
+          <% if candidate.twitter_url.present? %>
             <div class="os-progress-bar primary w-50 d-flex justify-content-center">
               <div class="bar-labels">
                 <div class="bar-label-left font-weight-bold d-flex align-items-center">
                   <i class="fi-social-skype"></i>
-                  <span class="ml-2"><%=do_ellipsis(@candidate.skypeid, 15)%></span>
+                  <span class="ml-2"><%=do_ellipsis(candidate.skypeid, 15)%></span>
                 </div>
               </div>
             </div>
           <% end %>
 
-          <% if @candidate.facebook_url.present? %>
+          <% if candidate.facebook_url.present? %>
             <div class="os-progress-bar primary w-50 d-flex justify-content-center">
               <div class="bar-labels">
-                <a href="<%= @candidate.facebook_url%>" target="_blank">
+                <a href="<%= candidate.facebook_url%>" target="_blank">
                   <div class="bar-label-left font-weight-bold d-flex align-items-center">
                     <i class="fi-social-facebook"></i>
                     <span class="ml-2">Facebook</span>
@@ -141,10 +134,10 @@
             </div>
           <% end %>
 
-          <% if @candidate.gtalk_url.present? %>
+          <% if candidate.gtalk_url.present? %>
             <div class="os-progress-bar primary w-50 d-flex justify-content-center">
               <div class="bar-labels">
-                <a href="<%= @candidate.gtalk_url%>" target="_blank">
+                <a href="<%= candidate.gtalk_url%>" target="_blank">
                   <div class="bar-label-left font-weight-bold d-flex align-items-center">
                     <i class="fi-social-google-plus"></i>
                     <span class="ml-2">Google</span>
@@ -154,10 +147,10 @@
             </div>
           <% end %>
 
-          <% if @candidate.twitter_url.present? %>
+          <% if candidate.twitter_url.present? %>
             <div class="os-progress-bar primary w-50 d-flex justify-content-center">
               <div class="bar-labels">
-                <a href="<%= @candidate.twitter_url%>" target="_blank">
+                <a href="<%= candidate.twitter_url%>" target="_blank">
                   <div class="bar-label-left font-weight-bold d-flex align-items-center">
                     <i class="fi-social-google-plus"></i>
                     <span class="ml-2">Twitter</span>
@@ -167,10 +160,10 @@
             </div>
           <% end %>
 
-          <% if @candidate.linkedin_url.present? %>
+          <% if candidate.linkedin_url.present? %>
             <div class="os-progress-bar primary w-50 d-flex justify-content-center">
               <div class="bar-labels">
-                <a href="<%= @candidate.linkedin_url %>" target="_blank">
+                <a href="<%= candidate.linkedin_url %>" target="_blank">
                   <div class="bar-label-left font-weight-bold d-flex align-items-center">
                     <i class="fi-social-linkedin"></i>
                     <span class="ml-2">Linkedin</span>
@@ -182,7 +175,7 @@
         </div>
       </div>
       <div class="profile-rate-value">
-        <% job_invitation = @candidate.try(:job_invitations).try(:last) %>
+        <% job_invitation = candidate.try(:job_invitations).try(:last) %>
         $<%= job_invitation.present? ? job_invitation.min_hourly_rate : "NA" %>
         -
         <%= job_invitation.present? ? job_invitation.max_hourly_rate : "NA" %>
@@ -203,8 +196,8 @@
         <a href="#" class="profile-link-share">
           Share Profile <i class="fa fa-share-alt ml-1" aria-hidden="true"></i>
         </a>
-        <%if @candidate.candidates_resumes&.last.present? %>
-          <a href="<%=@candidate.candidates_resumes&.last.resume %>" download  class="profile-link-download" target="_blank">
+        <%if candidate.candidates_resumes&.last.present? %>
+          <a href="<%=candidate.candidates_resumes&.last.resume %>" download  class="profile-link-download" target="_blank">
             Download Resume
           </a>
         <% else %>
@@ -217,7 +210,7 @@
           <div class="profile-section-line"></div>
         </div>
         <ul class="profile-skills-tags">
-          <% @candidate.skills.each do |skill| %>
+          <% candidate.skills.each do |skill| %>
             <li><%= skill %></li>
           <% end %>
         </ul>
@@ -227,10 +220,10 @@
           <div class="profile-section-title">Education</div>
           <div class="profile-section-line"></div>
         </div>
-        <% if @candidate.educations.blank? %>
+        <% if candidate.educations.blank? %>
           Unknown
         <% end %>
-        <% @candidate.educations.each do |education| %>
+        <% candidate.educations.each do |education| %>
           <div class="profile-section-content-label">
             <%= "#{education.degree_title&.capitalize} - #{education.institute&.capitalize}" %>
           </div>
@@ -258,10 +251,10 @@
           <div class="profile-section-title">Certifications</div>
           <div class="profile-section-line"></div>
         </div>
-        <% if @candidate.certificates.blank? %>
+        <% if candidate.certificates.blank? %>
           Unknown
         <% end %>
-        <% @candidate.certificates.each do |certificate| %>
+        <% candidate.certificates.each do |certificate| %>
         <div class="profile-section-content-label">
           <%= certificate.title %>
         </div>
@@ -275,10 +268,10 @@
           <div class="profile-section-title">Projects History</div>
           <div class="profile-section-line"></div>
         </div>
-        <% if @candidate.portfolios.blank? %>
+        <% if candidate.portfolios.blank? %>
           No Projects
         <% end %>
-        <% @candidate.portfolios.each do |portfolio| %>
+        <% candidate.portfolios.each do |portfolio| %>
         <div class="profile-section-content-label">
           <%= portfolio.name %>
         </div>
@@ -296,27 +289,27 @@
       <div class="d-flex justify-content-between mb-20">
         <div class="f-16 w-500 l-19 c-80">John's Portfolio</div>
       </div>
-        <% if @candidate.portfolios.blank? %>
+        <% if candidate.portfolios.blank? %>
           No Projects
         <% end %>
       <div class="row">
-        <% if @candidate.portfolios[-1] %>
+        <% if candidate.portfolios[-1] %>
         <div class="col-12 col-xl-6 mb-5 mb-xl-0">
           <div class="webflow-thumbnail-340-210 mb-16">
-            <%= image_tag @candidate.portfolios[-1].cover_photo %>
+            <%= image_tag candidate.portfolios[-1].cover_photo %>
           </div>
           <div class="f-14 l-17 c-100">
-            <%= @candidate.portfolios[-1].name %>
+            <%= candidate.portfolios[-1].name %>
           </div>
         </div>
         <% end %>
-        <% if @candidate.portfolios[-2] %>
+        <% if candidate.portfolios[-2] %>
         <div class="col-12 col-xl-6 mb-5 mb-xl-0">
           <div class="webflow-thumbnail-340-210 mb-16">
-            <%= image_tag @candidate.portfolios[-2].cover_photo %>
+            <%= image_tag candidate.portfolios[-2].cover_photo %>
           </div>
           <div class="f-14 l-17 c-100">
-            <%= @candidate.portfolios[-2].name %>
+            <%= candidate.portfolios[-2].name %>
           </div>
         </div>
         <% end %>
@@ -328,10 +321,10 @@
       <div class="d-flex justify-content-between mb-30">
         <div class="f-16 w-500 l-19 c-80">Experience</div>
       </div>
-      <% if @candidate.experiences.blank? %>
+      <% if candidate.experiences.blank? %>
         No Experience
       <% end %>
-      <% @candidate.experiences.each do |experience| %>
+      <% candidate.experiences.each do |experience| %>
       <div class="mb-20">
         <div class="f-14 l-17 c-80 mb-2">
           <%= experience.experience_title %>
@@ -350,7 +343,17 @@
 
     <!-- Reviews -->
     <div class="webflow-profile-inner webflow-comments col-12">
-      <%= render 'static/candidates/webflow_candidate_reviews' %>
+      <%= render 'static/candidates/webflow_candidate_reviews', candidate_company: candidate_company %>
     </div>
   </div>
 </div>
+
+<%= render 'static/candidates/webflow_candidate_add_review', candidate: candidate, rating_categories: @rating_categories %>
+
+<% content_for :scripts do %>
+  <script>
+    function showReviewModal() {
+      $('#add-review').modal('show');
+    }
+  </script>
+<% end %>

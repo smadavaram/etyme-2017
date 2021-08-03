@@ -5,6 +5,7 @@ class User < ApplicationRecord
   include ApplicationHelper
 
   has_ancestry
+  rating
 
   EXCLUDED_EMAIL_DOMAINS = %w[gmail yahoo rediff facebookmail].freeze
   # Include default devise modules. Others available are:
