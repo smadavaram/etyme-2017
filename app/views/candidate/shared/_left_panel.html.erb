@@ -49,11 +49,30 @@
     }
 
 </style>
-<div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important;">
-  <div class="icon-button-style ">
+<div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute;">
+<div style="display: flex !important; ">
+  <div class="icon-button-style " style="display: flex !important; ">
     <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
       <div class="os-icon os-icon-hamburger-menu-1"></div>
     </div>
+  </div>
+  <div class="logged-user-i" style="display: flex !important; align-items:center ">
+      <div class="avatar-w" >
+        <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
+      </div>
+      <div class="logged-user-info-w">
+        <div class="logged-user-name">
+          <% if current_candidate.associated_company %>
+            <%= link_to current_candidate.associated_company.name.capitalize, '#', class: "text-muted" %>
+            <%= link_to "<i class='os-icon os-icon-ui-49'></i>".html_safe, "#candidate-bench_req", :class => "", "data-toggle" => "modal" %>
+
+          <% else %>
+            <a href="#" class="text-muted"> freelancer</a>
+          <% end %>
+        </div>
+        <!--div class="logged-user-role">My Team</div-->
+      </div>
+   </div>
   </div>
 </div>
 

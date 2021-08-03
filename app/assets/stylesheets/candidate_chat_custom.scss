@@ -2,9 +2,9 @@
   @media only screen and (max-width: 600px) {
     display: none;
   }
-  height: 100vh;
-  width: 90px;
-  background-color: #047bf8;
+  height: 12vh;
+  //width: 90px;
+  background-color: #f2f4f8;
 }
 .icon-button-style {
   height: 51px;
@@ -314,7 +314,7 @@
   border: none;
 }
 // center chat madule
-.input-field{
+.input-field {
   @media only screen and (max-width: 600px) {
     width: 145px !important;
     height: 26px;
@@ -323,7 +323,7 @@
   width: 400px;
   height: 40px;
   border-radius: 10px;
-  border: 2px solid #047BF8;
+  border: 2px solid #047bf8;
   background-color: #ffffff;
   font-size: 14px;
   margin-left: 5px;
