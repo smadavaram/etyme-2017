@@ -482,13 +482,13 @@
   }
   height: 85vh;
   width: 41vh;
-  margin-top: 5vh;
+  //margin-top: 5vh;
 }
 .right-sidebar1 {
   @media only screen and (max-width: 600px) {
     width: 60vh;
   }
-  height: 70vh !important;
+  height: 82vh !important;
   width: 41vh;
   background: #ffffff;
   box-shadow: 3px 2px 26px rgba(219, 219, 219, 0.67);
@@ -499,7 +499,7 @@
   @media only screen and (max-width: 600px) {
     border-radius: 25px 25px;
   }
-  height: 12vh;
+  height: 5vh;
   width: 100%;
   margin-left: 0px;
   margin-right: 0px;
