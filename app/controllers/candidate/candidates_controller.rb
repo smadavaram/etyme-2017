@@ -342,12 +342,14 @@ class Candidate::CandidatesController < Candidate::BaseController
                                                                   id certificate_id title file exp_date _destroy
                                                                 ]],
                                       clients_attributes: [:id, :name, :industry, :start_date, :end_date, :project_description, :role, :refrence_name, :refrence_phone, :refrence_email, :refrence_two_name, :refrence_two_phone, :refrence_two_email, :_destroy,
-                                                           designation_attributes: %i[id comp_name client_id candidate_id recruiter_name recruiter_phone recruiter_email start_date end_date status company_role _destroy]],
+                                                           designation_attributes: %i[id comp_name client_id candidate_id recruiter_name recruiter_phone recruiter_email start_date end_date status company_role _destroy],
+                                                           portfolios_attributes: %i[id name description cover_photo _destroy]],
                                       portfolios_attributes: %i[id name description cover_photo _destroy],
                                       documents_attributes: %i[id candidate_id title file exp_date is_education is_legal_doc _destroy],
                                       legal_documents_attributes: %i[id candidate_id document_number start_date title file exp_date _destroy],
                                       criminal_check_attributes: %i[id candidate_id state address start_date end_date _destroy],
                                       visas_attributes: %i[id candidate_id title file visa_number start_date exp_date status _destroy],
-                                      designations_attributes: %i[id comp_name recruiter_name recruiter_phone recruiter_email start_date end_date status company_role _destroy])
+                                      designations_attributes: [:id, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_email, :start_date, :end_date, :status, :company_role, :_destroy,
+                                                                portfolios_attributes: %i[id name description cover_photo _destroy]])
   end
 end

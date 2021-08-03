@@ -4,5 +4,4 @@ class Portfolio < ApplicationRecord
   belongs_to :portfolioable, polymorphic: :true
 
   validates :cover_photo, presence: :true
-  validates :name, presence: :true
 end
