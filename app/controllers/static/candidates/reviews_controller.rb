@@ -26,8 +26,7 @@ class Static::Candidates::ReviewsController < ApplicationController
   def review_metadata
     {
       description: reviews_params[:description],
-      # TODO: Implement project_id
-      # project_id: project.id
+      project_resume: reviews_params[:project_resume]
     }
   end
 
@@ -38,10 +37,6 @@ class Static::Candidates::ReviewsController < ApplicationController
   def author
     @author ||= current_user || current_candidate
   end
-
-  # def project
-  #   @project ||= current_company.projects.find(reviews_params[:project_id])
-  # end
 
   def reviews_params
     params.require(:review).permit!
