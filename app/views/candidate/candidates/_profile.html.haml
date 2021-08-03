@@ -233,6 +233,24 @@
                         %div.slide-container
                           %video{controls: true}
                             %source{src: portfolio.cover_photo}
+                    - candidate.clients.each do |client|
+                      - client.portfolios.each do |portfolio|
+                        - if url_image?(portfolio.cover_photo)
+                          %div.slide-container
+                            %img{src: portfolio.cover_photo}
+                        - if url_video?(portfolio.cover_photo)
+                          %div.slide-container
+                            %video{controls: true}
+                              %source{src: portfolio.cover_photo}
+                    - candidate.designations.each do |client|
+                      - client.portfolios.each do |portfolio|
+                        - if url_image?(portfolio.cover_photo)
+                          %div.slide-container
+                            %img{src: portfolio.cover_photo}
+                        - if url_video?(portfolio.cover_photo)
+                          %div.slide-container
+                            %video{controls: true}
+                              %source{src: portfolio.cover_photo}
                 - else
                   %div.w-100.pv-4.d-flex.justify-content-center
                     %strong

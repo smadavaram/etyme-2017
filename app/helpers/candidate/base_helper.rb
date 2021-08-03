@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-IMAGE_EXTS = %w[gif jpg png]
+IMAGE_EXTS = %w[gif jpg png jpeg]
 VIDEO_EXTS = %w[webm mp4]
 
 module Candidate::BaseHelper
