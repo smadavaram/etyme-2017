@@ -1,0 +1,12 @@
+.form-group
+  .multi-field-wrapper
+    .multi-fields
+      %br/
+      %br/
+      %h5.element-header
+        Portfolio
+    .form-group
+      = f.fields_for :portfolios do |b|
+        = render 'candidate/candidates/partials/gallery_fields', f: b
+      .links.pull-right
+        = link_to_add_association '+ Add', f, :portfolios, class: 'btn btn-primary add_fields', partial: 'candidate/candidates/partials/gallery_fields'
