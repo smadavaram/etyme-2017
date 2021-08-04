@@ -28,7 +28,7 @@ class Company::CompaniesController < Company::BaseController
     add_breadcrumb 'Contacts', companies_path
 
     respond_to do |format|
-      format.html {}
+      format.html {}  
       format.json { render json: CompanyContactDatatable.new(params, view_context: view_context) }
     end
   end

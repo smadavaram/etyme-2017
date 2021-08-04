@@ -13,11 +13,11 @@ class GroupDatatable < ApplicationDatatable
       name: { source: 'Group.group_name' },
       type: { source: 'Group.member_type' },
       member: { source: 'Group.member_type' },
-      reminder_note: { source: 'Group.reminder_note' },
-      created_at: { source: 'Group.created_at' },
-      status: { source: 'Group.status' },
-      contact: { source: 'Group.contact' },
-      actions: { source: 'Group.actions' },
+    reminder_note: { source: 'Group.reminder_note' , searchable: false, orderable: false},
+      created_at: { source: 'Group.created_at' , searchable: false, orderable: false},
+      status: { source: 'Group.status' , searchable: false, orderable: false},
+      contact: { source: 'Group.contact' , searchable: false, orderable: false},
+      actions: { source: 'Group.actions' , searchable: false, orderable: false},
     }
   end
 
