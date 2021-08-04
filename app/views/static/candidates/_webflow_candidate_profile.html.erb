@@ -311,32 +311,28 @@
     <!-- Portfolio -->
     <div class="webflow-profile-inner">
       <div class="d-flex justify-content-between mb-20">
-        <div class="f-16 w-500 l-19 c-80">John's Portfolio</div>
+        <div class="f-16 w-500 l-19 c-80">Portfolio</div>
       </div>
-        <% if candidate.portfolios.blank? %>
+        <% if candidate.full_portfolios.empty? %>
           No Projects
         <% end %>
-      <div class="row">
-        <% if candidate.portfolios[-1] %>
-        <div class="col-12 col-xl-6 mb-5 mb-xl-0">
-          <div class="webflow-thumbnail-340-210 mb-16">
-            <%= image_tag candidate.portfolios[-1].cover_photo %>
-          </div>
-          <div class="f-14 l-17 c-100">
-            <%= candidate.portfolios[-1].name %>
-          </div>
+      <div class="row d-flex justify-content-center">
+        <div class="portfolio-slick">
+          <% candidate.full_portfolios.each do |portfolio| %>
+            <% if url_image?(portfolio.cover_photo) %>
+              <div class="slide-container">
+                <img src="<%= portfolio.cover_photo %>"/>
+              </div>
+            <% end %>
+            <% if url_video?(portfolio.cover_photo) %>
+              <div class="slide-container">
+                <video controls="<%= true %>">
+                  <source src="<%= portfolio.cover_photo %>"></source>
+                </video>
+              </div>
+            <% end %>
+          <% end %>
         </div>
-        <% end %>
-        <% if candidate.portfolios[-2] %>
-        <div class="col-12 col-xl-6 mb-5 mb-xl-0">
-          <div class="webflow-thumbnail-340-210 mb-16">
-            <%= image_tag candidate.portfolios[-2].cover_photo %>
-          </div>
-          <div class="f-14 l-17 c-100">
-            <%= candidate.portfolios[-2].name %>
-          </div>
-        </div>
-        <% end %>
       </div>
     </div>
 
@@ -345,15 +341,43 @@
       <div class="d-flex justify-content-between mb-30">
         <div class="f-16 w-500 l-19 c-80">Experience</div>
       </div>
-      <% if full_experiences.empty? %>
+      <% if candidate.full_experiences.empty? %>
         No Experience
       <% end %>
+
+      <% candidate.designations.with_no_client.each do |designation| %>
+        <div class="element-info">
+          <div class="element-info-text">
+            <div class="mb-2">
+              <div>
+                <h5 class="mb-1 text-primary"><%= designation.comp_name %></h5>
+                <span class="mb-1 h6 d-block text-secondary">
+                  <%= "As #{designation.company_role}" if designation.company_role.present? %>
+                </span>
+                <strong class="font-weight-bold font-sm text-capitalize">
+                  <%= "#{designation.formatted_date}" %>
+                </strong>
+                <% if designation.recruiter_name.present? %>
+                  <div>
+                    <strong>Recruiter</strong>
+                    <div class="element-inner-desc">
+                      <strong>
+                        <%= designation.recruiter_name %>
+                      </strong>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        </div>
+      <%end%>
       <% candidate.clients.each do |client| %>
         <div class="element-info">
           <div class="element-info-text">
             <div class="mb-2">
               <div>
-                <h5 class="mb-1 text-primary">#{client.name}</h5>
+                <h5 class="mb-1 text-primary"><%= client.name %></h5>
                 <span class="mb-1 h6 d-block text-secondary">
                   <%= "At #{client.industry}" if client.industry.present? %>
                 </span>
@@ -443,10 +467,27 @@
 
 <%= render 'static/candidates/webflow_candidate_add_review', candidate: candidate, rating_categories: @rating_categories %>
 
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
+<% content_for :head do %>
+  <link href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.css" rel="stylesheet" type="text/css"></link>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.5.8/slick-theme.min.css" rel="stylesheet" type="text/css"></link>
+<% end %>
+
 <% content_for :scripts do %>
   <script>
     function showReviewModal() {
       $('#add-review').modal('show');
     }
+
+    $('.portfolio-slick').slick({
+      infinite: true,
+      slidesToShow: 1,
+      dots:true,
+      arrows: true,
+      speed: 500,
+      fade: true,
+    });
   </script>
 <% end %>

@@ -13,6 +13,10 @@ class Designation < ActiveRecord::Base
 
   accepts_nested_attributes_for :portfolios, reject_if: :all_blank, allow_destroy: true
 
+  def formatted_date
+    [start_date&.strftime('%B-%Y'), end_date&.strftime('%B-%Y')].join("-")
+  end
+
   def notify_recruiter
     recruiter = User.find_by_email(recruiter_email)
     message = "Candidate #{candidate.email} has registered you as recruiter. If you want to accept <a href='#{url_helpers.accept_candidate_designation_url(id)}'>Click Here</a>."

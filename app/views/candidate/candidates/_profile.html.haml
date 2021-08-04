@@ -223,7 +223,7 @@
                   .element-info-text
                     %h4.element-inner-header Portfolio
               %div.d-flex.w-100.justify-content-center
-                - if candidate.portfolios.present?
+                - if candidate.full_portfolios.present?
                   .portfolio-slick
                     - candidate.portfolios.each do |portfolio|
                       - if url_image?(portfolio.cover_photo)
@@ -242,7 +242,7 @@
                           %div.slide-container
                             %video{controls: true}
                               %source{src: portfolio.cover_photo}
-                    - candidate.designations.each do |client|
+                    - candidate.designations.with_no_client.each do |client|
                       - client.portfolios.each do |portfolio|
                         - if url_image?(portfolio.cover_photo)
                           %div.slide-container

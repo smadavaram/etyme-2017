@@ -153,7 +153,14 @@ class Candidate < ApplicationRecord
 
 
   def full_experiences
-    [clients, designates].flat_map
+    @full_experiences ||= [clients, designates].flatten
+  end
+
+  def full_portfolios
+    @full_portfolios ||= [portfolios,
+     clients.map(&:portfolios),
+     designations.with_no_client.map(&:portfolios)
+    ].flatten
   end
 
   def max_skill_size
