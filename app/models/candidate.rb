@@ -160,7 +160,7 @@ class Candidate < ApplicationRecord
   end
 
   def etyme_url
-    (ENV['domain']).to_s
+    (ENV['app_domain']).to_s
   end
 
   def full_name
