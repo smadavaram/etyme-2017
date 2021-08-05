@@ -3,6 +3,9 @@
 .cont-comany {
 margin-left: 0px;
 }
+.border-no {
+  border: none;
+}
 }
 
 /* $(".cont_c").css("mr"
@@ -20,17 +23,17 @@ margin-left: 0px;
         <div class="chat-search d-flex margin-top-10 left-side-header-style">
           <div class=" col-sm-3 col-md-3 col-lg-3 left-side-select-style">
 
-            <div class="form-control rounded  select-style" style=" border: none; " id="chat_topic">
-              <label>
-                <select style="width: 75px; border: none; background-color: white">
+            <div class="chat-search d-flex left-side-header-style">
+                <div class="element-actions w-100">
+                  <select class="form-control border-no pl-2 height-45" id="chat_topic">
                   <option value="All">All</option>
                   <option value="Job">Job/Offer</option>
                   <option value="JobApplication">Application</option>
                   <option value="SellContract">SellContract</option>
                   <option value="BuyContract">BuyContract</option>
                   <option value="GroupChat">Group</option>
-                </select>
-              </label>
+                  </select>
+                </div>
             </div>
 
           </div>
