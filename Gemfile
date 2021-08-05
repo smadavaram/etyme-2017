@@ -27,7 +27,7 @@ gem 'jquery-rails'
 gem 'jquery-ui-rails'
 gem 'public_activity'
 gem 'pusher'
-gem 'sass-rails', '~> 5.0'
+gem 'sass-rails', '~> 6.0'
 gem 'sdoc' # , '~> 0.4.0', group: :doc
 gem 'simple_form'
 gem 'tinymce-rails'
