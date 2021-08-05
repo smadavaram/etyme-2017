@@ -10,14 +10,10 @@
 }
 /* @media (min-width: 730px) */
 </style>
-<div  id="side-bar" class="icon-side-bar mobile-icon-side-bar" style="display: none; position: absolute; height:12vh">
+<div  id="side-bar" class="icon-side-bar mobile-icon-side-bar" style="display: none; position: absolute; height:12vh; padding-left: 10px;">
 <div style="display: flex !important;">
-  <div class="icon-button-style ">
-    <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
-      <div class="os-icon os-icon-hamburger-menu-1"></div>
-    </div>
-  </div>
-    <div class="logged-user-i" style="display: flex !important; align-items:center">
+
+    <div class=" logged-user-i" style="display: flex !important; align-items:center">
       <div class="avatar-w">
         <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size', style: 'height: 41px !important; width: 41px !important; border-radius: 50%;'), company_profile_page_companies_path %>
       </div>
@@ -26,6 +22,11 @@
           <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
         </div>
       </div>
+  </div>
+  <div class=" icon-button-style" style="justify-content: flex-end">
+    <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
+      <div class="os-icon os-icon-hamburger-menu-1"></div>
+    </div>
   </div>
 </div>
 </div>
