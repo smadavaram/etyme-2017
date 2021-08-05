@@ -13,10 +13,6 @@
         <%= form_with scope: :review, url: static_candidate_reviews_path(candidate_id: candidate.id) do |f| %>
           <div class="row">
             <div class="col-sm-6">
-              <div class="form-group">
-                <label for="">General</label>
-                <%= f.range_field :rate_general, max: 5, step: 0.5, class: 'rating', style: '--value:0', value: 0, oninput: "this.style.setProperty('--value', `${this.valueAsNumber}`)" %>
-              </div>
               <%- rating_categories.each do |rating_category| %>
                 <div class="form-group">
                   <label for=""><%= rating_category.name %></label>
