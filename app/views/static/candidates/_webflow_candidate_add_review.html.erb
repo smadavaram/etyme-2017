@@ -1,0 +1,41 @@
+<div class="onboarding-modal modal animated" id="add-review" role="dialog" tabindex="-1">
+  <div class="modal-dialog rating-modal modal-centered" role="document">
+    <div class="modal-content text-center">
+      <button aria-label="Close" class="close" data-dismiss="modal" type="button">
+        <span class="close-label">Cancel</span>
+        <span class="os-icon os-icon-close"></span>
+      </button>
+      <div class="onboarding-media">
+        <img alt="" src="img/bigicon5.png" width="200px">
+      </div>
+      <div class="onboarding-content with-gradient">
+        <h4 class="onboarding-title">Add a Review</h4>
+        <%= form_with scope: :review, url: static_candidate_reviews_path(candidate_id: candidate.id) do |f| %>
+          <div class="row">
+            <div class="col-sm-6">
+              <div class="form-group">
+                <label for="">General</label>
+                <%= f.range_field :rate_general, max: 5, step: 0.5, class: 'rating', style: '--value:0', value: 0, oninput: "this.style.setProperty('--value', `${this.valueAsNumber}`)" %>
+              </div>
+              <%- rating_categories.each do |rating_category| %>
+                <div class="form-group">
+                  <label for=""><%= rating_category.name %></label>
+                  <%= f.range_field "rate_category_#{rating_category.id}", max: 5, step: 0.5, class: 'rating', style: '--value:0', value: 0, oninput: "this.style.setProperty('--value', `${this.valueAsNumber}`)" %>
+                </div>
+              <% end %>
+            </div>
+            <div class="col-sm-6">
+              <div class="form-group">
+                <label for="">Comments</label>
+                <%= f.text_area :description, class: 'form-control input', style: 'height: 150px' %>
+              </div>
+              <div class="form-group mt-5 text-center">
+                <%= f.submit "Send Review", class: "mb-1 btn btn-primary" %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,9 +1,12 @@
-.multi-field-container.nested-fields5
+.multi-field-container.nested-fields5.client-fields
+  .row
+    .col-md-12
+      = render 'candidate/candidates/partials/gallery_form', f: f, reference: 'client'
   .row
     .col-sm-4
       .form-group
         %label Name
-        = f.text_field :name, placeholder: "Client Name", class: 'form-control input'
+        = f.text_field :name, placeholder: "Company Name", class: 'form-control input'
   .row
     .col-sm-4
       .form-group
@@ -12,42 +15,48 @@
     .col-sm-4
       .form-group
         %label Start Date
-        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date cl_start_year input'
+        = f.text_field :start_date, placeholder: "YYYY-MM-DD",class: 'form-control p_date cl_start_year input'
     .col-sm-4
       .form-group
         %label End Date
-        = f.text_field :end_date,placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
+        = f.text_field :end_date, placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
+  .row
+    .col-sm-12
+      %strong Main Reference
   .row
     .col-sm-4
       .form-group
-        %label Reference name
-        = f.text_field :refrence_name,placeholder: "Jhon Doe",class: 'form-control input'
+        %label Name
+        = f.text_field :refrence_name, placeholder: "Jhon Doe",class: 'form-control input'
     .col-sm-4
       .form-group
         %label  Phone
-        = f.text_field :refrence_phone, class: 'form-control input'
+        = f.text_field :refrence_phone, placeholder: '555-5555', class: 'form-control input'
     %div{class: f.object.refrence_one ? "col-sm-3" : "col-sm-4"}
       .form-group
         %label  Email
-        = f.text_field :refrence_email,placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_one ? 'Verified' :'Not Verified Yet'
+        = f.text_field :refrence_email, placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_one ? 'Verified' :'Not Verified Yet'
     - if f.object.refrence_one
       .col-sm-1
         %h3.text-success.mt-4
           -#%strong
           %i.fa.fa-check
   .row
+    .col-sm-12
+      %strong Second Reference
+  .row
     .col-sm-4
       .form-group
-        %label Reference name
-        = f.text_field :refrence_two_name,placeholder: "Jhon Doe",class: 'form-control input'
+        %label Name
+        = f.text_field :refrence_two_name, placeholder: "Jhon Doe",class: 'form-control input'
     .col-sm-4
       .form-group
         %label  Phone
-        = f.text_field :refrence_two_phone, class: 'form-control input'
+        = f.text_field :refrence_two_phone, placeholder: '555-5555', class: 'form-control input'
     %div{class: f.object.refrence_two ? "col-sm-3" : "col-sm-4"}
       .form-group
         %label  Email
-        = f.text_field :refrence_two_email,placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_two ? 'Verified' :'Not Verified Yet'
+        = f.text_field :refrence_two_email, placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_two ? 'Verified' :'Not Verified Yet'
     - if f.object.refrence_two
       .col-sm-1
         %h3.text-success.mt-4
@@ -64,12 +73,21 @@
         = f.text_area :role, placeholder: "Job Description",class: 'form-control input'
   .row
     .col-md-12
-      - unless f.object.new_record?
-        .pl-4{id: "employer_#{f.object.id}", class: "#{'display-none' unless f.object.designation.present?}"}
-          %h4.element-header
-            Client Employer
-          = f.fields_for :designation, f.object.designation.present? ?  f.object.designation : f.object.build_designation do |employer|
-            = render 'candidate/candidates/partials/skill_designation_fields', f: employer
+      %h6
+        %b Client Employer?
+        %label.radio-container
+          Yes
+          = radio_button_tag  "is_client_employer_#{f.options[:child_index]}", "Yes", f.object.new_record? ? true : f.object.designation.present?, class: "is_client_employer_Yes"
+          %span.radio-checkmark
+        %label.radio-container
+          No
+          = radio_button_tag  "is_client_employer_#{f.options[:child_index]}", "No", f.object.new_record? ? false : f.object.designation.blank?, class: "is_client_employer_No"
+          %span.radio-checkmark
+      .pl-4{id: "employer_#{f.object.id}", style: "#{'display: none;' unless f.object.id? && f.object.designation.present? || f.object.new_record?}", class: "employer_form"}
+        %h4.element-header
+          Client Employer
+        = f.fields_for :designation, f.object.designation.present? ?  f.object.designation : f.object.build_designation do |employer|
+          = render 'candidate/candidates/partials/skill_designation_fields', f: employer
   .row
     .col-md-12
       = link_to_remove_association f, wrapper_class: "nested-fields5", class: "bttn btn-add pull-right delete_icon" do
@@ -77,11 +95,15 @@
 
 - content_for :scripts do
   :javascript
-    function radio_change(e){
-      if(e.value == "employer") {
-        $('#link_'+e.id).show()
-      } else {
-        $('#link_'+e.id).hide()
-      }
-    }
+      $(() => {
+        $(document).on("click", ".is_client_employer_Yes", function() {
+          $(this).closest(".col-md-12").find(".employer_form").show();
+          $(this).closest(".col-md-12").find(".employer_form .destroy_client_employer").val("false");
+        });
 
+        $(document).on("click", ".is_client_employer_No", function() {
+          $(this).closest(".col-md-12").find(".employer_form input:visible").val("");
+          $(this).closest(".col-md-12").find(".employer_form .destroy_client_employer").val("true");
+          $(this).closest(".col-md-12").find(".employer_form").hide();
+        });
+      });

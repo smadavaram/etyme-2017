@@ -1,0 +1,12 @@
+.profile-tile.profile-tile-inlined.nested-fields6
+  .profile-tile-box.faded
+    = f.hidden_field :cover_photo
+    - if f.object.cover_photo.present?
+      %img{ src: f.object.cover_photo, style: 'width: 200px !important; height: 102px !important;' }
+    - else
+      .pt-new-icon.img_pic_r.js-portfolio-upload-btn
+        %i.os-icon.os-icon-plus{ id: f.object.id ? "#{rand(9999)}_#{f.object.id}" : "temp_#{rand(9999)}" }
+    .pt-user-name.img_pic_r
+      Picture
+    = link_to_remove_association f, wrapper_class: "nested-fields6", class: "bttn btn-add pull-right delete_icon" do
+      %i.fa.fa-trash

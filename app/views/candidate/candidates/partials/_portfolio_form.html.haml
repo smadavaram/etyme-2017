@@ -1,0 +1,16 @@
+= form_for current_candidate, url: candidate_candidate_path(current_candidate.id, tab: "education"),method: :put, remote: true do |f|
+  .form-group
+    .multi-field-wrapper
+      .multi-fields
+        %br/
+        %br/
+        %h4.element-header
+          My Portfolio
+        .row
+          .col-md-12
+            .form-group
+              = f.fields_for :portfolios do |b|
+                = render 'candidate/candidates/partials/portfolio_fields', f: b
+              %strong
+                .links.pull-right
+                  = link_to_add_association '+ Add Project', f, :portfolios, class: 'btn btn-primary add_fields', partial: 'candidate/candidates/partials/portfolio_fields'

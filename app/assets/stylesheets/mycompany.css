@@ -13,6 +13,7 @@
 
  *= require custom
  *= require company_chat_custom
+ *= require candidate/profile
 
  */
 .icon-text {

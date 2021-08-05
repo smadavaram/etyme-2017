@@ -75,3 +75,15 @@ if FreeEmailProvider.count.zero?
 
   FreeEmailProvider.create(free_email_providers)
 end
+
+# Rating Categories
+if RatingCategory.count.zero?
+  rating_categories = [
+    'Communication',
+    'Timeliness',
+    'Quality'
+  ]
+  rating_categories.each do |rating_category_name|
+    RatingCategory.create(name: rating_category_name)
+  end
+end

@@ -1,4 +1,4 @@
-var uploader = "<%= Rails.env.development? ? 'localhost-test' : ENV['uploader']%>";
+var uploader = "<%= Rails.env.development? ? 'localhost-test' : ENV['uploader'] %>";
 //console.log('uploader = ', uploader);
 
 function upload_file(selector, name_selector = false, multiple = false) {
@@ -54,7 +54,6 @@ function trix_upload(){
 }
 
 function upload_file_ajax(callback_function, id=false) {
-    console.log('calling....')
     new UploaderWindow(uploader).open().then(urls => {
         console.log('url = ', urls);
         if (urls !== false) {
