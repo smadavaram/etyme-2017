@@ -28,6 +28,9 @@ class Static::CandidatesController < ApplicationController
     @candidate_company = current_company.candidates_companies.includes(:candidate).find_by(candidate_id: params[:id])
     @candidate         = @candidate_company.candidate
     @rating_categories = RatingCategory.all.order(:name)
+
+    @can_review  = current_user && @candidate.clients.map(&:refrence_email).map{|email| email.split("@").last }.include?(current_user&.email&.split("@").last)
+
     # TODO: Where should be fetched projects?
     # @company_projects  =
 

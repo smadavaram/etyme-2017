@@ -16,12 +16,16 @@
       <div class="profile-title">
         <%= candidate.candidate_title %>
       </div>
+
       <div class="profile-rating">
         <%= rating_starts(candidate_company.rating&.average || 0) %>
       </div>
       <div class="profile-reviews-links">
         <span class="profile-reviews-link"><%= pluralize(candidate_company.rating&.total, 'Review') %></span>
+
+      <%if can_review %>
         <span class="profile-reviews-link" onclick="showReviewModal();">Add a Review</span>
+      <%end%>
       </div>
       <div class="profile-stats">
         <div class="profile-stats-container">
@@ -45,12 +49,12 @@
         <% if candidate&.phone %>
         <div class="profile-contact">
           <i class="fa fa-phone" aria-hidden="true"></i>
-          <%= candidate&.phone %>
+          <%= mask(candidate&.phone, 4, "*") %>
         </div>
         <% end %>
         <div class="profile-contact">
           <i class="fa fa-envelope" aria-hidden="true"></i>
-          <%= candidate&.email %>
+          <%= mask(candidate&.email, 4, "*") %>
           <span class="profile-contact-verified">Verified</span>
         </div>
       </div>
@@ -191,15 +195,15 @@
         </a>
 
         <div>         
-        <% @c_recruiter = User.find_by(id: @candidate.recruiter_id)%>
-                <%if @c_recruiter.present? && current_user != @c_recruiter%>
+          <% @c_recruiter = User.find_by(id: @candidate.recruiter_id)%>
+          <%if @c_recruiter.present? && current_user != @c_recruiter%>
 
-                  <%= contact_widget_recuirter_profile(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') %>
-                <%else%>
+            <%= contact_widget_recuirter_profile(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') %>
+          <%else%>
 
-                  <%= contact_widget_recuirter_profile(@candidate.email, @candidate.phone,@candidate,chat_link: chat_link(@candidate),color: '#3E4B5B; !important') %>
-                <%end%>
-                
+            <%= contact_widget_recuirter_profile(@candidate.email, @candidate.phone,@candidate,chat_link: chat_link(@candidate),color: '#3E4B5B; !important') %>
+          <%end%>
+
         </div>
 
         <%
@@ -314,35 +318,36 @@
         <div class="f-16 w-500 l-19 c-80">Portfolio</div>
       </div>
         <% if candidate.full_portfolios.empty? %>
-          No Projects
+          No Portfolio
+        <% else %>
+          <div class="row d-flex justify-content-center">
+            <div class="portfolio-slick">
+              <% candidate.full_portfolios.each do |portfolio| %>
+                <% if url_image?(portfolio.cover_photo) %>
+                  <div class="slide-container">
+                    <img src="<%= portfolio.cover_photo %>"/>
+                  </div>
+                <% end %>
+                <% if url_video?(portfolio.cover_photo) %>
+                  <div class="slide-container">
+                    <video controls="<%= true %>">
+                      <source src="<%= portfolio.cover_photo %>"></source>
+                    </video>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
         <% end %>
-      <div class="row d-flex justify-content-center">
-        <div class="portfolio-slick">
-          <% candidate.full_portfolios.each do |portfolio| %>
-            <% if url_image?(portfolio.cover_photo) %>
-              <div class="slide-container">
-                <img src="<%= portfolio.cover_photo %>"/>
-              </div>
-            <% end %>
-            <% if url_video?(portfolio.cover_photo) %>
-              <div class="slide-container">
-                <video controls="<%= true %>">
-                  <source src="<%= portfolio.cover_photo %>"></source>
-                </video>
-              </div>
-            <% end %>
-          <% end %>
-        </div>
-      </div>
     </div>
 
     <!-- Project Experience -->
     <div class="webflow-profile-inner">
       <div class="d-flex justify-content-between mb-30">
-        <div class="f-16 w-500 l-19 c-80">Experience</div>
+        <div class="f-16 w-500 l-19 c-80">Work History</div>
       </div>
       <% if candidate.full_experiences.empty? %>
-        No Experience
+        There is no work Experience
       <% end %>
 
       <% candidate.designations.with_no_client.each do |designation| %>

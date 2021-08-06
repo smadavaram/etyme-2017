@@ -8,7 +8,7 @@ body{
     <div class="row"> <!-- Div Row -->
       <%= render 'static/shared/webflow_header' %>
       <div class="content-main webflow-content-main col-12"> <!-- Div Content Main -->
-        <%= render 'webflow_candidate_profile', candidate: @candidate, candidate_company: @candidate_company %>
+        <%= render 'webflow_candidate_profile', candidate: @candidate, candidate_company: @candidate_company, can_review: @can_review %>
       </div> <!-- Div Content Main -->
     </div> <!-- Div Row -->
   </div> <!-- Div Container Fluid -->
