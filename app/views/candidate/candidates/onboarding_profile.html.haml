@@ -60,7 +60,7 @@
                     .profile-tile.profile-tile-inlined
                       -#= filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
                       .profile-tile-box.faded
-                        =image_tag current_candidate.photo,style: 'width: 200px !important; height: 102px !important;' unless current_candidate&.photo.blank?
+                        = image_tag current_candidate.photo, style: 'width: 200px !important; height: 102px !important;' unless current_candidate&.photo.blank?
                         .pt-new-icon.img_pic_r.candi-profile-pic
                           %i.os-icon.os-icon-plus
                         .pt-user-name.img_pic_r
@@ -109,6 +109,9 @@
                 .row{style: "padding: 15px;"}
                 #basic-info-form
                   =render partial: 'candidate/candidates/partials/basic_info_form' #,locals: {candidate: current_candidate}
+                .row
+                  .col-sm-12.col-md-12.col-lg-12#submit-doc-form
+                    = render partial: 'candidate/candidates/partials/portfolio_form'
                 .row
                   .col-sm-12.col-md-12.col-lg-12#submit-doc-form
                     = render partial: 'candidate/candidates/partials/submit_doc_form'
@@ -160,7 +163,7 @@
                 %h4.element-header
                   Save Form
                 %br/
-                = form_for current_candidate,url: candidate_candidate_path(current_candidate.id),method: :put do |f|
+                = form_for current_candidate, url: candidate_candidate_path(current_candidate.id),method: :put do |f|
                   .row
                     .col-sm-12
                       .form-group
@@ -291,6 +294,10 @@
       upload_file_ajax(candidateLogoUpload);
     });
 
+    $(document).on("click", ".js-portfolio-upload-btn", function(el){
+      upload_file_ajax(portfolioPictureUpload, el.target.id);
+    });
+
     $(document).on("click", '#myTab a', function(e) {
       e.preventDefault();
       $(this).tab('show');
@@ -347,7 +354,7 @@
      });
     }
 
-    function candidateLogoUpload(url,type){
+    function candidateLogoUpload(url, type){
       photo_url = url
       $('.profile-pic').html('');
       $.ajax({
@@ -363,7 +370,7 @@
      });
     }
 
-    function employeevideoUpload(url,type){
+    function employeevideoUpload(url, type){
       video_url = url
       video_type=type
       // $('.video-pic').html('');
@@ -380,6 +387,15 @@
         // location.reload();
        }
      });
+    }
+
+    function portfolioPictureUpload(photo_url, type, id){
+      uploadBtn = $("#"+id).parent();
+
+      cover_input = uploadBtn.siblings('input')[0];
+      $(cover_input).val(photo_url);
+      image_tag = '<img src="' + photo_url + '" style="width: 200px !important; height: 102px !important;" />';
+      uploadBtn.replaceWith(image_tag);
     }
 
     function addressLookup() {
@@ -452,16 +468,8 @@
     })
     $(document).on("click", "#candidate_ever_worked_with_company_no", function(){
       $(".client_information_main_div").hide();
+      $(".client-fields:not(:first) .remove_fields").trigger("click");
     })
-
-
-
-
-
-
-
-
-
 
     if("#{current_candidate.ever_worked_with_company}" == "Yes")
     {
@@ -475,10 +483,12 @@
     })
     $("#candidate_ever_worked_with_company_no").on("click", function(){
       $(".client_information_main_div").hide();
+      $(".client-fields:not(:first) .remove_fields").trigger("click");
     })
 
     $(document).ready(function () {
       addressLookup();
+
     });
 
     function addressLookup() {

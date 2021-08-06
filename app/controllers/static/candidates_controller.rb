@@ -17,17 +17,22 @@ class Static::CandidatesController < ApplicationController
   end
 
   def candidate_profile
-    @current_company  = Company.find_by(slug: request.subdomain)
-
-    if @current_company.nil?
+    if current_company.nil?
       flash[:alert] = 'Please try with company domain.'
       return redirect_to root_path
     end
-    
-    @candidates_hot   = []
-    @candidates_hot   = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3) unless @current_company.nil?
-    @jobs_hot         = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
-    @candidate        = Candidate.find_by(id: params[:id])
+
+    @candidates_hot    = []
+    @candidates_hot    = CandidatesCompany.hot_candidate.where(company_id: current_company.id).first(3) unless current_company.nil?
+    @jobs_hot          = current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
+    @candidate_company = current_company.candidates_companies.includes(:candidate).find_by(candidate_id: params[:id])
+    @candidate         = @candidate_company.candidate
+    @rating_categories = RatingCategory.all.order(:name)
+
+    @can_review  = current_user && @candidate.clients.map(&:refrence_email).map{|email| email.split("@").last }.include?(current_user&.email&.split("@").last)
+
+    # TODO: Where should be fetched projects?
+    # @company_projects  =
 
     if (params[:is_chat_candidate].present? && params[:is_chat_candidate] == "true")
       flash[:alert] = 'Please login with Company ID.'

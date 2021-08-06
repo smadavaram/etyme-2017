@@ -2,7 +2,7 @@
 .form-group
   .multi-field-wrapper
     .multi-fields
-      = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "client"),method: :put, remote: true do |f|
+      = form_for current_candidate, url: candidate_candidate_path(current_candidate.id, tab: "client"),method: :put, remote: true do |f|
         / %h2{style: "margin: 15px 0"}
         /   %b Client Information
         .row

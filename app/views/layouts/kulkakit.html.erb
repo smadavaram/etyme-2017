@@ -12,7 +12,7 @@
     <meta content="website" property="og:type"/>
     <meta content="cloudepa.etyme.com" property="og:site_name"/>
     <meta content="Etymw" property="og:description"/>
-  
+
     <% if params[:controller] == "static/jobs" && params[:action] ==  "index" && request.subdomain.present? %>
       <title><%= "#{request.subdomain} :: Jobs" %></title>
     <% elsif params[:controller] == "static/jobs" && params[:action] ==  "show" && request.subdomain.present? %>
@@ -46,6 +46,8 @@
     <div class="modals"></div>
     <div id="modals" ></div>
     <%= yield %>
+    <%= yield(:scripts) if yield(:scripts).present? %>
   </body>
   <%= render 'shared/flash_messages'%>
+  <div class="modal"></div>
 </html>
