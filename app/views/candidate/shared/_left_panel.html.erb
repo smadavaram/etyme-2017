@@ -50,7 +50,7 @@
 
 </style>
 <div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; padding-left: 10px; height: 12vh;">
-  <div style="display: flex !important; ">
+  <div style="display: flex !important; margin-bottom: 10px !important;">
     <div class="logged-user-i" style="display: flex !important; align-items:center ">
         <div class="avatar-w" >
           <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
@@ -120,7 +120,7 @@ $(".cont-comany").addClass('cont-comany2');
 
 
 <div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
-  <div class="logged-user-w avatar-inline p-1 m-1" style="height: 5vh; margin-top: 16px !important;">
+  <div class="logged-user-w avatar-inline p-1 m-1" style="height: 5vh; margin-top: 22px !important;">
     <div class="logged-user-i">
       <div class="avatar-w">
         <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
