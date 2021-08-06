@@ -11,33 +11,41 @@
 /* @media (min-width: 730px) */
 </style>
 <div  id="side-bar" class="icon-side-bar mobile-icon-side-bar" style="display: none; position: absolute; height:12vh; padding-left: 10px;">
-<div style="display: flex !important; margin-bottom: 10px !important;">
-
-    <div class=" logged-user-i" style="display: flex !important; align-items:center">
-      <div class="avatar-w">
-        <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size', style: 'height: 41px !important; width: 41px !important; border-radius: 50%;'), company_profile_page_companies_path %>
-      </div>
-      <div class="logged-user-info-w">
-        <div class="logged-user-name">
-          <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
+  <div style="display: flex !important; margin-bottom: 10px !important;">
+      <div id='logo' class="col-sm-10 col-md-10 col-lg-10 logged-user-i" style="display: flex !important; align-items:center">
+        <div class="avatar-w">
+          <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size', style: 'height: 41px !important; width: 41px !important; border-radius: 50%;'), company_profile_page_companies_path %>
+        </div>
+        <div class="logged-user-info-w">
+          <div class="logged-user-name">
+            <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
+          </div>
         </div>
       </div>
-  </div>
-  <div class=" icon-button-style" style="justify-content: flex-end">
-    <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
-      <div class="os-icon os-icon-hamburger-menu-1"></div>
+    <div id='toggle1' class="col-sm-2 col-md-2 col-lg-2 toggleshow" style="margin-top: 9px !important">
+      <div class="icon-button-style" style="justify-content: flex-end">
+        <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
+          <div class="os-icon os-icon-hamburger-menu-1"></div>
+        </div>
+      </div>
+    </div>
+    <div id='toggle2' class="col-sm-2 col-md-2 col-lg-2 togglehide" style="margin-top: 9px !important;">
+      <div class="icon-button-style" style="justify-content: flex-end">
+        <div id="togglebutton" onclick="toglleMenu1()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
+          <div class="os-icon os-icon-hamburger-menu-1"></div>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 </div>
 <script>
     function toglleMenu() {
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
         $('.lpm').hide();
-        $("#side-bar").removeClass('icon-side-bar');
-        $("#togglebutton1").addClass('togglebtncontainerinbox1');
-        debugger
+        $("#toggle1").removeClass('toggleshow');
+        $("#toggle1").addClass('togglehide');
+        $("#toggle2").removeClass('togglehide');
         $(".cont-comany").addClass('margin_class');
         console.log("add class")
 
@@ -46,8 +54,10 @@
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
         $('.lpm').hide();
-        $("#side-bar").addClass('icon-side-bar');
-        $("#togglebutton1").removeClass('togglebtncontainerinbox1');
+        $("#toggle1").removeClass('togglehide');
+        $("#toggle1").addClass('toggleshow');
+        $("#toggle2").addClass('togglehide');
+        $("#toggledmenubar").addClass('togglehide');
         $(".cont-comany").removeClass('margin_class');
         console.log("remove class")
     }
@@ -56,7 +66,7 @@
 
 </script>
 <div id="toggledmenubar" style="<%= "display: none; height: 100vh;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
-  <div class="logged-user-w avatar-inline p-1 m-1" style="height: 5vh; margin-top: 28px !important;">
+  <div class="logged-user-w avatar-inline p-1 m-1" style="height: 5vh; margin-top: 18px !important;">
     <div class="logged-user-i">
       <div class="avatar-w">
         <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>

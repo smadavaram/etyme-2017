@@ -49,8 +49,8 @@
     }
 
 </style>
-<div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; padding-left: 10px; height: 12vh;">
-  <div style="display: flex !important; margin-bottom: 10px !important;">
+<div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; padding-left: 10px;">
+  <div style="display: flex !important;">
     <div class="logged-user-i" style="display: flex !important; align-items:center ">
         <div class="avatar-w" >
           <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
