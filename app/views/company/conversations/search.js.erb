@@ -19,7 +19,6 @@
 <% end %>
 
 <% if @conversations.present? %>
-<%binding.pry%>
   $("#company-conversation-list").append("<div id='all-infinite-scrolling-con' style='display: none;' ></div>")
   $("#all-infinite-scrolling-con").html("<%= j will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>");
   $(".company-conversation-scorll").data('ajaxready', true);

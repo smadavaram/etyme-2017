@@ -48,7 +48,7 @@ checkForConScrollEvent = function (el) {
     $(".company-conversation-scorll")[0].scrollHeight -
     $(".company-conversation-scorll").height() -
     el.scrollTop();
-  if (more_users_url && requestable_height === 10) {
+  if (more_users_url && requestable_height === 0) {
     $("#loading").removeClass("hidden");
     $(".company-conversation-scorll").data("ajaxready", false);
     console.log(more_users_url);
