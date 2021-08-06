@@ -49,9 +49,9 @@
     }
 
 </style>
-<div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; padding-left: 10px;">
-  <div style="display: flex !important;">
-    <div class="logged-user-i" style="display: flex !important; align-items:center ">
+<div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; height: 12vh; padding-left: 10px;">
+  <div style="display: flex !important; margin-bottom: 10px !important;">
+    <div id='logo' class="col-sm-10 col-md-10 col-lg-10 logged-user-i" style="display: flex !important; align-items:center">
         <div class="avatar-w" >
           <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
         </div>
@@ -68,9 +68,18 @@
           <!--div class="logged-user-role">My Team</div-->
         </div>
     </div>
-    <div class="icon-button-style " style="display: flex !important; ">
-      <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
-        <div class="os-icon os-icon-hamburger-menu-1"></div>
+    <div id='toggle1' class="col-sm-2 col-md-2 col-lg-2 toggleshow" style="margin-top: 9px !important">
+      <div class="icon-button-style " style="display: flex !important; ">
+        <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
+          <div class="os-icon os-icon-hamburger-menu-1"></div>
+        </div>
+      </div>
+    </div>
+    <div id='toggle2' class="col-sm-2 col-md-2 col-lg-2 togglehide" style="margin-top: 9px !important;">
+      <div class="icon-button-style" style="display: flex !important; ">
+        <div id="togglebutton" onclick="toglleMenu1()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
+          <div class="os-icon os-icon-hamburger-menu-1"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -88,30 +97,24 @@
 // debugger
 //        console.log(window.location.pathname.toString())
 //       }})()
-    
+
     function toglleMenu() {
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
-      $(".icon-button-style1").removeClass('chat-togle-css');
-       $("#togglebutton").removeClass('togglebtncontainerinbox');
-
-      $("#side-bar").addClass('dis-no')
-        
+        $("#toggle1").removeClass('toggleshow');
+        $("#toggle1").addClass('togglehide');
+        $("#toggle2").removeClass('togglehide');
         $(".cont-comany").addClass('margin_class');
         $(".cont-comany").removeClass('cont-comany2');
-
     }
     function toglleMenu1() {
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
-
-        $("#togglebutton").addClass('togglebtncontainerinbox');
-       $("#side-bar").removeClass('dis-no')
-        $(".icon-button-style1").removeClass('chat-togle-css');
-$(".cont-comany").addClass('cont-comany2');
-
+        $("#toggle1").removeClass('togglehide');
+        $("#toggle1").addClass('toggleshow');
+        $("#toggle2").addClass('togglehide');
+        $(".cont-comany").addClass('cont-comany2');
         $(".cont-comany").removeClass('margin_class');
-
     }
 </script>
 
@@ -120,7 +123,7 @@ $(".cont-comany").addClass('cont-comany2');
 
 
 <div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
-  <div class="logged-user-w avatar-inline p-1 m-1" style="height: 5vh; margin-top: 22px !important;">
+  <div class="logged-user-w avatar-inline p-1 m-1" style="height: 5vh; margin-top: 13px !important;">
     <div class="logged-user-i">
       <div class="avatar-w">
         <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
