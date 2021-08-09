@@ -51,11 +51,11 @@
 </style>
 <div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; height: 12vh; padding-left: 10px;">
   <div style="display: flex !important; margin-bottom: 10px !important;">
-    <div id='logo' class="col-sm-10 col-md-10 col-lg-10 logged-user-i" style="display: flex !important; align-items:center">
-        <div class="avatar-w" >
-          <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
+    <div class="col-sm-10 col-md-10 col-lg-10 logged-user-i" style="display: inline-flex !important; align-items:center; padding-left: 0.7rem; margin-top: 10px;">
+      <div class="avatar-w" style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">
+          <%= user_image(current_candidate&.associated_company, class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
         </div>
-        <div class="logged-user-info-w">
+      <div class="logged-user-info-w" style="padding-left: 15px;">
           <div class="logged-user-name">
             <% if current_candidate.associated_company %>
               <%= link_to current_candidate.associated_company.name.capitalize, '#', class: "text-muted" %>
@@ -68,14 +68,14 @@
           <!--div class="logged-user-role">My Team</div-->
         </div>
     </div>
-    <div id='toggle1' class="col-sm-2 col-md-2 col-lg-2 toggleshow" style="margin-top: 9px !important">
+    <div id='toggle1' class="col-sm-2 col-md-2 col-lg-2 toggleshow" style="margin-top: 9px !important; padding-left: 14px;">
       <div class="icon-button-style " style="display: flex !important; ">
         <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
           <div class="os-icon os-icon-hamburger-menu-1"></div>
         </div>
       </div>
     </div>
-    <div id='toggle2' class="col-sm-2 col-md-2 col-lg-2 togglehide" style="margin-top: 9px !important;">
+    <div id='toggle2' class="col-sm-2 col-md-2 col-lg-2 togglehide" style="margin-top: 9px !important; padding-left: 14px;">
       <div class="icon-button-style" style="display: flex !important; ">
         <div id="togglebutton" onclick="toglleMenu1()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
           <div class="os-icon os-icon-hamburger-menu-1"></div>
