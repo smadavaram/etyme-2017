@@ -7,7 +7,6 @@ class Company::ConversationsController < Company::BaseController
   $the_array = []
   def index
     add_breadcrumb 'Inbox'
-
     respond_to do |format|
       @query = nil
       @topic = nil
@@ -76,9 +75,30 @@ class Company::ConversationsController < Company::BaseController
     end
   end
 
+  # def update_company_conversation_title
+  #   group_data = Group.find_by(id: params[:group_id])
+  #   group_data.update(branchout: params[:branchout])
+  #   respond_to do |format|
+  #     format.js {render inline: "location.reload();" }
+  #   end
+  # end
+
   def update_company_conversation_title
+
     group_data = Group.find_by(id: params[:group_id])
-    group_data.update(branchout: params[:branchout])
+    group_data_branchout = group_data.branch_array.present? ? group_data.branch_array << params[:branch_array] : group_data.branch_array = ( [] << params[:branch_array] )
+    group_data.update(branch_array: group_data_branchout)
+    respond_to do |format|
+      format.js {render inline: "location.reload();" }
+    end
+  end
+
+  def delete_company_conversation_title
+    group_data = Group.find_by(id: params[:group_id])
+    remove_branch = []  << params[:remove_chat_name]
+    group_data_branch = group_data.branch_array - remove_branch
+    group_data.update(branch_array: group_data_branch)
+    # code to remove id from branch out column 
     respond_to do |format|
       format.js {render inline: "location.reload();" }
     end

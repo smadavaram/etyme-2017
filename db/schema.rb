@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_07_13_101518) do
+ActiveRecord::Schema.define(version: 2021_08_09_093500) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -154,6 +154,12 @@ ActiveRecord::Schema.define(version: 2021_07_13_101518) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_branches_on_company_id"
+  end
+
+  create_table "branchouts", force: :cascade do |t|
+    t.text "branchout_array", default: [], array: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "buy_contracts", force: :cascade do |t|
@@ -419,6 +425,7 @@ ActiveRecord::Schema.define(version: 2021_07_13_101518) do
     t.float "latitude"
     t.float "longitude"
     t.integer "recruiter_id"
+    t.string "phone_country_code"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
@@ -431,8 +438,8 @@ ActiveRecord::Schema.define(version: 2021_07_13_101518) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2021-07-19 12:12:47"
-    t.datetime "updated_at", default: "2021-07-19 12:12:47"
+    t.datetime "created_at", default: "2021-02-24 22:47:21"
+    t.datetime "updated_at", default: "2021-02-24 22:47:21"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -1254,6 +1261,8 @@ ActiveRecord::Schema.define(version: 2021_07_13_101518) do
     t.datetime "updated_at", null: false
     t.string "member_type"
     t.string "branchout"
+    t.string "branchoutname"
+    t.text "branch_array", default: [], array: true
     t.index ["company_id"], name: "index_groups_on_company_id"
   end
 
@@ -1655,6 +1664,47 @@ ActiveRecord::Schema.define(version: 2021_07_13_101518) do
     t.integer "status", default: 0
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "rating_categories", force: :cascade do |t|
+    t.string "name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "rating_rates", id: :serial, force: :cascade do |t|
+    t.decimal "value", precision: 25, scale: 16, default: "0.0"
+    t.string "author_type", null: false
+    t.integer "author_id", null: false
+    t.string "resource_type", null: false
+    t.integer "resource_id", null: false
+    t.string "scopeable_type"
+    t.integer "scopeable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "parent_id"
+    t.text "description"
+    t.index ["author_type", "author_id", "resource_type", "resource_id", "scopeable_type", "scopeable_id"], name: "index_rating_rates_on_author_and_resource_and_scopeable", unique: true
+    t.index ["author_type", "author_id"], name: "index_rating_rates_on_author_type_and_author_id"
+    t.index ["parent_id"], name: "index_rating_rates_on_parent_id"
+    t.index ["resource_type", "resource_id"], name: "index_rating_rates_on_resource_type_and_resource_id"
+    t.index ["scopeable_type", "scopeable_id"], name: "index_rating_rates_on_scopeable_type_and_scopeable_id"
+  end
+
+  create_table "rating_ratings", id: :serial, force: :cascade do |t|
+    t.decimal "average", precision: 25, scale: 16, default: "0.0"
+    t.decimal "estimate", precision: 25, scale: 16, default: "0.0"
+    t.integer "sum", default: 0
+    t.integer "total", default: 0
+    t.string "resource_type", null: false
+    t.integer "resource_id", null: false
+    t.string "scopeable_type"
+    t.integer "scopeable_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["resource_type", "resource_id", "scopeable_type", "scopeable_id"], name: "index_rating_rating_on_resource_and_scopeable", unique: true
+    t.index ["resource_type", "resource_id"], name: "index_rating_ratings_on_resource_type_and_resource_id"
+    t.index ["scopeable_type", "scopeable_id"], name: "index_rating_ratings_on_scopeable_type_and_scopeable_id"
   end
 
   create_table "receive_payments", force: :cascade do |t|
