@@ -405,6 +405,26 @@
   font-size: 16px;
   line-height: 19px;
 }
+.btnmy-style {
+  @media only screen and (max-width: 600px) {
+    height: 27px;
+    width: 85px;
+    font-size: 12px;
+    border-radius: 7px;
+  }
+  width: 85px;
+  height: 40px;
+  //margin-bottom: 2px;
+  border-radius: 7px;
+  border: 1px solid #ff0000;
+  background-color: #ff0000;
+  color: white;
+  font-family: "Roboto";
+  font-weight: bold;
+  font-style: normal;
+  font-size: 16px;
+  line-height: 19px;
+}
 // right-side-bar
 .right-sidebar {
   @media only screen and (max-width: 600px) {

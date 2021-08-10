@@ -62,10 +62,10 @@
 =end%>
         <%branch_new_array = opt_obj[:branch_array]%>
         <% branch_new_array.each do |i| %>
-                  <div>
-                    <button id="branchout-button" class="btn1-style">
-                      <div  class="button-text" ><span><%= i %></span><span><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= i.to_s %>')"></i></span></div>
-                    </button>
+                  <div class="ml-1 mt-2 p-1" style="background:#63C5DA; border-radius: 10px 10px 0px 0px; ">
+                    <div id="branchout-button" class="">
+                      <div  class="button-text" ><span style="color:white;"><%= i %></span><span style="color:white;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= i.to_s %>')"></i></span></div>
+                    </div>
                   </div>
          <% end %> 
 
@@ -78,7 +78,7 @@
   </div>
   <div class="col-0 col-sm-2 col-md-2 col-lg-2 branchout-desktop">
     <div class="row branch-out" style="justify-content: flex-end">
-      <button type="button" class="btn4-style" id="clickon1"><i class="fa fa-plus"></i> BO</button>
+      <button type="button" class="btnmy-style" id="clickon1" ><i class="fa fa-plus"></i> BO</button>
     </div>
   </div>
 
