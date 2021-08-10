@@ -61,7 +61,10 @@
 <%
 =end%>
         <%branch_new_array = opt_obj[:branch_array]%>
-        <% branch_new_array.each do |i| %>
+        <% branch_new_array.each do |key|%>
+        <%key_value = eval(key)%> 
+        <%i =  key_value[:chat_title]%> 
+
                   <div class="ml-1 mt-2 p-1" style="background:#63C5DA; border-radius: 10px 10px 0px 0px; ">
                     <div id="branchout-button" class="">
                       <div  class="button-text" ><span style="color:white;"><%= i %></span><span style="color:white;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= i.to_s %>')"></i></span></div>

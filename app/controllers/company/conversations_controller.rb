@@ -11,7 +11,9 @@ class Company::ConversationsController < Company::BaseController
       @query = nil
       @topic = nil
       format.html do
+        
         @conversations = Conversation.all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 15)
+        # @conversation = Conversation.find(212)
         @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
         @favourites = current_user.favourables.uniq
         set_activity_for_job_application
@@ -84,9 +86,17 @@ class Company::ConversationsController < Company::BaseController
   # end
 
   def update_company_conversation_title
-
+    # binding.pry
+    # b = Conversation.create(senderable_type: a.senderable_type, senderable_id: a.senderable_id, recipientable_type: a.recipientable_type, recipientable_id: a.recipientable_id, topic: a.topic, chatable_type: a.chatable_type, chatable_id: a.chatable_id, job_application_id: a.job_application_id, job_id: a.job_id, buy_contract_id: a.buy_contract_id, sell_contract_id:a. sell_contract_id)
+    c = Conversation.create()
+    g = Group.find_by(id: params[:group_id])
+    Group.create()
+    new_sub_chat = {
+      sub_chats: c.id,
+      chat_title: params[:branch_array],
+    }
     group_data = Group.find_by(id: params[:group_id])
-    group_data_branchout = group_data.branch_array.present? ? group_data.branch_array << params[:branch_array] : group_data.branch_array = ( [] << params[:branch_array] )
+    group_data_branchout = group_data.branch_array.present? ? group_data.branch_array << new_sub_chat : group_data.branch_array = ( [] << new_sub_chat )
     group_data.update(branch_array: group_data_branchout)
     respond_to do |format|
       format.js {render inline: "location.reload();" }
@@ -131,7 +141,10 @@ class Company::ConversationsController < Company::BaseController
     favourable.destroy
   end
 
-  def add_to_chat
+  def add_to_chat 
+    
+    binding.pry
+    
     conversation = Conversation.find(params[:chatconversation])
     if params[:directoryid].present?
       user = current_company.users.where(id: params[:directoryid]).first

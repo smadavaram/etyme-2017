@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_08_09_093500) do
+ActiveRecord::Schema.define(version: 2021_08_10_113124) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -983,6 +983,9 @@ ActiveRecord::Schema.define(version: 2021_08_09_093500) do
     t.bigint "job_id"
     t.bigint "buy_contract_id"
     t.bigint "sell_contract_id"
+    t.boolean "sub_chats", default: false
+    t.integer "main_chat_ids"
+    t.boolean "freeze_chats", default: false
     t.index ["chatable_type", "chatable_id"], name: "index_conversations_on_chatable_type_and_chatable_id"
     t.index ["recipientable_type", "recipientable_id"], name: "index_conversations_on_recipientable_type_and_recipientable_id"
     t.index ["senderable_type", "senderable_id"], name: "index_conversations_on_senderable_type_and_senderable_id"
