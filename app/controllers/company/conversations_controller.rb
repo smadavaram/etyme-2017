@@ -13,7 +13,7 @@ class Company::ConversationsController < Company::BaseController
       format.html do
         
         @conversations = Conversation.all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 15)
-        #  @conversation = Conversation.find(228)
+        # @conversation = Conversation.find(228)
         @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
         @favourites = current_user.favourables.uniq
         set_activity_for_job_application
@@ -86,10 +86,10 @@ class Company::ConversationsController < Company::BaseController
   # end
 
   def update_company_conversation_title
-    binding.pry
     group_data = Group.find_by(id: params[:group_id])
     conversation_data = Conversation.find_by(id: params[:con_id])
-    sub_group_name = current_user.first_name
+        binding.pry
+    sub_group_name = params[:branch_array]  +  current_user.first_name 
     sub_company_id = current_company.id
     sub_member_type = group_data.member_type
     sub_bench_array = group_data.branch_array
@@ -97,17 +97,27 @@ class Company::ConversationsController < Company::BaseController
    
     chatable_type_sub = conversation_data.chatable_type
     chatable_id_sub = group_data_sub.id
-
     conversation_data_sub  = Conversation.create(chatable_type: chatable_type_sub, chatable_id: chatable_id_sub, sub_chats: true, main_chat_ids: params[:con_id])
-    new_sub_chat = {
+   
+   new_sub_chat = {
       sub_chats: conversation_data_sub.id,
       chat_title: params[:branch_array],
     }
     group_data_branchout = group_data.branch_array.present? ? group_data.branch_array << new_sub_chat : group_data.branch_array = ( [] << new_sub_chat )
     group_data.update(branch_array: group_data_branchout)
-    group_data_sub.update(branch_array: group_data_branchout)
-    binding.pry
+    
 
+    
+    ids = Group.find(params[:group_id]).branch_array.map {|x| eval(x)[:sub_chats]}
+    bb = Conversation.find(ids).pluck(:chatable_id)
+    Group.where(id: bb).map {|m| m.update(branch_array: group_data_branchout) }
+
+    directoryid = current_user.id
+    chatctype = conversation_data_sub.chatable_type
+    chatcid = group_data_sub.id
+    chatconversation = conversation_data_sub.id
+    add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
+    # redirect_back(fallback_location: current_company.etyme_url)
     
     # b = Conversation.create(senderable_type: a.senderable_type, senderable_id: a.senderable_id, recipientable_type: a.recipientable_type, recipientable_id: a.recipientable_id, topic: a.topic, chatable_type: a.chatable_type, chatable_id: a.chatable_id, job_application_id: a.job_application_id, job_id: a.job_id, buy_contract_id: a.buy_contract_id, sell_contract_id:a. sell_contract_id)
     # c = Conversation.create()
@@ -156,7 +166,6 @@ class Company::ConversationsController < Company::BaseController
   end
 
   def add_to_chat 
-
     conversation = Conversation.find(params[:chatconversation])
     if params[:directoryid].present?
       user = current_company.users.where(id: params[:directoryid]).first
@@ -233,11 +242,10 @@ class Company::ConversationsController < Company::BaseController
 
   private
 
-    def add_to_chat_action 
-
-    conversation = Conversation.find(params[:chatconversation])
-    if params[:directoryid].present?
-      user = current_company.users.where(id: params[:directoryid]).first
+    def add_to_chat_action(params, directoryid, chatctype, chatcid, chatconversation ) 
+    conversation = Conversation.find(chatconversation)
+    if directoryid.present?
+      user = current_company.users.where(id: directoryid).first
     elsif params[:candidateid].present?
       if current_company.candidates.where(id: params[:candidateid]).first.nil?
         user = add_candidate(params[:candidateid])
@@ -256,20 +264,20 @@ class Company::ConversationsController < Company::BaseController
       redirect_to company_conversations_path(conversation: conversation.id)
       return
     end
-    if params[:chatctype] == 'Group'
-      group = Group.find(params[:chatcid])
+    if chatctype == 'Group'
+      group = Group.find(chatcid)
       if group.groupables.create(groupable: user)
         flash[:success] = 'Member is added to the group'
       else
         flash[:errors] = group.errors.full_messages
       end
     else
-      user1 = if params[:chatctype] == 'Candidate'
-                Candidate.where(id: params[:chatcid]).first
-              elsif params[:chatctype] == 'Company'
-                Company.where(id: params[:chatcid]).first
+      user1 = if chatctype == 'Candidate'
+                Candidate.where(id: chatcid).first
+              elsif chatctype == 'Company'
+                Company.where(id: chatcid).first
               else
-                User.find(params[:chatcid])
+                User.find(chatcid)
               end
       name = current_user.full_name + ', ' + user.full_name + ', ' + user1.full_name
       group = Group.create(group_name: name, company_id: current_company.id, member_type: 'Chat')
@@ -278,7 +286,6 @@ class Company::ConversationsController < Company::BaseController
       group.groupables.create(groupable: user1)
       conversation.update(chatable: group, topic: 'GroupChat')
     end
-    redirect_back(fallback_location: current_company.etyme_url)
   end
 
   def add_new_contact(email)

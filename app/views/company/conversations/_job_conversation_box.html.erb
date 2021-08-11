@@ -34,7 +34,7 @@
         <%= form_tag update_company_conversation_title_company_conversations_path, method: :post ,remote: :true do %>
           <div class="element-search autosuggest-search-activator">
             <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
-            <%binding.pry%>
+            <%#binding.pry%>
             <%= hidden_field_tag 'group_id', opt_obj.id  %>
             <%= hidden_field_tag 'con_id', conversation.id  %>
 
@@ -65,7 +65,7 @@
 =end%>
         <%branch_new_array = opt_obj[:branch_array]%>
         <% branch_new_array.each do |key|%>
-        <%key_value = eval(key)%> 
+        <%key_value = eval(key)%>     
         <%i =  key_value[:chat_title]%> 
 
                   <div class="ml-1 mt-2 p-1" style="background:#63C5DA; border-radius: 10px 10px 0px 0px; ">
@@ -82,9 +82,11 @@
 
     </div>
   </div>
-  <div class="col-0 col-sm-2 col-md-2 col-lg-2 branchout-desktop">
+  <div class="col-0 col-sm-2 col-md-2 col-lg-2">
     <div class="row branch-out" style="justify-content: flex-end">
-      <button type="button" class="btnmy-style" id="clickon1" ><i class="fa fa-plus"></i> BO</button>
+    <%if conversation.sub_chats != true %>
+      <button class="btnmy-style" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
+    <%end%>
     </div>
   </div>
 
@@ -234,9 +236,16 @@
       //     debugger
       //     $("#myDIV").toggle('show');
       // });
-      $("#clickon1").on("click", function(){
+
+
+      // $("#clickon1").on("click", function(){
+      //   debugger
+      //     $("#myDIV").toggle('show');
+      // });
+
+      function showClick(){
           $("#myDIV").toggle('show');
-      });
+      }
       // $("#showdiv").on("click", function(){
       //
       //     $("#videobutton").toggle('show');
