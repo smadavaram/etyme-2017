@@ -6,20 +6,20 @@ class Company::ConversationsController < Company::BaseController
   add_breadcrumb 'Dashboard', :dashboard_path
   $the_array = []
   def index
+    
     add_breadcrumb 'Inbox'
     respond_to do |format|
       @query = nil
       @topic = nil
       format.html do
-        
-        @conversations = Conversation.all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 15)
+        @conversations = Conversation.where(sub_chats: false).all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 15)
         # @conversation = Conversation.find(228)
-        @conversation = params[:conversation].present? ? Conversation.find(params[:conversation]) : @conversations.first
+        @conversation = params[:conversation].present? ? Conversation.where(sub_chats: false).find(params[:conversation]) : @conversations.first
         @favourites = current_user.favourables.uniq
         set_activity_for_job_application
       end
       format.js do
-        @conversations = Conversation.all_onversations(current_user).uniq.paginate(page: params[:page], per_page: 10)
+        @conversations = Conversation.where(sub_chats: false).all_onversations(current_user).uniq.paginate(page: params[:page], per_page: 10)
       end
     end
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
@@ -88,7 +88,6 @@ class Company::ConversationsController < Company::BaseController
   def update_company_conversation_title
     group_data = Group.find_by(id: params[:group_id])
     conversation_data = Conversation.find_by(id: params[:con_id])
-        binding.pry
     sub_group_name = params[:branch_array]  +  current_user.first_name 
     sub_company_id = current_company.id
     sub_member_type = group_data.member_type
@@ -97,16 +96,16 @@ class Company::ConversationsController < Company::BaseController
    
     chatable_type_sub = conversation_data.chatable_type
     chatable_id_sub = group_data_sub.id
-    conversation_data_sub  = Conversation.create(chatable_type: chatable_type_sub, chatable_id: chatable_id_sub, sub_chats: true, main_chat_ids: params[:con_id])
-   
+    
+
+    conversation_data_sub  = Conversation.last.update(chatable_type: chatable_type_sub, chatable_id: chatable_id_sub, sub_chats: true, main_chat_ids: params[:con_id])
+    conversation_data_sub  = Conversation.last
    new_sub_chat = {
       sub_chats: conversation_data_sub.id,
       chat_title: params[:branch_array],
     }
     group_data_branchout = group_data.branch_array.present? ? group_data.branch_array << new_sub_chat : group_data.branch_array = ( [] << new_sub_chat )
     group_data.update(branch_array: group_data_branchout)
-    
-
     
     ids = Group.find(params[:group_id]).branch_array.map {|x| eval(x)[:sub_chats]}
     bb = Conversation.find(ids).pluck(:chatable_id)
@@ -125,14 +124,16 @@ class Company::ConversationsController < Company::BaseController
     respond_to do |format|
       format.js {render inline: "location.reload();" }
     end
+    
   end
 
   def delete_company_conversation_title
-    group_data = Group.find_by(id: params[:group_id])
-    remove_branch = []  << params[:remove_chat_name]
-    group_data_branch = group_data.branch_array - remove_branch
-    group_data.update(branch_array: group_data_branch)
+    conversation_data = Conversation.find_by(id: params[:conversation_id])
+    conversation_data.update(freeze_chats: true)
     # code to remove id from branch out column 
+    
+    binding.pry
+    
     respond_to do |format|
       format.js {render inline: "location.reload();" }
     end
@@ -141,13 +142,16 @@ class Company::ConversationsController < Company::BaseController
   def search
     @query = params[:keyword]
     @topic = params[:topic].present? ? params[:topic] : 'All' 
+    
+
+    
     @conversations = if @query.present? && @topic.present?
                        @topic == 'All' ?
-                        Conversation.conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 15) :
+                        Conversation.where(sub_chats: false).conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 15) :
                         Conversation.send(@topic).conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 15)
                      else
                        @topic == 'All' ?
-                        Conversation.all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 15) :
+                        Conversation.where(sub_chats: false).all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 15) :
                         Conversation.send(@topic).all_onversations(online_user).paginate(page: params[:page], per_page: 15)
                      end
     # group_ids = Group.user_chat_groups(online_user, current_company).ids

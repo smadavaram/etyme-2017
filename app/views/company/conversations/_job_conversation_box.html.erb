@@ -3,6 +3,10 @@
   margin-left: 10px;
   margin-top: 5px;
 }
+.new_but{
+  background: none;
+  border: none;
+}
 </style>
 <div class="row" style="height: 5vh; background: #eaf3fc;" >
   <div class="col-6 branchout-back">
@@ -63,19 +67,25 @@
       <% end %>    
 <%
 =end%>
+
+<%#binding.pry%>
         <%branch_new_array = opt_obj[:branch_array]%>
         <% branch_new_array.each do |key|%>
         <%key_value = eval(key)%>     
         <%i =  key_value[:chat_title]%> 
-
+              
                   <div class="ml-1 mt-2 p-1" style="background:#63C5DA; border-radius: 10px 10px 0px 0px; ">
                     <div id="branchout-button" class="">
-                      <div  class="button-text" ><span style="color:white;"><%= i %></span><span style="color:white;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= i.to_s %>')"></i></span></div>
+                      <div  class="button-text" ><button class="new_but" onclick="send_message(<%=key_value[:sub_chats]%>)"><span style="color:white;"> <%= i %></span></button><span style="color:white;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= conversation.id %>')"></i></span></div>
                     </div>
                   </div>
          <% end %> 
 
-        
+        <%
+=begin%>
+ data-val=<%key_value[:chat_title]%> 
+<%
+=end%>
 
 
 
@@ -148,15 +158,13 @@
   </div>
 
   <div  class="row message-send-row-mobile" >
-
     <div class= "row" style="width: 100%;  height:50%;  margin-left: 17px" >
       <div><button id="showdiv1" onclick="btnClick()" class="buttonstyle2"><i class="fa fa-ellipsis-v option-mobile-style"></i></button></div>
-      <% if @conversation.present? %>
+      <% if @conversation.present? && @conversation.sub_chats == false %>
         <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',class: "chat_form",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
           <%= f.text_field :body, class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
-
       <%= button_tag( class: "btn p-0 button-style1 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
-        <img src="/assets/send.png"></img>
+         <img src="/assets/send.png"></img> 
       <% end %>
     </div>
 
@@ -179,10 +187,12 @@
         </div>
       </div>
       <div class="col-sm-4 col-md-4 col-lg-4">
+      <% if @conversation.sub_chats == false %>
         <div class="row send-line">
           <%= button_tag( class: "btn p-0 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
             <img src="/assets/send.png"></img>
           <% end %>
+       <%end%>   
         </div>
       </div>
     </div>
@@ -202,6 +212,7 @@
           $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
       }
       function send_message(id){
+        debugger
           $.ajax({
               url: `/company/conversations?conversation=${id}`,
               type: "POST",
@@ -256,6 +267,14 @@
       function btnClick(){
           $("#myDIV").toggle('show');
       }
+
+
+      function open_chat(){
+
+          var data_id = $(this).data("val");
+          debugger
+      }
+      
       function btnClick1(){
           window.location.reload();
       }
@@ -269,11 +288,11 @@
           $('#'+form_id).submit()
       });
 
-      function remove_branch(group_id, remove_chat_name){
+      function remove_branch(group_id, conversation_id){
             $.ajax({
               data: {
                 group_id: group_id, 
-                remove_chat_name: remove_chat_name,
+                conversation_id: conversation_id,
               },
               url: "<%= delete_company_conversation_title_company_conversations_path %>",
               type: "POST",
