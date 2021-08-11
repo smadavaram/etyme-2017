@@ -34,7 +34,10 @@
         <%= form_tag update_company_conversation_title_company_conversations_path, method: :post ,remote: :true do %>
           <div class="element-search autosuggest-search-activator">
             <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
+            <%binding.pry%>
             <%= hidden_field_tag 'group_id', opt_obj.id  %>
+            <%= hidden_field_tag 'con_id', conversation.id  %>
+
           </div>
         <% end %>
       </div>
