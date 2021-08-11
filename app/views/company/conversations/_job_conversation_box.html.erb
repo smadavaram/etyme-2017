@@ -156,15 +156,14 @@
     </div>
 
   </div>
-
   <div  class="row message-send-row-mobile" >
     <div class= "row" style="width: 100%;  height:50%;  margin-left: 17px" >
       <div><button id="showdiv1" onclick="btnClick()" class="buttonstyle2"><i class="fa fa-ellipsis-v option-mobile-style"></i></button></div>
-      <% if @conversation.present? && @conversation.sub_chats == false %>
+      <% if @conversation.present? && @conversation.freeze_chats == false %>
         <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',class: "chat_form",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
           <%= f.text_field :body, class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
       <%= button_tag( class: "btn p-0 button-style1 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
-         <img src="/assets/send.png"></img> 
+        <img src="/assets/send.png"></img>
       <% end %>
     </div>
 
@@ -172,7 +171,7 @@
     <div class="row mobile-chat-send-icons" >
       <div class="col-sm-8 col-md-8 col-lg-8">
         <div class="row send-icons">
-          <% if conversation.present?   %>
+          <% if conversation.present? && @conversation.freeze_chats == false  %>
           <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
             <%= image_tag("/assets/docusign.png",size: "25x28") %>
           <% end %>
@@ -186,21 +185,19 @@
       <% end %>
         </div>
       </div>
+       <% if @conversation.present? && @conversation.freeze_chats == false %>
       <div class="col-sm-4 col-md-4 col-lg-4">
-      <% if @conversation.sub_chats == false %>
         <div class="row send-line">
           <%= button_tag( class: "btn p-0 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
             <img src="/assets/send.png"></img>
           <% end %>
-       <%end%>   
         </div>
       </div>
+      <%end%>
     </div>
 
   </div>
 </div>
-
-
 
 <% content_for :modals do %>
   <%= render('shared/chat_document_templates', conversation: @conversation) if @conversation.present? %>

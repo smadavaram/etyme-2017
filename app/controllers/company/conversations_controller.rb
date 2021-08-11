@@ -131,9 +131,6 @@ class Company::ConversationsController < Company::BaseController
     conversation_data = Conversation.find_by(id: params[:conversation_id])
     conversation_data.update(freeze_chats: true)
     # code to remove id from branch out column 
-    
-    binding.pry
-    
     respond_to do |format|
       format.js {render inline: "location.reload();" }
     end
@@ -147,11 +144,11 @@ class Company::ConversationsController < Company::BaseController
     
     @conversations = if @query.present? && @topic.present?
                        @topic == 'All' ?
-                        Conversation.where(sub_chats: false).conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 15) :
+                        Conversation.conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 15) :
                         Conversation.send(@topic).conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 15)
                      else
                        @topic == 'All' ?
-                        Conversation.where(sub_chats: false).all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 15) :
+                        Conversation.all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 15) :
                         Conversation.send(@topic).all_onversations(online_user).paginate(page: params[:page], per_page: 15)
                      end
     # group_ids = Group.user_chat_groups(online_user, current_company).ids
