@@ -88,7 +88,7 @@ class Company::ConversationsController < Company::BaseController
   def update_company_conversation_title
     group_data = Group.find_by(id: params[:group_id])
     conversation_data = Conversation.find_by(id: params[:con_id])
-    sub_group_name = params[:branch_array]  +  current_user.first_name 
+    sub_group_name = params[:branch_array]  + ", "+ current_user.first_name 
     sub_company_id = current_company.id
     sub_member_type = group_data.member_type
     sub_bench_array = group_data.branch_array
