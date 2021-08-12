@@ -71,16 +71,24 @@
   </div>
 
 </div>
-
+<% if conversation.job_application_id.present? %>
+<% pre_name = "A- " %>
+<% elsif conversation.buy_contract_id.present? %>
+<%  pre_name = "BC- " %>
+<% elsif conversation.sell_contract_id.present? %>
+<%  pre_name = "SC- " %>
+<% else %>
+<%  pre_name = "" %>
+<% end %>
 <div class="row chat-box" style="background-color: white; height: 82vh">
   <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
   <% link = get_conversation_link(opt_obj) %>
   <div class="row chat-box-header" style="<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 16vh;" : "height: 10vh;" %>" >
       <div class="col-sm-10 col-lg-10 col-md-10">
         <% if link.nil? %>
-          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
+          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
         <%else %>
-          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
+          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
         <%end %>
       </div>
       <div class="col-sm-2 col-lg-2 col-md-2">
