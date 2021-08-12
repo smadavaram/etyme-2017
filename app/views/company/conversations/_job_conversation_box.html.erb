@@ -76,7 +76,7 @@
               
                   <div class="ml-1 mt-2 p-1" style="background:#63C5DA; border-radius: 10px 10px 0px 0px; ">
                     <div id="branchout-button" class="">
-                      <div  class="button-text" ><button class="new_but" onclick="send_message(<%=key_value[:sub_chats]%>)"><span style="color:white;"> <%= i %></span></button><span style="color:white;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= conversation.id %>')"></i></span></div>
+                      <div  class="button-text" ><button class="new_but" onclick="send_message(<%=key_value[:sub_chats]%>)"><span style="color:white;"> <%= i %></span></button><span style="color:white;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= key_value[:sub_chats] %>')"></i></span></div>
                     </div>
                   </div>
          <% end %> 
