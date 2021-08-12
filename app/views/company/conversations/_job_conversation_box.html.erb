@@ -1,11 +1,13 @@
 <style>
 .minus-buttonn{
-  margin-left: 10px;
   margin-top: 5px;
 }
 .new_but{
   background: none;
   border: none;
+}
+.underline_actives{
+  border-bottom: 3px solid #017bf8;
 }
 </style>
 <div class="row" style="height: 5vh; background: #eaf3fc;" >
@@ -38,58 +40,26 @@
         <%= form_tag update_company_conversation_title_company_conversations_path, method: :post ,remote: :true do %>
           <div class="element-search autosuggest-search-activator">
             <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
-            <%#binding.pry%>
             <%= hidden_field_tag 'group_id', opt_obj.id  %>
             <%= hidden_field_tag 'con_id', conversation.id  %>
-
           </div>
         <% end %>
       </div>
-
-
-
-
-       
-      <%
-=begin%>
- <%# $the_array.push(opt_obj[:branch_array]) if opt_obj[:branch_array].present? && !($the_array.include? opt_obj[:branch_array])%>
-        <%# $the_array.each do |i| %>
-       <%= form_tag delete_company_conversation_title_company_conversations_path, method: :post ,remote: :true do %>
-        <% opt_obj[:branch_array].each do |i| %>
-          <div>
-            <button id="branchout-button" class="btn1-style">
-              <div  class="button-text" ><span><%= i %></span><span><i class="fa fa-times minus-buttonn" type="submit"></i></span></div>
-            </button>
-            <%= hidden_field_tag 'group_id', opt_obj.id  %>
-            <%= hidden_field_tag 'remove_chat_name', i  %>
-          </div>
-        <% end %>
-      <% end %>    
-<%
-=end%>
-
-<%#binding.pry%>
         <%branch_new_array = opt_obj[:branch_array]%>
         <% branch_new_array.each do |key|%>
         <%key_value = eval(key)%>     
-        <%i =  key_value[:chat_title]%> 
-              
-                  <div class="ml-1 mt-2 p-1" style="background:#63C5DA; border-radius: 10px 10px 0px 0px; ">
-                    <div id="branchout-button" class="">
-                      <div  class="button-text" ><button class="new_but" onclick="send_message(<%=key_value[:sub_chats]%>)"><span style="color:white;"> <%= i %></span></button><span style="color:white;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= key_value[:sub_chats] %>')"></i></span></div>
+        <%i =  key_value[:chat_title]%>    
+                  <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
+                    <% if conversation.id == key_value[:sub_chats]%>
+                     <div id="branchout-button" class=" underline_actives">
+                      <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button><span style="color:black;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= key_value[:sub_chats] %>')"></i></span></div>
+                    <% else %>
+                     <div id="branchout-button" class="">
+                      <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button><span style="color:black;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= key_value[:sub_chats] %>')"></i></span></div>
+                    <% end %>
                     </div>
                   </div>
          <% end %> 
-
-        <%
-=begin%>
- data-val=<%key_value[:chat_title]%> 
-<%
-=end%>
-
-
-
-
     </div>
   </div>
   <div class="col-0 col-sm-2 col-md-2 col-lg-2">
@@ -209,7 +179,6 @@
           $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
       }
       function send_message(id){
-        debugger
           $.ajax({
               url: `/company/conversations?conversation=${id}`,
               type: "POST",
@@ -218,6 +187,18 @@
               }
           });
       }
+      function send_messages(id){
+        // $("#underline_active").addClass('underline_actives');
+          $.ajax({
+              url: `/company/conversations?conversation=${id}`,
+              type: "POST",
+              dataType: "script",
+              success: function (data) {
+
+              }
+          });
+      }
+      
       $(document).ready(function () {
           set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
           <%# unless conversation&.job_application %>
@@ -245,7 +226,7 @@
       //     $("#myDIV").toggle('show');
       // });
 
-
+     
       // $("#clickon1").on("click", function(){
       //   debugger
       //     $("#myDIV").toggle('show');
