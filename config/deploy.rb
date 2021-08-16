@@ -13,8 +13,8 @@ set :rbenv_ruby, '2.6.5'
 #set :rbenv_prefix, "RBENV_ROOT=#{fetch(:rbenv_path)} RBENV_VERSION=#{fetch(:rbenv_ruby)} #{fetch(:rbenv_path)}/bin/rbenv exec"
 #set :rbenv_map_bins, %w{rake gem bundle ruby rails}
 #set :rbenv_roles, :all # default value
-# set :branch,"feature/chat_madule"
- set :branch,"development"
+ set :branch,"branchout_5-6"
+#  set :branch,"development"
 # set :branch,"recruiter_chat"
 set :passenger_restart_with_touch, true
 # Default branch is :master

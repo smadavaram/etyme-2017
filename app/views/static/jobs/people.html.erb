@@ -1,6 +1,12 @@
 <section class="content-wrapper">
     <%= stylesheet_link_tag "mycompany" %>
     <style>
+    .bot_style{
+        background: none  !important;
+        border: none !important;
+        margin: 0px;
+        padding: 0px;
+    }
     .imag_css{
     height: 17px;
     width: 17px;
@@ -81,9 +87,9 @@
                                                        <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
                                                     <div class="logged-user-role d-block">
                                                         <%if c_recruiter.present? && current_user != c_recruiter%>
-                                                            <div onclick="recruiter_button(c_recruiter)"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></div>
+                                                            <button onclick="recruiter_button(<%= c_recruiter.id %>)", class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
                                                         <%else%>
-                                                             <div onclick="candidate_button()"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></div>
+                                                             <button onclick="candidate_button(<%= c_candidate_obj.id %>)", class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid me-2", alt: "Chat" %></button>
                                                         <%end%>
                                                     </div>
                                                     <div class="logged-user-role d-block">
@@ -137,11 +143,23 @@
               url: `/company/conversations/posposal_chats`,
               type: "POST",
               dataType: "script",
-              data: recruiter,
+              data: {recruiter:recruiter},
               success: function (data) {
               }
           });
-      }
+    }
+
+    function candidate_button(candidate){
+          $.ajax({
+              url: `/company/conversations/posposal_chats`,
+              type: "POST",
+              dataType: "script",
+              data: {candidate: candidate},
+              success: function (data) {
+                  
+              }
+          });
+    }
 </script>
 <style type="text/css">
     .bg-transparent {

@@ -10,6 +10,7 @@ class Conversation < ApplicationRecord
   belongs_to :job, optional: true
   belongs_to :sell_contract, optional: true
   belongs_to :buy_contract, optional: true
+  belongs_to :porposal_chat, optional: true
 
   enum topic: %i[OneToOne Rate GroupChat Job JobApplication Contract SellContract BuyContract DocumentRequest]
 

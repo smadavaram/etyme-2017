@@ -25,7 +25,12 @@ class Company::ConversationsController < Company::BaseController
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
   end
 
-  def mini_chat
+  def mini_chat(conversation_id = nil)
+    
+    binding.pry
+    
+    params[:conversation_id] = conversation_id if conversation_id.present?
+    binding.pry
     @conversation = params[:conversation_id].present? ? Conversation.find_by(id: params[:conversation_id]) : create_or_find_conversation
   end
 
@@ -139,21 +144,57 @@ class Company::ConversationsController < Company::BaseController
 
   def posposal_chats
   
-    con = Conversation.where(current_user_id: current_user.id,  )
-    group_name = current_user.first_name + " " + current_user.last_name + ","+ first_name + last_name
-    company_id = current_company.id
-    member_type = "Chat"
-    group_data = Group.create(group_name: group_name, company_id: company_id, member_type: member_type)
-    
-    directoryid = current_user.id
-    chatctype = "Group"
-    chatcid = group_data.id
-    chatconversation = Conversation.last
-    add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
-    directoryid = params[:user_id]
-    add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
 
-    
+  
+   if params[:candidate].present?
+
+    con = Conversation.where(current_user_id: current_user.id , candidate_id:  params[:candidate])
+     if con.present?
+       conversation_id = con.id
+       mini_chat(conversation_id)
+     else
+
+      candiate = Candidate.find_by(id: params[:candidate])
+      group_name = current_user.first_name + " " + current_user.last_name + ","+ candiate.first_name + candiate.last_name
+      company_id = current_company.id
+      member_type = "Chat"
+      group_data = Group.create(group_name: group_name, company_id: company_id, member_type: member_type)
+      directoryid = current_user.id
+      chatctype = "Group"
+      chatcid = group_data.id
+      porposal_id = PorposalChat.create(company_id: company_id)
+      Conversation.last.update(porposal_chat_id: porposal_id)
+      chatconversation = Conversation.last.id
+      add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
+      directoryid = candiate.id
+      add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
+      conversation_id = chatconversation
+      mini_chat(conversation_id)
+
+     end 
+   else
+    binding.pry
+      con = Conversation.where(current_user_id: current_user.id , candidate_id:  params[:recruiter])
+      if con.present?
+      conversation_id = con.id
+      mini_chat(conversation_id)
+      else
+        group_name = current_user.first_name + " " + current_user.last_name + ","+ params[:recruiter].first_name + " " + params[:recruiter].last_name
+        company_id = current_company.id
+        member_type = "Chat"
+        group_data = Group.create(group_name: group_name, company_id: company_id, member_type: member_type)
+        directoryid = current_user.id
+        chatctype = "Group"
+        chatcid = group_data.id
+        porposal_id = PorposalChat.create(company_id: company_id)
+        chatconversation = Conversation.last.update(porposal_chat_id: porposal_id)
+        add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
+        directoryid = params[:recruiter].id
+        add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
+        conversation_id = chatconversation
+        mini_chat(conversation_id)
+      end  
+   end 
   end
 
 
