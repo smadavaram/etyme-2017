@@ -1930,7 +1930,10 @@ flex: 0 0 220px;
 .circle-image{
   border: 1px solid grey;
 }
-
+.circle-images {
+  width: 45px;
+  border-radius: 50%;
+}
 .dataTables_wrapper {
   font-size: 11px;
 }
