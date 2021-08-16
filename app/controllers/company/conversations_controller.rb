@@ -134,7 +134,30 @@ class Company::ConversationsController < Company::BaseController
     respond_to do |format|
       format.js {render inline: "location.reload();" }
     end
+  end  
+
+
+  def posposal_chats
+  
+    con = Conversation.where(current_user_id: current_user.id,  )
+    group_name = current_user.first_name + " " + current_user.last_name + ","+ first_name + last_name
+    company_id = current_company.id
+    member_type = "Chat"
+    group_data = Group.create(group_name: group_name, company_id: company_id, member_type: member_type)
+    
+    directoryid = current_user.id
+    chatctype = "Group"
+    chatcid = group_data.id
+    chatconversation = Conversation.last
+    add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
+    directoryid = params[:user_id]
+    add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
+
+    
   end
+
+
+
 
   def search
     @query = params[:keyword]
@@ -167,6 +190,9 @@ class Company::ConversationsController < Company::BaseController
   end
 
   def add_to_chat 
+    
+    binding.pry
+    
     conversation = Conversation.find(params[:chatconversation])
     if params[:directoryid].present?
       user = current_company.users.where(id: params[:directoryid]).first
@@ -243,7 +269,8 @@ class Company::ConversationsController < Company::BaseController
 
   private
 
-    def add_to_chat_action(params, directoryid, chatctype, chatcid, chatconversation ) 
+    def add_to_chat_action(params, directoryid, chatctype, chatcid, chatconversation )
+
     conversation = Conversation.find(chatconversation)
     if directoryid.present?
       user = current_company.users.where(id: directoryid).first

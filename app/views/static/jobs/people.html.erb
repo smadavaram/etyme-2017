@@ -75,41 +75,20 @@
 
 
                                                     <!-- Chat Icon -->
-                                                    <%
-=begin%>
- <div class="card-footer-chat">
-                                                        <% if current_user.present? %>
-                                                        <%= link_to company_conversations_path do %>
-                                                        <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %>
-                                                        <% end %>
-                                                        <% elsif current_candidate.present? %>
-                                                        <%= link_to static_people_path(is_chat_candidate: "true") do %>
-                                                        <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "chat" %>
-                                                        <% end %>
-                                                        <% else %>
-                                                        <%= link_to request.subdomain.present? ? new_user_session_path(allow_chat: "true") : signin_path(allow_chat: "true") do %>
-                                                        <%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "chat" %>
-                                                        <% end %>
-                                                        <% end %>
-                                                    </div> 
-<%
 
-
-
-=end%>
-                                                       <%@c_candidate = c&.candidate_id%>
-                                                       <%@c_candidate_obj = Candidate.find_by(id: @c_candidate)%>
-                                                       <% @c_recruiter = User.find_by(id: @c_candidate_obj&.recruiter_id)%>
+                                                       <%c_candidate = c&.candidate_id%>
+                                                       <%c_candidate_obj = Candidate.find_by(id: c_candidate)%>
+                                                       <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
                                                     <div class="logged-user-role d-block">
-                                                        <%if @c_recruiter.present? && current_user != @c_recruiter%>
-                                                          <%= contact_widget_recuirter(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') %>
+                                                        <%if c_recruiter.present? && current_user != c_recruiter%>
+                                                            <div onclick="recruiter_button(c_recruiter)"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></div>
                                                         <%else%>
-                                                          <%= contact_widget_recuirter(@c_candidate_obj.email, @c_candidate_obj.phone,@c_candidate_obj,chat_link: chat_link(@c_candidate_obj),color: '#3E4B5B; !important') %>
+                                                             <div onclick="candidate_button()"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></div>
                                                         <%end%>
                                                     </div>
                                                     <div class="logged-user-role d-block">
-                                                        <%if @c_recruiter.present? && current_user != @c_recruiter%>
-                                                          <%= chat_recruiter_link_image(@c_recruiter) %>
+                                                        <%if c_recruiter.present? && current_user != c_recruiter%>
+                                                          <%= chat_recruiter_link_image(c_recruiter) %>
                                                         <%end%>
                                                     </div>
                                                 </div>
@@ -153,6 +132,16 @@
     $(".openbtn").click(function() {
         $(".side-wrapper").toggleClass("side-active")
     });
+    function recruiter_button(recruiter){
+          $.ajax({
+              url: `/company/conversations/posposal_chats`,
+              type: "POST",
+              dataType: "script",
+              data: recruiter,
+              success: function (data) {
+              }
+          });
+      }
 </script>
 <style type="text/css">
     .bg-transparent {

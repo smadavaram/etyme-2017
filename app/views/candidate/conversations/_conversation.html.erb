@@ -27,7 +27,7 @@
         <%= form_tag update_candidate_conversation_title_candidate_conversations_path, method: :post ,remote: :true do %>
           <div class="element-search autosuggest-search-activator">
             <input name="branchout" class="input-field" placeholder="Please respond with Interview/Document Collection/Navigation" type="text" id="branch-out-text" value="" maxlength="15">
-            <%= hidden_field_tag 'group_id', opt_obj.id  %>
+            <%= hidden_field_tag 'group_id', opt_obj.id if opt_obj.present? %>
           </div>
 
         <% end %>

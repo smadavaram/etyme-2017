@@ -1,0 +1,2 @@
+class PorposalChat < ApplicationRecord
+end
