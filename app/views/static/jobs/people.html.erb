@@ -7,6 +7,9 @@
         margin: 0px;
         padding: 0px;
     }
+    .bot_style:hover {
+        outline: none !important;
+    }
     .imag_css{
     height: 17px;
     width: 17px;
@@ -140,8 +143,8 @@
     });
     function recruiter_button(recruiter){
           $.ajax({
-              url: `/company/conversations/posposal_chats`,
-              type: "POST",
+              url: `/company/conversations/mini_chat`,
+              type: "GET",
               dataType: "script",
               data: {recruiter:recruiter},
               success: function (data) {
@@ -151,8 +154,8 @@
 
     function candidate_button(candidate){
           $.ajax({
-              url: `/company/conversations/posposal_chats`,
-              type: "POST",
+              url: `/company/conversations/mini_chat`,
+              type: "GET",
               dataType: "script",
               data: {candidate: candidate},
               success: function (data) {
