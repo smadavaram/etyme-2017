@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_08_10_113124) do
+ActiveRecord::Schema.define(version: 2021_08_16_140048) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -154,12 +154,6 @@ ActiveRecord::Schema.define(version: 2021_08_10_113124) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["company_id"], name: "index_branches_on_company_id"
-  end
-
-  create_table "branchouts", force: :cascade do |t|
-    t.text "branchout_array", default: [], array: true
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
   end
 
   create_table "buy_contracts", force: :cascade do |t|
@@ -986,6 +980,10 @@ ActiveRecord::Schema.define(version: 2021_08_10_113124) do
     t.boolean "sub_chats", default: false
     t.integer "main_chat_ids"
     t.boolean "freeze_chats", default: false
+    t.integer "porposal_chat_id"
+    t.integer "candidate_id"
+    t.integer "recruiter_id"
+    t.integer "current_user_id"
     t.index ["chatable_type", "chatable_id"], name: "index_conversations_on_chatable_type_and_chatable_id"
     t.index ["recipientable_type", "recipientable_id"], name: "index_conversations_on_recipientable_type_and_recipientable_id"
     t.index ["senderable_type", "senderable_id"], name: "index_conversations_on_senderable_type_and_senderable_id"
@@ -1649,6 +1647,12 @@ ActiveRecord::Schema.define(version: 2021_08_10_113124) do
     t.datetime "updated_at", null: false
     t.string "app_key"
     t.string "app_secret"
+  end
+
+  create_table "porposal_chats", force: :cascade do |t|
+    t.integer "company_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "portfolios", id: :serial, force: :cascade do |t|

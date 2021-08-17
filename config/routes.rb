@@ -414,6 +414,7 @@ Rails.application.routes.draw do
     resources :conversations do
       post :update_company_conversation_title, on: :collection
       post :delete_company_conversation_title, on: :collection
+      post :posposal_chats, on: :collection 
       get :search, on: :collection
       get :add_to_favourite, on: :collection
       get :remove_from_favourite, on: :collection

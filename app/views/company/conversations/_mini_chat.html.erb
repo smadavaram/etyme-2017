@@ -1,3 +1,9 @@
+<style>
+.more_class{
+margin-left: auto;
+}
+</style>
+
 <div class="floated-chat-w active zero-bottom">
     <div class="floated-chat-i">
         <div class="chat-close display-flex">
@@ -8,7 +14,7 @@
         </div>
         <div class="chat-head">
             <div class="flex-row w-100 chat-heat_justify">
-                <div class=" d-flex justify-content-between w-100 align-items-center">
+                <div class=" d-flex w-100 align-items-center">
                     <% conversation.chatable.groupables.sample(4).each do |groupable| %>
                     <div class=" my_avatar">
                         <%= user_image_mini_chat(groupable.groupable, style: 'width: 45px; height: 45px; border-radius: 50%; ', class: '', title: "#{groupable.groupable&.full_name}") %>
@@ -17,7 +23,7 @@
                     <% if conversation.chatable.groupables.count > 4 %>
                     <div class="min_chat_more"><%= "+ #{(conversation.chatable.groupables.count - 4).abs}" %>More</div>
                     <% end %>
-                    <div class="min_chat_more"><%= (mini_chat_title(conversation)) %></div>
+                    <div class="min_chat_more more_class"><%= (mini_chat_title(conversation)) %></div>
                 </div>
             </div>
         </div>
