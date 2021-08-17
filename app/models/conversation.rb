@@ -12,7 +12,7 @@ class Conversation < ApplicationRecord
   belongs_to :buy_contract, optional: true
   belongs_to :porposal_chat, optional: true
 
-  enum topic: %i[OneToOne Rate GroupChat Job JobApplication Contract SellContract BuyContract DocumentRequest]
+  enum topic: %i[OneToOne Rate GroupChat Job JobApplication Contract SellContract BuyContract DocumentRequest PorposalChat]
 
   scope :involving, lambda { |user|
     where(senderable: user).or where(recipientable: user)

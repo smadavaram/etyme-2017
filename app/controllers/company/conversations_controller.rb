@@ -190,9 +190,6 @@ class Company::ConversationsController < Company::BaseController
   def search
     @query = params[:keyword]
     @topic = params[:topic].present? ? params[:topic] : 'All' 
-    
-
-    
     @conversations = if @query.present? && @topic.present?
                        @topic == 'All' ?
                         Conversation.conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 15) :
