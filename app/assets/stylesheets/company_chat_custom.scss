@@ -8,7 +8,14 @@
   width: 51px;
   background-color: #ffffff;
   border-radius: 50px;
-  margin: 27px 17px;
+  margin: 6px 0px;
+  text-align: right;
+}
+.togglehide{
+  display: none;
+}
+.toggleshow{
+  display: block;
 }
 .left-chat-bar {
   @media only screen and (max-width: 600px) {

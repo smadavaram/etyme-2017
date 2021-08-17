@@ -6,12 +6,18 @@
   //width: 90px;
   background-color: #f2f4f8;
 }
+.togglehide{
+  display: none;
+}
+.toggleshow{
+  display: block;
+}
 .icon-button-style {
   height: 51px;
   width: 51px;
   background-color: #ffffff;
   border-radius: 50px;
-  margin: 27px 17px;
+  margin: 6px 0px;
 }
 .mobile-send-text-div-style {
   @media only screen and (max-width: 600px) {
