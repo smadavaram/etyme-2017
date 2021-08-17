@@ -33,7 +33,7 @@ class Company::ConversationsController < Company::BaseController
        return 
      else
       candiate = Candidate.find_by(id: params[:candidate])
-      group_name = current_user.first_name + " " + current_user.last_name + ", "+ candiate.first_name +" "+ candiate.last_name
+      group_name = current_user.first_name + " " + current_user.last_name + ","+ candiate.first_name + candiate.last_name
       company_id = current_company.id
       member_type = "Chat"
       group_data = Group.create(group_name: group_name, company_id: company_id, member_type: member_type)
