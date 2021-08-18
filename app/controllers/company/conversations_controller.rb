@@ -193,11 +193,19 @@ class Company::ConversationsController < Company::BaseController
     @conversations = if @query.present? && @topic.present?
                        @topic == 'All' ?
                         Conversation.conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 15) :
+                        if params[:topic] == "PorposalChat"
+                        Conversation.where.not(porposal_chat_id: nil).conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 15)
+                        else
                         Conversation.send(@topic).conversation_of(current_company, @query, online_user).paginate(page: params[:page], per_page: 15)
+                        end
                      else
                        @topic == 'All' ?
                         Conversation.all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 15) :
+                        if params[:topic] == "PorposalChat"
+                        Conversation.where.not(porposal_chat_id: nil).all_onversations(online_user).paginate(page: params[:page], per_page: 15)
+                        else
                         Conversation.send(@topic).all_onversations(online_user).paginate(page: params[:page], per_page: 15)
+                        end
                      end
     # group_ids = Group.user_chat_groups(online_user, current_company).ids
     # debugger

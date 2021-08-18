@@ -77,6 +77,8 @@
 <%  pre_name = "BC- " %>
 <% elsif conversation.sell_contract_id.present? %>
 <%  pre_name = "SC- " %>
+<% elsif conversation.porposal_chat_id.present? %>
+<%  pre_name = "P- " %>
 <% else %>
 <%  pre_name = "" %>
 <% end %>
