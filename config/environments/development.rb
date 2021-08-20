@@ -61,5 +61,5 @@ Rails.application.configure do
   config.action_mailer.default_url_options = { host: 'lvh.me', port: 3000 }
   config.action_mailer.delivery_method =  :letter_opener #:smtp
   config.action_mailer.smtp_settings = { :address => "lvh.me", :port => 1025 }
-  config.domain = 'lvh.me:3000'
+  config.domain = 'lvh.me'
 end
