@@ -31,7 +31,11 @@
     .col-sm-4
       .form-group
         %label  Phone
-        = f.text_field :refrence_phone, placeholder: '555-5555', class: 'form-control input'
+        .row
+          .col-sm-4
+            = f.text_field :refrence_phone_country_code, placeholder: '+00', class: 'form-control input'
+          .col
+            = f.text_field :refrence_phone, placeholder: '555-5555', class: 'form-control input'
     %div{class: f.object.refrence_one ? "col-sm-3" : "col-sm-4"}
       .form-group
         %label  Email
@@ -52,7 +56,11 @@
     .col-sm-4
       .form-group
         %label  Phone
-        = f.text_field :refrence_two_phone, placeholder: '555-5555', class: 'form-control input'
+        .row
+          .col-sm-4
+            = f.text_field :refrence_two_phone_country_code, placeholder: '+00', class: 'form-control input'
+          .col
+            = f.text_field :refrence_two_phone, placeholder: '555-5555', class: 'form-control input'
     %div{class: f.object.refrence_two ? "col-sm-3" : "col-sm-4"}
       .form-group
         %label  Email
