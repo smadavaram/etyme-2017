@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_08_01_171138) do
+ActiveRecord::Schema.define(version: 2021_08_21_214927) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -432,8 +432,8 @@ ActiveRecord::Schema.define(version: 2021_08_01_171138) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2021-07-06 09:26:48"
-    t.datetime "updated_at", default: "2021-07-06 09:26:48"
+    t.datetime "created_at", default: "2021-08-21 20:20:10"
+    t.datetime "updated_at", default: "2021-08-21 20:20:10"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -544,6 +544,8 @@ ActiveRecord::Schema.define(version: 2021_08_01_171138) do
     t.boolean "refrence_two"
     t.string "slug_one"
     t.string "slug_two"
+    t.string "refrence_phone_country_code"
+    t.string "refrence_two_phone_country_code"
     t.index ["candidate_id"], name: "index_clients_on_candidate_id"
   end
 
@@ -1064,6 +1066,7 @@ ActiveRecord::Schema.define(version: 2021_08_01_171138) do
     t.date "end_date"
     t.integer "confirmation", default: 0
     t.bigint "client_id"
+    t.string "recruiter_phone_country_code"
     t.index ["candidate_id"], name: "index_designations_on_candidate_id"
   end
 
