@@ -4,7 +4,7 @@ function flash(color, msg, icon, time = null) {
     // content : "<i class='fa fa-clock-o'></i> <i>2 seconds ago...</i>",
     color: color,
     iconSmall: icon + " bounce animated",
-    // timeout: !!time ? time : 4000,
+    timeout: !!time ? time : 4000,
   });
 }
 
