@@ -21,5 +21,9 @@ $("#all-infinite-scrolling-msg").html("<%= j will_paginate @messages %>");
 $(".chat-content-scroll").data('ajaxready', true);
 <% end %>
 
-$('.p_date').datepicker({dateFormat: "mm-dd-yy"});
+$('.p_date').datepicker({
+  changeMonth: true,
+  changeYear: true,
+  dateFormat: "mm-dd-yy"
+});
 $('.p_time').timepicker({template: false, showInputs: false, minuteStep: 5});

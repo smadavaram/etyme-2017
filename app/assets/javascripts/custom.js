@@ -47,7 +47,11 @@ $(document).ready(function () {
     $(this).find(".project-dropdown").toggle();
   });
 
-  $(".p_date").datepicker({ dateFormat: "yy-mm-dd" });
+  $(".p_date").datepicker({
+    changeMonth: true,
+    changeYear: true,
+    dateFormat: "mm-dd-yy",
+  });
   $(".p_time").timepicker({
     template: false,
     showInputs: false,
