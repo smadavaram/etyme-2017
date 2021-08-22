@@ -432,8 +432,8 @@ ActiveRecord::Schema.define(version: 2021_08_16_140048) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2021-02-24 22:47:21"
-    t.datetime "updated_at", default: "2021-02-24 22:47:21"
+    t.datetime "created_at", default: "2021-07-06 09:26:48"
+    t.datetime "updated_at", default: "2021-07-06 09:26:48"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
