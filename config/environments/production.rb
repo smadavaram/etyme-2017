@@ -127,8 +127,8 @@ Rails.application.configure do
   Rails.application.config.middleware.use ExceptionNotification::Rack,
                                           email: {
                                             email_prefix: "[#{HOSTNAME}] ",
-                                            sender_address: %("notifier" <error@etyme.com>),
-                                            exception_recipients: %w[hamad@enginetech.io]
+                                            sender_address: %("notifier" <support@etyme.com>),
+                                            exception_recipients: (ENV["EXCEPTION_NOTIFICATION_EMAILS"] || "").split(" ")
                                           }
   config.domain = ENV['DOMAIN']
 end
