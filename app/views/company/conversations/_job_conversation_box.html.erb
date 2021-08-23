@@ -143,7 +143,7 @@
     <div class= "row" style="width: 100%;  height:50%;  margin-left: 17px" >
       <div><button id="showdiv1" onclick="btnClick()" class="buttonstyle2"><i class="fa fa-ellipsis-v option-mobile-style"></i></button></div>
       <% if @conversation.present? && @conversation.freeze_chats == false %>
-        <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',class: "chat_form",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
+        <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%; margin: auto;',class: "chat_form",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
           <%= f.text_field :body, class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
       <%= button_tag( class: "btn p-0 button-style1 button-style112 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
         <img src="/assets/send.png"></img>

@@ -684,6 +684,7 @@
 .chat-box {
   @media only screen and (max-width: 600px) {
     margin-top: 7%;
+    height: 77vh !important;
   }
 }
 .branch-out-content {
@@ -744,7 +745,7 @@
     border-radius: 13px !important;
     height: 41px;
     width: 70%;
-    margin-top: 0px;
+    //margin-top: 0px;
     background: #f2f4f8;
     margin-left: 20px;
   }
@@ -762,7 +763,8 @@
 .button-style112 {
   @media only screen and (max-width: 600px) {
     display: block;
-    margin-top: -7% !important;
+    margin: auto;
+    margin-top: -7%;
     margin-left: 83%;
   }
   display: none;
@@ -809,6 +811,11 @@ form {
 }
 .chat-messagediv-style {
   @media only screen and (max-width: 600px) {
+    width: 44vh;
+    margin-right: 0px;
+    margin-bottom: 0px;
+  }
+  @media only screen and (max-width: 574px) {
     width: 44vh;
     margin-right: 53px;
     margin-bottom: -43px;
