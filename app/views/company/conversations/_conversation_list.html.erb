@@ -2,7 +2,7 @@
 <% chat_user_data = set_company_chat_user_data(con, usr) %>
 <%= link_to  company_conversations_path(conversation: con.id), class: "full-width-style", remote: true, method: :post do %>
   <div class="row conversation-list-style">
-    <div class="col-sm-2 col-md-2 col-lg-2 div-usergroup-style">
+    <div class="col-3 col-sm-2 col-md-2 col-lg-2 div-usergroup-style">
       <div class="row padding-10">
         <%#= image_tag("/assets/active_group_icon.png",  class: "data-table-image  img-icon-size data-table-image")
         %>
@@ -13,7 +13,7 @@
         <%#= user_image(usr, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{usr.full_name}" ) %>
       </div>
     </div>
-    <div class="col-sm-10 col-md-10 col-lg-10 div-usermessage-style">
+    <div class="col-sm-10 col-md-10 col-lg-10 div-usermessage-styles">
       <% contract = get_contract(usr) %>
       <div class="row name_and_date_style">
         <%# binding.pry %>

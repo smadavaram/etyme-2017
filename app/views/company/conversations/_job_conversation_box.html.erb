@@ -9,6 +9,9 @@
 .underline_actives{
   border-bottom: 3px solid #017bf8;
 }
+.form-class{
+      margin-top: 0px;
+}
 </style>
 <div class="row" style="height: 5vh; background: #eaf3fc;" >
   <div class="col-6 branchout-back">
@@ -30,13 +33,14 @@
     </div>
   </div>
   <div class="col-8 col-sm-10 col-md-10 col-lg-10" >
-    <div class="row branch-out-content" style="justify-content: flex-start; overflow-y: auto; height: 5vh;">
+    <div class="branch-out-content" style="justify-content: flex-start;display: flex;
+    align-items: center; overflow-y: auto; height: 5vh;">
       <div>
         <button type="button" class="btn1-style" onclick="btnClick1()">Main</button>
       </div>
       <div id="myDIV" style="display:none; ">
         <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
-        <%= form_tag update_company_conversation_title_company_conversations_path, method: :post ,remote: :true do %>
+        <%= form_tag update_company_conversation_title_company_conversations_path, class:"form-class", method: :post ,remote: :true do %>
           <div class="element-search autosuggest-search-activator">
             <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
             <%= hidden_field_tag 'group_id', opt_obj.id  %>
@@ -87,9 +91,9 @@
   <div class="row chat-box-header" style="<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 16vh;" : "height: 10vh;" %>" >
       <div class="col-sm-10 col-lg-10 col-md-10">
         <% if link.nil? %>
-          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" href="#"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
+          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" style="padding-left:10px;" href="#"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
         <%else %>
-          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
+          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" style="padding-left:10px;" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
         <%end %>
       </div>
       <div class="col-sm-2 col-lg-2 col-md-2">
@@ -141,7 +145,7 @@
       <% if @conversation.present? && @conversation.freeze_chats == false %>
         <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%;',class: "chat_form",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
           <%= f.text_field :body, class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
-      <%= button_tag( class: "btn p-0 button-style1 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
+      <%= button_tag( class: "btn p-0 button-style1 button-style112 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
         <img src="/assets/send.png"></img>
       <% end %>
     </div>
