@@ -7,13 +7,17 @@ margin-left: 0px;
   border: none;
 }
 }
+    #main{
+      min-height: none !important;
+      padding-bottom: 0px !important;
+    }
 
 /* $(".cont_c").css("mr"
 ,"0") */
 
 </style>
-<div class="row" style="height: 87vh">
-  <div class="col-sm-3 col-md-3 col-lg-3" style="z-index: 100"  >
+<div class="row">
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3" style="z-index: 100"  >
     <div class="left-chat-bar company-left-chat-bar">
       <div class="full-chat-left1">
         <div class="os-tabs-w">
@@ -45,7 +49,7 @@ margin-left: 0px;
         </div>
         
         <div class="row  margin-top-21  ">
-                  <ul class="chat-user-list_height company-conversation-scorll" role="tablist" id="company-conversation-list">
+                  <ul class="chat-user-list_heights company-conversation-scorll" role="tablist" id="company-conversation-list">
                     <%= render 'conversations_list', conversations: @conversations %>
                     <div id="all-infinite-scrolling-con" style="display: none">
                       <% if @conversation.present?%>
@@ -59,10 +63,10 @@ margin-left: 0px;
 
     </div>
   </div>
-  <div class="col-sm-6 col-md-6 col-lg-6 job-conversation-box-style" id="conversation-section">
+  <div class="col-sm-12 col-12 col-md-6 col-lg-6 job-conversation-box-style" id="conversation-section">
     <%= render "company/conversations/job_conversation_box", conversation: @conversation, nested_colap: true %>
   </div>
-  <div class="col-sm-1 col-md-1 col-lg-1 " >
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3 " >
     <div class=" " id="conversation-r-section">
       <%= render "company/conversations/conversation_right_side" %>
     </div>

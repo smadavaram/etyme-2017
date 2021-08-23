@@ -127,7 +127,7 @@
 </div>
 <% end %>
 <%else%>
-
+<%# main chat %>
 <% if msg.userable == get_current_user %>
 <div class="chat-message self">
 
@@ -162,7 +162,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-1 col-md-1 col-lg-1 avatar-style">
+        <div class="col-sm-1 col-md-1 col-lg-1 ">
             <div class="chat-message-avatar">
                 <% if msg.userable.photo&.present? %>
                 <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>

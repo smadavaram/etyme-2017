@@ -11,10 +11,10 @@
   margin: 6px 0px;
   text-align: right;
 }
-.togglehide{
+.togglehide {
   display: none;
 }
-.toggleshow{
+.toggleshow {
   display: block;
 }
 .left-chat-bar {
@@ -80,9 +80,15 @@
   margin-left: -10px;
   width: 100%;
 }
+.chat-user-list_heights {
+  height: 80vh;
+  overflow-y: scroll;
+  margin-left: -10px;
+  width: 100%;
+}
 .user-list-item-style {
   width: 100%;
-  height: 7%;
+  //height: 7%;
   //border-radius: 23px;
   margin-top: 5px;
   border-bottom: 1px solid #4e9df1;
@@ -867,6 +873,7 @@ form {
 .conversation-list-style {
   @media only screen and (max-width: 600px) {
     display: flex;
+    align-items: center;
     flex-wrap: nowrap;
     height: 70px;
   }
@@ -878,7 +885,7 @@ form {
 }
 .div-usermessage-style {
   @media only screen and (max-width: 600px) {
-    margin-top: -10px;
+    //margin-top: -10px;
     margin-left: -200px;
   }
 }

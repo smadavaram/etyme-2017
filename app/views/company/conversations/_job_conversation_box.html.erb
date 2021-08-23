@@ -13,16 +13,15 @@
 <div class="row" style="height: 5vh; background: #eaf3fc;" >
   <div class="col-6 branchout-back">
 
-    <div class="row branch-out" style="margin-left: 20px;margin-top: -11px;margin-bottom: -2px;">
+    <div class="row branch-out" style="margin-left: 20px;">
       <i class="fa fa-arrow-circle-left" style="margin-right: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction1()"></i>
       <i class="fa fa-arrow-circle-right" style="margin-left: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction()"></i>
 <!--      <img src="/assets/collabs.png" style="margin-left: 45px; height: 24px; width: 27px;" onclick="myFunction()"></img>-->
 <!--      <span>Collaborators</span>-->
     </div>
   </div>
-  <div class="col-6 branchout-mobile" style="margin-left: 284px;">
+  <div class="col-sm-4 col-6 branchout-mobile" style="margin-left: 284px;">
     <div class="row branch-out dropdown" style="justify-content: flex-end">
-      <button type="button" class="btn4-style dropbtn" onclick="btnClick()" id="btn1"><i class="fa fa-plus"></i> Branch Out</button>
       <div class="dropdown-content" style="margin-left: -70px;font-size: 12px;">
         <a href="#">Interview</a>
         <a href="#">Document Collection</a>
@@ -30,7 +29,7 @@
       </div>
     </div>
   </div>
-  <div class="col-12 col-sm-10 col-md-10 col-lg-10" >
+  <div class="col-8 col-sm-10 col-md-10 col-lg-10" >
     <div class="row branch-out-content" style="justify-content: flex-start; overflow-y: auto; height: 5vh;">
       <div>
         <button type="button" class="btn1-style" onclick="btnClick1()">Main</button>
@@ -62,7 +61,7 @@
          <% end %> 
     </div>
   </div>
-  <div class="col-0 col-sm-2 col-md-2 col-lg-2">
+  <div class="col-4 col-sm-2 col-md-2 col-lg-2">
     <div class="row branch-out" style="justify-content: flex-end">
     <%if conversation.sub_chats != true %>
       <button class="btnmy-style" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
@@ -113,7 +112,7 @@
       <% end %>
     </div>
   </div>
-  <div style="width: 100%;  border-bottom: 1px solid #F2F4F8;overflow-y: scroll; padding: 10px; <%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 54vh;" : "height: 58vh;" %>">
+  <div style="width: 100%;  border-bottom: 1px solid #F2F4F8;overflow-y: scroll; padding: 10px;overflow-x: hidden; <%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 54vh;" : "height: 58vh;" %>">
 
     <div class="chat-content" id="conversation_<%= conversation.id if conversation.present? %>">
       <div id="all-infinite-scrolling-msg" style="display:none"></div>
