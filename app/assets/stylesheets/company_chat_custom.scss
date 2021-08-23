@@ -208,7 +208,7 @@
   border-radius: 50px;
 }
 #conversation-section {
-  @media only screen and (max-width: 600px) {
+  @media only screen and (max-width: 768px) {
     display: none;
   }
 }
@@ -440,7 +440,7 @@
 }
 // right-side-bar
 .right-sidebar {
-  @media only screen and (max-width: 600px) {
+  @media only screen and (max-width: 768px) {
     width: 60vh;
     display: none;
   }
@@ -449,7 +449,7 @@
   //margin-top: 50px;
 }
 .right-sidebar1 {
-  @media only screen and (max-width: 600px) {
+  @media only screen and (max-width: 768px) {
     width: 60vh;
   }
   height: 82vh !important;
@@ -675,6 +675,26 @@
   }
   display: none;
 }
+.branch-class-madia {
+  @media only screen and (max-width: 768px) {
+    padding-bottom: 81px;
+  }
+}
+.branch-class-madia {
+  @media only screen and (max-width: 600px) {
+    padding-bottom: 0px;
+  }
+}
+.responsive-chat-box {
+  @media only screen and (max-width: 768px) {
+    height: 75vh !important;
+  }
+}
+.responsive-chat-message {
+  @media only screen and (max-width: 768px) {
+    height: 53vh !important;
+  }
+}
 .branchout-desktop {
   @media only screen and (max-width: 600px) {
     display: none;
@@ -876,7 +896,7 @@ form {
   width: 87vh;
 }
 .left-arrow {
-  @media only screen and (max-width: 600px) {
+  @media only screen and (max-width: 768px) {
     display: block;
   }
   display: none;

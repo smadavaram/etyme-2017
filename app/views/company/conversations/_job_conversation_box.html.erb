@@ -12,8 +12,9 @@
 .form-class{
       margin-top: 0px;
 }
+
 </style>
-<div class="row" style="height: 5vh; background: #eaf3fc;" >
+<div class="row branch-class-madia" style="height: 5vh; background: #eaf3fc;" >
   <div class="col-6 branchout-back">
 
     <div class="row branch-out" style="margin-left: 20px;">
@@ -23,7 +24,7 @@
 <!--      <span>Collaborators</span>-->
     </div>
   </div>
-  <div class="col-sm-4 col-6 branchout-mobile" style="margin-left: 284px;">
+  <div class="col-sm-4 col-6 branchout-mobile" style="margin-left: 284px;background: #eaf3fc;">
     <div class="row branch-out dropdown" style="justify-content: flex-end">
       <div class="dropdown-content" style="margin-left: -70px;font-size: 12px;">
         <a href="#">Interview</a>
@@ -32,7 +33,7 @@
       </div>
     </div>
   </div>
-  <div class="col-8 col-sm-10 col-md-10 col-lg-10" >
+  <div class="col-8 col-sm-10 col-md-10 col-lg-10" style="background: #eaf3fc;">
     <div class="branch-out-content" style="justify-content: flex-start;display: flex;
     align-items: center; overflow-y: auto; height: 5vh;">
       <div>
@@ -65,7 +66,7 @@
          <% end %> 
     </div>
   </div>
-  <div class="col-4 col-sm-2 col-md-2 col-lg-2">
+  <div class="col-4 col-sm-2 col-md-2 col-lg-2" style="background: #eaf3fc;">
     <div class="row branch-out" style="justify-content: flex-end">
     <%if conversation.sub_chats != true %>
       <button class="btnmy-style" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
@@ -85,7 +86,7 @@
 <% else %>
 <%  pre_name = "" %>
 <% end %>
-<div class="row chat-box" style="background-color: white; height: 82vh">
+<div class="row chat-box responsive-chat-box" style="background-color: white; height: 82vh">
   <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
   <% link = get_conversation_link(opt_obj) %>
   <div class="row chat-box-header" style="<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 16vh;" : "height: 10vh;" %>" >
@@ -116,7 +117,7 @@
       <% end %>
     </div>
   </div>
-  <div style="width: 100%;  border-bottom: 1px solid #F2F4F8;overflow-y: scroll; padding: 10px;overflow-x: hidden; <%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 54vh;" : "height: 58vh;" %>">
+  <div class="responsive-chat-message" style="width: 100%;  border-bottom: 1px solid #F2F4F8;overflow-y: scroll; padding: 10px;overflow-x: hidden; <%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 54vh;" : "height: 58vh;" %>">
 
     <div class="chat-content" id="conversation_<%= conversation.id if conversation.present? %>">
       <div id="all-infinite-scrolling-msg" style="display:none"></div>
