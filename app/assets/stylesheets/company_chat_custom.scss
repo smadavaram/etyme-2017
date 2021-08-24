@@ -445,7 +445,7 @@
     display: none;
   }
   height: 85vh;
-  width: 41vh;
+  //width: 41vh;
   //margin-top: 50px;
 }
 .right-sidebar1 {
@@ -453,15 +453,21 @@
     width: 60vh;
   }
   height: 82vh !important;
-  width: 41vh;
+  //width: 41vh;
   background: #ffffff;
   box-shadow: 3px 2px 26px rgba(219, 219, 219, 0.67);
-  overflow-x: scroll;
+  //overflow-x: scroll;
   margin-left: 3px;
 }
 .collab-row {
-  @media only screen and (max-width: 600px) {
+  @media only screen and (max-width: 768px) {
     border-radius: 25px 25px;
+  }
+  @media only screen and (max-width: 1000px) {
+    margin-bottom: -14px;
+  }
+  @media only screen and (min-width: 1000px) {
+    margin-bottom: -21px;
   }
   height: 5vh;
   width: 100%;
@@ -472,6 +478,9 @@
   align-items: center;
 }
 .collab-text {
+  @media only screen and (max-width: 1000px) {
+    width: 80px;
+  }
   height: 20px;
   width: 135px;
   left: 72px;
@@ -487,6 +496,15 @@
   color: #047bf8;
 }
 .icon-style-1 {
+  @media only screen and (max-width: 1000px) {
+    height: 30px;
+    width: 30px;
+    background-color: red;
+    border-radius: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   height: 30px;
   width: 30px;
   background-color: red;
@@ -526,6 +544,18 @@
   margin-top: 15px;
 }
 .shared-files {
+  @media only screen and (max-width: 1000px) {
+    width: 100%;
+    margin: auto;
+  }
+  @media only screen and (max-width: 768px) {
+    width: 70%;
+    margin: 0px;
+  }
+  @media only screen and (min-width: 1000px) {
+    width: 70%;
+    margin: auto;
+  }
   width: 70%;
   height: 42px;
   border-radius: 25px;
