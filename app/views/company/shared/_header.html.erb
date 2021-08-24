@@ -1,14 +1,24 @@
 <div class="top-bar color-scheme-transparent" style="height: 12vh;z-index: 100">
     <div class="top-menu-controls w-100" style="display: flex; justify-content: flex-end;">
+        <div class="logged-user-i media-logo-class chat-logo-class" style="display: inline-flex !important; align-items:center; padding-left: 0.7rem; margin-top: 10px;">
+            <div class="avatar-w" style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">
+            <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
+            </div>
+            <div class="logged-user-info-w" style="padding-left: 15px;">
+            <div class="logged-user-name">
+                <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
+            </div>
+            </div>
+        </div>
         <!--    bread start
             -->
-        <div class="bread-style">
+        <div class="bread-style bread-styles">
             <div class="os-icon os-icon-hamburger-menu-1 bread-style1"></div>
         </div>
         <!--    bread end-->
 
         <!--    search start-->
-        <div class="element-search autosuggest-search-activator os-dropdown-position-left" style="margin-bottom: 20px;">
+        <div class="element-search autosuggest-search-activator os-dropdown-position-left">
             <input class="search-div-style" placeholder="Find reports and more" type="text">
         </div>
         <!--    search end-->

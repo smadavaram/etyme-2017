@@ -665,7 +665,7 @@
 }
 .search-div-style {
   @media only screen and (max-width: 600px) {
-    width: 145px !important;
+    width: 100px !important;
     height: 26px;
     font-size: 10px;
   }
@@ -676,7 +676,7 @@
   font-size: 12px;
 }
 .bread-style {
-  @media only screen and (max-width: 600px) {
+  @media only screen and (max-width: 1024px) {
     display: block;
     background-color: white;
     height: 41px;
