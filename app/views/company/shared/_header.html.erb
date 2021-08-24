@@ -1,6 +1,12 @@
+<style>
+.click-class{
+    display: none !important;
+}
+</style>
 <div class="top-bar color-scheme-transparent" style="height: 12vh;z-index: 100">
     <div class="top-menu-controls w-100" style="display: flex; justify-content: flex-end;">
-        <div class="logged-user-i media-logo-class chat-logo-class" style="display: inline-flex !important; align-items:center; padding-left: 0.7rem; margin-top: 10px;">
+      <div style=""  class="new-add-class" id="remove-logo-ham-id">
+        <div class="logged-user-i media-logo-class chat-logo-class" style="" id="click-id">
             <div class="avatar-w" style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">
             <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
             </div>
@@ -12,11 +18,11 @@
         </div>
         <!--    bread start
             -->
-        <div class="bread-style bread-styles">
+        <div class="bread-style bread-styles" style="margin-left:10px !important;" onclick="toglleMenu()">
             <div class="os-icon os-icon-hamburger-menu-1 bread-style1"></div>
         </div>
         <!--    bread end-->
-
+      </div>
         <!--    search start-->
         <div class="element-search autosuggest-search-activator os-dropdown-position-left">
             <input class="search-div-style" placeholder="Find reports and more" type="text">
@@ -62,7 +68,7 @@
             <span class="icon-text" style="color: black;"> <label style="margin-top: 10px">Add</label></span>
         </div>
         <!--    add end-->
-
+        
         <!--------------------END - Features Link in secondary top menu-------------------->
         <!--------------------START - User Link in secondary top menu-------------------->
         <div class="top-icon mobile-user-icon top-settings os-dropdown-trigger os-dropdown-position-left" style= "margin-bottom: 20px;">

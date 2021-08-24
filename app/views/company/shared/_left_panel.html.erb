@@ -8,6 +8,10 @@
     margin-left: 224px !important;
   }
 }
+.new-add-class{
+ display: flex; 
+ flex: auto;
+}
 /* @media (min-width: 730px) */
 </style>
 <%
@@ -43,24 +47,30 @@
 <%
 =end%>
 <script>
+      
     function toglleMenu() {
+        $("#remove-logo-ham-id").css("display", "none")
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
         $('.lpm').hide();
         $("#toggle1").removeClass('toggleshow');
         $("#toggle1").addClass('togglehide');
+        $("#click-id").addClass('.click-class');
         $("#toggle2").removeClass('togglehide');
         $(".cont-comany").addClass('margin_class');
         console.log("add class")
 
     }
     function toglleMenu1() {
+        $("#remove-logo-ham-id").css("display", "flex");
+        $("#remove-logo-ham-id").css("flex", "auto");
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
         $('.lpm').hide();
         $("#toggle1").removeClass('togglehide');
         $("#toggle1").addClass('toggleshow');
         $("#toggle2").addClass('togglehide');
+        $("#click-id").removeClass('.click-class');
         $("#toggledmenubar").addClass('togglehide');
         $(".cont-comany").removeClass('margin_class');
         console.log("remove class")
@@ -69,7 +79,7 @@
 
 
 </script>
-<div id="toggledmenubar" style="<%= "display: none; height: 100vh;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
+<div id="toggledmenubar" style="<%= "display: none; height: 100vh; z-index:1000;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
   <div class="logged-user-w avatar-inline p-1 m-1" style="height: 5vh; margin-top: 18px !important;">
     <div class="logged-user-i">
       <div class="avatar-w">
@@ -79,6 +89,9 @@
         <div class="logged-user-name">
           <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
         </div>
+      </div>
+      <div class="bread-style bread-styles" style="margin-left:30px !important; background: none !important;" onclick="toglleMenu1()">
+            <div class="os-icon os-icon-hamburger-menu-1 bread-style1" style="background: none !important;" ></div>
       </div>
 <!--      <div class="icon-button-style1" style="display: none;" >-->
 <!--        <div id="togglebutton" onclick="toglleMenu1()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox1' : 'togglebtncontainer' %>" style="display: none;">-->
