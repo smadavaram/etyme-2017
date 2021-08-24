@@ -20,7 +20,7 @@
     .col-md-12
       %label Requirement
       =f.hidden_field :multiple_option, class: 'multi-option-text'
-      =f.text_field :questions , class: 'form-control question', :rows => 6, :cols => 60, placeholder: "Structure your Applicant Instructions as free text, a multiple choice question or file upload.", require: true
+      =f.text_field :questions , class: 'form-control question', :rows => 6, :cols => 60, :maxlength => 140, placeholder: "Structure your Applicant Instructions as free text, a multiple choice question or file upload.", require: true
     .col-md-12.select-filed
       .col-md-3.pl-0
         %label Answer Type
