@@ -85,16 +85,19 @@
 
   $(function() {
     const paramsSelectedFilter = '<%= params[:selected_categories] %>';
+    debugger;
 
     if ( paramsSelectedFilter != '' ) {
       $('#selectFilter').find(`option[value=${paramsSelectedFilter}]`).attr("selected","selected");
     }
 
     $("#selectFilter").change(function () {
+      debugger
       const urlParams = new URLSearchParams(window.location.search);
       let goto_url = ''
 
       if ( this.value == "all" ) {
+        debugger;
         urlParams.delete('selected_categories');
       } else {
         urlParams.set('selected_categories', this.value);
