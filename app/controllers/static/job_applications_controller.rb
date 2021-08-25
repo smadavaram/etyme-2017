@@ -3,7 +3,7 @@
 class Static::JobApplicationsController < ApplicationController
   before_action :find_job, only: :create
 
-  def create
+  def create   
     JobApplication
     if params[:candidate_id].present? || current_candidate
       @candidate = Candidate.find_by(id: params[:candidate_id]) || current_candidate
@@ -59,7 +59,7 @@ class Static::JobApplicationsController < ApplicationController
     redirect_back fallback_location: root_path
   end
 
-  def save_job_application(job_application)
+  def save_job_application(job_application) 
     if job_application.save
       flash[:success] = 'Job Application Created'
     else
@@ -71,7 +71,8 @@ class Static::JobApplicationsController < ApplicationController
     params.require(:job_application).permit([:message, :available_to_join, :total_experience, :relevant_experience, :rate_per_hour, :available_from, :available_to, :applicant_resume, :cover_letter, :candidate_email, :candidate_first_name, :candidate_last_name, :status,
                                              custom_fields_attributes: %i[id name value], job_applicant_reqs_attributes: [:id, :job_requirement_id, :applicant_ans, app_multi_ans: []],
                                              job_applicantion_without_registrations_attributes: %i[id first_name last_name email phone location skill visa title roal resume is_registerd],
-                                             job_applicantion_with_recruiters_attributes: %i[id first_name last_name email phone location skill visa title roal resume is_registerd]])
+                                             job_applicantion_with_recruiters_attributes: %i[id first_name last_name email phone location skill visa title roal resume is_registerd]]
+                                            )
   end
 
   def find_job

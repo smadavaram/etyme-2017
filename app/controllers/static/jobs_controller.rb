@@ -66,7 +66,6 @@ class Static::JobsController < ApplicationController
 
   def static_feeds
     @current_company = current_company
-
     if @current_company.present?
       @search = @current_company.jobs.active.not_system_generated.includes(:created_by).ransack(params[:q])
       @company_jobs = @search.result
@@ -325,7 +324,6 @@ class Static::JobsController < ApplicationController
 
   def set_jobs
     @current_company = current_company
-
     if request.subdomain == 'app'
       @search = params[:category].present? ? Job.includes(:created_by).active.is_public.where('job_category =?', params[:category]).ransack(params[:q]) : Job.includes(:created_by).active.is_public.ransack(params[:q])
       jobs = @search.result(distinct: true).where(listing_type: 'Job').order(created_at: :desc).paginate(page: params[:page], per_page: 50)
