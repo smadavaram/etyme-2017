@@ -395,7 +395,7 @@ class Static::JobsController < ApplicationController
   def company_user_job_params
     params
       .require(:job)
-      .permit([:status,
+    .permit([:status,
                :source,
                :title,
                :files,

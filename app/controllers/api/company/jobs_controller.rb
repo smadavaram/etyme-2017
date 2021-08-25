@@ -66,7 +66,7 @@ class Api::Company::JobsController < ApplicationController
     # end
   end
 
-  def update
+  def update 
     respond_to do |format|
       if @job.update(company_job_params)
         format.html { redirect_to @job, notice: 'Job was successfully updated.' }

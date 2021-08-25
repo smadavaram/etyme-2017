@@ -32,7 +32,8 @@ class Job < ApplicationRecord
   has_many :comments, as: :commentable
 
   accepts_nested_attributes_for :custom_fields, reject_if: :all_blank
-  accepts_nested_attributes_for :job_requirements, reject_if: :all_blank
+  accepts_nested_attributes_for :job_requirements, reject_if: :all_blank, allow_destroy:true
+
 
   acts_as_taggable_on :education
   acts_as_taggable

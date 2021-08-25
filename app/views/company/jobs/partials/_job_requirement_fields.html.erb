@@ -1,0 +1,110 @@
+<div class="nested-fields">
+  <div class="custome-filed-list question-req row" style="display:none">
+    <div class="col-md-12">
+      <div class="custome-filed-item filed-option">
+        <div class="clearfix">
+          <p class="pull-left">Need full details of your project</p>
+          <div class="fild-action pull-right">
+            <a class="filed-edit">
+              <i class="fa fa-pencil"></i>
+            </a>
+            <%= link_to_remove_association f do %>
+              <i class="fa fa-trash"></i>
+            <% end %>
+          </div>
+        </div>
+        <div class="clearfix">
+          <div class="free-text">
+            <input type="text">/</input>
+          </div>
+          <div class="Attach-file">
+            <div class="Attach-btn">
+              <input type="file">/</input>
+            </div>
+          </div>
+          <div class="multiple-fiels-box"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="form-group req_form">
+    <div class="col-md-12">
+      <label>Requirement</label>
+      <%= f.hidden_field :multiple_option, class: 'multi-option-text' %>
+      <%= f.text_field :questions , class: 'form-control question', :rows => 6, :cols => 60, :maxlength => 140, placeholder: "Structure your Applicant Instructions as free text, a multiple choice question or file upload.", require: true %>
+    </div>
+    <div class="col-md-12 select-filed">
+      <div class="col-md-3 pl-0">
+        <label>Answer Type</label>
+        <div class="plain-select ml-0">
+          <%= f.select :ans_type, ["Free Text", "Multiple Answer", "Attached file"],{include_blank: false},{class: "form-control que-ans-type plain-select" } %>
+        </div>
+      </div>
+      <div class="col-md-3 pl-0">
+        <%= f.label :ans_mandatroy, class:"fancy" do %>
+          <%= f.check_box :ans_mandatroy, class: 'set-checkbox' %>
+          Answer is mandatory
+        <% end %>
+      </div>
+    </div>
+    <% if f.object.ans_type == "Multiple Answer" %>
+      <% s=f.object.multiple_option %>
+      <% s = s.gsub('mytext=', ' ').gsub('&','') %>
+      <% opt_array = s.split(" ") %>
+      <div class="multi-ans-div" style="display:block">
+        <div class="col-md-12 input_fields_wrap">
+          <div class="checkbox-option">
+            <% opt_array.each do |a| %>
+              <div style="margin-top: 10px;">
+                <input name="mytext" placeholder="Option Answer" type="text" value="<%= CGI.unescape(a) %>"></input>
+              </div>
+            <% end %>
+          </div>
+        </div>
+        <div class="col-md-12 add_field_button">
+          <a class="filed-Add">
+            <i class="fa fa-plus"></i>
+            Add Optional Answer
+          </a>
+        </div>
+        <div class="col-md-12">
+          <%= f.label :multiple_ans do %>
+            <%= f.check_box :multiple_ans, class: 'set-checkbox allow-multi-ans' %>
+            Allow more than one answer to this question
+          <% end %>
+        </div>
+      </div>
+    <% else %>
+      <div class="multi-ans-div" style="display:none">
+        <div class="col-md-12 input_fields_wrap">
+          <div class="checkbox-option">
+            <div style="margin-top: 10px;">
+              <input name="mytext" placeholder="Option Answer" type="text"></input>
+            </div>
+            <div style="margin-top: 10px;">
+              <input name="mytext" placeholder="Option Answer" type="text"></input>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-12 add_field_button">
+          <a class="filed-Add">
+            <i class="fa fa-plus"></i>
+            Add Optional Answer
+          </a>
+        </div>
+        <div class="col-md-12">
+          <%= f.label :multiple_ans do %>
+            <%= f.check_box :multiple_ans, class: 'set-checkbox allow-multi-ans' %>
+            Allow more than one answer to this question
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+    <div class="col-md-12">
+      <div class="custome-filed-botton clearfix">
+        <%= link_to_remove_association "Remove", f, class: "btn btn-danger pull-right", data: {confirm: 'Are you sure?'}%>
+        <input class="btn pull-right btn-success save-req" type="Button" value="Save"></input>
+      </div>
+    </div>
+  </div>
+</div>
