@@ -1,4 +1,5 @@
 <% if company_jobs.present? %>
+<%# binding.pry%>
   <% company_jobs.each do |job| %>
     <% if job&.listing_type.present? && job&.listing_type == "Blog" %>
       <%= render 'webflow_feed_article_blog', job: job %>

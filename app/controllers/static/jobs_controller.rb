@@ -94,14 +94,12 @@ class Static::JobsController < ApplicationController
       end
 
       if params.key?(:selected_categories).present?
-        
-        binding.pry
-        
+        if params[:selected_categories] == "all"
+         @company_jobs = @company_jobs.where.not(listing_type: 'Job').paginate(page: params[:page], per_page: 20)
+        else
         @company_jobs = @company_jobs.where(listing_type: params[:selected_categories].to_s.split(',')).paginate(page: params[:page], per_page: 20)
-      else
-        
-        binding.pry
-        
+        end
+      else  
         @company_jobs = @company_jobs.where.not(listing_type: 'Job').paginate(page: params[:page], per_page: 20)
       end
 

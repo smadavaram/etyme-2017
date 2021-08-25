@@ -24,6 +24,7 @@
   </div>
   <div class="col-12 px-0 mt-3 d-flex justify-content-between">
     <select id="selectFilter" name="selectFilter" class="select-filter">
+    <%# binding.pry%>
       <option value="all">All</option>
       <option value="Blog">Blogs</option>
       <option value="Product">Products</option>
@@ -92,19 +93,12 @@
     }
 
     $("#selectFilter").change(function () {
-      debugger
+      debugger;
       const urlParams = new URLSearchParams(window.location.search);
       let goto_url = ''
-
-      if ( this.value == "all" ) {
-        debugger;
-        urlParams.delete('selected_categories');
-      } else {
         urlParams.set('selected_categories', this.value);
         goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
-      }
-
-      window.location = goto_url;
+        window.location = goto_url;
     });
   });
 </script>
