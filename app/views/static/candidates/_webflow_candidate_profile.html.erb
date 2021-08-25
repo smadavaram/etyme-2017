@@ -1,4 +1,19 @@
 <%= stylesheet_link_tag "mycompany" %>
+<style>
+.bot_styles{
+        background: none  !important;
+        border: none !important;
+        margin: 0px;
+        padding: 0px;
+}
+.bot_styles:hover {
+    outline: none !important;
+}
+.bot_styles:focus {
+    outline: none !important;
+}
+</style>
+
 <div class="webflow-profile row">
   <div class="webflow-profile-left col-12 col-xl-4">
     <div class="webflow-profile-inner">
@@ -197,31 +212,16 @@
           Add as Candidate
         </a>
 
-        <div>         
-        <% @c_recruiter = User.find_by(id: @candidate.recruiter_id)%>
-                <%if @c_recruiter.present? && current_user != @c_recruiter%>
+            <%c_candidate_obj = Candidate.find_by(id: @candidate)%>
+            <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
 
-                  <%= contact_widget_recuirter_profile(@c_recruiter.email, @c_recruiter.phone,@c_recruiter,chat_link: chat_link(@c_recruiter),color: '#3E4B5B; !important') %>
-                <%else%>
-
-                  <%= contact_widget_recuirter_profile(@candidate.email, @candidate.phone,@candidate,chat_link: chat_link(@candidate),color: '#3E4B5B; !important') %>
-                <%end%>
-                
+        <div class="logged-user-role d-block"> 
+            <%if c_recruiter.present? && current_user != c_recruiter%>
+                <button onclick="recruiter_button(<%= c_recruiter.id %>)", class="bot_styles"><div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div></button>
+            <%else%>
+               <button onclick="candidate_button(<%= c_candidate_obj.id %>)", class="bot_styles"><div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div></button>
+            <%end%>
         </div>
-
-        <%
-=begin%>
- <a href="#" class="profile-button-chat">
-          <i class="fa fa-commenting mr-2" aria-hidden="true"></i> Chat
-                    
-
-        </a> 
-<%
-=end%>
-
-
-
-
       </div>
       <div class="profile-links">
         <a href="#" class="profile-link-share">
@@ -378,3 +378,30 @@
     </div>
   </div>
 </div>
+<script>
+    $(".openbtn").click(function() {
+        $(".side-wrapper").toggleClass("side-active")
+    });
+    function recruiter_button(recruiter){
+          $.ajax({
+              url: `/company/conversations/mini_chat`,
+              type: "GET",
+              dataType: "script",
+              data: {recruiter:recruiter},
+              success: function (data) {
+              }
+          });
+    }
+
+    function candidate_button(candidate){
+          $.ajax({
+              url: `/company/conversations/mini_chat`,
+              type: "GET",
+              dataType: "script",
+              data: {candidate: candidate},
+              success: function (data) {
+                  
+              }
+          });
+    }
+</script>

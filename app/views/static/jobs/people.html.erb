@@ -10,6 +10,9 @@
     .bot_style:hover {
         outline: none !important;
     }
+    .bot_style:focus {
+        outline: none !important;
+    }
     .imag_css{
     height: 17px;
     width: 17px;
@@ -85,16 +88,26 @@
 
                                                     <!-- Chat Icon -->
 
+
+
+
                                                        <%c_candidate = c&.candidate_id%>
                                                        <%c_candidate_obj = Candidate.find_by(id: c_candidate)%>
                                                        <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
-                                                    <div class="logged-user-role d-block">
+
+                                                    <div class="logged-user-role d-block"> 
                                                         <%if c_recruiter.present? && current_user != c_recruiter%>
                                                             <button onclick="recruiter_button(<%= c_recruiter.id %>)", class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
                                                         <%else%>
                                                              <button onclick="candidate_button(<%= c_candidate_obj.id %>)", class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid me-2", alt: "Chat" %></button>
                                                         <%end%>
                                                     </div>
+
+
+
+
+
+
                                                     <div class="logged-user-role d-block">
                                                         <%if c_recruiter.present? && current_user != c_recruiter%>
                                                           <%= chat_recruiter_link_image(c_recruiter) %>
