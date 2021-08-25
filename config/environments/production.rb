@@ -134,4 +134,5 @@ Rails.application.configure do
                                             exception_recipients: (ENV["EXCEPTION_NOTIFICATION_EMAILS"] || "").split(" ")
                                           }
   config.domain = ENV['DOMAIN']
+  ENV['host_protocol'] ||= 'http'
 end
