@@ -159,7 +159,7 @@ class Static::JobsController < ApplicationController
     end
     job_attributes
   end
-
+ 
   def find_or_create_company(from)
     company = Company.find_or_create_by(domain: from.domain.split('@')[0].split('.').first) do |compny|
       compnyp.name = from.domain.split('@')[0].split('.').first

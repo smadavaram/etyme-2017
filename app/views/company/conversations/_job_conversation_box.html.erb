@@ -6,11 +6,28 @@
   background: none;
   border: none;
 }
+.new_size{
+  font-size: 20px;
+}
 .underline_actives{
   border-bottom: 3px solid #017bf8;
 }
 .form-class{
       margin-top: 0px;
+}
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropdown Content (Hidden by Default) */
+.dropdown-content {
+  display: none;
+  position: fixed;
+  background-color: #f1f1f1;
+  min-width: 176px;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+  z-index: 1;
 }
 </style>
 <div class="row branch-class-madia" style="height: 5vh; background: #eaf3fc;" >
@@ -34,7 +51,7 @@
   </div>
   <div class="col-8 col-sm-10 col-md-10 col-lg-10" style="background: #eaf3fc;">
     <div class="branch-out-content" style="justify-content: flex-start;display: flex;
-    align-items: center; overflow-y: auto; height: 5vh;">
+    align-items: center; overflow-y: auto; height: 5vh; overflow-x: hidden;">
       <div>
         <button type="button" class="btn1-style" onclick="btnClick1()">Main</button>
       </div>
@@ -52,6 +69,7 @@
         <% branch_new_array.each do |key|%>
         <%key_value = eval(key)%>     
         <%i =  key_value[:chat_title]%>    
+        <%if key_value[:sub_chats] == @conversation.id%>
                   <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
                     <% if conversation.id == key_value[:sub_chats]%>
                      <div id="branchout-button" class=" underline_actives">
@@ -62,7 +80,38 @@
                     <% end %>
                     </div>
                   </div>
-         <% end %> 
+          <%end%>       
+        <% end %> 
+
+
+        <div class="dropdown">
+          <button class="new_but"><i class="fa fa-search new_size"></i></button>
+        <div class="dropdown-content">
+
+        <%branch_new_array = opt_obj[:branch_array]%>
+        <% branch_new_array.each do |key|%>
+        <%key_value = eval(key)%>     
+        <%i =  key_value[:chat_title]%>    
+                  
+                    <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
+                    <% if conversation.id == key_value[:sub_chats]%>
+                     <div id="branchout-button" class=" underline_actives">
+                      <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button><span style="color:black;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= key_value[:sub_chats] %>')"></i></span></div>
+                    <% else %>
+                     <div id="branchout-button" class="">
+                      <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button><span style="color:black;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= key_value[:sub_chats] %>')"></i></span></div>
+                    <% end %>
+                    </div>
+                  </div>
+                        
+        <% end %>
+          </div>
+        </div> 
+
+
+
+
+.
     </div>
   </div>
   <div class="col-4 col-sm-2 col-md-2 col-lg-2" style="background: #eaf3fc;">

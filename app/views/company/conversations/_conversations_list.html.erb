@@ -1,4 +1,4 @@
-<% count = 0 %>
+<% count = 0 %> 
 <% conversations.uniq{|c| c.opt_participant(current_user).full_name}.each do |con| %>
   <% opt_usr = con.opt_participant(current_user) %>
   <% color = nil %>

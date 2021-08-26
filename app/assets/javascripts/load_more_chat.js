@@ -36,6 +36,7 @@ checkForScrollEvent = function (el) {
 };
 
 checkForConScrollEvent = function (el) {
+  debugger;
   var more_users_url;
   more_users_url = void 0;
   if ($(".company-conversation-scorll").data("ajaxready") === false) {
@@ -48,7 +49,8 @@ checkForConScrollEvent = function (el) {
     $(".company-conversation-scorll")[0].scrollHeight -
     $(".company-conversation-scorll").height() -
     el.scrollTop();
-  if (more_users_url && requestable_height === 0) {
+  if (more_users_url && requestable_height < 3) {
+    debugger;
     $("#loading").removeClass("hidden");
     $(".company-conversation-scorll").data("ajaxready", false);
     console.log(more_users_url);
