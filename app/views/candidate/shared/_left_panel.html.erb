@@ -47,9 +47,13 @@
       padding-top: 15px;
       padding-left: 13px;
     }
-
+.newindex-class{
+  z-index: 100;
+}
 </style>
-<div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; height: 12vh; padding-left: 10px;">
+<%
+=begin%>
+ <div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; height: 12vh; padding-left: 10px;">
   <div style="display: flex !important; margin-bottom: 10px !important;">
     <div class="col-sm-10 col-md-10 col-lg-10 logged-user-i" style="display: inline-flex !important; align-items:center; padding-left: 0.7rem; margin-top: 10px;">
       <div class="avatar-w" style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">
@@ -83,22 +87,16 @@
       </div>
     </div>
   </div>
-</div>
+</div> 
+<%
+=end%>
 
 
 <script>
 
-//       (()=>{
-// debugger
-        
-//         if (window.location.pathname == "/candidate/conversations")
-//       {
-// const r=      $("#candidate_panel").addClass('cont-comany2');
-// debugger
-//        console.log(window.location.pathname.toString())
-//       }})()
 
     function toglleMenu() {
+       $("#remove-logo-ham-id").css("display", "none");
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
         $("#toggle1").removeClass('toggleshow');
@@ -108,6 +106,10 @@
         $(".cont-comany").removeClass('cont-comany2');
     }
     function toglleMenu1() {
+      debugger;
+        $("#remove-logo-ham-id").css("display", "flex");
+        $("#remove-logo-ham-id").css("flex", "auto");
+        $("#remove-logo-ham-id").css("margin-left", "10px")
         var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
         document.querySelector('#togglebutton').classList.toggle('rightChanged');
         $("#toggle1").removeClass('togglehide');
@@ -122,8 +124,8 @@
 
 
 
-<div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
-  <div class="logged-user-w avatar-inline p-1 m-1" style="height: 5vh; margin-top: 13px !important;">
+<div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link newindex-class">
+  <div class="logged-user-w avatar-inline p-1 m-1" style="height: 5vh; margin-top: 18px !important;">
     <div class="logged-user-i">
       <div class="avatar-w">
         <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
@@ -140,6 +142,9 @@
         </div>
         <!--div class="logged-user-role">My Team</div-->
       </div>
+        <div class="bread-style bread-styles" style="margin-left:30px !important; background: none !important;" onclick="toglleMenu1()">
+            <div class="os-icon os-icon-hamburger-menu-1 bread-style1" style="background: none !important;" ></div>
+       </div>
 <!--      <div class="icon-button-style1 chat-togle-css" >-->
 <!--        <div id="togglebutton" onclick="toglleMenu1()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox1' : 'togglebtncontainer' %>">-->
 <!--          <div class="os-icon os-icon-hamburger-menu-1 hamburger-icon"></div>-->

@@ -1,4 +1,21 @@
+<style>
+.bread-styles{
+    display: block !important;
+    background-color: white !important;
+    height: 41px !important;
+    width: 41px !important;
+    border-radius: 50% !important;
+    margin-right: 1% !important;;
+    margin-left: 1% !important;;
+}
 
+ @media (min-width: 1024px) {
+ .chat-logo-class {
+    display: flex ;
+    align-items: center;
+  }
+}
+</style>
 <!--new html-->
 <% if @conversation.present? %>
   <% user = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>

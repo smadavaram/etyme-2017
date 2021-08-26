@@ -4,7 +4,7 @@
     .icon-side-bar{
         /* display: block !important; */
     }
-    @media only screen and (max-width: 600px) {
+    @media only screen and (max-width: 668px) {
         .mobile-icon-side-bar-can {
             display: none !important;
         }
@@ -13,12 +13,29 @@
       min-height: none !important;
       padding-bottom: 0px !important;
     }
+    @media (min-width: 1025px) {
+    .cont-comany {
+    margin-left: 0px;
+    }
+    .border-no {
+      border: none;
+    }
+    }
+    #main{
+      min-height: none !important;
+      padding-bottom: 0px !important;
+    }
+    @media (max-width: 768px) {
+    .chat-margin {
+    margin-top: 15px;
+    }
+    }
 </style>
 <div class="row">
 
   <!--  left side start-->
-  <div class="col-sm-3 col-md-3 col-lg-3" style="" >
-    <div class="row left-chat-bar row candidate-left-chat-bar" style="height: 100vh">
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3 chat-margin" style="" >
+    <div class="row left-chat-bar row candidate-left-chat-bar" style="">
       <div class="full-chat-left1" style="width: 100%;border-radius: 25px;" >
         <div class="os-tabs-w">
           <ul class="nav nav-tabs upper centered">
@@ -26,7 +43,7 @@
           </ul>
         </div>
         <div class="row chat-search d-flex margin-top-10  left-side-header-style">
-          <div class="col-sm-4 col-md-4 col-lg-4 left-side-select-style">
+          <div class="col-sm-3 col-md-3 col-lg-3 left-side-select-style">
 
             <div class="form-control rounded  select-style" style=" border: none; " id="chat_topic">
               <label>
@@ -48,8 +65,10 @@
             <!--            <option value="GroupChat">Group</option>-->
             <!--          </select>-->
           </div>
-          <div class="col-sm-7 col-md-7 col-lg-7">
+          <div class="col-sm-8 col-md-8 col-lg-8">
             <input type="text" class="form-control input-search-style" placeholder="Search Conversation" id="conversation-users-search">
+          </div>
+          <div class="col-sm-1 col-md-1 col-lg-1 left-side-plus-icon" >
           </div>
 <!--          <div class="col-sm-2 col-md-2 col-lg-2 left-side-plus-icon" >-->
 <!--            <i class="fa fa-plus-circle plus-circle-style" style="font-size:24px;color: #047bf8"></i>-->
@@ -80,13 +99,13 @@
   <!--  left side end-->
 
   <!--  middle screen start-->
-  <div class="col-sm-6 col-md-6 col-lg-6 candidate-conversation"  id="conversation-section">
+  <div class="col-sm-12 col-12 col-md-6 col-lg-6 job-conversation-box-style candidate-conversation"  id="conversation-section">
     <%= render "candidate/conversations/conversation" %>
   </div>
   <!--  middle screen end-->
 
   <!--  right side start-->
-  <div class="col-sm-3 col-md-3 col-lg-3" >
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3 " >
     <div class=" " id="conversation-r-section">
       <%= render "candidate/conversations/conversation_right_side" %>
     </div>
@@ -177,14 +196,6 @@
 <% content_for :scripts do %>
   <script>
 
-      (()=>{   
-        if (window.location.pathname == "/candidate/conversations")
-      {
-         $("#candidate_panel").addClass('cont-comany2');
-       console.log(window.location.pathname.toString())
-      }})()
-    
-    
       $(document).ready(function () {
           $.ajax({
               url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
