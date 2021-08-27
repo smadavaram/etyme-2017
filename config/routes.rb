@@ -336,7 +336,6 @@ Rails.application.routes.draw do
 
     resources :company_contacts, only: %i[index new create destroy]
 
-
     resources :companies, only: %i[new create update] do
       member do
         get 'plugin/:plugin_type', to: 'companies#plugin', as: :plugin
@@ -690,8 +689,6 @@ Rails.application.routes.draw do
     resources :jobs, concerns: :paginatable do
       match 'create_multiple_for_candidate', to: 'job_applications#create_multiple_for_candidate', via: %i[get post]
 
-
-
       resources :contracts, except: %i[index show] do
         member do
           post :open_contract, as: :open_contract
@@ -779,7 +776,7 @@ Rails.application.routes.draw do
   end
 
   # Devise Routes
-  devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords', sessions: 'users/sessions', confirmations: 'users/confirmations', omniauth_callbacks: 'candidates/omniauth_callbacks' }, path_names: { sign_in: 'login', sign_out: 'logout' }
+  devise_for :users, controllers: { invitations: 'company/invitations', passwords: 'users/passwords', sessions: 'users/sessions', confirmations: 'users/confirmations' }, path_names: { sign_in: 'login', sign_out: 'logout' }
 
   # devise_for :candidates
   devise_for :candidates, controllers: {
@@ -789,6 +786,8 @@ Rails.application.routes.draw do
     confirmations: 'candidates/confirmations',
     invitations: 'candidate/invitations'
   }
+
+  get '/auth/:action/callback', controller: 'authentications', constraints: { action: /facebook|google/ }
 
   # Route set when custom domain is present
   # constraints(CustomDomain) do
@@ -878,8 +877,6 @@ Rails.application.routes.draw do
 
   post 'api/company/', to: 'api/company/companies#create_custom_company'
 
-
   devise_for :admin_users, ActiveAdmin::Devise.config
   ActiveAdmin.routes(self)
-
 end
