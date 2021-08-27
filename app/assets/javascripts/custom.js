@@ -202,6 +202,7 @@ $(document).ready(function () {
   $('[rel="tooltip"]').tooltip();
 
   $("#chat_topic").change(function () {
+    debugger
     $("#company-conversation-list").html("");
     callAjaxSearch("/company/conversations/search", "GET", {
       keyword: $("#conversation-users-search").val(),

@@ -188,6 +188,9 @@ class Company::ConversationsController < Company::BaseController
 
 
   def search
+    
+    binding.pry
+    
     @query = params[:keyword]
     @topic = params[:topic].present? ? params[:topic] : 'All'
     @conversations = if @query.present? && @topic.present?
