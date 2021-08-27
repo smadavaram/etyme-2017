@@ -71,6 +71,7 @@
  *= require company/payroll
  *= require custom
  *= require company_chat_custom
+ *= require candidate/profile
 
  */
 

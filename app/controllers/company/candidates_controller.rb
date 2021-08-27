@@ -54,9 +54,9 @@ class Company::CandidatesController < Company::BaseController
 
   def impersonate
     candidate = Candidate.find(params[:id])
-    sign_in candidate
-    impersonate_candidate(candidate)
-    redirect_to my_profile_path
+    candidate.update(confirmed_at: Date.today) unless candidate.confirmed?
+    sign_in candidate.reload
+    redirect_to my_profile_url(subdomain: 'app')
   end
 
   def profile

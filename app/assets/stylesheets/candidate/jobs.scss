@@ -1,68 +1,55 @@
 // Place all the styles related to the candidate/jobs controller here.
 // They will automatically be included in application.css.
 // You can use Sass (SCSS) here: http://sass-lang.com/
-.job-panel
-{
+.job-panel {
   display: table;
   width: 100%;
   text-align: left;
-  border-bottom:1px solid #e4e4e4;
-
+  border-bottom: 1px solid #e4e4e4;
 }
-.cjob-span
-{
+.cjob-span {
   vertical-align: middle;
   text-align: left;
-  font-weight:300;
+  font-weight: 300;
 }
-.cjob-list-li
-{
-  text-align:justify;
-  font-size:14px;
+.cjob-list-li {
+  text-align: justify;
+  font-size: 14px;
 }
-.p-bt
-{
-  font-size:16px;
-  padding-top:5px;
-  padding-bottom:5px;
+.p-bt {
+  font-size: 16px;
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
-.mt-20
-{
-   margin-top: -20px;
+.mt-20 {
+  margin-top: -20px;
 }
 
-.fs-13
-{
+.fs-13 {
   font-size: 13px;
-  display: block
+  display: block;
 }
 
-.list-p-15
-{
-  padding:15px
+.list-p-15 {
+  padding: 15px;
 }
-.ul-s
-{
+.ul-s {
   list-style: none outside none;
-  text-align:justify;
-  padding:20px;
+  text-align: justify;
+  padding: 20px;
   overflow: auto;
 }
-.mt-12
-{
-  margin-top:12px;
+.mt-12 {
+  margin-top: 12px;
 }
-.mt-20s
-{
-  margin-top:20px ;
+.mt-20s {
+  margin-top: 20px;
   border: border-light;
 }
-.c-color
-{
+.c-color {
   background-color: aliceblue;
 }
-.mr-5
-{
+.mr-5 {
   margin-right: 5px;
 }
 #header {
@@ -72,18 +59,18 @@
   background-color: #ff5a5f !important;
 }
 
-.layout-w{
+.layout-w {
   min-height: 100vh;
 }
 
-.wizard-action{
+.wizard-action {
   background: no-repeat;
   margin: 0;
   border: none;
-  ul.wizard{
-    li{
+  ul.wizard {
+    li {
       list-style: none;
-      a{
+      a {
         border: none;
         background-color: transparent;
         font-weight: 600;
@@ -93,8 +80,8 @@
         letter-spacing: 1px;
         position: relative;
         text-decoration: none;
-        &:after{
-          font-family: 'osfont' !important;
+        &:after {
+          font-family: "osfont" !important;
           speak: none;
           font-style: normal;
           font-weight: normal;
@@ -110,21 +97,21 @@
           -webkit-transform: translateY(-50%);
           transform: translateY(-50%);
         }
-        &:hover{
-          color:#334152;
+        &:hover {
+          color: #334152;
         }
       }
-      &.previous{
-        a{
-          &:after{
+      &.previous {
+        a {
+          &:after {
             content: "\e987";
             left: -20px;
           }
         }
       }
-      &.next{
-        a{
-          &:after{
+      &.next {
+        a {
+          &:after {
             content: "\e986";
             right: -20px;
           }
@@ -134,12 +121,12 @@
   }
 }
 
-.form-group{
+.form-group {
   label {
     display: block;
     font-size: 14px;
     font-weight: 400;
-    color: #3E4B5B;
+    color: #3e4b5b;
     margin-bottom: 5px;
   }
   .radio-container {
@@ -148,11 +135,16 @@
     margin-left: 20px;
   }
 }
-.profile-tile{
-  .profile-tile-box{
+.profile-tile {
+  margin-left: 1rem;
+  border-bottom: none !important;
+  .profile-tile-box {
     height: 200px;
     width: 200px !important;
-    img{
+    &.small {
+      height: 100px;
+    }
+    img {
       width: auto !important;
       height: auto !important;
       padding: 0 10px 10px;
@@ -161,32 +153,32 @@
     }
   }
 }
-.fade.in{
+.fade.in {
   opacity: 1 !important;
 }
 
 .document-display {
-  background:#E9ECF3;
+  background: #e9ecf3;
   padding: 10px;
   border-radius: 5px;
   margin-top: 10px;
-  p{
+  p {
     margin: 0;
   }
-  .float-right{
-    .make_primary_doc{
+  .float-right {
+    .make_primary_doc {
       margin: 0 !important;
     }
-    .delete_primary_doc{
+    .delete_primary_doc {
       margin: 0 !important;
     }
-    a{
+    a {
       margin: 0;
     }
-    i{
+    i {
       margin: 0;
     }
-    .primary_doc{
+    .primary_doc {
       i {
         font-size: 20px;
       }

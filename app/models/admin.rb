@@ -3,6 +3,8 @@
 class Admin < User
   include DomainExtractor
 
+  rating
+
   validates :password, presence: true, if: proc { |admin| !admin.password.nil? }
   validates :password_confirmation, presence: true, if: proc { |admin| !admin.password.nil? }
 

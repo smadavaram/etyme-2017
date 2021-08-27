@@ -52,9 +52,9 @@ module ApplicationHelper
 
 
 
-  
 
-  
+
+
    def chat_remote_link_recruiter_profile(options)
     if options[:remote_false]
       link_to("<div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div>".html_safe, options[:chat_link] || '#', title: 'chat', class: "data-table-icons #{options[:remote_false]}")
@@ -65,27 +65,27 @@ module ApplicationHelper
 
 
 
-  
 
 
 
-  
 
 
 
-  
-  
-  
+
+
+
+
+
   def chat_recruiter_link_image(user)
     if (user.present?) && (user.photo.present?)
       (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
       image_tag(profile_photo, :class => "imag_css")
-    else      
+    else
       (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
       image_tag(profile_photo, :class => "imag_css")
-      # link_to(image_tag(profile_photo, :class => "imag_css")) 
+      # link_to(image_tag(profile_photo, :class => "imag_css"))
     end
-    
+
 # if user.photo&.present?
 #       image_tag(user.photo, alt: image_alt(user), class: 'figure-img img-fluid rounded-circle').html_safe
 #     else
@@ -106,6 +106,14 @@ module ApplicationHelper
           <span class='os-icon os-icon-calendar' style='color: red'></span>
           <span class='attendees'></span>
         </div >".html_safe
+  end
+
+  def rate_author(rate)
+    rate.author_type.constantize.find(rate.author_id)
+  end
+
+  def rating_starts(value, additional_classes='')
+    range_field_tag "rating", value, max: 5, step: 0.5, class: "rating #{additional_classes}", style: "--value:#{value}; cursor: auto;", disabled: true
   end
 
   def contact_widget_recuirter(email, phone, _user_id = nil, options = {})

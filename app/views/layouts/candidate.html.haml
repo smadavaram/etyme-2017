@@ -1,6 +1,7 @@
 !!!
-%html{:id => "#{yield :html_id}"}
+%html{:id => "#{yield :html_id}", class: "#{yield :html_class}"}
   %head
+    #load
     %meta{:charset => "utf-8"}/
     %title Etyme
     = csrf_meta_tags
@@ -38,7 +39,7 @@
     .all-wrapper
       .layout-w
         = render partial: 'candidate/shared/left_panel'
-        .content-w.cont-comany#candidate_panel.candidate-layout
+        .content-w.candidate-layout.cont-comany#candidate_panel
           = render partial: 'candidate/shared/header'
           #main{:role => "main",style: ""}
             -##ribbon

@@ -93,6 +93,7 @@ Rails.application.routes.draw do
       end
     end
     resources :candidates do
+      resources :reviews, only: [:create], controller: 'candidates/reviews'
       post :send_message
       get :resume
       get ':id/public/profile', to: 'candidates#candidate_profile', on: :collection, as: :public_profile

@@ -19,11 +19,11 @@ class CompanyContactDatatable < ApplicationDatatable
       name: { source: 'Company.name' },
       first_name: { source: 'User.first_name' },
       title: { source: 'CompanyContact.title' },
-      groups:  { source: 'CompanyContact.groups' },
-      reminder_note:  { source: 'CompanyContact.reminder_note' },
-      status:  { source: 'CompanyContact.status' },
-      contact: { source: 'CompanyContact.contact' },
-      actions:  { source: 'CompanyContact.actions' },
+      groups:  { source: 'CompanyContact.groups' , searchable: false, orderable: false},
+      reminder_note:  { source: 'CompanyContact.reminder_note' , searchable: false, orderable: false},
+      status:  { source: 'CompanyContact.status' , searchable: false, orderable: false},
+      contact: { source: 'CompanyContact.contact' , searchable: false, orderable: false},
+      actions:  { source: 'CompanyContact.actions' , searchable: false, orderable: false},
     }
   end
 
