@@ -844,11 +844,31 @@ form {
     border-radius: 50px;
   }
 }
+.new-class-avatar {
+  @media only screen and (max-width: 768px) {
+    width: 45px !important;
+    height: 45px !important;
+  }
+  width: 35px !important;
+  height: 35px !important;
+  border-radius: 50% !important;
+}
+.newpad-class {
+  @media only screen and (min-width: 768px) {
+    padding: 0px !important;
+  }
+}
 .chat-message-divstyle {
   @media only screen and (max-width: 600px) {
     width: 44vh;
     margin-left: 67px;
     margin-top: -55px;
+  }
+  @media only screen and (max-width: 1300px) {
+    margin-left: 5%;
+  }
+  @media only screen and (max-width: 900px) {
+    margin-left: 7%;
   }
   background-color: #fff9f0;
   padding: 6px;
