@@ -1,4 +1,4 @@
-.my-profile{
+.my-profile {
   height: 100%;
   overflow: auto;
   .user-profile {
@@ -15,7 +15,7 @@
 .portfolio-slick {
   max-width: 500px;
 
-  .slick-arrow{
+  .slick-arrow {
     z-index: 10;
   }
 
@@ -27,7 +27,8 @@
     left: -30px;
   }
 
-  .slick-prev:before, .slick-next:before {
+  .slick-prev:before,
+  .slick-next:before {
     font-size: 30px;
     color: gray;
   }
@@ -52,5 +53,5 @@
   }
 }
 .all-wrapper {
-  overflow: auto;
+  // overflow: auto;
 }
