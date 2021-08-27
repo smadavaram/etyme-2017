@@ -17,7 +17,7 @@
     %label{:for => "user_email"} Email
     = f.email_field :email, :placeholder => "Your Email", required: true, email: true,class: 'form-control field',onblur: 'validate_email();'
     .help-block.form-text.with-errors.form-control-feedback
-      = link_to 'Already have an account?', new_candidate_session_path  
+      = link_to 'Already have an account?', new_candidate_session_path
     .pre-icon.os-icon.os-icon-email-2-at2
   .form-group.field-group
     %label{:for => "user_password"} Password
@@ -38,15 +38,15 @@
   .field-group
     %input.btn.btn-primary.float{"data-disable-with" => "Sign Up", :name => "commit", :type => "submit", :value => "Sign Up"}/
     .buttons-w.mt-4
-    %a#sign_in_with_twitter.minumum-width.btn.btn-primary.mt-2{:href => "#{user_google_oauth2_omniauth_authorize_path}"}
-      %i.ti-google
-      Sign in with google
-    %a#sign_in_with_facebook.minumum-width.btn.btn-primary.mt-2{:href => "#{user_facebook_omniauth_authorize_path}"}
+    -# %a#sign_in_with_twitter.minumum-width.btn.btn-primary.mt-2{:href => "#{user_google_oauth2_omniauth_authorize_path}"}
+    -#   %i.ti-google
+    -#   Sign in with google
+    = link_to '/auth/facebook', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
       %i.ti-facebook
-      Sign in with Facebook
-    %a#sign_in_with_stripe.minumum-width.btn.btn-primary.mt-2{:href => "#{user_linkedin_omniauth_authorize_path}"}
-      %i.ti-linkedin
-      Sign in with Linkedin
+      Sign up with Facebook
+    -# %a#sign_in_with_stripe.minumum-width.btn.btn-primary.mt-2{:href => "#{user_linkedin_omniauth_authorize_path}"}
+    -#   %i.ti-linkedin
+    -#   Sign in with Linkedin
 #myModal.modal{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :tabindex => "-1"}
   .modal-dialog
     .modal-content
