@@ -1793,7 +1793,6 @@ DEPENDENCIES
   omniauth-facebook
   omniauth-google-oauth2
   omniauth-linkedin-oauth2
-  omniauth-oauth2
   omniauth-rails_csrf_protection
   omnicontacts (~> 0.3.7)
   paper_trail
