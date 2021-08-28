@@ -546,6 +546,8 @@ ActiveRecord::Schema.define(version: 2021_08_26_025624) do
     t.boolean "refrence_two"
     t.string "slug_one"
     t.string "slug_two"
+    t.string "refrence_phone_country_code"
+    t.string "refrence_two_phone_country_code"
     t.index ["candidate_id"], name: "index_clients_on_candidate_id"
   end
 
@@ -1073,6 +1075,7 @@ ActiveRecord::Schema.define(version: 2021_08_26_025624) do
     t.date "end_date"
     t.integer "confirmation", default: 0
     t.bigint "client_id"
+    t.string "recruiter_phone_country_code"
     t.index ["candidate_id"], name: "index_designations_on_candidate_id"
   end
 
