@@ -26,7 +26,7 @@
 //= require jquery3
 //= require popper
 //= require bootstrap
-  
+
 // MAIN APP JS FILE
 //= require plugin/select2/select2.min
 // WIZARD

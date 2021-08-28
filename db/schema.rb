@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_08_16_140048) do
+ActiveRecord::Schema.define(version: 2021_08_26_025624) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -420,6 +420,8 @@ ActiveRecord::Schema.define(version: 2021_08_16_140048) do
     t.float "longitude"
     t.integer "recruiter_id"
     t.string "phone_country_code"
+    t.string "provider"
+    t.string "uid"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
@@ -432,8 +434,8 @@ ActiveRecord::Schema.define(version: 2021_08_16_140048) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2021-02-24 22:47:21"
-    t.datetime "updated_at", default: "2021-02-24 22:47:21"
+    t.datetime "created_at", default: "2021-08-21 20:20:10"
+    t.datetime "updated_at", default: "2021-08-21 20:20:10"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -544,6 +546,8 @@ ActiveRecord::Schema.define(version: 2021_08_16_140048) do
     t.boolean "refrence_two"
     t.string "slug_one"
     t.string "slug_two"
+    t.string "refrence_phone_country_code"
+    t.string "refrence_two_phone_country_code"
     t.index ["candidate_id"], name: "index_clients_on_candidate_id"
   end
 
@@ -1071,6 +1075,7 @@ ActiveRecord::Schema.define(version: 2021_08_16_140048) do
     t.date "end_date"
     t.integer "confirmation", default: 0
     t.bigint "client_id"
+    t.string "recruiter_phone_country_code"
     t.index ["candidate_id"], name: "index_designations_on_candidate_id"
   end
 
@@ -2112,6 +2117,8 @@ ActiveRecord::Schema.define(version: 2021_08_16_140048) do
     t.integer "stripe_charge_id"
     t.boolean "paid"
     t.boolean "online", default: true
+    t.string "provider"
+    t.string "uid"
     t.index ["ancestry"], name: "index_users_on_ancestry"
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true

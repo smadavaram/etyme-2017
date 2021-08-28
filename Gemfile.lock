@@ -1481,6 +1481,9 @@ GEM
     omniauth-oauth2 (1.7.1)
       oauth2 (~> 1.4)
       omniauth (>= 1.9, < 3)
+    omniauth-rails_csrf_protection (1.0.0)
+      actionpack (>= 4.2)
+      omniauth (~> 2.0)
     omnicontacts (0.3.10)
       json
       rack
@@ -1790,7 +1793,7 @@ DEPENDENCIES
   omniauth-facebook
   omniauth-google-oauth2
   omniauth-linkedin-oauth2
-  omniauth-oauth2
+  omniauth-rails_csrf_protection
   omnicontacts (~> 0.3.7)
   paper_trail
   paranoia

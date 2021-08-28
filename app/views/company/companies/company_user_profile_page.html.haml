@@ -191,6 +191,9 @@
         $( ".resume_file" ).trigger( "click" );
      });
       $('.p_date').datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c",
         dateFormat: "mm-dd-yy"
       });
     });
@@ -224,7 +227,7 @@
     }
     $.datepicker.setDefaults({
         changeYear: true,
-        yearRange: "1900:2016",
+        yearRange: "c-60:c",
         showMonthAfterYear: true,
         showButtonPanel: true,
         showAnim: "fold",

@@ -91,6 +91,7 @@ Rails.application.configure do
 
   config.action_mailer.default_url_options = { host: ENV['host_url'] || 'etyme.com', protocol: ENV['host_protocol'] || 'https' }
 
+
   config.action_mailer.smtp_settings = {
     :address              => 'smtp.sendgrid.net',
     :port                 => 587,
@@ -124,11 +125,14 @@ Rails.application.configure do
   Rails.application.routes.default_url_options[:host] = HOSTNAME
   config.action_mailer.default_url_options = { host: HOSTNAME }
 
+  Rails.application.routes.default_url_options[:protocol] = ENV['host_protocol'] || 'https'
+
   Rails.application.config.middleware.use ExceptionNotification::Rack,
                                           email: {
                                             email_prefix: "[#{HOSTNAME}] ",
-                                            sender_address: %("notifier" <error@etyme.com>),
-                                            exception_recipients: %w[hamad@enginetech.io]
+                                            sender_address: %("notifier" <support@etyme.com>),
+                                            exception_recipients: (ENV["EXCEPTION_NOTIFICATION_EMAILS"] || "").split(" ")
                                           }
-  config.domain = 'etyme.com'
+  config.domain = ENV['DOMAIN']
+  ENV['host_protocol'] ||= 'http'
 end

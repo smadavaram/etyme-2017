@@ -275,6 +275,9 @@
       $('#myTab a[href="' + hash + '"]').tab('show');
 
       $('.p_date').datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c",
         dateFormat: "mm-dd-yy"
       });
 
@@ -420,7 +423,12 @@
       insertedItem.find('.uploaded_file_name').addClass("tag"+rand);
       insertedItem.find('.uploader').attr("onclick","upload_file('#"+rand+"','.tag"+rand+"',false)");
 
-      $(".p_date").datepicker({dateFormat : 'mm-dd-yy'});
+      $(".p_date").datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c",
+        dateFormat: 'mm-dd-yy'
+      });
       insertedItem.find('.filepicker-attach').each(function(i,e){
         $(".filepicker-attach").on('click',function() {
           $('.fp__overlay').css({'z-index':'99999'})

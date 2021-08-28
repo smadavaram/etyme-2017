@@ -6,7 +6,12 @@
   $("##{@tab.gsub('_', '-')}-form .can-filepicker-attach").each(function(e){
     $(this).unbind();
   });
-  $('.p_date').datepicker({ dateFormat: "mm-dd-yy" });
+  $('.p_date').datepicker({
+    changeMonth: true,
+    changeYear: true,
+    yearRange: "c-60:c",
+    dateFormat: "mm-dd-yy"
+  });
 
   addressLookup();
   $("input[name='candidate[designation_status]']").click(function(){

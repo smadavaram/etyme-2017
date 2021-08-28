@@ -45,7 +45,8 @@ Rails.application.configure do
   config.assets.debug = true
 
   # Suppress logger output for asset requests.
-  config.assets.quiet = true
+  # config.assets.quiet = true
+  config.log_level = :debug
 
   # Raises error for missing translations
   # config.action_view.raise_on_missing_translations = true
@@ -61,5 +62,5 @@ Rails.application.configure do
   config.action_mailer.default_url_options = { host: 'lvh.me', port: 3000 }
   config.action_mailer.delivery_method =  :letter_opener #:smtp
   config.action_mailer.smtp_settings = { :address => "lvh.me", :port => 1025 }
-  config.domain = 'lvh.me:3000'
+  config.domain = 'lvh.me'
 end

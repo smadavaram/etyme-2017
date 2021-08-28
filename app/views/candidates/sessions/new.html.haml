@@ -21,15 +21,15 @@
     .form-check-inline
       %label.form-check-label
     .buttons-w.mt-4
-      %a#sign_in_with_twitter.minumum-width.btn.btn-primary.mt-2{:href => "#{user_google_oauth2_omniauth_authorize_path}"}
-        %i.ti-google
-        Sign in with Google
-      %a#sign_in_with_facebook.minumum-width.btn.btn-primary.mt-2{:href => "#{user_facebook_omniauth_authorize_path}"}
-        %i.ti-facebook
-        Sign in with Facebook
-      %a#sign_in_with_stripe.minumum-width.btn.btn-primary.mt-2{:href => "#{user_linkedin_omniauth_authorize_path}"}
-        %i.ti-linkedin
-        Sign in with Linkedin
+    -#   %a#sign_in_with_twitter.minumum-width.btn.btn-primary.mt-2{:href => "#{user_google_oauth2_omniauth_authorize_path}"}
+    -#     %i.ti-google
+    -#     Sign in with Google
+    = link_to '/auth/facebook', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+      %i.ti-facebook
+      Sign in with Facebook
+    -#   %a#sign_in_with_stripe.minumum-width.btn.btn-primary.mt-2{:href => "#{user_linkedin_omniauth_authorize_path}"}
+    -#     %i.ti-linkedin
+    -#     Sign in with Linkedin
 
 - content_for :scripts do
   :javascript

@@ -33,28 +33,6 @@ Devise.setup do |config|
   # available as additional gems.
   require 'devise/orm/active_record'
 
-  config.omniauth :google_oauth2, ENV['google_people_key'], ENV['google_secret_key'], image_size: 'large', skip_jwt: true
-  config.omniauth :facebook, ENV['facebook_public_key'], ENV['facebook_secret_key'], scope: 'email', info_fields: 'email,name,first_name,last_name,gender', image_size: 'large'
-  config.omniauth :linkedin, ENV['linked_in_public_key'], ENV['linked_in_secret_key']
-  config.omniauth :docusign, Rails.application.config.client_id, Rails.application.config.client_secret, provider_ignores_state: true,
-                                                                                                         setup: lambda { |env|
-                                                                                                                  strategy = env['omniauth.strategy']
-                                                                                                                  strategy.options[:client_options].site = Rails.application.config.app_url
-                                                                                                                  strategy.options[:prompt] = 'login'
-                                                                                                                  strategy.options[:oauth_base_uri] = Rails.application.config.authorization_server
-                                                                                                                  strategy.options[:target_account_id] = Rails.application.config.target_account_id
-                                                                                                                  strategy.options[:allow_silent_authentication] = Rails.application.config.allow_silent_authentication
-                                                                                                                }
-  config.omniauth :zoom, Rails.application.config.zoom_client_id, Rails.application.config.zoom_client_secret,
-                  setup: lambda { |env|
-                    strategy = env['omniauth.strategy']
-                    strategy.options[:client_options].site = Rails.application.config.app_url
-                    # strategy.options[:prompt] = 'login'
-                    strategy.options[:oauth_base_uri] = Rails.application.config.zoom_authorization_server
-                    # strategy.options[:target_account_id] = Rails.application.config.target_account_id
-                    strategy.options[:allow_silent_authentication] = Rails.application.config.allow_silent_authentication
-                  }
-
   # config.app_url = 'http://localhost:3000' # The public url of the application.
   # Note that the setting which controls the host/port for your app
   # is determined by your app's web server. For the default puma

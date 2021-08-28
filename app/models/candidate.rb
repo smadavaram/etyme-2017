@@ -11,7 +11,6 @@ class Candidate < ApplicationRecord
 
   has_paper_trail only: [:address]
 
-
   include PublicActivity::Model
   include ArchilliCandidateProfileBuilder
   include SovrenCandidateProfileBuilder
@@ -133,6 +132,21 @@ class Candidate < ApplicationRecord
   acts_as_taggable_on :skills, :designates
 
   validate :max_skill_size
+
+  def self.from_omniauth(auth)
+    candidate = Candidate.where(email: auth.info.email).first
+    candidate ||= begin
+      full_name = auth.info.name.split(' ')
+      first_name = full_name[0]
+      last_name = full_name[1] || 'none'
+      new_record = Candidate.new(provider: auth.provider, uid: auth.uid, email: auth.info.email, password: Devise.friendly_token[0, 20], first_name: first_name, last_name: last_name, photo: auth.info.image)
+      new_record.skip_confirmation!
+      new_record.save!
+      new_record
+    end
+    candidate
+  end
+
   def exp_words
     days = (client_exp + designation_exp)
     days < 365 ? "<div class='value'>#{days}</div> <div class='label'>day(s) experience</div>" : "<div class='value'>#{days / 365}</div><div class='label'>year(s) experience</div>"
