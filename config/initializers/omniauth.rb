@@ -2,6 +2,7 @@
 
 Rails.application.config.middleware.use OmniAuth::Builder do
   # config.omniauth :facebook, ENV['FACEBOOK_APP_ID'], ENV['FACEBOOK_APP_SECRET'], access_type: "online"
+  provider :google_oauth2, ENV['GOOGLE_CLIENT_ID'], ENV['GOOGLE_CLIENT_SECRET']
   provider :facebook, ENV['FACEBOOK_APP_ID'], ENV['FACEBOOK_APP_SECRET'], scope: 'email,public_profile'
   # provider :docusign, Rails.application.config.client_id, Rails.application.config.client_secret,
   #          setup: lambda { |env|
