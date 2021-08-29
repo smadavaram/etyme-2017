@@ -44,9 +44,9 @@
     = link_to '/auth/facebook?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
       %i.ti-facebook
       Sign up with Facebook
-    -# %a#sign_in_with_stripe.minumum-width.btn.btn-primary.mt-2{:href => "#{user_linkedin_omniauth_authorize_path}"}
-    -#   %i.ti-linkedin
-    -#   Sign in with Linkedin
+    = link_to '/auth/linkedin?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+      %i.ti-linkedin
+      Sign up with Linkedin
 #myModal.modal{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :tabindex => "-1"}
   .modal-dialog
     .modal-content

@@ -789,7 +789,7 @@ Rails.application.routes.draw do
     invitations: 'candidate/invitations'
   }
 
-  get '/auth/:action/callback', controller: 'authentications', constraints: { action: /facebook|google_oauth2/ }
+  get '/auth/:action/callback', controller: 'authentications', constraints: { action: /facebook|google_oauth2|linkedin/ }
 
   # Route set when custom domain is present
   # constraints(CustomDomain) do

@@ -11,6 +11,10 @@ class AuthenticationsController < Devise::OmniauthCallbacksController
     callback
   end
 
+  def linkedin
+    callback
+  end
+
   def failure
     redirect_to root_path
   end
