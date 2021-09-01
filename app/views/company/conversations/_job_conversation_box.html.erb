@@ -50,8 +50,7 @@
     </div>
   </div>
   <div class="col-8 col-sm-10 col-md-10 col-lg-10" style="background: #eaf3fc;">
-    <div class="branch-out-content" style="justify-content: flex-start;display: flex;
-    align-items: center; overflow-y: auto; height: 5vh; overflow-x: hidden;">
+    <div class="branch-out-content" style="justify-content: flex-start;display: flex; align-items: center;  height: 5vh; overflow: hidden;">
       <div>
         <button type="button" class="btn1-style" onclick="btnClick1()">Main</button>
       </div>
@@ -60,11 +59,12 @@
         <%= form_tag update_company_conversation_title_company_conversations_path, class:"form-class", method: :post ,remote: :true do %>
           <div class="element-search autosuggest-search-activator">
             <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
-            <%= hidden_field_tag 'group_id', opt_obj.id  %>
-            <%= hidden_field_tag 'con_id', conversation.id  %>
+            <%= hidden_field_tag 'group_id', opt_obj.id if opt_obj.present? %>
+            <%= hidden_field_tag 'con_id', conversation.id if opt_obj.present? %>
           </div>
         <% end %>
       </div>
+      <% if opt_obj.present?%>
         <%branch_new_array = opt_obj[:branch_array]%>
         <% branch_new_array.each do |key|%>
         <%key_value = eval(key)%>     
@@ -82,7 +82,6 @@
                   </div>
           <%end%>       
         <% end %> 
-
 
         <div class="dropdown">
           <button class="new_but"><i class="fa fa-search new_size"></i></button>
@@ -109,7 +108,7 @@
           </div>
         </div> 
 
-
+      <% end %> 
 
 
 .
@@ -117,20 +116,20 @@
   </div>
   <div class="col-4 col-sm-2 col-md-2 col-lg-2" style="background: #eaf3fc;">
     <div class="row branch-out" style="justify-content: flex-end">
-    <%if conversation.sub_chats != true %>
+    <%if conversation.present? && conversation.sub_chats != true%>
       <button class="btnmy-style" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
     <%end%>
     </div>
   </div>
 
 </div>
-<% if conversation.job_application_id.present? %>
+<% if conversation.present? && conversation.job_application_id.present? %>
 <% pre_name = "A- " %>
-<% elsif conversation.buy_contract_id.present? %>
+<% elsif conversation.present? && conversation.buy_contract_id.present? %>
 <%  pre_name = "BC- " %>
-<% elsif conversation.sell_contract_id.present? %>
+<% elsif conversation.present? && conversation.sell_contract_id.present? %>
 <%  pre_name = "SC- " %>
-<% elsif conversation.porposal_chat_id.present? %>
+<% elsif conversation.present? && conversation.porposal_chat_id.present? %>
 <%  pre_name = "P- " %>
 <% else %>
 <%  pre_name = "" %>

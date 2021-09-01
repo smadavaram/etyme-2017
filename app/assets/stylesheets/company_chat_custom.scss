@@ -846,9 +846,9 @@ form {
 }
 .new-class-avatar {
   @media only screen and (max-width: 768px) {
-    width: 45px !important;
-    height: 45px !important;
   }
+  max-width: 35px !important;
+  max-height: 35px !important;
   width: 35px !important;
   height: 35px !important;
   border-radius: 50% !important;
