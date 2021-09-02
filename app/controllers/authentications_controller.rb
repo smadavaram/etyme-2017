@@ -4,18 +4,32 @@ class AuthenticationsController < Devise::OmniauthCallbacksController
   skip_before_action :assert_is_devise_resource!
 
   def facebook
-    # TODO: Identify is a user or a candidate: Additional parameter? session variable
+    callback
+  end
+
+  def google_oauth2
+    callback
+  end
+
+  def linkedin
+    callback
+  end
+
+  def failure
+    redirect_to root_path
+  end
+
+  private
+
+  def callback
+    # For login as a user, implement kind parameter
+    # pp request.env['omniauth.params'] => {"kind"=>"candidate"}
     @candidate = Candidate.from_omniauth(request.env['omniauth.auth'])
     if @candidate.persisted?
       sign_in @candidate
       redirect_to candidate_candidate_dashboard_path
     else
-      session['devise.facebook_data'] = request.env['omniauth.auth'].except(:extra)
       redirect_to new_candidate_registration_url
     end
-  end
-
-  def failure
-    redirect_to root_path
   end
 end

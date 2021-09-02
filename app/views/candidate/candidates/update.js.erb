@@ -30,5 +30,5 @@
   <% end %>
 <% end %>
 <% if flash[:success].present? %>
-    flash_success("#{flash[:success]}");
+    flash_success("<%= flash[:success] %>");
 <% end %>
