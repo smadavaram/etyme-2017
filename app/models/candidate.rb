@@ -139,7 +139,7 @@ class Candidate < ApplicationRecord
       full_name = auth.info.name.split(' ')
       first_name = full_name[0]
       last_name = full_name[1] || 'none'
-      new_record = Candidate.new(provider: auth.provider, uid: auth.uid, email: auth.info.email, password: Devise.friendly_token[0, 20], first_name: first_name, last_name: last_name, photo: auth.info.image)
+      new_record = Candidate.new(provider: auth.provider, uid: auth.uid, email: auth.info.email, password: Devise.friendly_token[0, 20], first_name: first_name, last_name: last_name, photo: auth.info.image || auth.info.picture_url)
       new_record.skip_confirmation!
       new_record.save!
       new_record
