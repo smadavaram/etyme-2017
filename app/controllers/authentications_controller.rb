@@ -24,12 +24,16 @@ class AuthenticationsController < Devise::OmniauthCallbacksController
   def callback
     # For login as a user, implement kind parameter
     # pp request.env['omniauth.params'] => {"kind"=>"candidate"}
-    @candidate = Candidate.from_omniauth(request.env['omniauth.auth'])
+    @candidate = Candidate.from_omniauth(request.env['omniauth.auth'], company_from_oauth_param)
     if @candidate.persisted?
       sign_in @candidate
       redirect_to candidate_candidate_dashboard_path
     else
       redirect_to new_candidate_registration_url
     end
+  end
+
+  def company_from_oauth_param
+    Company.find_by(slug: request.env['omniauth.params']['company'])
   end
 end

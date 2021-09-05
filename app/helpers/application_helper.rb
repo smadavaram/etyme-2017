@@ -153,6 +153,12 @@ module ApplicationHelper
     now.year - dob.year - ((now.month > dob.month || (now.month == dob.month && now.day >= dob.day)) ? 0 : 1)
   end
 
+  def oauth_query_params(provider)
+    {
+      company: current_company&.slug,
+    }.to_query
+  end
+
   private
 
   def selected_locale
