@@ -81,7 +81,7 @@
               = f.fields_for :custom_fields do |custom|
                 .form-group
                   %label.col-md-2.control-label #{custom.object.name}
-                  .col-md-10
+                  .col-md-10 
                     = custom.hidden_field  :name , value: custom.object.name
                     = custom.text_field  :value, class: "form-control", placeholder: custom.object.name, required: custom.object.required
           .modal-footer
