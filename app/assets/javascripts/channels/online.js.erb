@@ -1,0 +1,27 @@
+App.online = App.cable.subscriptions.create('OnlineChannel', {
+    connected: function () {
+     console.log('hello')
+    },
+    disconnected: function () {
+    },
+    received: function (data) {
+        
+            console.log("tgrhyujuilk")
+            console.log(data)
+            if (data.type == "user" && data.current_status == "login")
+            {
+            let class_with_id = "user_id_".concat("", data.id);
+            console.log(class_with_id)
+            $("#class_with_id").removeClass("online_class")
+            $("#class_with_id").addClass("offline_class")
+             }
+           if (data.type == "candidate" && data.current_status == "login")
+            {
+            let class_with_id = "candidate_id_".concat("", data.id);
+            console.log(class_with_id)
+            $("#class_with_id").removeClass("online_class")
+            $("#class_with_id").css("online_class")
+            }
+
+    },
+});

@@ -21,8 +21,8 @@ module ApplicationCable
       elsif session['warden.user.candidate.key'].present?
         verified_user = Candidate.find_by(id: session['warden.user.candidate.key'].first.first)
         verified_user
-      else
-        reject_unauthorized_connection
+      # else
+      #   reject_unauthorized_connection
       end
     end
   end

@@ -69,3 +69,30 @@
 .group-text-align {
   text-align-last: center !important;
 }
+.online_class {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #05ff05;
+  z-index: 10;
+  position: relative;
+  margin-left: auto;
+}
+.offline_class {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #190bdf;
+  z-index: 10;
+  position: relative;
+  margin-left: auto;
+}
+.onway_class {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #190bdf;
+  z-index: 10;
+  position: relative;
+  margin-left: auto;
+}

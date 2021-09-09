@@ -94,7 +94,7 @@
                                                        <%c_candidate = c&.candidate_id%>
                                                        <%c_candidate_obj = Candidate.find_by(id: c_candidate)%>
                                                        <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
-
+                                                       <div class="online_class" id="candidate_id_<%= c_candidate %>"></div>
                                                     <div class="logged-user-role d-block"> 
                                                         <%if c_recruiter.present? && current_user != c_recruiter%>
                                                             <button onclick="recruiter_button(<%= c_recruiter.id %>)", class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>

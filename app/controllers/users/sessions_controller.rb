@@ -26,6 +26,7 @@ class Users::SessionsController < Devise::SessionsController
     if check_company_user
       super
       cookies.permanent.signed[:userid] = resource.id if resource.present?
+     ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status:"login")
     else
       flash[:error] = 'User is not registerd on this domain'
       redirect_back fallback_location: root_path

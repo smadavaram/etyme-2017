@@ -1401,7 +1401,6 @@ module ApplicationHelper
 
   def user_image(user, attrs)
     return if user.nil?
-
     if user.photo&.present?
       image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe
     else
@@ -1421,7 +1420,7 @@ module ApplicationHelper
 
   def entity_image(first_name, last_name, circle_div_class = 'circle', default_img_classes = '')
     if first_name == '' || last_name == ''
-      image_tag(asset_path('avatars/camera-default.png'), class: "circle-images #{default_img_classes}")
+      image_tag(asset_path('avatars/camera-default.png'), class: "circle-images #{default_img_classes}" )
     else
       default_user_img(first_name, last_name, circle_div_class)
     end

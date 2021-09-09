@@ -17,6 +17,7 @@ class Candidates::SessionsController < Devise::SessionsController
   def create
     super
     cookies.permanent.signed[:candidateid] = resource.id if resource.present?
+    ActionCable.server.broadcast("online_channel", id: current_candidate.id, type: "candidate", current_status:"login")
   end
 
   # DELETE /resource/sign_out
