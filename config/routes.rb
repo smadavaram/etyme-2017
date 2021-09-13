@@ -202,6 +202,7 @@ Rails.application.routes.draw do
       get 'status_update', on: :collection
       get 'chat_status_update', on: :collection
       get 'move_to_employer', on: :collection
+      post 'online_candidates_status', on: :collection
       get 'job/:id', to: 'candidates#get_job', on: :collection, as: :fetch_job
       get 'build_profile/:id/resume', to: 'candidates#build_profile', on: :collection, as: :resume_profile
     end

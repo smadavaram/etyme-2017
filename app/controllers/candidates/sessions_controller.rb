@@ -17,12 +17,23 @@ class Candidates::SessionsController < Devise::SessionsController
   def create
     super
     cookies.permanent.signed[:candidateid] = resource.id if resource.present?
+    
+    binding.pry
+    
+    candidate = Candidate.find_by(id: current_candidate.id)
+    if candidate.online_candidate_status == "offline" || candidate.online_candidate_status == nil
+      candidate.update(online_candidate_status: "online")
+    end
   end
 
   # DELETE /resource/sign_out
-  # def destroy
-  #   super
-  # end
+  def destroy
+    candidate = current_candidate
+    if candidate.online_candidate_status == "online"
+        candidate.update(online_user_status: "offline")
+    end
+    super
+  end
 
   # protected
 

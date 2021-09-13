@@ -275,19 +275,9 @@ class Company::UsersController < Company::BaseController
     redirect_to admins_path
   end
   def onlinestatus
-    @user = current_user
-    if @user.online == true
-      @user.update(:online => false)
-    else
-      @user.update(:online => true)
-    end
-    @user = current_user
-    if @user.online == true
-      ur = "Online"
-    else
-      ur = "Onway"
-    end
-    render json:{data: ur}
+    user = User.find(current_user.id)
+    user.update(online_user_status: params[:online_status])
+   render json:{data: user.id}
   end
   private
 

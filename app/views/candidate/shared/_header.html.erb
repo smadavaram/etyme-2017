@@ -1,10 +1,10 @@
 <style>
-.new-add-class{
- display: flex; 
- flex: auto;
- margin-left: 10px;
+.displayprop2{
+    display: block !important;
 }
-/* @media (min-width: 730px) */
+.ulmargin{
+    text-align: center;
+}
 </style>
 <div class="top-bar color-scheme-transparent" style="height: 12vh; z-index: 1;">
   <!--------------------START - Top Menu Controls-------------------->
@@ -114,6 +114,22 @@
                   <span>Profile</span>
                 </a>
               </li>
+              <li>
+                <div>
+                  <a href="#" class="onlinebutton" id="clickbuttonli">
+                      <i class=" fa fa-signal"></i>
+                      <%= current_candidate.online_candidate_status %>
+                  </a>
+                  <div class="" id="subdrop" style="display: none;">
+                      <ul class="ulmargin" >
+                          <li class="onoffline_can">in_a_meeting</li>
+                          <li class="onoffline_can">online</li>
+                          <li class="onoffline_can">onway</li>
+                          <li class="onoffline_can">offline</li>
+                      </ul>
+                  </div>
+                </div>
+              </li>
             </ul>
           </div>
         </div>
@@ -129,3 +145,11 @@
 
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
 
+<script>
+$(document).ready(function(){
+  $('#clickbuttonli').on("click", function(){
+    $("#subdrop").toggleClass('displayprop2');
+  });
+});
+
+</script>

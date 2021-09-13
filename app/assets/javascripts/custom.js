@@ -207,7 +207,7 @@ $(document).ready(function () {
   $('[rel="tooltip"]').tooltip();
 
   $("#chat_topic").change(function () {
-    debugger
+    debugger;
     $("#company-conversation-list").html("");
     callAjaxSearch("/company/conversations/search", "GET", {
       keyword: $("#conversation-users-search").val(),
@@ -311,18 +311,33 @@ $(document).on("click", ".save_bench_job", function () {
 });
 
 // onlinebutton"
-$(document).on("click", ".onlinebutton", function () {
+$(document).on("click", ".onoffline", function (e) {
   $.ajax({
+    data: {
+      online_status: e.target.textContent,
+    },
     url: "/company/users/onlinestatus",
     type: "post",
     success: function (data) {
-      $(".onlinebuttonresult").text(data.data);
-      if (data.data == "Onway")
-        $("#active").attr("style", "background: yellow");
-      else $("#active").attr("style", "background: limegreen");
+      
     },
   });
 });
+
+$(document).on("click", ".onoffline_can", function (e) {
+  debugger;
+  $.ajax({
+    data: {
+      online_status: e.target.textContent,
+    },
+    url: "/candidate/candidates/online_candidates_status",
+    type: "post",
+    success: function (data) {
+
+    },
+  });
+});
+
 //
 // function online_status($task) {
 //   $.ajax({
