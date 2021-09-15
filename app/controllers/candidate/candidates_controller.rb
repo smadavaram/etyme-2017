@@ -50,6 +50,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   def online_candidates_status
     candidate = Candidate.find(current_candidate.id)
     candidate.update(online_candidate_status: params[:online_status])
+    ActionCable.server.broadcast("online_channel", id: current_candidate.id, type: "candidate", current_status: candidate.online_candidate_status)
     render json:{data: candidate.id}
   end
 

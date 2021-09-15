@@ -87,7 +87,7 @@
         <div class="logged-user-i">
           <div class="div-style-8 div-style-6" >
             <%= link_to my_profile_path do %>
-              <%= user_image(current_candidate, class: 'data-table-image mr-2 div-style-7', title: "#{current_candidate.full_name}") %>
+              <%= user_image(current_candidate, class: 'data-table-image mr-2 div-style-7a', title: "#{current_candidate.full_name}") %>
             <% end %>
           </div>
           <div class="os-dropdown">
@@ -117,8 +117,8 @@
               <li>
                 <div>
                   <a href="#" class="onlinebutton" id="clickbuttonli">
-                      <i class=" fa fa-signal"></i>
-                      <%= current_candidate.online_candidate_status %>
+                      <i class=" fa fa-signal"></i> 
+                      <span id="removetextcan"><%= current_candidate.online_candidate_status %></span>
                   </a>
                   <div class="" id="subdrop" style="display: none;">
                       <ul class="ulmargin" >

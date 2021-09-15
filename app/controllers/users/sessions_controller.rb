@@ -30,6 +30,7 @@ class Users::SessionsController < Devise::SessionsController
       if user.online_user_status == "offline" || user.online_user_status == nil
         user.update(online_user_status: "online")
       end
+     ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
     else
       flash[:error] = 'User is not registerd on this domain'
       redirect_back fallback_location: root_path
@@ -38,9 +39,11 @@ class Users::SessionsController < Devise::SessionsController
 
   # DELETE /resource/sign_out
   def destroy
+    user = current_user
     if user.online_user_status == "online"
         user.update(online_user_status: "offline")
     end
+    ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
     sign_out(current_user)
     flash[:success] = 'You are logged out successfully.'
 

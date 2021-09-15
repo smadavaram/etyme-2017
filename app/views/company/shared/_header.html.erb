@@ -132,7 +132,7 @@
                                     <i class="icon-directions"></i>
                                     <span>Integrations</span>
                                 </a>
-                            </li>
+                            </li>  
                             <li>
                                 <a href="<%= new_charge_path %>">
                                     <i class="os-icon os-icon-grid-10"></i>
@@ -143,7 +143,7 @@
                              <div>
                                 <a href="#" class="onlinebutton" id="clickbuttonli">
                                     <i class=" fa fa-signal"></i>
-                                    <%= current_user.online_user_status %>
+                                    <span id="removetextuser"><%= current_user.online_user_status %></span>
                                 </a>
                                 <div class="" id="subdrop" style="display: none;">
                                     <ul class="ulmargin" >

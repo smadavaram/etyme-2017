@@ -1,11 +1,10 @@
 # frozen_string_literal: true
 
 Rails.application.routes.draw do
-
+  mount ActionCable.server => '/cable'
   concern :commentable do
     resources :comments
   end
-
   concern :image_attachable do
     resources :images, only: :index
   end

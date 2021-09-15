@@ -277,6 +277,7 @@ class Company::UsersController < Company::BaseController
   def onlinestatus
     user = User.find(current_user.id)
     user.update(online_user_status: params[:online_status])
+    ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
    render json:{data: user.id}
   end
   private

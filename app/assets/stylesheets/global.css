@@ -69,3 +69,43 @@
 .group-text-align {
   text-align-last: center !important;
 }
+.online_class {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #049204;
+  z-index: 10;
+  margin-left: auto;
+  margin-top: -12px;
+  position: relative;
+}
+.offline_class {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #aaaaaa;
+  z-index: 10;
+  position: relative;
+  margin-left: auto;
+  margin-top: -12px;
+}
+.onway_class {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #190bdf;
+  z-index: 10;
+  position: relative;
+  margin-left: auto;
+  margin-top: -12px;
+}
+.in_meeting_class {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #dfae0b;
+  z-index: 10;
+  position: relative;
+  margin-left: auto;
+  margin-top: -12px;
+}

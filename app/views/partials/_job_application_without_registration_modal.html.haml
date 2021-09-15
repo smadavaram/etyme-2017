@@ -74,13 +74,14 @@
                             = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{required: r.ans_mandatroy, class: 'set-checkbox d-inline-block'}
                             = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                       - else
-                        = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans,button_name: "Upload", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: r.ans_mandatroy
+                        = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_nam",cstm_style: "border-radius: 0; height:38px;", required_field: r.ans_mandatroy
                         -#= ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'
+                        %p.d-inline-block.uploaded_file_nam  No File Selected
             .nested-fields
               = f.fields_for :custom_fields do |custom|
                 .form-group
                   %label.col-md-2.control-label #{custom.object.name}
-                  .col-md-10
+                  .col-md-10 
                     = custom.hidden_field  :name , value: custom.object.name
                     = custom.text_field  :value, class: "form-control", placeholder: custom.object.name, required: custom.object.required
           .modal-footer
