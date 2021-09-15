@@ -75,7 +75,7 @@
   border-radius: 50%;
   background: #049204;
   z-index: 10;
-  margin-left: auto;
+  margin-left: 30px;
   margin-top: -12px;
   position: relative;
 }
@@ -86,7 +86,7 @@
   background: #aaaaaa;
   z-index: 10;
   position: relative;
-  margin-left: auto;
+  margin-left: 30px;
   margin-top: -12px;
 }
 .onway_class {
@@ -96,7 +96,7 @@
   background: #190bdf;
   z-index: 10;
   position: relative;
-  margin-left: auto;
+  margin-left: 30px;
   margin-top: -12px;
 }
 .in_meeting_class {
@@ -106,6 +106,6 @@
   background: #dfae0b;
   z-index: 10;
   position: relative;
-  margin-left: auto;
+  margin-left: 30px;
   margin-top: -12px;
 }
