@@ -49,7 +49,7 @@
       </div>
     </div>
   </div>
-  <div class="col-8 col-sm-10 col-md-10 col-lg-10" style="background: #eaf3fc;">
+  <div class="col-8 col-sm-8 col-md-8 col-lg-8" style="background: #eaf3fc;">
     <div class="branch-out-content" style="justify-content: flex-start;display: flex; align-items: center;  height: 5vh; overflow: hidden;">
       <div>
         <button type="button" class="btn1-style" onclick="btnClick1()">Main</button>
@@ -114,7 +114,11 @@
 .
     </div>
   </div>
-  <div class="col-4 col-sm-2 col-md-2 col-lg-2" style="background: #eaf3fc;">
+  <%binding.pry%>
+  <div class="col-2 col-sm-2 col-md-2 col-lg-2" style="background: #eaf3fc;">
+  <input name="search-specfic-text" class="input-field" placeholder="Search message" type="text" id="search-specfic-text" value=""  onchange= "searchMessage(event, <%= conversation.id %>)" >
+  </div>
+  <div class="col-2 col-sm-2 col-md-2 col-lg-2" style="background: #eaf3fc;">
     <div class="row branch-out" style="justify-content: flex-end">
     <%if conversation.present? && conversation.sub_chats != true%>
       <button class="btnmy-style" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
@@ -264,6 +268,25 @@
       function onCompanyFileUpload(event) {
           $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
       }
+
+// /conversations/87/conversation_messages/messages?_=1631886091631
+// /conversations/:conversation_id/conversation_messages/messages
+      function searchMessage(e, id) {
+          debugger
+         $.ajax({
+              url: `/conversations/${id}/conversation_messages/messages`,
+              type: "GET",
+              dataType: "script",
+              data: {
+                search_message_query: e.target.value,
+              },
+              success: function (data) {
+              }
+          });
+          
+      }
+
+      
       function send_message(id){
           $.ajax({
               url: `/company/conversations?conversation=${id}`,

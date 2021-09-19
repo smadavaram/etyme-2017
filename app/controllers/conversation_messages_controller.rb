@@ -50,8 +50,15 @@ class ConversationMessagesController < ApplicationController
   end
 
   def messages
-    @prev_date = params[:prev_date] ||= nil
-    @messages = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 10) if @conversation.present?
+    binding.pry
+    if params[:search_message_query].present?
+      @prev_date = params[:prev_date] ||= nil
+      @messages = @conversation.conversation_messages.where("body LIKE ?", "%" + params[:search_message_query] + "%").paginate(page: params[:page], per_page: 10)
+    else
+      @prev_date = params[:prev_date] ||= nil
+      @messages = @conversation.conversation_messages.order(created_at: :desc).paginate(page: params[:page], per_page: 10) if @conversation.present?
+    end
+    
   end
 
   def pop_messages

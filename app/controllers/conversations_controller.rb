@@ -6,9 +6,6 @@ class ConversationsController < ApplicationController
   layout false, except: :index
 
   def index
-    
-    binding.pry
-    
     user_ids = Conversation.where('sender_id = ? OR recipient_id = ?', get_current_user.id, get_current_user.id).pluck(:sender_id, :recipient_id).flatten
     @users = User.where.not(id: get_current_user.id).where(id: user_ids).order('created_at DESC').paginate(page: params[:page], per_page: 10)
   end
