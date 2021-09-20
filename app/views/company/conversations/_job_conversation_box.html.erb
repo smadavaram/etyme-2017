@@ -114,11 +114,7 @@
 .
     </div>
   </div>
-  <%binding.pry%>
-  <div class="col-2 col-sm-2 col-md-2 col-lg-2" style="background: #eaf3fc;">
-  <input name="search-specfic-text" class="input-field" placeholder="Search message" type="text" id="search-specfic-text" value=""  onchange= "searchMessage(event, <%= conversation.id %>)" >
-  </div>
-  <div class="col-2 col-sm-2 col-md-2 col-lg-2" style="background: #eaf3fc;">
+  <div class="col-4 col-sm-4 col-md-4 col-lg-4" style="background: #eaf3fc;">
     <div class="row branch-out" style="justify-content: flex-end">
     <%if conversation.present? && conversation.sub_chats != true%>
       <button class="btnmy-style" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
@@ -149,7 +145,10 @@
           <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" style="padding-left:10px;" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
         <%end %>
       </div>
-      <div class="col-sm-2 col-lg-2 col-md-2">
+        <div class="col-2 col-sm-2 col-md-2 col-lg-2" style="margin-top: auto;">
+          <input name="search-specfic-text"  style="width: 100%;" class="input-field" placeholder="Search message" type="text" id="search-specfic-text" value=""  onchange= "searchMessage(event, <%= conversation.id %>)" >
+        </div>
+      <div class="">
         <!--      <div class="row vidoebutton-style-div" >-->
         <!--        <div class="row" id="videobutton" style="margin-right: 2px; display: none">-->
         <!--          <div class="chat-div-style" id="myDIV2"><i class="fa fa-calendar calender-style"></i></div>-->
@@ -272,7 +271,6 @@
 // /conversations/87/conversation_messages/messages?_=1631886091631
 // /conversations/:conversation_id/conversation_messages/messages
       function searchMessage(e, id) {
-          debugger
          $.ajax({
               url: `/conversations/${id}/conversation_messages/messages`,
               type: "GET",
@@ -281,6 +279,8 @@
                 search_message_query: e.target.value,
               },
               success: function (data) {
+                // $("#div1").html(result);
+                // conversation_
               }
           });
           

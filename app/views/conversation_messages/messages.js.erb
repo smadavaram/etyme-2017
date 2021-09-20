@@ -1,10 +1,11 @@
 
 $(".user-fav").removeClass('active-conversation')
 $(".usr_Group_<%= @conversation&.chatable&.id %>").addClass('active-conversation')
-
+<% @messages = @messag if @messag.present?%>
 <% if @messages.present? %>
 $("#prev_date").val("<%= @messages.last&.created_at&.strftime('%d %b, %Y') %>");
 $("#conversation_<%= @conversation.id %>").scrollTop(50);
+$("#conversation_<%= @conversation.id %>").html("");
 $("#conversation_<%= @conversation.id %>").parent().scrollTop(50);
 $("#conversation_message_file_url").val('');
 <% @messages.each_with_index do |msg, i| %>

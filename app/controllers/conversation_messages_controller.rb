@@ -50,7 +50,6 @@ class ConversationMessagesController < ApplicationController
   end
 
   def messages
-    binding.pry
     if params[:search_message_query].present?
       @prev_date = params[:prev_date] ||= nil
       @messages = @conversation.conversation_messages.where("body LIKE ?", "%" + params[:search_message_query] + "%").paginate(page: params[:page], per_page: 10)

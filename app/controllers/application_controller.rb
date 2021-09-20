@@ -51,7 +51,7 @@ class ApplicationController < ActionController::Base
       if resource.sign_in_count == 1
         company_path(current_company.id)
       else
-        dashboard_path
+        "/"
       end
     elsif class_name == 'Candidate'
       '/candidate'
