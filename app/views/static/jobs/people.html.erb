@@ -1,5 +1,6 @@
 <section class="content-wrapper">
     <%= stylesheet_link_tag "mycompany" %>
+    <%= javascript_include_tag "cable" %>
     <style>
     .bot_style{
         background: none  !important;
@@ -62,7 +63,7 @@
 
                                             <div class="people-card-header d-flex justify-content-between">
                                                 <div class="media">
-                                                    <%= link_to user_avatar(c&.candidate), public_profile_static_candidates_path(c&.candidate), target: "_blank" %>
+                                                    <%= link_to user_mini_avatar(c&.candidate), public_profile_static_candidates_path(c&.candidate), target: "_blank" %>
                                                     <%= link_to c&.candidate&.full_name, public_profile_static_candidates_path(c&.candidate), target: "_blank" %>
                                                 </div>
                                                 <div>
@@ -94,7 +95,6 @@
                                                        <%c_candidate = c&.candidate_id%>
                                                        <%c_candidate_obj = Candidate.find_by(id: c_candidate)%>
                                                        <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
-
                                                     <div class="logged-user-role d-block"> 
                                                         <%if c_recruiter.present? && current_user != c_recruiter%>
                                                             <button onclick="recruiter_button(<%= c_recruiter.id %>)", class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>

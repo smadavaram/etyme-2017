@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_08_26_025624) do
+ActiveRecord::Schema.define(version: 2021_09_13_091412) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -422,6 +422,9 @@ ActiveRecord::Schema.define(version: 2021_08_26_025624) do
     t.string "phone_country_code"
     t.string "provider"
     t.string "uid"
+    t.boolean "online"
+    t.boolean "online_candidate"
+    t.string "online_candidate_status"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
@@ -2119,6 +2122,8 @@ ActiveRecord::Schema.define(version: 2021_08_26_025624) do
     t.boolean "online", default: true
     t.string "provider"
     t.string "uid"
+    t.boolean "online_user"
+    t.string "online_user_status"
     t.index ["ancestry"], name: "index_users_on_ancestry"
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true

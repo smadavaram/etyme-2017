@@ -1,6 +1,9 @@
 <style>
-.click-class{
-    display: none !important;
+.displayprop2{
+    display: block !important;
+}
+.ulmargin{
+    text-align: center;
 }
 </style>
 <div class="top-bar color-scheme-transparent" style="height: 12vh;z-index: 100">
@@ -74,7 +77,7 @@
         <div class="top-icon mobile-user-icon top-settings os-dropdown-trigger os-dropdown-position-left" style= "margin-bottom: 20px;">
             <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
                 <div class="logged-user-i">
-                    <div class="div-style-8 div-style-6 <%= current_user.online? ? "": "blue" %>" id="active">
+                    <div class="div-style-8">
                         <%= user_image(current_user, style: '')%>
                     </div>
                     <div class=" os-dropdown">
@@ -129,7 +132,7 @@
                                     <i class="icon-directions"></i>
                                     <span>Integrations</span>
                                 </a>
-                            </li>
+                            </li>  
                             <li>
                                 <a href="<%= new_charge_path %>">
                                     <i class="os-icon os-icon-grid-10"></i>
@@ -137,16 +140,20 @@
                                 </a>
                             </li>
                             <li>
-                                <a href="#" class="onlinebutton">
+                             <div>
+                                <a href="#" class="onlinebutton" id="clickbuttonli">
                                     <i class=" fa fa-signal"></i>
-                                    <% if current_user.online == true %>
-                                    <span class="onlinebuttonresult">
-                                        Online
-                                    </span>
-                                    <%else%>
-                                    <span class="onlinebuttonresult">Onway</span>
-                                    <%end %>
+                                    <span id="removetextuser"><%= current_user.online_user_status %></span>
                                 </a>
+                                <div class="" id="subdrop" style="display: none;">
+                                    <ul class="ulmargin" >
+                                        <li class="onoffline">in_a_meeting</li>
+                                        <li class="onoffline">online</li>
+                                        <li class="onoffline">onway</li>
+                                        <li class="onoffline">offline</li>
+                                    </ul>
+                                </div>
+                             </div>
                             </li>
                             <li>
                                 <%= link_to "", destroy_user_session_path, method: :delete, class: 'hidden', id: 'logout-hidden' %>
@@ -166,3 +173,11 @@
 </div>
 
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
+<script>
+$(document).ready(function(){
+  $('#clickbuttonli').on("click", function(){
+    $("#subdrop").toggleClass('displayprop2');
+  });
+});
+
+</script>

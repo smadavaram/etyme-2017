@@ -49,11 +49,15 @@
           %li
             %span.text-muted
               = j.job_requirement.questions
-            %p
+            %p 
               - if j.app_multi_ans.present? && j.job_requirement.multiple_ans
                 =j.app_multi_ans.reject { |c| c.empty? || c == "0"}.join(",")
+              - elsif j.applicant_ans.split("https://").count > 1
+                = link_to "#{j.applicant_ans}", class: 'btn btn-primary mt-1 pull-right', download: true do
+                  %i.os-icon.os-icon-arrow-down6
+                  Applicant_ans
               -else
-                =j.applicant_ans
+                = j.applicant_ans
         - job_application.custom_fields.each do |cf|
           %hr
           %li

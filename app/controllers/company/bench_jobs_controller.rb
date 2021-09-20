@@ -20,7 +20,8 @@ class Company::BenchJobsController < Company::BaseController
           @candidate.update(candidate_title: params[:job_invitation][:candidate_title], 
             location: params[:job_invitation][:location],
             candidate_visa: params[:job_invitation][:candidate_visa],
-            skill_list: params[:job_invitation][:skill_list]
+            skill_list: params[:job_invitation][:skill_list],
+            recruiter_id: params[:job_invitation][:sender_id]
             )
           format.html { redirect_to company_bench_jobs_path, success: 'Bench job is successfully updated.' }
         else

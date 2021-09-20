@@ -1,0 +1,109 @@
+App.online = App.cable.subscriptions.create('OnlineChannel', {
+    connected: function () {
+     console.log('hello')
+    },
+    disconnected: function () {
+    }, 
+    received: function (data) {
+        
+            console.log("tgrhyujuilk")
+            console.log(data)
+            debugger;
+            if (data.type == "user" && data.current_status == "online")
+            {
+            let class_with_id = "#user_id_".concat("", data.id);
+            console.log(class_with_id)
+            $("#removetextuser").empty();
+            $( "#removetextuser" ).append( "online" );
+            $(class_with_id).removeClass("online_class")
+            $(class_with_id).removeClass("onway_class")
+            $(class_with_id).removeClass("in_meeting_class")
+            $(class_with_id).addClass("online_class")
+             }
+            if (data.type == "user" && data.current_status == "offline")
+            {
+            let class_with_id = "#user_id_".concat("", data.id);
+            console.log(class_with_id)
+            $("#removetextuser").empty();
+            $( "#removetextuser" ).append( "offline" );
+            $(class_with_id).removeClass("online_class")
+            $(class_with_id).removeClass("onway_class")
+            $(class_with_id).removeClass("in_meeting_class")
+            $(class_with_id).addClass("offline_class")
+            
+             }
+            if (data.type == "user" && data.current_status == "onway")
+            {
+            let class_with_id = "#user_id_".concat("", data.id);
+            console.log(class_with_id)
+            $("#removetextuser").empty();
+            $( "#removetextuser" ).append( "onway" );
+            $(class_with_id).removeClass("online_class")
+            $(class_with_id).removeClass("offline_class")
+            $(class_with_id).removeClass("in_meeting_class")
+            $(class_with_id).addClass("onway_class")
+            
+             }
+            if (data.type == "user" && data.current_status == "in_a_meeting")
+            {
+            let class_with_id = "#user_id_".concat("", data.id);
+            console.log(class_with_id)
+            $("#removetextuser").empty();
+            $( "#removetextuser" ).append( "in_a_meeting" );
+            $(class_with_id).removeClass("online_class")
+            $(class_with_id).removeClass("offline_class")
+            $(class_with_id).removeClass("in_meeting_class")
+            $(class_with_id).addClass("in_meeting_class")
+            
+             }
+           if (data.type == "candidate" && data.current_status == "online")
+            {
+            let class_with_id = "#candidate_id_".concat("", data.id);
+            console.log(class_with_id)
+            $("#removetextcan").empty();
+            $( "#removetextcan" ).append( "online" );
+            $(class_with_id).removeClass("online_class")
+            $(class_with_id).removeClass("onway_class")
+            $(class_with_id).removeClass("in_meeting_class")
+            $(class_with_id).addClass("online_class")
+            
+            }
+            if (data.type == "candidate" && data.current_status == "offline")
+            {
+            let class_with_id = "#candidate_id_".concat("", data.id);
+            console.log(class_with_id)
+            $("#removetextcan").empty();
+            $( "#removetextcan" ).append( "offline" );
+            $(class_with_id).removeClass("online_class")
+            $(class_with_id).removeClass("onway_class")
+            $(class_with_id).removeClass("in_meeting_class")
+            $(class_with_id).addClass("offline_class")
+            
+            }
+            if (data.type == "candidate" && data.current_status == "onway")
+            {
+            let class_with_id = "#candidate_id_".concat("", data.id);
+            console.log(class_with_id)
+            $("#removetextcan").empty();
+            $( "#removetextcan" ).append( "onway" );
+            $(class_with_id).removeClass("offline_class")
+            $(class_with_id).removeClass("in_meeting_class")
+            $(class_with_id).removeClass("online_class")
+            $(class_with_id).addClass("onway_class")
+            
+            }
+            if (data.type == "candidate" && data.current_status == "in_a_meeting")
+            {
+            let class_with_id = "#candidate_id_".concat("", data.id);
+            console.log(class_with_id)
+            $("#removetextcan").empty();
+            $( "#removetextcan" ).append( "in_a_meeting" );
+            $(class_with_id).removeClass("online_class")
+            $(class_with_id).removeClass("offline_class")
+            $(class_with_id).removeClass("in_meeting_class")
+            $(class_with_id).addClass("in_meeting_class")
+            
+            }
+
+    },
+});

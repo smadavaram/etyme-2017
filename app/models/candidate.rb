@@ -8,7 +8,12 @@ class Candidate < ApplicationRecord
 
   validates :first_name, presence: true
   validates :last_name, presence: true
-
+  enum online_candidate_status: {
+    online: 'online',
+    in_a_meeting: 'in_a_meeting',
+    onway: 'onway',
+    offline: 'offline',
+  }
   has_paper_trail only: [:address]
 
   include PublicActivity::Model

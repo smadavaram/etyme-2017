@@ -6,7 +6,12 @@ class User < ApplicationRecord
 
   has_ancestry
   rating
-
+ enum online_user_status: {
+    online: 'online',
+    in_a_meeting: 'in_a_meeting',
+    onway: 'onway',
+    offline: 'offline',
+  }
   EXCLUDED_EMAIL_DOMAINS = %w[gmail yahoo rediff facebookmail].freeze
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable

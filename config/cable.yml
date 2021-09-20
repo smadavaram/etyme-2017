@@ -10,7 +10,8 @@
 #  channel_prefix: etyme_production
 
 development:
-  adapter: async
+  adapter: redis
+  url: <%= ENV['REDIS_URL'] %>
 
 test:
   adapter: async
