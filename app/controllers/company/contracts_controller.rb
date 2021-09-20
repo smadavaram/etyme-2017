@@ -107,7 +107,7 @@ class Company::ContractsController < Company::BaseController
       @contract_have_admin = @contract.contract_admins.present? ? @contract.contract_admins.admin.count != 0 : false
     else
       @contract = current_company.sent_contracts.new
-      @contract.contract_terms.new
+      @contract.contract_terms
       @contract.build_sell_contract
       @contract.build_buy_contract
       # @contract.contract_sale_commisions.build
