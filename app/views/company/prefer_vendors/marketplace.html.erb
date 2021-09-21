@@ -1,0 +1,161 @@
+<% content_for :google_address_search_api do %>
+  <script src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['google_search_location_api_key'] %>&libraries=places" type="text/javascript"></script>
+<% end %>
+<div class="marketplacebody">
+  <%= form_tag marketplace_path, :method => :get , id: "market_place_form" do %>
+    <div class="container">
+      <div class="row">
+        <div class="col-md-5 offset-md-3 pt-4 col-8">
+          <div class="search-with-icon os-icon os-icon-ui-37">
+            <%= text_field_tag 'search_by[term]', params[:search_by][:term],placeholder: "search in Companies, Candidates & Jobs ...", autofocus: false,class: " market_place_field ", style: 'background-color: #E9EDF4;' %>
+          </div>
+        </div>
+        <div class="col-md-4 pt-4 end-flex mt-3 col-4">
+          <%
+=begin%>
+ <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left" style="font-size: 30px; color: #636c71;">
+            <i class="picons-social-icon-periscope mr-3" style="font-size: 30px; color: #636c71;"></i>
+            <div class="os-dropdown light message-list mb-3 search_by_address custom-os-dropdown" style="width: 285px;">
+              <label style="color:gray;">Search By Address</label>
+              <%= text_field_tag :address, params[:address],placeholder: "search Address ...", autofocus: false, id: 'google_search_location' ,class: " market_place_field form-control form-control-sm bright p-3" %>
+            </div>
+          </div>
+          <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left" style="font-size: 30px; color: #636c71;">
+            <i class="icon-equalizer"></i>
+            <div class="os-dropdown light message-list mb-3 custom-os-dropdown" style="width: 270px;">
+              <% if params[:search_by][:search_scop].eql?('on') %>
+                <div class="form-group mb-0">
+                  <label class="radio-container">
+                    <span style="color:#636c71;">Search in Prefer Vendor</span>
+                    <input checked="checked" class="form-check-input" name="search_by[search_scop]" type="radio" value="on">>/</input>
+                    <span class="radio-checkmark"></span>
+                  </label>
+                  <label class="radio-container">
+                    <span style="color:#636c71;">Search In Etyme</span>
+                    <input class="form-check-input" name="search_by[search_scop]" type="radio">>/</input>
+                    <span class="radio-checkmark"></span>
+                  </label>
+                </div>
+              <% else %>
+                <div class="form-group mb-0">
+                  <label class="radio-container">
+                    <span style="color:#636c71;">Search in Prefer Vendor</span>
+                    <input class="form-check-input" name="search_by[search_scop]" type="radio" value="on">>/</input>
+                    <span class="radio-checkmark"></span>
+                  </label>
+                  <label class="radio-container">
+                    <span style="color:#636c71;">Search In Etyme</span>
+                    <input checked="checked" class="form-check-input" name="search_by[search_scop]" type="radio">>/</input>
+                    <span class="radio-checkmark"></span>
+                  </label>
+                </div>
+              <% end %>
+              <%= select_tag 'job_departments', options_for_select(department_list,:selected=>params[:job_departments]), class: 'form-control', id: 'job_departments',include_blank: "Select Department" %>
+              <%= select_tag 'job_industry', options_for_select(industry_list,:selected=>params[:job_industry]),class: 'form-control',include_blank: "Select Job Industry" %>
+              <%= select_tag 'job_category', options_for_select(WORK_CATEGORIES.keys,:selected=>params[:job_category]),class: 'form-control',id: 'candidate_category',include_blank: "Select Job category" %>
+              <%= select_tag 'job_sub_category', options_for_select([],:selected=>params[:job_sub_category]),class: 'form-control',id: 'candidate_subcategory',include_blank: "Select Sub Category" %>
+              <%= select_tag 'skills', options_for_select(@skills,:selected=>params[:skills]),class: 'form-control',include_blank: "Select Skills",style: 'max_height:10px;' %>
+            </div>
+          </div> 
+<%
+=end%>
+        </div>
+      </div>
+      <div class="row pl-3 pt-2" style="padding-top: 30px !important; padding-bottom: 10px;">
+        <div class="col-md-2">
+          <% if params[:company].blank? %>
+            <input class="market_place_field" name="company" type="checkbox">Agency/Vendor</input>
+          <% else %>
+            <input checked="<%= true %>" class="market_place_field" name="company" type="checkbox">Agency/Vendor</input>
+          <% end %>
+        </div>
+        <div class="col-md-2">
+          <% if params[:Candidates].blank? %>
+            <input class="market_place_field" name="Candidates" type="checkbox">Candidates(S)</input>
+          <% else %>
+            <input checked="<%= true %>" class="market_place_field" name="Candidates" type="checkbox">Candidates(S)</input>
+          <% end %>
+        </div>
+        <div class="col-md-1">
+          <% if params[:Jobs].blank? %>
+            <input class="market_place_field" name="Jobs" type="checkbox">Jobs</input>
+          <% else %>
+            <input checked="<%= true %>" class="market_place_field" name="Jobs" type="checkbox">Jobs</input>
+          <% end %>
+        </div>
+        <div class="col-md-2">
+          <% if params[:product].blank? %>
+            <input class="market_place_field" name="product" type="checkbox" value="Product">Products</input>
+          <% else %>
+            <input checked="<%= true %>" class="market_place_field" name="product" type="checkbox" value="Product">Products</input>
+          <% end %>
+        </div>
+        <div class="col-md-2">
+          <% if params[:service].blank? %>
+            <input class="market_place_field" name="service" type="checkbox" value="Service">Services</input>
+          <% else %>
+            <input checked="<%= true %>" class="market_place_field" name="service" type="checkbox" value="Service">Services</input>
+          <% end %>
+        </div>
+        <div class="col-md-2">
+          <% if params[:training].blank? %>
+            <input class="market_place_field" name="training" type="checkbox" value="Training">Trainings</input>
+          <% else %>
+            <input checked="<%= true %>" class="market_place_field" name="training" type="checkbox" value="Training">Trainings</input>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    <div class="container">
+      <div class="row">
+        <div class="col-sm-12">
+          <div class="element-wrapper">
+            <% if current_company.vendor? && @data.present? %>
+              <div class="row">
+                <% @data.each do |d| %>
+                  <div class="col-md-6" id="dynamic-content" style="width: 100%;">
+                    <%= render "company/users/partials/#{d.class.name.downcase}_show", data: d, cached: true %>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>
+<% content_for :scripts do %>
+  <script>
+    
+    $(document).ready(function(){
+    setcategories($("#candidate_category").val());
+    $(document).on("change","#candidate_category", function(){
+      setcategories($(this).val());
+    });
+
+    function setcategories(cat){
+      $.ajax({
+        type: 'POST',
+        dataType: "json",
+        data: {category: cat},
+        url: "#{get_sub_category_candidates_path}",
+        success: function(data){
+          $('#candidate_subcategory').empty();
+          $.each(data, function(i, value) {
+
+            if(value == "#{current_company&.candidates&.first&.subcategory}"){
+              $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
+            }else{
+              $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
+            }
+          });
+        }
+      });
+    }
+      default_active_nav('.ln-4');
+    })
+
+
+  </script>
+<% end %>
