@@ -7,13 +7,16 @@ class Company::PreferVendorsController < Company::BaseController
   before_action :authorized_user, only: %i[create show_network index accept reject]
   add_breadcrumb 'Dashboard', :dashboard_path
   has_scope :search_by, only: :marketplace
-  has_scope :search_by, using: %i[term search_scop], type: :hash
+  has_scope :search_by, using: %i[term], type: :hash
 
   def index
     add_breadcrumb 'NetWork Request'.humanize, prefer_vendors_path
   end
 
   def marketplace
+    
+    binding.pry
+    
     add_breadcrumb 'Marketplace'
     @skills = ActsAsTaggableOn::Tag.all.pluck('name')
     @data = []
@@ -63,6 +66,9 @@ class Company::PreferVendorsController < Company::BaseController
         end
 
         if params[:company] == 'on'
+          
+          binding.pry
+          
           if params[:address].blank?
              @data += apply_scopes(@search_scop_on ? Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id)) : Company.all)
            else

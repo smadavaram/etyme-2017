@@ -150,7 +150,7 @@ class Company < ApplicationRecord
 
   scope :vendors, -> { where(company_type: 1) }
   scope :signup_companies, -> { Company.where.not(id: InvitedCompany.select(:invited_company_id)) }
-  scope :search_by, ->(term, _search_scop) { Company.where('lower(name) like :term or lower(description) like :term or lower(email) like :term or lower(phone) like :term', term: "#{term&.downcase}%") }
+  scope :search_by, ->(term) { Company.where('lower(name) like :term or lower(description) like :term or lower(email) like :term or lower(phone) like :term', term: "#{term&.downcase}%") }
 
   scope :status_count, lambda { |company, start_date, end_date|
                          company.received_job_applications.reorder('')
