@@ -28,7 +28,7 @@
       </div>
         <!--    search start-->
         <div class="element-search autosuggest-search-activator os-dropdown-position-left">
-            <input class="search-div-style" placeholder="Find reports and more 111111111111" type="text">
+            <input id="serachmar" class="search-div-style" placeholder="Find reports and more 111111111111" type="text" onclick="searcmarket(event)">
         </div>
         <!--    search end-->
 
@@ -173,11 +173,34 @@
 </div>
 
 <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
-<script>
+<script type="text/javascript">
 $(document).ready(function(){
   $('#clickbuttonli').on("click", function(){
     $("#subdrop").toggleClass('displayprop2');
   });
 });
+
+ function searcmarket(event){
+    mydomainurl = window.location.hostname
+    search_qu = event.target.value
+    var keycode = (event.keyCode ? event.keyCode : event.which);
+    if(keycode == '13'){
+        alert('You pressed a "enter" key in textbox');  
+    }
+    if(search_qu != 'undefined' && search_qu != ''){
+      location.href = `/marketplace?utf8=%E2%9C%93&search_by%5Bterm%5D=${search_qu}&company=on`
+    }
+};
+
+$('#serachmar').keypress(function(event){
+    search_qu = event.target.value
+    mydomainurl = window.location.hostname
+    var keycode = (event.keyCode ? event.keyCode : event.which);
+    if(keycode == '13'){
+       location.href = `/marketplace?utf8=%E2%9C%93&search_by%5Bterm%5D=${search_qu}&company=on`
+    }
+});
+
+
 
 </script>
