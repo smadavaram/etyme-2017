@@ -64,7 +64,7 @@ class Static::JobsController < ApplicationController
     render layout: 'kulkakit'
   end
 
-  def static_feeds
+  def static_feeds 
     @current_company = current_company
     if @current_company.present?
       @search = @current_company.jobs.active.not_system_generated.includes(:created_by).ransack(params[:q])

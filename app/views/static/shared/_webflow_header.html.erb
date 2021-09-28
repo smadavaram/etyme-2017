@@ -30,7 +30,7 @@
           <div class="d-none d-md-flex flex-fill mb-2 mb-md-0 col-xl-9">
             <div class="search-main position-relative d-flex flex-fill align-items-center justify-content-between">
               <div class="d-inline-block position-relative w-100">
-                <input id="search_query" type="text" value=<%= params[:input_search] %> placeholder="<%="Search 1111 #{@current_company&.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
+                <input id="search_query" type="text" value="<%= params[:input_search] %>" placeholder="<%="Search #{@current_company&.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
                 <div class="btn-search">
                   <button class="btn border-0">
                       <%= image_tag(image_path('search.png'), class: "img-fluid") %>
