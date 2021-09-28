@@ -21,7 +21,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </div> 
   <div class="col-12 px-0 mt-3 d-flex justify-content-between">
   <% if  (request.env["REQUEST_PATH"] != "/static/jobs")%>
     <select id="selectFilter" name="selectFilter" class="select-filter">
@@ -92,11 +92,11 @@
     if ( paramsSelectedFilter != '' ) {
       $('#selectFilter').find(`option[value=${paramsSelectedFilter}]`).attr("selected","selected");
     }
-
-    $("#selectFilter").change(function () {
+    $("#selectFilter, #search_query").change(function () {
       const urlParams = new URLSearchParams(window.location.search);
       let goto_url = ''
-        urlParams.set('selected_categories', this.value);
+        urlParams.set('selected_categories', $('#selectFilter').val());
+         urlParams.set('input_search', $('#search_query').val() );
         goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
         window.location = goto_url;
     });
