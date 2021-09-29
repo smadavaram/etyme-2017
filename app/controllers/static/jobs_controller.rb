@@ -95,9 +95,9 @@ class Static::JobsController < ApplicationController
       if params.key?(:selected_categories).present?
           if params.key?(:input_search).present?
             if params[:selected_categories] == "all"
-            @company_jobs = @company_jobs.where.not(listing_type: 'Job').where("lower(title) LIKE (?)","%#{params[:input_search]}%").paginate(page: params[:page], per_page: 20)
+            @company_jobs = @company_jobs.where.not(listing_type: 'Job').where("lower(title) LIKE (?)","%#{params[:input_search].downcase}%").paginate(page: params[:page], per_page: 20)
             else
-            @company_jobs = @company_jobs.where(listing_type: params[:selected_categories].to_s.split(',')).where("lower(title) LIKE (?)","%#{params[:input_search]}%").paginate(page: params[:page], per_page: 20)
+            @company_jobs = @company_jobs.where(listing_type: params[:selected_categories].to_s.split(',')).where("lower(title) LIKE (?)","%#{params[:input_search].downcase}%").paginate(page: params[:page], per_page: 20)
             end
           else
             if params[:selected_categories] == "all"
