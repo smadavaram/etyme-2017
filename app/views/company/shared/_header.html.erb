@@ -28,7 +28,7 @@
       </div>
         <!--    search start-->
         <div class="element-search autosuggest-search-activator os-dropdown-position-left">
-            <input id="searchmar" class="search-div-style" placeholder="Search In Etyme" type="text">
+            <input id="searchmar" class="search-div-style" placeholder="Search In Etyme" type="text" >
         </div>
         <!--    search end-->
 
@@ -172,9 +172,18 @@
     <!--------------------END - Top Menu Controls-------------------->
 </div>
 
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js" type="text/javascript"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script type="text/javascript">
+  $("#searchmar").on("keyup",function(){
+    search_qu = event.target.value
+    mydomainurl = window.location.hostname
+    var keycode = (event.keyCode ? event.keyCode : event.which);
+    if(keycode == '13'){
+       location.href = `/marketplace?utf8=%E2%9C%93&search_by%5Bterm%5D=${search_qu}&company=on`
+    }
+});
 $(document).ready(function(){
+
   $('#clickbuttonli').on("click", function(){
     $("#subdrop").toggleClass('displayprop2');
   });
@@ -192,15 +201,15 @@ $(document).ready(function(){
 //     }
 // };
 
-$(document).on('keypress','#searchmar',function(event){
-    debugger
-    search_qu = event.target.value
-    mydomainurl = window.location.hostname
-    var keycode = (event.keyCode ? event.keyCode : event.which);
-    if(keycode == '13'){
-       location.href = `/marketplace?utf8=%E2%9C%93&search_by%5Bterm%5D=${search_qu}&company=on`
-    }
-});
+// $("#searchmar").on("keyup",function(){
+//     debugger
+//     search_qu = event.target.value
+//     mydomainurl = window.location.hostname
+//     var keycode = (event.keyCode ? event.keyCode : event.which);
+//     if(keycode == '13'){
+//        location.href = `/marketplace?utf8=%E2%9C%93&search_by%5Bterm%5D=${search_qu}&company=on`
+//     }
+// });
 
 
 
