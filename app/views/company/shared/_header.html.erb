@@ -28,7 +28,7 @@
       </div>
         <!--    search start-->
         <div class="element-search autosuggest-search-activator os-dropdown-position-left">
-            <input id="serachmar" class="search-div-style" placeholder="Search In Etyme" type="text" onclick="searcmarket(event)">
+            <input id="searchmar" class="search-div-style" placeholder="Search In Etyme" type="text">
         </div>
         <!--    search end-->
 
@@ -180,19 +180,20 @@ $(document).ready(function(){
   });
 });
 
- function searcmarket(event){
-    mydomainurl = window.location.hostname
-    search_qu = event.target.value
-    var keycode = (event.keyCode ? event.keyCode : event.which);
-    if(keycode == '13'){
-        alert('You pressed a "enter" key in textbox');  
-    }
-    if(search_qu != 'undefined' && search_qu != ''){
-      location.href = `/marketplace?utf8=%E2%9C%93&search_by%5Bterm%5D=${search_qu}&company=on`
-    }
-};
+//  function searcmarket(event){
+//     mydomainurl = window.location.hostname
+//     search_qu = event.target.value
+//     var keycode = (event.keyCode ? event.keyCode : event.which);
+//     if(keycode == '13'){
+//         alert('You pressed a "enter" key in textbox');  
+//     }
+//     if(search_qu != 'undefined' && search_qu != ''){
+//       location.href = `/marketplace?utf8=%E2%9C%93&search_by%5Bterm%5D=${search_qu}&company=on`
+//     }
+// };
 
-$('#serachmar').keypress(function(event){
+$(document).on('keypress','#searchmar',function(event){
+    debugger
     search_qu = event.target.value
     mydomainurl = window.location.hostname
     var keycode = (event.keyCode ? event.keyCode : event.which);
