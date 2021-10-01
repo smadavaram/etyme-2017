@@ -113,7 +113,7 @@ module ChatboxHelper
     contract
   end
 
-  def get_conversation_link(usr)
+  def get_conversation_link(usr, conversation=nil)
     link = nil
     if usr&.group_name.present?
       if usr.group_name.include? "BC"
@@ -128,11 +128,26 @@ module ChatboxHelper
           obj = conv.job
           link = job_path(obj)
         end
+      elsif conversation.job_application_id.present?
+        obj = conversation.job_application
+        link = job_application_path(obj)
       else
         link = nil
       end
     end
     link
+  end
+
+
+  # merge images for main chat sidebar
+  def image_helper(usr)
+    group = usr.groupables
+    images = []
+    group.each do |user|
+      image = user.try(:groupable).try(:photo)
+      images << image if image.present?
+    end
+    images
   end
 
 
