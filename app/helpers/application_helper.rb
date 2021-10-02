@@ -1479,6 +1479,7 @@ end
 
 
 def user_image(user, attrs)
+if user.present?
 if user.has_attribute?("online_candidate_status") == true
 return if user.nil?
 user_id = "candidate_id_" + user.id.to_s
@@ -1540,6 +1541,7 @@ if user.photo&.present?
 image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='offline_class' id='#{user_id}'></div>".html_safe
 else
 entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class' id='#{user_id}'></div>".html_safe
+end
 end
 end
 end
