@@ -61,7 +61,7 @@
                                             <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
 
                                             <div class="cover-img">
-                                                <%= link_to (image_tag "#{c&.candidate&.photo.blank? ? asset_path('avatars/no-image.jpg') : c&.candidate&.photo }", alt: "cover"), public_profile_static_candidates_path(c&.candidate), target: "_blank"  %>
+                                                <%= link_to (image_tag "#{c&.candidate&.full_portfolios.present? ? c&.candidate&.full_portfolios&.first&.cover_photo : asset_path('avatars/no-image.jpg') }", alt: "cover"), public_profile_static_candidates_path(c&.candidate), target: "_blank"  %>
                                             </div>
 
                                             <div class="people-card-header d-flex justify-content-between">
