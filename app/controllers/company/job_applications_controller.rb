@@ -238,6 +238,7 @@ class Company::JobApplicationsController < Company::BaseController
     add_breadcrumb "JOB APPLICATIONS ID: #{params[:id]}"
 
     set_conversation(@job_application.applicationable)
+    @reminder = Reminder.where(reminderable_id:@job_application.id).last
     @activities = PublicActivity::Activity.where(recipient: @job_application).order("created_at desc")
     @previous = JobApplication.where("id < ?", @job_application.id).sort.last
     @next = JobApplication.where("id > ?", @job_application.id).sort.first
