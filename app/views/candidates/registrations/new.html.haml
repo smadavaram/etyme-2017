@@ -38,13 +38,13 @@
   .field-group
     %input.btn.btn-primary.float{"data-disable-with" => "Sign Up", :name => "commit", :type => "submit", :value => "Sign Up"}/
     .buttons-w.mt-4
-    = link_to '/auth/google_oauth2?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    = link_to "/auth/google_oauth2?#{oauth_query_params('google_oauth2')}", method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
       %i.ti-google
       Sign up with Google
-    = link_to '/auth/facebook?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    = link_to "/auth/facebook?#{oauth_query_params('facebook')}", method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
       %i.ti-facebook
       Sign up with Facebook
-    = link_to '/auth/linkedin?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    = link_to "/auth/linkedin?#{oauth_query_params('linkedin')}", method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
       %i.ti-linkedin
       Sign up with Linkedin
 #myModal.modal{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :tabindex => "-1"}

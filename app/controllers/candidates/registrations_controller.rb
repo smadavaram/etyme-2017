@@ -28,7 +28,7 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
       return
     end
 
-    build_resource(sign_up_params)
+    build_resource(sign_up_params.merge(company_ids: [current_company&.id]))
 
     resource.save
     yield resource if block_given?

@@ -16,3 +16,6 @@ Rails.application.config.middleware.use OmniAuth::Builder do
   #          }
   on_failure { |env| AuthenticationsController.action(:failure).call(env) }
 end
+
+
+OmniAuth.config.full_host = "https://#{ENV['app_domain']}"

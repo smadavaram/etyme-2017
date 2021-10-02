@@ -139,13 +139,14 @@ class Candidate < ApplicationRecord
 
   validate :max_skill_size
 
-  def self.from_omniauth(auth)
+  def self.from_omniauth(auth, company = nil)
     candidate = Candidate.where(email: auth.info.email).first
     candidate ||= begin
       full_name = auth.info.name.split(' ')
       first_name = full_name[0]
       last_name = full_name[1] || 'none'
       new_record = Candidate.new(provider: auth.provider, uid: auth.uid, email: auth.info.email, password: Devise.friendly_token[0, 20], first_name: first_name, last_name: last_name, photo: auth.info.image || auth.info.picture_url)
+      new_record.company_ids = [company.id] if company.present?
       new_record.skip_confirmation!
       new_record.save!
       new_record
