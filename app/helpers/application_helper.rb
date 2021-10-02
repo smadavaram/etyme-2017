@@ -77,12 +77,20 @@ module ApplicationHelper
 
 
   def chat_recruiter_link_image(user)
+    profile_class = ""
     if (user.present?) && (user.photo.present?)
       (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
-      image_tag(profile_photo, :class => "imag_css")
+      
+      if( profile_photo != "avatars/male.png" )
+        profile_class = "imag_css_for_pic"
+      end
+      image_tag(profile_photo, :class => "imag_css #{profile_class}", :title=> "#{user.first_name + ' ' +user.last_name + "/" + user.try(:company).try(:name)}")
     else
       (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
-      image_tag(profile_photo, :class => "imag_css")
+      if (profile_photo != "avatars/male.png")
+        profile_class = "imag_css_for_pic"
+      end
+      image_tag(profile_photo, :class => "imag_css #{profile_class}",:title=> "#{user.first_name + ' ' +user.last_name + "/" + user.try(:company).try(:name)}")
       # link_to(image_tag(profile_photo, :class => "imag_css"))
     end
 
