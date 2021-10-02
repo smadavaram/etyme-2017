@@ -29,7 +29,7 @@
                                                 <sup class="text-danger">*</sup>
                                             </label>
                                             <div class="col-md-12">
-                                                <%= f.text_area :title , required: true ,class:'form-control' ,placeholder: "Work Notes here" %>
+                                                <%= f.text_area :title , required: true ,class:'form-control' ,placeholder: "Work Notes here" , value: "#{@reminder.try(:title) if @reminder.present?}"%>
                                             </div>
                                         </div>
                                         <div class="form-group some" style="padding-left:10px; padding-right:10px;">
@@ -38,7 +38,7 @@
                                                 <sup class="text-danger"></sup>
                                             </label>
                                             <div class="col-md-12">
-                                                <%= f.text_field :remind_at ,class:'form-control',id:"remind" %>
+                                                <%= f.text_field :remind_at ,class:'form-control',id:"remind", value: "#{@reminder.try(:remind_at).to_date() if @reminder.present?}" %>
                                             </div>
                                         </div>
                                         <div class="modal-footer">
