@@ -40,6 +40,13 @@
 <!--      <option value="Service">Services</option>-->
 <!--      <option value="Training">Trainings</option>-->
 <!--    </select>-->
+  <% else %>
+      <button class="btn filterBtn filter1" onclick="btnClick1J()" value="all">All</button>
+      <button class="btn filterBtn filter2" onclick="btnClick2J()" value="Blog">Blogs</button>
+      <button class="btn filterBtn filter3" onclick="btnClick3J()" value="Product">Products</button>
+      <button class="btn filterBtn filter4" onclick="btnClick4J()" value="Question">Questions</button>
+      <button class="btn filterBtn filter5" onclick="btnClick5J()" value="Service">Services</button>
+      <button class="btn filterBtn filter6" onclick="btnClick6J()" value="Training">Trainings</button>
   <%end%>
     <div class="pt-1 d-none" id="banner-links">
       <%= link_to 'Talent pool', "#talent-pool" %>
@@ -102,7 +109,7 @@
       window.location = goto_url;
   }
   function btnClick2(){
-      const urlParams = new URLSearchParams(window.location.search);
+        const urlParams = new URLSearchParams(window.location.search);
       let goto_url = ''
       urlParams.set('selected_categories', $('.filter2').val());
       urlParams.set('input_search', $('#search_query').val() );
@@ -141,6 +148,54 @@
       goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
       window.location = goto_url;
   }
+  function btnClick1J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter1').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick2J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter2').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick3J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter3').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick4J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter4').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick5J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter5').val());
+      urlParams.set('input_search', $('#search_query').val());
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick6J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter6').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
   $(function() {
     const paramsSelectedFilter = '<%= params[:selected_categories] %>';
 
@@ -148,11 +203,18 @@
       $('#selectFilter').find(`option[value=${paramsSelectedFilter}]`).attr("selected","selected");
     }
     $("#selectFilter, #search_query").change(function () {
+        debugger
       const urlParams = new URLSearchParams(window.location.search);
       let goto_url = ''
-        urlParams.set('selected_categories', $('#selectFilter').val());
+        urlParams.set('selected_categories', $('.filterBtn').val());
          urlParams.set('input_search', $('#search_query').val() );
-        goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+         if (window.location.href.includes('jobs')){
+             debugger
+             goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+         }
+         else{
+             goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+         }
         window.location = goto_url;
     });
   });
