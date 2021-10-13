@@ -53,9 +53,11 @@ class Company::JobInvitationsController < Company::BaseController
   end
 
   def create
-    @job_invitation = current_company.sent_job_invitations.new(job_invitation_params.merge!(job_id: @job.id, created_by_id: current_user.id))
+    min_hourly_rate = job_invitation_params["min_hourly_rate"].present? ? job_invitation_params["min_hourly_rate"] : 0 
+    max_hourly_rate = job_invitation_params["max_hourly_rate"].present? ? job_invitation_params["max_hourly_rate"] : 0 
+    @job_invitation = current_company.sent_job_invitations.new(job_invitation_params.merge!(job_id: @job.id, created_by_id: current_user.id,min_hourly_rate: min_hourly_rate ,max_hourly_rate: max_hourly_rate))
     respond_to do |format|
-      if @job_invitation.save
+      if @job_invitation.save 
         format.js { flash.now[:success] = 'Job Invitation successfully send.' }
       else
         format.js { flash.now[:errors] = @job_invitation.errors.full_messages }
@@ -106,14 +108,15 @@ class Company::JobInvitationsController < Company::BaseController
 
   def create_multiple
     invitation_params = job_invitation_params
+    invitation_params["min_hourly_rate"] = 0 unless invitation_params["min_hourly_rate"].present? 
+    invitation_params["max_hourly_rate"] = 0 unless invitation_params["max_hourly_rate"].present? 
+    
     if params.key?('vendor_company')
       Company.vendor.where(id: params[:vendor_company]).each do |c|
-        invitation_params = job_invitation_params
-        current_company.sent_job_invitations.create!(invitation_params.merge!(created_by_id: current_user.id, invitation_type: 'vendor', recipient_type: 'User', recipient_id: c.owner_id))
+        current_company.sent_job_invitations.create!(invitation_params.merge!(created_by_id: current_user.id, invitation_type: 'vendor', recipient_type: 'User', recipient_id: c.id))
       end
     elsif params.key?('temp_candidates')
       Candidate.where(id: params[:temp_candidates]).each do |c|
-        invitation_params = job_invitation_params
         current_company.sent_job_invitations.create!(invitation_params.merge!(created_by_id: current_user.id, invitation_type: 'candidate', recipient_type: 'Candidate', recipient_id: c.id))
       end
     end

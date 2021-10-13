@@ -265,7 +265,11 @@ class Candidate::CandidatesController < Candidate::BaseController
 
   def notify_notifications
     add_breadcrumb 'NOTIFICATIONS', '#'
-    @notifications = current_candidate.notifications.send(params[:notification_type] || 'all_notifications').where(status: (params[:status] || 0)).page(params[:page]).per_page(10)
+    if params[:status] != "all_notifications"
+      @notifications = current_candidate.notifications.send(params[:notification_type] || 'all_notifications').where(status: (params[:status] || 0)).page(params[:page]).per_page(10)
+    else 
+      @notifications = current_candidate.notifications.send(params[:notification_type] || 'all_notifications').page(params[:page]).per_page(10)
+    end
   end
 
   def get_sub_category
