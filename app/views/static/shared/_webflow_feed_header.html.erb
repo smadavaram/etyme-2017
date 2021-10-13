@@ -203,13 +203,11 @@
       $('#selectFilter').find(`option[value=${paramsSelectedFilter}]`).attr("selected","selected");
     }
     $("#selectFilter, #search_query").change(function () {
-        debugger
       const urlParams = new URLSearchParams(window.location.search);
       let goto_url = ''
         urlParams.set('selected_categories', $('.filterBtn').val());
          urlParams.set('input_search', $('#search_query').val() );
          if (window.location.href.includes('jobs')){
-             debugger
              goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
          }
          else{
