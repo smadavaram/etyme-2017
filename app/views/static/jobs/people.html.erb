@@ -178,7 +178,16 @@
                   
               }
           });
-    }
+    };
+</script>
+<script>
+    $("#search_query").change(function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        let goto_url = ''
+        urlParams.set('input_search', $('#search_query').val() );
+        goto_url = '<%= static_people_path %>' + '?' + urlParams.toString();
+        window.location = goto_url;
+    });
 </script>
 <style type="text/css">
     .bg-transparent {
