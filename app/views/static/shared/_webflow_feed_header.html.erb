@@ -203,7 +203,6 @@
       $('#selectFilter').find(`option[value=${paramsSelectedFilter}]`).attr("selected","selected");
     }
     $("#search_query").change(function () {
-        debugger
       const urlParams = new URLSearchParams(window.location.search);
       let goto_url = ''
          urlParams.set('input_search', $('#search_query').val() );
