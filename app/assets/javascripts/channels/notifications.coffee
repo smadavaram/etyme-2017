@@ -1,6 +1,5 @@
 App.notifications = App.cable.subscriptions.create "NotificationsChannel",
   connected: ->
-    debugger
     # Called when the subscription is ready for use on the server
 
   disconnected: ->
