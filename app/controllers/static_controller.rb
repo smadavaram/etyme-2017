@@ -84,7 +84,6 @@ class StaticController < ApplicationController
 
   def domain_suggestion
     @company = Company.find_by(website: @website)
-
     respond_to do |format|
       if @company.present?
         format.html {}
@@ -99,11 +98,19 @@ class StaticController < ApplicationController
             status: :ok
           }
         end
-
       else
+        message = ""
+        if params[:email].present?
+          doamin_exclude =  Company::EXCLUDED_DOMAINS.include?(get_domain_from_email(params[:email]))
+          if doamin_exclude == true
+            message = "Company domain is unavailable"
+          else
+            message = "Company domain is available."
+          end
+        end
         format.html {}
         format.json do
-          render json: { message: 'Company domain is available.', slug: suggested_slug, website: domain_from_email(params[:email]), domain: get_domain_from_email(params[:email]), status: :ok }
+          render json: { message: message, slug: suggested_slug, website: domain_from_email(params[:email]), domain: get_domain_from_email(params[:email]), status: :ok }
         end
       end
     end

@@ -41,8 +41,13 @@ DomainChecker.prototype.checkForAvailableDomain = function(emailFieldValue) {
           _this.websiteField.prop('readonly', false);
           _this.flashManager.show("Company already exists", 'alert-danger');
           //   _this.flashManager.hide()
+        }else if(response.message == "Company domain is unavailable"){ 
+          _this.domainField.prop('readonly', false);
+          _this.companyTypeField.prop('disabled', 'disabled');
+          _this.flashManager.show(response.message, 'alert-danger');
         }
         else{
+          _this.companyTypeField.prop('disabled', '');
           _this.flashManager.show(response.message, 'alert-success');
         }
       }else if(response.status == "unprocessible_entity"){
