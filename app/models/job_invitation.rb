@@ -77,7 +77,6 @@ class JobInvitation < ApplicationRecord
 
   # Call after create
   def notify_recipient
-
     if recipient_type == 'Candidate'
       job ?
           recipient.notifications.create(message: company.name + " has invited you for <a href='#{static_job_url(self.job).to_s}'>#{job&.title}</a> <br/> <p> #{message} </p>", title: 'Job Invitation', createable: created_by)
@@ -90,8 +89,8 @@ class JobInvitation < ApplicationRecord
       sender.notifications.create(message: company.name + " has invited you to add into their bench, <a href='http://#{sender.etyme_url + job_invitation_path(self)}'> click here</a> to accept or reject. <br/> <p> #{message} </p>", title: 'Add To Bench Invitation', createable: created_by)
     else
       recipient.notifications.create(message: company.name + " has invited you for <a href='http://#{recipient.company.etyme_url + job_invitation_path(self)}'>#{job.title}</a>", title: 'Job Invitation', createable: created_by)
-
     end
+    ActionCable.server.broadcast "notification_#{recipient.id}",data:"#{recipient.id}"
   end
 
   # Call after update
