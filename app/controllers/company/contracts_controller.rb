@@ -214,9 +214,9 @@ class Company::ContractsController < Company::BaseController
     c_params = Contract.set_date_formats(contract_params)
     respond_to do |format|
       if @contract.update(c_params)
-        @have_admin = @contract.sell_contract ? @contract.sell_contract.contract_sell_business_details.admin.count != 0 : false
-        @contract_have_admin = @contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : false
-        @sell_contract_have_admin = @contract.sell_contract.contract_admins.present? ? @contract.sell_contract.contract_admins.admin.count != 0 : false
+        @have_admin = @contract.sell_contract ? @contract&.sell_contract.contract_sell_business_details&.admin&.count != 0 : false
+        @contract_have_admin = @contract&.contract_admins.present? ? @contract.contract_admins&.admin&.count != 0 : false
+        @sell_contract_have_admin = @contract&.sell_contract&.contract_admins.present? ? @contract.sell_contract.contract_admins.admin&.count != 0 : false
         @sell_contract = @contract.sell_contract
         params[:contract][:reporting_manager_ids]&.each do |id|
           @contract.sell_contract.contract_sell_business_details.find_or_create_by(user_id: id)

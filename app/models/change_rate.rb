@@ -4,7 +4,10 @@ class ChangeRate < ApplicationRecord
   belongs_to :rateable, polymorphic: true
   enum rate_type: %i[hourly daily weekly monthly]
   validate :validate_other_booking_overlap
-
+  def self.instance_method_already_implemented?(method_name)
+    return true if method_name == 'rate'
+    super
+  end
   private
 
   def validate_other_booking_overlap
