@@ -799,6 +799,9 @@ Rails.application.routes.draw do
   # Route set when subdomain is present
   constraints(CustomOrSubDomain) do
     match '/' => 'static/jobs#static_feeds', :as => :root_static_feeds, via: %i[get]
+    match '/' => 'static/jobs#index', :as => :static_jobs_path, via: %i[get]
+    match '/' => 'static/jobs#people', :as => :static_people_path, via: %i[get]
+
     # devise_scope :user do
     #   # match '/' => 'devise/sessions#new', via: %i[get post]
     # end

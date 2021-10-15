@@ -2738,3 +2738,17 @@ trix-toolbar .trix-button-row {
   flex-wrap: nowrap;
   justify-content: space-between;
 }
+.filterBtn{
+  width: fit-content;
+  height: 30px;
+  background: #e1e4ef;
+  border-radius: 30px !important;
+  cursor: pointer;
+  margin-right: 5px;
+  font-size: 12px !important;
+}
+.filterBtn:hover{
+  background: rgba(18, 18, 18, 0.35);
+  color:white;
+}
+

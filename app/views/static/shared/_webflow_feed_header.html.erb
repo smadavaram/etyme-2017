@@ -24,14 +24,29 @@
   </div> 
   <div class="col-12 px-0 mt-3 d-flex justify-content-between">
   <% if  (request.env["REQUEST_PATH"] != "/static/jobs")%>
-    <select id="selectFilter" name="selectFilter" class="select-filter">
-      <option value="all">All</option>
-      <option value="Blog">Blogs</option>
-      <option value="Product">Products</option>
-      <option value="Question">Questions</option>
-      <option value="Service">Services</option>
-      <option value="Training">Trainings</option>
-    </select>
+<!--    <select id="selectFilter" name="selectFilter" class="select-filter">-->
+      <button class="btn filterBtn filter1" onclick="btnClick1()" value="all">All</button>
+      <button class="btn filterBtn filter2" onclick="btnClick2()" value="Blog">Blogs</button>
+      <button class="btn filterBtn filter3" onclick="btnClick3()" value="Product">Products</button>
+      <button class="btn filterBtn filter4" onclick="btnClick4()" value="Question">Questions</button>
+      <button class="btn filterBtn filter5" onclick="btnClick5()" value="Service">Services</button>
+      <button class="btn filterBtn filter6" onclick="btnClick6()" value="Training">Trainings</button>
+
+
+<!--            <option value="all">All</option>-->
+<!--      <option value="Blog">Blogs</option>-->
+<!--      <option value="Product">Products</option>-->
+<!--      <option value="Question">Questions</option>-->
+<!--      <option value="Service">Services</option>-->
+<!--      <option value="Training">Trainings</option>-->
+<!--    </select>-->
+  <% else %>
+      <button class="btn filterBtn filter1" onclick="btnClick1J()" value="all">All</button>
+      <button class="btn filterBtn filter2" onclick="btnClick2J()" value="Blog">Blogs</button>
+      <button class="btn filterBtn filter3" onclick="btnClick3J()" value="Product">Products</button>
+      <button class="btn filterBtn filter4" onclick="btnClick4J()" value="Question">Questions</button>
+      <button class="btn filterBtn filter5" onclick="btnClick5J()" value="Service">Services</button>
+      <button class="btn filterBtn filter6" onclick="btnClick6J()" value="Training">Trainings</button>
   <%end%>
     <div class="pt-1 d-none" id="banner-links">
       <%= link_to 'Talent pool', "#talent-pool" %>
@@ -85,19 +100,118 @@
 <!-- Script to filter the categories -->
 <script>
   let selectedFilter = '';
-
+  function btnClick1(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter1').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick2(){
+        const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter2').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick3(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter3').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick4(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter4').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick5(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter5').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick6(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter6').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick1J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter1').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick2J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter2').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick3J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter3').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick4J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter4').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick5J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter5').val());
+      urlParams.set('input_search', $('#search_query').val());
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick6J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter6').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
   $(function() {
     const paramsSelectedFilter = '<%= params[:selected_categories] %>';
 
     if ( paramsSelectedFilter != '' ) {
       $('#selectFilter').find(`option[value=${paramsSelectedFilter}]`).attr("selected","selected");
     }
-    $("#selectFilter, #search_query").change(function () {
+    $("#search_query").change(function () {
       const urlParams = new URLSearchParams(window.location.search);
       let goto_url = ''
-        urlParams.set('selected_categories', $('#selectFilter').val());
          urlParams.set('input_search', $('#search_query').val() );
-        goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+         if (window.location.href.includes('jobs')){
+             goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+         }
+         else{
+             goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+         }
         window.location = goto_url;
     });
   });
