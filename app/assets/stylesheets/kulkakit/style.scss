@@ -2751,4 +2751,12 @@ trix-toolbar .trix-button-row {
   background: rgba(18, 18, 18, 0.35);
   color:white;
 }
+.filterdiv{
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  overflow-x:auto;
+}
+.filterdiv::-webkit-scrollbar {
+  display: none; /* for Chrome, Safari, and Opera */
+}
 
