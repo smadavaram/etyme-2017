@@ -24,7 +24,7 @@
   </div> 
   <div class="col-12 px-0 mt-3 d-flex justify-content-between">
   <% if(request.env["REQUEST_PATH"] != "/static/jobs")%>
-        
+        <% puts ">>>>>>>>>>#{request.env["REQUEST_PATH"]}<<<<<<<<<<<" %>
 <!--    <select id="selectFilter" name="selectFilter" class="select-filter">-->
         <div class="d-flex filterdiv">
           <button class="btn filterBtn filter1" onclick="btnClick1()" value="all">All</button>
