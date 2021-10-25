@@ -24,7 +24,6 @@
   </div> 
   <div class="col-12 px-0 mt-3 d-flex justify-content-between">
   <% if(request.env["REQUEST_PATH"] != "/static/jobs")%>
-        <% puts ">>>>>>>>>>#{request.env["REQUEST_PATH"]}<<<<<<<<<<<" %>
 <!--    <select id="selectFilter" name="selectFilter" class="select-filter">-->
         <div class="d-flex filterdiv">
           <button class="btn filterBtn filter1" onclick="btnClick1()" value="all">All</button>
@@ -34,13 +33,6 @@
           <button class="btn filterBtn filter5" onclick="btnClick5()" value="Service">Services</button>
           <button class="btn filterBtn filter6" onclick="btnClick6()" value="Training">Trainings</button>
         </div>
-<!--            <option value="all">All</option>-->
-<!--      <option value="Blog">Blogs</option>-->
-<!--      <option value="Product">Products</option>-->
-<!--      <option value="Question">Questions</option>-->
-<!--      <option value="Service">Services</option>-->
-<!--      <option value="Training">Trainings</option>-->
-<!--    </select>-->
   <%end%>
     <div class="pt-1 d-none" id="banner-links">
       <%= link_to 'Talent pool', "#talent-pool" %>
