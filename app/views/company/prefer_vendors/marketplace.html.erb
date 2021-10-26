@@ -63,45 +63,45 @@
       </div>
       <div class="row pl-3 pt-2" style="padding-top: 30px !important; padding-bottom: 10px;">
         <div class="col-md-2">
-          <% if params[:company].blank? %>
-            <input class="market_place_field" name="company" type="checkbox">Agency/Vendor</input>
+          <% if params[:market_place_field_radio] != "company" %>
+            <input class="market_place_field" name="market_place_field_radio" id="company" value="company" type="radio">Agency/Vendor</input>
           <% else %>
-            <input checked="<%= true %>" class="market_place_field" name="company" type="checkbox">Agency/Vendor</input>
+            <input checked="<%= true %>" class="market_place_field" name="market_place_field_radio" id="company" value="company" type="radio">Agency/Vendor</input>
           <% end %>
         </div>
         <div class="col-md-2">
-          <% if params[:Candidates].blank? %>
-            <input class="market_place_field" name="Candidates" type="checkbox">Candidates(S)</input>
+          <% if params[:market_place_field_radio] != "Candidates" %>
+            <input class="market_place_field" name="market_place_field_radio" id="Candidates" value="Candidates" type="radio">Candidates(S)</input>
           <% else %>
-            <input checked="<%= true %>" class="market_place_field" name="Candidates" type="checkbox">Candidates(S)</input>
+            <input checked="<%= true %>" class="market_place_field" name="market_place_field_radio" id="Candidates" value="Candidates" type="radio">Candidates(S)</input>
           <% end %>
         </div>
         <div class="col-md-1">
-          <% if params[:Jobs].blank? %>
-            <input class="market_place_field" name="Jobs" type="checkbox">Jobs</input>
+          <% if params[:market_place_field_radio] != "Jobs" %>
+            <input class="market_place_field" name="market_place_field_radio" id ="Jobs" value="Jobs" type="radio">Jobs</input>
           <% else %>
-            <input checked="<%= true %>" class="market_place_field" name="Jobs" type="checkbox">Jobs</input>
+            <input checked="<%= true %>" class="market_place_field" name="market_place_field_radio" id ="Jobs" value="Jobs" type="radio">Jobs</input>
           <% end %>
         </div>
         <div class="col-md-2">
-          <% if params[:product].blank? %>
-            <input class="market_place_field" name="product" type="checkbox" value="Product">Products</input>
+          <% if params[:market_place_field_radio] != "Product" %>
+            <input class="market_place_field" name="market_place_field_radio" type="radio" value="Product">Products</input>
           <% else %>
-            <input checked="<%= true %>" class="market_place_field" name="product" type="checkbox" value="Product">Products</input>
+            <input checked="<%= true %>" class="market_place_field" name="market_place_field_radio" type="radio" value="Product">Products</input>
           <% end %>
         </div>
         <div class="col-md-2">
-          <% if params[:service].blank? %>
-            <input class="market_place_field" name="service" type="checkbox" value="Service">Services</input>
+          <% if params[:market_place_field_radio] != "Service" %>
+            <input class="market_place_field" name="market_place_field_radio" type="radio" value="Service">Services</input>
           <% else %>
-            <input checked="<%= true %>" class="market_place_field" name="service" type="checkbox" value="Service">Services</input>
+            <input checked="<%= true %>" class="market_place_field" name="market_place_field_radio" type="radio" value="Service">Services</input>
           <% end %>
         </div>
         <div class="col-md-2">
-          <% if params[:training].blank? %>
-            <input class="market_place_field" name="training" type="checkbox" value="Training">Trainings</input>
+          <% if params[:market_place_field_radio] != "Training" %>
+            <input class="market_place_field" name="market_place_field_radio" type="radio" value="Training">Trainings</input>
           <% else %>
-            <input checked="<%= true %>" class="market_place_field" name="training" type="checkbox" value="Training">Trainings</input>
+            <input checked="<%= true %>" class="market_place_field" name="market_place_field_radio" type="radio" value="Training">Trainings</input>
           <% end %>
         </div>
       </div>
