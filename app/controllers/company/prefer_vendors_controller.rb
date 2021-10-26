@@ -27,10 +27,13 @@ class Company::PreferVendorsController < Company::BaseController
       job_category: params[:job_category]
     }.delete_if { |_key, value| value.blank? }
     @listing_type_array = [params[:product], params[:service], params[:training]].reject(&:blank?)
+    if ['Product','Service','Training'].include?(params[:market_place_field_radio])
+      @listing_type_array << params[:market_place_field_radio] 
+    end
 
     respond_to do |format|
       format.html do
-        if params[:Jobs] == 'on'
+        if params[:Jobs] == 'on' || params[:market_place_field_radio] == 'Jobs'
           @data += Job.joins(:tags).where("name like '#{params[:skills]}'")
           @data += if params[:address].blank?
 
@@ -43,7 +46,7 @@ class Company::PreferVendorsController < Company::BaseController
                                                          { company_id: Company.ids }.merge(@query_hash)).near(params[:address]))
 
                    end
-        elsif params[:product] == 'Product' || params[:service] == 'Service' || params[:training] == 'Training'
+        elsif params[:product] == 'Product' || params[:service] == 'Service' || params[:training] == 'Training' || params[:market_place_field_radio] == 'Product' || params[:market_place_field_radio] == 'Service' || params[:market_place_field_radio] == 'Training'
           @data += if params[:address].blank?
                      apply_scopes(Job.where(listing_type: @listing_type_array).where(@search_scop_on ?
                                                                                                   { company_id: current_company.prefer_vendor_companies.pluck('id') }.merge(@query_hash) :
@@ -56,7 +59,7 @@ class Company::PreferVendorsController < Company::BaseController
                    end
         end
 
-        if params[:Candidates] == 'on'
+        if params[:Candidates] == 'on' || params[:market_place_field_radio] == 'Candidates'
           if params[:address].blank?
              @data += apply_scopes(@search_scop_on ? current_company.candidates_companies.hot_candidate.joins(:candidate).where(company_id: Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id))).select('candidates.*') : Candidate.where.not(confirmed_at: nil))
            else
@@ -64,7 +67,7 @@ class Company::PreferVendorsController < Company::BaseController
            end
         end
 
-        if params[:company] == 'on' 
+        if params[:company] == 'on' || params[:market_place_field_radio] == 'company'
           if params[:address].blank?
              @data += apply_scopes(@search_scop_on ? Company.where(id: current_company.prefer_vendors.accepted.pluck(:vendor_id)) : Company.all)
            else
