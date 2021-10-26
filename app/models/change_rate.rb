@@ -8,6 +8,9 @@ class ChangeRate < ApplicationRecord
     return true if method_name == 'rate'
     super
   end
+  def rate
+    read_attribute(:rate)
+  end 
   private
 
   def validate_other_booking_overlap
