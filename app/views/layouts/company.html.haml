@@ -18,8 +18,8 @@
     = javascript_include_tag "https://www.skypeassets.com/i/scom/js/skype-uri.js"
     %script{async: "async", src: 'https://platform-api.sharethis.com/js/sharethis.js#property=5f48045b584ea10012677add&product=inline-share-buttons', type: "text/javascript"}
     :javascript
-       function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
-    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'}
+      (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
+    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'} :cdata
     / GOOGLE FONT
     = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'
     = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Rubik:300,400,500'

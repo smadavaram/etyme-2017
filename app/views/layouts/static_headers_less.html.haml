@@ -8,8 +8,8 @@
     = javascript_include_tag 'https://platform-api.sharethis.com/js/sharethis.js#property=5899b27937570f0011ac3636&product=inline-share-buttons'
     = javascript_include_tag 'application'
     :javascript
-       function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
-    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'}
+      (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
+    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'} :cdata
     = csrf_meta_tags
     = yield :head
   %body{class: "#{yield :body_class}"}
