@@ -95,7 +95,7 @@
                 %li
                   %a{href: "https://twitter.com/share?url=#{candidate_job_url(@job.id)}", target: "_blank"}
                     = image_tag "twitter.png", class: "twitter-btn"
-                    %script{src: "http://platform.twitter.com/widgets.js", type: "text/javascript"}
+                    %script{src: "https://platform.twitter.com/widgets.js", type: "text/javascript"}
                 %li
                   %a.fb-xfbml-parse-ignore{href: "https://www.facebook.com/sharer/sharer.php?u=#{candidate_job_url(@job.id)}", target: "_blank"}
                     = image_tag "facebook.png", class: "facebook-btn"
