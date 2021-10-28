@@ -5,7 +5,7 @@
     %title Etyme
     :javascript
        function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
-    %script{async: "async", src:'https://r.wdfl.co/rw.js', data-rewardful:'afe750'}
+    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'}
     %meta{content: "Etyme", property: "og:title"}/
     %meta{content: "#{request.original_url}", property: "og:url"}/
     %meta{content: "website", property: "og:type"}/
@@ -18,7 +18,7 @@
     %script{async: "async", src: "https://platform-api.sharethis.com/js/sharethis.js#property=5ea26f459ad3eb0012e163d3&product=inline-share-buttons", type: "text/javascript"}
     = yield :head
   %body{:class => "#{yield :body_class}"}
-    = render partial: 'shared/header'
+    = render partial: 'shared/header'%script
     #main{:role => "main"}
       = yield :ribbon
       - if notice
