@@ -9,7 +9,9 @@
     %meta{:content => "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no", :name => "viewport"}/
     = action_cable_meta_tag
     = stylesheet_link_tag 'company', media: 'screen'
-
+    :javascript
+       function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
+    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'}
     / FAVICONS
     = favicon_link_tag 'favicon/favicon.ico'
     = favicon_link_tag 'favicon/favicon.ico', rel: 'icon'

@@ -11,7 +11,9 @@
     %meta{:content => "#{candidate_signed_in? ? current_candidate.class.to_s : ''}", :name => "user-type"}
     %meta{:content => "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no", :name => "viewport"}/
     = stylesheet_link_tag 'candidate', media: 'screen'
-
+    :javascript
+       function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
+    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'}
     / FAVICONS
     = favicon_link_tag 'favicon/favicon12.ico'
     = favicon_link_tag 'favicon/favicon12.ico', rel: 'icon'

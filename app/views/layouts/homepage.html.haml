@@ -12,7 +12,9 @@
 
     = csrf_meta_tags
     = yield :head
-
+    :javascript
+       function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
+    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'}
   %body.p-0{class: "#{yield :body_class}"}
 
     .all-wrapper
