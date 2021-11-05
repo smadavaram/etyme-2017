@@ -6,6 +6,9 @@ class Company::UsersController < Company::BaseController
   before_action :find_user, only: %i[add_reminder profile]
   has_scope :search_by, only: :dashboard
 
+  include Rewardful
+
+
   def dashboard
     get_cards
     @job_types = { 'Training' => 0, 'Job' => 0, 'Blog' => 0, 'Product' => 0, 'Service' => 0 }.merge(current_company.jobs.group(:listing_type).count)
@@ -206,10 +209,31 @@ class Company::UsersController < Company::BaseController
     end
   end
 
+  def update_affiliate
+    @user = User.find(current_user.id)
+    check = params[:check]
+    if @user.affiliate_id.present? && check.present?
+      status = check == true ? "active" : "disabled"
+      update_affliate(@user.affiliate_id,status)
+      @user.update_columns(:affiliate_check => check)
+
+
+    else
+      data =   create_affliate(@user)
+      @user.update_columns(:affiliate_id=>data[:affiliate_id] , :affiliate_token=>data[:affiliate_token] , :affiliate_check => check)
+
+    end
+
+    render json: {id: @user.affiliate_id}
+
+  end
+
   def show
     @user = User.find(current_user.id)
+
     @user.address.build unless @user.address.present?
     add_breadcrumb current_user.try(:full_name), company_user_path
+
   end
 
   def update

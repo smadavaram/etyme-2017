@@ -57,6 +57,13 @@
             .help-block.form-text.with-errors.form-control-feedback
             .pre-icon.fa.fa-globe
 
+
+            %div.switch_label
+              %label.switch
+                = u.check_box :affiliate_check, {}, true, false
+                %span.slider.round
+              %span.switch_label_txt Do you want to become an affiliate?
+
         %input.btn.btn-primary.float{"data-disable-with" => "Register", :name => "commit", :type => "submit", :value => "Register"}/
 
   .companies-new--column

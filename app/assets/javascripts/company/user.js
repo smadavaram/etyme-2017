@@ -38,3 +38,25 @@ $(".directory-search").on('keydown',function () {
         $('.toggleable').show()
     }
 });
+
+
+function affiliate_update(){
+    alert("Are you sure! ");
+}
+
+$('.affilate_update').change(function(){
+    alert("Are you sure! ");
+    $.ajax({
+        url: "/company/users/update_affiliate",
+        type: "POST",
+        // dataType: "json",
+        data: {check: $(this).prop('checked')},
+        success: function(data) {
+            // var data = JSON.parse(data);
+            // console.log(data["id"]);
+        },
+        error: function(data) {
+            // console.log("FAILURE");
+        }
+    })
+});
