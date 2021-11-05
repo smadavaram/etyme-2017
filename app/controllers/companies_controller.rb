@@ -7,7 +7,7 @@ class CompaniesController < ApplicationController
   # before_action :redirect_to_main_domain, only: [:new]
 
   include DomainExtractor
-
+  include Rewardful
   respond_to :html, :json
 
   layout 'company_account'
@@ -25,8 +25,13 @@ class CompaniesController < ApplicationController
   def create
     @company = Company.new(company_params.merge(website: domain_from_email(owner_params[:email])))
     @company.owner.confirmed_at = DateTime.now
-
     if @company.save
+      if params["company"]["owner_attributes"]["affiliate_check"].present?
+        data = create_affliate(params["company"]["owner_attributes"])
+        @company.owner.update_columns(:affiliate_id=>data[:affiliate_id] , :affiliate_token=>data[:affiliate_token] )
+
+      end
+
       render 'companies/signup_success', layout: 'static'
     else
       flash.now[:errors] = @company.errors.full_messages
@@ -62,14 +67,14 @@ class CompaniesController < ApplicationController
   end
 
   def company_params
-    params.require(:company).permit(:name, :company_type, :domain, :company_sub_type, :website, :logo, :description, :phone, :email, :linkedin_url, :facebook_url, :twitter_url, :google_url, :is_activated, :status, :tag_line,
+    params.require(:company).permit(:name,  :company_type, :domain, :company_sub_type, :website, :logo, :description, :phone, :email, :linkedin_url, :facebook_url, :twitter_url, :google_url, :is_activated, :status, :tag_line,
                                     owner_attributes: %i[id type first_name last_name email password password_confirmation],
                                     locations_attributes: [:id, :name, :status,
-                                                           address_attributes: %i[id address_1 country city state zip_code]])
+                                                           address_attributes: %i[id address_1 country city state zip_code]] )
   end
 
   def owner_params
-    params.require(:company).require(:owner_attributes).permit(:email, :password, :password_confirmation, :first_name, :last_name)
+    params.require(:company).require(:owner_attributes).permit(:email, :password, :password_confirmation, :first_name, :last_name  , :affiliate_check )
   end
 
   def set_domain

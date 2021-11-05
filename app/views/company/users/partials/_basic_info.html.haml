@@ -1,6 +1,12 @@
 -content_for :google_address_search_api do
   %script{:src => "https://maps.googleapis.com/maps/api/js?key=#{ENV['google_search_location_api_key']}&libraries=places", :type => "text/javascript"}
 = form_for @user,as: "user",url: company_user_path(@user.id),method: :put do |f|
+  - affilate_text = @user.affiliate_id.present? ? "Affiliate on/off" : "Do you want to become an affiliate? "
+  %div.switch_label
+    %span.switch_label_txt  #{affilate_text}
+    %label.switch
+      = f.check_box :affiliate_check  ,{:class => 'affilate_update'}  ,true, false
+      %span.slider.round
   .row
     .col-md-6
       .form-group
@@ -81,3 +87,6 @@
         Next
       %button.btn.btn-primary.pull-right{:type => "submit"}
         Saved
+
+
+

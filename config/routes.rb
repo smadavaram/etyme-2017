@@ -314,6 +314,7 @@ Rails.application.routes.draw do
         end
       end
       collection do
+        post 'update_affiliate'
         get 'current_status'
         get 'status_update'
         get 'chat_status_update'

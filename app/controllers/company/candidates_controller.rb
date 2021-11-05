@@ -138,7 +138,6 @@ class Company::CandidatesController < Company::BaseController
 
   def create
     @candidate = Candidate.find_by email: params[:candidate][:email]
-
     if @candidate.present?
       @candidates_company = CandidatesCompany.new candidate_id: @candidate.id, company_id: current_company.id, candidate_status: 'pending'
 
@@ -152,7 +151,7 @@ class Company::CandidatesController < Company::BaseController
     else
       @candidate = current_company.candidates.new(
         create_candidate_params.merge(
-          send_welcome_email_to_candidate: false,
+          send_welcome_email_to_candidate: true,
           invited_by_id: current_user.id,
           invited_by_type: 'User',
           status: 'campany_candidate')
