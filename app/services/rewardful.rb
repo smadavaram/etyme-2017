@@ -12,8 +12,7 @@ module Rewardful
       data = {
         first_name:  params["first_name"],
         last_name:  params["last_name"],
-        # email:  params["email"],
-        email: "test9@example.com"
+        email:  params["email"],
       }.to_json
       request.body = data
       response = http.request(request)
