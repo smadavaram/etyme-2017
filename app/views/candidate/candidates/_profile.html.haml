@@ -125,6 +125,16 @@
                     .bar-label-right
                       %span= candidate.relocation ? 'Yes' : 'No'
                 %h6.my-4 Linked Information
+                - affilate_text = candidate.affiliate_id.present? ? "Affiliate on/off" : "Do you want to become an affiliate?"
+                %div.switch_label
+                  %label.switch
+                    -# = f.check_box :affiliate_check  ,{:class => 'affilate_update'}  ,:affiliate_check
+                    -# = check_box "","", {:class => 'affilate_update'}, candidate.affiliate_check
+                    %input.affilate_update{checked: candidate.affiliate_check , type: "checkbox"}/
+                    -#%input.affilate_update{candidate.affiliate_check == true ? checked  : '' , type: "checkbox", value: "true"}/
+                    -#%input.affilate_update{candidate.affiliate_check == true ? checked : "", type: "checkbox", value: "candidate.affiliate_check"}/
+                    %span.slider.round
+                  %span.switch_label_txt  #{affilate_text}
                 %div.d-flex.justify-content-between.flex-wrap.w-100
                   - if candidate.skypeid.present?
                     .os-progress-bar.primary.w-50.justify-content-center

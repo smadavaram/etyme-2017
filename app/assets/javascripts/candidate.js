@@ -211,3 +211,22 @@ $('#dataTable').dataTable({
         orderable: false
     }]
 });
+
+
+
+$('.affilate_update').change(function(){
+    alert("Are you sure! ");
+    $.ajax({
+        url: "candidate/candidates/update_affiliat",
+        type: "POST",
+        // dataType: "json",
+        data: {check: $(this).prop('checked')},
+        success: function(data) {
+            // var data = JSON.parse(data);
+            // console.log(data["id"]);
+        },
+        error: function(data) {
+            // console.log("FAILURE");
+        }
+    })
+});

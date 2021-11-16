@@ -35,6 +35,12 @@
       = succeed "I agree with the " do
         %i
       %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
+  %div.switch_label
+    %label.switch
+      = f.check_box :affiliate_check, {}, true, false
+      %span.slider.round
+    %div.switch_label_txt Do you want to become an affiliate?
+
   .field-group
     %input.btn.btn-primary.float{"data-disable-with" => "Sign Up", :name => "commit", :type => "submit", :value => "Sign Up"}/
     .buttons-w.mt-4

@@ -2,6 +2,7 @@
 
 class Candidates::RegistrationsController < Devise::RegistrationsController
   include DomainExtractor
+  include Rewardful
 
   # before_action :configure_sign_up_params, only: [:create]
   # before_action :configure_account_update_params, only: [:update]
@@ -27,10 +28,16 @@ class Candidates::RegistrationsController < Devise::RegistrationsController
       redirect_to new_candidate_registration_path
       return
     end
-
-    build_resource(sign_up_params)
+    affiliate_check = {"affiliate_check" => params["candidate"]["affiliate_check"]}
+    build_resource(sign_up_params.merge(affiliate_check))
 
     resource.save
+    if params["candidate"]["affiliate_check"].present?
+      data = create_affliate(params["candidate"])
+      resource.update_columns(:affiliate_id=>data[:affiliate_id] , :affiliate_token=>data[:affiliate_token] )
+
+    end
+
     yield resource if block_given?
 
     if resource.persisted?

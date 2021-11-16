@@ -5,6 +5,11 @@ class NotificationMailer < ApplicationMailer
     @notification = notification
     @notifiable   = @notification.notifiable
     @email        = @notification.notifiable.email
+    # @user         = notification.createable
+    #  @user.affiliate_check == true
+    #   @token      = @user.affiliate_token
+    #   @token        = @use&.affiliate_token
+    # end
     mail(to: @email, subject: 'Etyme Notification Alert')
   end
 

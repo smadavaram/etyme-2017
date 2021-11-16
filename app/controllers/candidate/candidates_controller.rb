@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 class Candidate::CandidatesController < Candidate::BaseController
+
+
   require 'will_paginate/array'
   respond_to :html, :json, :js
 
@@ -8,6 +10,9 @@ class Candidate::CandidatesController < Candidate::BaseController
   before_action :set_chats, only: [:dashboard]
 
   add_breadcrumb 'Dashboard', :candidate_candidate_dashboard_path
+
+  include Rewardful
+
 
   def dashboard
     respond_to do |format|
@@ -300,6 +305,24 @@ class Candidate::CandidatesController < Candidate::BaseController
     end
     # respond_with @candidate
     render json: current_candidate
+  end
+
+   def update_affiliat
+    
+    @user = current_candidate
+    check = params[:check]
+    if @user.affiliate_id.present? && check.present?
+      status = check == "true" ? "active" : "disabled"
+      update_affliate(@user.affiliate_id,status)
+      @user.update_columns(:affiliate_check => check)
+    else
+      data =  create_affliate(@user)
+      @user.update_columns(:affiliate_id=>data[:affiliate_id] , :affiliate_token=>data[:affiliate_token] , :affiliate_check => check)
+
+    end
+
+    render json: {id: @user.affiliate_id}
+
   end
 
   def my_profile

@@ -43,7 +43,7 @@ class Job < ApplicationRecord
 
   after_create :create_job_chat
   after_create :create_job_conversation
-  before_save :set_parent_job
+  # before_save :set_parent_job
 
   scope :active, -> { where('end_date>=? AND status = ?', Date.today, 'Published') }
   scope :expired, -> { where('end_date<?', Date.today) }
@@ -70,7 +70,6 @@ class Job < ApplicationRecord
 
   def set_parent_job
     return unless source.present? && source.match(/^[\s]*http/)
-
     id = source.match(/([0-9]+)$/)[1].to_i
     self.parent_job_id = id if Job.exists?(id)
   end

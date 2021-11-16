@@ -213,10 +213,9 @@ class Company::UsersController < Company::BaseController
     @user = User.find(current_user.id)
     check = params[:check]
     if @user.affiliate_id.present? && check.present?
-      status = check == true ? "active" : "disabled"
+      status = check == "true" ? "active" : "disabled"
       update_affliate(@user.affiliate_id,status)
       @user.update_columns(:affiliate_check => check)
-
 
     else
       data =   create_affliate(@user)

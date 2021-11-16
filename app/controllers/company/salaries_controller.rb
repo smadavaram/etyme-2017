@@ -141,7 +141,6 @@ class Company::SalariesController < Company::BaseController
   end
 
   def calculate_salary
-    # binding.pry
     params[:sclr_cycle_ids].each do |key, value|
       salary = Salary.find_by(sclr_cycle_id: key)
       next unless salary
@@ -173,7 +172,6 @@ class Company::SalariesController < Company::BaseController
       cc.update(status: 'completed')
     end
     # params[:comm_ids].each do |key, value|
-    #   # binding.pry
     #   csca = CscAccount.find_by(id: key.to_i)
     #   if csca.total_amount.to_i + value[:commission].to_i <= csca.contract_sale_commision.limit.to_i
     #     csca.update(total_amount: value[:commission].to_i + csca.total_amount)
