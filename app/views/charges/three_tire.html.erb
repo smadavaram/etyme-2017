@@ -1,0 +1,39 @@
+<div class="container-fluid">
+  <div class="row justify-content-center">
+    <div class=" col-lg-6 col-md-8">
+      <div class="card p-3">
+        <div class="row justify-content-center">
+          <div class="col-12">
+            <h2 class="heading text-center">Payment</h2>
+
+            <label class="amount">
+              <span>Activation for 1 month in $10.00</span>
+            </label>
+            </article>
+
+            <script src="https://checkout.stripe.com/checkout.js" class="stripe-button"
+                    data-key="<%= Rails.configuration.stripe[:publishable_key] %>"
+                    data-description="Upgrade Account"
+                    data-amount="1000"
+                    data-locale="auto"></script>
+            <br>
+            <br>
+            <br>
+
+            <label class="amount">
+              <span>Activation for 1 year in $20.00</span>
+            </label>
+            </article>
+
+            <script src="https://checkout.stripe.com/checkout.js" class="stripe-button"
+                    data-key="<%= Rails.configuration.stripe[:publishable_key] %>"
+                    data-description="Upgrade Account"
+                    data-amount="2000"
+                    data-locale="auto"></script>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

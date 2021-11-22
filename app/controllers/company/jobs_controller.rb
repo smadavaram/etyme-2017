@@ -32,7 +32,7 @@ class Company::JobsController < Company::BaseController
       flash[:notice] == "Complete the Payment to perform this action"
       redirect_to new_charge_path
     end
-    
+
     add_breadcrumb params[:type].blank? ? 'job' : 'job ' + params[:type], jobs_path, options: { title: 'JOBS' }
     add_breadcrumb 'NEW', new_job_path, options: { title: 'NEW JOB' }
     @job = current_company.jobs.new
@@ -51,25 +51,25 @@ class Company::JobsController < Company::BaseController
   def sites_jobs_iframe; end
 
   def create
-
+    @counter = 10;
     params[:job][:description] = params[:job][:description].gsub("width: 100%","width: 350px")
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
-
     if @job.listing_type.eql?('Blog')
       @job.start_date = Time.now
       @job.end_date   = Time.now + 100.years
     end
 
     respond_to do |format|
-      if @job.save
-        # CreateGoogleIndex.new(@job, "URL_UPDATED").index_job if @job.published?
-        # CreateGoogleIndex.new(@job, 'URL_UPDATED').index_job if @job.status == 'Published'
-        format.html { redirect_to @job, success: 'Job was successfully created.' }
-        format.js { flash.now[:success] = 'successfully Created.' }
-      else
-        format.html { flash[:errors] = @job.errors.full_messages; render :new }
-        format.js { flash.now[:errors] = @job.errors.full_messages }
-      end
+        if @job.save
+           # CreateGoogleIndex.new(@job, "URL_UPDATED").index_job if @job.published?
+            # CreateGoogleIndex.new(@job, 'URL_UPDATED').index_job if @job.status == 'Published'
+            format.html { redirect_to @job, success: 'Job was successfully created.' }
+            format.js { flash.now[:success] = 'successfully Created.' }
+        else
+            format.html { flash[:errors] = @job.errors.full_messages; render :new }
+            format.js { flash.now[:errors] = @job.errors.full_messages }
+        end
+
     end
   end
 

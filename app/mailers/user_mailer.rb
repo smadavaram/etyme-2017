@@ -94,4 +94,11 @@ class UserMailer < ApplicationMailer
   def self.exception_admins
     ENV['EXCEPTION_NOTIFICATION_EMAILS'].split(' ')
   end
+
+  def expire_message_to_owner(user)
+    @owner = user
+    mail(to: @owner.email, subject: 'Free Trail Epired')
+  end
+
+
 end

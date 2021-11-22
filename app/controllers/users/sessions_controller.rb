@@ -23,17 +23,30 @@ class Users::SessionsController < Devise::SessionsController
 
   # POST /resource/sign_in
   def create
-    if check_company_user
-      super
-      cookies.permanent.signed[:userid] = resource.id if resource.present?
-      user = User.find_by(id: current_user.id)
-      if user.online_user_status == "offline" || user.online_user_status == nil
-        user.update(online_user_status: "online")
+    # user_signed_in?
+    @user = current_user
+    @user_signed_up = @user.created_at
+    @current_date = DateTime.now
+    @trail_days = (@current_date.to_date - @user_signed_up.to_date).to_i
+    if @trail_days < 0
+        if check_company_user
+        super
+        cookies.permanent.signed[:userid] = resource.id if resource.present?
+        user = User.find_by(id: current_user.id)
+        if user.online_user_status == "offline" || user.online_user_status == nil
+          user.update(online_user_status: "online")
+        end
+         ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
+      else
+        flash[:error] = 'User is not registerd on this domain'
+        redirect_back fallback_location: root_path
       end
-     ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
     else
-      flash[:error] = 'User is not registerd on this domain'
-      redirect_back fallback_location: root_path
+      UserMailer.expire_message_to_owner(@user).deliver_now
+      # sign_out(@user)
+      # self.destroy
+      flash[:error] = 'Your trail period has expired'
+      render  'charges/three_tire'
     end
   end
 
@@ -46,7 +59,6 @@ class Users::SessionsController < Devise::SessionsController
     ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
     sign_out(current_user)
     flash[:success] = 'You are logged out successfully.'
-
     redirect_to "#{request.base_url}/users/login"
   end
 
