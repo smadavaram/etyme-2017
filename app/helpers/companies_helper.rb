@@ -61,4 +61,8 @@ module CompaniesHelper
   def payroll_infos(company)
     company&.payroll_infos&.first&.present?
   end
+
+  def handle_signup_domain
+    params[:site] =='etyme' ? 'support': params[:site]
+  end
 end

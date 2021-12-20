@@ -52,7 +52,7 @@
 
           .form-group.field-group
             %label Domain
-            = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control field', id: "domain-field", value: params[:site], readonly: true
+            = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control field', id: "domain-field", value: handle_signup_domain, readonly: true
             .note.text-muted.errors.text-danger
             .help-block.form-text.with-errors.form-control-feedback
             .pre-icon.fa.fa-globe

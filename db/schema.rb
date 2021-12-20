@@ -422,8 +422,6 @@ ActiveRecord::Schema.define(version: 2021_09_13_091412) do
     t.string "phone_country_code"
     t.string "provider"
     t.string "uid"
-    t.boolean "online"
-    t.boolean "online_candidate"
     t.string "online_candidate_status"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
@@ -437,8 +435,8 @@ ActiveRecord::Schema.define(version: 2021_09_13_091412) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2021-02-24 22:47:21"
-    t.datetime "updated_at", default: "2021-02-24 22:47:21"
+    t.datetime "created_at", default: "2021-12-18 23:29:01"
+    t.datetime "updated_at", default: "2021-12-18 23:29:01"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -1269,7 +1267,7 @@ ActiveRecord::Schema.define(version: 2021_09_13_091412) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "member_type"
-    t.string "branchout"
+    t.string "branchout", default: [], array: true
     t.string "branchoutname"
     t.text "branch_array", default: [], array: true
     t.index ["company_id"], name: "index_groups_on_company_id"
@@ -2122,7 +2120,6 @@ ActiveRecord::Schema.define(version: 2021_09_13_091412) do
     t.boolean "online", default: true
     t.string "provider"
     t.string "uid"
-    t.boolean "online_user"
     t.string "online_user_status"
     t.index ["ancestry"], name: "index_users_on_ancestry"
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
