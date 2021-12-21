@@ -120,7 +120,7 @@ class Company::CompaniesController < Company::BaseController
         if @company.update_attributes(create_params)
           if params[:company][:branches_attributes].present?
             params[:company][:branches_attributes].each_pair do |mul_field|
-              Branch.where(id: params[:company][:branches_attributes][mul_field]['id']).destroy_all unless params[:company][:branches_attributes][mul_field].reject { |p| p == 'id' }.present?
+              # Branch.where(id: params[:company][:branches_attributes][mul_field]['id']).destroy_all unless params[:company][:branches_attributes][mul_field].reject { |p| p == 'id' }.present?
             end
           end
           flash[:success] = 'Company Updated Successfully'
