@@ -199,6 +199,11 @@ class Candidate < ApplicationRecord
     first_name.capitalize + ' ' + last_name.capitalize
   end
 
+  def full_name_friendly
+    self.full_name.split(' ').join('_').downcase
+
+  end
+
   def get_blacklist_status(black_list_company_id)
     black_listers.find_by(company_id: black_list_company_id)&.status || 'unbanned'
   end

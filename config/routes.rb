@@ -145,7 +145,7 @@ Rails.application.routes.draw do
     end
     get '/profile', to: 'candidates#show'
 
-    get '/my_profile', to: 'candidates#my_profile'
+    get '/:candidate_name', to: 'candidates#my_profile', as: 'my_profile'
     get '/onboarding_profile', to: 'candidates#onboarding_profile'
   end
 
