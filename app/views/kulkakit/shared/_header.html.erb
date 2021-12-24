@@ -42,7 +42,7 @@
         <%= link_to 'Dashboard', candidate_candidate_dashboard_path , class: 'dropdown-item' %>
         <%= link_to 'Onboarding', onboarding_profile_path , class: 'dropdown-item' %>
         <% if current_candidate.candidate_company(current_company&.id) %>
-          <% if cc.subscribed?  %>
+          <% if cc.subcribed?%>
             <%= link_to 'unsubscribe',
                         candidate_unsubscribe_path(company_id:current_company&.id),
                         class: 'dropdown-item' , method: :post %>
