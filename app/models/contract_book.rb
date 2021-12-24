@@ -1,5 +1,22 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: contract_books
+#
+#  id               :bigint           not null, primary key
+#  contract_id      :bigint
+#  bookable_type    :string
+#  bookable_id      :bigint
+#  beneficiary_type :string
+#  beneficiary_id   :bigint
+#  transaction_type :integer
+#  contract_type    :integer
+#  previous         :decimal(, )
+#  total            :decimal(, )
+#  paid             :decimal(, )
+#  remainings       :decimal(, )
+#
 class ContractBook < ApplicationRecord
   enum transaction_type: [:salary]
   enum contract_type: %i[sell_contract buy_contract]

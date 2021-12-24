@@ -1,5 +1,32 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: clients
+#
+#  id                              :bigint           not null, primary key
+#  candidate_id                    :bigint
+#  name                            :string
+#  industry                        :string
+#  start_date                      :date
+#  end_date                        :date
+#  project_description             :string
+#  role                            :string
+#  refrence_name                   :string
+#  refrence_phone                  :string
+#  refrence_email                  :string
+#  created_at                      :datetime         not null
+#  updated_at                      :datetime         not null
+#  refrence_two_name               :string
+#  refrence_two_email              :string
+#  refrence_two_phone              :string
+#  refrence_one                    :boolean
+#  refrence_two                    :boolean
+#  slug_one                        :string
+#  slug_two                        :string
+#  refrence_phone_country_code     :string
+#  refrence_two_phone_country_code :string
+#
 class Client < ActiveRecord::Base
   belongs_to :candidate
   has_one :designation, dependent: :destroy

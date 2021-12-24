@@ -1,5 +1,18 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: csc_accounts
+#
+#  id                         :bigint           not null, primary key
+#  contract_sale_commision_id :bigint
+#  accountable_type           :string
+#  accountable_id             :bigint
+#  created_at                 :datetime         not null
+#  updated_at                 :datetime         not null
+#  total_amount               :decimal(, )      default(0.0)
+#  contract_id                :integer
+#
 class CscAccount < ApplicationRecord
   belongs_to :contract_sale_commision, optional: true
   belongs_to :accountable, polymorphic: true, optional: true

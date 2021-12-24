@@ -1,5 +1,22 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: receive_payments
+#
+#  id                 :bigint           not null, primary key
+#  invoice_id         :bigint
+#  payment_date       :datetime
+#  payment_method     :string
+#  reference_no       :string
+#  deposit_to         :string
+#  amount_received    :decimal(, )      default(0.0)
+#  memo               :text
+#  posted_as_discount :boolean          default(FALSE)
+#  attachment         :string
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#
 class ReceivePayment < ApplicationRecord
   belongs_to :invoice
 

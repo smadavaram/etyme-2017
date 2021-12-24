@@ -134,6 +134,7 @@ group :development, :test do
 
   # Remove the following if your app does not use Rails
   gem 'capistrano-rails'
+  gem 'annotate'
 end
 
 # gem 'mini_racer' # changed from therubyracer, since Bullettrain (or one of its dependencies) requires mini_racer

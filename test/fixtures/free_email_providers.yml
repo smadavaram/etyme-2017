@@ -1,4 +1,13 @@
-# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+# == Schema Information
+#
+# Table name: free_email_providers
+#
+#  id          :bigint           not null, primary key
+#  domain_name :string
+#  published   :boolean
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#
 
 one:
   domain_name: MyString

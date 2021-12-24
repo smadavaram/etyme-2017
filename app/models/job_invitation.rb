@@ -4,14 +4,25 @@
 #
 # Table name: job_invitations
 #
-#  id             :integer          not null, primary key
-#  receipent_id   :integer
-#  receipent_type :string
-#  sender_id      :integer
-#  job_id         :integer
-#  status         :integer          default(0)
-#  created_at     :datetime         not null
-#  updated_at     :datetime         not null
+#  id                 :integer          not null, primary key
+#  recipient_id       :integer
+#  email              :string
+#  recipient_type     :string
+#  created_by_id      :integer
+#  job_id             :integer
+#  status             :integer          default("pending")
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  expiry             :date
+#  message            :string
+#  company_id         :integer
+#  invitation_type    :integer
+#  response_message   :text
+#  invitation_purpose :integer          default("job")
+#  sender_id          :integer
+#  sender_type        :string
+#  min_hourly_rate    :integer
+#  max_hourly_rate    :integer
 #
 
 class JobInvitation < ApplicationRecord

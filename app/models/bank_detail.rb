@@ -1,5 +1,20 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: bank_details
+#
+#  id                       :bigint           not null, primary key
+#  company_id               :bigint
+#  bank_name                :integer
+#  balance                  :decimal(, )
+#  new_balance              :decimal(, )
+#  recon_date               :date
+#  unidentified_bal         :decimal(, )
+#  current_unidentified_bal :decimal(, )
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#
 class BankDetail < ApplicationRecord
   belongs_to :company
   validates_uniqueness_of :bank_name, scope: %i[bank_name company_id]

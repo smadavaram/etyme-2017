@@ -1,4 +1,17 @@
-# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+# == Schema Information
+#
+# Table name: messages
+#
+#  id               :integer          not null, primary key
+#  body             :string
+#  chat_id          :integer
+#  messageable_type :string
+#  messageable_id   :integer
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  company_doc_id   :integer
+#  file_status      :integer          default("pending")
+#
 
 one:
   body: MyString

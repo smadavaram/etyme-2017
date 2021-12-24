@@ -1,5 +1,34 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: contract_cycles
+#
+#  id               :bigint           not null, primary key
+#  contract_id      :bigint
+#  company_id       :bigint
+#  candidate_id     :bigint
+#  note             :text
+#  cycle_type       :string
+#  cycle_date       :datetime
+#  cyclable_type    :string
+#  cyclable_id      :bigint
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  completed_at     :datetime
+#  start_date       :datetime
+#  end_date         :datetime
+#  next_date        :datetime
+#  next_action      :string
+#  next_action_date :datetime
+#  doc_date         :date
+#  post_date        :date
+#  cycle_frequency  :bigint
+#  status           :integer          default("pending")
+#  cycle_of_type    :string
+#  cycle_of_id      :bigint
+#  user_id          :bigint
+#
 class ContractCycle < ApplicationRecord
   CYCLETYPES = %w[TimesheetSubmit TimesheetApprove InvoiceGenerate
                   SalaryCalculation SalaryProcess SalaryClear CommissionCalculation

@@ -1,5 +1,17 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: expense_items
+#
+#  id               :bigint           not null, primary key
+#  expenseable_type :string
+#  expenseable_id   :bigint
+#  quantity         :integer
+#  description      :string
+#  expense_type     :integer
+#  unit_price       :decimal(, )
+#
 class ExpenseItem < ApplicationRecord
   enum expense_type: %i[equiptments travel_allowance misalliance]
   belongs_to :expenseable, polymorphic: true

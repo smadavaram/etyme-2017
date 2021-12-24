@@ -1,5 +1,34 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: timesheets
+#
+#  id                          :integer          not null, primary key
+#  job_id                      :integer
+#  user_id                     :integer
+#  company_id                  :integer
+#  contract_id                 :integer
+#  status                      :integer          default("open")
+#  total_time                  :float
+#  start_date                  :date
+#  end_date                    :date
+#  submitted_date              :date
+#  next_timesheet_created_date :date
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  invoice_id                  :integer
+#  days                        :hstore
+#  timesheet_attachment        :string
+#  candidate_name              :string
+#  candidate_id                :integer
+#  ts_cycle_id                 :integer
+#  ta_cycle_id                 :integer
+#  inv_numbers                 :text             default([]), is an Array
+#  amount                      :float
+#  expected_hrs                :float
+#  rate                        :float
+#
 require 'test_helper'
 
 class TimesheetTest < ActiveSupport::TestCase

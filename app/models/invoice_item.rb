@@ -1,5 +1,14 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: invoice_items
+#
+#  id            :bigint           not null, primary key
+#  invoice_id    :bigint
+#  itemable_type :string
+#  itemable_id   :bigint
+#
 class InvoiceItem < ApplicationRecord
   belongs_to :itemable, polymorphic: :true
   belongs_to :invoice

@@ -1,4 +1,15 @@
-# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+# == Schema Information
+#
+# Table name: timesheet_logs
+#
+#  id               :integer          not null, primary key
+#  timesheet_id     :integer
+#  transaction_day  :date
+#  status           :integer          default("pending")
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  contract_term_id :integer
+#
 
 one:
   timesheet_id: 1

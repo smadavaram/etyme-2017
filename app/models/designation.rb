@@ -1,5 +1,25 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: designations
+#
+#  id                           :bigint           not null, primary key
+#  candidate_id                 :bigint
+#  comp_name                    :string
+#  recruiter_name               :string
+#  recruiter_phone              :string
+#  recruiter_email              :string
+#  status                       :string
+#  created_at                   :datetime         not null
+#  updated_at                   :datetime         not null
+#  company_role                 :string
+#  start_date                   :date
+#  end_date                     :date
+#  confirmation                 :integer          default("unverified")
+#  client_id                    :bigint
+#  recruiter_phone_country_code :string
+#
 class Designation < ActiveRecord::Base
   delegate :url_helpers, to: 'Rails.application.routes'
   after_create :notify_recruiter

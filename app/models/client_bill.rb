@@ -1,5 +1,16 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: client_bills
+#
+#  id              :bigint           not null, primary key
+#  cb_cal_cycle_id :integer
+#  cp_pro_cycle_id :integer
+#  cb_clr_cycle_id :integer
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#
 class ClientBill < ApplicationRecord
   def self.set_con_cycle_cp_pro_date(buy_contract, con_cycle)
     @cp_type = buy_contract&.client_bill_payment

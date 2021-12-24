@@ -1,5 +1,19 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: contract_expenses
+#
+#  id              :bigint           not null, primary key
+#  contract_id     :integer
+#  expense_type_id :integer
+#  cycle_id        :integer
+#  candidate_id    :integer
+#  amount          :float
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  con_ex_type     :string
+#
 require 'test_helper'
 
 class ContractExpenseTest < ActiveSupport::TestCase

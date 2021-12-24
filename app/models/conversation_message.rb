@@ -1,5 +1,25 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: conversation_messages
+#
+#  id              :bigint           not null, primary key
+#  body            :text
+#  is_read         :boolean          default(FALSE)
+#  conversation_id :bigint
+#  userable_type   :string
+#  userable_id     :bigint
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  attachment_file :string
+#  file_name       :string
+#  file_size       :string
+#  file_type       :string
+#  file_url        :string
+#  message_type    :integer
+#  resource_id     :bigint
+#
 class ConversationMessage < ApplicationRecord
   belongs_to :conversation
   belongs_to :userable, polymorphic: :true

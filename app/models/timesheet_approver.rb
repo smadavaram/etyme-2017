@@ -1,5 +1,16 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: timesheet_approvers
+#
+#  id           :integer          not null, primary key
+#  user_id      :integer
+#  timesheet_id :integer
+#  created_at   :datetime         not null
+#  updated_at   :datetime         not null
+#  status       :integer
+#
 class TimesheetApprover < ApplicationRecord
   include Rails.application.routes.url_helpers
 

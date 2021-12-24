@@ -1,4 +1,16 @@
-# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+# == Schema Information
+#
+# Table name: statuses
+#
+#  id              :integer          not null, primary key
+#  statusable_type :string
+#  statusable_id   :integer
+#  user_id         :integer
+#  note            :string
+#  status_type     :integer
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#
 
 # This model initially had no columns defined.  If you add columns to the
 # model remove the '{}' from the fixture names and add the columns immediately
