@@ -12,7 +12,7 @@ class Candidate::SubscriptionsController < Candidate::BaseController
 
   def subscribe
       if current_candidate.subscribed?(params[:company_id])
-        current_candidate.candidate_company.subscribed!
+        current_candidate.candidate_company(params[:company_id]).subscribed!
         redirect_to request.referrer, success: 'You are now subscribed'
       else
         CandidatesCompany.create(candidate_id: current_candidate.id,
