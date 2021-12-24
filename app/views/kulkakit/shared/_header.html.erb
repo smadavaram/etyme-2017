@@ -16,8 +16,8 @@
     </div>
 <!--  subscribe-->
     <div>
-      <% unless current_candidate.subscribed?(current_company&.id) && current_candidate.subscribed?(current_company&.id)&.subscribed? %>
-        <a href="<%= candidate_subscribe_path(company_id:current_company&.name)%>"
+      <% unless current_candidate.subscribed?(current_company&.id) %>
+        <a href="<%= candidate_subscribe_path(company_id:current_company&.id)%>"
            class="btn orange_btn filter6" data-method="post" >Subscribe</a>
       <% end %>
     </div>
