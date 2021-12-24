@@ -17,7 +17,6 @@
 <!--  subscribe-->
     <div>
       <%  cc = current_candidate.candidate_company(current_company&.id) %>
-      <%= 1 %>
       <% if cc %>
         <% if cc.unsubscribed? %>
         <a href="<%= candidate_subscribe_path(company_id:current_company&.id) %>"
