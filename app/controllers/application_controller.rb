@@ -36,6 +36,16 @@ class ApplicationController < ActionController::Base
     end
   end
 
+  def is_subscribed?
+    return if current_candidate.nil? || params[:company_id]
+    cc = current_candidate.candidate_company(params[:company_id])
+    if cc&.unsubscribed?
+      redirect_to request.referrer, notice: 'You need to subscribe to do this action.'
+    else
+      redirect_to request.referrer, notice: 'You need to subscribe to do  this action.'
+    end
+  end
+
   def after_sign_in_path_for(resource)
     return sadmin_dashboard_path if resource.is_a? AdminUser
 
