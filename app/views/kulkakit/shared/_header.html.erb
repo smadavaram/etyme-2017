@@ -16,14 +16,15 @@
     </div>
 <!--  subscribe-->
     <div>
-      <%= cc =  current_candidate.candidate_company(current_company&.id) %>
+      <%  cc = current_candidate.candidate_company(current_company&.id) %>
+      <%= 1 %>
       <% if cc %>
         <% if cc.unsubscribed? %>
-        <a href="<%= candidate_subscribe_path(company_id:current_company&.id)%>"
+        <a href="<%= candidate_subscribe_path(company_id:current_company&.id) %>"
            class="btn orange_btn filter6" data-method="post" >Subscribe</a>
         <% end %>
         <% else %>
-        <a href="<%= candidate_subscribe_path(company_id:current_company&.id)%>"
+        <a href="<%= candidate_subscribe_path(company_id:current_company&.id) %>"
            class="btn orange_btn filter6" data-method="post" >Subscribe</a>
       <% end %>
     </div>
