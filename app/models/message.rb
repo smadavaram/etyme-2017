@@ -1,5 +1,19 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: messages
+#
+#  id               :integer          not null, primary key
+#  body             :string
+#  chat_id          :integer
+#  messageable_type :string
+#  messageable_id   :integer
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  company_doc_id   :integer
+#  file_status      :integer          default("pending")
+#
 class Message < ApplicationRecord
   enum file_status: %i[pending signed_uploaded]
   belongs_to :messageable, polymorphic: true, optional: true

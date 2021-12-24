@@ -1,5 +1,31 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: conversations
+#
+#  id                 :bigint           not null, primary key
+#  senderable_type    :string
+#  senderable_id      :bigint
+#  recipientable_type :string
+#  recipientable_id   :bigint
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  topic              :integer          default("OneToOne")
+#  chatable_type      :string
+#  chatable_id        :bigint
+#  job_application_id :bigint
+#  job_id             :bigint
+#  buy_contract_id    :bigint
+#  sell_contract_id   :bigint
+#  sub_chats          :boolean          default(FALSE)
+#  main_chat_ids      :integer
+#  freeze_chats       :boolean          default(FALSE)
+#  porposal_chat_id   :integer
+#  candidate_id       :integer
+#  recruiter_id       :integer
+#  current_user_id    :integer
+#
 class Conversation < ApplicationRecord
   has_many :conversation_messages
 

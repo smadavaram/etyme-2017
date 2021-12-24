@@ -1,5 +1,20 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: attachments
+#
+#  id              :integer          not null, primary key
+#  file            :string
+#  file_name       :string
+#  file_size       :integer
+#  file_type       :string
+#  attachable_type :string
+#  attachable_id   :integer
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  company_id      :integer
+#
 class Attachment < ApplicationRecord
   belongs_to :attachable, polymorphic: true, optional: true
   belongs_to :company, optional: true

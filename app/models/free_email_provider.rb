@@ -1,2 +1,12 @@
+# == Schema Information
+#
+# Table name: free_email_providers
+#
+#  id          :bigint           not null, primary key
+#  domain_name :string
+#  published   :boolean
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#
 class FreeEmailProvider < ApplicationRecord
 end

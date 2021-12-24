@@ -1,5 +1,21 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: contract_sale_commisions
+#
+#  id               :bigint           not null, primary key
+#  buy_contract_id  :bigint
+#  name             :string
+#  rate             :decimal(, )
+#  frequency        :string
+#  limit            :decimal(, )
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  com_cal_cycle_id :integer
+#  com_pro_cycle_id :integer
+#  com_clr_cycle_id :integer
+#
 class ContractSaleCommision < ApplicationRecord
   belongs_to :buy_contract, optional: true
   has_many :csc_accounts, dependent: :destroy

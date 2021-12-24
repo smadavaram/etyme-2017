@@ -2751,6 +2751,22 @@ trix-toolbar .trix-button-row {
   background: rgba(18, 18, 18, 0.35);
   color:white;
 }
+
+.orange_btn{
+  width: fit-content;
+  height: 30px;
+  border-radius: 30px !important;
+  cursor: pointer;
+  margin-right: 5px;
+  font-size: 12px !important;
+  background: rgba(222, 123, 39, 0.89);
+  color:white !important;
+  &:hover{
+    background: rgba(18, 18, 18, 0.35);
+  }
+}
+
+
 .filterdiv{
   -ms-overflow-style: none;
   scrollbar-width: none;

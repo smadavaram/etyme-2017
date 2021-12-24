@@ -1,5 +1,14 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: salary_items
+#
+#  id              :bigint           not null, primary key
+#  salaryable_type :string
+#  salaryable_id   :bigint
+#  salary_id       :bigint
+#
 class SalaryItem < ApplicationRecord
   belongs_to :salary
   belongs_to :salaryable, polymorphic: true

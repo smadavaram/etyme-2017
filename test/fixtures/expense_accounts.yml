@@ -1,4 +1,19 @@
-# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+# == Schema Information
+#
+# Table name: expense_accounts
+#
+#  id              :bigint           not null, primary key
+#  description     :text
+#  status          :integer
+#  amount          :float
+#  created_at      :datetime         not null
+#  updated_at      :datetime         not null
+#  payment         :integer
+#  balance_due     :integer
+#  check_no        :string
+#  expense_type_id :integer
+#  expense_id      :bigint
+#
 
 one:
   expense_id: MyString

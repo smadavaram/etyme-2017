@@ -1,5 +1,32 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: document_signs
+#
+#  id                :bigint           not null, primary key
+#  documentable_type :string
+#  documentable_id   :bigint
+#  signable_type     :string
+#  signable_id       :bigint
+#  is_sign_done      :boolean          default(FALSE)
+#  sign_time         :datetime
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
+#  company_id        :bigint
+#  envelope_id       :string
+#  envelope_uri      :string
+#  signed_file       :string
+#  initiator_type    :string
+#  initiator_id      :bigint
+#  part_of_type      :string
+#  part_of_id        :integer
+#  requested_by_type :string
+#  requested_by_id   :bigint
+#  signers_ids       :string           default([]), is an Array
+#  save_doc_type     :string
+#  save_doc_id       :bigint
+#
 class DocumentSign < ApplicationRecord
   belongs_to :documentable, polymorphic: :true, optional: true
   belongs_to :signable, polymorphic: :true, optional: true

@@ -1,5 +1,20 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: transactions
+#
+#  id           :integer          not null, primary key
+#  timesheet_id :integer
+#  start_time   :datetime
+#  end_time     :datetime
+#  total_time   :integer          default(0)
+#  status       :integer          default("pending")
+#  memo         :text
+#  created_at   :datetime         not null
+#  updated_at   :datetime         not null
+#  file         :string
+#
 require 'test_helper'
 
 class TransactionTest < ActiveSupport::TestCase

@@ -1,4 +1,19 @@
-# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+# == Schema Information
+#
+# Table name: company_vendor_docs
+#
+#  id                    :bigint           not null, primary key
+#  company_id            :integer
+#  title                 :string
+#  file                  :string
+#  exp_date              :date
+#  is_required_signature :boolean          default(FALSE)
+#  created_by            :integer
+#  created_at            :datetime         not null
+#  updated_at            :datetime         not null
+#  title_type            :string
+#  is_require            :string
+#
 
 one:
   company_id: 1

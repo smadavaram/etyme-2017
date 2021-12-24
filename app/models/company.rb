@@ -1,5 +1,54 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: companies
+#
+#  id                       :integer          not null, primary key
+#  owner_id                 :integer
+#  name                     :string
+#  website                  :string
+#  logo                     :string
+#  description              :text
+#  phone                    :string
+#  email                    :string
+#  slug                     :string
+#  tag_line                 :string
+#  linkedin_url             :string
+#  facebook_url             :string
+#  twitter_url              :string
+#  google_url               :string
+#  time_zone                :string
+#  is_activated             :boolean          default(FALSE)
+#  dba                      :string
+#  status                   :integer
+#  established_date         :date
+#  entity_type              :integer
+#  hr_manager_id            :integer
+#  billing_contact_id       :integer
+#  accountant_contact_email :string
+#  created_at               :datetime         not null
+#  updated_at               :datetime         not null
+#  company_type             :integer
+#  currency_id              :integer
+#  domain                   :string
+#  video                    :string
+#  company_file             :string
+#  video_type               :string
+#  company_sub_type         :string
+#  fax_number               :string
+#  owner_verified           :boolean          default(FALSE)
+#  verification_code        :string
+#  is_number_verify         :boolean          default(FALSE)
+#  custom_domain            :string
+#  banner_title             :string
+#  banner_text              :string
+#  banner_btn_label         :string
+#  banner_btn_url           :string
+#  banner_color             :string
+#  banner_two_btn_label     :string
+#  banner_two_btn_url       :string
+#
 class Company < ApplicationRecord
   EXCLUDED_SUBDOMAINS = %w[etyme admin www administrator admins owner mail ftp].freeze
   EXCLUDED_DOMAINS = %w[gmail facebook reddit yahoo rediff facebookmail fb].freeze

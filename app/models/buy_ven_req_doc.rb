@@ -1,5 +1,23 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: buy_ven_req_docs
+#
+#  id               :bigint           not null, primary key
+#  buy_contract_id  :bigint
+#  number           :string
+#  doc_file         :string
+#  when_expire      :date
+#  is_sign_required :boolean          default(FALSE)
+#  creatable_type   :string
+#  creatable_id     :bigint
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  file_name        :string
+#  file_size        :integer
+#  file_type        :integer
+#
 class BuyVenReqDoc < ApplicationRecord
   include PublicActivity::Model
   belongs_to :buy_contract, optional: true

@@ -150,9 +150,7 @@ Rails.application.routes.draw do
   end
 
   namespace :candidate do
-    resources :document_signs, only: %i[index update sh
-
-      ow] do
+    resources :document_signs, only: %i[index update show] do
       get :documents
       get :upload_document
     end
@@ -194,7 +192,13 @@ Rails.application.routes.draw do
       get :remove_bench
       post :bench_company_invitation, on: :collection
     end
+
+    # subscriptions
     resources :subscriptions, only: %i[index]
+    post '/subscriptions/subscribe', to: 'subscriptions#subscribe', as: 'subscribe'
+    post '/subscriptions/unsubscribe', to: 'subscriptions#subscribe', as: 'unsubscribe'
+
+
     # resources :contracts        , only: [:index]
     resources :candidates, only: %i[show update create] do
       get 'current_status', on: :collection

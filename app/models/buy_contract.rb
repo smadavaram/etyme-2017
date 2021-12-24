@@ -1,5 +1,123 @@
 # frozen_string_literal: true
 
+# == Schema Information
+#
+# Table name: buy_contracts
+#
+#  id                          :bigint           not null, primary key
+#  number                      :string
+#  contract_id                 :bigint
+#  candidate_id                :integer
+#  encrypted_ssn               :text
+#  contract_type               :string
+#  payrate                     :decimal(, )
+#  payrate_type                :string
+#  time_sheet                  :string
+#  payment_term                :string
+#  show_accounting_to_employee :boolean
+#  created_at                  :datetime         not null
+#  updated_at                  :datetime         not null
+#  first_date_of_timesheet     :date
+#  first_date_of_invoice       :date
+#  ts_date_1                   :date
+#  ts_date_2                   :date
+#  ts_end_of_month             :boolean          default(FALSE)
+#  ts_day_of_week              :string
+#  max_day_allow_for_timesheet :integer
+#  max_day_allow_for_invoice   :integer
+#  uscis_rate                  :integer
+#  company_id                  :integer
+#  ts_day_time                 :time
+#  pr_start_date               :date
+#  pr_end_date                 :date
+#  ts_approve                  :string
+#  ta_day_time                 :time
+#  ta_date_1                   :date
+#  ta_date_2                   :date
+#  ta_end_of_month             :boolean          default(FALSE)
+#  ta_day_of_week              :string
+#  salary_calculation          :string
+#  sc_day_time                 :time
+#  sc_date_1                   :date
+#  sc_date_2                   :date
+#  sc_end_of_month             :boolean          default(FALSE)
+#  sc_day_of_week              :string
+#  commission_payment_term     :integer
+#  invoice_recepit             :string
+#  ir_day_time                 :time
+#  ir_date_1                   :date
+#  ir_date_2                   :date
+#  ir_end_of_month             :boolean          default(FALSE)
+#  ir_day_of_week              :string
+#  payroll_date                :date
+#  vendor_bill                 :string
+#  vb_day_time                 :time
+#  vb_date_1                   :date
+#  vb_date_2                   :date
+#  vb_day_of_week              :string
+#  vb_end_of_month             :boolean          default(FALSE)
+#  client_bill                 :string
+#  cb_day_time                 :time
+#  cb_date_1                   :date
+#  cb_date_2                   :date
+#  cb_day_of_week              :string
+#  cb_end_of_month             :boolean          default(FALSE)
+#  client_bill_payment         :string
+#  cp_day_time                 :time
+#  cp_date_1                   :date
+#  cp_date_2                   :date
+#  cp_day_of_week              :string
+#  cp_end_of_month             :boolean          default(FALSE)
+#  client_bill_payment_term    :integer
+#  salary_process              :string
+#  sp_day_time                 :time
+#  sp_date_1                   :date
+#  sp_date_2                   :date
+#  sp_day_of_week              :string
+#  sp_end_of_month             :boolean          default(FALSE)
+#  salary_clear                :string
+#  sclr_day_time               :time
+#  sclr_date_1                 :date
+#  sclr_date_2                 :date
+#  sclr_day_of_week            :string
+#  sclr_end_of_month           :boolean          default(FALSE)
+#  commission_calculation      :string
+#  com_cal_day_time            :time
+#  com_cal_date_1              :date
+#  com_cal_date_2              :date
+#  com_cal_day_of_week         :string
+#  com_cal_end_of_month        :boolean          default(FALSE)
+#  commission_process          :string
+#  com_pro_day_time            :time
+#  com_pro_date_1              :date
+#  com_pro_date_2              :date
+#  com_pro_day_of_week         :string
+#  com_pro_end_of_month        :boolean          default(FALSE)
+#  term_no                     :string
+#  term_no_2                   :string
+#  payment_term_2              :string
+#  vendor_clear                :string
+#  ven_clr_date_1              :date
+#  ven_clr_date_2              :date
+#  ven_clr_day_of_week         :string
+#  ven_clr_end_of_month        :boolean
+#  ven_clr_day_time            :time
+#  ven_term_1                  :string
+#  ven_term_2                  :string
+#  ven_term_num_1              :string
+#  ven_term_num_2              :string
+#  ts_2day_of_week             :string
+#  ta_2day_of_week             :string
+#  invoice_2day_of_week        :string
+#  ce_2day_of_week             :string
+#  ce_in_2day_of_week          :string
+#  pr_2day_of_week             :string
+#  sc_2day_of_week             :string
+#  sp_2day_of_week             :string
+#  sclr_2day_of_week           :string
+#  integration                 :string
+#  payroll_info_id             :bigint
+#
 class BuyContract < ApplicationRecord
   belongs_to :contract, optional: true
   belongs_to :candidate, optional: true
