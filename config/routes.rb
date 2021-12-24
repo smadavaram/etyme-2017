@@ -196,7 +196,7 @@ Rails.application.routes.draw do
     # subscriptions
     resources :subscriptions, only: %i[index]
     post '/subscriptions/subscribe', to: 'subscriptions#subscribe', as: 'subscribe'
-    post '/subscriptions/unsubscribe', to: 'subscriptions#subscribe', as: 'unsubscribe'
+    post '/subscriptions/unsubscribe', to: 'subscriptions#unsubscribe', as: 'unsubscribe'
 
 
     # resources :contracts        , only: [:index]
