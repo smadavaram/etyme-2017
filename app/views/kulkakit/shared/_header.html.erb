@@ -16,7 +16,7 @@
     </div>
 <!--  subscribe-->
     <div>
-      <% unless current_candidate.subscribed?(current_company&.id) %>
+      <% unless current_candidate.candidate_company(current_company&.id)&.unsubscribed? %>
         <a href="<%= candidate_subscribe_path(company_id:current_company&.id)%>"
            class="btn orange_btn filter6" data-method="post" >Subscribe</a>
       <% end %>
@@ -37,7 +37,7 @@
         <%= link_to 'Onboarding', onboarding_profile_path , class: 'dropdown-item' %>
         <%= link_to 'unsubscribe',
                     candidate_unsubscribe_path(company_id:current_company&.id),
-                    class: 'dropdown-item' , method: :post if current_candidate.subscribed?(current_company&.id)%>
+                    class: 'dropdown-item' , method: :post if current_candidate.candidate_company(current_company&.id)&.subcribed? %>
 
         <%= link_to 'Profile',my_profile_path(candidate_name: current_candidate.full_name_friendly), class: 'dropdown-item' %>
         <%= link_to "Logout", destroy_candidate_session_path, method: :delete, class: 'dropdown-item' %>

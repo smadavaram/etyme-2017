@@ -336,7 +336,7 @@ class Candidate < ApplicationRecord
 
   def candidate_company(company_id)
      CandidatesCompany.where(candidate_id: id,
-                            company_id: company_id)
+                            company_id: company_id).first
   end
 
   private

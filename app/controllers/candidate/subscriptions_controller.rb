@@ -26,7 +26,7 @@ class Candidate::SubscriptionsController < Candidate::BaseController
   def unsubscribe
     cc = CandidatesCompany.where(candidate_id: current_candidate.id ,
                              company_id: params[:company_id],
-    )
+    ).first
     cc.unsubscribed!
     redirect_to request.referrer, notice: 'You are now unsubscribed'
   end
