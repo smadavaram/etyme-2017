@@ -41,8 +41,6 @@ class ApplicationController < ActionController::Base
     cc = current_candidate.candidate_company(params[:company_id])
     if cc&.unsubscribed?
       redirect_to request.referrer, notice: 'You need to subscribe to do this action.'
-    else
-      redirect_to request.referrer, notice: 'You need to subscribe to do  this action.'
     end
   end
 
