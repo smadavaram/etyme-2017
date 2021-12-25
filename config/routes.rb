@@ -270,7 +270,7 @@ Rails.application.routes.draw do
 
   class Subdomain
     def self.matches?(request)
-      request.subdomain.present? && request.subdomain != 'www'
+      request.subdomain.present? && request.subdomain != 'www' && request.subdomain != 'app'
     end
   end
 
@@ -282,7 +282,7 @@ Rails.application.routes.draw do
 
   class CustomOrSubDomain
     def self.matches?(request)
-      request.domain != Rails.application.config.domain || (request.subdomain.present? && (request.subdomain != 'www'))
+      request.domain != Rails.application.config.domain || (request.subdomain.present? && (request.subdomain != 'www' && request.subdomain != 'app'))
     end
   end
 

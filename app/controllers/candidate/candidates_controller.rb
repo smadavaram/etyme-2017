@@ -303,6 +303,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def my_profile
+    redirect_to 'app.etyme.com' + my_profile_path(candidate_name: current_candidate.full_name_friendly) if Rails.env.production?
     @user = current_candidate
     @user.addresses.build unless @user.addresses.present?
     @user.educations.build unless @user.educations.present?
