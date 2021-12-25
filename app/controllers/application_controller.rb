@@ -62,7 +62,7 @@ class ApplicationController < ActionController::Base
         "/"
       end
     elsif class_name == 'Candidate'
-      'app.etyme.com/candidate'
+      redirect_to 'app.etyme.com/candidate'
     else
       super
     end
