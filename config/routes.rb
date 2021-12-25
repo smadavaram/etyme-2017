@@ -99,6 +99,7 @@ Rails.application.routes.draw do
     end
   end
 
+
   scope module: :candidate do
     resources :clients
     resources :candidates, path: :candidate, only: [:update] do
@@ -145,7 +146,10 @@ Rails.application.routes.draw do
     end
     get '/profile', to: 'candidates#show'
 
-    get '/:candidate_name', to: 'candidates#my_profile', as: 'my_profile'
+
+    get '/:candidate_name', to: 'candidates#my_profile', as: 'my_profile', constraints: { subdomain: 'app' }
+
+
     get '/onboarding_profile', to: 'candidates#onboarding_profile'
   end
 
