@@ -63,7 +63,11 @@ class ApplicationController < ActionController::Base
       end
     elsif class_name == 'Candidate'
       # '/candidate'
-      public_profile_static_candidates_path(id: current_candidate.id)
+      if current_candidate.candidate_company(current_company.id)
+        public_profile_static_candidates_path(id: current_candidate.id)
+      else
+        '/'
+      end
     else
       super
     end
