@@ -32,7 +32,7 @@ class Users::SessionsController < Devise::SessionsController
       end
      ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
     else
-      flash[:error] = 'User is not registerd on this domain'
+      flash[:error] = "Please first create your account with etyme.com and then subscribe"
       redirect_back fallback_location: root_path
     end
   end
