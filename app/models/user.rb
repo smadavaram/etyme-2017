@@ -246,7 +246,7 @@ class User < ApplicationRecord
   end
 
   def subscribed?(company_id)
-    company_contacts.find_by(id: company_id)
+    company_contacts.find_by(company_id: company_id)
   end
 
   def user_company(company_id)
