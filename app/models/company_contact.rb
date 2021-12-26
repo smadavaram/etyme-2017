@@ -34,6 +34,10 @@ class CompanyContact < ApplicationRecord
   # TODO: remove this one too, when we remove the extra columns
   # validates :email, uniqueness: { case_sensitive: false, scope: :company_id }, format: { with: EMAIL_REGEX }, presence: true
 
+  enum user_status: %i[unsubscribed subscribed]
+
+
+
   scope :search_by, ->(term) { CompanyContact.where('lower(first_name) like :term or lower(last_name) like :term or title like :term ', term: "%#{term.downcase}%") }
 
   scope :own_company, ->(email) { User.where('email IN (?)', email).first }
