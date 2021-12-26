@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_09_13_091412) do
+ActiveRecord::Schema.define(version: 2021_12_26_202604) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -649,6 +649,7 @@ ActiveRecord::Schema.define(version: 2021_09_13_091412) do
     t.bigint "user_id"
     t.bigint "user_company_id"
     t.bigint "created_by_id"
+    t.integer "user_status", default: 0
     t.index ["company_id", "email"], name: "index_company_contacts_on_company_id_and_email", unique: true
   end
 

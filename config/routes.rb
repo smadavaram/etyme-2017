@@ -150,7 +150,7 @@ Rails.application.routes.draw do
     get '/:candidate_name', to: 'candidates#my_profile', as: 'my_profile', constraints: { subdomain: 'app' }
 
 
-    get '/onboarding_profile', to: 'candidates#onboarding_profile'
+    get '/onboarding_profile', to: 'candidates#onboarding_profile', constraints: { subdomain: 'app' }
   end
 
   namespace :candidate do
@@ -201,6 +201,8 @@ Rails.application.routes.draw do
     resources :subscriptions, only: %i[index]
     post '/subscriptions/subscribe', to: 'subscriptions#subscribe', as: 'subscribe'
     post '/subscriptions/unsubscribe', to: 'subscriptions#unsubscribe', as: 'unsubscribe'
+    post '/subscriptions/user_subscribe', to: 'subscriptions#user_subscribe', as: 'user_subscribe'
+    post '/subscriptions/user_unsubscribe', to: 'subscriptions#user_unsubscribe', as: 'user_unsubscribe'
 
 
     # resources :contracts        , only: [:index]

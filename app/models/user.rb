@@ -245,6 +245,15 @@ class User < ApplicationRecord
     send_reset_password_instructions
   end
 
+  def subscribed?(company_id)
+    company_contacts.find_by(id: company_id)
+  end
+
+  def user_company(company_id)
+    CompanyContact.where(user_id: id,company_id: company_id).first
+  end
+
+
   private
 
   def send_confirmation_email
