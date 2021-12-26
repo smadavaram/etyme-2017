@@ -65,6 +65,8 @@
 
   <% elsif current_user.present? %>
     <%  company_contact = current_user.user_company(current_company&.id) %>
+    <%= current_company&.domain %>
+    <%= current_user&.first_name %>
 
 
     <div class="dropdown dropdown-container d-flex justify-content-end">
