@@ -7,10 +7,11 @@ class Users::SubscriptionsController < ApplicationController
     else
       CompanyContact.create(user_id: current_user.id,
                             company_id: params[:company_id],
-                            user_company_id:current_user.company_id,
+                            user_company_id: current_user.company.id,
                             first_name: current_user.first_name,
                             last_name: current_user.last_name,
-                            email:current_user.email,
+                            email: current_user.email,
+                            created_by_id: current_user.id,
                             user_status: 1
       )
       redirect_to request.referrer, success: 'subscription created'
