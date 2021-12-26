@@ -90,11 +90,11 @@
     <div>
       <% if company_contact %>
         <% if company_contact.unsubscribed? %>
-          <a href="<%= candidate_user_subscribe_path(company_id:current_company&.id) %>"
+          <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
              class="btn orange_btn filter6" data-method="post" >Subscribe</a>
         <% end %>
       <% else %>
-        <a href="<%= candidate_user_subscribe_path(company_id:current_company&.id) %>"
+        <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
            class="btn orange_btn filter6" data-method="post" >Subscribe</a>
       <% end %>
     </div>
@@ -113,7 +113,7 @@
         <%= link_to 'Onboarding', company_path(current_company,onboarding: true), class: 'dropdown-item' %>
           <% if company_contact&.subscribed?%>
             <%= link_to 'unsubscribe',
-                        candidate_user_unsubscribe_path(company_id:current_company&.id),
+                        users_unsubscribe_path(company_id:current_company&.id),
                         class: 'dropdown-item' , method: :post %>
           <% end %>
 

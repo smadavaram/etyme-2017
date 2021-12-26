@@ -201,8 +201,7 @@ Rails.application.routes.draw do
     resources :subscriptions, only: %i[index]
     post '/subscriptions/subscribe', to: 'subscriptions#subscribe', as: 'subscribe'
     post '/subscriptions/unsubscribe', to: 'subscriptions#unsubscribe', as: 'unsubscribe'
-    post '/subscriptions/user_subscribe', to: 'subscriptions#user_subscribe', as: 'user_subscribe'
-    post '/subscriptions/user_unsubscribe', to: 'subscriptions#user_unsubscribe', as: 'user_unsubscribe'
+
 
 
     # resources :contracts        , only: [:index]
@@ -292,6 +291,11 @@ Rails.application.routes.draw do
     end
   end
 
+  namespace :users do
+    post '/subscriptions/subscribe', to: 'subscriptions#subscribe', as: 'subscribe'
+    post '/subscriptions/unsubscribe', to: 'subscriptions#unsubscribe', as: 'unsubscribe'
+  end
+
   # COMPANY ROUTES
   namespace :company do
     get 'activities/index'
@@ -343,6 +347,7 @@ Rails.application.routes.draw do
         get 'notification/:id', to: 'users#notification', as: 'get_notification'
       end
     end
+
 
     resources :company_contacts, only: %i[index new create destroy]
 
