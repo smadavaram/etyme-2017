@@ -4,6 +4,7 @@ class Users::SubscriptionsController < ApplicationController
   def subscribe
     if current_user.subscribed?(params[:company_id])
       current_user.user_company(params[:company_id]).subscribed!
+      redirect_to request.referrer, success: 'You are now subscribed'
     else
       CompanyContact.create(user_id: current_user.id,
                             company_id: params[:company_id],
