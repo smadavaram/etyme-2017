@@ -62,8 +62,7 @@ class ApplicationController < ActionController::Base
         "/"
       end
     elsif class_name == 'Candidate'
-      # '/candidate'
-      request.referrer
+       '/'
     else
       super
     end
