@@ -20,8 +20,11 @@ class Users::SubscriptionsController < ApplicationController
   end
 
   def unsubscribe
-    current_user.user_company(params[:company_id]).unsubscribed!
-    redirect_to request.referrer, notice: 'You are now unsubscribed'
+    if current_user.user_company(params[:company_id]).unsubscribed!
+      redirect_to request.referrer, notice: 'You are now unsubscribed'
+    else
+      redirect_to request.referrer, notice: 'Something went wrong'
+    end
   end
 
 
