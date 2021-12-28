@@ -19,7 +19,7 @@ class CompanyDatatable < ApplicationDatatable
   end
 
   def data
-    records.where(subscribed: 1).map do |record|
+    records.map do |record|
       {
         id: record.id,
         name: company_profile(record),
@@ -46,7 +46,7 @@ class CompanyDatatable < ApplicationDatatable
 
   def get_raw_records
     # TODO: Fetch only subscribed companies of a company
-    Company.all.includes(%i[reminders statuses])
+    Company.where(id: current_user.company_contacts.pluck(:company_id)).includes(%i[reminders statuses])
   end
 
   def reminder_note(record)
@@ -69,7 +69,7 @@ class CompanyDatatable < ApplicationDatatable
       link_to(content_tag(:i, nil, class: 'fa fa-fire').html_safe, prefer_vendors_path(id: record.id), method: :post, remote: :true, title: 'Add as Prefer Vendor', class: 'data-table-icons')
     end
 
-    if current_user.subscribed?(current_company.id)
+    if current_user.subscribed?(record.id)
       link_to(content_tag(:i, nil, class: 'fas fa-rss-square').html_safe, users_unsubscribe_path(company_id: current_company&.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
     end
 
