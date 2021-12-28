@@ -6,6 +6,13 @@ class CompanyDatatable < ApplicationDatatable
   def_delegator :@view, :ban_company_black_listers_path
   def_delegator :@view, :prefer_vendors_path
 
+
+
+  def user
+    @user ||= options[:user]
+  end
+
+
   def view_columns
     @view_columns ||= {
       id: { source: 'Company.id' },
@@ -46,7 +53,7 @@ class CompanyDatatable < ApplicationDatatable
 
   def get_raw_records
     # TODO: Fetch only subscribed companies of a company
-    Company.where(id: current_user.company_contacts.pluck(:company_id)).includes(%i[reminders statuses])
+    Company.where(id: user.company_contacts.pluck(:company_id)).includes(%i[reminders statuses])
   end
 
   def reminder_note(record)
