@@ -75,9 +75,9 @@ class CompanyDatatable < ApplicationDatatable
     else
       link_to(content_tag(:i, nil, class: 'fa fa-fire').html_safe, prefer_vendors_path(id: record.id), method: :post, remote: :true, title: 'Add as Prefer Vendor', class: 'data-table-icons')
     end
-
+    #
     if current_user.subscribed?(record.id)
-      link_to(content_tag(:i, nil, class: 'fas fa-rss-square').html_safe, users_unsubscribe_path(company_id: current_company&.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fas fa-rss-square').html_safe, '/', method: :post, title: 'unsubscribed', class: 'data-table-icons')
     end
 
   end
