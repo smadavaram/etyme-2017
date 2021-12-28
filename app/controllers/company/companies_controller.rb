@@ -20,7 +20,7 @@ class Company::CompaniesController < Company::BaseController
     add_breadcrumb 'Companies', companies_path
     respond_to do |format|
       format.html {}
-      format.json { render json: CompanyDatatable.new(params, view_context: view_context) }
+      format.json { render json: CompanyDatatable.new(params, user:current_user, view_context: view_context) }
     end
   end
 
