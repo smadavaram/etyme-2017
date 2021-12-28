@@ -23,7 +23,7 @@ class Users::SessionsController < Devise::SessionsController
 
   # POST /resource/sign_in
   def create
-    # if check_company_user
+    if check_company_user
       super
       cookies.permanent.signed[:userid] = resource.id if resource.present?
       user = User.find_by(id: current_user.id)
@@ -31,10 +31,10 @@ class Users::SessionsController < Devise::SessionsController
         user.update(online_user_status: "online")
       end
      ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
-    # else
+    else
       flash[:error] = "Please first create your account with etyme.com and then subscribe"
       redirect_back fallback_location: root_path
-    # end
+    end
   end
 
   # DELETE /resource/sign_out
@@ -71,7 +71,8 @@ class Users::SessionsController < Devise::SessionsController
       )
       u = User.where(email: params[:user][:email]).first
       u.send_reset_password_instructions
-      flash[:error] = "Looks like Team #{current_company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
+      # flash[:error] = "Looks like Team #{current_company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
+      true
     else
       false
     end
