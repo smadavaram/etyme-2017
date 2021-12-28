@@ -19,7 +19,7 @@ class CompanyDatatable < ApplicationDatatable
   end
 
   def data
-    records.map do |record|
+    records.where(subscribed: 1).map do |record|
       {
         id: record.id,
         name: company_profile(record),
@@ -63,10 +63,15 @@ class CompanyDatatable < ApplicationDatatable
 
   def actions(record)
     link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, company_company_add_reminder_path(record), remote: :true, title: 'Remind Me', class: 'data-table-icons') +
-      if current_company.is_vendor?(record)
-        link_to(content_tag(:i, nil, class: 'fa fa-fire hot').html_safe, '#', class: 'data-table-icons', title: 'Prefer Vendor')
-      else
-        link_to(content_tag(:i, nil, class: 'fa fa-fire').html_safe, prefer_vendors_path(id: record.id), method: :post, remote: :true, title: 'Add as Prefer Vendor', class: 'data-table-icons')
-      end
+    if current_company.is_vendor?(record)
+      link_to(content_tag(:i, nil, class: 'fa fa-fire hot').html_safe, '#', class: 'data-table-icons', title: 'Prefer Vendor')
+    else
+      link_to(content_tag(:i, nil, class: 'fa fa-fire').html_safe, prefer_vendors_path(id: record.id), method: :post, remote: :true, title: 'Add as Prefer Vendor', class: 'data-table-icons')
+    end
+
+    if current_user.subscribed?(current_company.id)
+      link_to(content_tag(:i, nil, class: 'fas fa-rss-square').html_safe, users_unsubscribe_path(company_id: current_company&.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
+    end
+
   end
 end
