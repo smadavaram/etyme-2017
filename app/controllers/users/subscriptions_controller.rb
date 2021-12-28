@@ -1,5 +1,5 @@
 class Users::SubscriptionsController < ApplicationController
-  before_action :authenticate_user!
+  before_action :authenticate_user!, only: [:subscribe, :unsubscribe]
 
   def subscribe
     if current_user.subscribed?(params[:company_id])
