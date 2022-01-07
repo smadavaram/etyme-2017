@@ -87,7 +87,7 @@ class CompanyDatatable < ApplicationDatatable
 
     else
 
-      link_to(content_tag(:i, nil, class: 'fa fa-leaf ', ).html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-leaf ' ).html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
     end
 
   end
