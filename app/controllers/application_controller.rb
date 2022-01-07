@@ -112,6 +112,7 @@ class ApplicationController < ActionController::Base
     @current_company = Company.find_by(slug: request.subdomain)
   end
 
+
   def prepare_exception_notifier
     request.env['exception_notifier.exception_data'] = {
       current_user: current_user,
