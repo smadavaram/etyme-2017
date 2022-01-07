@@ -246,11 +246,11 @@ class User < ApplicationRecord
   end
 
   def subscribed?(company_id)
-    company_contacts.find_by(company_id: company_id)
+    company_contacts.find_by(company_id: company_id).subscribed?
   end
 
   def user_company(company_id)
-    CompanyContact.where(user_id: id,company_id: company_id).first
+    CompanyContact.find_by(user_id: id,company_id: company_id)
   end
 
 
