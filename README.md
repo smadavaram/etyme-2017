@@ -22,7 +22,7 @@ Copy config/database.yml.example to config/database.yml file. Make necessary cha
 
 Open application in browser ```http://lvh.me:3000``` and login as a company.
 
-**Test Company User:**
+**Test Company User:**``
 
     User: hradmin@cloudepa.com
     Pass: testing1234
