@@ -80,15 +80,14 @@ class CompanyDatatable < ApplicationDatatable
       link_to(content_tag(:i, nil, class: 'fa fa-fire').html_safe, prefer_vendors_path(id: record.id), method: :post, remote: :true, title: 'Add as Prefer Vendor', class: 'data-table-icons')
     end
 
-    if current_user.user_company(record.id)
 
-      if  current_user.subscribed?(record.id)
-        link_to(content_tag(:i, nil, class: 'fa fa-leaf ').html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
+    if  current_user.subscribed?(record.id)
+      link_to(content_tag(:i, nil, class: 'fa fa-leaf ').html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
 
-        else
-       link_to(content_tag(:i, nil, class: 'fa fa-leaf ', class: "color:green").html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
+    else
 
-      end
+      link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
     end
+
   end
 end
