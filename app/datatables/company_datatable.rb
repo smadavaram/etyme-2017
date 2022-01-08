@@ -82,13 +82,13 @@ class CompanyDatatable < ApplicationDatatable
     end
 
 
-    if  current_user.subscribed?(record.id)
-      link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
-
-    else
-
-      link_to(content_tag(:i, nil, class: 'fa fa-leaf ').html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
-    end
+    # if  current_user.subscribed?(record.id)
+    #   link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
+    #
+    # else
+    #
+    #   link_to(content_tag(:i, nil, class: 'fa fa-leaf ').html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
+    # end
 
   end
 end
