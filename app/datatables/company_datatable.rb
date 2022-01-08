@@ -57,7 +57,8 @@ class CompanyDatatable < ApplicationDatatable
   def get_raw_records
     # TODO: Fetch only subscribed companies of a company
     # Company.where(id: user.company_contacts.where(user_status: 1).pluck(:company_id)).includes(%i[reminders statuses])
-    Company.where(domain: current_company.domain)
+    # Company.where(domain: current_company.domain)
+    Company.all
   end
 
   def reminder_note(record)
@@ -82,11 +83,11 @@ class CompanyDatatable < ApplicationDatatable
 
 
     if  current_user.subscribed?(record.id)
-      link_to(content_tag(:i, nil, class: 'fa fa-leaf ').html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
 
     else
 
-      link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-leaf ').html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
     end
 
   end
