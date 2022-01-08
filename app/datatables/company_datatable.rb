@@ -90,12 +90,11 @@ class CompanyDatatable < ApplicationDatatable
     end
 
 
-    # if  current_user.subscribed?(record.id)
+    if current_user.subscribed?(record.id)
 
-    # else
-    #
+    else
     #   link_to(content_tag(:i, nil, class: 'fa fa-leaf ').html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
-    # end
+    end
 
   end
 end
