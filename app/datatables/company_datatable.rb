@@ -81,20 +81,22 @@ class CompanyDatatable < ApplicationDatatable
 
     if current_company.is_vendor?(record)
       link_to(content_tag(:i, nil, class: 'fa fa-fire hot').html_safe, '#', class: 'data-table-icons', title: 'Prefer Vendor') +
-      link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
-
+        if current_user.user_company(record.id)&.subscribed?
+          link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
+        else
+          link_to(content_tag(:i, nil, class: 'fa fa-leaf ').html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
+        end
     else
       link_to(content_tag(:i, nil, class: 'fa fa-fire').html_safe, prefer_vendors_path(id: record.id), method: :post, remote: :true, title: 'Add as Prefer Vendor', class: 'data-table-icons') +
-      link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
-
+        if current_user.user_company(record.id)&.subscribed?
+          link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
+        else
+          link_to(content_tag(:i, nil, class: 'fa fa-leaf ').html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
+        end
     end
 
 
-    if current_user.user_company(record.id)&.subscribed?
 
-    else
-    #   link_to(content_tag(:i, nil, class: 'fa fa-leaf ').html_safe, users_subscribe_path(company_id: record.id), method: :post, title: 'subscribed', class: 'data-table-icons')
-    end
 
   end
 end
