@@ -74,16 +74,23 @@ class CompanyDatatable < ApplicationDatatable
   end
 
   def actions(record)
-    link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, company_company_add_reminder_path(record), remote: :true, title: 'Remind Me', class: 'data-table-icons') +
+    link_to(content_tag(:i, nil,
+                        class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe,
+            company_company_add_reminder_path(record), remote: :true,
+            title: 'Remind Me', class: 'data-table-icons') +
+
     if current_company.is_vendor?(record)
-      link_to(content_tag(:i, nil, class: 'fa fa-fire hot').html_safe, '#', class: 'data-table-icons', title: 'Prefer Vendor')
+      link_to(content_tag(:i, nil, class: 'fa fa-fire hot').html_safe, '#', class: 'data-table-icons', title: 'Prefer Vendor') +
+      link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
+
     else
-      link_to(content_tag(:i, nil, class: 'fa fa-fire').html_safe, prefer_vendors_path(id: record.id), method: :post, remote: :true, title: 'Add as Prefer Vendor', class: 'data-table-icons')
+      link_to(content_tag(:i, nil, class: 'fa fa-fire').html_safe, prefer_vendors_path(id: record.id), method: :post, remote: :true, title: 'Add as Prefer Vendor', class: 'data-table-icons') +
+      link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
+
     end
 
 
     # if  current_user.subscribed?(record.id)
-      link_to(content_tag(:i, nil, class: 'fa fa-leaf ', style: "color:green").html_safe, users_unsubscribe_path(company_id: record.id), method: :post, title: 'unsubscribed', class: 'data-table-icons')
 
     # else
     #
