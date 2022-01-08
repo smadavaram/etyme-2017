@@ -115,13 +115,15 @@
         <span>Network</span>
       </a>
       <div class="pl-4 w-100 l2 text-justify nav-sidebar-collaps">
-        <a href="<%= groups_path %>" class=" side-bar_links nested_tab boarder_bottom">Groups</a>
-        <a href="<%= directories_path %>" class=" side-bar_links nested_tab boarder_bottom">My Directory</a>
         <a href="<%= candidates_path %>" class=" side-bar_links nested_tab boarder_bottom">Candidates</a>
+        <a href="<%= company_contacts_company_companies_path %>" class=" side-bar_links nested_tab boarder_bottom">Contacts</a>
         <% if has_permission?('manage_company') %>
           <%= link_to 'Companies', companies_path, class: 'side-bar_links nested_tab boarder_bottom' %>
         <% end %>
-        <a href="<%= company_contacts_company_companies_path %>" class=" side-bar_links nested_tab boarder_bottom">Contacts</a>
+        <a href="<%= directories_path %>" class=" side-bar_links nested_tab boarder_bottom">My Directory</a>
+        <a href="<%= groups_path %>" class=" side-bar_links nested_tab boarder_bottom">Groups</a>
+
+
       </div>
       <a class="ln-4 sidebar_collapsible side-bar_tab">
         <div class="icon-w">
