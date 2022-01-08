@@ -119,7 +119,7 @@
         <a href="<%= directories_path %>" class=" side-bar_links nested_tab boarder_bottom">My Directory</a>
         <a href="<%= candidates_path %>" class=" side-bar_links nested_tab boarder_bottom">Candidates</a>
         <% if has_permission?('manage_company') %>
-          <%= link_to 'Tp-subscriptions', companies_path, class: 'side-bar_links nested_tab boarder_bottom' %>
+          <%= link_to 'Companies', companies_path, class: 'side-bar_links nested_tab boarder_bottom' %>
         <% end %>
         <a href="<%= company_contacts_company_companies_path %>" class=" side-bar_links nested_tab boarder_bottom">Contacts</a>
       </div>
