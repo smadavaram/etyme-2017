@@ -57,8 +57,8 @@ class CompanyDatatable < ApplicationDatatable
   def get_raw_records
     # TODO: Fetch only subscribed companies of a company
     # Company.where(id: user.company_contacts.where(user_status: 1).pluck(:company_id)).includes(%i[reminders statuses])
-    # Company.where(domain: current_company.domain)
-    Company.all
+    Company.where(domain: current_company.domain)
+    # Company.all
   end
 
   def reminder_note(record)

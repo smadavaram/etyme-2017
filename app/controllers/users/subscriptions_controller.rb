@@ -2,7 +2,7 @@ class Users::SubscriptionsController < ApplicationController
   before_action :authenticate_user!, only: [:subscribe, :unsubscribe]
 
   def subscribe
-    if current_user.subscribed?(params[:company_id])
+    if current_user.user_company(params[:company_id])
       current_user.user_company(params[:company_id]).subscribed!
       redirect_to request.referrer, success: 'You are now subscribed'
     else
