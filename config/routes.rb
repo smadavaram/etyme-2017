@@ -321,8 +321,9 @@ Rails.application.routes.draw do
     post 'update_mobile_number', to: 'companies#update_mobile_number'
 
     get 'companies/edit'
+    get '/users/:id', to: 'users#show', as: 'user_nav', constraints: {subdomain: Subdomain}
     resources :users, only: %i[ show update destroy] do
-      get '/:id', to: 'users#show', as: 'user_nav', constraints: {subdomain: Subdomain}
+
       resources :notifications do
         member do
           get 'read'
