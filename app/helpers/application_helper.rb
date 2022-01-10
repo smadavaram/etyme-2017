@@ -6,6 +6,10 @@ module ApplicationHelper
     "<i class='fa fa-spinner fa-pulse fa-spin pull-left'></i> #{text}"
   end
 
+  def user_domain?
+    current_user.domain == request.subdomain
+  end
+
   def left_menu
     left_menu_entries(left_menu_content)
   end
