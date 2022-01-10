@@ -4,7 +4,7 @@ class ApplicationController < ActionController::Base
   impersonates :candidate
   protect_from_forgery
   layout :set_devise_layout
-
+  before_action :is_user_authorized?
   add_flash_types :error, :success, :errors, :alert
 
   rescue_from Exception, with: :render_generic_exception if Rails.env.production?
@@ -15,6 +15,18 @@ class ApplicationController < ActionController::Base
   rescue_from StandardError, with: :render_not_found if Rails.env.production?
 
   # before_filter :authenticate_user!
+
+
+
+  def is_user_authorized?
+    if current_user.domain != request.subdomain
+      static_path =  /static/ =~ request.path
+      # if nil we should redirect because the user should not be on this url
+      if static_path.nil?
+        redirect_back(fallback_location: '/')
+      end
+    end
+  end
 
   def set_permissions
     session[:permissions] ||= current_user.permissions.uniq.collect(&:name) if current_user
