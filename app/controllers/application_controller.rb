@@ -22,8 +22,8 @@ class ApplicationController < ActionController::Base
     if current_user.domain != request.subdomain
       static_path =  /static/ =~ request.path
       # if nil we should redirect because the user should not be on this url
-      if static_path.nil?
-        redirect_back(fallback_location: '/')
+      if static_path.nil? && !request.path.nil?
+        redirect_to "#{current_company.domain}.etyme.com"
       end
     end
   end
