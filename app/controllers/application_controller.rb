@@ -24,8 +24,9 @@ class ApplicationController < ActionController::Base
       static_path =  /static/ =~ request.path
       # if nil we should redirect because the user should not be on this url
       current_domain = "https://#{request.subdomain}.etyme.com"
-      if static_path.nil? && request.url != current_domain
-        # redirect_to root_path, notice: "That's not allowed"
+      if  request.url == current_domain
+      elsif static_path.nil?
+        redirect_to root_path, notice: "That's not allowed"
       end
     end
   end
