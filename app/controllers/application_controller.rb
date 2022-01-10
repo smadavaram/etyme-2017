@@ -19,10 +19,12 @@ class ApplicationController < ActionController::Base
 
 
   def is_user_authorized?
+    return if !Rails.env.production?
     if current_user.domain != request.subdomain
       static_path =  /static/ =~ request.path
       # if nil we should redirect because the user should not be on this url
-      if static_path.nil? && request.url != root_url
+      current_domain = "https://#{request.subdomain}.etyme.com"
+      if static_path.nil? && request.url != current_domain
         redirect_to root_path, notice: "That's not allowed"
       end
     end
