@@ -321,7 +321,8 @@ Rails.application.routes.draw do
     post 'update_mobile_number', to: 'companies#update_mobile_number'
 
     get 'companies/edit'
-    resources :users, only: %i[show update destroy] do
+    resources :users, only: %i[ show update destroy] do
+      get '/:id', to: 'users#show', as: 'user_nav', constraints: {subdomain: Subdomain}
       resources :notifications do
         member do
           get 'read'
@@ -468,7 +469,7 @@ Rails.application.routes.draw do
     post 'reject_vendor', to: 'prefer_vendors#reject'
     post 'accept_vendor', to: 'prefer_vendors#accept'
     get 'network', to: 'prefer_vendors#show_network'
-    get 'marketplace', to: 'prefer_vendors#marketplace', as: :marketplace
+    get 'marketplace', to: 'prefer_vendors#marketplace', as: :marketplace, constraints: { subdomain: Subdomain}
     # get  'hot_candidate', to: 'companies#hot_candidate'
 
     resources :consultants, concerns: :paginatable do
