@@ -4,7 +4,7 @@ class ApplicationController < ActionController::Base
   impersonates :candidate
   protect_from_forgery
   layout :set_devise_layout
-  before_action :is_user_authorized?
+  # before_action :is_user_authorized?
   add_flash_types :error, :success, :errors, :alert
 
   rescue_from Exception, with: :render_generic_exception if Rails.env.production?

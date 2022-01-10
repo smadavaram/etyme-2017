@@ -468,7 +468,7 @@ Rails.application.routes.draw do
     post 'reject_vendor', to: 'prefer_vendors#reject'
     post 'accept_vendor', to: 'prefer_vendors#accept'
     get 'network', to: 'prefer_vendors#show_network'
-    get 'marketplace', to: 'prefer_vendors#marketplace', as: :marketplace
+    get 'marketplace', to: 'prefer_vendors#marketplace', as: :marketplace, constraints: {subdomain: Subdomain}
     # get  'hot_candidate', to: 'companies#hot_candidate'
 
     resources :consultants, concerns: :paginatable do
@@ -826,6 +826,8 @@ Rails.application.routes.draw do
   constraints(NakedEtymeDomain) do
     match '/' => 'static#index', via: %i[get post]
   end
+
+
 
   namespace :api do
     resources :select_searches, only: :index do
