@@ -16,7 +16,7 @@ class CandidatesCompany < ApplicationRecord
   rating
 
   enum status: %i[normal hot_candidate]
-  # enum candidate_status: %i[pending accept reject]
+  enum candidate_status: %i[pending accept reject]
   enum candidate_status: %i[unsubscribed subscribed]
 
   belongs_to :candidate, optional: true
