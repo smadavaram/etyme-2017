@@ -107,7 +107,7 @@
         </div>
       </div>
       <div class="dropdown-menu">
-        <%= link_to 'Dashboard', marketplace_path(subdomain: 'cloudepa', company: 'on', 'search_by[term]': '', 'search_scope': ''), target: '_blank', class: 'dropdown-item' %>
+        <%= link_to 'Dashboard', marketplace_path(company: 'on', 'search_by[term]': '', 'search_scope': ''), target: '_blank', class: 'dropdown-item' %>
         <%#= link_to 'Dashboard', dashboard_path, class: 'dropdown-item' %>
         <%= link_to 'Onboarding', company_path(current_company,onboarding: true), class: 'dropdown-item' %>
           <% if company_contact&.subscribed?%>
