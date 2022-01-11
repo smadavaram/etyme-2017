@@ -4,7 +4,7 @@ class ApplicationController < ActionController::Base
   impersonates :candidate
   protect_from_forgery
   layout :set_devise_layout
-  # before_action :is_user_authorized?
+  before_action :is_user_authorized?
   add_flash_types :error, :success, :errors, :alert
 
   rescue_from Exception, with: :render_generic_exception if Rails.env.production?
@@ -21,12 +21,12 @@ class ApplicationController < ActionController::Base
   def is_user_authorized?
     return if !Rails.env.production? or current_company.nil? || current_user.nil?
     if current_user.domain != request.subdomain
-      static_path =  /static|subscribe|unsubscribe|logout|users/ =~ request.path
+      static_path =  /static|subscribe|unsubscribe|logout|marketplace|companies|users/ =~ request.path
       # if nil we should redirect because the user should not be on this url
       current_domain = "https://#{request.subdomain}.etyme.com/"
       return if  request.url == current_domain
       if static_path.nil?
-        redirect_to root_path(subdomain: current_user.domain), notice: "That's not allowed! Try now"
+        redirect_to root_path, notice: "You can only do this on #{current_user.domain}.etyme.com"
       end
     end
   end
