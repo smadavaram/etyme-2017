@@ -32,7 +32,6 @@
   </div> <!-- Div Container Fluid -->
 </section> <!-- Content Wrapper -->
 
-<% @address = Address.find_by(id: 2811) %>
 <script type="application/1d+json">
 {
 "@context": "http://schema.org",
@@ -51,7 +50,7 @@
   "@type": "Place",
   "address": {
     "@type": "PostalAddress",
-    "streetAddress": "<%= address.address_1%>",
+    "streetAddress": "12829 Piney Point Place, Herndon, VA,20171-2975 USA",
     "addressLocality": "Herndon",
     "addressRegion": "VA",
     "postalCode": "20171-2975",
