@@ -2,8 +2,7 @@
 
 class Static::JobApplicationsController < ApplicationController
   before_action :find_job, only: :create
-
-  def create   
+  def create
     JobApplication
     if params[:candidate_id].present? || current_candidate
       @candidate = Candidate.find_by(id: params[:candidate_id]) || current_candidate

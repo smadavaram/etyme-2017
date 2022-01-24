@@ -1,17 +1,37 @@
 # require 'google-apis-indexing_v3'
 
 module GoogleJobs
-  def auth
-    scopes = ['https://www.googleapis.com/auth/indexing']
-    authorizer = Google::Auth::ServiceAccountCredentials.make_creds(
-      json_key_io: File.open(Rails.root + 'etyme-263016-eb89ccc549c2.json'),
+
+  TYPES = {
+    URL_UPDATED: "URL_UPDATED",
+    URL_DELETED: "URL_DELETED",
+    URL_ADDED: "URL_ADDED",
+
+  }
+
+  LOGGER = Logger.new('log/google_jobs.log')
+
+  def indexing
+    indexing = Google::Apis::IndexingV3::IndexingService.new
+    indexing.authorization = Google::Auth::ServiceAccountCredentials.make_creds(
+      json_key_io: File.open('etyme-263016-eb89ccc549c2.json'),
       scope: scopes)
-    authorizer.fetch_access_token!
+
+    indexing.authorization.fetch_access_token!
   end
 
-  def get_auth
-    auth
+  def update_google_job(url:, type: TYPES[:URL_UPDATED])
+    # eg: https://cloudepa.etyme.com/static/jobs/80
+    update = Google::Apis::IndexingV3::UrlNotification
+               .new(url:url, type: type)
+    begin
+      u = indexing.publish_url_notification(update)
+      LOGGER.info "Google job updated: #{u.url}"
+    rescue Google::Apis::ClientError => e
+      LOGGER.error e
+    end
   end
+
 
 
 end

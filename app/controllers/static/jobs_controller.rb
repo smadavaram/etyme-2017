@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
 class Static::JobsController < ApplicationController
+  include GoogleJobs
+
   before_action :set_jobs, only: %i[index show]
   before_action :find_job, only: %i[show apply job_appication_without_registeration job_appication_with_recruiter iframe_apply]
   before_action :is_subscribed?, only: %i[post_question post_job]
   layout 'static'
+
 
   add_breadcrumb 'Home', '/'
   add_breadcrumb 'Jobs', :static_jobs_path
@@ -170,7 +173,7 @@ class Static::JobsController < ApplicationController
  
   def find_or_create_company(from)
     company = Company.find_or_create_by(domain: from.domain.split('@')[0].split('.').first) do |compny|
-      compnyp.name = from.domain.split('@')[0].split('.').first
+      compny.name = from.domain.split('@')[0].split('.').first
       compny.website = from.domain
       compny.phone = '123456789'
       compny.email = from.address.to_s
@@ -213,6 +216,7 @@ class Static::JobsController < ApplicationController
     end
 
     if @job.present?
+      handle_google_update(@job)
       add_breadcrumb @job.title, static_job_path
       render layout: 'kulkakit'
     else
@@ -291,17 +295,27 @@ class Static::JobsController < ApplicationController
     end
   end
 
+
+
   def post_job
     if current_user.present?
       @job = current_company.jobs.new(company_user_job_params.merge!(created_by_id: current_user.id, listing_type: 'Job', status: 'Draft'))
-      flash[:errors] = @job.errors.full_messages unless @job.save
-      flash[:success] = 'The job was successfully created!'
-      redirect_to @job
+      if @job.save
+        handle_google_update(@job)
+        flash[:success] = 'The job was successfully created!'
+        return  redirect_to @job
+      else
+        flash[:errors] = @job.errors.full_messages
+      end
+
     elsif current_candidate.present?
       @job = current_company.jobs.new(company_candidate_job_params.merge!(created_by_candidate_id: current_candidate.id, listing_type: 'Job', status: 'Draft'))
-      flash[:errors] = @job.errors.full_messages unless @job.save
-      flash[:success] = 'The job was successfully created! An admin will review it before it shows up in the feed.'
-
+      if @job.save
+        handle_google_update(@job)
+        flash[:success] = 'The job was successfully created! An admin will review it before it shows up in the feed.'
+      else
+        flash[:errors] = @job.errors.full_messages
+      end
       if current_company.owner.present?
         current_company.owner.notifications.create(
           title: "A new job listing created by #{@job.created_by_candidate.full_name} needs to be reviewed!",
@@ -451,4 +465,12 @@ class Static::JobsController < ApplicationController
                custom_fields_attributes: %i[id name value required _destroy],
                job_requirements_attributes: %i[id questions ans_type ans_mandatroy multiple_ans multiple_option]])
   end
+
+  def handle_google_update(job)
+    url = request.url + 'static/jobs/' + job.id.to_s
+    update_google_job(url: url)
+  end
+
+
+
 end
