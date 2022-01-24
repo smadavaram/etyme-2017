@@ -32,7 +32,28 @@
   </div> <!-- Div Container Fluid -->
 </section> <!-- Content Wrapper -->
 
+
+<script type="application/1d+json">
+{
+"@context": "http://schema.org",
+"@type": "JobPosting",
+"title": "<%= @job.title %>",
+"description": "<%= @job.description %>",
+"datePosted": "<%= @job.created_at.strftime("%Y-%m-%d") %>",
+"hiringOrganization": {
+  "@type": "Organization",
+  "name": "<%= @job.company.name %>",
+  "sameAs": "<%= @job.company.website %>",
+  "logo": "<%= @job.company.logo %>"
+}
+}
+</script>
 <%= javascript_include_tag 'shared/hide_show_toggler'%>
+
+
+
+
+
 <script>
     var selected_categories = [];
     $(document).ready(function () {
