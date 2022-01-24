@@ -32,19 +32,31 @@
   </div> <!-- Div Container Fluid -->
 </section> <!-- Content Wrapper -->
 
-
+<% @address = Address.find_by(id: 2811) %>
 <script type="application/1d+json">
 {
 "@context": "http://schema.org",
 "@type": "JobPosting",
 "title": "<%= @job.title %>",
 "description": "<%= @job.description %>",
-"datePosted": "<%= @job.created_at.strftime("%Y-%m-%d") %>",
+"datePosted": "<%= @job.start_date.strftime("%Y-%m-%d") %>",
+"validThrough": "<%= @job.end_date.strftime("%Y-%m-%d") %>",
 "hiringOrganization": {
   "@type": "Organization",
   "name": "<%= @job.company.name %>",
   "sameAs": "<%= @job.company.website %>",
   "logo": "<%= @job.company.logo %>"
+},
+"jobLocation": {
+  "@type": "Place",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "<%= address.address_1%>",
+    "addressLocality": "Herndon",
+    "addressRegion": "VA",
+    "postalCode": "20171-2975",
+    "addressCountry": "US"
+  }
 }
 }
 </script>
