@@ -217,6 +217,7 @@ class Static::JobsController < ApplicationController
 
     if @job.present?
       handle_google_update(@job)
+
       add_breadcrumb @job.title, static_job_path
       render layout: 'kulkakit'
     else
@@ -467,7 +468,7 @@ class Static::JobsController < ApplicationController
   end
 
   def handle_google_update(job)
-    url = request.url + 'static/jobs/' + job.id.to_s
+    url = static_job_url(job)
     update_google_job(url: url)
   end
 
