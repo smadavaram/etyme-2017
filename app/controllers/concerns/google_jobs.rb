@@ -11,7 +11,11 @@ module GoogleJobs
 
   LOGGER = Logger.new('log/google_jobs.log')
 
-  def indexing
+  # def indexing
+  #
+  # end
+
+  def update_google_job(url:, type: TYPES[:URL_UPDATED])
     scopes = [Google::Apis::IndexingV3::AUTH_INDEXING]
     indexing = Google::Apis::IndexingV3::IndexingService.new
     indexing.authorization = Google::Auth::ServiceAccountCredentials.make_creds(
@@ -19,9 +23,7 @@ module GoogleJobs
       scope: scopes)
 
     indexing.authorization.fetch_access_token!
-  end
 
-  def update_google_job(url:, type: TYPES[:URL_UPDATED])
     # eg: https://cloudepa.etyme.com/static/jobs/80
     update = Google::Apis::IndexingV3::UrlNotification
                .new(url:'https://cloudepa.etyme.com/static/jobs/81', type: type)
@@ -34,6 +36,13 @@ module GoogleJobs
   end
 
   def get_google_job(url:)
+    scopes = [Google::Apis::IndexingV3::AUTH_INDEXING]
+    indexing = Google::Apis::IndexingV3::IndexingService.new
+    indexing.authorization = Google::Auth::ServiceAccountCredentials.make_creds(
+      json_key_io: File.open('etyme-263016-eb89ccc549c2.json'),
+      scope: scopes)
+
+    indexing.authorization.fetch_access_token!
     begin
       index = indexing.get_url_notification_metadata(url)
       LOGGER.info "Google job: #{index}"
