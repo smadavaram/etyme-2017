@@ -471,6 +471,10 @@ class Static::JobsController < ApplicationController
     update_google_job(url: url)
   end
 
+  def handle_google_get(job)
+    url = request.url + 'static/jobs/' + job.id.to_s
+    get_google_job(url: url)
+  end
 
 
 end

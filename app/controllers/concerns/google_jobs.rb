@@ -12,6 +12,7 @@ module GoogleJobs
   LOGGER = Logger.new('log/google_jobs.log')
 
   def indexing
+    scopes = [Google::Apis::IndexingV3::AUTH_INDEXING]
     indexing = Google::Apis::IndexingV3::IndexingService.new
     indexing.authorization = Google::Auth::ServiceAccountCredentials.make_creds(
       json_key_io: File.open('etyme-263016-eb89ccc549c2.json'),
@@ -26,12 +27,19 @@ module GoogleJobs
                .new(url:url, type: type)
     begin
       u = indexing.publish_url_notification(update)
-      LOGGER.info "Google job updated: #{u.url}"
+      LOGGER.info "Google job updated: #{u}"
     rescue Google::Apis::ClientError => e
       LOGGER.error e
     end
   end
 
-
+  def get_google_job(url:)
+    begin
+      index = indexing.get_url_notification_metadata(url)
+      LOGGER.info "Google job: #{index}"
+    rescue Google::Apis::ClientError => e
+      LOGGER.error e
+    end
+  end
 
 end
