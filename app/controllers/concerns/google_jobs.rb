@@ -26,7 +26,7 @@ module GoogleJobs
 
     # eg: https://cloudepa.etyme.com/static/jobs/80
     update = Google::Apis::IndexingV3::UrlNotification
-               .new(url:'https://cloudepa.etyme.com/static/jobs/81', type: type)
+               .new(url: url, type: type)
     begin
       u = indexing.publish_url_notification(update)
       LOGGER.info "Google job updated: #{u}"
