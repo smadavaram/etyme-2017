@@ -1,12 +1,17 @@
-<% content_for :head do %>
-  <meta content="<%= candidate_job_url(@job&.id) %>" property="og:url"/>
-  <meta content="<%= @job&.company&.name %>" property="og:title"/>
-  <meta content="summary" name="twitter:card"/>
-  <meta content="<%= @job&.title %>" name="twitter:title"/>
-  <meta content=" " property="fb:app_id"/>
-  <meta content="<%= @job&.description %>" property="og:description"/>
-  <meta content="article" property="og:type"/>
-<% end %>
+<%# content_for :head do %>
+<!--  <meta content="<%#= candidate_job_url(@job&.id) %>" property="og:url"/>-->
+<!--  <meta content="<%#= @job&.company&.name %>" property="og:title"/>-->
+<!--  <meta content="summary" name="twitter:card" />-->
+<!--  <meta content="<%#= @job&.title %>" name="twitter:title"/>-->
+<!--  <meta content=" " property="fb:app_id"/>-->
+<!--  <meta content="<%#= @job&.description %>" property="og:description"/>-->
+<!--  <meta content="article" property="og:type"/>-->
+<%# end %>
+
+<% content_for :meta_title, @job&.company&.name  %>
+<% content_for :meta_description, @job&.description %>
+<% content_for :meta_url, candidate_job_url(@job&.id) %>
+<% content_for :meta_image, @job&.company&.logo %>
 
 <section class="content-wrapper"> <!-- Section Content Wrapper -->
   <div class="container-fluid"> <!-- Div Container Fluid -->
