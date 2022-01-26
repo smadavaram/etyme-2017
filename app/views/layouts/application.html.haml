@@ -6,12 +6,12 @@
     :javascript
       (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
     %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'} :cdata
-    %meta{content: "#{meta_title}", property: "og:title", name:"twitter:title"}/
-    %meta{content: "#{meta_url}", property: "og:url"}/
-    -#%meta{content: "website", property: "og:type"}/
-    -#%meta{content: "cloudepa.etyme.com", property: "og:site_name"}/
-    %meta{content: "#{meta_description}", property: "og:description"}/
-    %meta{content: "#{meta_image}", property: "og:image"}/
+    -#%meta{content: "#{meta_title}", property: "og:title", name:"twitter:title"}/
+    -#%meta{content: "#{meta_url}", property: "og:url"}/
+    -#-#%meta{content: "website", property: "og:type"}/
+    -#-#%meta{content: "cloudepa.etyme.com", property: "og:site_name"}/
+    -#%meta{content: "#{meta_description}", property: "og:description"}/
+    -#%meta{content: "#{meta_image}", property: "og:image"}/
     = render 'head'
     = action_cable_meta_tag
     = stylesheet_link_tag    'application'
