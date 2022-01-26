@@ -216,7 +216,7 @@ class Static::JobsController < ApplicationController
     end
 
     if @job.present?
-      handle_google_update(@job)
+      # handle_google_update(@job)
 
       add_breadcrumb @job.title, static_job_path
       render layout: 'kulkakit'
