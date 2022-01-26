@@ -8,8 +8,8 @@
 <!--  <meta content="article" property="og:type"/>-->
 <%# end %>
 
-<% content_for :meta_title, @job&.company&.name  %>
-<% content_for :meta_description, truncate(@job&.description, length: 100) %>
+<% content_for :meta_title, @job&.title  %>
+<% content_for :meta_description, remove_html(truncate(@job&.description, length: 100)) %>
 <% content_for :meta_url, candidate_job_url(@job&.id) %>
 <% content_for :meta_image, @job&.company&.logo %>
 

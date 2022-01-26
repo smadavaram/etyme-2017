@@ -1,8 +1,15 @@
+<% content_for :meta_title, current_company&.name  %>
+<% content_for :meta_description, truncate(current_company&.banner_title, length: 100) %>
+<%# content_for :meta_url, current_company&.website %>
+<% content_for :meta_image, current_company&.logo %>
+
 <style>
 body{
   padding:0px !important;
 }
 </style>
+
+
 <section class="content-wrapper">
   <div class="container-fluid">
     <div class="row">

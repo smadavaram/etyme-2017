@@ -12,8 +12,12 @@ module MetaTagsHelper
     content_for?(:meta_url) ? content_for(:meta_url) : request.original_url
   end
   def meta_image
-    meta_image = (content_for?(:meta_image) ? content_for(:meta_image) :"og.jpg")
+    meta_image = (content_for?(:meta_image) ? content_for(:meta_image) :"og.jpeg")
     #  helps make the image work with both assets and url
     meta_image.starts_with?("http") ? meta_image : image_url(meta_image)
+  end
+
+  def remove_html(text)
+    ActionView::Base.full_sanitizer.sanitize(text)
   end
 end
