@@ -9,7 +9,7 @@ module MetaTagsHelper
 
 
   def meta_url
-    content_for?(:meta_url) ? content_for(:meta_url) : 'something'
+    content_for?(:meta_url) ? content_for(:meta_url) : request.original_url
   end
   def meta_image
     meta_image = (content_for?(:meta_image) ? content_for(:meta_image) :"og.jpg")

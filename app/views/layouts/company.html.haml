@@ -10,6 +10,7 @@
     %meta{:content => "#{user_signed_in? ? current_user.id : ''}", :name => "user-id"}
     %meta{:content => "#{user_signed_in? ? current_user.class.to_s == "Candidate" ? "Candidate" : "User" : ''}", :name => "user-type"}
     %meta{:content => "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no", :name => "viewport"}/
+
     = stylesheet_link_tag 'company', media: 'screen'
     / FAVICONS
     = action_cable_meta_tag

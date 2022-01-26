@@ -7,11 +7,12 @@
     <meta name="user-id" content='<%= "#{user_signed_in? ? current_user.id : ''}" %>'/>
     <meta name="user-type" content='<%= "#{user_signed_in? ? current_user.class.to_s == 'Candidate' ? 'Candidate' : 'User' : ''}" %>'/>
 
-    <meta content="Etyme" property="og:title">
-    <meta content="<%= request.original_url %>" property="og:url"/>
-    <meta content="website" property="og:type"/>
-    <meta content="cloudepa.etyme.com" property="og:site_name"/>
-    <meta content="Etymw" property="og:description"/>
+<!--    <meta content="Etyme" property="og:title">-->
+<!--    <meta content="<%#= request.original_url %>" property="og:url"/>-->
+<!--    <meta content="website" property="og:type"/>-->
+<!--    <meta content="cloudepa.etyme.com" property="og:site_name"/>-->
+<!--    <meta content="Etymw" property="og:description"/>-->
+    <%= render 'head' %>
     <script>
        (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');</script>
     <script async= "async" src='https://r.wdfl.co/rw.js' data-rewardful='afe750' type="text/javascript"></script>
