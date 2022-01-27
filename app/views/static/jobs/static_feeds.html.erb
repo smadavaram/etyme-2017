@@ -2,6 +2,7 @@
 <% content_for :meta_description, truncate(current_company&.banner_title, length: 100) %>
 <%# content_for :meta_url, current_company&.website %>
 <% content_for :meta_image, current_company&.logo %>
+<%# content_for :meta_image, convert_image(200,200,current_company&.logo) %>
 
 <style>
 body{

@@ -1,9 +1,20 @@
 # frozen_string_literal: true
+require "image_processing/mini_magick"
+
+
 
 # :nodoc:
 module ApplicationHelper
+
   def disable_spinning(text)
     "<i class='fa fa-spinner fa-pulse fa-spin pull-left'></i> #{text}"
+  end
+
+  def convert_image(width, height, image)
+    ImageProcessing::MiniMagick
+                  .source(image || image_path("og.jpg"))
+                  .resize_to_limit(width, height)
+                  .call
   end
 
   def user_domain?

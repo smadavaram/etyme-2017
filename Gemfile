@@ -168,5 +168,5 @@ gem 'serviceworker-rails'
 gem 'activeadmin_json_editor', '~> 0.0.7'
 gem 'pretender', '~> 0.3.2'
 gem 'google-apis-indexing_v3', '~> 0.1.0'
-
+gem "image_processing", "~> 1.0"
 gem 'rest-client'

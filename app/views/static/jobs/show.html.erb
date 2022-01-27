@@ -12,6 +12,8 @@
 <% content_for :meta_description, truncate( remove_html(@job&.description), length: 100) %>
 <% content_for :meta_url, candidate_job_url(@job&.id) %>
 <% content_for :meta_image, @job&.company&.logo %>
+<%# content_for :meta_image, convert_image(200, 200,@job&.company&.logo) %>
+
 
 <section class="content-wrapper"> <!-- Section Content Wrapper -->
   <div class="container-fluid"> <!-- Div Container Fluid -->

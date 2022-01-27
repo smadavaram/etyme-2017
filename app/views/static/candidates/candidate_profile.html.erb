@@ -3,6 +3,16 @@ body{
   padding: 0px !important;
 }
 </style>
+
+
+
+<% content_for :meta_title, @candidate&.full_name  %>
+<% content_for :meta_description, truncate(@candidate&.description, length: 100) || "Candidate on app.etyme.com" %>
+<%# content_for :meta_url, candidate_job_url(@job&.id) %>
+<%  unless @candidate.photo.nil? %>
+<% content_for :meta_image, @candidate.photo unless @candidate.photo.nil? %>
+<% end %>
+
 <section class="content-wrapper"> <!-- Section Content Wrapper -->
   <div class="container-fluid"> <!-- Div Container Fluid -->
     <div class="row"> <!-- Div Row -->

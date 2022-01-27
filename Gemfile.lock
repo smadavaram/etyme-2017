@@ -1794,6 +1794,7 @@ DEPENDENCIES
   hirb
   holidays
   httparty
+  image_processing (~> 1.0)
   jbuilder (~> 2.5)
   jquery-rails
   jquery-ui-rails
