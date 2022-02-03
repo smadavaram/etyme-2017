@@ -5,7 +5,7 @@ class ApplicationController < ActionController::Base
   protect_from_forgery
   layout :set_devise_layout
   before_action :is_user_authorized?
-  before_action :set_raven_context
+  # before_action :set_raven_context
   add_flash_types :error, :success, :errors, :alert
 
   rescue_from Exception, with: :render_generic_exception if Rails.env.production?
@@ -131,12 +131,12 @@ class ApplicationController < ActionController::Base
     }
   end
 
-  def set_raven_context
-    if user_signed_in?
-      Raven.user_context(id: current_user.id) # or anything else in session
-    end
-    Raven.extra_context(params: params.to_unsafe_h, url: request.url)
-  end
+  # def set_raven_context
+  #   if user_signed_in?
+  #     Raven.user_context(id: current_user.id) # or anything else in session
+  #   end
+  #   Raven.extra_context(params: params.to_unsafe_h, url: request.url)
+  # end
 
   helper_method :current_company
 
