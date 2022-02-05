@@ -5,20 +5,30 @@
 .ulmargin{
     text-align: center;
 }
+.tpc {
+    display: flex;
+    justify-content: flex-end;
+
+}
+@media only screen and (max-width: 800px) {
+    .tpc {
+        justify-content: space-evenly !important;
+    }
+
+}
 </style>
-<div class="top-bar color-scheme-transparent" style="height: 12vh; z-index: 1;">
+<div class="top-bar color-scheme-transparent" style=" z-index: 1; ">
   <!--------------------START - Top Menu Controls-------------------->
-  <div class="top-menu-controls w-100" style="display: flex; justify-content: flex-end;">
+  <div class="top-menu-controls w-100 tpc" style="">
 
 
     <!--    bread start-->
-    <div class="new-add-class" id="remove-logo-ham-id">
+<!--    <div class="new-add-class" id="remove-logo-ham-id">-->
     <div class="bread-style bread-styles" onclick="toglleMenu()">
       <div class="os-icon os-icon-hamburger-menu-1 bread-style1" ></div>
     </div>
-    </div>
+<!--    </div>-->
     <!--    bread end-->
-
 
     <!--    start search-->
     <div class="element-search autosuggest-search-activator" style="">

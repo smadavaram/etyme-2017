@@ -25,7 +25,7 @@
     .help-block.form-text.with-errors.form-control-feedback
     .pre-icon.os-icon.os-icon-fingerprint
   .form-group.field-group
-    %label{:for => "user_password"} Conform Password
+    %label{:for => "user_password"} Confirm Password
     = f.password_field :password_confirmation, :placeholder => "Confirm password", "data-rule-equalTo": "#password",class: 'form-control field'
     .help-block.form-text.with-errors.form-control-feedback
     .pre-icon.os-icon.os-icon-fingerprint
@@ -38,15 +38,15 @@
   .field-group
     %input.btn.btn-primary.float{"data-disable-with" => "Sign Up", :name => "commit", :type => "submit", :value => "Sign Up"}/
     .buttons-w.mt-4
-    = link_to '/auth/google_oauth2?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
-      %i.ti-google
-      Sign up with Google
-    = link_to '/auth/facebook?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
-      %i.ti-facebook
-      Sign up with Facebook
-    = link_to '/auth/linkedin?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
-      %i.ti-linkedin
-      Sign up with Linkedin
+    -# = link_to '/auth/google_oauth2?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    -#   %i.ti-google
+    -#   Sign up with Google
+    -# = link_to '/auth/facebook?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    -#   %i.ti-facebook
+    -#   Sign up with Facebook
+    -# = link_to '/auth/linkedin?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    -#   %i.ti-linkedin
+    -#   Sign up with Linkedin
 #myModal.modal{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :tabindex => "-1"}
   .modal-dialog
     .modal-content

@@ -24,7 +24,7 @@
               = link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path
           -else
             %li
-              %a{:href => new_candidate_session_path} Candidate  
+              %a{:href => new_candidate_session_path} Candidate
       %li.dropdown
         %a.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
           Register

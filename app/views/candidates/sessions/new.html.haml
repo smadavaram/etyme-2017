@@ -21,15 +21,15 @@
     .form-check-inline
       %label.form-check-label
     .buttons-w.mt-4
-    = link_to '/auth/google_oauth2?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
-      %i.ti-google
-      Sign in with Google
-    = link_to '/auth/facebook?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
-      %i.ti-facebook
-      Sign in with Facebook
-    = link_to '/auth/linkedin?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
-      %i.ti-linkedin
-      Sign in with Linkedin
+    -# = link_to '/auth/google_oauth2?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    -#   %i.ti-google
+    -#   Sign in with Google
+    -# = link_to '/auth/facebook?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    -#   %i.ti-facebook
+    -#   Sign in with Facebook
+    -# = link_to '/auth/linkedin?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    -#   %i.ti-linkedin
+    -#   Sign in with Linkedin
 
 - content_for :scripts do
   :javascript
