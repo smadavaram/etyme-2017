@@ -67,7 +67,7 @@
     <%  company_contact = current_user.user_company(current_company&.id) %>
 
     <div class="dropdown dropdown-container d-flex justify-content-end">
-      <% if company_contact.nil? || company_contact&.unsubscribed? %>
+      <% if company_contact.nil? || company_contact&.unsubscribed? && current_user.company.domain != "support" %>
         <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="alert('Subscribe to this space first')">
           <i class="fa fa-plus-circle" aria-hidden="true"></i>
         </button>
@@ -76,6 +76,7 @@
           <i class="fa fa-plus-circle" aria-hidden="true"></i>
         </button>
       <% end  %>
+
       <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
         <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostModal">
           Add Post
@@ -87,15 +88,19 @@
     </div>
 <!--    subscribed-->
     <div>
-      <% if company_contact %>
-        <% if company_contact.unsubscribed? %>
+
+      <% unless current_user.company.domain == "support" %>
+        <% if company_contact %>
+          <% if company_contact.unsubscribed? %>
+            <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
+               class="btn orange_btn filter6" data-method="post" >Subscribe</a>
+          <% end %>
+        <% else %>
           <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
              class="btn orange_btn filter6" data-method="post" >Subscribe</a>
         <% end %>
-      <% else %>
-        <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
-           class="btn orange_btn filter6" data-method="post" >Subscribe</a>
       <% end %>
+
     </div>
     <div class="d-inline-block mx-1 dropdown">
       <div class="avatar-header" data-toggle="dropdown">
@@ -110,11 +115,13 @@
         <%#= link_to 'Dashboard', marketplace_url(subdomain: current_user.domain, company: 'on', 'search_by[term]': '', 'search_scope': ''), target: '_blank', class: 'dropdown-item' %>
         <%= link_to 'Dashboard', dashboard_url(subdomain: current_user.domain), class: 'dropdown-item' %>
         <%#= link_to 'Onboarding', company_url(current_company,onboarding: true, subdomain: current_user.domain), class: 'dropdown-item' %>
+        <% unless current_user.company.domain == "support" %>
           <% if company_contact&.subscribed?%>
             <%= link_to 'unsubscribe',
                         users_unsubscribe_path(company_id:current_company&.id),
                         class: 'dropdown-item' , method: :post %>
           <% end %>
+        <% end %>
 
         <%= link_to 'Profile', company_user_url(current_user, subdomain: current_user.domain), class: 'dropdown-item' %>
         <%= link_to "Logout", destroy_user_session_path, method: :delete, class: 'dropdown-item' %>
