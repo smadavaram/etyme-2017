@@ -6,15 +6,23 @@
     %meta{:content => "#{user_signed_in? ? current_user.id : ''}", :name => "user-id"}
     %meta{:content => "#{user_signed_in? ? current_user.class.to_s == "Candidate" ? "Candidate" : "User" : ''}", :name => "user-type"}
 
-    %meta{content: "Etyme", property: "og:title"}/
-    %meta{content: "#{request.original_url}", property: "og:url"}/
+    -#%meta{content: "Etyme", property: "og:title"}/
+    -#%meta{content: "#{request.original_url}", property: "og:url"}/
+    -#%meta{content: "website", property: "og:type"}/
+    -#%meta{content: "cloudepa.etyme.com", property: "og:site_name"}/
+    -#%meta{content: "Etymw", property: "og:description"}/
+
+    %meta{content: "#{meta_title}", property: "og:title", name:"twitter:title"}/
+    %meta{content: "#{meta_url}", property: "og:url"}/
     %meta{content: "website", property: "og:type"}/
-    %meta{content: "cloudepa.etyme.com", property: "og:site_name"}/
-    %meta{content: "Etymw", property: "og:description"}/
+    %meta{content: "Etyme", property: "og:site_name"}/
+    %meta{content: "#{meta_description}", property: "og:description"}/
+    %meta{content: "#{meta_image}", property: "og:image"}/
+    %meta{content: "summary", property: "twitter:card"}/
     :javascript
       (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
     %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'} :cdata
-    %title Etyme
+    %title Ety
     = stylesheet_link_tag    'static'
     = action_cable_meta_tag
     = javascript_include_tag 'https://platform-api.sharethis.com/js/sharethis.js#property=5899b27937570f0011ac3636&product=inline-share-buttons'
