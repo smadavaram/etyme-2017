@@ -10,9 +10,15 @@
     justify-content: flex-end;
 
 }
+.add-text {
+    margin-top: 10px;
+}
 @media only screen and (max-width: 800px) {
     .tpc {
         justify-content: space-evenly !important;
+    }
+    .add-text{
+        margin-top: 7px !important;
     }
 
 }
@@ -37,7 +43,7 @@
     <!--    end search-->
 
     <!--   START Notifications -->
-    <div class="icon-wrapper">
+    <div class="icon-wrapper ">
       <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left div-style-1">
         <div  class="div-style-2">
           <a href="<%= notify_notifications_candidates_path(status: "unread", notification_type: "all_notifications") %>"><i class="ti-bell" style="width: 61px; height: 61px;  box-shadow: 0px 4px 15px rgba(255, 0, 0, 0.42); background: rgba(255, 0, 0, 0.61); border-radius: 50px; color: #FFFFFF"></i></a>
@@ -46,7 +52,7 @@
           <% end %>
         </div>
       </div>
-      <span class="icon-text" style="color: black; margin-top: 7px">Notification</span>
+      <span class="icon-text" style="color: black; margin-top: 7px; text-align: center; margin-left: 4px;">Notification</span>
     </div>
     <!--   END Notifications -->
 
@@ -58,14 +64,14 @@
           <a href="<%= candidate_conversations_path %>" target="_blank"><i class="os-icon os-icon-mail-14" style="width: 61px; height: 61px; color: white"></i></a>
         </div>
       </div>
-      <span class="icon-text" style="color: black;  margin-top: 7px">Chat</span>
+      <span class="icon-text" style="color: black;  margin-top: 7px; margin-left: 5px;">Chat</span>
     </div>
     <!--------------------END - Messages Link in secondary top menu-------------------->
 
     <!--------------------START - Features Link in secondary top menu-------------------->
     <div>
-      <div class="top-icon btn-header transparent pull-right open div-style-5" id="quick-add">
-        <i class="ti-plus" style="font-size: 22px"></i>
+      <div class="top-icon btn-header transparent pull-right open div-style-5" id="quick-add" >
+        <i class="ti-plus" style="font-size: 30px"></i>
         <ul class="dropdown-menu project-dropdown" style=" background-color: #047bf8;right: 120px !important; left: initial;">
           <li>
             <div style="color: white; font-weight: bold;" class=".sub-title">Timer(s)</div>
@@ -85,7 +91,7 @@
           </li>
         </ul>
       </div>
-      <span class="icon-text" style="color: black;"><label style="margin-top: 10px">Add</label></span>
+      <span class="icon-text" style="color: black;"><label class="add-text">Add</label></span>
     </div>
 
     <!--------------------END - Features Link in secondary top menu-------------------->
