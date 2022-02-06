@@ -4,7 +4,7 @@ module MetaTagsHelper
   end
 
   def meta_description
-    content_for?(:meta_description) ? content_for(:meta_description) : "The Job matching agency"
+    content_for?(:meta_description) ? content_for(:meta_description) : "Etyme - Onboard Consultants in 24hrs or less. Curated by world class recruiters & AI."
   end
 
 
