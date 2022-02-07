@@ -1,9 +1,11 @@
 <style>
 @media (min-width: 1025px) {
+
   .fixed-side{
     position: fixed;
     width: 224px;
   }
+
   .margin_class{
     margin-left: 224px !important;
   }
@@ -50,45 +52,53 @@
 .newindex-class{
   z-index: 100;
 }
+
+@media screen and (max-width: 768px) {
+    .header-title{
+        font-size: 11px!important;
+
+    }
+}
+
 </style>
-<%
+<%#
 =begin%>
- <div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; height: 12vh; padding-left: 10px;">
-  <div style="display: flex !important; margin-bottom: 10px !important;">
-    <div class="col-sm-10 col-md-10 col-lg-10 logged-user-i" style="display: inline-flex !important; align-items:center; padding-left: 0.7rem; margin-top: 10px;">
-      <div class="avatar-w" style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">
-          <%= user_image(current_candidate&.associated_company, class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
-        </div>
-      <div class="logged-user-info-w" style="padding-left: 15px;">
-          <div class="logged-user-name">
-            <% if current_candidate.associated_company %>
-              <%= link_to current_candidate.associated_company.name.capitalize, '#', class: "text-muted" %>
+<!-- <div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; height: 12vh; padding-left: 10px;">-->
+<!--  <div style="display: flex !important; margin-bottom: 10px !important;">-->
+<!--    <div class="col-sm-10 col-md-10 col-lg-10 logged-user-i" style="display: inline-flex !important; align-items:center; padding-left: 0.7rem; margin-top: 10px;">-->
+<!--      <div class="avatar-w" style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">-->
+          <%#= user_image(current_candidate&.associated_company, class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
+<!--        </div>-->
+<!--      <div class="logged-user-info-w" style="padding-left: 15px;">-->
+<!--          <div class="logged-user-name">-->
+            <%# if current_candidate.associated_company %>
+              <%#= link_to current_candidate.associated_company.name.capitalize, '#', class: "text-muted" %>
               <%#= link_to "<i class='os-icon os-icon-ui-49'></i>".html_safe, "#candidate-bench_req", :class => "", "data-toggle" => "modal" %>
 
-            <% else %>
-              <a href="#" class="text-muted"> freelancer</a>
-            <% end %>
-          </div>
-          <!--div class="logged-user-role">My Team</div-->
-        </div>
-    </div>
-    <div id='toggle1' class="col-sm-2 col-md-2 col-lg-2 toggleshow" style="margin-top: 9px !important; padding-left: 14px;">
-      <div class="icon-button-style " style="display: flex !important; ">
-        <div id="togglebutton" onclick="toglleMenu()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
-          <div class="os-icon os-icon-hamburger-menu-1"></div>
-        </div>
-      </div>
-    </div>
-    <div id='toggle2' class="col-sm-2 col-md-2 col-lg-2 togglehide" style="margin-top: 9px !important; padding-left: 14px;">
-      <div class="icon-button-style" style="display: flex !important; ">
-        <div id="togglebutton" onclick="toglleMenu1()" class="<%= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">
-          <div class="os-icon os-icon-hamburger-menu-1"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-<%
+            <%# else %>
+<!--              <a href="#" class="text-muted"> freelancer</a>-->
+            <%# end %>
+<!--          </div>-->
+<!--         div class="logged-user-role">My Team</div-->
+<!--        </div>-->
+<!--    </div>-->
+<!--    <div id='toggle1' class="col-sm-2 col-md-2 col-lg-2 toggleshow" style="margin-top: 9px !important; padding-left: 14px;">-->
+<!--      <div class="icon-button-style " style="display: flex !important; ">-->
+<!--        <div id="togglebutton" onclick="toglleMenu()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">-->
+<!--          <div class="os-icon os-icon-hamburger-menu-1"></div>-->
+<!--        </div>-->
+<!--      </div>-->
+<!--    </div>-->
+<!--    <div id='toggle2' class="col-sm-2 col-md-2 col-lg-2 togglehide" style="margin-top: 9px !important; padding-left: 14px;">-->
+<!--      <div class="icon-button-style" style="display: flex !important; ">-->
+<!--        <div id="togglebutton" onclick="toglleMenu1()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">-->
+<!--          <div class="os-icon os-icon-hamburger-menu-1"></div>-->
+<!--        </div>-->
+<!--      </div>-->
+<!--    </div>-->
+<!--  </div>-->
+<!--</div>-->
+<%#
 =end%>
 
 
@@ -125,16 +135,18 @@
 
 
 <div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link newindex-class">
-  <div class="logged-user-w avatar-inline p-1 m-1" style="height: 5vh; margin-top: 18px !important;">
+
+  <div class="logged-user-w avatar-inline m-1 " style="height: 5vh; margin-top: 18px !important; margin-left: -12px !important; border: none !important;">
     <div class="logged-user-i">
       <div class="avatar-w">
+<!--        <img src="<%#= image_path('og.jpeg') %>" style= 'width: 35px; height: 35px;' alt="">-->
         <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
       </div>
       <div class="logged-user-info-w">
-        <div class="logged-user-name">
+        <div class="logged-user-name d-flex ">
           <% if current_candidate.associated_company %>
-            <%= link_to current_candidate.associated_company.name.capitalize, '#', class: "text-muted" %>
-            <%= link_to "<i class='os-icon os-icon-ui-49'></i>".html_safe, "#candidate-bench_req", :class => "", "data-toggle" => "modal" %>
+            <%= link_to current_candidate.associated_company.name.capitalize, '#', class: "text-muted header-title" %>
+            <%= link_to "<i class='os-icon os-icon-ui-49'></i>".html_safe, "#candidate-bench_req", :class => "pl-1", "data-toggle" => "modal" %>
 
           <% else %>
             <a href="#" class="text-muted"> freelancer</a>
@@ -152,7 +164,9 @@
 <!--      </div>-->
     </div>
   </div>
-  <div class="candidate_nav logged-user-w avatar-inline pl-4 pt-0 pr-0">
+
+<!--  End of header image-->
+  <div class="candidate_nav logged-user-w avatar-inline pl-4 pt-4 pr-0 border-t-2">
     <div class="side-bar_nav w-100 pr-2" style="height: calc(100vh - 175px);overflow-y: auto;">
       <a href="/candidate" class="side-bar_tab side-bar_links">
         <div class="icon-w">

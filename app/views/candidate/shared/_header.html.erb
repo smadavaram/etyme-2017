@@ -13,12 +13,20 @@
 .add-text {
     margin-top: 10px;
 }
+.adjust-left {
+    margin-left: 0;
+
+}
 @media only screen and (max-width: 800px) {
     .tpc {
         justify-content: space-evenly !important;
     }
     .add-text{
         margin-top: 7px !important;
+        /*margin-left: -12px;*/
+    }
+    .adjust-left {
+        margin-left: 5px !important;
     }
 
 }
@@ -27,19 +35,30 @@
   <!--------------------START - Top Menu Controls-------------------->
   <div class="top-menu-controls w-100 tpc" style="">
 
-
-    <!--    bread start-->
-<!--    <div class="new-add-class" id="remove-logo-ham-id">-->
     <div class="bread-style bread-styles" onclick="toglleMenu()">
       <div class="os-icon os-icon-hamburger-menu-1 bread-style1" ></div>
     </div>
-<!--    </div>-->
-    <!--    bread end-->
-
     <!--    start search-->
-    <div class="element-search autosuggest-search-activator" style="">
-      <input class="search-div-style" placeholder="Find reports and more" type="text" >
+<!--    search icon -->
+
+
+<!--    <div class="bread-style bread-styles" >-->
+<!--        <div class="os-icon os-icon-search bread-style1 " ></div>-->
+<!--      <br>-->
+<!--        <p class="icon-text adjust-left" style="color: black; margin-top: 7px; ">Search </p>-->
+
+<!--    </div>-->
+
+    <div>
+      <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left div-style-3">
+        <div class="div-style-4" >
+          <a href="#" target="_blank"><i class="os-icon os-icon-search" style="width: 61px; height: 61px; color: white"></i></a>
+        </div>
+      </div>
+      <span class="icon-text adjust-left" style="color: black;  margin-top: 7px;   ">Search</span>
     </div>
+
+
     <!--    end search-->
 
     <!--   START Notifications -->
@@ -52,7 +71,7 @@
           <% end %>
         </div>
       </div>
-      <span class="icon-text" style="color: black; margin-top: 7px; text-align: center; margin-left: 4px;">Notification</span>
+      <span class="icon-text adjust-left" style="color: black; margin-top: 7px; ">Notification</span>
     </div>
     <!--   END Notifications -->
 
@@ -64,7 +83,7 @@
           <a href="<%= candidate_conversations_path %>" target="_blank"><i class="os-icon os-icon-mail-14" style="width: 61px; height: 61px; color: white"></i></a>
         </div>
       </div>
-      <span class="icon-text" style="color: black;  margin-top: 7px; margin-left: 5px;">Chat</span>
+      <span class="icon-text adjust-left" style="color: black;  margin-top: 7px; ">Chat</span>
     </div>
     <!--------------------END - Messages Link in secondary top menu-------------------->
 
@@ -98,7 +117,7 @@
 
 
     <!--------------------START - User Link in secondary top menu-------------------->
-    <div class="top-icon mobile-user-icon top-settings os-dropdown-trigger os-dropdown-position-left"  style= "margin-bottom: 20px;">
+    <div class="top-icon  top-settings os-dropdown-trigger os-dropdown-position-left"  style= "margin-bottom: 20px;">
       <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
         <div class="logged-user-i">
           <div class="div-style-8 div-style-6" >
@@ -133,7 +152,7 @@
               <li>
                 <div>
                   <a href="#" class="onlinebutton" id="clickbuttonli">
-                      <i class=" fa fa-signal"></i> 
+                      <i class=" fa fa-signal"></i>
                       <span id="removetextcan"><%= current_candidate.online_candidate_status %></span>
                   </a>
                   <div class="" id="subdrop" style="display: none;">

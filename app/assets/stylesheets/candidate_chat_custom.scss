@@ -282,6 +282,26 @@
   justify-content: center;
   align-items: center;
 }
+.div-style-4 {
+  @media only screen and (max-width: 600px) {
+    width: 32.6px;
+    height: 32.6px;
+  }
+  width: 41px;
+  height: 41px;
+  position: absolute;
+  left: 8.2%;
+  right: 8.2%;
+  top: 8.2%;
+  bottom: 8.2%;
+  background: #047bf8;
+  box-shadow: 0px 4px 15px rgba(180, 180, 180, 0.25);
+  border-radius: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .div-style-5 {
   @media only screen and (max-width: 600px) {
     width: 43px;
