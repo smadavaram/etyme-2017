@@ -147,9 +147,9 @@ Rails.application.routes.draw do
     get '/profile', to: 'candidates#show'
 
 
-    get '/:candidate_name', to: 'candidates#my_profile', as: 'my_profile',constraints: { subdomain: 'app' }
+    get '/my_profile', to: 'candidates#my_profile', as: 'my_profile'
 
-    get '/onboarding_profile', to: 'candidates#onboarding_profile' ,constraints: { subdomain: 'app' }
+    get '/onboarding_profile', to: 'candidates#onboarding_profile'
   end
 
   namespace :candidate do

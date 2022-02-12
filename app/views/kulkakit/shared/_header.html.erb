@@ -58,7 +58,7 @@
             <% end %>
           <% end %>
 
-        <%= link_to 'Profile',my_profile_url(candidate_name: current_candidate.full_name_friendly), class: 'dropdown-item' %>
+        <%= link_to 'Profile',my_profile_url, class: 'dropdown-item' %>
         <%= link_to "Logout", destroy_candidate_session_path, method: :delete, class: 'dropdown-item' %>
       </div>
     </div>

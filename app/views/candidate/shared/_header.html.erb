@@ -121,7 +121,7 @@
       <div class="logged-user-w" style="padding-left: 0px; padding-right: 0px;">
         <div class="logged-user-i">
           <div class="div-style-8 div-style-6" >
-            <%= link_to my_profile_path(candidate_name: current_candidate.full_name_friendly) do %>
+            <%= link_to my_profile_path do %>
               <%= user_image(current_candidate, class: 'data-table-image mr-2 div-style-7a', title: "#{current_candidate.full_name}") %>
             <% end %>
           </div>
@@ -144,7 +144,7 @@
                 </a>
               </li>
               <li>
-                <a href="<%= my_profile_path(candidate_name: current_candidate.full_name_friendly) %>">
+                <a href="<%= my_profile_url(subdomain: "app") %>">
                   <i class="os-icon os-icon-user-male-circle2"></i>
                   <span>Profile</span>
                 </a>
