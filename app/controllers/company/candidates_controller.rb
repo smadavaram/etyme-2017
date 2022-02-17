@@ -37,7 +37,7 @@ class Company::CandidatesController < Company::BaseController
       redirect_to candidates_path and return
     end
 
-    @candidates_company = CandidatesCompany.new candidate_id: @candidate.id, company_id: current_company.id, candidate_status: 'pending'
+    @candidates_company = CandidatesCompany.new candidate_id: @candidate.id, company_id: current_company.id
 
     unless @candidates_company.save
       flash[:errors] = @candidates_company.errors.full_messages
