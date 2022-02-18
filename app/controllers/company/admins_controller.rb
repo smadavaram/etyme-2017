@@ -70,13 +70,14 @@ class Company::AdminsController < Company::BaseController
   def edit; end
 
   def update
-    admin_name = @admin.full_name
+    # admin_name = @admin.full_name
     if @admin.update(admin_params)
-      flash[:success] = "#{admin_name} updated successfully."
+      render js: "window.location='#{admins_path}'"
     else
       flash[:errors] = @admin.errors.full_messages
+      render js: "window.location='#{admins_path}'"
     end
-    redirect_back fallback_location: root_path
+
   end
 
   def destroy
