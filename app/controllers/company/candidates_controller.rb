@@ -140,7 +140,7 @@ class Company::CandidatesController < Company::BaseController
     @candidate = Candidate.find_by email: params[:candidate][:email]
 
     if @candidate.present?
-      @candidates_company = CandidatesCompany.new candidate_id: @candidate.id, company_id: current_company.id
+      @candidates_company = CandidatesCompany.new candidate_id: @candidate.id, company_id: current_company.id, candidate_status: 'pending'
 
       if @candidates_company.save
         flash[:success] = 'Candidate added to the company!'
