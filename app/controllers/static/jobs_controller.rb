@@ -44,24 +44,21 @@ class Static::JobsController < ApplicationController
     candidate_ids = ids.split(',').map(&:to_i) if ids.present?
 
     @current_company = current_company
-    @uniq_hot_candidates = CandidatesCompany.where(id: CandidatesCompany.hot_candidate.where(company_id: @current_company.id).pluck(:id).uniq)
 
     if request.subdomain == 'app'
       if candidate_ids.present?
-        @candidates = CandidatesCompany.hot_candidate.where(candidate_id: candidate_ids.uniq).paginate(page: params[:page], per_page: 50)
+        @candidates = CandidatesCompany.hot_candidate.where(candidate_id: candidate_ids).paginate(page: params[:page], per_page: 50)
       else
         @candidates = CandidatesCompany.hot_candidate.paginate(page: params[:page], per_page: 50)
       end
     elsif @current_company.present?
-      @candidates_hot = @uniq_hot_candidates.first(3)
+      @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
 
       if candidate_ids.present?
-        @uniq_hot_candidates = CandidatesCompany.where(id: CandidatesCompany.hot_candidate.where(company_id: @current_company.id, candidate_id: candidate_ids.uniq).pluck(:id))
-
-        @candidates = @uniq_hot_candidates.paginate(page: params[:page], per_page: 50)
+        @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id, candidate_id: candidate_ids).paginate(page: params[:page], per_page: 50)
       else
-        @candidates = @uniq_hot_candidates.paginate(page: params[:page], per_page: 50)
+        @candidates = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).paginate(page: params[:page], per_page: 50)
       end
     end
 
