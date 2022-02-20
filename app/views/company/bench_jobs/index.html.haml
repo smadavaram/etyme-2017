@@ -29,7 +29,7 @@
                     %th Recruiter Name
                     %th Actions
                 %tbody{:style => "font-size: 12px;"}
-                  - @candidates.each_with_index do |c , index|
+                  - @candidates.each do |c|
                     - @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id)
                     %tr
                       %td

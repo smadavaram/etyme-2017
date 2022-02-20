@@ -6,7 +6,7 @@ class Company::BenchJobsController < Company::BaseController
 
   def index
     add_breadcrumb 'My Bench'
-    @candidates = CandidatesCompany.hot_candidate.where(company_id: current_company.id)
+    @candidates = CandidatesCompany.where(company_id: current_company.id).hot_candidate.uniq(&:candidate_id)
   end
 
   def edit_job_invitation

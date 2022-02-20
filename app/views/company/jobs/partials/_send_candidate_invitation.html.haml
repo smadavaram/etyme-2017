@@ -7,7 +7,7 @@
       Select Candidate
       %sup.text-danger *
     .col-md-10
-      = select_tag 'temp_candidates', options_for_select(candidates.collect { |c| [c.full_name,c.id] }),prompt: "Select Candidate" ,class: 'form-control' , required: true ,:multiple => true
+      = select_tag 'temp_candidates', options_for_select(candidates.uniq.collect { |c| [c.full_name,c.id] }),prompt: "Select Candidate" ,class: 'form-control' , required: true ,:multiple => true
   .form-group
     %label.col-md-2.control-label
       Expiry Date

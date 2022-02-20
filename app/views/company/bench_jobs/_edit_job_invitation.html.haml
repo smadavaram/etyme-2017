@@ -17,7 +17,7 @@
               Select Candidate
               %sup.text-danger *
             .col-md-12
-              = f.select :recipient_id, options_for_select(current_company.candidates.map {|p| [ p.full_name, p.id ] }, job_invitation&.recipient_id), { include_blank: true }, {style: "height:37px;", :required => true}
+              = f.select :recipient_id, options_for_select(current_company.candidates.uniq.map {|p| [ p.full_name, p.id ] }, job_invitation&.recipient_id), { include_blank: true }, {style: "height:37px;", :required => true}
           .form-group
             .row
               .col-md-6

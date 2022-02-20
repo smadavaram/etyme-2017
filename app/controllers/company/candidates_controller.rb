@@ -137,6 +137,7 @@ class Company::CandidatesController < Company::BaseController
   end
 
   def create
+
     @candidate = Candidate.find_by email: params[:candidate][:email]
 
     if @candidate.present?
@@ -170,6 +171,7 @@ class Company::CandidatesController < Company::BaseController
         redirect_to candidates_path and return
       else
         flash[:errors] = @candidate.errors.full_messages
+        debugger
         redirect_to candidates_path and return
       end
     end
