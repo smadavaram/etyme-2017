@@ -61,7 +61,7 @@ class Static::JobsController < ApplicationController
         @uniq_candidates_company = CandidatesCompany.where(id: CandidatesCompany.where(company_id: @current_company.id, candidate_id: candidate_ids.uniq))
         @candidates = @uniq_candidates_company.paginate(page: params[:page], per_page: 50)
       else
-        @uniq_candidates_company = CandidatesCompany.where(id: CandidatesCompany.where(company_id: @current_company.hot_candidate.uniq(&:candidate_id )))
+        @uniq_candidates_company = CandidatesCompany.where(id: CandidatesCompany.where(company_id: @current_company.id).hot_candidate.uniq(&:candidate_id))
         @candidates = @uniq_candidates_company.paginate(page: params[:page], per_page: 50)
       end
     end
