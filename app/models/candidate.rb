@@ -87,6 +87,7 @@
 #  online_candidate_status    :string
 #
 class Candidate < ApplicationRecord
+  include HandleErrors
   # Include default devise modules. Others available are:
   # :confirmable, :lockable, :timeoutable and :omniauthable
   devise :invitable, :database_authenticatable, :registerable,
@@ -141,6 +142,7 @@ class Candidate < ApplicationRecord
 
   has_many :educations, dependent: :destroy, foreign_key: 'user_id'
   has_many :experiences, dependent: :destroy, foreign_key: 'user_id'
+
   has_many :candidates_companies, dependent: :destroy
   has_many :companies, through: :candidates_companies, dependent: :destroy
   has_many :candidates_resumes, dependent: :destroy
@@ -305,7 +307,9 @@ class Candidate < ApplicationRecord
     invite! do |u|
       u.skip_invitation = true
     end
-    CandidateMailer.invite_user(self, invited_by).deliver_now
+    handle_email_errors do
+      CandidateMailer.invite_user(self, invited_by).deliver_now
+    end
   end
 
   def already_applied?(job_id)
@@ -349,7 +353,9 @@ class Candidate < ApplicationRecord
 
   # send welcome email to candidate
   def send_welcome_email
-    CandidateMailer.welcome_candidate(self).deliver_now
+    handle_email_errors do
+      CandidateMailer.welcome_candidate(self).deliver_now
+    end
   end
 
   # def send_job_invitation
