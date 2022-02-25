@@ -66,7 +66,7 @@
                 <div class="row" style="width: 12vh">
                   <a href="<%= company_user_profile_path(g.groupable.id) unless g.groupable.nil? %>">
                     <!--              <img src="/assets/keanu.jpg">-->
-                    <%= user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'image-35 mr-1', title: "#{g.groupable.full_name}") %>
+                    <%= user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'image-35 mr-1', title: "#{g.groupable.full_name unless g.groupable.nil?}") %>
                   </a>
                   <%#if g.groupable&.photo.blank? %>
                   <%#=entity_image(g.groupable&.first_name,g.groupable&.last_name)%>
