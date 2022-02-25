@@ -192,7 +192,7 @@
         <%end %>
       </div>
         <div class="col-3 col-sm-3 col-md-3 col-lg-3" style="margin-top: auto;">
-          <input name="search-specfic-text"  style="width: 100%;" class="input-field main_chat_search_filed mb-2" placeholder="Search message" type="text" id="search-specfic-text" value=""  onchange= "searchMessage(event, <%= conversation.id %>)" >
+          <input name="search-specfic-text"  style="width: 100%;" class="input-field main_chat_search_filed mb-2" placeholder="Search message" type="text" id="search-specfic-text" value=""  onchange= "searchMessage(event, <%= conversation.id unless conversation.nil? %>)" >
         </div>
       <div class="">
         <!--      <div class="row vidoebutton-style-div" >-->
