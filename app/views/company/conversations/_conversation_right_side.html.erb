@@ -40,9 +40,9 @@
             <div class="row chats-rows" style="margin-right: 7%; margin-left: 7%; margin-bottom:7%;">
               <div class="col-sm-3 col-md-3 col-lg-3 ">
                 <div class="row" style="width: 12vh">
-                  <a href="<%= company_user_profile_path(g.groupable.id)  unless g.groupable.nil?  %>">
-<!--
-                     <img src="/assets/keanu.jpg">-->
+                  <a href="<%= company_user_profile_path(g.groupable.id)  unless g.groupable.nil? %>">
+<!--                    -->
+                    <!--        <img src="/assets/keanu.jpg">-->
                     <%= user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'image-35 mr-1', title: "#{g.groupable&.full_name}") %>
                   </a>
                 </div>
@@ -64,7 +64,7 @@
             <div class="row chats-rows" style="margin-right: 7%; margin-left: 7%; margin-bottom:7%;">
               <div class="col-sm-3 col-md-3 col-lg-3 ">
                 <div class="row" style="width: 12vh">
-                  <a href="<%= company_user_profile_path(g.groupable.id) %>">
+                  <a href="<%= company_user_profile_path(g.groupable.id) unless g.groupable.nil? %>">
                     <!--              <img src="/assets/keanu.jpg">-->
                     <%= user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'image-35 mr-1', title: "#{g.groupable.full_name}") %>
                   </a>
