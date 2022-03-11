@@ -6,7 +6,7 @@ class Static::JobsController < ApplicationController
   before_action :set_jobs, only: %i[index show]
   before_action :find_job, only: %i[show apply job_appication_without_registeration job_appication_with_recruiter iframe_apply]
   before_action :is_subscribed?, only: %i[post_question post_job]
-  before_action :authenticate_user!, only: %i[people]
+  # before_action :authenticate_user!, only: %i[people]
   layout 'static'
 
 
