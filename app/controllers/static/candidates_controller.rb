@@ -4,7 +4,7 @@ class Static::CandidatesController < ApplicationController
   layout 'static'
 
   before_action :find_candidate, only: %i[resume send_message]
-
+  before_action :authenticate_user!, only: %i[candidate_profile]
   def resume
     render layout: 'resume'
   end
