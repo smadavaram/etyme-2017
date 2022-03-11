@@ -50,7 +50,7 @@ class Static::CandidatesController < ApplicationController
   private
 
   def auth_user!
-    redirect_to request.referrer, notice: "Please login to see details" if current_company.nil? and current_candidate.nil?
+    redirect_to request.referrer, notice: "Please login to see details" if current_user.nil? and current_candidate.nil?
   end
 
   def find_candidate
