@@ -86,11 +86,11 @@
 
                                                     <!-- Like Icon -->
                                                    <% if current_user.nil? and current_candidate.nil? %>
-                                                    <div class="card-footer-like mr-2"  id="like-button">
+                                                    <div class="card-footer-like mr-2"  id="like-button-<%= c.id %>">
                                                         <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
                                                     </div>
                                                     <script type="text/javascript" charset="utf-8">
-                                                        $('#like-button').click(function (){
+                                                        $('#like-button-<%= c.id %>').click(function (){
                                                             alert('You must be logged in to like a candidate');
                                                         })
                                                     </script>
@@ -117,10 +117,10 @@
                                                     <div class="logged-user-role d-block">
 
                                                       <% if current_user.nil? and current_candidate.nil? %>
-                                                        <button id="chat-button" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
+                                                        <button id="chat-button-<%= c.id %>" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
 
                                                         <script type="text/javascript" charset="utf-8">
-                                                            $('#chat-button').click(function (){
+                                                            $('#chat-button-<%= c.id %>').click(function (){
                                                                 alert('You must be logged in to chat.');
                                                             })
                                                         </script>
