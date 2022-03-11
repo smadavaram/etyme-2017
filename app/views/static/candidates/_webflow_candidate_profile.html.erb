@@ -205,9 +205,9 @@
         Hourly rate
       </div>
       <div class="profile-buttons">
-        <a href="#" class="profile-button-add">
-          Add as Candidate
-        </a>
+<!--        <a href="#" class="profile-button-add">-->
+<!--          Add as Candidate-->
+<!--        </a>-->
             <%c_candidate_obj = Candidate.find_by(id: @candidate)%>
             <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
 
@@ -225,7 +225,7 @@
         </a>
         <%if candidate.candidates_resumes&.last.present? %>
           <a href="<%=candidate.candidates_resumes&.last.resume %>" download  class="profile-link-download" target="_blank">
-            Download Resume
+            Print Resume
           </a>
         <% else %>
           <%= "No Ressume Available" %>
