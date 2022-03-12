@@ -240,6 +240,9 @@
         <% else %>
           <%= "No Ressume Available" %>
         <% end %>
+        <a id="print-page" class="profile-link-download" target="_blank" >
+        Print Page </a>
+
       </div>
       <div class="profile-section">
         <div class="profile-section-header">
@@ -480,7 +483,11 @@
 </div>
 <%= render 'static/candidates/webflow_candidate_add_review', candidate: candidate, rating_categories: @rating_categories %>
 
-
+<script type="text/javascript" charset="utf-8">
+    $('#print-page').click(function() {
+        window.print();
+    });
+</script>
 <script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
 <% content_for :head do %>
   <link href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.css" rel="stylesheet" type="text/css"></link>
