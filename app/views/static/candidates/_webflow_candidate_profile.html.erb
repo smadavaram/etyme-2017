@@ -45,7 +45,7 @@
       <div class="profile-stats">
         <div class="profile-stats-container">
           <div class="profile-stats-number">
-            2
+            <%= candidate.experiences.count %>
           </div>
           <div class="profile-stats-label">
             Years of Experience
@@ -53,7 +53,7 @@
         </div>
         <div class="profile-stats-container">
           <div class="profile-stats-number">
-            4
+           <%= candidate.experiences.count%>
           </div>
           <div class="profile-stats-label">
             Clients
@@ -204,14 +204,14 @@
 
           <div class="logged-user-role d-block">
             <%if c_recruiter.present? && current_user != c_recruiter%>
-              <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_styles " "><div class='profile-button-chat'>
+              <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_styles"><div class='profile-button-chat'>
                 <div class="logged-user-role d-block ">
                     <%= chat_recruiter_link_image(c_recruiter) %>
                 </div>
                  <span class="pl-2">Chat </span>
               </div></button>
             <%else%>
-              <button onclick="candidate_button(<%= c_candidate_obj.id %>)" class="bot_styles" style="border-radius: 2em !important"><div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div></button>
+              <button onclick="candidate_button(<%= c_candidate_obj.id %>)" class="bot_styles"><div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div></button>
             <%end%>
           </div>
         </div>
