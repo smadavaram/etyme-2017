@@ -99,13 +99,13 @@ module ApplicationHelper
       if( profile_photo != "avatars/male.png" )
         profile_class = "imag_css_for_pic"
       end
-      image_tag(profile_photo, :class => "imag_css #{profile_class}", :title=> "#{user.first_name + ' ' +user.last_name + "/" + user.try(:company).try(:name)}")
+      image_tag(profile_photo, :class => "imag_css #{profile_class} rounded-circle", :title=> "#{user.first_name + ' ' +user.last_name + "/" + user.try(:company).try(:name)}")
     else
       (user && user.photo) ? profile_photo = user.photo : profile_photo = "avatars/male.png"
       if (profile_photo != "avatars/male.png")
         profile_class = "imag_css_for_pic"
       end
-      image_tag(profile_photo, :class => "imag_css #{profile_class}",:title=> "#{user.first_name + ' ' +user.last_name + "/" + user.try(:company).try(:name)}")
+      image_tag(profile_photo, :class => "imag_css #{profile_class} rounded-circle",:title=> "#{user.first_name + ' ' +user.last_name + "/" + user.try(:company).try(:name)}")
       # link_to(image_tag(profile_photo, :class => "imag_css"))
     end
 
