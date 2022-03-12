@@ -114,7 +114,7 @@
                                                        <%c_candidate = c&.candidate_id%>
                                                        <%c_candidate_obj = Candidate.find_by(id: c_candidate)%>
                                                        <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
-                                                    <div class="logged-user-role d-block <%= "border border-light rounded" if c_recruiter %>" >
+                                                    <div class="logged-user-role d-flex justify-content-center align-items-center pl-2  <%= "border border-light rounded" if c_recruiter %>"  style="border-color: grey !important;">
 
                                                           <% if current_user.nil? and current_candidate.nil? %>
                                                             <button id="chat-button-<%= c.id %>" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
