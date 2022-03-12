@@ -195,7 +195,7 @@
         </div>
       </div>
       <div class="profile-rate-value">
-        <h5>Chat</h5>
+        <h5 class="pt-2">Chat</h5>
         <% job_invitation = candidate.try(:job_invitations).try(:last) %>
         $<%= job_invitation.present? ? job_invitation.min_hourly_rate : "NA" %>
         -
@@ -241,8 +241,10 @@
         <% else %>
           <%= "No Ressume Available" %>
         <% end %>
+
+        <a id="print-page" href="#"  download class="profile-link-download" target="_blank" >
+          Print Page </a>
       </div>
-      <button id="print-page" class="bot_styles"><div class='profile-button-chat'> Print Page </div></button>
       <div class="profile-section">
         <div class="profile-section-header">
           <div class="profile-section-title">Skills</div>
@@ -483,7 +485,8 @@
 <%= render 'static/candidates/webflow_candidate_add_review', candidate: candidate, rating_categories: @rating_categories %>
 
 <script type="text/javascript" charset="utf-8">
-    $('#print-page').click(function() {
+    $('#print-page').click(function(e) {
+        e.preventDefault();
         window.print();
     });
 </script>
