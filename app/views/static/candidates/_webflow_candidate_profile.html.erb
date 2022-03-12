@@ -204,7 +204,7 @@
 
           <div class="logged-user-role d-block">
             <%if c_recruiter.present? && current_user != c_recruiter%>
-              <button onclick="recruiter_button(<%= c_recruiter.id %>)", class="bot_styles"><div class='profile-button-chat'>
+              <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_styles rounded"><div class='profile-button-chat'>
                 <div class="logged-user-role d-block ">
                     <%= chat_recruiter_link_image(c_recruiter) %>
                 </div>
