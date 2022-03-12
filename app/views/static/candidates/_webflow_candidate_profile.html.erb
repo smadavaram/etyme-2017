@@ -227,7 +227,7 @@
         <%if candidate.candidates_resumes&.last.present? %>
           <% file = candidate.candidates_resumes&.last.resume %>
           <% if file.blank? %>
-           <p> Resume Missing</p>
+           <a href="#" class="pl-4 profile-link-download" > Resume Missing</a>
           <% elsif File.extname(URI.parse(file).path) == '.pdf' %>
             <a href="<%=candidate.candidates_resumes&.last.resume %>" id="print-doc" class="profile-link-download" target="_blank" >
               Print Resume
@@ -239,7 +239,7 @@
 
 
         <% else %>
-          <a href="#" class="profile-link-download" ><%= "No Ressume Available" %> </a>
+          <%= "No Ressume Available" %>
         <% end %>
 
         <a id="print-page" href="#"  download class="pl-4 profile-link-download" target="_blank" >
