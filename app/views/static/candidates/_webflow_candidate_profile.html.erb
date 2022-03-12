@@ -228,9 +228,24 @@
             Print Resume
           </a>
           <script>
-            w = window.open('<%=candidate.candidates_resumes&.last.resume %>', '_blank');
-            w.print();
-            w.close();
+            $('#print-doc').click(function(){
+              // var doc = new jsPDF();
+              // var specialElementHandlers = {
+              //   '#editor': function (element, renderer) {
+              //     return true;
+              //   }
+              // };
+              // doc.fromHTML($('#resume-content').html(), 15, 15, {
+              //   'width': 170,
+              //   'elementHandlers': specialElementHandlers
+              // });
+              // doc.save('resume.pdf');
+
+                w = window.open('<%=candidate.candidates_resumes&.last.resume %>', '_blank');
+                w.print();
+                w.close();
+            });
+
           </script>
         <% else %>
           <%= "No Ressume Available" %>
