@@ -22,8 +22,7 @@
     <meta name="twitter:card" content="summary">
     <meta name="twitter:image:alt" content="Etyme">
     <%#= render 'head' %>
-    <script src="https://printjs-4de6.kxcdn.com/print.min.js" charset="utf-8">
-     <link rel="stylesheet" href="https://printjs-4de6.kxcdn.com/print.min.css">
+
 
     </script>
     <script>
@@ -42,8 +41,8 @@
     <% else %>
       <title><%= "Etyme" %></title>
     <% end %>
-    <%= stylesheet_link_tag "kulkakit" %>
-    <%= stylesheet_link_tag 'webflow' %>
+    <%= stylesheet_link_tag "kulkakit", media: 'all' %>
+    <%= stylesheet_link_tag 'webflow', media: "all" %>
     <%= action_cable_meta_tag %>
     <%= csrf_meta_tags %>
     <%= yield :head %>
