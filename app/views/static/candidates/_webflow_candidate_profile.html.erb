@@ -195,6 +195,7 @@
         </div>
       </div>
       <div class="profile-rate-value">
+        <h5>Chat</h5>
         <% job_invitation = candidate.try(:job_invitations).try(:last) %>
         $<%= job_invitation.present? ? job_invitation.min_hourly_rate : "NA" %>
         -
