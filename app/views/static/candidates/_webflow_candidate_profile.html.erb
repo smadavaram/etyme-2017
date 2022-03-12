@@ -45,18 +45,20 @@
       <div class="profile-stats">
         <div class="profile-stats-container">
           <div class="profile-stats-number">
-            <%= candidate.experiences.count %>
+            <%= candidate&.experiences.count %>
           </div>
           <div class="profile-stats-label">
             Years of Experience
+            <%= candidate&.experiences.count %>
           </div>
         </div>
         <div class="profile-stats-container">
           <div class="profile-stats-number">
-           <%= candidate.experiences.count%>
+           <%= candidate&.clients.count %>
           </div>
           <div class="profile-stats-label">
             Clients
+            <%= candidate&.clients.count %>
           </div>
         </div>
       </div>
