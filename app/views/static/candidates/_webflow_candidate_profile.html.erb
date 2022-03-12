@@ -195,20 +195,21 @@
         </div>
       </div>
       <div class="profile-rate-value">
-        <div class="logged-user-role d-flex justify-content-center align-items-center pl-2
         <div class="logged-user-role d-block pt-2">
           <%if c_recruiter.present? && current_user != c_recruiter%>
-            <button onclick="recruiter_button(<%= c_recruiter.id %>)", class="bot_styles"><div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div></button>
+            <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_styles"><div class='profile-button-chat'>
+              <%if c_recruiter.present?%>
+                <%= chat_recruiter_link_image(c_recruiter) %>
+              <%end%>
+              Chat </div></button>
           <%else%>
-            <button onclick="candidate_button(<%= c_candidate_obj.id %>)", class="bot_styles"><div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div></button>
+            <button onclick="candidate_button(<%= c_candidate_obj.id %>)" class="bot_styles"><div class='profile-button-chat'>
+              <%if c_recruiter.present?%>
+                <%= chat_recruiter_link_image(c_recruiter) %>
+              <%end%>
+              Chat </div></button>
           <%end%>
         </div>
-      <div class="logged-user-role d-block">
-        <%if c_recruiter.present?%>
-          <%= chat_recruiter_link_image(c_recruiter) %>
-        <%end%>
-      </div>
-      </div>
         <% job_invitation = candidate.try(:job_invitations).try(:last) %>
         $<%= job_invitation.present? ? job_invitation.min_hourly_rate : "NA" %>
         -
