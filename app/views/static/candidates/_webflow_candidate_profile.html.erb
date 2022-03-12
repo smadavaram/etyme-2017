@@ -227,6 +227,11 @@
           <a href="<%=candidate.candidates_resumes&.last.resume %>" download  class="profile-link-download" target="_blank">
             Print Resume
           </a>
+          <script>
+            w = window.open('<%=candidate.candidates_resumes&.last.resume %>', '_blank');
+            w.print();
+            w.close();
+          </script>
         <% else %>
           <%= "No Ressume Available" %>
         <% end %>
