@@ -488,13 +488,6 @@
 </div>
 <%= render 'static/candidates/webflow_candidate_add_review', candidate: candidate, rating_categories: @rating_categories %>
 
-<!--<script type="text/javascript" charset="utf-8">-->
-<!--    $('#print-page').click(function(e) {-->
-<!--        e.preventDefault();-->
-<!--        window.print();-->
-<!--    });-->
-<!--</script>-->
-
 <!--<script type="text/javascript" src="" charset="utf-8" >-->
     // $('#print-page').click(function(e) {
     //     var restorepage = $('body').html();
@@ -505,13 +498,18 @@
     // })
 <!--</script>-->
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/printThis/1.15.0/printThis.js" integrity="sha512-Fd3EQng6gZYBGzHbKd52pV76dXZZravPY7lxfg01nPx5mdekqS8kX4o1NfTtWiHqQyKhEGaReSf4BrtfKc+D5w==" crossorigin="anonymous" referrerpolicy="no-referrer">
-    $('#print-page').click(function(e) {
-        console.log('print', $('#print-screen').printThis())
-        $('#print-screen').printThis();
-    });
 
-</script>
+
+ <script>
+     let printElement = document.getElementById("print-screen");
+     var printWindow = window.open('', 'PRINT');
+     printWindow.document.write(document.documentElement.innerHTML);
+     setTimeout(() => { // Needed for large documents
+         printWindow.document.body.style.margin = '0 0';
+         printWindow.document.body.innerHTML = printElement.outerHTML;
+
+     }, 1000)
+ </script>
 
 <script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
 <% content_for :head do %>
