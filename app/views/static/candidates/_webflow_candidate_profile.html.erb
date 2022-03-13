@@ -513,11 +513,11 @@
 
 
         function Popup() {
-            var mywindow = window.open('', 'new div', 'height=400,width=600');
+            var mywindow = window.open('', 'new div');
             mywindow.document.write('<html><head><title></title>');
             mywindow.document.write('<link rel="stylesheet" href="css/midday_receipt.css" type="text/css" />');
             mywindow.document.write('</head><body >');
-            mywindow.document.write($('#print-screen').clone());
+            mywindow.document.write($('#print-screen').html());
             mywindow.document.write('</body></html>');
             mywindow.document.close();
             mywindow.focus();
