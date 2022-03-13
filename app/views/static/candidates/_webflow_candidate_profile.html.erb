@@ -503,6 +503,7 @@
     //     $('body').html(restorepage);
     // })
        $('#print-page').click(function(e) {
+           e.preventDefault();
           $('#print-screen').printThis();
        });
 
