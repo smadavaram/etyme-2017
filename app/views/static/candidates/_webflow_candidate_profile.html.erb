@@ -496,9 +496,11 @@
 
 <script type="text/javascript" charset="utf-8" >
     $('#print-page').click(function(e) {
+        var headstr = "<html><head><title>Booking Details</title></head><body>";
+        var footstr = "</body>";
         var restorepage = $('body').html();
-        var printcontent = $('#print-screen').clone();
-        $('body').empty().html(printcontent);
+        var printcontent = $('#print-screen').html()
+        $('body').empty().html(headstr+printcontent+footstr);
         window.print();
         $('body').html(restorepage);
     })
