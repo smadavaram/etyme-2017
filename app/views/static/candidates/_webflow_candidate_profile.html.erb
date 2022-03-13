@@ -506,8 +506,10 @@
             var mywindow = window.open('<%= request.original_url  %>', 'PRINT', 'height=1080,width=760');
             mywindow.document.querySelector('.header').style.display = 'none';
             mywindow.focus();
+        setTimeout(function(){
+            console.log("print")
             mywindow.print();
-
+        }, 2000)
 
 
 
