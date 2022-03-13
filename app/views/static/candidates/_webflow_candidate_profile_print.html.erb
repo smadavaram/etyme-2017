@@ -491,14 +491,16 @@
 
 
 <script type="text/javascript" charset="utf-8">
-    document.addEventListener("turbolinks:load", function() {
-        $('.side-wrapper').first().css("display", "none");
-        setTimeout(()=>{
+
+    $(document).ready(function() {
+        $('#side-wrapper').css("display", "none");
+        setTimeout(() => {
             window.print();
-        },1000)
+        }, 1000)
+    })
 
 
-    });
+
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
