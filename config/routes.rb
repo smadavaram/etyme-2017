@@ -96,6 +96,7 @@ Rails.application.routes.draw do
       post :send_message
       get :resume
       get ':id/public/profile', to: 'candidates#candidate_profile', on: :collection, as: :public_profile
+      get ':id/public/profile_print/', to: 'candidates#candidate_profile', on: :collection, as: :public_profile_slug
     end
   end
 
