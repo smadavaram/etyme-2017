@@ -244,8 +244,9 @@
           <%= "No Ressume Available" %>
         <% end %>
 
-        <a id="print-page" href="#" download   class="pl-4 profile-link-download"  >
-          Print Page </a>
+<!--        <a  href="#"   class="pl-4 profile-link-download"  >-->
+<!--          </a>-->
+        <button id="print-page" > Print Page </button>
       </div>
       <div class="profile-section">
         <div class="profile-section-header">
@@ -504,7 +505,7 @@
     // })
 <!--</script>-->
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/printThis/1.15.0/printThis.min.js" integrity="sha512-d5Jr3NflEZmFDdFHZtxeJtBzk0eB+kkRXWFQqEc1EKmolXjHm2IKCA7kTvXBNjIYzjXfD5XzIjaaErpkZHCkBg==" crossorigin="anonymous" referrerpolicy="no-referrer">
+<script >
     $('#print-page').click(function(e) {
         e.preventDefault();
         $('#print-screen').printThis();
