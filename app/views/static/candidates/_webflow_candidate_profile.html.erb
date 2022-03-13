@@ -199,57 +199,27 @@
           <!--        <a href="#" class="profile-button-add">-->
           <!--          Add as Candidate-->
           <!--        </a>-->
-          <%#c_candidate_obj = Candidate.find_by(id: @candidate)%>
-          <%# c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
-
-<!--          <div class="logged-user-role d-block">-->
-            <%#if c_recruiter.present? && current_user != c_recruiter%>
-<!--              <button onclick="recruiter_button(<%#= c_recruiter.id %>)" class="bot_styles"><div class='profile-button-chat'>-->
-<!--                <div class="logged-user-role d-block ">-->
-                    <%#= chat_recruiter_link_image(c_recruiter) %>
-<!--                </div>-->
-<!--                 <span class="pl-2">Chat </span>-->
-<!--              </div></button>-->
-            <%#else%>
-<!--              <button onclick="candidate_button(<%#= c_candidate_obj.id %>)" class="bot_styles"><div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div></button>-->
-            <%#end%>
-<!--        </div>-->
-          <!-- Chat Icon -->
-
-
-
-
-          <%c_candidate = candidate%>
-          <%#c_candidate_obj = Candidate.find_by(id: c_candidate)%>
-          <%# c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
           <%c_candidate_obj = Candidate.find_by(id: @candidate)%>
           <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
-          <div class="logged-user-role d-flex justify-content-center align-items-center pl-2  <%= "border border-light rounded" if c_recruiter %>"  style="border-color: grey !important;">
 
-            <% if current_user.nil? and current_candidate.nil? %>
-              <button id="chat-button-<%= c.id %>" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
+          <div class="logged-user-role d-block">
+            <%if c_recruiter.present? && current_user != c_recruiter%>
+              <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_styles"><div class='profile-button-chat'>
+                <span class="pr-2 w-7">Chat with HR Partner </span>
+                <div class="logged-user-role d-block  ">
+                    <%= chat_recruiter_link_image(c_recruiter) %>
+                </div>
 
-              <script type="text/javascript" charset="utf-8">
-                  $('#chat-button-<%= c.id %>').click(function (){
-                      alert('You must be logged in to chat.');
-                  })
-              </script>
-
-            <% else %>
-              <%if c_recruiter.present? && current_user != c_recruiter%>
-                <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
-              <%else%>
-                <button onclick="candidate_button(<%= c_candidate_obj.id %>)" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid me-2", alt: "Chat" %></button>
-              <%end%>
-            <% end %>
+              </div></button>
+            <%else%>
+              <button onclick="candidate_button(<%= c_candidate_obj.id %>)" class="bot_styles"><div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div></button>
+            <%end%>
+        </div>
 
 
-            <div class="logged-user-role d-block">
-              <%if c_recruiter.present?%>
-                <%= chat_recruiter_link_image(c_recruiter) %>
-              <%end%>
-            </div>
-          </div>
+
+
+
 
 
 
