@@ -505,7 +505,7 @@
 <script>
     $('#print-page').click(()=>{
         // function Popup() {
-            var mywindow = window.open('<%= request.orginal_url %>', 'PRINT', 'height=1080,width=760');
+            var mywindow = window.open('<%= request.original_url  %>', 'PRINT', 'height=1080,width=760');
             mywindow.doccument.querySelectorAll('.header')[0].style.display = 'none';
             mywindow.focus();
             mywindow.print();
