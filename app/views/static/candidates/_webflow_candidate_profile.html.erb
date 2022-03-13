@@ -246,7 +246,7 @@
 
 <!--        <a  href="#"   class="pl-4 profile-link-download"  >-->
 <!--          </a>-->
-        <button id="print-page" > Print Page </button>
+        <button id="print-page" onclick="Popup()" > Print Page </button>
       </div>
       <div class="profile-section">
         <div class="profile-section-header">
@@ -502,16 +502,30 @@
 
  <script>
 
-        $('#print-page').click(function(e) {
-            let printElement = document.getElementById("print-screen");
-            var printWindow = window.open('', 'PRINT');
-            printWindow.document.write(document.documentElement.innerHTML);
-            setTimeout(() => { // Needed for large documents
-                printWindow.document.body.style.margin = '0 0';
-                printWindow.document.body.innerHTML = printElement.outerHTML;
+        // $('#print-page').click(function(e) {
+        //     let printElement = document.getElementById("print-screen");
+        //     var printWindow = window.open('', 'PRINT');
+        //     printWindow.document.write(document.documentElement.innerHTML);
+        //         printWindow.document.body.style.margin = '0 0';
+        //         printWindow.document.body.innerHTML = printElement.outerHTML;
+        //
+        // })
 
-            }, 1000)
-        })
+
+        function Popup() {
+            var mywindow = window.open('', 'new div', 'height=400,width=600');
+            mywindow.document.write('<html><head><title></title>');
+            mywindow.document.write('<link rel="stylesheet" href="css/midday_receipt.css" type="text/css" />');
+            mywindow.document.write('</head><body >');
+            mywindow.document.write($('#print-screen').clone());
+            mywindow.document.write('</body></html>');
+            mywindow.document.close();
+            mywindow.focus();
+            setTimeout(function(){mywindow.print();},1000);
+            mywindow.close();
+
+            return true;
+        }
 
  </script>
 
