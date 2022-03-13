@@ -522,6 +522,7 @@
             mywindow.document.write($('#print-screen').html());
             mywindow.document.write('</body></html>');
             mywindow.document.close();
+            mywindow.location.reload(true);
             mywindow.focus();
             setTimeout(function(){mywindow.print();},3000);
 
