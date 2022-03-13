@@ -244,7 +244,7 @@
           <%= "No Ressume Available" %>
         <% end %>
 
-        <a id="print-page" href="#"  download class="pl-4 profile-link-download" target="_blank" >
+        <a id="print-page" href="#"   class="pl-4 profile-link-download" target="_blank" >
           Print Page </a>
       </div>
       <div class="profile-section">
@@ -329,7 +329,7 @@
   <div class="webflow-profile-right col-12 col-xl-8">
 
     <!-- Portfolio -->
-    <div class="webflow-profile-inner" >
+    <div class="webflow-profile-inner" id="print-screen">
       <div class="d-flex justify-content-between mb-20">
         <div class="f-16 w-500 l-19 c-80">Portfolio</div>
       </div>
@@ -495,15 +495,17 @@
 <!--</script>-->
 
 <script type="text/javascript" charset="utf-8" >
-    $('#print-page').click(function(e) {
-        var headstr = "<html><head><title>Booking Details</title></head><body>";
-        var footstr = "</body>";
-        var restorepage = $('body').html();
-        var printcontent = $('#print-screen').html()
-        $('body').empty().html(headstr+printcontent+footstr);
-        window.print();
-        $('body').html(restorepage);
-    })
+    // $('#print-page').click(function(e) {
+    //     var restorepage = $('body').html();
+    //     var printcontent = $('#print-screen').clone();
+    //     $('body').empty().html(printcontent);
+    //     window.print();
+    //     $('body').html(restorepage);
+    // })
+       $('#print-page').click(function(e) {
+          $('#print-screen').printThis();
+       });
+
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
