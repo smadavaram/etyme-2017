@@ -504,15 +504,28 @@
 
 <script>
     $('#print-page').click(()=>{
-        $('#print-screen').printThis({
-            importCSS: true,
-            importStyle: true,
-            printContainer: true,
-            loadCSS: "/assets/webflow-f530e14bfaf8b8922dcf30cd2a73b54d7f4bcdc1d0be96e6caab0beb6bb3ab87.css",
+        // function Popup() {
+            var mywindow = window.open('<%= request.orginal_url %>', 'PRINT', 'height=1080,width=760');
+            mywindow.doccument.querySelectorAll('.header')[0].style.display = 'none';
+            mywindow.focus();
+            mywindow.print();
 
 
+        // }
 
-        });
+
+        // $('#print-screen').printThis({
+        //     beforePrint: function() {
+        //         console.log('beforePrint');
+        //     },
+        //     importCSS: true,
+        //     importStyle: true,
+        //     printContainer: true,
+        //
+        //
+        //
+        //
+        // });
     })
 </script>
 
