@@ -246,7 +246,7 @@
 
 <!--        <a  href="#"   class="pl-4 profile-link-download"  >-->
 <!--          </a>-->
-        <button id="print-page" onclick="Popup()" > Print Page </button>
+        <button id="print-page" > Print Page </button>
       </div>
       <div class="profile-section">
         <div class="profile-section-header">
@@ -488,19 +488,19 @@
 </div>
 <%= render 'static/candidates/webflow_candidate_add_review', candidate: candidate, rating_categories: @rating_categories %>
 
-<!--<script type="text/javascript" src="" charset="utf-8" >-->
-    // $('#print-page').click(function(e) {
-    //     var restorepage = $('body').html();
-    //     var printcontent = $('#print-screen').clone();
-    //     $('body').empty().html(printcontent);
-    //     window.print();
-    //     $('body').html(restorepage);
-    // })
-<!--</script>-->
+<script type="text/javascript" src="" charset="utf-8" >
+    $('#print-page').click(function(e) {
+        var restorepage = $('body').html();
+        var printcontent = $('#print-screen').clone();
+        $('body').empty().html(printcontent);
+        window.print();
+        $('body').html(restorepage);
+    })
+</script>
 
 
 
- <script>
+<!-- <script>-->
 
         // $('#print-page').click(function(e) {
         //     let printElement = document.getElementById("print-screen");
@@ -512,21 +512,21 @@
         // })
 
 
-        function Popup() {
-            var mywindow = window.open('', 'new div');
-            mywindow.document.write('<html><head><title></title>');
-            mywindow.document.write('<%= stylesheet_link_tag "kulkakit", media: 'all' %>');
-            mywindow.document.write('<%= stylesheet_link_tag 'webflow', media: "all" %>');
-            mywindow.document.write('</head><body >');
-            mywindow.document.write($('#print-screen').html());
-            mywindow.document.write('</body></html>');
-            mywindow.document.close();
-            mywindow.focus();
-            setTimeout(function(){mywindow.print();},3000);
+<!--        function Popup() {-->
+<!--            var mywindow = window.open('', 'new div');-->
+<!--            mywindow.document.write('<html><head><title></title>');-->
+<!--            mywindow.document.write('<%#= stylesheet_link_tag "kulkakit", media: 'all' %>');-->
+<!--            mywindow.document.write('<%#= stylesheet_link_tag 'webflow', media: "all" %>');-->
+<!--            mywindow.document.write('</head><body >');-->
+<!--            mywindow.document.write($('#print-screen').html());-->
+<!--            mywindow.document.write('</body></html>');-->
+<!--            mywindow.document.close();-->
+<!--            mywindow.focus();-->
+<!--            setTimeout(function(){mywindow.print();},3000);-->
 
-        }
+<!--        }-->
 
- </script>
+<!-- </script>-->
 
 <script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
 <% content_for :head do %>
