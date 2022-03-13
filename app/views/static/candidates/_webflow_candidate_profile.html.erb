@@ -500,7 +500,24 @@
 
 <script>
     $('#print-page').click(()=>{
-        $('#print-screen').printThis();
+        $('#print-screen').printThis({
+            importCSS: true,
+            importStyle: true,
+            loadCSS: "https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css",
+            pageTitle: "",
+            removeInline: false,
+            printDelay: 333,
+            header: null,
+            formValues: true,
+            canvas: false,
+            base: false,
+            doctypeString: '<!DOCTYPE html>',
+            removeScripts: false,
+            copyTagClasses: true,
+            beforePrintEvent: null,
+            beforePrint: null,
+            afterPrint: null
+        });
     })
 </script>
 
