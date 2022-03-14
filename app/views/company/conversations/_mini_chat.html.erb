@@ -50,7 +50,7 @@ margin-left: auto;
                     <%= image_tag("/assets/docusign.png", size: "25x25") %>
 
                     <% end %>
-                    <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width:30px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 20px !important; padding:5px; color:grey !important;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
+                    <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width:30px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 20px !important; padding:8px !important; color:grey !important;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
                     <%= mini_chat_contact_widget(conversation.chatable.group_emails, nil, nil, chat_link: chat_link(nil, conversation.id)) %>
 
 
