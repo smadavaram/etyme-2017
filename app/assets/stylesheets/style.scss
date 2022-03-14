@@ -1723,16 +1723,18 @@ flex: 0 0 220px;
     background: gray;
     display: inline-block;
 }
-.avatar_circle{
-    width: 45px;
-    height: 45px;
-    border-radius: 50%;
-    font-size: 10px;
-    color: #fff;
-    padding: 5px;
-    text-align: center;
-    background: gray;
-    display: inline-block;
+.avatar_circle, .circle{
+    width: 25px !important;
+    height: 25px !important;
+    border-radius: 50% !important;
+    font-size: 10px !important;
+    color: #fff !important;
+    padding: 5px !important;
+    text-align: center !important;
+    background: gray !important;
+    display: inline-block !important;
+    margin-right: 9px !important;
+
 }
 .circle_img{
     border-radius: 50%;
