@@ -67,16 +67,11 @@
     <%  company_contact = current_user.user_company(current_company&.id) %>
 
     <div class="dropdown dropdown-container d-flex justify-content-end">
-      <% if company_contact.nil? || company_contact&.unsubscribed? && current_user.company.domain != "support" %>
-       <% if current_user.company.domain == "support"%>
-          <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-            <i class="fa fa-plus-circle" aria-hidden="true"></i>
-          </button>
-          <% else %>
+<!--      TOOD: if company_contact is nill or unsubscribed user must subscribe-->
+      <% if company_contact.nil? || company_contact&.unsubscribed? %>
           <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="alert('Subscribe to this space first')">
             <i class="fa fa-plus-circle" aria-hidden="true"></i>
           </button>
-          <% end %>
 
       <% else  %>
         <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
@@ -96,7 +91,7 @@
 <!--    subscribed-->
     <div>
 
-      <% unless current_user.company.domain == "support" %>
+      <%# unless current_user.company.domain == "support" %>
         <% if company_contact %>
           <% if company_contact.unsubscribed? %>
             <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
@@ -106,7 +101,7 @@
           <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
              class="btn orange_btn filter6" data-method="post" >Subscribe</a>
         <% end %>
-      <% end %>
+      <%# end %>
 
     </div>
     <div class="d-inline-block mx-1 dropdown">
