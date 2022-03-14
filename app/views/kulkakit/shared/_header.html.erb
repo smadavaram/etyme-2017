@@ -68,9 +68,16 @@
 
     <div class="dropdown dropdown-container d-flex justify-content-end">
       <% if company_contact.nil? || company_contact&.unsubscribed? && current_user.company.domain != "support" %>
-        <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="<%= alert('Subscribe to this space first') if current_user.company.domain != "support" %>">
-          <i class="fa fa-plus-circle" aria-hidden="true"></i>
-        </button>
+       <% if current_user.company.domain == "support"%>
+          <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+            <i class="fa fa-plus-circle" aria-hidden="true"></i>
+          </button>
+          <% else %>
+          <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="alert('Subscribe to this space first')">
+            <i class="fa fa-plus-circle" aria-hidden="true"></i>
+          </button>
+          <% end %>
+
       <% else  %>
         <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
           <i class="fa fa-plus-circle" aria-hidden="true"></i>
