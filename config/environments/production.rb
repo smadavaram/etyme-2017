@@ -131,7 +131,7 @@ Rails.application.configure do
                                           email: {
                                             email_prefix: "[#{HOSTNAME}] ",
                                             sender_address: %("notifier" <support@etyme.com>),
-                                            exception_recipients: (ENV["EXCEPTION_NOTIFICATION_EMAILS"] || "").split(" ")
+                                            exception_recipients: 'smadavaram@gmail.com'
                                           }
   config.domain = ENV['DOMAIN']
   ENV['host_protocol'] ||= 'http'
