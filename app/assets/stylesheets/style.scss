@@ -1580,12 +1580,13 @@ input:checked + .slider1:before {
      background-color: #047bf8;
      display: inline-block;
      vertical-align: middle;
-     position: relative;
+     //position: relative;
      left: -6px;
      padding: 2px 7px;
      border-radius: 12px;
      color: #fff;
-     font-size: .63rem;
+     font-size: .8rem;
+     margin:  1px;
  }
  .mini_chat_users .avatar{
     margin-left: -10px;
