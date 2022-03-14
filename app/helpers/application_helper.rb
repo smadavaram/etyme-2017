@@ -147,7 +147,7 @@ module ApplicationHelper
   end
 
   def mini_chat_contact_widget(email, phone, _user_id = nil, _options = {})
-    mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2 mini_chat_widget pt-3',style:' font-size: 20px !important;  padding: 8px important!; color: grey !important;').html_safe, title: email, class: 'data-table-icons') +
+    mail_to(email, content_tag(:i, nil, class: 'os-icon os-icon-email-2-at2 mini_chat_widget pt-3',style:' font-size: 20px !important;  padding: 8px !important; color: grey !important;').html_safe, title: email, class: 'data-table-icons') +
       link_to(content_tag(:i, nil, class: 'os-icon os-icon-phone mini_chat_widget', style:' font-size: 20px; padding: 8px; color: grey !important').html_safe, "skype:#{phone.present? ? phone : ''}?call", title: phone, class: 'data-table-icons') +
       "<div title = 'Add to Calendar' class = 'addeventatc z-100'>
         <span class = 'start' >06/10/2019 08:00 AM</span>
