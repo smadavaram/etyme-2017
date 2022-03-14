@@ -68,7 +68,7 @@
 
     <div class="dropdown dropdown-container d-flex justify-content-end">
       <% if company_contact.nil? || company_contact&.unsubscribed? && current_user.company.domain != "support" %>
-        <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="alert('Subscribe to this space first')">
+        <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="<%= alert('Subscribe to this space first') if current_user.company.domain != "support" %>">
           <i class="fa fa-plus-circle" aria-hidden="true"></i>
         </button>
       <% else  %>
@@ -89,7 +89,7 @@
 <!--    subscribed-->
     <div>
 
-      <%# unless current_user.company.domain == "support" %>
+      <% unless current_user.company.domain == "support" %>
         <% if company_contact %>
           <% if company_contact.unsubscribed? %>
             <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
@@ -99,7 +99,7 @@
           <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
              class="btn orange_btn filter6" data-method="post" >Subscribe</a>
         <% end %>
-      <%# end %>
+      <% end %>
 
     </div>
     <div class="d-inline-block mx-1 dropdown">
