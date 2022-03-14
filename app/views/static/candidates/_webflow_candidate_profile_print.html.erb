@@ -22,7 +22,11 @@
         Available
       </div>
       <div class="profile-avatar">
-        <%= image_tag "#{candidate&.photo&.blank? ? 'https://cdn1.vectorstock.com/i/1000x1000/72/35/male-avatar-profile-icon-round-man-face-vector-18307235.jpg' : candidate.photo }", class: "rounded-circle", alt: "#{candidate.full_name}" %>
+        <% if candidate&.photo&.blank? %>
+          <img src='https://cdn1.vectorstock.com/i/1000x1000/72/35/male-avatar-profile-icon-round-man-face-vector-18307235.jpg' class= "rounded-circle" alt="">
+        <%else %>
+          <%= image_tag "#{candidate&.photo&.blank? ? 'https://cdn1.vectorstock.com/i/1000x1000/72/35/male-avatar-profile-icon-round-man-face-vector-18307235.jpg' : candidate.photo }", class: "rounded-circle", alt: "#{candidate.full_name}" %>
+      <% end %>
       </div>
       <div class="profile-name">
         <%= candidate.full_name %>
