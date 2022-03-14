@@ -148,7 +148,7 @@
 
                                                 <!-- Price -->
                                                 <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
-                                                <div>
+                                                <div class="pl-2">
                                                     <p class="d-inline-block card-people-footer-max-rate mb-0 mr-1">
                                                         <del>
                                                             <%= "$#{@c_bench_job.present? && @c_bench_job&.max_hourly_rate.present? ? number_with_precision(@c_bench_job&.max_hourly_rate, precision: 2) : ""}/hr" %>
