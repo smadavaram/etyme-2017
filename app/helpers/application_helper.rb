@@ -1571,7 +1571,7 @@ if user.online_candidate_status == "online"
 if user.photo&.present?
 image_tag(user.photo, style: (attrs[:style]).to_s, title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='online_class' id='#{user_id}'></div>".html_safe
 else
-entity_image(user.first_name, user.last_name ) + "<div class='online_class' id='#{user_id}'></div>".html_safe
+entity_image(user&.first_name, user&.last_name ) + "<div class='online_class' id='#{user_id}'></div>".html_safe
 end
 elsif user.online_candidate_status == "in_a_meeting"
 if user.photo&.present?

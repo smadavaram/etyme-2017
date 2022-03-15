@@ -17,7 +17,11 @@ margin-left: auto;
                 <div class=" d-flex w-100 align-items-center">
                     <% conversation.chatable.groupables.sample(4).each do |groupable| %>
                     <div class=" my_avatar">
+                      <%= if groupable.groupable.nil? %>
                         <%= user_image_mini_chat(groupable.groupable, style: 'width: 25px; height: 25px; border-radius: 50%; ', class: '', title: "#{groupable.groupable&.full_name}") %>
+                      <% else %>
+                        <div class='online_class' id='<% dom_id groupable%>'></div>"
+                      <% end %>
                     </div>
                     <% end %>
                     <% if conversation.chatable.groupables.count > 4 %>
