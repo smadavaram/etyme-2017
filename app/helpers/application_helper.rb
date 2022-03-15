@@ -1390,7 +1390,7 @@ module ApplicationHelper
     end
   end
 
-  def get_initial(name_text)
+  def get_initial(name_text = "")
     name_text&.first&.capitalize
   end
 
@@ -1401,7 +1401,7 @@ module ApplicationHelper
   end
 
   def bind_initials(first_name = "", last_name = "")
-    content_tag(:span, get_initial(first_name) + '.' + get_initial(last_name), title: first_name.capitalize + ' ' + last_name.capitalize).html_safe
+    content_tag(:span, get_initial(first_name.nil? ? "" : first_name) + '.' + get_initial(last_name), title: first_name.capitalize + ' ' + last_name.capitalize).html_safe
   end
 
   def colorfull_text(value, color_code)
