@@ -1629,7 +1629,7 @@ end
 end
 end
 
-def entity_image(first_name, last_name, circle_div_class = 'circle', default_img_classes = '')
+def entity_image(first_name = "", last_name = "", circle_div_class = 'circle', default_img_classes = '')
 if first_name == '' || last_name == ''
 image_tag(asset_path('avatars/camera-default.png'), class: "circle-images #{default_img_classes}" )
 else
