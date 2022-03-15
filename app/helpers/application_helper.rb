@@ -1400,7 +1400,7 @@ module ApplicationHelper
     'N/A'
   end
 
-  def bind_initials(first_name, last_name)
+  def bind_initials(first_name = "", last_name = "")
     content_tag(:span, get_initial(first_name) + '.' + get_initial(last_name), title: first_name.capitalize + ' ' + last_name.capitalize).html_safe
   end
 
@@ -1408,7 +1408,7 @@ module ApplicationHelper
     content_tag(:span, value, style: "color: #{color_code}")
   end
 
-  def default_user_img(first_name, last_name, circle_div_class = 'circle')
+  def default_user_img(first_name = "", last_name = "", circle_div_class = 'circle')
     content_tag(:span, bind_initials(first_name, last_name), class: circle_div_class.to_s)
   end
 
@@ -1629,7 +1629,7 @@ end
 end
 end
 
-def entity_image(first_name = "", last_name = "", circle_div_class = 'circle', default_img_classes = '')
+def entity_image(first_name = "", last_name = " ", circle_div_class = 'circle', default_img_classes = '')
 if first_name == '' || last_name == ''
 image_tag(asset_path('avatars/camera-default.png'), class: "circle-images #{default_img_classes}" )
 else
