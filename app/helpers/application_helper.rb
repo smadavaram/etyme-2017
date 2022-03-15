@@ -1564,7 +1564,7 @@ end
 
 
 def user_image_mini_chat(user, attrs)
-if user.has_attribute?("online_candidate_status") == true
+if user&.has_attribute?("online_candidate_status") == true
 return if user.nil?
 user_id = "candidate_id_" + user.id.to_s
 if user.online_candidate_status == "online"
