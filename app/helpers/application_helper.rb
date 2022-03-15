@@ -1579,20 +1579,20 @@ image_tag(user.photo, style: (attrs[:style]).to_s, title: (attrs[:title]).to_s, 
 else
 entity_image(user.first_name, user.last_name ) + "<div class='in_meeting_class' id='#{user_id}'></div>".html_safe
 end
-elsif user.online_candidate_status == "onway"
+elsif user&.online_candidate_status == "onway"
 if user.photo&.present?
 image_tag(user.photo, style: (attrs[:style]).to_s, title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='onway_class' id='#{user_id}'></div>".html_safe
 else
 entity_image(user.first_name, user.last_name ) + "<div class='onway_class' id='#{user_id}'></div>".html_safe
 end
-elsif user.online_candidate_status == "offline" || user.online_candidate_status == nil
+elsif user&.online_candidate_status == "offline" || user.online_candidate_status == nil
 if user.photo&.present?
 image_tag(user.photo, style: (attrs[:style]).to_s, title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='offline_class' id='#{user_id}'></div>".html_safe
 else
 entity_image(user.first_name, user.last_name ) + "<div class='offline_class' id='#{user_id}'></div>".html_safe
 end
 end
-elsif user.has_attribute?("online_user_status") == true
+elsif user&.has_attribute?("online_user_status") == true
 return if user.nil?
 user_id = "user_id_" + user.id.to_s
 if user.online_user_status == "online"
@@ -1607,13 +1607,13 @@ image_tag(user.photo, style: (attrs[:style]).to_s, title: (attrs[:title]).to_s, 
 else
 entity_image(user.first_name, user.last_name ) + "<div class='in_meeting_class' id='#{user_id}'></div>".html_safe
 end
-elsif user.online_user_status == "onway"
+elsif user&.online_user_status == "onway"
 if user.photo&.present?
 image_tag(user.photo, style: (attrs[:style]).to_s, title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='onway_class' id='#{user_id}'></div>".html_safe
 else
 entity_image(user.first_name, user.last_name ) + "<div class='onway_class' id='#{user_id}'></div>".html_safe
 end
-elsif user.online_user_status == "offline" || user.online_user_status == nil
+elsif user&.online_user_status == "offline" || user.online_user_status == nil
 if user.photo&.present?
 image_tag(user.photo, style: (attrs[:style]).to_s, title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='offline_class' id='#{user_id}'></div>".html_safe
 else
@@ -1621,7 +1621,7 @@ entity_image(user.first_name, user.last_name ) + "<div class='offline_class' id=
 end
 end
 else
-if user.photo&.present?
+if user&.photo&.present?
 image_tag(user.photo, style: (attrs[:style]).to_s, title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe 
 else
 entity_image(user.first_name, user.last_name )
