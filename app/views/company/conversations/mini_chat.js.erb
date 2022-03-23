@@ -1,4 +1,4 @@
-  $('#modals').append("<%= j render 'company/conversations/mini_chat',conversation: @conversation %>")
+  $('#modals').append("<%= j render 'company/conversations/mini_chat',conversation: @conversation, candidate: @candidate %>")
   $('#modals').append("<%= j render('shared/chat_document_templates', conversation: @conversation) if @conversation.present? %>")
   $('#modals').append("<%= j render('company/conversations/buttons_model', conversation: @conversation, job_application: @conversation.job_application) if @conversation.job_application.present? %>")
 

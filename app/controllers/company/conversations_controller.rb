@@ -30,9 +30,11 @@ class Company::ConversationsController < Company::BaseController
      con = Conversation.where(current_user_id: current_user.id , candidate_id:  params[:candidate])
      if con.present?
        @conversation = con.last
+       @candidate = params[:candidate]
        return 
      else
       candiate = Candidate.find_by(id: params[:candidate])
+      @candidate = params[:candidate]
       group_name = current_user.first_name + " " + current_user.last_name + ","+ candiate.first_name + candiate.last_name
       company_id = current_company.id
       member_type = "Chat"
@@ -49,29 +51,29 @@ class Company::ConversationsController < Company::BaseController
       add_to_chat_action_can( params , directoryid, chatctype, chatcid, chatconversation, can_id )
       @conversation = Conversation.find_by(id: chatconversation)
      end 
-    elsif params[:recruiter].present? 
-     con = Conversation.where(current_user_id: current_user.id , recruiter_id:  params[:recruiter])
-     if con.present? 
-       @conversation = con.last
-       return 
-     else
-      candiate = User.find_by(id: params[:recruiter])
-      group_name = current_user.first_name + " " + current_user.last_name + ","+ candiate.first_name + candiate.last_name
-      company_id = current_company.id
-      member_type = "Chat"
-      group_data = Group.create(group_name: group_name, company_id: company_id, member_type: member_type)
-      directoryid = current_user.id
-      chatctype = "Group"
-      chatcid = group_data.id
-      porposal_id = PorposalChat.create(company_id: company_id)
-      Conversation.last.update(current_user_id: current_user.id, porposal_chat_id: porposal_id.id, recruiter_id:  params[:recruiter])
-      chatconversation = Conversation.last.id
-      add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
-      can_id = candiate.id
-      directoryid = can_id
-      add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
-      @conversation = Conversation.find_by(id: chatconversation)
-     end  
+    # elsif params[:recruiter].present?
+    #  con = Conversation.where(current_user_id: current_user.id , recruiter_id:  params[:recruiter])
+    #  if con.present?
+    #    @conversation = con.last
+    #    return
+    #  else
+    #   candiate = User.find_by(id: params[:recruiter])
+    #   group_name = current_user.first_name + " " + current_user.last_name + ","+ candiate.first_name + candiate.last_name
+    #   company_id = current_company.id
+    #   member_type = "Chat"
+    #   group_data = Group.create(group_name: group_name, company_id: company_id, member_type: member_type)
+    #   directoryid = current_user.id
+    #   chatctype = "Group"
+    #   chatcid = group_data.id
+    #   porposal_id = PorposalChat.create(company_id: company_id)
+    #   Conversation.last.update(current_user_id: current_user.id, porposal_chat_id: porposal_id.id, recruiter_id:  params[:recruiter])
+    #   chatconversation = Conversation.last.id
+    #   add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
+    #   can_id = candiate.id
+    #   directoryid = can_id
+    #   add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
+    #   @conversation = Conversation.find_by(id: chatconversation)
+    #  end
     else
        @conversation = params[:conversation_id].present? ? Conversation.find_by(id: params[:conversation_id]) : create_or_find_conversation
     end 
