@@ -30,7 +30,7 @@ class Company::ConversationsController < Company::BaseController
      con = Conversation.where(current_user_id: current_user.id , candidate_id:  params[:candidate])
      if con.present?
        @conversation = con.last
-       @candidate = params[:candidate]
+       @candidate =  Candidate.find_by(id: params[:candidate])
        return
      else
       candiate = Candidate.find_by(id: params[:candidate])
@@ -55,6 +55,7 @@ class Company::ConversationsController < Company::BaseController
      con = Conversation.where(current_user_id: current_user.id , recruiter_id:  params[:recruiter])
      if con.present?
        @conversation = con.last
+       @candidate = User.find_by(id: params[:recruiter])
        return
      else
       candiate = User.find_by(id: params[:recruiter])
