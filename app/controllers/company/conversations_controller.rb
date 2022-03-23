@@ -31,10 +31,10 @@ class Company::ConversationsController < Company::BaseController
      if con.present?
        @conversation = con.last
        @candidate = params[:candidate]
-       return 
+       return
      else
       candiate = Candidate.find_by(id: params[:candidate])
-      @candidate = params[:candidate]
+      @candidate = candiate
       group_name = current_user.first_name + " " + current_user.last_name + ","+ candiate.first_name + candiate.last_name
       company_id = current_company.id
       member_type = "Chat"
@@ -58,6 +58,8 @@ class Company::ConversationsController < Company::BaseController
        return
      else
       candiate = User.find_by(id: params[:recruiter])
+      # create group
+      @candidate = candiate
       group_name = current_user.first_name + " " + current_user.last_name + ","+ candiate.first_name + candiate.last_name
       company_id = current_company.id
       member_type = "Chat"
