@@ -70,9 +70,9 @@ class Company::ConversationsController < Company::BaseController
       porposal_id = PorposalChat.create(company_id: company_id)
       Conversation.last.update(current_user_id: current_user.id, porposal_chat_id: porposal_id.id, recruiter_id:  params[:recruiter])
       chatconversation = Conversation.last.id
-      add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
       can_id = candiate.id
       directoryid = can_id
+      # directoryid which is a dumb missleading name for this variable is a user
       add_to_chat_action( params , directoryid, chatctype, chatcid, chatconversation )
       @conversation = Conversation.find_by(id: chatconversation)
      end
@@ -307,6 +307,7 @@ class Company::ConversationsController < Company::BaseController
   private
 
     def add_to_chat_action(params, directoryid, chatctype, chatcid, chatconversation)
+      # directoryid which is a dumb missleading name for this variable is a user
     conversation = Conversation.find(chatconversation)
     if directoryid.present?
       user = current_company.users.where(id: directoryid).first

@@ -15,6 +15,7 @@ margin-left: auto;
         <div class="chat-head">
             <div class="flex-row w-100 chat-heat_justify">
                 <div class=" d-flex w-100 align-items-center">
+                    <% if conversation.chatable.groupables.any?  %>
                     <% conversation.chatable.groupables.last(4).each do |groupable| %>
                     <div class=" my_avatar">
 
@@ -22,6 +23,11 @@ margin-left: auto;
 
                     </div>
                     <% end %>
+                    <% else %>
+                    <div class=" my_avatar">
+                      <p>None</p>
+                    </div>
+                    <% end  %>
                     <% if conversation.chatable.groupables.count > 4 %>
                     <div class="min_chat_more"><%= "+ #{(conversation.chatable.groupables.count - 4).abs}" %>More</div>
                     <% end %>
