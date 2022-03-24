@@ -1632,7 +1632,7 @@ end
 def entity_image(first_name = "", last_name = " ", circle_div_class = 'circle', default_img_classes = '')
   # content_tag(:img, nil , src: "https://t3.ftcdn.net/jpg/03/46/83/96/360_F_346839683_6nAPzbhpSkIpb8pmAwufkC7c5eD7wYws.jpg", width: "50", height: "50", class: "img-circle rounded-circle")
   if first_name == '' || last_name == ''
-  image_tag(asset_path('avatars/camera-default.png', size: '25'), class: "circle-images #{default_img_classes}" )
+  image_tag(asset_path('avatars/camera-default.png', size: '19'), class: "circle-images #{default_img_classes}" )
   else
   default_user_img(first_name, last_name, circle_div_class)
   end
