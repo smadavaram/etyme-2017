@@ -1,116 +1,102 @@
 <% @job_all.each do |job| %>
   <!-- Feed Blocks Start -->
   <div class="feed-article col-12 px-0">
-      <div class="d-flex">
-        <div class="width-100 mx-0 mx-sm-3">
-          <div class="thumb-100 thumb-xs-80" >
-            <% if job&.files.present? %>
-              <%= image_tag(job.files) %>
-            <% elsif job.created_by&.photo.present? %>
-              <%= image_tag(job.created_by&.photo) %>
-            <% else %>
-              <%= image_tag 'static-job.png'%>
-            <% end %>
-          </div>
+    <div class="d-flex">
+      <div class="width-100 mx-0 mx-sm-3">
+        <div class="thumb-100 thumb-xs-80">
+          <% if job&.files.present? %>
+            <%= image_tag(job.files) %>
+          <% elsif job.created_by&.photo.present? %>
+            <%= image_tag(job.created_by&.photo) %>
+          <% else %>
+            <%= image_tag 'static-job.png' %>
+          <% end %>
         </div>
-        <div class="pl-1 pr-3 d-flex flex-column justify-content-between flex-fill">
-          <div class="row justify-content-between">
-            <div class="col-12 col-md-6 col-lg-7 text-md-left d-flex align-self-center">
-              <h3 class="feed-article-title"><%= link_to truncate(job.title,length: 50) ,static_job_path(job, type: 'job')%></h3>
-            </div>
-            <% if job.job_category.present? %>
-              <div class="hidden-xs col-12 col-md-6 col-lg-5 text-center text-md-right">
-                <div class="col-12 p-0">
-                  <ul class="list-unstyled m-0">
-                    <li class="d-inline-block">
+      </div>
+      <div class="pl-1 pr-md-3 d-flex flex-column justify-content-between flex-fill">
+        <div class="row justify-content-between">
+          <div class="col-12 col-md-6 col-lg-7 text-md-left d-flex align-self-center">
+            <h3 class="feed-article-title mb-0">
+              <%= link_to truncate(job.title, length: 35), static_job_path(job, type: 'job'), class: "font-weight-bold" %>
+            </h3>
+          </div>
+          <% if job.job_category.present? %>
+            <div class="hidden-xs col-12 col-md-6 col-lg-5 text-center text-md-right">
+              <div class="col-12 p-0">
+                <ul class="list-unstyled m-0">
+                  <li class="d-inline-block">
                       <span class="feed-article-category">
                         <%= job&.job_category %>
                       </span>
-                    </li>
-                  </ul>
-                </div>
+                  </li>
+                </ul>
               </div>
-            <% end %>
-          </div>
-          <div class="row justify-content-between">
-            <div class="col-12 col-md-6 col-lg-4 my-2 my-md-0">
-              <ul class="list-unstyled m-0 p-0">
+            </div>
+          <% end %>
+        </div>
+        <div class="row justify-content-between">
+          <div class="col-6 col-md-6 col-lg-4 my-2 my-md-0">
+            <ul class="list-unstyled m-0 p-0">
+              <li class="d-block">
+                <%= image_tag(job.created_by&.photo || 'default_user.png', width: 15, height: 15) %>
+                <h5 class="feed-article-author d-inline vertical-sub"><%= job.company&.name || job&.created_by_candidate&.full_name || job&.created_by&.full_name %></h5>
+              </li>
+              <% if job.location.present? %>
                 <li class="d-block">
-                  <h5 class="feed-article-author">by <%= job&.created_by_candidate&.full_name || job&.created_by&.full_name %></h5>
-                </li>
-                <li class="d-block">
-                  <p class="feed-article-website">
-                    <%= image_tag 'globalization.svg', class: "img-fluid w-15 mr-2", alt: "globe" %>
-                    <%= job&.company&.website %>
+                  <p class="feed-article-location font-size-13 font-weight-bold">
+                    <%#= image_tag 'placeholder.svg', class: "img-fluid w-15 mr-2", alt: "placeholder" %>
+                    <%= truncate(job&.location, length: 25) %>
                   </p>
                 </li>
-                <% if job.location.present? %>
-                  <li class="d-block">
-                    <p class="feed-article-location">
-                      <%= image_tag 'placeholder.svg', class: "img-fluid w-15 mr-2", alt: "placeholder" %>
-                      <%= job&.location %>
-                    </p>
-                  </li>
-                <% end %>
+              <% end %>
+              <% if current_company&.owner == current_user %>
                 <li class="d-block">
                   <p class="feed-article-time">
-                    <%= image_tag 'clock.svg', class: "img-fluid w-15 mr-2", alt: "clock" %>
-                    <%= "#{time_ago_in_words(job.created_at)} ago" %>
+                    <small class="mr-3"><%= link_to 'Delete', job, method: 'delete', class: 'text-danger' %></small>
                   </p>
                 </li>
-                <% if current_company&.owner == current_user %>
-                  <li class="d-block">
-                    <p class="feed-article-time">
-                      <small class="mr-3"><%= link_to 'Delete', job, method: 'delete', class: 'text-danger' %></small>
-                    </p>
-                  </li>
-                <% end %>
-              </ul>
-            </div>
-            <div class="col-12 col-lg-8 d-flex">
-              <div class="col-12 text-lg-right align-self-end p-0">
-                <div class="d-flex align-items-center">
-                  <ul class="list-unstyled ml-auto mb-0">
-                    <li class="d-none d-md-inline-block mb-0 mr-2">
-                      <span class="feed-article-btn-share">
-                        <%= image_tag 'share.svg', alt: "share" %>
-                      </span>
-                    </li>
-                    <li class="d-none d-md-inline-block mb-0 mr-2">
-                      <span class="feed-article-btn-share">
-                        <%= image_tag 'like.svg', alt: "save" %>
-                      </span>
-                    </li>
-                    <li class="d-inline-block mb-0">
-                      <% if job&.listing_type.present? && job&.listing_type == "Training" %>
+              <% end %>
+            </ul>
+          </div>
+          <div class="col-6 col-lg-8 d-flex my-2 text-right">
+            <div class="col-12 text-lg-right align-self-end p-0">
+              <div class="d-flex align-items-center">
+                <ul class="list-unstyled ml-auto mb-0">
+                  <li class="d-inline-block mb-0">
+                    <% if job&.listing_type.present? && job&.listing_type == "Training" %>
                         <span class="feed-article-btn-apply">
-                          <%= link_to "View",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                          <%= link_to "View", static_job_apply_path(job, status: candidate_signed_in?), method: :post, remote: true, data: {trigger_modal: true} %>
                         </span>
-                      <% elsif job&.listing_type.present? && job&.listing_type == "Service" %>
+                    <% elsif job&.listing_type.present? && job&.listing_type == "Service" %>
                         <span class="feed-article-btn-apply">
-                          <%= link_to "View",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                          <%= link_to "View", static_job_apply_path(job, status: candidate_signed_in?), method: :post, remote: true, data: {trigger_modal: true} %>
                         </span>
-                      <% elsif job&.listing_type.present? && job&.listing_type == "Product" %>
+                    <% elsif job&.listing_type.present? && job&.listing_type == "Product" %>
                         <span class="feed-article-btn-apply">
-                          <%= link_to "Buy",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                          <%= link_to "Buy", static_job_apply_path(job, status: candidate_signed_in?), method: :post, remote: true, data: {trigger_modal: true} %>
                         </span>
-                      <% else %>
+                    <% else %>
                         <span class="feed-article-btn-apply">
                           <% if current_candidate.present? && current_candidate.already_applied?(job.id) %>
                             Applied
                           <% else %>
-                            <%= link_to "Apply Now",static_job_apply_path(job,status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }%>
+                            <%= link_to "Apply", static_job_apply_path(job, status: candidate_signed_in?), method: :post, remote: true, data: {trigger_modal: true} %>
                           <% end %>
                         </span>
-                      <% end %>
-                    </li>
-                  </ul>
-                </div>
+                    <% end %>
+                  </li>
+                  <li>
+                    <p class="feed-article-time font-xs-9">
+                      Posted <%= "#{time_ago_in_words(job.created_at)} ago" %>
+                    </p>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
   </div>
   <!-- Feed Blocks End -->
 <% end %>

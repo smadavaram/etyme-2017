@@ -1,5 +1,5 @@
 <!-- Product Details -->
-<div class="webflow-content-inner webflow-blog webflow-product-single col-12">
+<div class="webflow-content-inner webflow-blog webflow-product-single col-12 p-4">
   <!-- Back to Listings -->
   <div class="product-single-back pt-3 pb-3">
     <a href="#"><i class="fa fa-arrow-left mr-1" aria-hidden="true"></i> Back to Listings</a>
@@ -8,7 +8,7 @@
   <!-- Header: Title, updated, share, save and buy -->
   <div class="product-single-header row pb-3">
     <div class="col-8 col-md-10 feed-title">
-      <h1><%= @job.title %></h1>
+      <h1 class="font-500 font-size-24"><%= @job.title %></h1>
     </div>
     <div class="col-4 col-md-2 product-single-buy">
       <div class="feed-article-btn-apply">
@@ -19,6 +19,7 @@
       <span><i class="fa fa-clock-o mr-1" aria-hidden="true"></i> <%= "Created On #{@job.created_at.strftime('%B %e, %Y')}" %></span>
       <a href="#" >Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
       <a href="#" >Save this <i class="fa fa-heart ml-1" aria-hidden="true"></i></a>
+      <%= render 'show_details_job_info', is_job: is_job %>
     </div>
   </div>
 
@@ -33,7 +34,7 @@
 
   <!-- Description -->
   <div class="product-single-subsection-title pb-3">
-    <h7>Description</h7>
+    <h5 class="font-500 font-size-24">Description</h5>
   </div>
   <div class="product-single-subsection-content pb-3">
     <%= @job.description.html_safe %>

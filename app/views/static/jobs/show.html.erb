@@ -25,13 +25,13 @@
           <% elsif @job.listing_type == "Question" %>
             <%= render 'show_details_question' %>
           <% elsif @job.listing_type == "Product" %>
-            <%= render 'show_details_product' %>
+            <%= render 'show_details_product', is_job: false %>
           <% elsif @job.listing_type == "Service" %>
-            <%= render 'show_details_product' %>
+            <%= render 'show_details_product', is_job: false %>
           <% elsif @job.listing_type == "Training" %>
-            <%= render 'show_details_product' %>
+            <%= render 'show_details_product', is_job: false %>
           <% elsif @job.listing_type == "Job" %>
-            <%= render 'show_details_product' %>
+            <%= render 'show_details_product', is_job: true %>
           <% end %>
       </div> <!-- Div Content Main -->
       <%= render 'static/shared/webflow_sidebar_right' %>

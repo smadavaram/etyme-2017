@@ -1,0 +1,68 @@
+<div class="">
+  <div class="form-desc no-border"></div>
+  <div class="form-desc no-border">
+    <div class="row">
+      <div class="col-lg-6">
+        <div class="">
+          <%= is_job ? "Job Category" : "Category" %>
+        </div>
+        <div class="h6">
+          <%= @job.job_category %>
+        </div>
+        <div class="">
+          Date
+        </div>
+        <div class="h6">
+          <%= @job.start_date&.strftime("%B %d, %Y") %>
+          <% if @job.end_date %>
+            to <%= @job.end_date.strftime("%B %d, %Y") %>
+          <% end %>
+        </div>
+        <div class="">
+          Location
+        </div>
+        <div class="h6">
+          <%= @job.location %>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="">
+          Industry
+        </div>
+        <div class="h6">
+          <%= @job.industry %>
+        </div>
+        <div class="">
+          Status
+        </div>
+        <div class="h6">
+          <%= @job.status %>
+        </div>
+        <% if @job.price.present? %>
+          <div class="">
+            Rate
+          </div>
+          <div class="h6">
+            <%= sprintf("$%0.2f", @job.price) %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+  <div class="form-desc no-border mb-1">
+    <div class="">
+      Educations
+      <% @job.education.each do |ed| %>
+        <span class="badge badge-warning font-500 ml-2"><%= ed.name %></span>
+      <% end %>
+    </div>
+  </div>
+  <div class="form-desc no-border">
+    <div class="">
+      Skills
+      <% @job.tags.each do |tag| %>
+        <span class="badge badge-warning font-500 ml-2"><%= tag.name %></span>
+      <% end %>
+    </div>
+  </div>
+</div>

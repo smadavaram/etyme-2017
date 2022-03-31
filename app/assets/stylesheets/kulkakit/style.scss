@@ -1313,7 +1313,7 @@ span:hover {
 .content-wrapper .static-feeds .feed-article .feed-article-website,
 .content-wrapper .static-feeds .feed-article .feed-article-location,
 .content-wrapper .static-feeds .feed-article .feed-article-time {
-  margin-top: 10px;
+  margin-top: 5px;
   margin-bottom: 0;
 
   font-family: Rubik;
@@ -2207,9 +2207,20 @@ a.webflow-product-details-buy-now {
     }
   }
 
+  .font-size-24 {
+    font-size: 24px!important;
+  }
+
   .product-single-header {
     display: flex;
     justify-content: space-between;
+
+    .font-500 {
+      font-weight: 500;
+    }
+    .no-border {
+      border: none;
+    }
 
     h1 {
       font-family: Rubik;
@@ -2777,3 +2788,19 @@ trix-toolbar .trix-button-row {
   display: none; /* for Chrome, Safari, and Opera */
 }
 
+.font-size-13 {
+  font-size: 13px!important;
+  @media screen and (max-width: 768px) {
+    font-size: 11px!important;
+  }
+}
+
+@media screen and (max-width: 576px) {
+  .font-xs-9 {
+    font-size: 9px!important;
+  }
+}
+
+.vertical-sub {
+  vertical-align: sub;
+}
