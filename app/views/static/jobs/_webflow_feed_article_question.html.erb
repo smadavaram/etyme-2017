@@ -39,7 +39,7 @@
                         <%= image_tag(job.created_by&.photo, class: "user-avatar") %>
                       <% elsif job.created_by&.first_name.present? %>
                         <div class="user-avatar-text">
-                          <%= job.first.created_by.first_name.first.capitalize %>
+                          <%= job.created_by.first_name.first.capitalize %>
                         </div>
                       <% else %>
                         <%= image_tag('default_user.png', class: "user-avatar") %>
