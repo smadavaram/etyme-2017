@@ -47,18 +47,18 @@
 
       </div>
       <div class="col-lg-6">
-       <%= render 'company/jobs/partials/forms/field', form: form, attribute: :tag_list, title: "Skills", field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Skills are separated with comma", class: "form-control tagsinput", value: @job.tag_list.join(", ")}, note: "Skills are separated with comma" %>
+       <%= render 'company/jobs/partials/forms/field', form: form, attribute: :tag_list, title: "Skills/Tags", field_type: :text_field, field_attributes: {"data-role": "tagsinput", placeholder: "Skills are separated with comma", class: "form-control tagsinput", value: @job.tag_list.join(", ")}, note: "Skills are separated with comma" %>
       </div>
     </div>
     <div class="row">
       <div class="col-lg-12 hidden">
-        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :listing_type, options: ["Job", "Training", "Service", "Product", "Blog"], field_attributes: {}, select_option: {selected: params[:type] || "Job"}, note: "If you choose \"Published\", We will show this job to all candidates in your system and will be posted on etyme. So anyone can apply. To control job applications by invitations only" unless form.object.persisted?%>
+        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :listing_type, options: ["Job", "Training", "Service", "Product", "Blog", "Question"], field_attributes: {}, select_option: {selected: params[:type] || "Job"}, note: "If you choose \"Published\", We will show this job to all candidates in your system and will be posted on etyme. So anyone can apply. To control job applications by invitations only" unless form.object.persisted?%>
 
       </div>
     </div>
     <div class="row">
       <div class="col-lg-6">
-        <%= render 'company/jobs/partials/forms/field', form: form, attribute: :location, field_type: :text_field, field_attributes: {id: 'google_search_location',autocomplete: 'off'} %>
+        <%= render 'company/jobs/partials/forms/field', form: form, attribute: :location, field_type: :text_field, field_attributes: {id: 'google_search_location'} %>
       </div>
     </div>
     <div class="row">
@@ -226,5 +226,16 @@
       $(e.target).closest(".nested-fields").find('.question-req').css({ display: "none" });
       $(e.target).closest(".nested-fields").find('.req_form').css({ display: "block" })
     });
+    function initialize() {
+        var options = {
+            types: ['(cities)'],
+            // componentRestrictions: {
+            //     country: "us"
+            // }
+        };
+        var input = document.getElementById('google_search_location');
+        var autocomplete = new google.maps.places.Autocomplete(input, options);
+    }
+    google.maps.event.addDomListener(window, 'load', initialize);
   </script>
 <% end %>

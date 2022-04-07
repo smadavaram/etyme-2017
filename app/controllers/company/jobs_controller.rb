@@ -36,6 +36,8 @@ class Company::JobsController < Company::BaseController
     add_breadcrumb params[:type].blank? ? 'job' : 'job ' + params[:type], jobs_path, options: { title: 'JOBS' }
     add_breadcrumb 'NEW', new_job_path, options: { title: 'NEW JOB' }
     @job = current_company.jobs.new
+    @job.start_date = Time.now.strftime("%Y-%m-%d")
+    @job.end_date = "9999/12/31".to_datetime.strftime("%Y-%m-%d")
     @job.job_requirements.build
   end
 
