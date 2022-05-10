@@ -38,7 +38,7 @@
                                                 <sup class="text-danger"></sup>
                                             </label>
                                             <div class="col-md-12">
-                                                <%= f.text_field :remind_at ,class:'form-control',id:"remind", value: "#{@reminder.try(:remind_at).to_date() if @reminder.present?}" %>
+                                                <%= f.text_field :remind_at ,class:'form-control',id:"remind", value: "#{@reminder.try(:remind_at)&.to_date() if @reminder.present?}" %>
                                             </div>
                                         </div>
                                         <div class="modal-footer">
