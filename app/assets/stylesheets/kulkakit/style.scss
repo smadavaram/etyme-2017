@@ -2795,6 +2795,13 @@ trix-toolbar .trix-button-row {
   }
 }
 
+.font-size-12 {
+  font-size: 12px!important;
+  @media screen and (max-width: 768px) {
+    font-size: 11px!important;
+  }
+}
+
 @media screen and (max-width: 576px) {
   .font-xs-9 {
     font-size: 9px!important;

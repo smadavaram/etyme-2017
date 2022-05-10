@@ -42,8 +42,9 @@
             </div>
           <% end %>
         </div>
+<!--        Bound-->
         <div class="row justify-content-between">
-          <div class="col-6 col-md-6 col-lg-4 my-2 my-md-0">
+          <div class="col-6 col-md-6 col-lg-4 d-flex align-items-center">
             <ul class="list-unstyled m-0 p-0">
               <li class="d-block">
                 <% if job.created_by&.photo.present? %>
@@ -55,10 +56,10 @@
                 <% else %>
                     <%= image_tag('default_user.png', class: "user-avatar") %>
                 <% end %>
-                <h5 class="feed-article-author d-inline vertical-sub hidden-xs">
+                <h5 class="feed-article-author d-inline vertical-sub hidden-xs font-weight-500">
                   <%= job.company&.name || job&.created_by_candidate&.full_name || job&.created_by&.full_name %>
                 </h5>
-                <h5 class="feed-article-author d-inline vertical-sub show-xs">
+                <h5 class="feed-article-author d-inline vertical-sub show-xs font-weight-500">
                   <%=
                     truncate(job.company&.name, length: 10) ||
                         truncate(job&.created_by_candidate&.full_name, length: 10) ||
@@ -66,24 +67,9 @@
                   %>
                 </h5>
               </li>
-              <% if job.location.present? %>
-                <li class="d-block">
-                  <p class="feed-article-location font-size-13 font-weight-bold">
-                    <%#= image_tag 'placeholder.svg', class: "img-fluid w-15 mr-2", alt: "placeholder" %>
-                    <%= job&.location %>
-                  </p>
-                </li>
-              <% end %>
-              <% if current_company&.owner == current_user %>
-                <li class="d-block">
-                  <p class="feed-article-time">
-                    <small class="mr-3"><%= link_to 'Delete', job, method: 'delete', class: 'text-danger' %></small>
-                  </p>
-                </li>
-              <% end %>
             </ul>
           </div>
-          <div class="col-6 col-lg-8 d-flex my-2 text-right">
+          <div class="col-6 col-lg-8 d-flex text-right">
             <div class="col-12 text-lg-right align-self-end p-0">
               <div class="d-flex align-items-center">
                 <ul class="list-unstyled ml-auto mb-0">
@@ -110,8 +96,36 @@
                         </span>
                     <% end %>
                   </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-6 col-md-6 col-lg-4 d-flex align-items-center">
+            <ul class="list-unstyled m-0 p-0">
+              <% if job.location.present? %>
+                <li class="d-block">
+                  <p class="feed-article-location font-size-12 font-weight-bold">
+                    <%#= image_tag 'placeholder.svg', class: "img-fluid w-15 mr-2", alt: "placeholder" %>
+                    <%= job&.location %>
+                  </p>
+                </li>
+              <% end %>
+              <% if current_company&.owner == current_user %>
+                <li class="d-block">
+                  <p class="feed-article-time">
+                    <small class="mr-3"><%= link_to 'Delete', job, method: 'delete', class: 'text-danger' %></small>
+                  </p>
+                </li>
+              <% end %>
+            </ul>
+          </div>
+          <div class="col-6 col-lg-8 d-flex d-flex align-items-center text-right">
+            <div class="col-12 text-lg-right align-self-end p-0">
+              <div class="d-flex align-items-center">
+                <ul class="list-unstyled ml-auto mb-0">
                   <li>
-                    <p class="feed-article-time font-xs-9">
+                    <p class="feed-article-time font-xs-9 font-size-12 font-weight-500">
                       <span class="hidden-xs d-inline-block">Posted</span>
                       <span class="d-inline-block"><%= "#{time_ago_in_words(job.created_at)} ago" %></span>
                     </p>

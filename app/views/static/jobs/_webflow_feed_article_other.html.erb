@@ -76,7 +76,7 @@
                   </li>
                   <% if job.location.present? %>
                     <li class="d-block">
-                      <p class="feed-article-location font-size-13 font-weight-bold">
+                      <p class="feed-article-location font-size-13">
                         <%#= image_tag 'placeholder.svg', class: "img-fluid w-15 mr-2", alt: "placeholder" %>
                         <%= job&.location %>
                       </p>
@@ -84,18 +84,18 @@
                   <% end %>
                 </ul>
               </div>
-              <div class="col-6 col-lg-8 d-flex my-2 text-right">
+              <div class="col-6 col-lg-8 d-flex text-right">
                 <div class="col-12 text-lg-right align-self-end p-0">
-                  <div class="d-flex align-items-center">
-                    <ul class="list-unstyled ml-auto mb-0">
-                      <li>
+<!--                  <div class="d-flex">-->
+<!--                    <ul class="list-unstyled ml-auto mb-0">-->
+<!--                      <li>-->
                         <p class="feed-article-time font-xs-9">
                           <span class="hidden-xs d-inline-block">Posted</span>
                           <span class="d-inline-block"><%= "#{time_ago_in_words(job.created_at)} ago" %></span>
                         </p>
-                      </li>
-                    </ul>
-                  </div>
+<!--                      </li>-->
+<!--                    </ul>-->
+<!--                  </div>-->
                 </div>
               </div>
             </div>
