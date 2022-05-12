@@ -1,41 +1,47 @@
 - current_candidate.designations.build unless current_candidate.designations.present?
-= form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "skill"),method: :put, remote: true do |f|
-  %br/
-  %h4.element-header
-    Clients Information
-  .row
-    .col-sm-12.col-md-12.col-lg-12#skill-form
-      .form-group
-        .row
-          .col-md-12
-            %h5
-              %b Have you ever worked with a Client?
-              %label.radio-container
-                Yes
-                = f.radio_button :ever_worked_with_company, "Yes"
-                %span.radio-checkmark
-              %label.radio-container
-                No
-                = f.radio_button :ever_worked_with_company, "No"
-                %span.radio-checkmark
-        .row.client_information_main_div
-          .col-md-12
-            .form-group.candidate-association
-              = f.fields_for :clients, f.object.clients do |b|
-                = render 'candidate/candidates/client_fields', f: b
-              %strong
-                .links.pull-right
-                  = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-primary', partial: 'candidate/candidates/client_fields'
-  %br/
-  %h3
-    Add Employer, if any During this period:
-  %h4.element-header
-    Employer Information
-  .row
-    .col-sm-12.col-md-12.col-lg-12#designate-form
-      = f.fields_for :designations, f.object.designations.with_no_client do |b|
-        = render 'candidate/candidates/designations_fields', f: b
+#tab5_container{style: "padding: 0 14px;"}
+  = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "skill"),method: :put, remote: true do |f|
+    %br/
+    .row
+      .col-md-11
+        %h4.element-header{style: "padding-bottom: 1rem;margin-bottom: 1rem;"}
+          Add Experience
+      .col-md-1  
+        %button.btn.btn-primary
+          + Add 
+    .row
+      .col-sm-12.col-md-12.col-lg-12#skill-form
+        .form-group
+          .row{style: "margin-bottom: 1rem;"}
+            .col-md-12
+              %h7
+                Nature of work for this assignment
+                %label.radio-container
+                  Consulting
+                  = f.radio_button :ever_worked_with_company, "Yes"
+                  %span.radio-checkmark
+                %label.radio-container
+                  Full-time
+                  = f.radio_button :ever_worked_with_company, "No"
+                  %span.radio-checkmark
+                %label.radio-container
+                  Self Employed
+                  = radio_button_tag :self_employed, "self_employed"
+                  %span.radio-checkmark
+          .row.client_information_main_div{style: "border-top: 2px solid lightgray;padding-top: 13px;"}
+            .col-md-12
+              .form-group.candidate-association
+                = f.fields_for :clients, f.object.clients do |b|
+                  = render 'candidate/candidates/client_fields', f: b
+                %strong
+                  .links.pull-right
+                    = link_to_add_association '+ Add Experience', f, :clients, class: 'btn btn-primary', partial: 'candidate/candidates/client_fields'
+    .employer-information-body
+      .row
+        .col-sm-12.col-md-12.col-lg-12#designate-form
+          = f.fields_for :designations, f.object.designations.with_no_client do |b|
+            = render 'candidate/candidates/designations_fields', f: b
 
-      %strong
-        .links.pull-right
-          = link_to_add_association '+ Add Employer', f, :designations, class: 'btn btn-primary', partial: 'candidate/candidates/designations_fields'
+          %strong
+            .links.pull-right{style: "margin: 13px 0;"}
+              = link_to_add_association '+ Add Experience', f, :designations, class: 'btn btn-primary', partial: 'candidate/candidates/designations_fields'

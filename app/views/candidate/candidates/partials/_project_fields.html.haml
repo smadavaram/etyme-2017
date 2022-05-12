@@ -1,0 +1,54 @@
+%div{class: "row gallery-employer-wrapper-#{f.object.id}"}
+  .row{style: "padding: 0 20px;"}
+    .col-md-10
+      .multi-field-container.nested-fields5.client-fields
+        .h5.element{style: "border-bottom: 1px solid rgba(0, 0, 0, 0.05);padding-bottom: 1rem;margin-bottom: 1rem;position: relative;"}
+          Project Details
+    .col-md-2
+      = link_to_remove_association f , wrapper_class: "gallery-employer-wrapper-#{f.object.id}", class: "bttn btn-add pull-right delete_icon" do
+        %i.fa.fa-trash
+    .col-md-6
+      .form-group
+        %label Name
+        = f.text_field :project_name, placeholder: "Project Name",class: 'form-control  input'
+    .col-md-6
+      .form-group
+        %label Location
+        = f.text_field :location, placeholder: "Project Location",class: 'form-control  input'
+    .col-md-12{style: "display: none;"}
+      .form-group
+        %label Client Name
+        = f.text_field :client_name, placeholder: "Client Location",class: 'form-control  input'
+    .col-md-12
+      .row
+        .col-md-6
+          .form-group
+            %label Start Date
+            = f.text_field :start_date, placeholder: "Start Date",class: 'form-control p_date input'
+        .col-md-6
+          .form-group
+            %label End Date
+            = f.text_field :end_date, placeholder: "End Date",class: 'form-control p_date input'
+    .col-md-12
+      .row
+        .col-md-6
+          .form-group
+            %label Project Description
+            = f.trix_editor :project_description, class: 'form-control input'
+        .col-md-6
+          .form-group
+            %label Job Description
+            = f.trix_editor :job_description, class: 'form-control input'
+
+:javascript
+  //$('.education_start_year, .education_completion_year').datepicker({
+  // autoclose: true,
+  // todayHighlight: true,
+  // format: "mm-dd-yy"
+  //});
+   $('.p_date').datepicker({
+      changeMonth: true,
+      changeYear: true,
+      yearRange: "c-60:c",
+      dateFormat: "mm-dd-yy"
+    });

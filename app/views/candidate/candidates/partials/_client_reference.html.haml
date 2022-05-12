@@ -1,0 +1,15 @@
+.form-group
+  .multi-field-wrapper
+    .row
+      .col-md-9.col-xs-9
+        .multi-fields
+          %h4.element-header
+            Reference
+      .col-md-3.col-xs-3      
+        .links.pull-right{style: "margin-top: 10px;"}
+          = link_to_add_association '+ Add Reference', f, :client_references, :class => 'btn btn-primary add_fields', :partial => 'candidate/candidates/partials/reference_fields', data: {"association-insertion-node" =>  ".gallery-wrapper-#{f.object.id}-#{local_assigns[:reference]}", "association-insertion-method" => 'append'}
+    .wrapper
+      .d{style:"width: initial;", class: "gallery-wrapper-#{f.object.id}-#{local_assigns[:reference]}" }
+      .form-group
+        = f.fields_for :client_references do |c|
+          = render 'candidate/candidates/partials/reference_fields', f: c

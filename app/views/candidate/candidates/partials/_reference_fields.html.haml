@@ -1,0 +1,44 @@
+%div{class: "row gallery-wrapper-#{f.object.id}", style: "padding: 5px 13px;"}
+  .col-md-10
+    .multi-field-container.nested-fields5.client-fields
+      .h5.element{style: "border-bottom: 1px solid rgba(0, 0, 0, 0.05);padding-bottom: 1rem;margin-bottom: 1rem;position: relative;"}
+        Reference Details
+  .col-md-2
+    = link_to_remove_association f , wrapper_class: "gallery-wrapper-#{f.object.id}", class: "bttn btn-add pull-right delete_icon" do
+      %i.fa.fa-trash
+  .col-sm-4
+    .form-group
+      %label Name
+      = f.text_field :name, placeholder: "John Doe",class: 'form-control input'
+  .col-sm-4
+    .form-group
+      %label  Phone
+      .row
+        .col-sm-4
+          = f.text_field :country_code, placeholder: '+00', class: 'form-control input'
+        .col
+          = f.text_field :phone, placeholder: '555-5555', class: 'form-control input'
+  .col-sm-4
+    .form-group
+      %label Email
+      = f.text_field :email, placeholder: "Email",class: 'form-control  input'
+  .col-md-12
+    .form-group
+      %label Recruiter Name
+      = f.text_field :recruiter_name, placeholder: "HR/Recruiter Name",class: 'form-control  input'
+  .col-md-6
+    .form-group
+      %label Recruiter Email
+      = f.text_field :recruiter_email, placeholder: "Recruiter Email",class: 'form-control  input'
+  .col-md-6{style: 'display: flex; align-items: center;'}
+    .form-group
+      %label Recruiter Phone
+      .row
+        .col-md-3
+          = f.text_field :recruiter_phone_country_code, placeholder: "+00",class: 'form-control input'
+        .col-md-9
+          = f.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control input'
+    %button{style: 'height: 37px;border-radius: 0;', class: 'mt-2 btn btn-sm btn-primary'} verify
+  .col-md-12.col-xs-12
+    .multi-fields
+      .element{style: "border-bottom: 1px solid rgba(0, 0, 0, 0.05);padding-bottom: 1rem;margin-bottom: 2rem;position: relative;"}

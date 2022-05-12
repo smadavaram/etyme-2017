@@ -1,43 +1,43 @@
-.nested-fields7.multi-field-container
-  .row
-    .col-md-12
-      = render 'candidate/candidates/partials/gallery_form', f: f, reference: 'designation'
-  .row
-    .col-md-6
-      .form-group
-        %label Company Name
-        = f.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'
-    .col-md-6
-      .form-group
-        %label Company Designation
-        = f.text_field :company_role, placeholder: "Designation",class: 'form-control  input'
-    .col-md-6
-      .row
-        .col-md-6
+.nested-fields7{style: "margin-bottom: 10px;"}
+  .multi-field-container{style: "border: 2px solid lightgray; padding: 0 13px;margin-bottom: 15px;"}
+    .row
+      .col-md-12{style: "padding-top: 10px;"}
+        = render 'candidate/candidates/partials/gallery_form', f: f, reference: 'designation'
+    .row
+      .col-md-12
+        .multi-field-container.nested-fields5.client-fields
+          %h4.element-header
+            Employer History
+      .row{style: "padding: 0 20px;"}
+        .col-md-12
           .form-group
-            %label Start Date
-            = f.text_field :start_date, placeholder: "Start Date",class: 'form-control p_date input'
-        .col-md-6
-          .form-group
-            %label End Date
-            = f.text_field :end_date, placeholder: "End Date",class: 'form-control p_date input'
-    .col-md-6
-      .form-group
-        %label Recruiter Name
-        = f.text_field :recruiter_name, placeholder: "HR/Recruiter Name",class: 'form-control  input'
-    .col-md-6
-      .form-group
-        %label Recruiter Email
-        = f.text_field :recruiter_email, placeholder: "Recruiter Email",class: 'form-control  input'
-    .col-md-6{style: 'display: flex; align-items: center;'}
-      .form-group
-        %label Recruiter Phone
-        .row
-          .col-md-3
-            = f.text_field :recruiter_phone_country_code, placeholder: "+00",class: 'form-control input'
-          .col
-            = f.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control input'
-      %button{style: 'height: 37px;border-radius: 0;', class: 'mt-2 btn btn-sm btn-primary'} verify
+            %label Company Name
+            = f.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'
+        .col-md-12
+          .row
+            .col-md-6
+              .form-group
+                %label Company Designation
+                = f.text_field :company_role, placeholder: "Company Designation",class: 'form-control  input'
+            .col-md-6
+              .form-group
+                %label Company Location
+                = f.text_field :location, placeholder: "Company Location",class: 'form-control  input'
+        .col-md-12
+          .row
+            .col-md-6
+              .form-group
+                %label Start Date
+                = f.text_field :start_date, placeholder: "Start Date",class: 'form-control p_date input'
+            .col-md-6
+              .form-group
+                %label End Date
+                = f.text_field :end_date, placeholder: "End Date",class: 'form-control p_date input'
+      .col-md-12
+        = render 'candidate/candidates/partials/client_reference', f: f, reference: 'client_reference'
+      .col-md-12
+        = render 'candidate/candidates/partials/designation_project', f: f, reference: 'designation_project'
+
 
   .row
     .col-md-12
@@ -48,15 +48,3 @@
   -#  .col-md-12
   -#    %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
   -#      %i.fa.fa-trash
-:javascript
-  //$('.education_start_year, .education_completion_year').datepicker({
-  // autoclose: true,
-  // todayHighlight: true,
-  // format: "mm-dd-yy"
-  //});
-   $('.p_date').datepicker({
-      changeMonth: true,
-      changeYear: true,
-      yearRange: "c-60:c",
-      dateFormat: "mm-dd-yy"
-    });
