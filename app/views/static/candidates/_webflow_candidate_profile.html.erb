@@ -55,7 +55,7 @@
         </div>
         <div class="profile-stats-container">
           <div class="profile-stats-number">
-           <%= candidate&.clients.count %>
+           <%= candidate.designations&.with_no_client.count %>
           </div>
           <div class="profile-stats-label">
             Clients
@@ -319,23 +319,6 @@
         </div>
         <% end %>
       </div>
-      <div class="profile-section">
-        <div class="profile-section-header">
-          <div class="profile-section-title">Projects History</div>
-          <div class="profile-section-line"></div>
-        </div>
-        <% if candidate.portfolios.blank? %>
-          No Projects
-        <% end %>
-        <% candidate.portfolios.each do |portfolio| %>
-        <div class="profile-section-content-label">
-          <%= portfolio.name %>
-        </div>
-        <div class="profile-section-content-value pb-2">
-          <%= portfolio.description %>
-        </div>
-        <% end %>
-      </div>
     </div>
   </div>
 
@@ -370,102 +353,64 @@
         <% end %>
     </div>
 
-    <!-- Project Experience -->
+    <!-- Employment History -->
     <div class="webflow-profile-inner">
       <div class="d-flex justify-content-between mb-30">
-        <div class="f-16 w-500 l-19 c-80">Work History</div>
+        <div class="f-16 w-500 l-19 c-80">Employment History</div>
+      </div>
+      <% if candidate.designations.with_no_client.present? %>
+        <div class="element-info">
+          <div class="element-info-text">
+            <div class="mb-2">
+              <table>
+                <tr>
+                  <th>Sr No.</th>
+                  <th>Organization</th>
+                  <th>Industry</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Role</th>
+                </tr>
+                <% candidate.designations.with_no_client.each_with_index do |designation, idx| %>          
+                  <tr>
+                    <td><%= idx+1 %></td>
+                    <td><%= designation.comp_name %></td>
+                    <td><%= designation.company_role %></td>
+                    <td><%= designation.start_date&.strftime('%B-%Y') %></td>
+                    <td><%= designation.end_date&.strftime('%B-%Y')  %></td>
+                    <td><%= designation.nature_of_work %></td>
+                  </tr>
+                <%end%>
+              </table>
+            </div>
+          </div>
+        </div>
+      <% else %>
+        There is no work Experience  
+      <% end %>
+
+    </div>
+
+    <!-- Project Hisotry -->
+    <div class="webflow-profile-inner">
+      <div class="d-flex justify-content-between mb-30">
+        <div class="f-16 w-500 l-19 c-80">Project Hisotry</div>
       </div>
       <% if candidate.full_experiences.empty? %>
-        There is no work Experience
+        There is no Project hisotry present.
       <% end %>
 
       <% candidate.designations.with_no_client.each do |designation| %>
         <div class="element-info">
           <div class="element-info-text">
             <div class="mb-2">
-              <div>
-                <h5 class="mb-1 text-primary"><%= designation.comp_name %></h5>
-                <span class="mb-1 h6 d-block text-secondary">
-                  <%= "As #{designation.company_role}" if designation.company_role.present? %>
-                </span>
-                <strong class="font-weight-bold font-sm text-capitalize">
-                  <%= "#{designation.formatted_date}" %>
-                </strong>
-                <% if designation.recruiter_name.present? %>
-                  <div>
-                    <strong>Recruiter</strong>
-                    <div class="element-inner-desc">
-                      <strong>
-                        <%= designation.recruiter_name %>
-                      </strong>
-                    </div>
-                  </div>
-                <% end %>
-              </div>
+              
             </div>
           </div>
         </div>
       <%end%>
-      <% candidate.clients.each do |client| %>
-        <div class="element-info">
-          <div class="element-info-text">
-            <div class="mb-2">
-              <div>
-                <h5 class="mb-1 text-primary"><%= client.name %></h5>
-                <span class="mb-1 h6 d-block text-secondary">
-                  <%= "At #{client.industry}" if client.industry.present? %>
-                </span>
-                <strong class="font-weight-bold font-sm text-capitalize">
-                  <%= client.formatted_date %>
-                </strong>
-              </div>
-              <div class="element-inner-desc">
-                <P class="m-0">
-                  <strong>Industry</strong>
-                  <%= client.industry %>
-                </P>
-              </div>
-              <div class="element-inner-desc">
-                <P class="m-0">
-                  <strong>Project Description</strong>
-                  <%= client.project_description %>
-                </P>
-              </div>
-              <div class="element-inner-desc">
-                <P>
-                  <strong>Role(s)</strong>
-                  <%= client.role %>
-                </P>
-              </div>
-              <strong>Reference</strong>
-              <div class="element-inner-desc pl-2">
-                <p class="m-0">
-                  <strong>
-                    <%= client&.refrence_name&.capitalize %>
-                  </strong>
-                </p>
-              </div>
-              <div class="element-inner-desc pl-2">
-                <p class="m-0">
-                  <strong>
-                    <%= client&.refrence_two_name&.capitalize %>
-                  </strong>
-                </p>
-              </div>
-              <% if client.designation.present? %>
-                <div class="element-inner-desc pl-2">
-                  <p class="m-0">
-                    <strong>
-                      <%= "Recruiter: #{client&.designation&.recruiter_name&.capitalize}" %>
-                    </strong>
-                  </p>
-                </div>
-              <% end %>
-            </div>
-          </div>
-        </div>
-      <% end %>
     </div>
+
 
     <%# <!-- Project Experience --> %>
     <%# <div class="webflow-profile-inner"> %>
@@ -555,3 +500,20 @@
     }
 </script>
 
+<style type="text/css">
+  table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+  }
+
+  tr:nth-child(even) {
+    background-color: #dddddd;
+  }
+</style>
