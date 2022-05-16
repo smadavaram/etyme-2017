@@ -301,52 +301,33 @@
                           %span.mb-1.h6.d-block.text-secondary=  "As #{c.company_role}" if c.company_role.present?
                           %strong.font-weight-bold.font-sm.text-capitalize
                             ="#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?}  #{c.end_date&.strftime('%B-%Y')}"
-                          - if c.recruiter_name.present?
-                            %div
-                              %strong Recruiter
-                              .element-inner-desc
-                                %strong=c.recruiter_name
+                          
+                          - if c.client_references.present?
+                            - c.client_references.each do |reference|
+                              %div{style: "margin-top: 10px"}
+                                %h6.mb-1.text-primary{style: "display: block;padding: 5px 0px;"}
+                                  Reference
+                                %strong Name
+                                .element-inner-desc
+                                  %strong=reference.recruiter_name
+                                %strong Title
+                                .element-inner-desc
+                                  %strong=reference.recruiter_title
 
-                - candidate.clients.each do |c|
-                  .element-info
-                    .element-info-text
-                      .mb-2
-                        %div
-                          %h5.mb-1.text-primary #{c.name}
-                          %span.mb-1.h6.d-block.text-secondary=  "At #{c.industry}" if c.industry.present?
-                          %strong.font-weight-bold.font-sm.text-capitalize
-                            = "#{c.start_date&.strftime('%B-%Y')} #{"-" if c.start_date.present? and c.end_date.present?} #{c.end_date&.strftime('%B-%Y')}"
-                        .element-inner-desc
-                          %P.m-0
-                            %strong Industry
-                            = c.industry
-                        .element-inner-desc
-                          %P.m-0
-                            %strong Project Description
-                            = c.project_description
-                        .element-inner-desc
-                          %P
-                            %strong Role(s)
-                            = c.role
-                        %strong Reference
-                        .element-inner-desc.pl-2
-                          %p.m-0
-                            %strong=c&.refrence_name&.capitalize
-                        .element-inner-desc.pl-2
-                          %p.m-0
-                            %strong=c&.refrence_two_name&.capitalize
-                        - if c.designation.present?
-                          .element-inner-desc.pl-2
-                            %p.m-0
-                              %strong="Recruiter: #{c&.designation&.recruiter_name&.capitalize}"
+                          - if c.designation_projects.present?
+                            - c.designation_projects.each do |project|
+                              %div{style: "margin-top: 10px"}
+                                %h6.mb-1.text-primary{style: "display: block;padding: 5px 0px;"}
+                                  Project
+                                %strong Name
+                                .element-inner-desc
+                                  %strong=project.project_name
+                                %strong Location
+                                .element-inner-desc
+                                  %strong=project.location
+                                %strong.font-weight-bold.font-sm.text-capitalize
+                                  ="#{project.start_date&.strftime('%B-%Y')} #{"-" if project.start_date.present? and project.end_date.present?}  #{project.end_date&.strftime('%B-%Y')}"
 
-                        -#%strong Reference
-                        -#- if c.candidate == current_candidate and !c.refrence_two.present?
-                        -#  = render 'candidate/candidates/partials/update_ref_two', client: c
-                        -#- else
-                        -#  .element-inner-desc.pl-2
-                        -#    %p.m-0
-                        -#      = "<strong>#{c.refrence_two_name.capitalize}</strong> endorse <strong>#{c.candidate.full_name}</strong> and their roles and responsibilities for the PROJECT".html_safe
 
               - else
                 .element-info

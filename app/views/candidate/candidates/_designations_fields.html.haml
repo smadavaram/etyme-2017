@@ -1,4 +1,24 @@
 .nested-fields7{style: "margin-bottom: 10px;"}
+  .row
+    .col-md-12
+      .row{style: "margin: 20px 0;"}
+        .col-md-5.col-xs-12
+          %h6
+            %b Nature of work for this assignment
+        .col-md-7.col-xs-12
+          %h6{style: "display: inline-flex;"}
+            %label.radio-container{style: "margin: 0 10px"}
+              Consulting
+              = f.radio_button :nature_of_work, "consulting"
+              %span.radio-checkmark
+            %label.radio-container{style: "margin: 0 10px"}
+              Full time
+              = f.radio_button :nature_of_work, "full_time"
+              %span.radio-checkmark  
+            %label.radio-container{style: "margin: 0 10px"}
+              Self Employed
+              = f.radio_button :nature_of_work, "self_employed"
+              %span.radio-checkmark          
   .multi-field-container{style: "border: 2px solid lightgray; padding: 0 13px;margin-bottom: 15px;"}
     .row
       .col-md-12{style: "padding-top: 10px;"}
@@ -28,11 +48,11 @@
             .col-md-6
               .form-group
                 %label Start Date
-                = f.text_field :start_date, placeholder: "Start Date",class: 'form-control p_date input'
+                = f.date_field :start_date, placeholder: "Start Date",class: 'form-control input'
             .col-md-6
               .form-group
                 %label End Date
-                = f.text_field :end_date, placeholder: "End Date",class: 'form-control p_date input'
+                = f.date_field :end_date, placeholder: "End Date",class: 'form-control input'
       .col-md-12
         = render 'candidate/candidates/partials/client_reference', f: f, reference: 'client_reference'
       .col-md-12
@@ -41,7 +61,7 @@
 
   .row
     .col-md-12
-      = link_to_remove_association f , wrapper_class: "nested-fields7", class: "bttn btn-add pull-right delete_icon" do
+      = link_to_remove_association f , wrapper_class: "nested-fields7", class: "bttn delete-designation btn-add pull-right delete_icon" do
         %i.fa.fa-trash
 
   -#.row

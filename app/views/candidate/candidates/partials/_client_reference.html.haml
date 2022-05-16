@@ -2,9 +2,11 @@
   .multi-field-wrapper
     .row
       .col-md-9.col-xs-9
-        .multi-fields
-          %h4.element-header
+        .multi-fields{style: "margin-bottom: 11px;"}
+          %h4.element-header{style: "margin-bottom: 10px;"}
             Reference
+          %span{style: "color: gray;"}
+            ( For better results, Please include 1 HR and atleast 2 project references ) 
       .col-md-3.col-xs-3      
         .links.pull-right{style: "margin-top: 10px;"}
           = link_to_add_association '+ Add Reference', f, :client_references, :class => 'btn btn-primary add_fields', :partial => 'candidate/candidates/partials/reference_fields', data: {"association-insertion-node" =>  ".gallery-wrapper-#{f.object.id}-#{local_assigns[:reference]}", "association-insertion-method" => 'append'}
