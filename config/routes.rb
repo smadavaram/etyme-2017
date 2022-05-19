@@ -443,6 +443,8 @@ Rails.application.routes.draw do
       end
     end
 
+    get '/conversations_2', to: 'conversations#index_2'
+
     resources :sell_contracts
     resources :buy_contracts do
       resources :contract_sale_commissions, only: %i[new create]

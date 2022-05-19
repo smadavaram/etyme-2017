@@ -14,7 +14,7 @@
       <% end %>
       <%# border = "4px solid #{color}" %>
       <% unread_messages = messages.where.not(userable_id: current_user).where(is_read: false).count || 0  %>
-      <div id="convo_box"  class=" row user-list-item-style conversation_user_<%=  con.id  %>   <%= unread_messages.present? && unread_messages > 0 ? "unread-div-color" : "" %> <%= count.present? && count == 0 ? "active-div-color" : "" %>" data-conversation="<%= con.id %>" >
+      <div id="convo_box" >
         <%= render 'company/conversations/conversation_list_2', con: con, usr: opt_usr, is_favourite: false %>
       </div>
       <% count += 1 %>
