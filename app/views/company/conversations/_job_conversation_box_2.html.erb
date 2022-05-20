@@ -208,11 +208,11 @@
         class="rounded-2xl bg-gray-100 py-3 px-5 w-full"
         />
     </div>
-    <div
-      class="h-12 w-12 p-2 bg-yellow-500 rounded-full text-white font-semibold flex items-center justify-center"
-    >
-      RA
-    </div>
+<!--    <div-->
+<!--      class="h-12 w-12 p-2 bg-yellow-500 rounded-full text-white font-semibold flex items-center justify-center"-->
+<!--    >-->
+<!--      RA-->
+<!--    </div>-->
   </div>
 <!--  end here header first-->
 
@@ -243,68 +243,73 @@
   </div>
 
 
-  <!--  SEND FORM -->
-  <div  class="row message-send-row-mobile" >
-    <div class= "row" style="width: 100%;  height:50%;  margin-left: 17px" >
-      <div><button id="showdiv1" onclick="btnClick()" class="buttonstyle2"><i class="fa fa-ellipsis-v option-mobile-style"></i></button></div>
-      <% if @conversation.present? && @conversation.freeze_chats == false %>
-        <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%; margin: auto;',class: "chat_form",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
-          <%#= f.text_field :body, class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
-          <div class="row items-center justify-center">
 
-<!--            icons-->
-          <div class="row send-icons items-center justify-between">
-            <% if conversation.present? && @conversation.freeze_chats == false  %>
-              <%= image_tag("/assets/docusign.png",size: "25x28") %>
-              <% end %>
-            <div class="-mr-2 -mt-1">
-              <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0 ", cstm_style: "background: transparent;box-shadow: none;width: 31px; color:#adadad;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
-            </div>
-            <div>
-              <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : "" %>
-                <%= candidate.present? ? mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) : mini_chat_contact_widget(nil, nil,nil) %>
+<!--  New form -->
+  <div class="flex flex-row items-center h-16 rounded-xl bg-white w-full px-4">
+    <div><button id="showdiv1" onclick="btnClick()" class="buttonstyle2"><i class="fa fa-ellipsis-v option-mobile-style"></i></button></div>
 
-            </div>
+    <% if @conversation.present? && @conversation.freeze_chats == false %>
+    <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%; margin: auto;',class: "flex flex-row items-center h-16 rounded-xl bg-white w-full px-4",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
+
+        <!--            icons-->
+        <div class="row send-icons items-center justify-around" >
+          <% if conversation.present? && @conversation.freeze_chats == false  %>
+            <%= image_tag("/assets/docusign.png",size: "25x28") %>
+          <% end %>
+          <div class="-mr-2 -mt-1">
+            <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0 ", cstm_style: "background: transparent;box-shadow: none;width: 31px; color:#adadad;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
           </div>
+          <div>
+            <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : "" %>
+            <%= candidate.present? ? mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) : mini_chat_contact_widget(nil, nil,nil) %>
 
-          <div class="flex-grow ml-4">
-            <div class="relative  " style="width: 80%">
-
-              <%= f.text_field :body, class: 'flex w-full border rounded-xl focus:outline-none focus:border-blue-300 pl-4 h-10', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
-
-              <button
-                class="absolute flex items-center justify-center h-full w-12 right-0 top-0 text-gray-400 hover:text-gray-600"
-              >
-                <svg
-                  class="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
-                </svg>
-              </button>
-            </div>
           </div>
+        </div>
 
-      <%#= button_tag( class: "btn p-0 button-style1 button-style112 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
-<!--        <img src="/assets/send.png"></img>-->
-      <%# end %>
+  <!--    New form Icons-->
+    <div>
+    </div>
+    <!--  end New form Icons-->
 
-<!--          send button -->
-      <% if @conversation.present? && @conversation.freeze_chats == false %>
-          <div class="">
-            <button
-              class="flex items-center justify-center bg-blue-500 hover:bg-blue-600 rounded-xl text-white px-4 py-1 flex-shrink-0"
-            >
-              <span>Send</span>
-              <span class="ml-2">
+    <!--          input-->
+    <div class="flex-grow ml-4">
+      <div class="relative w-full">
+<!--        <input-->
+<!--          type="text"-->
+<!--          class="flex w-full border rounded-xl focus:outline-none focus:border-blue-300 pl-4 h-10"-->
+<!--          />-->
+        <%= f.text_field :body, class: 'flex w-full border rounded-xl focus:outline-none focus:border-blue-300 pl-4 h-10', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
+
+
+        <!--        send button -->
+<!--        <button-->
+<!--          class="absolute flex items-center justify-center h-full w-12 right-0 top-0 text-gray-400 hover:text-gray-600"-->
+<!--        >-->
+<!--          <svg-->
+<!--            class="w-6 h-6"-->
+<!--            fill="none"-->
+<!--            stroke="currentColor"-->
+<!--            viewBox="0 0 24 24"-->
+<!--            xmlns="http://www.w3.org/2000/svg"-->
+<!--          >-->
+<!--            <path-->
+<!--              stroke-linecap="round"-->
+<!--              stroke-linejoin="round"-->
+<!--              stroke-width="2"-->
+<!--              d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"-->
+<!--            ></path>-->
+<!--          </svg>-->
+<!--        </button>-->
+      </div>
+    </div>
+    <!--      Send button-->
+   <% if @conversation.present? && @conversation.freeze_chats == false %>
+    <div class="ml-4">
+      <button
+        class="flex items-center justify-center bg-blue-500 hover:bg-blue-600 rounded-xl text-white px-4 py-1 flex-shrink-0"
+      >
+        <span>Send</span>
+        <span class="ml-2">
                   <svg
                     class="w-4 h-4 transform rotate-45 -mt-px"
                     fill="none"
@@ -320,42 +325,19 @@
                     ></path>
                   </svg>
                 </span>
-            </button>
-          </div>
-      <% end %>
-        </div>
+      </button>
     </div>
+   <% end %>
+
+    <!--          end button-->
+    <% end %>
+    <% end %>
+  </div>
+<!--end new form-->
 
 
-<!--    <div class="row mobile-chat-send-icons" >-->
-<!--      <div class="col-sm-8 col-md-8 col-lg-8">-->
-<!--        <div class="row send-icons">-->
-          <%# if conversation.present? && @conversation.freeze_chats == false  %>
-          <%#= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
-            <%#= image_tag("/assets/docusign.png",size: "25x28") %>
-          <%# end %>
-          <%#= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width: 31px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
-<!--            <div>-->
-              <%# candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : "" %>
-              <%#= candidate.present? ? mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) : mini_chat_contact_widget(nil, nil,nil) %>
-<!--            </div>-->
-          <% end %>
-<!--        end of chat form-->
-        <% end %>
-<!--        </div>-->
-<!--      </div>-->
 
 
-       <%# if @conversation.present? && @conversation.freeze_chats == false %>
-<!--      <div class="col-sm-4 col-md-4 col-lg-4">-->
-<!--        <div class="row send-line">-->
-          <%#= button_tag( class: "btn p-0 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
-<!--            <img src="/assets/send.png"></img>-->
-          <%# end %>
-<!--        </div>-->
-<!--      </div>-->
-      <%#end%>
-    </div>
 
   </div>
 
