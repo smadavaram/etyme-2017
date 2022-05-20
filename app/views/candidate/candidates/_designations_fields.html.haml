@@ -29,31 +29,32 @@
           .multi-field-container.nested-fields5.client-fields
             %h4.element-header
               Employer History
-        .row{style: "padding: 0 20px;"}
-          .col-md-12
-            .form-group
-              %label Company Name
-              = f.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'
-          .col-md-12
-            .row
-              .col-md-6
-                .form-group
-                  %label Company Designation
-                  = f.text_field :company_role, placeholder: "Company Designation",class: 'form-control  input'
-              .col-md-6
-                .form-group
-                  %label Company Location
-                  = f.text_field :location, placeholder: "Company Location",class: 'form-control  input'
-          .col-md-12
-            .row
-              .col-md-6
-                .form-group
-                  %label Start Date
-                  = f.date_field :start_date, placeholder: "Start Date",class: 'form-control input'
-              .col-md-6
-                .form-group
-                  %label End Date
-                  = f.date_field :end_date, placeholder: "End Date",class: 'form-control input'
+        .col-md-12
+          .row{style: "padding: 0 20px;"}
+            .col-md-12
+              .form-group
+                %label Company Name
+                = f.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'
+            .col-md-12
+              .row
+                .col-md-6
+                  .form-group
+                    %label Company Designation
+                    = f.text_field :company_role, placeholder: "Company Designation",class: 'form-control  input'
+                .col-md-6
+                  .form-group
+                    %label Company Location
+                    = f.text_field :location, placeholder: "Company Location",class: 'form-control  input'
+            .col-md-12
+              .row
+                .col-md-6
+                  .form-group
+                    %label Start Date
+                    = f.date_field :start_date, placeholder: "Start Date",class: 'form-control input'
+                .col-md-6
+                  .form-group
+                    %label End Date
+                    = f.date_field :end_date, placeholder: "End Date",class: 'form-control input'
         .col-md-12
           = render 'candidate/candidates/partials/client_reference', f: f, reference: 'client_reference'
         .col-md-12

@@ -396,19 +396,34 @@
       <div class="d-flex justify-content-between mb-30">
         <div class="f-16 w-500 l-19 c-80">Project Hisotry</div>
       </div>
-      <% if candidate.full_experiences.empty? %>
+      <% if candidate.designations.with_no_client.present? %>
+        <% candidate.designations.with_no_client.each do |designation| %>
+          <% designation.designation_projects.each do |project|%>
+            <div class="element-info">
+              <div class="element-info-text">
+                <div class="mb-2">
+                  <div class="project-header">
+                    <h6 class="mb-1 text-primary"><%= project.project_name&.titleize%>, <%= project.location&.titleize%></h6>
+                    <strong class="font-weight-bold font-sm text-capitalize" style="color: gray;">
+                    <%= project.start_date&.strftime('%B-%Y') %> -  <%= project.end_date&.strftime('%B-%Y')%>
+                    </strong>
+                  </div>
+                  <div class="project-description" style="margin-top: 12px;font-size: 16px;line-height: 25px;">
+                    <div><%= project.project_description.html_safe %></div>
+                    <div class="job-description" style="margin-top: 12px;font-size: 16px;line-height: 25px;">
+                      <strong class="font-weight-bold font-sm text-capitalize" style="color: gray;">Job description</strong>
+                      <div> <%= project.job_description.html_safe %> </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        <%end%>
+      <% else %>
         There is no Project hisotry present.
       <% end %>
 
-      <% candidate.designations.with_no_client.each do |designation| %>
-        <div class="element-info">
-          <div class="element-info-text">
-            <div class="mb-2">
-              
-            </div>
-          </div>
-        </div>
-      <%end%>
     </div>
 
 
