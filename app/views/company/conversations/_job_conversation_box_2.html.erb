@@ -31,144 +31,7 @@
   z-index: 1;
 }
 </style>
-<div class="row branch-class-madia" style="height: 5vh; background: #eaf3fc;" >
-  <div class="col-6 branchout-back">
 
-    <div class="row branch-out" style="margin-left: 20px;">
-      <i class="fa fa-arrow-circle-left" style="margin-right: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction1()"></i>
-      <i class="fa fa-arrow-circle-right" style="margin-left: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction()"></i>
-<!--      <img src="/assets/collabs.png" style="margin-left: 45px; height: 24px; width: 27px;" onclick="myFunction()"></img>-->
-<!--      <span>Collaborators</span>-->
-    </div>
-  </div>
-  <div class="col-sm-4 col-6 branchout-mobile" style="margin-left: 284px;background: #eaf3fc;">
-    <div class="row branch-out dropdown" style="justify-content: flex-end">
-      <div class="dropdown-content" style="margin-left: -70px;font-size: 12px;">
-        <a href="#">Interview</a>
-        <a href="#">Document Collection</a>
-        <a href="#">Navigation</a>
-      </div>
-    </div>
-  </div>
-  <div class="col-8 col-sm-8 col-md-8 col-lg-8" style="background: #eaf3fc;">
-    <div class="branch-out-content" style="justify-content: flex-start;display: flex; align-items: center;  height: 5vh; overflow: hidden;">
-      <div>
-        <button type="button" class="btn1-style" onclick="btnClick1()">Main</button>
-      </div>
-      <div id="myDIV" style="display:none; ">
-        <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
-        <%= form_tag update_company_conversation_title_company_conversations_path, class:"form-class", method: :post ,remote: :true do %>
-          <div class="element-search autosuggest-search-activator">
-            <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
-            <%= hidden_field_tag 'group_id', opt_obj.id if opt_obj.present? %>
-            <%= hidden_field_tag 'con_id', conversation.id if opt_obj.present? %>
-          </div>
-        <% end %>
-      </div>
-      <% if opt_obj.present?%>
-        <%branch_new_array = opt_obj[:branch_array]%>
-        <% if branch_new_array.size <= 3 %>
-          <% branch_new_array.each do |key|%>
-            <%key_value = eval(key)%>
-            <%i =  key_value[:chat_title]%>
-            <a style=" padding: 0px; margin:0px;">
-              <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
-                <% if conversation.id == key_value[:sub_chats]%>
-                  <div id="branchout-button" class=" underline_actives">
-                    <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
-                <% else %>
-                  <div id="branchout-button" class="">
-                    <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
-                <% end %>
-                </div>
-                </div>
-            </a>
-          <% end %>
-        <% else %>
-          <% branch_new_array1 = branch_new_array.first(3) %>
-          <% branch_new_array1.each do |key|%>
-            <%key_value = eval(key)%>
-            <%i =  key_value[:chat_title]%>
-            <a style=" padding: 0px; margin:0px;">
-              <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
-                <% if conversation.id == key_value[:sub_chats]%>
-                  <div id="branchout-button" class=" underline_actives">
-                    <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
-                <% else %>
-                  <div id="branchout-button" class="">
-                    <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
-                <% end %>
-                </div>
-                </div>
-            </a>
-          <% end %>
-          <div class="dropdown">
-            <button class="new_but"><i class="fa fa-ellipsis-h new_size" aria-hidden="true"></i></button>
-            <div class="dropdown-content" id="myDropdown">
-<!--              <input type="text" placeholder="Search BO" id="myInput" onkeyup="filterFunction()">-->
-              <% branch_new_array.each_with_index do |value,key|%>
-                <% if key > 2 %>
-                  <%key_value = eval(value)%>
-                  <%i =  key_value[:chat_title]%>
-                  <a style=" padding: 0px; margin:0px;">
-                    <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
-                      <% if conversation.id == key_value[:sub_chats]%>
-                        <div id="branchout-button" class=" underline_actives">
-                          <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button></div>
-                      <% else %>
-                        <div id="branchout-button" class="">
-                          <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button></div>
-                      <% end %>
-                      </div>
-                      </div>
-                  </a>
-                <% end %>
-              <% end %>
-            </div>
-          </div>
-
-
-        <% end %>
-
-        <div class="dropdown">
-<!--          <button class="new_but"><i class="fa fa-search new_size"></i></button>-->
-          <div class="dropdown-content" id="myDropdown">
-            <input type="text" placeholder="Search BO" id="myInput" onkeyup="filterFunction()">
-            <%branch_new_array = opt_obj[:branch_array]%>
-            <% branch_new_array.each do |key|%>
-            <%key_value = eval(key)%>
-            <%i =  key_value[:chat_title]%>
-                    <a style=" padding: 0px; margin:0px;">
-                      <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
-                        <% if conversation.id == key_value[:sub_chats]%>
-                          <div id="branchout-button" class=" underline_actives">
-                          <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button><span style="color:black;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= key_value[:sub_chats] %>')"></i></span></div>
-                        <% else %>
-                          <div id="branchout-button" class="">
-                          <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button><span style="color:black;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= key_value[:sub_chats] %>')"></i></span></div>
-                        <% end %>
-                        </div>
-                      </div>
-                    </a>
-            <% end %>
-          </div>
-        </div>
-
-      <% end %>
-
-
-.
-    </div>
-  </div>
-  <div class="col-4 col-sm-4 col-md-4 col-lg-4" style="background: #eaf3fc;">
-    <div class="row branch-out" style="justify-content: flex-end">
-    <%if conversation.present? && conversation.sub_chats != true%>
-      <button class="btnmy-style" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
-    <%end%>
-    </div>
-  </div>
-
-</div>
 <% if conversation.present? && conversation.job_application_id.present? %>
 <% pre_name = "A-#{conversation.job_application_id}-" %>
 <% elsif conversation.present? && conversation.buy_contract_id.present? %>
@@ -180,12 +43,149 @@
 <% else %>
 <%  pre_name = "" %>
 <% end %>
-<div class="row chat-box responsive-chat-box" style="background-color: white; height: 82vh">
+<div class="row chat-box responsive-chat-box" style="background-color: white; height: 87vh">
   <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
   <% link = get_conversation_link(opt_obj,conversation) %>
 <!--  CHAT BOX HEADER-->
 
   <div class="px-5 py-2 flex justify-between items-center bg-white border-b-2 w-full"  style='<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 16vh;" : "height: 10vh;" %>'>
+
+    <div class="row branch-class-madia" style="height: 5vh; background: #eaf3fc;" >
+      <div class="col-6 branchout-back">
+
+        <div class="row branch-out" style="margin-left: 20px;">
+          <i class="fa fa-arrow-circle-left" style="margin-right: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction1()"></i>
+          <i class="fa fa-arrow-circle-right" style="margin-left: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction()"></i>
+          <!--      <img src="/assets/collabs.png" style="margin-left: 45px; height: 24px; width: 27px;" onclick="myFunction()"></img>-->
+          <!--      <span>Collaborators</span>-->
+        </div>
+      </div>
+      <div class="col-sm-4 col-6 branchout-mobile" style="margin-left: 284px;background: #eaf3fc;">
+        <div class="row branch-out dropdown" style="justify-content: flex-end">
+          <div class="dropdown-content" style="margin-left: -70px;font-size: 12px;">
+            <a href="#">Interview</a>
+            <a href="#">Document Collection</a>
+            <a href="#">Navigation</a>
+          </div>
+        </div>
+      </div>
+      <div class="col-8 col-sm-8 col-md-8 col-lg-8" style="background: #eaf3fc;">
+        <div class="branch-out-content" style="justify-content: flex-start;display: flex; align-items: center;  height: 5vh; overflow: hidden;">
+          <div>
+            <button type="button" class="btn1-style" onclick="btnClick1()">Main</button>
+          </div>
+          <div id="myDIV" style="display:none; ">
+            <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
+            <%= form_tag update_company_conversation_title_company_conversations_path, class:"form-class", method: :post ,remote: :true do %>
+              <div class="element-search autosuggest-search-activator">
+                <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
+                <%= hidden_field_tag 'group_id', opt_obj.id if opt_obj.present? %>
+                <%= hidden_field_tag 'con_id', conversation.id if opt_obj.present? %>
+              </div>
+            <% end %>
+          </div>
+          <% if opt_obj.present?%>
+            <%branch_new_array = opt_obj[:branch_array]%>
+            <% if branch_new_array.size <= 3 %>
+              <% branch_new_array.each do |key|%>
+                <%key_value = eval(key)%>
+                <%i =  key_value[:chat_title]%>
+                <a style=" padding: 0px; margin:0px;">
+                  <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
+                    <% if conversation.id == key_value[:sub_chats]%>
+                      <div id="branchout-button" class=" underline_actives">
+                        <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
+                    <% else %>
+                      <div id="branchout-button" class="">
+                        <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
+                    <% end %>
+                    </div>
+                    </div>
+                </a>
+              <% end %>
+            <% else %>
+              <% branch_new_array1 = branch_new_array.first(3) %>
+              <% branch_new_array1.each do |key|%>
+                <%key_value = eval(key)%>
+                <%i =  key_value[:chat_title]%>
+                <a style=" padding: 0px; margin:0px;">
+                  <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
+                    <% if conversation.id == key_value[:sub_chats]%>
+                      <div id="branchout-button" class=" underline_actives">
+                        <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
+                    <% else %>
+                      <div id="branchout-button" class="">
+                        <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
+                    <% end %>
+                    </div>
+                    </div>
+                </a>
+              <% end %>
+              <div class="dropdown">
+                <button class="new_but"><i class="fa fa-ellipsis-h new_size" aria-hidden="true"></i></button>
+                <div class="dropdown-content" id="myDropdown">
+                  <!--              <input type="text" placeholder="Search BO" id="myInput" onkeyup="filterFunction()">-->
+                  <% branch_new_array.each_with_index do |value,key|%>
+                    <% if key > 2 %>
+                      <%key_value = eval(value)%>
+                      <%i =  key_value[:chat_title]%>
+                      <a style=" padding: 0px; margin:0px;">
+                        <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
+                          <% if conversation.id == key_value[:sub_chats]%>
+                            <div id="branchout-button" class=" underline_actives">
+                              <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button></div>
+                          <% else %>
+                            <div id="branchout-button" class="">
+                              <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button></div>
+                          <% end %>
+                          </div>
+                          </div>
+                      </a>
+                    <% end %>
+                  <% end %>
+                </div>
+              </div>
+
+
+            <% end %>
+
+            <div class="dropdown">
+              <!--          <button class="new_but"><i class="fa fa-search new_size"></i></button>-->
+              <div class="dropdown-content" id="myDropdown">
+                <input type="text" placeholder="Search BO" id="myInput" onkeyup="filterFunction()">
+                <%branch_new_array = opt_obj[:branch_array]%>
+                <% branch_new_array.each do |key|%>
+                  <%key_value = eval(key)%>
+                  <%i =  key_value[:chat_title]%>
+                  <a style=" padding: 0px; margin:0px;">
+                    <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
+                      <% if conversation.id == key_value[:sub_chats]%>
+                        <div id="branchout-button" class=" underline_actives">
+                          <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button><span style="color:black;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= key_value[:sub_chats] %>')"></i></span></div>
+                      <% else %>
+                        <div id="branchout-button" class="">
+                          <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i %></span></button><span style="color:black;"><i class="fa fa-times minus-buttonn" onclick="remove_branch(<%= opt_obj.id %>, '<%= key_value[:sub_chats] %>')"></i></span></div>
+                      <% end %>
+                      </div>
+                      </div>
+                  </a>
+                <% end %>
+              </div>
+            </div>
+
+          <% end %>
+        </div>
+      </div>
+      <div class="col-4 col-sm-4 col-md-4 col-lg-4" style="background: #eaf3fc;">
+        <div class="row branch-out" style="justify-content: flex-end">
+          <%if conversation.present? && conversation.sub_chats != true%>
+            <button class="btnmy-style" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
+          <%end%>
+        </div>
+      </div>
+
+    </div>
+
     <div class="font-semibold">
 
       <% if link.nil? %>
@@ -198,7 +198,7 @@
 <!--        </span></div>-->
       <%end %>
     </div>
-    <div class="w-1/2">
+    <div class="w-52">
       <input
         type="text"
         name="search-specfic-text"

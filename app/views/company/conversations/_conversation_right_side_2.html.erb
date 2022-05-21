@@ -19,21 +19,22 @@
 <% if @conversation.present? %>
   <% user = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
 
-  <div class="right-sidebar ">
-    <div class="row collab-row" >
-      <div onclick="backtochat()">
-        <img class="left-arrow" src="/assets/left-arrow.png" style="margin-right: 10px; margin-top: 10px;"></img>
-      </div>
+  <div class="right-sidebar " >
 
-      <span class="collab-text">Collaborators</span>
-      <a href="#" class="add-to-conversation " data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %>>
-        <div class="icon-style-1">
-          <i class="fa fa-plus iconplus" ></i>
+
+    <div class="right-sidebar1 px-2" style="height: 87vh !important;" >
+      <div class="row collab-row" style="background: none" >
+        <div onclick="backtochat()">
+          <img class="left-arrow" src="/assets/left-arrow.png" style="margin-right: 10px; margin-top: 10px;"></img>
         </div>
-      </a>
-    </div>
 
-    <div class="right-sidebar1" >
+        <span class="text-black text-2xl">Collaborators</span>
+        <a href="#" class="add-to-conversation " data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %>>
+          <div class="icon-style-1">
+            <i class="fa fa-plus iconplus" ></i>
+          </div>
+        </a>
+      </div>
       <% if @conversation.chatable_type == "Group" %>
         <% @conversation.chatable.groupables.each do |g| %>
           <% if current_company.id == @conversation.chatable.company_id && g.groupable != current_user %>
