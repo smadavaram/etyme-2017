@@ -66,7 +66,6 @@ class Static::JobsController < ApplicationController
         @candidates = @uniq_candidates_company.paginate(page: params[:page], per_page: 50)
       end
     end
-
     flash.now[:alert] = 'Please login with Company ID' if params[:is_chat_candidate].present? && params[:is_chat_candidate] == 'true'
 
     render layout: 'kulkakit'
@@ -384,8 +383,12 @@ class Static::JobsController < ApplicationController
   end
 
   def custom_domain?
-    request_domain_with_port = "#{request.domain}#{request.port_string}"
-    request_domain_with_port != Rails.application.config.domain
+    if Rails.env == "development"
+      return false
+    else
+      request_domain_with_port = "#{request.domain}#{request.port_string}"
+      request_domain_with_port != Rails.application.config.domain
+    end
   end
 
   def current_company
