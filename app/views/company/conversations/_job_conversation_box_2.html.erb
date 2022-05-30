@@ -50,11 +50,16 @@
       </div>
     </div>
   </div>
-  <div class="col-8 col-sm-8 col-md-8 col-lg-8" style="background: #eaf3fc;">
+
+
+  <div class="col-8 col-sm-8 col-md-8 col-lg-8 py-2 px-0" >
+
     <div class="branch-out-content" style="justify-content: flex-start;display: flex; align-items: center;  height: 5vh; overflow: hidden;">
       <div>
-        <button type="button" class="btn1-style" onclick="btnClick1()">Main</button>
+        <button type="button" class="py-2 px-6 mr-2 bg-white rounded-t-lg " onclick="btnClick1()">Main</button>
       </div>
+
+
       <div id="myDIV" style="display:none; ">
         <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
         <%= form_tag update_company_conversation_title_company_conversations_path, class:"form-class", method: :post ,remote: :true do %>
@@ -65,6 +70,8 @@
           </div>
         <% end %>
       </div>
+
+
       <% if opt_obj.present?%>
         <%branch_new_array = opt_obj[:branch_array]%>
         <% if branch_new_array.size <= 3 %>
@@ -72,18 +79,19 @@
             <%key_value = eval(key)%>
             <%i =  key_value[:chat_title]%>
             <a style=" padding: 0px; margin:0px;">
-              <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
+              <div class="ml-2  p-1">
                 <% if conversation.id == key_value[:sub_chats]%>
                   <div id="branchout-button" class=" underline_actives">
-                    <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
+                    <div  class="button-text" ><button class="py-2 px-6 bg-white rounded-t-lg" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
                 <% else %>
                   <div id="branchout-button" class="">
-                    <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
+                    <div  class="button-text" ><button class="py-2 px-6 bg-white rounded-t-lg" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
                 <% end %>
                 </div>
                 </div>
             </a>
           <% end %>
+
         <% else %>
           <% branch_new_array1 = branch_new_array.first(3) %>
           <% branch_new_array1.each do |key|%>
@@ -156,17 +164,26 @@
 
       <% end %>
 
+        <div class="row branch-out pl-4" style="justify-content: flex-end">
+          <%if conversation.present? && conversation.sub_chats != true%>
+            <button class="py-2 px-6 bg-white rounded-t-lg" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
+          <%end%>
+        </div>
+    </div>
 
-.
-    </div>
+    <!-- component -->
+<!--    <div style='border-bottom: 2px solid #eaeaea'>-->
+<!--      <ul class='flex cursor-pointer'>-->
+<!--        <li class='py-2 px-6 bg-white rounded-t-lg'>Personal</li>-->
+<!--        <li class='py-2 px-6 bg-white rounded-t-lg text-gray-500 bg-gray-200'>Akun</li>-->
+<!--        <li class='py-2 px-6 bg-white rounded-t-lg text-gray-500 bg-gray-200'>Pengaturan</li>-->
+<!--      </ul>-->
+<!--    </div>-->
+
+
   </div>
-  <div class="col-4 col-sm-4 col-md-4 col-lg-4" style="background: #eaf3fc;">
-    <div class="row branch-out" style="justify-content: flex-end">
-    <%if conversation.present? && conversation.sub_chats != true%>
-      <button class="btnmy-style" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
-    <%end%>
-    </div>
-  </div>
+
+
 
 </div>
 <% if conversation.present? && conversation.job_application_id.present? %>
@@ -180,6 +197,7 @@
 <% else %>
 <%  pre_name = "" %>
 <% end %>
+
 <div class="row chat-box responsive-chat-box" style="background-color: white; height: 82vh">
   <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
   <% link = get_conversation_link(opt_obj,conversation) %>
@@ -205,7 +223,7 @@
         id="search-specfic-text"
         onchange= "searchMessage(event, <%= conversation.id unless conversation.nil? %>)"
         placeholder="Search message"
-        class="rounded-2xl bg-gray-100 py-3 px-5 w-full"
+        class="rounded-2xl bg-gray-100 py-2 px-5 w-1/2"
         />
     </div>
 <!--    <div-->
