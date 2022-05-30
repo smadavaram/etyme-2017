@@ -768,6 +768,12 @@
     } 
   });
 
+  $(document).ready(function($) {
+      setTimeout(function() {
+        $("#slick-slide00").empty().jQCloud(tags); 
+        $("#slick-slide01").empty().jQCloud(clients);
+      }, 3000);
+  });
 
   $(".openbtn").click(function() {
       $(".side-wrapper").toggleClass("side-active")
