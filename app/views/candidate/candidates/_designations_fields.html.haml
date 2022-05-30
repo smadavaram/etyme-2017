@@ -1,62 +1,72 @@
-.nested-fields7.multi-field-container
-  .row
-    .col-md-12
-      = render 'candidate/candidates/partials/gallery_form', f: f, reference: 'designation'
-  .row
-    .col-md-6
-      .form-group
-        %label Company Name
-        = f.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'
-    .col-md-6
-      .form-group
-        %label Company Designation
-        = f.text_field :company_role, placeholder: "Designation",class: 'form-control  input'
-    .col-md-6
+.nested-fields7{style: "margin-bottom: 10px;"}
+  .desgination-container{style: "padding: 0 13px;margin-bottom: 15px;border: 2px solid lightgray;"}
+    .row
+      .col-md-12
+        .row{style: "margin: 30px 0px 10px -10px"}
+          .col-md-5.col-xs-12
+            %h6
+              %b Nature of work for this assignment
+          .col-md-7.col-xs-12
+            %h6{style: "display: inline-flex;"}
+              %label.radio-container{style: "margin: 0 10px"}
+                Consulting
+                = f.radio_button :nature_of_work, "Consulting"
+                %span.radio-checkmark
+              %label.radio-container{style: "margin: 0 10px"}
+                Full time
+                = f.radio_button :nature_of_work, "Full time"
+                %span.radio-checkmark  
+              %label.radio-container{style: "margin: 0 10px"}
+                Self Employed
+                = f.radio_button :nature_of_work, "Self Employed"
+                %span.radio-checkmark          
+    .multi-field-container
       .row
-        .col-md-6
-          .form-group
-            %label Start Date
-            = f.text_field :start_date, placeholder: "Start Date",class: 'form-control p_date input'
-        .col-md-6
-          .form-group
-            %label End Date
-            = f.text_field :end_date, placeholder: "End Date",class: 'form-control p_date input'
-    .col-md-6
-      .form-group
-        %label Recruiter Name
-        = f.text_field :recruiter_name, placeholder: "HR/Recruiter Name",class: 'form-control  input'
-    .col-md-6
-      .form-group
-        %label Recruiter Email
-        = f.text_field :recruiter_email, placeholder: "Recruiter Email",class: 'form-control  input'
-    .col-md-6{style: 'display: flex; align-items: center;'}
-      .form-group
-        %label Recruiter Phone
-        .row
-          .col-md-3
-            = f.text_field :recruiter_phone_country_code, placeholder: "+00",class: 'form-control input'
-          .col
-            = f.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control input'
-      %button{style: 'height: 37px;border-radius: 0;', class: 'mt-2 btn btn-sm btn-primary'} verify
+        .col-md-12{style: "padding-top: 10px;"}
+          = render 'candidate/candidates/partials/gallery_form', f: f, reference: 'designation'
+      .row
+        .col-md-12
+          .multi-field-container.nested-fields5.client-fields
+            %h4.element-header
+              Employer History
+        .col-md-12
+          .row{style: "padding: 0 20px;"}
+            .col-md-12
+              .form-group
+                %label Company Name
+                = f.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'
+            .col-md-12
+              .row
+                .col-md-6
+                  .form-group
+                    %label Company Designation
+                    = f.text_field :company_role, placeholder: "Company Designation",class: 'form-control  input'
+                .col-md-6
+                  .form-group
+                    %label Company Location
+                    = f.text_field :location, placeholder: "Company Location",class: 'form-control  input'
+            .col-md-12
+              .row
+                .col-md-6
+                  .form-group
+                    %label Start Date
+                    = f.date_field :start_date, placeholder: "Start Date",class: 'form-control input'
+                .col-md-6
+                  .form-group
+                    %label End Date
+                    = f.date_field :end_date, placeholder: "End Date",class: 'form-control input'
+        .col-md-12
+          = render 'candidate/candidates/partials/client_reference', f: f, reference: 'client_reference'
+        .col-md-12
+          = render 'candidate/candidates/partials/designation_project', f: f, reference: 'designation_project'
+
 
   .row
     .col-md-12
-      = link_to_remove_association f , wrapper_class: "nested-fields7", class: "bttn btn-add pull-right delete_icon" do
+      = link_to_remove_association f , wrapper_class: "nested-fields7", class: "bttn delete-designation btn-add pull-right delete_icon" do
         %i.fa.fa-trash
 
   -#.row
   -#  .col-md-12
   -#    %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
   -#      %i.fa.fa-trash
-:javascript
-  //$('.education_start_year, .education_completion_year').datepicker({
-  // autoclose: true,
-  // todayHighlight: true,
-  // format: "mm-dd-yy"
-  //});
-   $('.p_date').datepicker({
-      changeMonth: true,
-      changeYear: true,
-      yearRange: "c-60:c",
-      dateFormat: "mm-dd-yy"
-    });

@@ -11,21 +11,23 @@
   <tbody>
     <% @job_applications.each do |application| %>
       <tr data-id="<%= application.id %>">
-        <td>
-          <%= link_to user_image(application.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{application.try(:user).try(:full_name)}" ), job_application_path(application)%>
-        </td>
-        <td>
-          <% application.user.skills.each do |skill| %>
-            <span class="badge-success badge"><%= skill.name %></span>
-          <% end %>
-        </td>
-        <td><%= application.user.try(:location) %></td>
-        <td><%= application.user.visa %></td>
-        <td>
-          <% application.user.companies.each do |company| %>
-            <span class="badge-info badge mb-5"><%= company.name %></span>
-          <% end %>
-        </td>
+        <% if application.user.present? %>
+          <td>
+            <%= link_to user_image(application.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{application.try(:user).try(:full_name)}" ), job_application_path(application)%>
+          </td>
+          <td>
+            <% application.user.skills.each do |skill| %>
+              <span class="badge-success badge"><%= skill.name %></span>
+            <% end %>
+          </td>
+          <td><%= application.user.try(:location) %></td>
+          <td><%= application.user.visa %></td>
+          <td>
+            <% application.user.companies.each do |company| %>
+              <span class="badge-info badge mb-5"><%= company.name %></span>
+            <% end %>
+          </td>
+        <% end %>
       </tr>
     <% end %>
   </tbody>

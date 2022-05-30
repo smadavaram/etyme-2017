@@ -4,7 +4,7 @@
      <div style="height: 80vh;">
         <div class="sidenav-items p-0">
             <div class="nav flex-column nav-pills">
-                <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  (params[:action] == "static_feeds" || (params[:action] == "show" && params[:type] == 'feed'))) ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
+              <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" && params[:selected_categories] != "Training" &&  (params[:action] == "static_feeds" || (params[:action] == "show" && params[:type] == 'feed'))) ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
                     <%= image_tag(image_path('sidebar-home.svg'), class: "mr-3") %>
                     <%= image_tag(image_path('sidebar-home-active.svg'), class: "mr-3") %>
                     Feed
@@ -18,6 +18,12 @@
                     <%= image_tag(image_path('sidebar-people.svg'), class: "mr-3") %>
                     <%= image_tag(image_path('sidebar-people-active.svg'), class: "mr-3") %>
                     Talent Pool
+                </a>
+
+                <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  (params[:action] == "static_feeds") && params[:selected_categories] == "Training") ? "active" : ""  %>" href="<%= root_static_feeds_path %>?selected_categories=Training&input_search=">
+                    <%= image_tag(image_path('presentation.png'), class: "mr-3") %>
+                    <%= image_tag(image_path('presentation_active.png'), class: "mr-3") %>
+                    Trainings
                 </a>
             </div>
         

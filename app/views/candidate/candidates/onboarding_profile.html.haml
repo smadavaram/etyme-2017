@@ -67,7 +67,7 @@
                           Profile Picture
                   .col-4.col-sm-3.col-xxl-2
                     .profile-tile.profile-tile-inlined
-                      = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                      / = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
                       .profile-tile-box.faded.video-pic
                         -if(current_candidate.video.present?)
 
@@ -467,36 +467,52 @@
 
     if("#{current_candidate.ever_worked_with_company}" == "Yes"){
       $(".client_information_main_div").show();
+      $(".employer-information-body").hide();
     }else{
       $(".client_information_main_div").hide();
+      $(".employer-information-body").show();
     }
 
     $(document).on("click", "#candidate_ever_worked_with_company_yes", function(){
       $(".client_information_main_div").show();
+      $(".employer-information-body").hide();
     })
     $(document).on("click", "#candidate_ever_worked_with_company_no", function(){
       $(".client_information_main_div").hide();
-      $(".client-fields:not(:first) .remove_fields").trigger("click");
+      $(".employer-information-body").show();
     })
 
     if("#{current_candidate.ever_worked_with_company}" == "Yes")
     {
       $(".client_information_main_div").show();
+      $(".employer-information-body").hide();
     }else{
       $(".client_information_main_div").hide();
+      $(".employer-information-body").show();
     }
 
     $("#candidate_ever_worked_with_company_yes").on("click", function(){
       $(".client_information_main_div").show();
+      $(".employer-information-body").hide();
     })
     $("#candidate_ever_worked_with_company_no").on("click", function(){
       $(".client_information_main_div").hide();
-      $(".client-fields:not(:first) .remove_fields").trigger("click");
+      $(".employer-information-body").show();
     })
+
+    $(document).on("click", '.delete_icon', function(e) {
+      if($(".delete_icon:visible").length == 1 ){
+        $(".experience-btn").hide();
+      }
+    });
 
     $(document).ready(function () {
       addressLookup();
-
+      if($("#designations_flag").val() == 'false'){
+        $(".add-designation-btn").click();
+      }
+      $("#candidate_ever_worked_with_company_yes").click();
+      $(".is_client_employer_Yes").click();
     });
 
     function addressLookup() {

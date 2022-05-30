@@ -7,15 +7,15 @@
         /   %b Client Information
         .row
           .col-md-12
-            %h5
-              %b Have you ever worked with a Client?
+            %h7
+              Nature of work for this assignment 
               %label.radio-container
-                Yes
-                = f.radio_button :ever_worked_with_company, "Yes"
+                Consulting
+                = f.radio_button :ever_worked_with_company, "yes"
                 %span.radio-checkmark
               %label.radio-container
-                No
-                = f.radio_button :ever_worked_with_company, "No"
+                Full-time
+                = f.radio_button :ever_worked_with_company, "no"
                 %span.radio-checkmark
 
         %br
@@ -26,7 +26,7 @@
                 = render 'candidate/candidates/client_fields', f: b
               %strong
                 .links.pull-right
-                  = link_to_add_association '+ Add Client', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'
+                  = link_to_add_association '+ Add Experience', f, :clients, class: 'btn btn-success', partial: 'candidate/candidates/client_fields'
             -#.row
             -#.col-lg-12
             -#  %button.btn.btn-primary.pull-right{:type => "submit"}

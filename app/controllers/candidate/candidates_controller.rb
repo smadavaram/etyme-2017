@@ -154,7 +154,7 @@ class Candidate::CandidatesController < Candidate::BaseController
   def update
     @tab = params[:tab]
     respond_to do |format|
-      if current_candidate.update_attributes candidate_params
+      if current_candidate.update_attributes( candidate_params)
         if params[:candidate][:educations_attributes].present?
           params[:candidate][:educations_attributes].each_pair do |mul_field|
             Education.where(id: params[:candidate][:educations_attributes][mul_field]['id']).destroy_all unless params[:candidate][:educations_attributes][mul_field].reject { |p| p == 'id' }.present?
@@ -311,6 +311,8 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.clients.build unless @user.clients.present?
     @user.designations.build unless @user.designations.present?
     @sub_cat = WORK_CATEGORIES[@user.category]
+    @tags = fetch_tags(current_candidate)
+    @clients = fetch_clients(current_candidate)
   end
 
   def onboarding_profile
@@ -360,7 +362,9 @@ class Candidate::CandidatesController < Candidate::BaseController
                                       legal_documents_attributes: %i[id candidate_id document_number start_date title file exp_date _destroy],
                                       criminal_check_attributes: %i[id candidate_id state address start_date end_date _destroy],
                                       visas_attributes: %i[id candidate_id title file visa_number start_date exp_date status _destroy],
-                                      designations_attributes: [:id, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_phone_country_code, :recruiter_email, :start_date, :end_date, :status, :company_role, :_destroy,
-                                                                portfolios_attributes: %i[id name description cover_photo _destroy]])
+                                      designations_attributes: [:id, :project_name, :nature_of_work, :location, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_phone_country_code, :recruiter_email, :start_date, :end_date, :status, :company_role, :project_description, :job_description, :_destroy,
+                                                                portfolios_attributes: %i[id name description cover_photo _destroy],
+                                                                client_references_attributes: [:id, :name, :country_code, :phone, :email, :recruiter_title, :recruiter_name, :recruiter_phone, :recruiter_email, :recruiter_phone_country_code, :_destroy],
+                                                                designation_projects_attributes: [:id, :project_name, :location, :client_name, :start_date, :end_date, :project_description, :job_description, :_destroy]])
   end
 end

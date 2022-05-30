@@ -26,11 +26,16 @@ class Designation < ActiveRecord::Base
   scope :with_no_client,-> { where(client_id: nil) }
 
   belongs_to :candidate
+  has_many :designation_projects, dependent: :destroy
   belongs_to :client, optional: true
   has_many :portfolios, as: :portfolioable, dependent: :destroy
+  has_many :client_references, dependent: :destroy
+
 
   enum confirmation: %i[unverified verified notified not_found]
 
+  accepts_nested_attributes_for :client_references, allow_destroy: true
+  accepts_nested_attributes_for :designation_projects, allow_destroy: true
   accepts_nested_attributes_for :portfolios, reject_if: :all_blank, allow_destroy: true
 
   def formatted_date

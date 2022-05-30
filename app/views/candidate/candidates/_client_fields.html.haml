@@ -1,104 +1,116 @@
-.multi-field-container.nested-fields5.client-fields
-  .row
-    .col-md-12
+.experience-body
+  .row.add_experience{style: "border: 2px solid lightgray;padding: 14px;margin-bottom: 10px;"}
+    %h4.element-header{style: "width: 100%;"}
+      Add Experience
+    .col-md-12{style: "padding-top: 10px;"}
       = render 'candidate/candidates/partials/gallery_form', f: f, reference: 'client'
-  .row
-    .col-sm-4
-      .form-group
-        %label Name
-        = f.text_field :name, placeholder: "Company Name", class: 'form-control input'
-  .row
-    .col-sm-4
-      .form-group
-        %label Industry
-        = f.text_field :industry, placeholder: "Industry",class: 'form-control input'
-    .col-sm-4
-      .form-group
-        %label Start Date
-        = f.text_field :start_date, placeholder: "YYYY-MM-DD",class: 'form-control p_date cl_start_year input'
-    .col-sm-4
-      .form-group
-        %label End Date
-        = f.text_field :end_date, placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
-  .row
-    .col-sm-12
-      %strong Main Reference
-  .row
-    .col-sm-4
-      .form-group
-        %label Name
-        = f.text_field :refrence_name, placeholder: "Jhon Doe",class: 'form-control input'
-    .col-sm-4
-      .form-group
-        %label  Phone
-        .row
-          .col-sm-4
-            = f.text_field :refrence_phone_country_code, placeholder: '+00', class: 'form-control input'
-          .col
-            = f.text_field :refrence_phone, placeholder: '555-5555', class: 'form-control input'
-    %div{class: f.object.refrence_one ? "col-sm-3" : "col-sm-4"}
-      .form-group
-        %label  Email
-        = f.text_field :refrence_email, placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_one ? 'Verified' :'Not Verified Yet'
-    - if f.object.refrence_one
-      .col-sm-1
-        %h3.text-success.mt-4
-          -#%strong
-          %i.fa.fa-check
-  .row
-    .col-sm-12
-      %strong Second Reference
-  .row
-    .col-sm-4
-      .form-group
-        %label Name
-        = f.text_field :refrence_two_name, placeholder: "Jhon Doe",class: 'form-control input'
-    .col-sm-4
-      .form-group
-        %label  Phone
-        .row
-          .col-sm-4
-            = f.text_field :refrence_two_phone_country_code, placeholder: '+00', class: 'form-control input'
-          .col
-            = f.text_field :refrence_two_phone, placeholder: '555-5555', class: 'form-control input'
-    %div{class: f.object.refrence_two ? "col-sm-3" : "col-sm-4"}
-      .form-group
-        %label  Email
-        = f.text_field :refrence_two_email, placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_two ? 'Verified' :'Not Verified Yet'
-    - if f.object.refrence_two
-      .col-sm-1
-        %h3.text-success.mt-4
-          -#%strong
-          %i.fa.fa-check
-  .row
-    .col-md-6
-      .form-group
-        %label Project Description
-        = f.text_area :project_description, placeholder: "Project Description", class: 'form-control input'
-    .col-md-6
-      .form-group
-        %label Job Description
-        = f.text_area :role, placeholder: "Job Description",class: 'form-control input'
-  .row
-    .col-md-12
-      %h6
-        %b Client Employer?
-        %label.radio-container
-          Yes
-          = radio_button_tag  "is_client_employer_#{f.options[:child_index]}", "Yes", f.object.new_record? ? true : f.object.designation.present?, class: "is_client_employer_Yes"
-          %span.radio-checkmark
-        %label.radio-container
-          No
-          = radio_button_tag  "is_client_employer_#{f.options[:child_index]}", "No", f.object.new_record? ? false : f.object.designation.blank?, class: "is_client_employer_No"
-          %span.radio-checkmark
-      .pl-4{id: "employer_#{f.object.id}", style: "#{'display: none;' unless f.object.id? && f.object.designation.present? || f.object.new_record?}", class: "employer_form"}
+    .col-md-7{style: "border-right: 2px solid lightgray;"}
+      .multi-field-container.nested-fields5.client-fields
         %h4.element-header
-          Client Employer
-        = f.fields_for :designation, f.object.designation.present? ?  f.object.designation : f.object.build_designation do |employer|
-          = render 'candidate/candidates/partials/skill_designation_fields', f: employer
+          Project History
+        .row
+          .col-sm-12
+            .form-group
+              %label Client Name
+              = f.text_field :name, placeholder: "Company Name", class: 'form-control input'
+        .row
+          .col-sm-4
+            .form-group
+              %label Industry
+              = f.text_field :industry, placeholder: "Industry",class: 'form-control input'
+          .col-sm-4
+            .form-group
+              %label Start Date
+              = f.text_field :start_date, placeholder: "YYYY-MM-DD",class: 'form-control p_date cl_start_year input'
+          .col-sm-4
+            .form-group
+              %label End Date
+              = f.text_field :end_date, placeholder:"YYYY-MM-DD",class: 'form-control p_date cl_end_year input'
+        .row
+          .col-sm-12
+            %strong Main Reference
+        .row
+          .col-sm-4
+            .form-group
+              %label Name
+              = f.text_field :refrence_name, placeholder: "John Doe",class: 'form-control input'
+          .col-sm-4
+            .form-group
+              %label  Phone
+              .row
+                .col-sm-4
+                  = f.text_field :refrence_phone_country_code, placeholder: '+00', class: 'form-control input'
+                .col
+                  = f.text_field :refrence_phone, placeholder: '555-5555', class: 'form-control input'
+          %div{class: f.object.refrence_one ? "col-sm-3" : "col-sm-4"}
+            .form-group
+              %label  Email
+              = f.text_field :refrence_email, placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_one ? 'Verified' :'Not Verified Yet'
+          - if f.object.refrence_one
+            .col-sm-1
+              %h3.text-success.mt-4
+                -#%strong
+                %i.fa.fa-check
+        .row
+          .col-sm-12
+            %strong Second Reference
+        .row
+          .col-sm-4
+            .form-group
+              %label Name
+              = f.text_field :refrence_two_name, placeholder: "John Doe",class: 'form-control input'
+          .col-sm-4
+            .form-group
+              %label  Phone
+              .row
+                .col-sm-4
+                  = f.text_field :refrence_two_phone_country_code, placeholder: '+00', class: 'form-control input'
+                .col
+                  = f.text_field :refrence_two_phone, placeholder: '555-5555', class: 'form-control input'
+          %div{class: f.object.refrence_two ? "col-sm-3" : "col-sm-4"}
+            .form-group
+              %label  Email
+              = f.text_field :refrence_two_email, placeholder: "example@domain.com",class: 'form-control input',title: f.object.refrence_two ? 'Verified' :'Not Verified Yet'
+          - if f.object.refrence_two
+            .col-sm-1
+              %h3.text-success.mt-4
+                -#%strong
+                %i.fa.fa-check
+        .row
+          .col-md-12
+            .form-group
+              %label Project Description
+              = f.trix_editor :project_description, class: 'form-control input'
+          .col-md-12
+            .form-group
+              %label Job Description
+              = f.trix_editor :role, class: 'form-control input'
+    .col-md-5
+      .multi-field-container.nested-fields5.client-fields
+        %h4.element-header
+          Employment History
+        .row
+          .col-md-12
+            %h4.element-header{style: "margin-top: -9px;"}
+              %label.radio-container
+                Consultancy
+                = radio_button_tag  "is_client_employer_#{f.options[:child_index]}", "Yes", f.object.new_record? ? true : f.object.designation.present?, class: "is_client_employer_Yes"
+                %span.radio-checkmark
+              %label.radio-container
+                Independent
+                = radio_button_tag  "is_client_employer_#{f.options[:child_index]}", "No", f.object.new_record? ? false : f.object.designation.blank?, class: "is_client_employer_No"
+                %span.radio-checkmark
+            .pl-4{id: "employer_#{f.object.id}", style: "#{'display: none;' unless f.object.id? && f.object.designation.present? || f.object.new_record?}", class: "employer_form"}
+              = f.fields_for :designation, f.object.designation.present? ?  f.object.designation : f.object.build_designation do |employer|
+                = render 'candidate/candidates/partials/skill_designation_fields', f: employer
+            .row
+          .col-md-12
+            = link_to_remove_association f, wrapper_class: "nested-fields5", class: "bttn btn-add pull-right delete_icon" do
+              %i.fa.fa-trash
+
   .row
     .col-md-12
-      = link_to_remove_association f, wrapper_class: "nested-fields5", class: "bttn btn-add pull-right delete_icon" do
+      %a.bttn.btn-add.pull-right.delete_icon.remove_fields.existing{"data-wrapper-class" => "nested-fields7", :href => "#", :onclick => "removeClientInformation(this)"}
         %i.fa.fa-trash
 
 - content_for :scripts do
@@ -115,3 +127,8 @@
           $(this).closest(".col-md-12").find(".employer_form").hide();
         });
       });
+      function removeClientInformation(argument) {
+        console.log("Removed experience body");
+        $(argument).closest(".experience-body").remove();
+      } 
+

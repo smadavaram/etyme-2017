@@ -1667,3 +1667,24 @@ end
 def contact_widget_user(user)
 contact_widget(user.email, user.phone, nil, color: '#3E4B5B; !important', chat_link: chat_link(user))
 end
+
+def fetch_tags candidate
+  @tags = []
+  candidate.skills.order(:taggings_count)&.each do |tg|
+    @tags << { text: tg.name, weight: tg.taggings_count+9} 
+  end
+  return @tags
+
+end
+
+def fetch_clients candidate
+  @clients = []
+  candidate.designations.with_no_client.each do |designation|
+    designation.designation_projects.each_with_index do |project, index|
+      @clients << { text: project.client_name, weight: index+9} 
+    end
+  end
+
+  return @clients
+
+end
