@@ -246,25 +246,8 @@
                     %span.bold
                       Add new
               %div.d-flex.w-100.justify-content-center
-                - if candidate.full_portfolios.present?
+                - if candidate.designations.with_no_client
                   .portfolio-slick
-                    - candidate.portfolios.each do |portfolio|
-                      - if url_image?(portfolio.cover_photo)
-                        %div.slide-container
-                          %img{src: portfolio.cover_photo}
-                      - if url_video?(portfolio.cover_photo)
-                        %div.slide-container
-                          %video{controls: true}
-                            %source{src: portfolio.cover_photo}
-                    - candidate.clients.each do |client|
-                      - client.portfolios.each do |portfolio|
-                        - if url_image?(portfolio.cover_photo)
-                          %div.slide-container
-                            %img{src: portfolio.cover_photo}
-                        - if url_video?(portfolio.cover_photo)
-                          %div.slide-container
-                            %video{controls: true}
-                              %source{src: portfolio.cover_photo}
                     - candidate.designations.with_no_client.each do |client|
                       - client.portfolios.each do |portfolio|
                         - if url_image?(portfolio.cover_photo)
@@ -402,6 +385,8 @@
   var clients = #{raw @clients.to_json};
   
   $(document).ready(function() {    
+    $(".slick-track").css("width", "600px"); 
+    
     (function( $ ) {
       "use strict";
       $.fn.jQCloud = function(word_array, options) {
@@ -624,9 +609,24 @@
       };
     })(jQuery);
 
-    slider_count = $(".slide-container").length 
-    $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags); 
-    $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients); 
+    slider_count = $(".slide-container").length
+    if (slider_count == 2){
+      $("#slick-slide00").empty().jQCloud(tags); 
+      $("#slick-slide01").empty().jQCloud(clients); 
+
+    }else{
+      $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags); 
+      $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients); 
+    }
+
+    $(this).delay(100).queue(function() {
+      $("#slick-slide00").empty().jQCloud(tags); 
+      $("#slick-slide01").empty().jQCloud(clients); 
+       
+       $(this).dequeue();
+    
+    });
+
   });
 
   $('.portfolio-slick').slick({
