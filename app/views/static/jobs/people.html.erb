@@ -61,7 +61,7 @@
                                         <div class="people-card d-flex flex-column h-100">
                                             <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
                                             <div class="cover-img" id="tag-<%=index%>" tag-value="tag-<%=index%>" data-value="<%= c&.candidate&.skills&.pluck(:name) %>">
-                                                <%= link_to (image_tag "#{c&.candidate&.designations&.with_no_client.present? ? c&.candidate.designations.with_no_client&.first&.cover_photo : asset_path('') }", alt: "cover"), public_profile_static_candidates_path(c&.candidate), target: "_blank"  %>
+                                                <%= link_to (image_tag "#{c&.candidate&.designations&.with_no_client.present? ? c&.candidate.designations.with_no_client&.first&.portfolios&.first&.cover_photo : asset_path('') }", alt: "cover"), public_profile_static_candidates_path(c&.candidate), target: "_blank"  %>
                                             </div>
 
                                             <div class="people-card-header d-flex justify-content-between">
@@ -460,7 +460,7 @@
         str         = $(this).attr("data-value");
         tags_collection = JSON.parse(str);
         $.each(tags_collection, function( index, value ) {
-          tags.push({"text":value ,"weight": 12+index});
+          tags.push({"text":value ,"weight": 8+index});
         });
         tag_id      = $(this).attr("tag-value");
         console.log(tag_id)
