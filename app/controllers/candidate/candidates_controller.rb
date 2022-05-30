@@ -311,6 +311,8 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.clients.build unless @user.clients.present?
     @user.designations.build unless @user.designations.present?
     @sub_cat = WORK_CATEGORIES[@user.category]
+    @tags = fetch_tags(current_candidate)
+    @clients = fetch_clients(current_candidate)
   end
 
   def onboarding_profile
