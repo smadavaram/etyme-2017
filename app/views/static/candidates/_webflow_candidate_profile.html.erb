@@ -329,13 +329,25 @@
       <div class="d-flex justify-content-between mb-20">
         <div class="f-16 w-500 l-19 c-80">Portfolio</div>
       </div>
-        <% if candidate.full_portfolios.empty? %>
-          No Portfolio
-        <% else %>
-          <div class="d-flex w-100 justify-content-center">
-            <% if candidate.full_portfolios.present? %>
-              <div class="portfolio-slick">
-                <% candidate.portfolios.each do |portfolio| %>
+        <div class="d-flex w-100 justify-content-center">
+          <% if candidate.full_portfolios.present? %>
+            <div class="portfolio-slick">
+              <% candidate.portfolios.each do |portfolio| %>
+                <% if url_image?(portfolio.cover_photo) %>
+                  <div class="slide-container">
+                    <img src="<%= portfolio.cover_photo %>"/>
+                  </div>
+                <% end %>
+                <% if url_video?(portfolio.cover_photo) %>
+                  <div class="slide-container">
+                    <video controls="<%= true %>">
+                      <source src="<%= portfolio.cover_photo %>"></source>
+                    </video>
+                  </div>
+                <% end %>
+              <% end %>
+              <% candidate.clients.each do |client| %>
+                <% client.portfolios.each do |portfolio| %>
                   <% if url_image?(portfolio.cover_photo) %>
                     <div class="slide-container">
                       <img src="<%= portfolio.cover_photo %>"/>
@@ -349,49 +361,33 @@
                     </div>
                   <% end %>
                 <% end %>
-                <% candidate.clients.each do |client| %>
-                  <% client.portfolios.each do |portfolio| %>
-                    <% if url_image?(portfolio.cover_photo) %>
-                      <div class="slide-container">
-                        <img src="<%= portfolio.cover_photo %>"/>
-                      </div>
-                    <% end %>
-                    <% if url_video?(portfolio.cover_photo) %>
-                      <div class="slide-container">
-                        <video controls="<%= true %>">
-                          <source src="<%= portfolio.cover_photo %>"></source>
-                        </video>
-                      </div>
-                    <% end %>
+              <% end %>
+              <% candidate.designations.with_no_client.each do |client| %>
+                <% client.portfolios.each do |portfolio| %>
+                  <% if url_image?(portfolio.cover_photo) %>
+                    <div class="slide-container">
+                      <img src="<%= portfolio.cover_photo %>"/>
+                    </div>
+                  <% end %>
+                  <% if url_video?(portfolio.cover_photo) %>
+                    <div class="slide-container">
+                      <video controls="<%= true %>">
+                        <source src="<%= portfolio.cover_photo %>"></source>
+                      </video>
+                    </div>
                   <% end %>
                 <% end %>
-                <% candidate.designations.with_no_client.each do |client| %>
-                  <% client.portfolios.each do |portfolio| %>
-                    <% if url_image?(portfolio.cover_photo) %>
-                      <div class="slide-container">
-                        <img src="<%= portfolio.cover_photo %>"/>
-                      </div>
-                    <% end %>
-                    <% if url_video?(portfolio.cover_photo) %>
-                      <div class="slide-container">
-                        <video controls="<%= true %>">
-                          <source src="<%= portfolio.cover_photo %>"></source>
-                        </video>
-                      </div>
-                    <% end %>
-                  <% end %>
-                <% end %>
-                <div class="slide-container" id="tags"></div>
-                <div class="slide-container" id="clients"></div>
-              </div>
-            <% else %>
-              <div class="portfolio-slick">
-                <div class="slide-container" id="tags"></div>
-                <div class="slide-container" id="clients"></div>
-              </div>
-            <% end %>
-          </div>
-        <% end %>
+              <% end %>
+              <div class="slide-container" id="tags"></div>
+              <div class="slide-container" id="clients"></div>
+            </div>
+          <% else %>
+            <div class="portfolio-slick">
+              <div class="slide-container" id="tags"></div>
+              <div class="slide-container" id="clients"></div>
+            </div>
+          <% end %>
+        </div>
     </div>
 
     <!-- Employment History -->
@@ -535,8 +531,8 @@
 <% end %>
 
 <script>
-  var tags = #{raw @tags.to_json};
-  var clients = #{raw @clients.to_json};
+  var tags = "<%= raw @tags.to_json %>";
+  var clients = "<%= raw @clients.to_json %>";
   
   $(document).ready(function() {    
     (function( $ ) {
