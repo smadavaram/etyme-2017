@@ -531,8 +531,8 @@
 <% end %>
 
 <script>
-  var tags = "<%= raw @tags.to_json %>";
-  var clients = "<%= raw @clients.to_json %>";
+  var tags = <%= raw @tags.to_json %>;
+  var clients = <%= raw @clients.to_json %>;
   
   $(document).ready(function() {    
     (function( $ ) {
@@ -758,8 +758,14 @@
     })(jQuery);
 
     slider_count = $(".slide-container").length 
-    $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags); 
-    $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients); 
+    if (slider_count > 2 ){
+      $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags); 
+      $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients);
+    }
+    else{
+      $("#slick-slide00").empty().jQCloud(tags); 
+      $("#slick-slide01").empty().jQCloud(clients);
+    } 
   });
 
 
