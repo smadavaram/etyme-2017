@@ -60,7 +60,7 @@ margin-top: 15px;
         
         <div class="px-2">
                   <ul class="chat-user-list_heights company-conversation-scorll" role="tablist" id="company-conversation-list">
-                    <%= render 'conversations_list_2', conversations: @conversations %>
+                    <%= render 'conversations_list', conversations: @conversations %>
                     <div id="all-infinite-scrolling-con" style="display: none">
                       <% if @conversation.present?%>
                         <%#= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
