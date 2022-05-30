@@ -25,6 +25,25 @@ class Company::ConversationsController < Company::BaseController
     # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
   end
 
+  def index_2
+
+    add_breadcrumb 'Inbox'
+    respond_to do |format|
+      @query = nil
+      @topic = nil
+      format.html do
+        @conversations = Conversation.where(sub_chats: false).all_onversations(current_user).uniq{ |c| c.chatable_id}.uniq{ |c| c.opt_participant(current_user).full_name}.paginate(page: params[:page], per_page: 15)
+        # @conversation = Conversation.find(228)
+        @conversation = params[:conversation].present? ? Conversation.where(sub_chats: false).find(params[:conversation]) : @conversations.first
+        @favourites = current_user.favourables.uniq
+        set_activity_for_job_application
+      end
+      format.js do
+        @conversations = Conversation.where(sub_chats: false).all_onversations(current_user).uniq.paginate(page: params[:page], per_page: 10)
+      end
+    end
+    # @unread_message_count = Conversation.joins(:conversation_messages).where("(senderable_type = ? AND senderable_id = ? ) OR (recipientable_type = ? AND recipientable_id = ?)", current_user.class.to_s, current_user.id, current_user.class.to_s, current_user.id).where.not(conversation_messages: {is_read: true, userable: current_user}).uniq.count
+  end
   def mini_chat
     if params[:candidate].present?
      con = Conversation.where(current_user_id: current_user.id , candidate_id:  params[:candidate])
@@ -179,7 +198,7 @@ class Company::ConversationsController < Company::BaseController
   def delete_company_conversation_title
     conversation_data = Conversation.find_by(id: params[:conversation_id])
     conversation_data.update(freeze_chats: true)
-    # code to remove id from branch out column 
+    # code to remove id from branch out column
     respond_to do |format|
       format.js {render inline: "location.reload();" }
     end

@@ -21,9 +21,7 @@ margin-top: 15px;
 
 </style>
 <script src="https://cdn.tailwindcss.com"></script>
-<!--Contaniner -->
 <div class="row">
-<!--  Left Bar-->
   <div class="col-sm-12 col-12 col-md-3 col-lg-3 chat-margin" style="z-index: 100;"  >
 
     <div class="left-chat-bar company-left-chat-bar">
@@ -48,8 +46,6 @@ margin-top: 15px;
                   </select>
                 </div>
             </div>
-
-
           </div>
           <div class="col-sm-8 col-md-8 col-lg-8">
             <input type="text" class="form-control input-search-style" placeholder="Search Conversation" id="conversation-users-search">
@@ -58,7 +54,7 @@ margin-top: 15px;
           </div>
         </div>
         
-        <div class="px-2">
+        <div class="row  margin-top-21  ">
                   <ul class="chat-user-list_heights company-conversation-scorll" role="tablist" id="company-conversation-list">
                     <%= render 'conversations_list', conversations: @conversations %>
                     <div id="all-infinite-scrolling-con" style="display: none">
@@ -73,41 +69,15 @@ margin-top: 15px;
 
     </div>
   </div>
-
-
-
-<!--  Center-->
-
-  <div class="col-sm-12 col-12 col-md-9 col-lg-9 job-conversation-box-style" id="conversation-section">
-    <%= render "company/conversations/job_conversation_box_2", conversation: @conversation, nested_colap: true %>
+  <div class="col-sm-12 col-12 col-md-6 col-lg-6 job-conversation-box-style" id="conversation-section">
+    <%= render "company/conversations/job_conversation_box", conversation: @conversation, nested_colap: true %>
   </div>
-
-<!--  Right-->
-  <div class="col-sm-12 col-12 col-md-3 col-lg-3 hidden" >
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3 " >
     <div class=" " id="conversation-r-section">
-      <%= render "company/conversations/conversation_right_side_2" %>
+      <%= render "company/conversations/conversation_right_side" %>
     </div>
   </div>
-
 </div>
-<!--end of container-->
-
-
-<!--<br>-->
-<!--<br>-->
-<!--<br>-->
-<!--<br>-->
-<!--<br>-->
-
-<%#= render 'company/conversations/chat_container', conversations: @conversations %>
-
-
-
-
-
-
-
-
 
 
 
