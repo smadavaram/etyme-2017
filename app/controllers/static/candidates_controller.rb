@@ -28,7 +28,7 @@ class Static::CandidatesController < ApplicationController
     @candidates_hot    = CandidatesCompany.hot_candidate.where(company_id: current_company.id).first(3) unless current_company.nil?
     @jobs_hot          = current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     @candidate_company = current_company.candidates_companies.includes(:candidate).find_by(candidate_id: params[:id])
-    @candidate         = @candidate_company.candidate
+    @candidate         = @candidate_company&.candidate
     @rating_categories = RatingCategory.all.order(:name)
     @tags = fetch_tags(@candidate)
     @clients = fetch_clients(@candidate)
