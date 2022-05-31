@@ -1,12 +1,15 @@
 App.messages = App.cable.subscriptions.create('MessagesChannel', {
     connected: function () {
-       console.log("345678ertyui")
+       console.log("message")
     },
     disconnected: function () {
     },
 
     received: function (data) {
         set_conversation(data);
+        browserNotify({ title: data.sender_name, body: data.msg })
+//        htmlNotify({ title: data.title, body: data.message })
+
         return ""
     },
 
@@ -124,3 +127,32 @@ function mark_as_read(conversation_id, message_id, cnt_user_id, cnt_user_type, c
         dataType: "json"
     });
 }
+
+// takes a props = {title: value, body: value}
+const browserNotify = (props) => {
+    if (!('Notification' in window)) {
+        // console.log("This browser does not support desktop notification")
+    } else if (Notification.permission === 'granted') {
+        var notif2 = new Notification(props.title, { body: props.body })
+    } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                var notif2 = new Notification(props.title, { body: props.body })
+            }
+        })
+    }
+}
+
+const htmlNotify = (props) => {
+    var notif = document.querySelector('#notifications')
+    notif.innerHTML = `<div>${props.body}</div>  <button id="notif_delete" class="delete"></button>  `
+    notif.classList.remove('notif-hide')
+
+    const notif_delete = document.getElementById('notif_delete')
+    notif_delete.onclick = () => {
+        notif.classList.add('notif-hide')
+    }
+    setTimeout(() => { notif.classList.add('notif-hide') }, 5000)
+}
+
+export { browserNotify, htmlNotify }
