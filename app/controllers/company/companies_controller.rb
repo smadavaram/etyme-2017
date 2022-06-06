@@ -81,6 +81,12 @@ class Company::CompaniesController < Company::BaseController
           format.html { redirect_to new_company_company_path }
           format.js { flash[:succes] = 'Contact has been added to existing company.' }
         end
+      else
+        respond_to do |format|
+          flash[:alert] = 'Failed to add in your directory.'
+          format.html { redirect_to new_company_company_path }
+          format.js { flash[:alert] = 'Failed to add contact into company.' }
+        end
       end
     elsif @company
       if @company != current_company
@@ -452,8 +458,10 @@ class Company::CompaniesController < Company::BaseController
     company_admin.role_ids = Array(Role.all.joins(:permissions).where('permissions.name = ?', "manage_all").pluck(:id).first) #Set Default Permission
     if company_admin.save
       flash[:success] = "Successful!"
+      true
     else
       flash[:errors] = "Cannot Process!"
+      false
     end
   end
 

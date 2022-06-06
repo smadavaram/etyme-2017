@@ -155,7 +155,7 @@
                         %tr
                           %td.nowrap= link_to do_ellipsis(t.title), job_path(t)
                           %td= t.location
-                          %td.text-right= t.created_by.full_name
+                          %td.text-right= t.created_by&.full_name
             - else
               .d-flex.justify-content-between.align-items-center.mb-3.element-header
                 %h6.mb-0 Trainings
