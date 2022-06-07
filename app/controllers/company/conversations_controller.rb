@@ -97,8 +97,8 @@ class Company::ConversationsController < Company::BaseController
       @conversation = Conversation.find_by(id: chatconversation)
      end
     else
-       @conversation = params[:uid].present? ? Conversation.find_by(id: params[:uid]) : create_or_find_conversation
-    end 
+      @conversation = params[:conversation_id].present? ? Conversation.find_by(id: params[:conversation_id]) : params[:uid].present? ? Conversation.find_by(id: params[:uid])  : create_or_find_conversation  
+    end
   end
 
   def chat_docusign
