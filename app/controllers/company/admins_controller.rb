@@ -97,7 +97,10 @@ class Company::AdminsController < Company::BaseController
   private
 
   def find_admin
-    @admin = current_company.admins.find(params[:id])
+    begin
+      @admin = current_company.admins.find(params[:id])
+    rescue
+    end
   end
 
   def set_new_admin
