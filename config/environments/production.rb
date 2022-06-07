@@ -127,12 +127,12 @@ Rails.application.configure do
 
   Rails.application.routes.default_url_options[:protocol] = ENV['host_protocol'] || 'https'
 
-  Rails.application.config.middleware.use ExceptionNotification::Rack,
-                                          email: {
-                                            email_prefix: "[#{HOSTNAME}] ",
-                                            sender_address: %("notifier" <support@etyme.com>),
-                                            exception_recipients: 'smadavaram@gmail.com'
-                                          }
+  # Rails.application.config.middleware.use ExceptionNotification::Rack,
+  #                                         email: {
+  #                                           email_prefix: "[#{HOSTNAME}] ",
+  #                                           sender_address: %("notifier" <support@etyme.com>),
+  #                                           exception_recipients: 'smadavaram@gmail.com'
+  #                                         }
   config.domain = ENV['DOMAIN']
   ENV['host_protocol'] ||= 'http'
 end
