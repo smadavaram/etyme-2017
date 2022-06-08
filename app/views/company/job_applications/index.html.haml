@@ -27,7 +27,7 @@
                       %th Actions
                 %tbody
                   - @received_job_applications.each do |application|
-                    - if application.applicationable
+                    - if application.user.present? 
                       %tr{"data-id" => "#{application.id}"}
                         - candidate = application.applicationable
                         %td= check_box_tag "ids[]", application.id
