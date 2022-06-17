@@ -67,6 +67,8 @@ class Company::CandidatesController < Company::BaseController
     @user.clients.build unless @user.clients.present?
     @user.designations.build unless @user.designations.present?
     @sub_cat = WORK_CATEGORIES[@user.category]
+    @tags = fetch_tags(@user)
+    @clients = fetch_clients(@user)
     render 'candidate/candidates/my_profile'
   end
 

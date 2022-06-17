@@ -246,7 +246,7 @@
                     %span.bold
                       Add new
               %div.d-flex.w-100.justify-content-center
-                - if candidate.designations.with_no_client
+                - if candidate.designations.with_no_client.present?
                   .portfolio-slick
                     - candidate.designations.with_no_client.each do |client|
                       - client.portfolios.each do |portfolio|
@@ -610,22 +610,30 @@
     })(jQuery);
 
     slider_count = $(".slide-container").length
+    
     if (slider_count == 2){
       $("#slick-slide00").empty().jQCloud(tags); 
       $("#slick-slide01").empty().jQCloud(clients); 
 
+      $(this).delay(100).queue(function() {
+        $("#slick-slide00").empty().jQCloud(tags); 
+        $("#slick-slide01").empty().jQCloud(clients); 
+        $(this).dequeue();
+      });
+
     }else{
       $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags); 
       $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients); 
+    
+      $(this).delay(100).queue(function() {
+        $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags); 
+        $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients); 
+        $(this).dequeue();
+      });
+
     }
 
-    $(this).delay(100).queue(function() {
-      $("#slick-slide00").empty().jQCloud(tags); 
-      $("#slick-slide01").empty().jQCloud(clients); 
-       
-       $(this).dequeue();
     
-    });
 
   });
 

@@ -55,7 +55,7 @@ class JobApplication < ApplicationRecord
   has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
 
   # validates :cover_letter , :applicant_resume ,presence: true
-  validates :cover_letter, presence: true
+  validates :cover_letter, presence: false
 
   # validates :application_type, inclusion: { in: application_types.keys }
   validates :status, inclusion: { in: statuses.keys }

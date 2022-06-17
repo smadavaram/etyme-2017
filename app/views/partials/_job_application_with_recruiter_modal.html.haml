@@ -19,22 +19,22 @@
                 %label.d-block Resume
                 .file_selector{style: "display: flex;"}
                   .form-group.d-inline-block
-                    = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
+                    = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_#{@id}",cstm_style: "border-radius: 0; height:38px;", required_field: false
                     -#= f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
-                  %p.d-inline-block.uploaded_file_name  No File Selected
+                  %p{style: "margin-left: 5px;", :class => "d-inline-block uploaded_file_#{@id}"}  No File Selected
               = f.fields_for :candidate_with_recruiter do |b|
                 .col-sm-6
-                  %label Candidate Email
+                  %label Candidate Email*
                   .form-group
-                    = b.text_field :email,class: 'form-control input',placeholder: "example@domain.com"
+                    = b.text_field :email, required: true, class: 'form-control input',placeholder: "example@domain.com"
                 .col-sm-6
-                  %label First Name
+                  %label First Name*
                   .form-group
-                    = b.text_field :first_name,placeholder: "First Name",class: 'form-control input'
+                    = b.text_field :first_name, required: true,placeholder: "First Name",class: 'form-control input'
                 .col-sm-6
-                  %label Last Name
+                  %label Last Name*
                   .form-group
-                    = b.text_field :last_name,placeholder: "Last Name",class: 'form-control input'
+                    = b.text_field :last_name, required: true,placeholder: "Last Name",class: 'form-control input'
                 .col-sm-6
                   %label Phone
                   .form-group
@@ -52,9 +52,9 @@
                 -#  .form-group
                 -#    = b.text_field :roal, placeholder: "Role",class: 'form-control input'
                 .col-sm-6
-                  %label Recruiter Email
+                  %label Recruiter Email*
                   .form-group
-                    = b.text_field :recruiter_email,class: 'form-control input',placeholder: "example@domain.com"
+                    = b.text_field :recruiter_email,class: 'form-control input', required: true, placeholder: "example@domain.com"
               -#= render 'static/jobs/job_application_attributes', f: f
 
             .row
@@ -107,8 +107,9 @@
                             = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{required: r.ans_mandatroy, class: 'set-checkbox d-inline-block'}
                             = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
                       - else
-                        = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: r.ans_mandatroy
+                        = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_#{@id}",cstm_style: "border-radius: 0; height:38px;", required_field: r.ans_mandatroy
                         -#= ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'
+                        %p{:class => "d-inline-block uploaded_file_#{@id}"}  No File Selected
             .nested-fields
               = f.fields_for :custom_fields do |custom|
                 .form-group
@@ -119,5 +120,5 @@
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
               Cancel
-            = f.button "Submit".html_safe , class: 'btn btn-primary', id: 'recruiter_save' , data: {disable_with: disable_spinning('Saving...')}
+            = f.button "Submit".html_safe ,type: "submit", class: 'btn btn-primary', id: 'recruiter_save' , data: {disable_with: disable_spinning('Saving...')}
 

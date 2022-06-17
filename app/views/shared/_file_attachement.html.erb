@@ -14,7 +14,7 @@
   <% name = attr_name.to_s.split('_').collect(&:capitalize).join(' ') %>
 <% end %>
 <% if local_assigns.has_key? :name_selector %>
-  <%= button_tag name, type: 'button', style: cstm_style, class: "btn #{cstm_class} uploader", onclick: "upload_file('##{@id}','#{name_selector}',#{multiple})" %>
+  <%= button_tag name, type: 'button', style: cstm_style, class: "btn #{cstm_class} uploader", onclick: "upload_file('##{@id}','.uploaded_file_#{@id}',#{multiple})" %>
 <% else %>
   <%= button_tag name, type: 'button', style: cstm_style, class: "btn #{cstm_class} uploader", onclick: "upload_file('##{@id}',false,#{multiple})" %>
 <% end %>

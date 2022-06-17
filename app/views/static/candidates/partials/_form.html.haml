@@ -19,10 +19,10 @@
               = link_to "Recruiter", static_job_job_appication_with_recruiter_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"common-blue-btn btn w-100"
 
           .row#candidate_jbapply_links{ style: 'display: none;', data: { apply_with_without_register: 'true' } }
-            .col-6.margin-auto.text-center
-              %a{ class: 'common-blue-btn btn w-100', href: new_candidate_session_path, style: 'min-height: 52px;'}Apply with Registration
-            .col-6.margin-auto.text-center
-              = link_to "Apply Without Registration", static_job_job_appication_without_registeration_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"common-blue-btn btn w-100", style: 'min-height: 52px;'
+            .col-6.margin-auto.text-center{style: "padding: 2px;"}
+              %a{ class: 'common-blue-btn btn w-100', href: new_candidate_session_path, style: 'white-space: initial; min-height: 52px;'}Apply with Registration
+            .col-6.margin-auto.text-center{style: "padding: 2px;"}
+              = link_to "Apply Without Registration", static_job_job_appication_without_registeration_path(@job,status: candidate_signed_in?),  method: :post , remote: true, :class=>"common-blue-btn btn w-100", style: 'min-height: 52px;white-space: initial;'
             .col-sm-12{ style: "display:none;", data: { apply_with_register: 'true' } }
               %hr
               .col-sm-5

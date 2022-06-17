@@ -281,6 +281,13 @@
         dateFormat: "mm-dd-yy"
       });
 
+      $(".visa_exp_date").datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c+60",
+        dateFormat: 'mm-dd-yy'
+      });
+
       addressLookup();
     });
 
@@ -429,6 +436,14 @@
         yearRange: "c-60:c",
         dateFormat: 'mm-dd-yy'
       });
+
+      $(".visa_exp_date").datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c+60",
+        dateFormat: 'mm-dd-yy'
+      });
+
       insertedItem.find('.filepicker-attach').each(function(i,e){
         $(".filepicker-attach").on('click',function() {
           $('.fp__overlay').css({'z-index':'99999'})
