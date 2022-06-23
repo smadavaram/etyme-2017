@@ -260,16 +260,18 @@ class Company::CandidatesController < Company::BaseController
       email = e.include?('[') ? JSON.parse(e) : e
       emails << email
     end
-    params[:emails_bcc].each do |e|
-      company = User.where(email: e).first
-      if company.present?
-        c_ids.each do |id|
-          current_company.active_relationships.create(candidate_id: id, shared_to_id: company.company_id)
+    if params[:emails_bcc].present?
+      params[:emails_bcc].each do |e|
+        company = User.where(email: e).first
+        if company.present?
+          c_ids.each do |id|
+            current_company.active_relationships.create(candidate_id: id, shared_to_id: company.company_id)
+          end
         end
-      end
 
-      email = e.include?('[') ? JSON.parse(e) : e
-      emails << email
+        email = e.include?('[') ? JSON.parse(e) : e
+        emails << email
+      end
     end
 
     User.share_candidates(current_user.email, emails.flatten.uniq.split(','), c_ids, current_company, params[:message], params[:subject])
