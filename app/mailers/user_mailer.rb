@@ -72,7 +72,8 @@ class UserMailer < ApplicationMailer
       candidate = current_company.candidates.find(cid)
       @link_list.push(
         name: candidate.full_name,
-        url: "#{ENV['host_protocol']}://#{current_company.etyme_url}/static/companies/#{current_company.id}/candidates/#{cid}/resume",
+        # url: "#{ENV['host_protocol']}://#{current_company.etyme_url}/static/companies/#{current_company.id}/candidates/#{cid}/resume",
+        url: "#{ENV['host_protocol']}://#{current_company.etyme_url}/static/candidates/#{cid}/public/profile",
         roles: candidate.try(:roles).present? ? candidate.roles.pluck(:name).to_sentence : '',
         skills: candidate.skills.pluck(:name).to_sentence,
         location: candidate.try(:location),

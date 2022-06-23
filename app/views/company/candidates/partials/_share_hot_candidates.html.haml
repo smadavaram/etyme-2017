@@ -11,7 +11,7 @@
           ×
 
       .modal-body
-        .share_url{:style => "margin-bottom: 10px; margin-left: 12px;"}
+        .share_url
           Share
           %br/
           %a#candidate_share_url{:target => "_blank"}
@@ -24,13 +24,13 @@
                 %sup.text-danger
               .col-md-12
                 =# text_field_tag "emails" ,nil ,class: "tagsinput form-control" ,"data-role" => "tagsinput", placeholder: "Groups/Customers/Emails" , required: true ,"data-role" => "tagsinput"
-                = select_tag "emails",options_for_select(Group.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2',required: true ,:multiple => true}
+                = select_tag "emails",options_for_select(Group.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2', required: true, :multiple => true}
             .form-group
               %label.col-md-12.control-label
                 BCC
                 %sup.text-danger
               .col-md-12
-                = select_tag "emails_bcc",options_for_select(Group.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2',required: true ,:multiple => true}
+                = select_tag "emails_bcc",options_for_select(Group.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2', :multiple => true}
             .form-group
               %label.col-md-12.control-label
                 Subject
@@ -53,3 +53,16 @@
   .select2{
     width: 470px;
     }
+  .share_url{
+    margin-bottom: 10px;
+    margin-left: 12px
+  }  
+  @media only screen and (max-device-width: 480px) {
+    #share-candidates .modal-dialog{
+      width: 93%;
+    }
+    .share_url{
+      margin-bottom: 44px;
+      margin-left: 12px;
+    }
+  }
