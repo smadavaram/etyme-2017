@@ -7,7 +7,7 @@
   .col-sm-2
     .form-group
       %label Expiry Date
-      = f.text_field :exp_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date education_doc_expiry_date p-location input'
+      = f.text_field :exp_date,placeholder: "DD-MM-YYYY",class: 'form-control visa_exp_date p-location input'
 
   .col-sm-5
     %label.d-block Select Document
@@ -29,17 +29,3 @@
       = link_to_remove_association f , wrapper_class: "nested-fields3", class: "bttn btn-add delete_icon" do
         %i.fa.fa-trash
 
-
-
-
--#- content_for :scripts do
--#  :javascript
--#
--#    function select_file(prev){
--#      prev.trigger("click");
--#    }
--#
--#    function uploadEducationDoc(event, file_el){
--#      document_url = event.fpfile.url
--#      $("#"+file_el.attr("id")).val(document_url)
--#    }

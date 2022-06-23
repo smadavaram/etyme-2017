@@ -361,7 +361,7 @@ class Candidate::CandidatesController < Candidate::BaseController
                                       documents_attributes: %i[id candidate_id title file exp_date is_education is_legal_doc _destroy],
                                       legal_documents_attributes: %i[id candidate_id document_number start_date title file exp_date _destroy],
                                       criminal_check_attributes: %i[id candidate_id state address start_date end_date _destroy],
-                                      visas_attributes: %i[id candidate_id title file visa_number start_date exp_date status _destroy],
+                                      visas_attributes: [:id, :candidate_id, :title, :file, :visa_number, :start_date, :exp_date, :status, :_destroy],
                                       designations_attributes: [:id, :project_name, :nature_of_work, :location, :comp_name, :recruiter_name, :recruiter_phone, :recruiter_phone_country_code, :recruiter_email, :start_date, :end_date, :status, :company_role, :project_description, :job_description, :_destroy,
                                                                 portfolios_attributes: %i[id name description cover_photo _destroy],
                                                                 client_references_attributes: [:id, :name, :country_code, :phone, :email, :recruiter_title, :recruiter_name, :recruiter_phone, :recruiter_email, :recruiter_phone_country_code, :_destroy],

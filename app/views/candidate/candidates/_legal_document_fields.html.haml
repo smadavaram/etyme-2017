@@ -12,11 +12,11 @@
     .col-sm-4
       .form-group
         %label Start Date
-        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date legal_doc_exp_date input'
+        = f.text_field :start_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date input'
     .col-sm-6
       .form-group
         %label Expiry Date
-        = f.text_field :exp_date,placeholder: "YYYY-MM-DD",class: 'form-control p_date legal_doc_exp_date input'
+        = f.text_field :exp_date,placeholder: "YYYY-MM-DD",class: 'form-control visa_exp_date input'
 
         / = filepicker_field_tag "" ,class: "resume_file", onchange:"uploadResume(event)"
     .col-sm-6

@@ -14,7 +14,7 @@
                 .links.pull-right
                   = link_to_add_association '+ Add Visa', f, :visas, class: 'btn btn-primary', partial: 'candidate/candidates/visas_fields'
         .row
-          .col-md-12
+          .col-md-12{style: "margin-top: 17px;"}
             - if current_candidate.visas &&  current_candidate.visas.count != 0
               %table.table.table-bordered
                 %tr

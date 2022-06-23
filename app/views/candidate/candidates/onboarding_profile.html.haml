@@ -278,14 +278,16 @@
         changeMonth: true,
         changeYear: true,
         yearRange: "c-60:c",
-        dateFormat: "mm-dd-yy"
+        dateFormat: 'dd/mm/yy'
+
       });
 
       $(".visa_exp_date").datepicker({
         changeMonth: true,
         changeYear: true,
         yearRange: "c-60:c+60",
-        dateFormat: 'mm-dd-yy'
+        dateFormat: 'dd/mm/yy'
+
       });
 
       addressLookup();
@@ -434,14 +436,14 @@
         changeMonth: true,
         changeYear: true,
         yearRange: "c-60:c",
-        dateFormat: 'mm-dd-yy'
+        dateFormat: 'dd/mm/yy'
       });
 
       $(".visa_exp_date").datepicker({
         changeMonth: true,
         changeYear: true,
         yearRange: "c-60:c+60",
-        dateFormat: 'mm-dd-yy'
+        dateFormat: 'dd/mm/yy'
       });
 
       insertedItem.find('.filepicker-attach').each(function(i,e){
@@ -552,6 +554,14 @@
       document_url = event.fpfile.url
       $("#"+file_el.attr("id")).val(document_url)
     }
+
+    $('.p_date').datepicker({
+      changeMonth: true,
+      changeYear: true,
+      yearRange: "c-60:c",
+      dateFormat: 'dd/mm/yy'
+
+    });
 
     // function select_visa_file(prev){
     //   prev.trigger("click");
