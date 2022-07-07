@@ -6,14 +6,14 @@
     text-align: center;
 }
 </style>
-<div class="top-bar color-scheme-transparent" style="height: 12vh;z-index: 100">
+<div class="top-bar color-scheme-transparent" style="height: 9vh;z-index: 100">
     <div class="top-menu-controls w-100" style="display: flex; justify-content: flex-end;">
-      <div style=""  class="new-add-class" id="remove-logo-ham-id">
+      <div class="new-add-class" id="remove-logo-ham-id">
         <div class="logged-user-i media-logo-class chat-logo-class" style="" id="click-id">
-            <div class="avatar-w" style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">
+            <div style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">
             <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
             </div>
-            <div class="logged-user-info-w" style="padding-left: 15px;">
+            <div class="logged-user-info-w">
             <div class="logged-user-name">
                 <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
             </div>
@@ -28,7 +28,7 @@
       </div>
         <!--    search start-->
         <div class="element-search autosuggest-search-activator os-dropdown-position-left">
-            <input id="searchmar" class="search-div-style" placeholder="Search In Etyme" type="text" >
+            <input id="searchmar" class="search-div-style" placeholder="Search In Etyme Marketplace" type="text" style="width:500px;background-color: white; border-radius: 0px;">
         </div>
         <!--    search end-->
 
@@ -42,7 +42,6 @@
                     <% end %>
                 </div>
             </div>
-            <span class="icon-text" style="color: black; margin-top: 7px">Notification</span>
         </div>
         <!--    notification end -->
 
@@ -53,7 +52,6 @@
                     <a href="<%= company_conversations_path %>" target="_blank"><i class="os-icon chat-icon os-icon-mail-14 " style=""></i></a>
                 </div>
             </div>
-            <span class="icon-text" style="color: black;  margin-top: 7px">Chat</span>
         </div>
         <!--    chat end-->
 
@@ -68,7 +66,6 @@
                     <%=render('company/shared/links_block') %>
                 </ul>
             </div>
-            <span class="icon-text" style="color: black;"> <label style="margin-top: 10px">Add</label></span>
         </div>
         <!--    add end-->
         
@@ -214,3 +211,50 @@ $(document).ready(function(){
 
 
 </script>
+<style type="text/css">
+  .ti-plus{
+    font-weight: 900;
+  }
+  .div-style-1, .div-style-3, .div-style-5{
+    width: 38px;
+    height: 38px;
+  }
+  .div-style-2, .div-style-4{
+    left: 15.2%;
+    right: 8.2%;
+    top: 14.2%;
+    bottom: 8.2%;
+    width: 27px;
+    height: 27px;
+  }
+  .top-bar .top-menu-controls{
+    margin-top: 21px;
+  }
+  #quick-add{
+    background: #fbf4f4d1;
+    margin-top: 2px;
+    height: 42px;
+    width: 42px;
+  }
+  .search-div-style{
+    height: 34px;
+  }
+  .circle{
+    margin-top: 17px;
+    width: 32px !important;
+    height: 32px !important;
+  }
+  <% if params["controller"] == "company/conversations"%>
+    .company-div-style-7 {
+      width: 38px !important;
+      height: 38px !important;
+      margin-top: 33px;
+    }
+  <%else%>
+    .company-div-style-7 {
+      width: 38px !important;
+      height: 38px !important;
+      margin-top: 18px;
+    }
+  <%end%>
+</style>

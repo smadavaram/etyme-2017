@@ -24,20 +24,20 @@ margin-top: 15px;
 <!--Contaniner -->
 <div class="row">
 <!--  Left Bar-->
-  <div class="col-sm-12 col-12 col-md-3 col-lg-3 chat-margin" style="z-index: 100;"  >
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3" style="z-index: 100;background-color: #eaf3fc;"  >
 
     <div class="left-chat-bar company-left-chat-bar">
       <div class="full-chat-left1">
         <div class="os-tabs-w">
-          <ul class="nav nav-tabs upper centered">
+          <ul class="nav upper centered">
           </ul>
         </div>
-        <div class="chat-search d-flex margin-top-10 left-side-header-style">
-          <div class=" col-sm-3 col-md-3 col-lg-3 left-side-select-style">
+        <div class="chat-search d-flex margin-top-10 left-side-header-style" style="border-bottom: 2px solid #e5e7eb;height: 7vh;">
+          <div class=" col-sm-4 col-md-4 col-lg-4 left-side-select-style">
 
             <div class="chat-search d-flex left-side-header-style">
                 <div class="element-actions w-100">
-                  <select class="form-control border-no pl-2 height-45" id="chat_topic">
+                  <select class="form-control border-no pl-2 height-36" id="chat_topic">
                   <option value="All">All</option>
                   <option value="Job">Job/Offer</option>
                   <option value="JobApplication">Application</option>
@@ -58,7 +58,7 @@ margin-top: 15px;
           </div>
         </div>
         
-        <div class="px-2">
+        <div class="px-22" style="padding-top: 9px;">
                   <ul class="chat-user-list_heights company-conversation-scorll" role="tablist" id="company-conversation-list">
                     <%= render 'conversations_list', conversations: @conversations %>
                     <div id="all-infinite-scrolling-con" style="display: none">
@@ -117,10 +117,95 @@ margin-top: 15px;
     .fixed-height{
         overflow-y: unset;
     }
-
-
     .full-chat-w .full-chat-left {
         padding: 0px 0px;
+    }
+    .full-chat-left1{
+      margin-top: 15%;
+    }
+    .input-search-style{
+      border-radius: 4px !important;
+    }
+    .active-div-color{
+      border-radius: 0px;
+      background-color: #bad7f7b3;
+    }
+    .chat-user-list_heights{
+      margin-left: 0;
+    }
+    .user-list-item-style {
+      width: initial;
+      border:  none;
+    }
+    .left-chat-bar{
+      height: 80vh;
+    }
+    .convo_box{
+      background-color: #f8f8f8;
+    }
+    .full-width-style:hover{
+      background-color: #047bf8;
+    }
+    .full-width-style a:hover, a:active, a:visited, a:focus {
+        text-decoration:none;
+    }
+    .user-list-item-style:hover {
+      background-color: #047bf8; !important;
+      border-radius: 0px;
+    }
+
+    .etyme_conversations:hover {
+      background-color: #047bf8; !important;
+      border-radius: 0px;
+      color: white !important;
+    }
+    .conversation_image {
+      height: 36px;
+    }
+    @media only screen and (max-width: 600px){
+      .conversation_image {
+          height: 51px;
+        }
+      .mobile_chat_subtitle{
+        width: 56%;
+      }
+      .d-inline{
+        margin-left: 13px;
+      }
+
+      #search-specfic-text{
+        display: none;
+      }
+      .left-chat-bar {
+        margin-top: 0% !important;
+        border-radius: 0;
+      }
+      .element-search{
+        display: none;
+      }
+      .left-side-header-style {
+        margin-top: 0px !important;
+      }
+      .left-side-select-style {
+        width: 100%;
+      }
+      #conversation-users-search{
+        margin-top: 15px;
+      }
+      #chat_topic{
+        margin-top: 14px;        
+      }
+      .chat-margin {
+        margin-top: 6%;
+      }
+      .full-chat-left1{
+        margin-top: 6%;
+      }
+    }
+    @media only screen and (max-width: 767px){
+      .chat-margin {
+        margin-top: 6%;
+      }
     }
 </style>
 <script>

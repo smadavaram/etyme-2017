@@ -50,21 +50,16 @@
       </div>
     </div>
   </div>
-  <div class="col-8 col-sm-8 col-md-8 col-lg-8" style="background: #eaf3fc;">
+
+
+  <div class="col-8 col-sm-8 col-md-8 col-lg-8 py-2 px-0" style="padding: 0px !important;">
+
     <div class="branch-out-content" style="justify-content: flex-start;display: flex; align-items: center;  height: 5vh; overflow: hidden;">
       <div>
-        <button type="button" class="btn1-style" onclick="btnClick1()">Main</button>
+        <button type="button" class="py-2 px-6 mr-2 bg-white rounded-t-lg " onclick="btnClick1()">Main</button>
       </div>
-      <div id="myDIV" style="display:none; ">
-        <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
-        <%= form_tag update_company_conversation_title_company_conversations_path, class:"form-class", method: :post ,remote: :true do %>
-          <div class="element-search autosuggest-search-activator">
-            <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
-            <%= hidden_field_tag 'group_id', opt_obj.id if opt_obj.present? %>
-            <%= hidden_field_tag 'con_id', conversation.id if opt_obj.present? %>
-          </div>
-        <% end %>
-      </div>
+      <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
+
       <% if opt_obj.present?%>
         <%branch_new_array = opt_obj[:branch_array]%>
         <% if branch_new_array.size <= 3 %>
@@ -72,18 +67,19 @@
             <%key_value = eval(key)%>
             <%i =  key_value[:chat_title]%>
             <a style=" padding: 0px; margin:0px;">
-              <div class="ml-2 mt-2 p-1" style="background:none; border-radius: 10px 10px 0px 0px; ">
+              <div class="ml-2  p-1">
                 <% if conversation.id == key_value[:sub_chats]%>
                   <div id="branchout-button" class=" underline_actives">
-                    <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
+                    <div  class="button-text" ><button class="py-2 px-6 bg-white rounded-t-lg" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
                 <% else %>
                   <div id="branchout-button" class="">
-                    <div  class="button-text" ><button class="new_but" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
+                    <div  class="button-text" ><button class="py-2 px-6 bg-white rounded-t-lg" id="underline_active" onclick="send_messages(<%=key_value[:sub_chats]%>)"><span style="color:black;"> <%= i.first(5) %></span></button></div>
                 <% end %>
                 </div>
                 </div>
             </a>
           <% end %>
+
         <% else %>
           <% branch_new_array1 = branch_new_array.first(3) %>
           <% branch_new_array1.each do |key|%>
@@ -156,17 +152,35 @@
 
       <% end %>
 
+      <div id="myDIV" style="display:none; margin-right: 10px;">
+        <%= form_tag update_company_conversation_title_company_conversations_path, class:"form-class", method: :post ,remote: :true do %>
+          <div class="element-search autosuggest-search-activator">
+            <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
+            <%= hidden_field_tag 'group_id', opt_obj.id if opt_obj.present? %>
+            <%= hidden_field_tag 'con_id', conversation.id if opt_obj.present? %>
+          </div>
+        <% end %>
+      </div>
+      <div class="row branch-out" style="justify-content: flex-end">
+        <%if conversation.present? && conversation.sub_chats != true%>
+          <button class="bg-white rounded-t-lg" id="clickon1" title="Breakout Rooms" onclick="showClick()" style="padding: 5px;margin-left: 16px;"><%= image_tag "breakout-room.png", class: "breakout_rooms"%></button>
+        <%end%>
+      </div>
+    </div>
 
-.
-    </div>
+    <!-- component -->
+<!--    <div style='border-bottom: 2px solid #eaeaea'>-->
+<!--      <ul class='flex cursor-pointer'>-->
+<!--        <li class='py-2 px-6 bg-white rounded-t-lg'>Personal</li>-->
+<!--        <li class='py-2 px-6 bg-white rounded-t-lg text-gray-500 bg-gray-200'>Akun</li>-->
+<!--        <li class='py-2 px-6 bg-white rounded-t-lg text-gray-500 bg-gray-200'>Pengaturan</li>-->
+<!--      </ul>-->
+<!--    </div>-->
+
+
   </div>
-  <div class="col-4 col-sm-4 col-md-4 col-lg-4" style="background: #eaf3fc;">
-    <div class="row branch-out" style="justify-content: flex-end">
-    <%if conversation.present? && conversation.sub_chats != true%>
-      <button class="btnmy-style" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
-    <%end%>
-    </div>
-  </div>
+
+
 
 </div>
 <% if conversation.present? && conversation.job_application_id.present? %>
@@ -180,40 +194,57 @@
 <% else %>
 <%  pre_name = "" %>
 <% end %>
+
 <div class="row chat-box responsive-chat-box" style="background-color: white; height: 82vh">
   <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
   <% link = get_conversation_link(opt_obj,conversation) %>
-  <div class="row chat-box-header" style="<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 16vh;" : "height: 10vh;" %>" >
-      <div class="col-sm-9 col-lg-9 col-md-9">
-        <% if link.nil? %>
-          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" style="padding-left:10px;" href="#"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
-        <%else %>
-          <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" style="padding-left:10px;" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>
-        <%end %>
-      </div>
-        <div class="col-3 col-sm-3 col-md-3 col-lg-3" style="margin-top: auto;">
-          <input name="search-specfic-text"  style="width: 100%;" class="input-field main_chat_search_filed mb-2" placeholder="Search message" type="text" id="search-specfic-text" value=""  onchange= "searchMessage(event, <%= conversation.id unless conversation.nil? %>)" >
-        </div>
-      <div class="">
-        <!--      <div class="row vidoebutton-style-div" >-->
-        <!--        <div class="row" id="videobutton" style="margin-right: 2px; display: none">-->
-        <!--          <div class="chat-div-style" id="myDIV2"><i class="fa fa-calendar calender-style"></i></div>-->
-        <!--          <div class="chat-div-style" id="myDIV3"><i class="fa icon-phone calender-style"></i></div>-->
-        <!--          <div class="chat-div-style" id="myDIV4"><i class="fa fa-video-camera calender-style"></i></div>-->
-        <!--        </div>-->
-        <!--        <div class="chat-div-style" onclick="showDivClick()" id="showdiv"><i class="fa fa-ellipsis-v calender-style" style="margin-left: 40%;"></i></div>-->
-        <!--      </div>-->
-      </div>
-    <div class="row" style="margin-top: -12px; z-index: 1;">
-      <% if conversation&.job_application and nested_colap %>
+<!--  CHAT BOX HEADER-->
 
-        <div id="job_application_links">
-          <%#= render 'company/job_applications/partials/collapse_able_job_application', conversation: conversation, job_application: conversation.job_application %>
-        </div>
+  <div class="flex justify-between items-center bg-white border-b-2 w-full"  style='<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 8vh;" : "height: 8vh;" %>' style="border-bottom: 2px solid #a0a4ac;">
+    <div class="font-semibold" style="display: flex;justify-content: center;">
 
-      <% end %>
+      <% if link.nil? %>
+                 <!-- <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" style="padding-left:10px;" href="#"><%#= pre_name %><%#= opt_obj.group_name if opt_obj.present? %></a></span></div> -->
+                 <a class="d-inline" style="padding-left:10px; color: #0b0b0b;" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a>
+      <%else %>
+        <a class="d-inline" style="padding-left:10px; color: #0b0b0b;" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a>
+
+        <!--        <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" >-->
+<!--          <a class="d-inline" style="padding-left:10px; color: #0b0b0b; font-size: 20px !important;" target="_blank" href="<%#= link.nil? ? "#" : link %>"><%#= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a>-->
+<!--        </span></div>-->
+      <%end %>
+      <div class="collaborator">
+        <% if @conversation.present? %>
+          <% user = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
+            <a href="#" class="add-to-conversation " data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %>>
+              <div class="icon-style-1">
+                <%=image_tag "groups.png", title: "Breakout chat"%>
+              </div>
+            </a>
+        <% end %>
+        <%#= render "company/conversations/conversation_right_side_2" %>
+      </div>
     </div>
+    <div class="w-1/2">
+      <input
+        type="text"
+        name="search-specfic-text"
+        id="search-specfic-text"
+        onchange= "searchMessage(event, <%= conversation.id unless conversation.nil? %>)"
+        placeholder="Search message"
+        class="rounded-2xl bg-gray-100 py-2 px-5 w-1/2"
+        style="  margin-right: 23px !important;"/>
+    </div>
+<!--    <div-->
+<!--      class="h-12 w-12 p-2 bg-yellow-500 rounded-full text-white font-semibold flex items-center justify-center"-->
+<!--    >-->
+<!--      RA-->
+<!--    </div>-->
   </div>
+<!--  end here header first-->
+
+
+<!-- CHAT BOX HEAD  -->
   <div class="responsive-chat-message" style="width: 100%;  border-bottom: 1px solid #F2F4F8;overflow-y: scroll; padding: 10px;overflow-x: hidden; <%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 54vh;" : "height: 58vh;" %>">
 
     <div class="chat-content" id="conversation_<%= conversation.id if conversation.present? %>">
@@ -238,49 +269,103 @@
 
   </div>
 
-<!--  SEND FORM -->
-  <div  class="row message-send-row-mobile" >
-    <div class= "row" style="width: 100%;  height:50%;  margin-left: 17px" >
-      <div><button id="showdiv1" onclick="btnClick()" class="buttonstyle2"><i class="fa fa-ellipsis-v option-mobile-style"></i></button></div>
-      <% if @conversation.present? && @conversation.freeze_chats == false %>
-        <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%; margin: auto;',class: "chat_form",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
-          <%= f.text_field :body, class: 'form-control input-sm chat_input mobile-send-text-div-style', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
-      <%= button_tag( class: "btn p-0 button-style1 button-style112 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
-        <img src="/assets/send.png"></img>
-      <% end %>
-    </div>
 
 
-    <div class="row mobile-chat-send-icons" >
-      <div class="col-sm-8 col-md-8 col-lg-8">
-        <div class="row send-icons">
+<!--  New form -->
+  <div class="flex flex-row items-center h-16 rounded-xl bg-white w-full px-4">
+    <div><button id="showdiv1" onclick="btnClick()" class="buttonstyle2"><i class="fa fa-ellipsis-v option-mobile-style"></i></button></div>
+
+    <% if @conversation.present? && @conversation.freeze_chats == false %>
+    <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%; margin: auto;',class: "flex flex-row items-center h-16 rounded-xl bg-white w-full px-4",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
+
+        <!--            icons-->
+        <div class="row send-icons items-center justify-around" >
           <% if conversation.present? && @conversation.freeze_chats == false  %>
-          <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
-            <%= image_tag("/assets/docusign.png",size: "25x28") %>
+            <img src="https://img.favpng.com/11/10/5/docusign-electronic-signature-information-windows-phone-document-png-favpng-yGsuNDQysGXrPNUL7ayG0BLBu.jpg  "class="pr-2" height="26" width="26">
           <% end %>
-          <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width: 31px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
-            <div>
-              <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : "" %>
-              <%= candidate.present? ? mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) : mini_chat_contact_widget(nil, nil,nil) %>
-            </div>
-          <% end %>
-        <% end %>
-      <% end %>
+          <div class="-mr-2 -mt-1">
+            <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0 ", cstm_style: "background: transparent;box-shadow: none;width: 31px; color:#adadad;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
+          </div>
+          <div>
+            <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : "" %>
+            <%= candidate.present? ? mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) : mini_chat_contact_widget(nil, nil,nil) %>
+
+          </div>
         </div>
-      </div>
-       <% if @conversation.present? && @conversation.freeze_chats == false %>
-      <div class="col-sm-4 col-md-4 col-lg-4">
-        <div class="row send-line">
-          <%= button_tag( class: "btn p-0 send-message_class", style: "background: transparent;box-shadow: none;",id:"send-message") do %>
-            <img src="/assets/send.png"></img>
-          <% end %>
-        </div>
-      </div>
-      <%end%>
+
+  <!--    New form Icons-->
+    <div>
     </div>
+    <!--  end New form Icons-->
+
+    <!--          input-->
+    <div class="flex-grow ml-4">
+      <div class="relative w-full">
+<!--        <input-->
+<!--          type="text"-->
+<!--          class="flex w-full border rounded-xl focus:outline-none focus:border-blue-300 pl-4 h-10"-->
+<!--          />-->
+        <%= f.text_field :body, class: 'chat-inputs flex w-full border rounded-xl focus:outline-none focus:border-blue-300 pl-4 h-10', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
+
+        <!--        send button -->
+<!--        <button-->
+<!--          class="absolute flex items-center justify-center h-full w-12 right-0 top-0 text-gray-400 hover:text-gray-600"-->
+<!--        >-->
+<!--          <svg-->
+<!--            class="w-6 h-6"-->
+<!--            fill="none"-->
+<!--            stroke="currentColor"-->
+<!--            viewBox="0 0 24 24"-->
+<!--            xmlns="http://www.w3.org/2000/svg"-->
+<!--          >-->
+<!--            <path-->
+<!--              stroke-linecap="round"-->
+<!--              stroke-linejoin="round"-->
+<!--              stroke-width="2"-->
+<!--              d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"-->
+<!--            ></path>-->
+<!--          </svg>-->
+<!--        </button>-->
+      </div>
+    </div>
+    <!--      Send button-->
+   <% if @conversation.present? && @conversation.freeze_chats == false %>
+    <div class="ml-4">
+      <button
+        class="flex items-center justify-center bg-blue-500 hover:bg-blue-600 rounded-xl text-white px-4 py-1 flex-shrink-0" style="border-radius: 2px;"
+      >
+        <span>Send</span>
+        <span class="ml-2">
+                  <svg
+                    class="w-4 h-4 transform rotate-90 -mt-px"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                    ></path>
+                  </svg>
+                </span>
+      </button>
+    </div>
+   <% end %>
+
+    <!--          end button-->
+    <% end %>
+    <% end %>
+  </div>
+<!--end new form-->
+
+
+
+
 
   </div>
-</div>
 
 <% content_for :modals do %>
   <%= render('shared/chat_document_templates', conversation: @conversation) if @conversation.present? %>
@@ -577,4 +662,52 @@
 <!--  </script>-->
 <%# end %>
 
-
+<style type="text/css">
+  .breakout_rooms{
+    width: 24px;
+    margin-bottom: 8px;
+  }
+  #search-specfic-text{
+    width: 200px;
+    border-radius: 2px;
+    float: right;
+  }
+  .chat-inputs{
+    height: 32px;
+    border-radius: 2px;
+  }
+  .pl-4{
+    padding-left: 5px !important;
+  }
+  .ml-2, .mx-2 {
+    margin-left: 0px !important;
+  }
+  .mr-2, .mx-2 {
+    margin-right: 5px !important;
+  }
+  .icon-style-1{
+    width: 21px;
+    margin: 1px 0 0 7px;
+    height: 18px;
+    width: 18px;
+    background: white;
+  }
+  .bg-blue-300{
+    --tw-bg-opacity: 0;
+    background-color: white;
+    border: 0.5px solid #f7f2f2;
+  }
+  .input-field {
+    width: 100px;
+    height: 30px;
+    border-radius: 0px;
+    border: 0.5px solid #047bf8;
+    background-color: #ffffff;
+    font-size: 13px;
+    margin-left: 5px;
+    margin-bottom: 2px;
+    padding: 5px;
+    text-decoration: ;
+    margin-right: -5px;
+  }  
+</style>

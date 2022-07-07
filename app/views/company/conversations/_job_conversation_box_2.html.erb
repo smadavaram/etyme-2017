@@ -21,6 +21,13 @@
   display: inline-block;
 }
 
+.ml-2, .mx-2 {
+  margin-left: 5px !important;
+}
+.mr-2, .mx-2 {
+  margin-right: 0px !important;
+}
+
 /* Dropdown Content (Hidden by Default) */
 .dropdown-content {
   display: none;
@@ -52,24 +59,14 @@
   </div>
 
 
-  <div class="col-8 col-sm-8 col-md-8 col-lg-8 py-2 px-0" >
+  <div class="col-8 col-sm-8 col-md-8 col-lg-8 py-2 px-0" style="padding: 0px !important;">
 
     <div class="branch-out-content" style="justify-content: flex-start;display: flex; align-items: center;  height: 5vh; overflow: hidden;">
       <div>
         <button type="button" class="py-2 px-6 mr-2 bg-white rounded-t-lg " onclick="btnClick1()">Main</button>
       </div>
 
-
-      <div id="myDIV" style="display:none; ">
-        <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
-        <%= form_tag update_company_conversation_title_company_conversations_path, class:"form-class", method: :post ,remote: :true do %>
-          <div class="element-search autosuggest-search-activator">
-            <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
-            <%= hidden_field_tag 'group_id', opt_obj.id if opt_obj.present? %>
-            <%= hidden_field_tag 'con_id', conversation.id if opt_obj.present? %>
-          </div>
-        <% end %>
-      </div>
+      <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
 
 
       <% if opt_obj.present?%>
@@ -163,12 +160,22 @@
         </div>
 
       <% end %>
+      <div id="myDIV" style="display:none;margin-right: 10px;">
+        <%= form_tag update_company_conversation_title_company_conversations_path, class:"form-class", method: :post ,remote: :true do %>
+          <div class="element-search autosuggest-search-activator">
+            <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
+            <%= hidden_field_tag 'group_id', opt_obj.id if opt_obj.present? %>
+            <%= hidden_field_tag 'con_id', conversation.id if opt_obj.present? %>
+          </div>
+        <% end %>
+      </div>
 
-        <div class="row branch-out pl-4" style="justify-content: flex-end">
-          <%if conversation.present? && conversation.sub_chats != true%>
-            <button class="py-2 px-6 bg-white rounded-t-lg" id="clickon1" onclick="showClick()" ><i class="fa fa-plus"></i> BO</button>
-          <%end%>
-        </div>
+
+      <div class="row branch-out mx-2 pl-4" style="justify-content: flex-end">
+        <%if conversation.present? && conversation.sub_chats != true%>
+          <button class="bg-white rounded-t-lg" id="clickon1" title="Breakout Rooms" onclick="showClick()" style="padding: 6px;"><%= image_tag "breakout-room.png", class: "breakout_rooms"%></button>
+        <%end%>
+      </div>
     </div>
 
     <!-- component -->
@@ -203,8 +210,8 @@
   <% link = get_conversation_link(opt_obj,conversation) %>
 <!--  CHAT BOX HEADER-->
 
-  <div class="px-5 py-2 flex justify-between items-center bg-white border-b-2 w-full"  style='<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 16vh;" : "height: 10vh;" %>'>
-    <div class="font-semibold">
+  <div class="flex justify-between items-center bg-white border-b-2 w-full"  style='<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 8vh;" : "height: 8vh;" %>' style="border-bottom: 2px solid #a0a4ac;">
+    <div class="font-semibold" style="display: flex;justify-content: center;">
 
       <% if link.nil? %>
 <!--                 <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" style="padding-left:10px;" href="#"><%##= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>-->
@@ -215,6 +222,17 @@
 <!--          <a class="d-inline" style="padding-left:10px; color: #0b0b0b; font-size: 20px !important;" target="_blank" href="<%#= link.nil? ? "#" : link %>"><%#= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a>-->
 <!--        </span></div>-->
       <%end %>
+      <div class="collaborator">
+        <% if @conversation.present? %>
+          <% user = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
+            <a href="#" class="add-to-conversation " data-conid=<%= @conversation.id %> data-cid=<%= user.id %> data-ctype=<%= user.class.to_s %>>
+              <div class="icon-style-1">
+                <%=image_tag "groups.png", title: "Breakout chat"%>
+              </div>
+            </a>
+        <% end %>
+        <%#= render "company/conversations/conversation_right_side_2" %>
+      </div>
     </div>
     <div class="w-1/2">
       <input
@@ -224,7 +242,7 @@
         onchange= "searchMessage(event, <%= conversation.id unless conversation.nil? %>)"
         placeholder="Search message"
         class="rounded-2xl bg-gray-100 py-2 px-5 w-1/2"
-        />
+        style="  margin-right: 23px !important;"/>
     </div>
 <!--    <div-->
 <!--      class="h-12 w-12 p-2 bg-yellow-500 rounded-full text-white font-semibold flex items-center justify-center"-->
@@ -296,7 +314,7 @@
 <!--          type="text"-->
 <!--          class="flex w-full border rounded-xl focus:outline-none focus:border-blue-300 pl-4 h-10"-->
 <!--          />-->
-        <%= f.text_field :body, class: 'flex w-full border rounded-xl focus:outline-none focus:border-blue-300 pl-4 h-10', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
+        <%= f.text_field :body, class: 'chat-inputs flex w-full border rounded-xl focus:outline-none focus:border-blue-300 pl-4 h-10', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
 
         <!--        send button -->
 <!--        <button-->
@@ -323,12 +341,12 @@
    <% if @conversation.present? && @conversation.freeze_chats == false %>
     <div class="ml-4">
       <button
-        class="flex items-center justify-center bg-blue-500 hover:bg-blue-600 rounded-xl text-white px-4 py-1 flex-shrink-0"
+        class="flex items-center justify-center bg-blue-500 hover:bg-blue-600 rounded-xl text-white px-4 py-1 flex-shrink-0" style="border-radius: 2px;"
       >
         <span>Send</span>
         <span class="ml-2">
                   <svg
-                    class="w-4 h-4 transform rotate-45 -mt-px"
+                    class="w-4 h-4 transform rotate-90 -mt-px"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -541,11 +559,24 @@
     border-radius: 50px;
     margin: 5px;
   }
-    .hamburger-icon{
-      display: block !important;
-      padding-top: 15px;
-      padding-left: 13px;
-    }
+  .hamburger-icon{
+    display: block !important;
+    padding-top: 15px;
+    padding-left: 13px;
+  }
+  .input-field {
+    width: 100px;
+    height: 30px;
+    border-radius: 0px;
+    border: 0.5px solid #047bf8;
+    background-color: #ffffff;
+    font-size: 13px;
+    margin-left: 5px;
+    margin-bottom: 2px;
+    padding: 5px;
+    text-decoration: ;
+    margin-right: -5px;
+  }  
 </style>
 
 <%# opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
@@ -653,4 +684,38 @@
 <!--  </script>-->
 <%# end %>
 
-
+<style type="text/css">
+  .breakout_rooms{
+    width: 24px;
+    margin-bottom: 8px;
+  }
+  #search-specfic-text{
+    width: 200px;
+    border-radius: 2px;
+    float: right;
+  }
+  .chat-inputs{
+    height: 32px;
+    border-radius: 2px;
+  }
+  .pl-4{
+    padding-left: 0.5rem !important;
+  }
+  .icon-style-1{
+    width: 21px;
+    margin: 1px 0 0 7px;
+    height: 18px;
+    width: 18px;
+    background: white;
+  }
+  .bg-blue-300{
+    --tw-bg-opacity: 0;
+    background-color: white;
+    border: 0.5px solid #f7f2f2;
+  }
+  @media only screen and (max-width: 600px){
+    .conversation_image{
+      height: 56px;
+    }
+  }
+</style>
