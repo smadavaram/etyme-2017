@@ -36,7 +36,6 @@
 
     <div class="row branch-out" style="margin-left: 20px;">
       <i class="fa fa-arrow-circle-left" style="margin-right: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction1()"></i>
-      <i class="fa fa-arrow-circle-right" style="margin-left: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction()"></i>
 <!--      <img src="/assets/collabs.png" style="margin-left: 45px; height: 24px; width: 27px;" onclick="myFunction()"></img>-->
 <!--      <span>Collaborators</span>-->
     </div>
@@ -279,7 +278,8 @@
     <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%; margin: auto;',class: "flex flex-row items-center h-16 rounded-xl bg-white w-full px-4",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
 
         <!--            icons-->
-        <div class="row send-icons items-center justify-around" >
+        <div class="send-icons">
+          <div class="row send-icons2 items-center justify-around" >
           <% if conversation.present? && @conversation.freeze_chats == false  %>
             <img src="https://img.favpng.com/11/10/5/docusign-electronic-signature-information-windows-phone-document-png-favpng-yGsuNDQysGXrPNUL7ayG0BLBu.jpg  "class="pr-2" height="26" width="26">
           <% end %>
@@ -290,6 +290,7 @@
             <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : "" %>
             <%= candidate.present? ? mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) : mini_chat_contact_widget(nil, nil,nil) %>
 
+          </div>
           </div>
         </div>
 
@@ -332,9 +333,8 @@
    <% if @conversation.present? && @conversation.freeze_chats == false %>
     <div class="ml-4">
       <button
-        class="flex items-center justify-center bg-blue-500 hover:bg-blue-600 rounded-xl text-white px-4 py-1 flex-shrink-0" style="border-radius: 2px;"
+        class="flex items-center justify-center bg-blue-500 hover:bg-blue-600 rounded-xl text-white px-4 py-1 flex-shrink-0" style="padding: 9px 9px !important; border-radius: 2px;"
       >
-        <span>Send</span>
         <span class="ml-2">
                   <svg
                     class="w-4 h-4 transform rotate-90 -mt-px"
@@ -481,11 +481,12 @@
       //
       //     $("#videobutton").toggle('show');
       // });
-      $("#showdiv1").on("click", function(){
-          $("#videobutton1").toggle('show');
-      });
+      // $("#showdiv1").on("click", function(){
+      //   debugger
+      //   $("#videobutton1").toggle('show');
+      // });
       function btnClick(){
-          $("#myDIV").toggle('show');
+        $(".send-icons").toggle('show');
       }
 
 

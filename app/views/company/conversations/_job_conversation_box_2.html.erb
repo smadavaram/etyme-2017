@@ -21,13 +21,6 @@
   display: inline-block;
 }
 
-.ml-2, .mx-2 {
-  margin-left: 5px !important;
-}
-.mr-2, .mx-2 {
-  margin-right: 0px !important;
-}
-
 /* Dropdown Content (Hidden by Default) */
 .dropdown-content {
   display: none;
@@ -43,7 +36,6 @@
 
     <div class="row branch-out" style="margin-left: 20px;">
       <i class="fa fa-arrow-circle-left" style="margin-right: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction1()"></i>
-      <i class="fa fa-arrow-circle-right" style="margin-left: 10px;font-size: 30px;color: #047BF8;" onclick="myFunction()"></i>
 <!--      <img src="/assets/collabs.png" style="margin-left: 45px; height: 24px; width: 27px;" onclick="myFunction()"></img>-->
 <!--      <span>Collaborators</span>-->
     </div>
@@ -65,9 +57,7 @@
       <div>
         <button type="button" class="py-2 px-6 mr-2 bg-white rounded-t-lg " onclick="btnClick1()">Main</button>
       </div>
-
       <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
-
 
       <% if opt_obj.present?%>
         <%branch_new_array = opt_obj[:branch_array]%>
@@ -160,7 +150,8 @@
         </div>
 
       <% end %>
-      <div id="myDIV" style="display:none;margin-right: 10px;">
+
+      <div id="myDIV" style="display:none; margin-right: 10px;">
         <%= form_tag update_company_conversation_title_company_conversations_path, class:"form-class", method: :post ,remote: :true do %>
           <div class="element-search autosuggest-search-activator">
             <input name="branch_array" class="input-field" placeholder="Title" type="text" id="branch-out-text" value="" maxlength="15">
@@ -169,11 +160,9 @@
           </div>
         <% end %>
       </div>
-
-
-      <div class="row branch-out mx-2 pl-4" style="justify-content: flex-end">
+      <div class="row branch-out" style="justify-content: flex-end">
         <%if conversation.present? && conversation.sub_chats != true%>
-          <button class="bg-white rounded-t-lg" id="clickon1" title="Breakout Rooms" onclick="showClick()" style="padding: 6px;"><%= image_tag "breakout-room.png", class: "breakout_rooms"%></button>
+          <button class="bg-white rounded-t-lg" id="clickon1" title="Breakout Rooms" onclick="showClick()" style="padding: 5px;margin-left: 16px;"><%= image_tag "breakout-room.png", class: "breakout_rooms"%></button>
         <%end%>
       </div>
     </div>
@@ -214,7 +203,8 @@
     <div class="font-semibold" style="display: flex;justify-content: center;">
 
       <% if link.nil? %>
-<!--                 <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" style="padding-left:10px;" href="#"><%##= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a></span></div>-->
+                 <!-- <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" style="padding-left:10px;" href="#"><%#= pre_name %><%#= opt_obj.group_name if opt_obj.present? %></a></span></div> -->
+                 <a class="d-inline" style="padding-left:10px; color: #0b0b0b;" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a>
       <%else %>
         <a class="d-inline" style="padding-left:10px; color: #0b0b0b;" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a>
 
@@ -288,7 +278,8 @@
     <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {:style => 'width:100%; margin: auto;',class: "flex flex-row items-center h-16 rounded-xl bg-white w-full px-4",id: "conversation_form_#{conversation.try(:id)}"}) do |f| %>
 
         <!--            icons-->
-        <div class="row send-icons items-center justify-around" >
+        <div class="send-icons">
+          <div class="row send-icons2 items-center justify-around" >
           <% if conversation.present? && @conversation.freeze_chats == false  %>
             <img src="https://img.favpng.com/11/10/5/docusign-electronic-signature-information-windows-phone-document-png-favpng-yGsuNDQysGXrPNUL7ayG0BLBu.jpg  "class="pr-2" height="26" width="26">
           <% end %>
@@ -299,6 +290,7 @@
             <% candidate = conversation.chatable&.groupables.find_by_groupable_type(:Candidate).present? ? conversation.chatable&.groupables.find_by_groupable_type(:Candidate).groupable : "" %>
             <%= candidate.present? ? mini_chat_contact_widget(candidate.email, candidate.phone,candidate.id) : mini_chat_contact_widget(nil, nil,nil) %>
 
+          </div>
           </div>
         </div>
 
@@ -341,9 +333,8 @@
    <% if @conversation.present? && @conversation.freeze_chats == false %>
     <div class="ml-4">
       <button
-        class="flex items-center justify-center bg-blue-500 hover:bg-blue-600 rounded-xl text-white px-4 py-1 flex-shrink-0" style="border-radius: 2px;"
+        class="flex items-center justify-center bg-blue-500 hover:bg-blue-600 rounded-xl text-white px-4 py-1 flex-shrink-0" style="padding: 9px 9px !important; border-radius: 2px;"
       >
-        <span>Send</span>
         <span class="ml-2">
                   <svg
                     class="w-4 h-4 transform rotate-90 -mt-px"
@@ -490,11 +481,12 @@
       //
       //     $("#videobutton").toggle('show');
       // });
-      $("#showdiv1").on("click", function(){
-          $("#videobutton1").toggle('show');
-      });
+      // $("#showdiv1").on("click", function(){
+      //   debugger
+      //   $("#videobutton1").toggle('show');
+      // });
       function btnClick(){
-          $("#myDIV").toggle('show');
+        $(".send-icons").toggle('show');
       }
 
 
@@ -559,24 +551,11 @@
     border-radius: 50px;
     margin: 5px;
   }
-  .hamburger-icon{
-    display: block !important;
-    padding-top: 15px;
-    padding-left: 13px;
-  }
-  .input-field {
-    width: 100px;
-    height: 30px;
-    border-radius: 0px;
-    border: 0.5px solid #047bf8;
-    background-color: #ffffff;
-    font-size: 13px;
-    margin-left: 5px;
-    margin-bottom: 2px;
-    padding: 5px;
-    text-decoration: ;
-    margin-right: -5px;
-  }  
+    .hamburger-icon{
+      display: block !important;
+      padding-top: 15px;
+      padding-left: 13px;
+    }
 </style>
 
 <%# opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
@@ -699,7 +678,13 @@
     border-radius: 2px;
   }
   .pl-4{
-    padding-left: 0.5rem !important;
+    padding-left: 5px !important;
+  }
+  .ml-2, .mx-2 {
+    margin-left: 0px !important;
+  }
+  .mr-2, .mx-2 {
+    margin-right: 5px !important;
   }
   .icon-style-1{
     width: 21px;
@@ -713,9 +698,17 @@
     background-color: white;
     border: 0.5px solid #f7f2f2;
   }
-  @media only screen and (max-width: 600px){
-    .conversation_image{
-      height: 56px;
-    }
-  }
+  .input-field {
+    width: 100px;
+    height: 30px;
+    border-radius: 0px;
+    border: 0.5px solid #047bf8;
+    background-color: #ffffff;
+    font-size: 13px;
+    margin-left: 5px;
+    margin-bottom: 2px;
+    padding: 5px;
+    text-decoration: ;
+    margin-right: -5px;
+  }  
 </style>
