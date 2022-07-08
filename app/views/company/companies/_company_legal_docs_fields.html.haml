@@ -16,18 +16,19 @@
         = f.text_field :exp_date, placeholder: "YYYY-MM-DD",class: 'form-control input legal_doc_exp_date',:autocomplete => :off
     
     
-    .col-md-5
+    .col-md-4
       .form-group
         %p Select File
         .flex-row
-          = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload Document",name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
-          %p.uploaded_file_name No Document Selected
+          = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload Document",name_selector: ".uploaded_file_name#{@id}",cstm_style: "border-radius: 0; height:38px;", required_field: false
+          %p{class: "uploaded_file_name uploaded_file_#{@id}"} No Document Selected
         / = f.text_field :file, class: 'hidden file_education_document'
         / = filepicker_field_tag "" , class: " hidden education_file filepicker-attach", onchange:"uploadFileDoc(event, $(this).prev())"
         /= render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload Document",multiple: true, cstm_style: 'height: 38px;'
+    .col-md-1.mt-3{style: "margin-top: 37px !important;"}
+      %button.btn.btn-primary.pull-left{:type => "submit", :style=>"height: 38px;"}
+        %i.ti-save
 
-  %button.btn.btn-primary.pull-right{:type => "submit", :style=>"margin-top: 27px;"}
-    Save
   
 
 - content_for :scripts do
@@ -40,7 +41,15 @@
     function uploadVisaDoc(event, file_el){
       document_url = event.fpfile.url
       $("#"+file_el.attr("id")).val(document_url)
-    }      
+    } 
+
+    $('.legal_doc_exp_date').datepicker({
+      changeMonth: true,
+      changeYear: true,
+      yearRange: "c-60:c+60",
+      dateFormat: 'dd/mm/yy'
+
+    });      
 
     
          

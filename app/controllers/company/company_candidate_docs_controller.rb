@@ -7,7 +7,7 @@ class Company::CompanyCandidateDocsController < Company::BaseController
 
   def create
     if params['company_candidate_docs']
-      if (params['company_candidate_docs']['file'].present? && (params['company_candidate_docs']['is_require'] == 'signature')) || %w[Document Website].include?(params['company_candidate_docs']['is_require'])
+      if (params['company_candidate_docs']['file'].present? && (params['company_candidate_docs']['is_require'] == 'E-Signature')) || %w[Document Website].include?(params['company_candidate_docs']['is_require'])
         company_candidate_docs = CompanyCandidateDoc.new
         company_candidate_docs.title = params['company_candidate_docs']['title']
         company_candidate_docs.exp_date = params['company_candidate_docs']['exp_date']
