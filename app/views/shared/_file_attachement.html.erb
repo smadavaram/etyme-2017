@@ -1,5 +1,5 @@
 <% @id = SecureRandom.hex(5) %>
-<%= f.hidden_field attr_name, id: @id, class: 'filepicker-attach-doc resume_field', "data-required" => "#{required_field.to_s}" %>
+<%= f.hidden_field attr_name, id: @id, class: 'filepicker-attach-doc resume_field',required: true,  "data-required" => "#{required_field.to_s}" %>
 <% is_multi = false %>
 <% unless local_assigns.has_key? :cstm_style %>
   <% cstm_style = '' %>

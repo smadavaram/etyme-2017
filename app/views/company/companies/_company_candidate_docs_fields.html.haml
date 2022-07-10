@@ -22,19 +22,19 @@
   .row.mt-3{style: 'padding: 3%; box-shadow: 0px 5px 40px rgba(41,111,226,0.3);'}
     .col-md-6
       .form-group
-        %p Title
-        = f.text_field :title, placeholder: "Title",class: 'form-control  input'
+        %p Title*
+        = f.text_field :title, placeholder: "Title", required: true, class: 'form-control  input'
        
     .col-md-6
       .form-group
-        %p Doc Type
+        %p Doc Type*
         / = f.text_field :title_type, placeholder: "Title",class: 'form-control  input' 
-        = f.select :title_type , [["Job", 'Job'], ["Training", 'Training'],["Product", 'Product'],["Service", 'Service'],["Contract", 'Contract'],["USACS", 'USACS']],{} ,:class => 'form-control company_type'  
+        = f.select :title_type , [["Job", 'Job'], ["Training", 'Training'],["Product", 'Product'],["Service", 'Service'],["Contract", 'Contract'],["USACS", 'USACS']],{},required: true ,:class => 'form-control company_type'  
     .col-md-6
       .form-group
-        %p Document For
+        %p Document For*
         / = f.text_field :title_type, placeholder: "Title",class: 'form-control  input' 
-        = f.select :document_for , [["Candidate", 'Candidate'], ["Customer", 'Customer'],["Vendor", 'Vendor'],["Employee", 'Employee']],{} ,:class => 'form-control company_type'     
+        = f.select :document_for , [["Candidate", 'Candidate'], ["Customer", 'Customer'],["Vendor", 'Vendor'],["Employee", 'Employee']],{} , required: true, :class => 'form-control company_type'     
     / .col-md-3
     /   .form-group
     /     %p Input
@@ -42,8 +42,8 @@
            
     .col-md-6
       .form-group
-        %p Expiry Date
-        = f.text_field :exp_date, placeholder: "MM-DD-YYYY",class: 'form-control input candidate_doc_exp_date',:autocomplete => :off
+        %p Expiry Date*
+        = f.text_field :exp_date, placeholder: "MM-DD-YYYY", required: true, class: 'form-control input candidate_doc_exp_date',:autocomplete => :off
     / .col-md-3    
     /   .form-group.mr-top-20
     /     %label.checkbox.col-md-8.control-label Is Required Signature
@@ -56,7 +56,7 @@
           = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload",name_selector: ".uploaded_file_#{@id}",cstm_style: "border-radius: 0; height:38px;", required_field: false
           %p{:class => "d-inline-block uploaded_file_name uploaded_file_#{@id}"} No Document Selected
     .col-md-6.mt-3
-      %button.btn.btn-primary.pull-left{:type => "submit", :style=>"height: 38px;"}
+      %button#submit_btn.btn.btn-primary.pull-left{:type => "submit", :style=>"height: 38px;"}
         %i.ti-save
 
 

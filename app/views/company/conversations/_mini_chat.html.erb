@@ -10,7 +10,7 @@ margin-left: auto;
             <a class="align-self-center rotate-45 no-hover new-class-margin" style="font-size: 15px;" href=<%= company_conversations_path(conversation: conversation.id) %> target="_blank">
                 <i class="data-table-icons ti-arrows-horizontal"> </i>
             </a>
-            <i class="os-icon os-icon-minus align-self-center"></i>
+            <i class="minus_mini_chat os-icon os-icon-minus align-self-center"></i>
         </div>
         <div class="chat-head">
             <div class="flex-row w-100 chat-heat_justify">
@@ -54,7 +54,7 @@ margin-left: auto;
             </div>
             <div class="chat-input-extra d-flex pl-1 pr-1 justify-content-between">
                 <div class="chat-extra-actions">
-                    <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
+                    <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show'); $('.minus_mini_chat').click();" do %>
                     <%#= image_tag("/assets/docusign.png", size: "25x25") %>
                     <img src="https://e7.pngegg.com/pngimages/660/678/png-clipart-docusign-electronic-signature-information-windows-phone-document-sci-tech-information-blue-text-thumbnail.png" width="25" height="25" alt="">
 
@@ -108,6 +108,9 @@ margin-left: auto;
 </div>
 
 <script type="text/javascript" charset="utf-8">
+    $( document ).ready(function() {
+      $("#select_sell_company_contacts").select2();
+    });
     function send_message(id) {
         setTimeout(() => {
             $('.chat_input').val("");

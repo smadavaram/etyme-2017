@@ -286,7 +286,7 @@ class Company < ApplicationRecord
   # end
 
   def candidate_job_templates
-    company_candidate_docs.where(document_for: 'Candidate', title_type: 'Job', is_require: 'signature')
+    company_candidate_docs.where(document_for: 'Candidate', title_type: 'Job', is_require: 'E-Signature')
   end
 
   def customer_job_templates
