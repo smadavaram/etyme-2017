@@ -285,12 +285,16 @@ class Company < ApplicationRecord
   #   Company.where.not(:id=>PreferVendor.select(:vendor_id).where(company_id=c.id))
   # end
 
+  def fetch_job_checklist
+    company_candidate_docs.all
+  end
+
   def candidate_job_templates
-    company_candidate_docs.where(document_for: 'Candidate', title_type: 'Job', is_require: 'E-Signature')
+    company_candidate_docs.where(document_for: 'Candidate', title_type: 'Job')
   end
 
   def customer_job_templates
-    company_candidate_docs.where(document_for: 'Customer', title_type: 'Contract', is_require: 'signature')
+    company_candidate_docs.where(document_for: 'Customer', title_type: 'Contract')
   end
 
   def candidate_contract_templates(is_require)
