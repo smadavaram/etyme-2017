@@ -1,3 +1,4 @@
+
 .content-box
   .element-wrapper
     .element-box
@@ -10,11 +11,11 @@
                 .multi-fields
                   = form_for current_company,url: "/company_legal_docs",method: :post do |f|
                     %br
-                    %hr
                     .row
                       .col-md-12
                         %h4
                           %b Legal Document
+                        %p Save legal documentation to share with clients and candidates
                         %br
                         .form-group.candidate-association
                           = fields_for :company_legal_docs, @company_legal_docs do |b|

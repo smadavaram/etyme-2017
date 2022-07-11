@@ -30,6 +30,46 @@
   box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
   z-index: 1;
 }
+.min_chat_more {
+  background-color: #047bf8;
+  display: inline-block;
+  padding: 0px 4px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 12px;
+  margin: 3px;
+}
+ .modal-header .close{
+    margin: -4rem -1rem -1rem auto;
+  }
+  @media only screen and (max-width: 600px){
+    #PageTitle{
+      width: 90%;
+    }
+    .modal-header .close{
+      margin: -3rem -1rem -1rem auto;
+    }
+    form {
+      margin-top: 0%;
+    }
+    h2, .h2 {
+      font-size: 21px;
+    }
+    .w-75 {
+      width: 90% !important;
+    }
+    span{
+      margin-top: 0;
+      width: 25px !important;
+      height: 25px !important;
+    }
+    .select2-selection{
+      width: 310px !important;
+    }
+    .modal-footer > :not(:last-child) {
+      margin-right: .25rem !important;
+    }
+  }
 </style>
 <div class="row branch-class-madia" style="height: 5vh; background: #eaf3fc;" >
   <div class="col-6 branchout-back">
@@ -281,7 +321,7 @@
         <div class="send-icons">
           <div class="row send-icons2 items-center justify-around" >
           <% if conversation.present? && @conversation.freeze_chats == false  %>
-            <img src="https://img.favpng.com/11/10/5/docusign-electronic-signature-information-windows-phone-document-png-favpng-yGsuNDQysGXrPNUL7ayG0BLBu.jpg  "class="pr-2" height="26" width="26">
+            <img src="https://img.favpng.com/11/10/5/docusign-electronic-signature-information-windows-phone-document-png-favpng-yGsuNDQysGXrPNUL7ayG0BLBu.jpg" onclick="$('#chat-templates-<%=@conversation.id%>').modal('show');" class="pr-2" height="26" width="26" style="cursor: pointer;">
           <% end %>
           <div class="-mr-2 -mt-1">
             <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0 ", cstm_style: "background: transparent;box-shadow: none;width: 31px; color:#adadad;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>

@@ -1,7 +1,41 @@
 <style>
 .more_class{
-margin-left: auto;
+/*margin-left: auto;*/
 }
+.min_chat_more {
+  background-color: #047bf8;
+  display: inline-block;
+  padding: 0px 4px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 12px;
+  margin: 3px;
+}
+ .modal-header .close{
+    margin: -4rem -1rem -1rem auto;
+  }
+  @media only screen and (max-width: 600px){
+    #PageTitle{
+      width: 90%;
+    }
+    .modal-header .close{
+      margin: -3rem -1rem -1rem auto;
+    }
+    form {
+      margin-top: 0%;
+    }
+    h2, .h2 {
+      font-size: 21px;
+    }
+    .w-75 {
+      width: 90% !important;
+    }
+    span{
+      margin-top: 0;
+      width: 25px !important;
+      height: 25px !important;
+    }
+  }
 </style>
 
 <div class="floated-chat-w active zero-bottom">
@@ -10,7 +44,7 @@ margin-left: auto;
             <a class="align-self-center rotate-45 no-hover new-class-margin" style="font-size: 15px;" href=<%= company_conversations_path(conversation: conversation.id) %> target="_blank">
                 <i class="data-table-icons ti-arrows-horizontal"> </i>
             </a>
-            <i class="minus_mini_chat os-icon os-icon-minus align-self-center"></i>
+            <i class="minus_mini_chat os-icon os-icon-close align-self-center" style="margin-left: 10px;"></i>
         </div>
         <div class="chat-head">
             <div class="flex-row w-100 chat-heat_justify">
@@ -108,9 +142,6 @@ margin-left: auto;
 </div>
 
 <script type="text/javascript" charset="utf-8">
-    $( document ).ready(function() {
-      $("#select_sell_company_contacts").select2();
-    });
     function send_message(id) {
         setTimeout(() => {
             $('.chat_input').val("");

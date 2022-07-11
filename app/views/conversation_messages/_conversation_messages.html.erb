@@ -1,13 +1,10 @@
-<style>
-
-</style>
 <% unless @prev_date.present? %>
 <% @prev_date = msg.created_at.strftime('%d %b, %Y') %>
 <% end %>
 
 <% if @messages.next_page.nil? && i == (@messages.size - 1) %>
 <%# @prev_date = msg.created_at.strftime('%d %b, %Y') %>
-<div class="chat-date-separator" style="margin-left: 40%">
+<div class="chat-date-separator">
     <span>
         <% if Date.parse(msg.created_at.strftime('%d %b, %Y')) == Date.today %>
         Today
@@ -27,7 +24,7 @@
         <!--              Avatar-->
         <div
           class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500 flex-shrink-0"
-        >
+         style="margin-bottom: -35px;">
           <% if msg.userable.photo&.present? %>
             <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>
           <% else %>
@@ -36,7 +33,7 @@
         </div>
         <!--              Message-->
         <div
-          class="relative mr-3 text-sm bg-blue-100 py-2 px-4 shadow rounded-xl"
+          class="relative mr-3 text-sm bg-blue-100 py-2 px-4 shadow rounded-xl" style="margin-left: 30px;"
         >
           <%= msg.body.html_safe %>
           <% if msg.rate_confirmation? %>
@@ -139,7 +136,7 @@
             <div class="flex items-center justify-start flex-row-reverse">
 <!--              Avatar-->
               <div
-                class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-300 flex-shrink-0"
+                class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-300 flex-shrink-0" style="margin-bottom: -35px;"
               >
                 <% if msg.userable.photo&.present? %>
                   <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>
@@ -149,7 +146,7 @@
               </div>
 <!--              Message-->
               <div
-                class="relative mr-3 text-sm bg-blue-100 py-2 px-4 shadow rounded-xl"
+                class="relative mr-3 text-sm bg-blue-100 py-2 px-4 shadow rounded-xl" style="margin-left: 30px;"
               >
                 <%= msg.body.html_safe %>
                 <% if msg.rate_confirmation? %>
@@ -259,3 +256,11 @@
 </div>
 <% @prev_date = msg.created_at.strftime('%d %b, %Y') %>
 <% end %>
+<style type="text/css">
+  .chat-date-separator{
+    margin-left: 3%;
+  }
+  .chat-content-small .chat-date-separator span{
+    display: block;
+  }
+</style>
