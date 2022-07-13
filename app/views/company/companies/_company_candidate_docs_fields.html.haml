@@ -4,13 +4,13 @@
     .col-md-4.col-12
       .form-group.mr-top-30
         %label.radio-container
-          Require E-Signature(s)
+          E-Signature(s)
           = f.radio_button :is_require, "E-Signature", checked:true, class: "template_type"
           %span.radio-checkmark
     .col-md-4.col-12
       .form-group.mr-top-30
         %label.radio-container
-          Require Document(s)
+          Document(s)
           = f.radio_button :is_require, "Document",class: "template_type"
           %span.radio-checkmark
     -#.col-12

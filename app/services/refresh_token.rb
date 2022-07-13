@@ -5,25 +5,50 @@ class RefreshToken
 
   def initialize(plugin)
     @plugin = plugin
+
   end
 
   def refresh_docusign_token
-    uri = URI.parse("#{ENV['docusign_authorization_server']}/oauth/token")
-    request = Net::HTTP::Post.new(uri)
-    request.basic_auth(ENV['docusign_client_id'], ENV['docusign_client_secret'])
-    request.set_form_data(
-      'grant_type' => 'refresh_token',
-      'refresh_token' => @plugin.refresh_token
-    )
-    req_options = {
-      use_ssl: uri.scheme == 'https'
+    current_time = Time.now.utc
+
+    header = { 
+      typ: 'JWT', 
+      alg: 'RS256'
     }
-    response = Net::HTTP.start(uri.hostname, uri.port, req_options) { |http| http.request(request) }
-    if response.code == '200'
+
+    body = {
+      "iss"=> "#{ENV['docusign_client_id']}",
+      "sub"=> "#{ENV['docusign_user_id']}",
+      "iat"=> current_time.to_i,
+      "exp"=> (current_time + 1.hour).to_i,
+      "aud"=> "account-d.docusign.com",
+      "scope"=> "signature impersonation"
+    }
+
+    file        = docusign_rsa_private_key_file
+    file_key    = File.read(file)
+    private_key = OpenSSL::PKey::RSA.new(file_key)
+
+    token = JWT.encode(body, private_key, 'RS256')
+
+    uri = 'https://account-d.docusign.com/oauth/token'
+    data = {
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: token 
+    }
+    
+    auth_headers = {content_type: 'application/x-www-form-urlencoded'}
+
+
+    begin
+      response = RestClient.post(uri, data, auth_headers)
       response = JSON.parse(response.body)
-      @plugin.update(access_token: response['access_token'], refresh_token: response['refresh_token'], expires_at: response['expires_in'])
-    else
+      @plugin.update(access_token: response['access_token'], refresh_token: token, expires_at: response['expires_in'])
+    rescue 
       false
     end
+  end
+  def docusign_rsa_private_key_file
+    File.join(Rails.root, 'config', 'jwt_docusign.text')
   end
 end

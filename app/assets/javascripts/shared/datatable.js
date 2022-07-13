@@ -309,6 +309,14 @@ $(document).ready(function () {
       .draw();
   });
 
+  $("#templates_documents_datatable").dataTable();
+  $("#templates_documents_datatable-search").keyup(function () {
+    $("#templates_documents_datatable")
+      .DataTable()
+      .search($(this).val())
+      .draw();
+  });
+
   $("#candidate_onboard_legal_doc_datatable").dataTable();
   $("#candidate_onboard_legal_doc_datatable_search").keyup(function () {
     $("#candidate_onboard_legal_doc_datatable")

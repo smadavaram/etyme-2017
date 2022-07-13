@@ -45,7 +45,7 @@ class DocumentSign < ApplicationRecord
   end
 
   def is_signable?
-    documentable.is_require == 'signature'
+    documentable.is_require == 'E-Signature'
   end
 
   def signers
@@ -58,7 +58,7 @@ class DocumentSign < ApplicationRecord
     notification = Notification.new(notifiable: signable,
                                     createable: requested_by,
                                     status: :unread, notification_type: :document_request)
-    if documentable.is_require == 'signature'
+    if documentable.is_require == 'E-Signature'
       notification.title = 'Signature Request'
       notification.message = "#{requested_by.full_name.capitalize} has requested you to sign the document sent through docusign"
     else
@@ -74,7 +74,7 @@ class DocumentSign < ApplicationRecord
     notification = Notification.new(notifiable: requested_by,
                                     createable: signable,
                                     status: :unread, notification_type: :document_request)
-    if documentable.is_require == 'signature'
+    if documentable.is_require == 'E-Signature'
       notification.title = 'Document Signed'
       notification.message = "#{signable.full_name.capitalize} has signed the document received through docusign"
     else
