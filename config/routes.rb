@@ -587,6 +587,7 @@ Rails.application.routes.draw do
         post :hire
         post :prescreen
         get :templates
+        delete :delete_templates
       end
       collection do
         post :send_templates

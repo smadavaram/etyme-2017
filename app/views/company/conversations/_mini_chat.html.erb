@@ -88,7 +88,7 @@
             </div>
             <div class="chat-input-extra d-flex pl-1 pr-1 justify-content-between">
                 <div class="chat-extra-actions">
-                    <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show'); $('.minus_mini_chat').click();" do %>
+                    <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show'); $('.minus_mini_chat').click();load_data_table();" do %>
                     <%#= image_tag("/assets/docusign.png", size: "25x25") %>
                     <img src="https://e7.pngegg.com/pngimages/660/678/png-clipart-docusign-electronic-signature-information-windows-phone-document-sci-tech-information-blue-text-thumbnail.png" width="25" height="25" alt="">
 
@@ -142,6 +142,12 @@
 </div>
 
 <script type="text/javascript" charset="utf-8">
+    function load_data_table(){
+      $("#company-template-datatable").dataTable();
+      $("#company-template-datatable-search").keyup(function () {
+        $("#company-template-datatable").DataTable().search($(this).val()).draw();
+      });
+    };
     function send_message(id) {
         setTimeout(() => {
             $('.chat_input').val("");

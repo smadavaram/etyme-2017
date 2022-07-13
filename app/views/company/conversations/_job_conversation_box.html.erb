@@ -321,7 +321,7 @@
         <div class="send-icons">
           <div class="row send-icons2 items-center justify-around" >
           <% if conversation.present? && @conversation.freeze_chats == false  %>
-            <img src="https://img.favpng.com/11/10/5/docusign-electronic-signature-information-windows-phone-document-png-favpng-yGsuNDQysGXrPNUL7ayG0BLBu.jpg" onclick="$('#chat-templates-<%=@conversation.id%>').modal('show');" class="pr-2" height="26" width="26" style="cursor: pointer;">
+            <img src="https://img.favpng.com/11/10/5/docusign-electronic-signature-information-windows-phone-document-png-favpng-yGsuNDQysGXrPNUL7ayG0BLBu.jpg" onclick="$('#chat-templates-<%=@conversation.id%>').modal('show');load_data_table();" class="pr-2" height="26" width="26" style="cursor: pointer;">
           <% end %>
           <div class="-mr-2 -mt-1">
             <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0 ", cstm_style: "background: transparent;box-shadow: none;width: 31px; color:#adadad;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>

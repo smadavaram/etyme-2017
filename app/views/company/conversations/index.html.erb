@@ -236,6 +236,12 @@ margin-top: 15px;
     }
 </style>
 <script>
+    function load_data_table(){
+      $("#company-template-datatable").dataTable();
+      $("#company-template-datatable-search").keyup(function () {
+        $("#company-template-datatable").DataTable().search($(this).val()).draw();
+      });
+    }
     function myFunction(){
         $("#conversation-section").hide();
         $(".right-sidebar").show();

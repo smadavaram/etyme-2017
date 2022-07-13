@@ -6,13 +6,18 @@
           %strong Document Submission Request
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
-      %div
-        = link_to 'Add Document', '/attachments', class: 'btn btn-primary pull-right mr-3', target: '_blank'
       =form_tag(company_conversation_chat_docusign_path(conversation)) do
+        %div
+          = link_to 'Add Document', '/attachments', class: 'btn btn-primary pull-right mr-3', target: '_blank'
+        .controls-above-table
+          .row.mr-1.ml-1
+            .col-sm-12
+              .form-inline.justify-content-sm-end
+                %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: "company-template-datatable-search"}
         .modal-body#rate-confirmation-modal-body
           = hidden_field_tag 'conversation_id', conversation.id
           .table-responsive
-            %table#company-template-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped
+            %table.table.table-striped.table-bordered.table-hover.table-lg{id: "company-template-datatable"}
               %thead
                 %tr{:role => "row"}
                   %th Select

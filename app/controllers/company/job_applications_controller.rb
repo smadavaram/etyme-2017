@@ -65,6 +65,13 @@ class Company::JobApplicationsController < Company::BaseController
     @document_signs = current_company.document_signs.where(signable: @job_application.applicationable, part_of: @job_application)
   end
 
+  def delete_templates
+    DocumentSign.find(params[:docu_id]).delete
+    respond_to do |format|
+      format.js { flash.now[:success] = 'Document deleted successfully!' }
+    end
+  end
+
   def request_sign
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
