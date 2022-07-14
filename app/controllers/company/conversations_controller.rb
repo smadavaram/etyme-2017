@@ -103,7 +103,7 @@ class Company::ConversationsController < Company::BaseController
 
   def chat_docusign
     @conversation = Conversation.find_by(id: params[:conversation_id])
-    @plugin = current_company.plugins.docusign.first
+    @plugin = current_company.plugins.first
     main_signer = get_main_signer
     co_signers = params[:signers]
     co_signers&.pop
