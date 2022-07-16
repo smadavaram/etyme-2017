@@ -290,19 +290,23 @@ class Company < ApplicationRecord
   end
 
   def candidate_job_templates
-    company_candidate_docs.where(document_for: 'Candidate', title_type: 'Job')
+    company_candidate_docs.all
+    # company_candidate_docs.where(document_for: 'Candidate', title_type: 'Job')
   end
 
   def customer_job_templates
-    company_candidate_docs.where(document_for: 'Customer', title_type: 'Contract')
+    company_candidate_docs.all
+    # company_candidate_docs.where(document_for: 'Customer', title_type: 'Contract')
   end
 
   def candidate_contract_templates(is_require)
-    company_candidate_docs.where(document_for: 'Candidate', title_type: 'Contract', is_require: is_require)
+    company_candidate_docs.where(is_require: is_require)
+    # company_candidate_docs.where(document_for: 'Candidate', title_type: 'Contract', is_require: is_require)
   end
 
   def customer_contract_templates(is_require)
-    company_candidate_docs.where(document_for: 'Customer', title_type: 'Contract', is_require: is_require)
+    company_candidate_docs.where(is_require: is_require)
+    # company_candidate_docs.where(document_for: 'Customer', title_type: 'Contract', is_require: is_require)
   end
 
   def is_vendor?(company)

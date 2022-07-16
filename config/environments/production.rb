@@ -135,4 +135,8 @@ Rails.application.configure do
   #                                         }
   config.domain = ENV['DOMAIN']
   ENV['host_protocol'] ||= 'http'
+
+  # Docusing ENV's
+  ENV['docusign_client_id']= '081f6bc4-277d-4e4b-9d40-1e1b4eb0aeac'
+  ENV['docusign_user_id']= '09d677c2-0afd-42b5-b6b5-ba64b66857db'
 end

@@ -1246,6 +1246,7 @@ GEM
     coffee-script-source (1.12.2)
     color (1.8)
     concurrent-ruby (1.1.9)
+    connection_pool (2.2.5)
     crass (1.0.6)
     daemons (1.4.0)
     data-confirm-modal (1.6.3)
@@ -1635,6 +1636,8 @@ GEM
     ruby_parser (3.16.0)
       sexp_processor (~> 4.15, >= 4.15.1)
     rubyzip (2.3.2)
+    safe_attributes (1.0.10)
+      activerecord (>= 3.0.0)
     sass (3.7.4)
       sass-listen (~> 4.0.0)
     sass-listen (4.0.0)
@@ -1670,6 +1673,11 @@ GEM
     serviceworker-rails (0.6.0)
       railties (>= 3.1)
     sexp_processor (4.15.3)
+    sidekiq (5.2.9)
+      connection_pool (~> 2.2, >= 2.2.2)
+      rack (~> 2.0)
+      rack-protection (>= 1.5.0)
+      redis (>= 3.3.5, < 4.2)
     signature-pad-rails (1.0.1)
       jquery-rails (>= 3.0.0)
       rails (>= 3.0.0, < 5.3)
@@ -1851,6 +1859,7 @@ DEPENDENCIES
   rubocop (~> 0.78.0)
   rubocop-performance
   ruby-duration
+  safe_attributes
   sass-rails (~> 6.0)
   sdoc
   seed_dump
@@ -1860,6 +1869,7 @@ DEPENDENCIES
   sentry-ruby
   sequence-sdk
   serviceworker-rails
+  sidekiq
   signature-pad-rails
   simple_form
   spring

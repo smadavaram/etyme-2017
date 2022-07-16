@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class GenerateContractCyclesJob < ApplicationJob
-  queue_as :h_contracts
+  queue_as :default
   before_perform :job_start
   after_perform :job_complete
 

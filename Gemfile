@@ -172,3 +172,5 @@ gem "image_processing", "~> 1.0"
 gem 'rest-client'
 gem "sentry-ruby"
 gem "sentry-rails"
+gem 'sidekiq'
+gem 'safe_attributes'
