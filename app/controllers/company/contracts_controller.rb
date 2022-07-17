@@ -408,7 +408,7 @@ class Company::ContractsController < Company::BaseController
 
   def generate_cycles
     if @contract.remaining?
-      GenerateContractCyclesJob.perform_later(@contract)
+      GenerateContractCyclesJob.perform_now(@contract)
       flash[:success] = 'Your request has been queued, will be processed momentarily'
       # else
       #   flash[:errors] = @contract.errors.full_messages << 'Errors while processing request'
