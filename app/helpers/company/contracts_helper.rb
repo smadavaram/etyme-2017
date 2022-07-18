@@ -24,7 +24,7 @@ module Company::ContractsHelper
   end
 
   def frequency_to_num(frequency)
-    { "daily": 1, "weekly": 4, "biweekly": 8, "monthly": 1, "twice a month": 2 }[frequency.to_sym]
+    { "daily": 1, "weekly": 5, "biweekly": 10, "monthly": 1, "twice a month": 2 }[frequency.to_sym]
   end
 
   def is_applicant_is_consultant?(job_application)
@@ -34,7 +34,7 @@ module Company::ContractsHelper
   def cyclable_link(contract_cycle)
     case contract_cycle.cycle_type
     when 'TimesheetSubmit'
-      link_to contract_cycle.cyclable_type, get_cyclable_contracts_path(cyclable_id: contract_cycle.cyclable_id, cyclable_type: contract_cycle.cyclable_type), remote: :true, style: 'color:#FFFFFF;'
+      link_to "#{contract_cycle.cyclable_type} by Admin", get_cyclable_contracts_path(cyclable_id: contract_cycle.cyclable_id, cyclable_type: contract_cycle.cyclable_type), remote: :true, style: 'color:#FFFFFF;'
     when 'InvoiceGenerate'
       link_to contract_cycle.cycle_type, edit_invoice_path(contract_cycle.cyclable), style: 'color:#FFFFFF;'
     when 'ClientExpenseSubmission'

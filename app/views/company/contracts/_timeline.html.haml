@@ -16,10 +16,10 @@
           %br
           Contract ID - #{cc.contract.id} -  #{cc.contract&.project_name}
           %p.mb-0.submitted-name
-            %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contract.company&.full_name}
+            %b Client: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contract.company&.full_name}
             %b
               = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
-          %p Client: #{cc&.contract&.company&.full_name}
+          %p Company: #{cc&.contract&.company&.full_name}
           %p #{cc.start_date.utc.strftime("%d %B %Y")} - #{cc.end_date.utc.strftime("%d %B %Y")}
           %p Tax type: #{cc.contract.buy_contract.contract_type}
           - if cc.note == 'Timesheet submit'
@@ -56,8 +56,8 @@
           %p.mb-0.submitted-name
             %b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize unless cc.present?}"
             %b
-              = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
-          %p Client: #{cc&.contract&.company&.full_name}
+              = link_to 'Approve', timesheets_path, class: 'btn' 
+          %p Company: #{cc&.contract&.company&.full_name}
           %p Tax type: #{cc.contract.buy_contract.contract_type}
           - if cc.note == 'Timesheet submit'
             .row.border-top.pt-2
@@ -82,7 +82,8 @@
           = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
 
           %span.badge.status-badge{style: "background-color: #{cc.color}"}
-            = cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
+            -#= cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
+            = cc.cycle_type
           %span.due-txt
             #{cc.end_date.utc.strftime("%d %B %Y")}
           %br
@@ -100,7 +101,7 @@
                 %b= "Name: #{cc.user.full_name.capitalize}"
               - else
                 %b= 'N/A'
-          %p Client: #{cc&.contract&.company&.full_name}
+          %p Company: #{cc&.contract&.company&.full_name}
           %p Tax type: #{cc.contract.buy_contract.contract_type}
           - if cc.note == 'Timesheet submit'
             .row.border-top.pt2

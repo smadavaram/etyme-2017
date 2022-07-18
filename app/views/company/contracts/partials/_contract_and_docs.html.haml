@@ -600,67 +600,173 @@
   = render 'company/contracts/partials/collaborator_modal',contract: @contract, contractable_type: @contract.sell_contract.class.name, contractable_id: @contract.sell_contract.id
 
 :javascript
-   $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
-      insertedItem.find('.filepicker-attach').each(function(i,e){
-        $(".filepicker-attach").on('click',function() {
-          $('.fp__overlay').css({'z-index':'99999'})
-        });
-        $('.filepicker-attach').on('click',function() {
-          //$(this).hide();
-         });
+  $('#contract_sell_contract_attributes_ts_approve').attr('disabled','disabled');
+  $('#tab-sell-ts.week').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_approve').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ta_day_time').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_ap_day_time').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_ap_day_of_week').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ta_day_of_week').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_ap_date_1').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_ap_date_2').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ta_date_1').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ta_date_1').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ta_date_2').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_ap_end_of_month').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ta_end_of_month').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_ap_end_of_month').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ta_end_of_month').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_invoice_terms_period').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_invoice_day_time').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_invoice_day_of_week').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_invoice_date_1').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_invoice_date_2').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ta_end_of_month').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_invoice').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_in_day_time').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_in_day_of_week').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_in_date_1').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_in_date_2').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_invoice_end_of_month').attr('disabled','disabled');
+  $('#contract_sell_contract_attributes_ce_in_end_of_month').attr('disabled','disabled');
+  
+
+  $("#contract_sell_contract_attributes_time_sheet").change(function(){
+    $('#contract_sell_contract_attributes_ts_approve').val(this.value).trigger('change');
+    $('#contract_sell_contract_attributes_invoice_terms_period').val(this.value).trigger('change');
+  });
+
+  $("#contract_sell_contract_attributes_client_expense").change(function(){
+    $('#contract_sell_contract_attributes_ce_approve').val(this.value).trigger('change');
+    $('#contract_sell_contract_attributes_ce_invoice').val(this.value).trigger('change');
+  });
+
+  $("#contract_sell_contract_attributes_ts_day_time").change(function(){
+    $('#contract_sell_contract_attributes_ta_day_time').val(this.value).trigger('change');
+    $('#contract_sell_contract_attributes_invoice_day_time').val(this.value).trigger('change');
+  });
+
+  $("#contract_sell_contract_attributes_ce_day_time").change(function(){
+    $('#contract_sell_contract_attributes_ce_ap_day_time').val(this.value).trigger('change');
+    $('#contract_sell_contract_attributes_ce_in_day_time').val(this.value).trigger('change');
+  });
+
+  $("#contract_sell_contract_attributes_ce_day_of_week").change(function(){
+    $('#contract_sell_contract_attributes_ce_ap_day_of_week').val(this.value).trigger('change');
+    $('#contract_sell_contract_attributes_ce_in_day_of_week').val(this.value).trigger('change');
+  });
+
+  $("#contract_sell_contract_attributes_ts_day_of_week").change(function(){
+    $('#contract_sell_contract_attributes_ta_day_of_week').val(this.value).trigger('change');
+    $('#contract_sell_contract_attributes_invoice_day_of_week').val(this.value).trigger('change');
+  });
+
+  $("#contract_sell_contract_attributes_ce_date_1").change(function(){
+    $('#contract_sell_contract_attributes_ce_ap_date_1').datepicker('setDate', this.value); 
+    $('#contract_sell_contract_attributes_ce_in_date_1').datepicker('setDate', this.value); 
+
+  });
+
+  $("#contract_sell_contract_attributes_ce_date_2").change(function(){
+    $('#contract_sell_contract_attributes_ce_ap_date_2').datepicker('setDate', this.value); 
+    $('#contract_sell_contract_attributes_ce_in_date_2').datepicker('setDate', this.value); 
+  });
+
+  $("#contract_sell_contract_attributes_ce_date_2").change(function(){
+    $('#contract_sell_contract_attributes_ta_date_1').datepicker('setDate', this.value); 
+  });
+
+  $("#contract_sell_contract_attributes_ce_end_of_month").change(function(){
+    if ($(this).is(':checked')){
+      $('#contract_sell_contract_attributes_ce_ap_end_of_month').prop('checked', true); 
+      $('#contract_sell_contract_attributes_ce_in_end_of_month').prop('checked', true); 
+    }else{
+      $('#contract_sell_contract_attributes_ce_in_end_of_month').prop('checked', false); 
+      $('#contract_sell_contract_attributes_ce_ap_end_of_month').prop('checked', false); 
+    }
+  });
+
+  $("#contract_sell_contract_attributes_ts_end_of_month").change(function(){
+    if ($(this).is(':checked')){
+      $('#contract_sell_contract_attributes_ta_end_of_month').prop('checked', true); 
+      $('#contract_sell_contract_attributes_invoice_end_of_month').prop('checked', true); 
+    }else{
+      $('#contract_sell_contract_attributes_invoice_end_of_month').prop('checked', false); 
+      $('#contract_sell_contract_attributes_ta_end_of_month').prop('checked', false); 
+    }
+  });
+
+  $("#contract_sell_contract_attributes_ts_date_1").change(function(){
+    $('#contract_sell_contract_attributes_ta_date_1').datepicker('setDate', this.value);
+    $('#contract_sell_contract_attributes_invoice_date_1').datepicker('setDate', this.value);
+  });
+
+  $("#contract_sell_contract_attributes_ts_date_2").change(function(){
+    $('#contract_sell_contract_attributes_ta_date_2').datepicker('setDate', this.value); 
+    $('#contract_sell_contract_attributes_invoice_date_2').datepicker('setDate', this.value); 
+  });
+
+  $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+    insertedItem.find('.filepicker-attach').each(function(i,e){
+      $(".filepicker-attach").on('click',function() {
+        $('.fp__overlay').css({'z-index':'99999'})
       });
+      $('.filepicker-attach').on('click',function() {
+        //$(this).hide();
+       });
+    });
 
-     $(".exp_date").datepicker({
-        dateFormat : 'mm/dd/yy'
-     });
-
-     $(".exp_date_buy").datepicker({
-        dateFormat : 'mm/dd/yy'
-     });
-
-     $(".exp_date_emp_buy").datepicker({
-        dateFormat : 'mm/dd/yy'
-     });
-
-     $(".exp_date_ven_buy").datepicker({
-        dateFormat : 'mm/dd/yy'
-     });
-     set_user_select(".whois_sign:not([class*='added']", "Select User who is sign document");
-     $(".whois_sign:not([class*='added']").addClass('added');
+   $(".exp_date").datepicker({
+      dateFormat : 'mm/dd/yy'
    });
 
+   $(".exp_date_buy").datepicker({
+      dateFormat : 'mm/dd/yy'
+   });
 
-    $(".sell_users").click(function(){
-      set_contract_admins(".sell_company_contract_admins","Select Admin-#{@sell_contract&.company&.id}");
-    });
-    $('.client_expense').hide();
-    $('#contract_sell_contract_attributes_is_client_expense').on("change", function(){
-        if (this.checked){
-          $('.client_expense').show();
-          }
-        else{
-          $('.client_expense').hide();
-        }
-      });
+   $(".exp_date_emp_buy").datepicker({
+      dateFormat : 'mm/dd/yy'
+   });
 
-    $('.performance_review').hide();
-    $('#contract_sell_contract_attributes_is_performance_review').on("change", function(){
-        if (this.checked){
-          $('.performance_review').show();
-          }
-        else{
-          $('.performance_review').hide();
+   $(".exp_date_ven_buy").datepicker({
+      dateFormat : 'mm/dd/yy'
+   });
+   set_user_select(".whois_sign:not([class*='added']", "Select User who is sign document");
+   $(".whois_sign:not([class*='added']").addClass('added');
+  });
+
+
+  $(".sell_users").click(function(){
+    set_contract_admins(".sell_company_contract_admins","Select Admin-#{@sell_contract&.company&.id}");
+  });
+  $('.client_expense').hide();
+  $('#contract_sell_contract_attributes_is_client_expense').on("change", function(){
+      if (this.checked){
+        $('.client_expense').show();
         }
+      else{
+        $('.client_expense').hide();
+      }
     });
-    function delete_change_rate(id){
-      $.ajax({
-        type: 'DELETE',
-        url: "/change_rates/" + id,
-      }).success( function( data ) {
-        $('#change_rate_row'+id).remove();
-      });
-      return false;
-    }
+
+  $('.performance_review').hide();
+  $('#contract_sell_contract_attributes_is_performance_review').on("change", function(){
+      if (this.checked){
+        $('.performance_review').show();
+        }
+      else{
+        $('.performance_review').hide();
+      }
+  });
+  function delete_change_rate(id){
+    $.ajax({
+      type: 'DELETE',
+      url: "/change_rates/" + id,
+    }).success( function( data ) {
+      $('#change_rate_row'+id).remove();
+    });
+    return false;
+  }
 
 
 
