@@ -601,7 +601,7 @@
 
 :javascript
   $('#contract_sell_contract_attributes_ts_approve').attr('disabled','disabled');
-  $('#tab-sell-ts.week').attr('disabled','disabled');
+  $('#tab-sell-ts,.week').hide(); 
   $('#contract_sell_contract_attributes_ce_approve').attr('disabled','disabled');
   $('#contract_sell_contract_attributes_ta_day_time').attr('disabled','disabled');
   $('#contract_sell_contract_attributes_ce_ap_day_time').attr('disabled','disabled');
@@ -616,60 +616,36 @@
   $('#contract_sell_contract_attributes_ta_end_of_month').attr('disabled','disabled');
   $('#contract_sell_contract_attributes_ce_ap_end_of_month').attr('disabled','disabled');
   $('#contract_sell_contract_attributes_ta_end_of_month').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_invoice_terms_period').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_invoice_day_time').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_invoice_day_of_week').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_invoice_date_1').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_invoice_date_2').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_ta_end_of_month').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_ce_invoice').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_ce_in_day_time').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_ce_in_day_of_week').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_ce_in_date_1').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_ce_in_date_2').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_invoice_end_of_month').attr('disabled','disabled');
-  $('#contract_sell_contract_attributes_ce_in_end_of_month').attr('disabled','disabled');
-  
-
   $("#contract_sell_contract_attributes_time_sheet").change(function(){
     $('#contract_sell_contract_attributes_ts_approve').val(this.value).trigger('change');
-    $('#contract_sell_contract_attributes_invoice_terms_period').val(this.value).trigger('change');
   });
 
   $("#contract_sell_contract_attributes_client_expense").change(function(){
     $('#contract_sell_contract_attributes_ce_approve').val(this.value).trigger('change');
-    $('#contract_sell_contract_attributes_ce_invoice').val(this.value).trigger('change');
   });
 
   $("#contract_sell_contract_attributes_ts_day_time").change(function(){
     $('#contract_sell_contract_attributes_ta_day_time').val(this.value).trigger('change');
-    $('#contract_sell_contract_attributes_invoice_day_time').val(this.value).trigger('change');
   });
 
   $("#contract_sell_contract_attributes_ce_day_time").change(function(){
     $('#contract_sell_contract_attributes_ce_ap_day_time').val(this.value).trigger('change');
-    $('#contract_sell_contract_attributes_ce_in_day_time').val(this.value).trigger('change');
   });
 
   $("#contract_sell_contract_attributes_ce_day_of_week").change(function(){
     $('#contract_sell_contract_attributes_ce_ap_day_of_week').val(this.value).trigger('change');
-    $('#contract_sell_contract_attributes_ce_in_day_of_week').val(this.value).trigger('change');
   });
 
   $("#contract_sell_contract_attributes_ts_day_of_week").change(function(){
     $('#contract_sell_contract_attributes_ta_day_of_week').val(this.value).trigger('change');
-    $('#contract_sell_contract_attributes_invoice_day_of_week').val(this.value).trigger('change');
   });
 
   $("#contract_sell_contract_attributes_ce_date_1").change(function(){
     $('#contract_sell_contract_attributes_ce_ap_date_1').datepicker('setDate', this.value); 
-    $('#contract_sell_contract_attributes_ce_in_date_1').datepicker('setDate', this.value); 
-
   });
 
   $("#contract_sell_contract_attributes_ce_date_2").change(function(){
     $('#contract_sell_contract_attributes_ce_ap_date_2').datepicker('setDate', this.value); 
-    $('#contract_sell_contract_attributes_ce_in_date_2').datepicker('setDate', this.value); 
   });
 
   $("#contract_sell_contract_attributes_ce_date_2").change(function(){
@@ -679,9 +655,7 @@
   $("#contract_sell_contract_attributes_ce_end_of_month").change(function(){
     if ($(this).is(':checked')){
       $('#contract_sell_contract_attributes_ce_ap_end_of_month').prop('checked', true); 
-      $('#contract_sell_contract_attributes_ce_in_end_of_month').prop('checked', true); 
     }else{
-      $('#contract_sell_contract_attributes_ce_in_end_of_month').prop('checked', false); 
       $('#contract_sell_contract_attributes_ce_ap_end_of_month').prop('checked', false); 
     }
   });
@@ -689,21 +663,17 @@
   $("#contract_sell_contract_attributes_ts_end_of_month").change(function(){
     if ($(this).is(':checked')){
       $('#contract_sell_contract_attributes_ta_end_of_month').prop('checked', true); 
-      $('#contract_sell_contract_attributes_invoice_end_of_month').prop('checked', true); 
     }else{
-      $('#contract_sell_contract_attributes_invoice_end_of_month').prop('checked', false); 
       $('#contract_sell_contract_attributes_ta_end_of_month').prop('checked', false); 
     }
   });
 
   $("#contract_sell_contract_attributes_ts_date_1").change(function(){
-    $('#contract_sell_contract_attributes_ta_date_1').datepicker('setDate', this.value);
-    $('#contract_sell_contract_attributes_invoice_date_1').datepicker('setDate', this.value);
+    $('#contract_sell_contract_attributes_ta_date_1').datepicker('setDate', this.value); 
   });
 
   $("#contract_sell_contract_attributes_ts_date_2").change(function(){
     $('#contract_sell_contract_attributes_ta_date_2').datepicker('setDate', this.value); 
-    $('#contract_sell_contract_attributes_invoice_date_2').datepicker('setDate', this.value); 
   });
 
   $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
