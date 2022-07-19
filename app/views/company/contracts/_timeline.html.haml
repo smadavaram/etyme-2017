@@ -54,9 +54,13 @@
           %br
           Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
           %p.mb-0.submitted-name
-            %b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize unless cc.present?}"
+            - unless cc.present?
+              %b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize }"
             %b
-              = link_to 'Approve', timesheets_path, class: 'btn' 
+              - if cc.note == 'Timesheet Approve'
+                = link_to 'Approve', timesheets_path, class: 'btn'
+              - else
+                Timesheet need to sumbit
           %p Company: #{cc&.contract&.company&.full_name}
           %p Tax type: #{cc.contract.buy_contract.contract_type}
           - if cc.note == 'Timesheet submit'
