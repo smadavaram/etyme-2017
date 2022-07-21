@@ -140,7 +140,7 @@ class Company::TimesheetsController < Company::BaseController
 
   def approve
     if @timesheet.approved!
-      @timesheet.contract_cycle.completed!
+      @timesheet.contract_cycle.approved!
       @timesheet.set_cost_and_time
       if (@timesheet.contract_cycle.cycle_of_type == 'BuyContract') && @timesheet.contract.sell_contract.present?
         Timesheet.transaction do

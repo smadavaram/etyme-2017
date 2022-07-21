@@ -34,7 +34,7 @@ module Company::ContractsHelper
   def cyclable_link(contract_cycle)
     case contract_cycle.cycle_type
     when 'TimesheetSubmit'
-      link_to "#{contract_cycle.cyclable_type} by Admin", get_cyclable_contracts_path(cyclable_id: contract_cycle.cyclable_id, cyclable_type: contract_cycle.cyclable_type), remote: :true, style: 'color:#FFFFFF;'
+      link_to "#{contract_cycle.completed? ? "Timesheet Approve" : "Timesheet Submit"}", get_cyclable_contracts_path(cyclable_id: contract_cycle.cyclable_id, cyclable_type: contract_cycle.cyclable_type), remote: :true, style: 'color:#FFFFFF;'
     when 'InvoiceGenerate'
       link_to contract_cycle.cycle_type, edit_invoice_path(contract_cycle.cyclable), style: 'color:#FFFFFF;'
     when 'ClientExpenseSubmission'

@@ -438,9 +438,9 @@ class Company::ContractsController < Company::BaseController
                 end
 
     if @contract.nil?
-      @contract_cycles = ContractCycle.all.includes(:ts_submitteds, :candidate, contract: %i[sell_contract buy_contract company])
+      @contract_cycles = ContractCycle.where.not(cycle_type: "TimesheetApprove").includes(:ts_submitteds, :candidate, contract: %i[sell_contract buy_contract company])
     else
-      @contract_cycles = ContractCycle.includes(:ts_submitteds, :candidate, contract: %i[sell_contract buy_contract company])
+      @contract_cycles = ContractCycle.where.not(cycle_type: "TimesheetApprove").includes(:ts_submitteds, :candidate, contract: %i[sell_contract buy_contract company])
                              .where(params[:candidate_id].present? ?
                                         { contract: current_company.contracts.where(candidate_id: params[:candidate_id]) } :
                                         { contract: @contract })

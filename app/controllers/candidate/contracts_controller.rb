@@ -26,7 +26,7 @@ class Candidate::ContractsController < Candidate::BaseController
 
   def timeline
     add_breadcrumb 'Timeline(s)'
-    @contract_cycles = params[:cycle_type]&.eql?('timesheet') ? current_candidate.contract_cycles.where(cycle_type: 'TimesheetSubmit') : current_candidate.contract_cycles
+    @contract_cycles = params[:cycle_type]&.eql?('timesheet') ? current_candidate.contract_cycles.where(cycle_type: 'TimesheetSubmit').where.not(cycle_type: "TimesheetApprove") : current_candidate.contract_cycles.where.not(cycle_type: "TimesheetApprove")
     @contracts = Contract.where(candidate: current_candidate)
   end
 

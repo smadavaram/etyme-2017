@@ -37,7 +37,7 @@ class ContractCycle < ApplicationRecord
                   ClientExpenseCalculation ClientExpenseApprove ClientExpenseInvoice ClientExpenseSubmission].freeze
 
   enum cycle_frequency: ['daily', 'weekly', 'biweekly', 'monthly', 'twice a month']
-  enum status: %i[pending completed rejected]
+  enum status: %i[pending completed rejected approved]
 
   CYCLETYPES.each do |method_name|
     define_singleton_method method_name do |id|
@@ -61,14 +61,17 @@ class ContractCycle < ApplicationRecord
             inclusion: { in: CYCLETYPES }
 
   scope :pending, -> { where(status: 'pending') }
-
+  scope :pending_with_submit, -> { where("status = ? OR status = ? ", 0, 1) }
   scope :candidate_id, ->(candidate_id) { where candidate_id: candidate_id }
   scope :contract_id, ->(contract_id) { where contract_id: contract_id }
   scope :note, ->(note) { where cycle_type: note }
   scope :cycle_type, ->(type) { (type == 'All') || type.nil? ? where(cycle_type: ContractCycle::CYCLETYPES) : where(cycle_type: type) }
+  scope :approved, -> { where(status: 'approved') }
   scope :completed, -> { where(status: 'completed') }
   scope :overdue, -> { where('DATE(contract_cycles.end_date) < ?', DateTime.now.end_of_day.to_date) }
   scope :todo, -> { where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today.beginning_of_day, Date.today.end_of_day) }
+  scope :todo_with_completed, -> { where('DATE(contract_cycles.end_date) BETWEEN ? AND ? OR status = ?', Date.today.beginning_of_day, Date.today.end_of_day, 1) }
+  scope :todo_not, -> { where.not('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today.beginning_of_day, Date.today.end_of_day) }
 
   def next_action=(new_next_action)
     write_attribute(:next_action, new_next_action)

@@ -3,7 +3,7 @@
     %h3.timeline-title
       Overdue 
     
-    - @contract_cycles.pending.overdue.order(start_date: :desc).each do |cc|
+    - @contract_cycles.pending_with_submit.todo_not.overdue.order(start_date: :desc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
       .timeline-block
         %span.badge.status-badge.red-badge
@@ -22,7 +22,7 @@
           %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contract.company&.full_name}
           %b
             = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
-        %p Client: #{cc&.contract&.company&.full_name}
+        %p Company: #{cc&.contract&.company&.full_name}
         %p Tax type: #{cc.contract.buy_contract.contract_type}
         - if cc.note == 'Timesheet submit'
           .row.border-top.pt-2
@@ -41,7 +41,7 @@
       To Do 
     %p.small-text (Next 10 Days)
 
-    - @contract_cycles.includes(:company).pending.todo.order(start_date: :asc).each do |cc|
+    - @contract_cycles.includes(:company).pending_with_submit.todo_with_completed.order(start_date: :asc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
       .timeline-block
         = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
@@ -60,7 +60,7 @@
           %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
           %b
             = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
-        %p Client: #{cc&.contract&.company&.full_name}
+        %p Company: #{cc&.contract&.company&.full_name}
         %p Tax type: #{cc.contract.buy_contract.contract_type}
         - if cc.note == 'Timesheet submit'
           .row.border-top.pt-2
@@ -89,7 +89,7 @@
       .timeline-block
         = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
         %span.badge.status-badge.skyblue-badge
-          = cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
+          = cc.cyclable&.status == "approved" ? "Timesheet Approved" : cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
         %span.due-txt
           #{cc.end_date.utc.strftime("%d %B %Y")}
         %br
@@ -98,7 +98,7 @@
         Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
         %p.mb-0.submitted-name
           %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
-        %p Client: #{cc&.contract&.company&.full_name}
+        %p Company: #{cc&.contract&.company&.full_name}
         %p Tax type: #{cc.contract.buy_contract.contract_type}
         - if cc.note == 'Timesheet submit'
           .row.border-top.pt2

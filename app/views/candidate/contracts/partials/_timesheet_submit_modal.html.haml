@@ -65,5 +65,5 @@
                 =text_area_tag "timesheet[transactions_attributes][#{index}][memo]",@timesheet.transactions.first.memo,placeholder:"Add Note", class: "w-100 p-2"
 
         .modal-footer
-          = tf.submit :save,class: "btn btn-secondary btn-sm" unless @timesheet.submitted?
+          = tf.submit :save,class: "btn btn-secondary btn-sm" unless @timesheet.approved?
           -# =link_to "Submit To Client", candidate_timesheet_submit_timesheet_path(@timesheet,redirect_url: "/candidate/timesheets?cycle_id=false&&contract_id=false&&tab=submitted_timesheets&&cycle_frequency=#{@timesheet.contract_cycle.cycle_frequency}"), class: "btn btn-secondary btn-sm" unless @timesheet.submitted?

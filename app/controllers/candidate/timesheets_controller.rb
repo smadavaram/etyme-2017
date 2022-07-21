@@ -136,7 +136,7 @@ class Candidate::TimesheetsController < Candidate::BaseController
   end
 
   def set_time_sheet
-    @timesheet = current_candidate.timesheets.open_timesheets.find(params[:id] || params[:timesheet_id])
+    @timesheet = current_candidate.timesheets.find(params[:id] || params[:timesheet_id])
   end
 
   def approve_timesheets

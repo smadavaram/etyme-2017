@@ -3,7 +3,7 @@
     %h3.timeline-title
       Overdue 
     
-    - @contract_cycles.pending.overdue.order(start_date: :desc).each do |cc|
+    - @contract_cycles.pending_with_submit.todo_not.overdue.order(start_date: :desc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
 
       - if cc.cycle_of_type == "BuyContract" || cc.cycle_type == "InvoiceGenerate"
@@ -12,16 +12,20 @@
             =cyclable_link(cc)
           %span.due-txt
             #{cc&.doc_date&.strftime("%d %B %Y")}
+          - if cc.pending? && cc.cycle_type == "TimesheetSubmit"
+            %br
+            %br
+            Timesheet need to submit
           %br
           %br
-          Contract ID - #{cc.contract.id} -  #{cc.contract&.project_name}
+          Contract ID - #{cc.contract&.id} -  #{cc.contract&.project_name}
           %p.mb-0.submitted-name
             %b Client: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contract.company&.full_name}
             %b
               = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
           %p Company: #{cc&.contract&.company&.full_name}
           %p #{cc.start_date.utc.strftime("%d %B %Y")} - #{cc.end_date.utc.strftime("%d %B %Y")}
-          %p Tax type: #{cc.contract.buy_contract.contract_type}
+          %p Tax type: #{cc.contract&.buy_contract.contract_type}
           - if cc.note == 'Timesheet submit'
             .row.border-top.pt-2
               .col-sm-2.text-center Plan
@@ -40,7 +44,7 @@
       To Do 
     %p.small-text (Today's)
 
-    - @contract_cycles.includes(:company).pending.todo.order(start_date: :asc).each do |cc|
+    - @contract_cycles.includes(:company).pending_with_submit.todo.order(start_date: :asc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
       - if cc.cycle_of_type == "BuyContract" || cc.cycle_type == "InvoiceGenerate"
         .timeline-block
@@ -50,19 +54,21 @@
             =cyclable_link(cc)
           %span.due-txt{style: "color: #{cc.color}"}
             #{cc&.doc_date&.strftime("%d %B %Y")}
+          - if cc.pending? && cc.cycle_type == "TimesheetSubmit"
+            %br
+            %br
+            Timesheet need to submit
           %br
           %br
-          Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
+          Contract ID - #{cc.contract&.id} - Cycle ID #{cc.id}
           %p.mb-0.submitted-name
             - unless cc.present?
               %b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize }"
             %b
               - if cc.note == 'Timesheet Approve'
                 = link_to 'Approve', timesheets_path, class: 'btn'
-              - else
-                Timesheet need to sumbit
           %p Company: #{cc&.contract&.company&.full_name}
-          %p Tax type: #{cc.contract.buy_contract.contract_type}
+          %p Tax type: #{cc.contract&.buy_contract.contract_type}
           - if cc.note == 'Timesheet submit'
             .row.border-top.pt-2
               .col-sm-2.text-center Plan
@@ -79,21 +85,21 @@
       Completed 
     %p.small-text (Past 10 Days including today)
     
-    - @contract_cycles.includes(:company).completed.order(id: :asc).each do |cc|
+    - @contract_cycles.includes(:company).approved.order(id: :asc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id, status: 'completed')
       - unless cc.cycle_of_type == "SellContract"
         .timeline-block
           = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
 
-          %span.badge.status-badge{style: "background-color: #{cc.color}"}
+          %span.badge.status-badge{style: "background-color: #{cc.cyclable&.status == "approved" ? "green" : cc.color}"}
             -#= cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
-            = cc.cycle_type
+            = cc.cyclable&.status == "approved" ? "Timesheet Approved" : cyclable_link(cc)
           %span.due-txt
             #{cc.end_date.utc.strftime("%d %B %Y")}
           %br
           %br
           %br
-          Contract ID - #{cc.contract.id} - #{cc.contract&.project_name}
+          Contract ID - #{cc.contract&.id} - #{cc.contract&.project_name}
           %p.mb-0.submitted-name
             -#%b= "Name: #{cc.buy_contract? ? cc.candidate.present? ? cc.candidate.full_name.capitalize : cc.company.full_name.capitalize : cc.user.full_name.capitalize  }"
             - if cc.buy_contract?
@@ -106,7 +112,7 @@
               - else
                 %b= 'N/A'
           %p Company: #{cc&.contract&.company&.full_name}
-          %p Tax type: #{cc.contract.buy_contract.contract_type}
+          %p Tax type: #{cc&.contract&.buy_contract&.contract_type}
           - if cc.note == 'Timesheet submit'
             .row.border-top.pt2
               .col-sm-2.text-center Plan
