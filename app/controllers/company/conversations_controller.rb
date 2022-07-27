@@ -488,7 +488,7 @@ class Company::ConversationsController < Company::BaseController
   end
 
   def get_main_signer
-    candidate = @conversation.chatable.groupables.where(groupable_type: 'Candidate').first.groupable
+    candidate = @conversation.chatable.groupables.where(groupable_type: 'Candidate')&.first&.groupable
     candidate.present? ? candidate : current_company.users.find_by(id: params[:signers]&.last)
   end
 

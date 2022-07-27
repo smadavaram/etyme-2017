@@ -286,7 +286,7 @@ class Company < ApplicationRecord
   # end
 
   def fetch_job_checklist
-    company_candidate_docs.all
+    company_candidate_docs.where(is_require: "E-Signature")
   end
 
   def candidate_job_templates

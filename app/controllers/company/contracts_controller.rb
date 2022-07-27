@@ -23,13 +23,13 @@ class Company::ContractsController < Company::BaseController
 
   def company_sell_contract
     add_breadcrumb 'Company sell contract'
-    @signature_documents = @contract.send('sell_contract').document_signs.where(documentable: @contract.company.company_candidate_docs.where(is_require: 'signature').ids)
+    @signature_documents = @contract.send('sell_contract').document_signs.where(documentable: @contract.company.company_candidate_docs.where(is_require: 'E-Signature').ids)
     @request_documents = @contract.send('sell_contract').document_signs.where(documentable: @contract.company.company_candidate_docs.where(is_require: 'Document').ids)
   end
 
   def company_buy_contract
-    @candidate_signature_documents = @contract.send('buy_contract').document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: 'signature').ids)
-    @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send('buy_contract').document_signs.where(signable: @contract.buy_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: 'signature').ids) : []
+    @candidate_signature_documents = @contract.send('buy_contract').document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: 'E-Signature').ids)
+    @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send('buy_contract').document_signs.where(signable: @contract.buy_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: 'E-Signature').ids) : []
     @candidate_request_documents = @contract.send('buy_contract').document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: 'Document').ids)
   end
 
@@ -50,12 +50,12 @@ class Company::ContractsController < Company::BaseController
   def show
     add_breadcrumb @contract.number.to_s
     if @contract.sell_contract
-      @signature_documents = @contract.send('sell_contract').document_signs.where(documentable: CompanyCandidateDoc.where(is_require: 'signature').ids)
+      @signature_documents = @contract.send('sell_contract').document_signs.where(documentable: CompanyCandidateDoc.where(is_require: 'E-Signature').ids)
       @request_documents = @contract.send('sell_contract').document_signs.where(documentable: CompanyCandidateDoc.where(is_require: 'Document').ids)
     end
     if @contract.buy_contract
-      @candidate_signature_documents = @contract.send('buy_contract').document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: CompanyCandidateDoc.where(is_require: 'signature').ids)
-      @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send('buy_contract').document_signs.where(signable: @contract.buy_contract.company.owner, documentable: CompanyCandidateDoc.where(is_require: 'signature').ids) : []
+      @candidate_signature_documents = @contract.send('buy_contract').document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: CompanyCandidateDoc.where(is_require: 'E-Signature').ids)
+      @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send('buy_contract').document_signs.where(signable: @contract.buy_contract.company.owner, documentable: CompanyCandidateDoc.where(is_require: 'E-Signature').ids) : []
       @candidate_request_documents = @contract.send('buy_contract').document_signs.where(signable: @contract.buy_contract.contract.candidate, documentable: CompanyCandidateDoc.where(is_require: 'Document').ids)
     end
   end
@@ -121,7 +121,7 @@ class Company::ContractsController < Company::BaseController
 
   def buy_document_create
     @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
-    @plugin = current_company.plugins.docusign.first
+    @plugin = current_company.plugins.first
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
@@ -139,7 +139,7 @@ class Company::ContractsController < Company::BaseController
     else
       flash.now[:errors] = ['Docusign token request failed, please regenerate the token from integrations']
     end
-    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: 'signature').ids)
+    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: 'E-Signature').ids)
   end
 
   def buy_emp_doc_create
@@ -171,12 +171,12 @@ class Company::ContractsController < Company::BaseController
     else
       flash.now[:errors] = ['Docusign token request failed, please regenerate the token from integrations']
     end
-    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: 'signature').ids)
+    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: 'E-Signature').ids)
   end
 
   def submit_document_create
     @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
-    @plugin = current_company.plugins.docusign.first
+    @plugin = current_company.plugins.first
     response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
@@ -194,7 +194,7 @@ class Company::ContractsController < Company::BaseController
     else
       flash.now[:errors] = ['Docusign token request failed, please regenerate the token from integrations']
     end
-    @document_signs = @sell_contract.document_signs.where(documentable: current_company.company_candidate_docs.where(is_require: 'signature').ids)
+    @document_signs = @sell_contract.document_signs.where(documentable: current_company.company_candidate_docs.where(is_require: 'E-Signature').ids)
   end
 
   def create_document_request
@@ -264,7 +264,7 @@ class Company::ContractsController < Company::BaseController
     @contract = current_company.sent_contracts.new(create_contract_params)
     @tab_number = params[:tab].to_i
     @contract.status = :draft
-    @signature_templates = current_company.customer_contract_templates('signature')
+    @signature_templates = current_company.customer_contract_templates('E-Signature')
     @documents_templates = current_company.customer_contract_templates('Document')
     @sell_contract = @contract.sell_contract
     @contract[:start_date]  = Contract.foo(create_contract_params[:start_date])
@@ -845,14 +845,14 @@ class Company::ContractsController < Company::BaseController
     @signature_templates_vendor = []
     @documents_templates_candidate = []
     if @contract&.sell_contract&.persisted?
-      @signature_templates = current_company.company_candidate_docs.where(is_require: 'signature', document_for: 'Customer')
+      @signature_templates = current_company.company_candidate_docs.where(is_require: 'E-Signature', document_for: 'Customer')
       @documents_templates = current_company.company_candidate_docs.where(is_require: 'Document', document_for: 'Customer')
       @signature_documents = @contract.send('sell_contract').document_signs.where(part_of: @contract.sell_contract, documentable: @signature_templates.ids)
       @request_documents = @contract.send('sell_contract').document_signs.where(part_of: @contract.sell_contract, documentable: @documents_templates.ids)
     end
     if @contract&.buy_contract&.persisted?
-      @signature_templates_candidate = current_company.company_candidate_docs.where(is_require: 'signature', document_for: 'Candidate', title_type: 'Contract')
-      @signature_templates_vendor = current_company.company_candidate_docs.where(is_require: 'signature', document_for: 'Vendor', title_type: 'Contract')
+      @signature_templates_candidate = current_company.company_candidate_docs.where(is_require: 'E-Signature', document_for: 'Candidate', title_type: 'Contract')
+      @signature_templates_vendor = current_company.company_candidate_docs.where(is_require: 'E-Signature', document_for: 'Vendor', title_type: 'Contract')
       @documents_templates_candidate = current_company.company_candidate_docs.where(is_require: 'Document', document_for: 'Candidate', title_type: 'Contract')
       @candidate_signature_documents = @contract.send('buy_contract').document_signs.where(part_of: @contract.buy_contract, signable: @contract.buy_contract.contract.candidate, documentable: @signature_templates_candidate.ids)
       @vendor_signature_documents = @contract.buy_contract.company.present? ? @contract.send('buy_contract').document_signs.where(part_of: @contract.buy_contract, signable: @contract.buy_contract.company.owner, documentable: @signature_templates_vendor.ids) : []
