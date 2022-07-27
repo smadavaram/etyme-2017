@@ -37,6 +37,7 @@
                   = link_to raw("<i class='fa fa-file-pdf-o'></i>"), contract_invoice_path(contract_id: invoice.contract_id,id: invoice.id, format: :pdf), class: 'data-table-icons',title: "Details" if invoice.submitted?
                   = link_to raw("<i class='fa fa-fax'></i>"), submit_invoice_contract_invoice_path(contract_id: invoice.contract,id: invoice), class: 'data-table-icons',title: "Submit Invoice", data: {confirm:  'Do you want to submit this invoice?'} if invoice.open?
                   = link_to raw("<i class='fa fa-edit'></i>"), invoice.timesheet_invoice? ? edit_invoice_path( invoice) : client_expense_invoice_invoice_path(invoice) , class: 'data-table-icons',title: "Add Timesheet(s)" if invoice.open?
+                  = link_to raw("<i class='fa fa-money'></i>"), new_invoice_receive_payment_path(invoice), class: 'data-table-icons',title: "Received Payments" if invoice.submitted?
         .timesheet_pagination_wrap
           .pagination_label
             = page_entries_info @sent_invoices

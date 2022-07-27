@@ -15,7 +15,8 @@
           - if cc.pending? && cc.cycle_type == "TimesheetSubmit"
             %br
             %br
-            Timesheet need to submit
+            %b{style: "color: red"}
+              Timesheet not submitted
           %br
           %br
           Contract ID - #{cc.contract&.id} -  #{cc.contract&.project_name}

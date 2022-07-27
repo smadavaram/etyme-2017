@@ -206,7 +206,7 @@ class Company::InvoicesController < Company::BaseController
 
     total_amount = 0
     total_approve_time = 0
-    payrate = inv.contract.buy_contract.payrate
+    payrate = inv.contract.sell_contract.today_rate.rate
 
     timesheets.each do |t|
       t.days.each_key do |k|

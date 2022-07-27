@@ -29,7 +29,7 @@
             <%= render 'company/users/partials/dashboard_cards', cards: @cards %>
           </div>
         </div>
-        <!-- <div class="col-sm-9">
+        <div class="col-sm-9">
           <div class="element-wrapper">
             <h6 class="element-header">
               Accounting
@@ -107,8 +107,8 @@
               </div>
             </div>
           </div>
-        </div> -->
-        <!-- <div class="col-md-3">
+        </div>
+        <div class="col-md-3">
           <div class="element-wrapper">
             <h6 class="element-header">
               Jobs
@@ -141,9 +141,9 @@
               </div>
             </div>
           </div>
-        </div> -->
+        </div> 
       </div>
-      <div class="row">
+      <!-- <div class="row">
         <div class="row m-4">
           <div class="col-sm-12">
             <div class="element-wrapper">
@@ -175,6 +175,33 @@
             </div>
           </div>
         </div>
+      </div> -->
+      <div class="row">
+        <% if company_activities_hash.present? %>
+          <div class="col-sm-12">
+            <div class="element-wrapper">
+              <h6 class="element-header">
+                User Activity
+              </h6>
+              <div class="timed-activities compact">
+                <% company_activities_hash.each do |key,value| %>
+                  <div class="timed-activity">
+                    <div class="ta-date">
+                      <span>
+                        <%= key %>
+                      </span>
+                    </div>
+                    <div class="ta-record-w">
+                      <% value.each do |activity| %>
+                        <%= render_activity activity if activity.trackable.present? %>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        <% end %>
       </div>
     </div>
     <div class="content-panel">
@@ -373,33 +400,6 @@
                 </div>
               <% end %>
             </div>
-          </div>
-          <div class="row">
-            <% if company_activities_hash.present? %>
-              <div class="col-sm-12">
-                <div class="element-wrapper">
-                  <h6 class="element-header">
-                    User Activity
-                  </h6>
-                  <div class="timed-activities compact">
-                    <% company_activities_hash.each do |key,value| %>
-                      <div class="timed-activity">
-                        <div class="ta-date">
-                          <span>
-                            <%= key %>
-                          </span>
-                        </div>
-                        <div class="ta-record-w">
-                          <% value.each do |activity| %>
-                            <%= render_activity activity if activity.trackable.present? %>
-                          <% end %>
-                        </div>
-                      </div>
-                    <% end %>
-                  </div>
-                </div>
-              </div>
-            <% end %>
           </div>
         </div>
       </div>

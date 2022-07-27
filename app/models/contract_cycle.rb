@@ -67,6 +67,9 @@ class ContractCycle < ApplicationRecord
   scope :note, ->(note) { where cycle_type: note }
   scope :cycle_type, ->(type) { (type == 'All') || type.nil? ? where(cycle_type: ContractCycle::CYCLETYPES) : where(cycle_type: type) }
   scope :approved, -> { where(status: 'approved') }
+  scope :approved_not, -> { where.not(status: 'approved') }
+  scope :approved_and_completed, -> { where('status = ? OR status = ?', 1, 3) }
+  scope :not_approved_and_completed, -> { where.not('status = ? OR status = ?', 1, 3) }
   scope :completed, -> { where(status: 'completed') }
   scope :overdue, -> { where('DATE(contract_cycles.end_date) < ?', DateTime.now.end_of_day.to_date) }
   scope :todo, -> { where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today.beginning_of_day, Date.today.end_of_day) }

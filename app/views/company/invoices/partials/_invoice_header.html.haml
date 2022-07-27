@@ -80,8 +80,8 @@
                           %td= trans.start_time&.strftime("%A")
                           %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
                           %td= trans.total_time
-                          %td= number_to_currency(ts.contract.buy_contract.today_rate.try(:rate)||0)
-                          %td= (trans.total_time * (ts.contract.buy_contract.today_rate.try(:rate)||0))
+                          %td= number_to_currency(ts.contract.sell_contract.today_rate.try(:rate)||0)
+                          %td= (trans.total_time * (ts.contract.sell_contract.today_rate.try(:rate)||0))
 
       -else
         %b.mb-1 Added Expense(s)
@@ -114,4 +114,4 @@
     .col-sm-12.pr-4.text-right
       ="#{content_tag(:strong, 'Total Approve Time:', nil)} #{invoice.total_approve_time}".html_safe
       %br
-      ="#{content_tag(:strong, 'Total payable:', nil)} #{invoice.total_amount}".html_safe
+      ="#{content_tag(:strong, 'Total Recievables:', nil)} #{invoice.total_amount}".html_safe
