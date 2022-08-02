@@ -14,6 +14,7 @@
     -#%meta{content: "#{meta_image}", property: "og:image"}/
     = render 'head'
     = action_cable_meta_tag
+    = favicon_link_tag '/favicon.ico'
     = stylesheet_link_tag    'application'
     = csrf_meta_tags
     %script{async: "async", src: "https://platform-api.sharethis.com/js/sharethis.js#property=5ea26f459ad3eb0012e163d3&product=inline-share-buttons", type: "text/javascript"}

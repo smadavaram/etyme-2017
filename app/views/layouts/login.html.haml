@@ -9,8 +9,8 @@
     %meta{:content => "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no", :name => "viewport"}/
     = stylesheet_link_tag 'application', media: 'screen'
     / FAVICONS
-    = favicon_link_tag 'favicon/favicon.ico'
-    = favicon_link_tag 'favicon/favicon.ico', rel: 'icon'
+    = favicon_link_tag '/favicon.ico'
+    = favicon_link_tag '/favicon.ico', rel: 'icon'
     / GOOGLE FONT
     = action_cable_meta_tag
     = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'
