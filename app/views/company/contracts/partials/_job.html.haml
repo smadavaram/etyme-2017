@@ -141,10 +141,10 @@
             .contract-fild
               - if @contract.new_record? or @contract.candidate_id.nil?
                 .plain-select
-                  = f.select :candidate_id, '', {}, id: 'select_candidates', required: true
+                  = f.select :candidate_id, '', {}, multiple: true, id: 'select_candidates', required: true
               - else
                 .plain-select
-                = f.select :candidate_id, '', {}, id: 'select_candidates'
+                = f.select :candidate_id, '', {}, multiple: true, id: 'select_candidates'
                 -# = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
         =f.fields_for :buy_contract, @contract.buy_contract || @contract.build_buy_contract do |bc|
           .col-md-7
@@ -216,7 +216,7 @@
                   %label.control-label Customer Contacts
                   .contract-fild
                     .plain-select
-                      = select_tag "company_contacts_ids[]", [] ,class:"w-100", id: 'selectize_sell_company_contacts'
+                      = select_tag "company_contacts_ids[]", [],  multiple: true  ,class:"w-100", id: 'selectize_sell_company_contacts'
                       -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
 
 
@@ -274,6 +274,9 @@
 
 - content_for :scripts do
   :javascript
+    $("#selectize_sell_company_contacts").selectize({
+        maxItems: 5,
+    });
     function save_hr_admins(e){
       // e.preventDefault();
       let contract_id = $('#contract_id').val();

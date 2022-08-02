@@ -511,6 +511,11 @@
                         %label.control-label.w-100
                           References
                         = sc.text_field :integration, class: 'form-control'
+                  #doc-action{style: "padding: 15px 0;"}  
+                    %i{class: "btn btn-primary pull-left previous-btn", style:"display: none", onClick:"previousDoc('sell_contract')"}
+                      Back
+                    %i{class: "btn btn-primary pull-right next-btn", onClick:"nextDoc('sell_contract')"}
+                      Next
                   -##tab-sell-pr.tab-pane.padding-top-15
                   -#  .row
                   -#    .col-md-6
@@ -628,7 +633,6 @@
    set_user_select(".whois_sign:not([class*='added']", "Select User who is sign document");
    $(".whois_sign:not([class*='added']").addClass('added');
   });
-
 
   $(".sell_users").click(function(){
     set_contract_admins(".sell_company_contract_admins","Select Admin-#{@sell_contract&.company&.id}");

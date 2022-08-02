@@ -67,6 +67,73 @@
 - content_for :scripts do
   :javascript
 
+    function nextDoc(arg){
+      if(arg == "sell_contract"){
+        if ($("#tab-sell-pri").is(":visible")){
+          $("a[href='#tab-sell-ts'").click()
+          $(".previous-btn").show(); 
+        }
+        else if ($("#tab-sell-ts").is(":visible")){
+          $("a[href='#tab-sell-ta'").click() 
+        }
+        else if ($("#tab-sell-ta").is(":visible")){
+          $("a[href='#tab-sell-bi'").click() 
+          $(".next-btn").hide();        
+        } 
+      }else{
+        if ($("#tab-buy-ct").is(":visible")){
+          $("a[href='#tab-buy-ts'").click()
+          $(".previous-btn").show(); 
+        }
+        else if ($("#tab-buy-ts").is(":visible")){
+          $("a[href='#tab-buy-ta'").click() 
+        }
+        else if ($("#tab-buy-ta").is(":visible")){
+          $("a[href='#tab-buy-sc'").click() 
+        }
+        else if ($("#tab-buy-sc").is(":visible")){
+          $("a[href='#tab-buy-cc'").click() 
+        }
+        else if ($("#tab-buy-cc").is(":visible")){
+          $("a[href='#tab-buy-integration'").click()
+          $(".next-btn").hide();         
+        }
+      }
+    }
+    function previousDoc(arg){
+      if(arg == "sell_contract"){
+        if ($("#tab-sell-ts").is(":visible")){
+          $("a[href='#tab-sell-pri'").click() 
+          $(".previous-btn").hide();        
+        }
+        else if ($("#tab-sell-ta").is(":visible")){
+          $("a[href='#tab-sell-ts'").click() 
+        }
+        else if ($("#tab-sell-bi").is(":visible")){
+          $("a[href='#tab-sell-ta'").click()
+          $(".next-btn").show(); 
+        } 
+      }else{
+        if ($("#tab-buy-ts").is(":visible")){
+          $("a[href='#tab-buy-ct'").click()
+          $(".previous-btn").hide(); 
+        }
+        else if ($("#tab-buy-ta").is(":visible")){
+          $("a[href='#tab-buy-ts'").click() 
+        }
+        else if ($("#tab-buy-sc").is(":visible")){
+          $("a[href='#tab-buy-ta'").click() 
+        }
+        else if ($("#tab-buy-cc").is(":visible")){
+          $("a[href='#tab-buy-sc'").click() 
+        }
+        else if ($("#tab-buy-integration").is(":visible")){
+          $("a[href='#tab-buy-cc'").click()
+          $(".next-btn").show();         
+        }
+      }
+    }
+
     $(document).on('click', '.display_sell_chat',function(){
       $('#sell_chat').show();
       $('#buy_chat').hide();

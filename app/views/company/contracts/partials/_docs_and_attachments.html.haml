@@ -453,6 +453,11 @@
                         %label.control-label.w-100
                           Integration
                           = bc.text_field :integration, class: 'form-control'
+                  #doc-action{style: "padding: 15px 0;"}  
+                    %i{class: "btn btn-primary pull-left previous-btn", style:"display: none", onClick:"previousDoc('buy_contract')"}
+                      Back
+                    %i{class: "btn btn-primary pull-right next-btn", onClick:"nextDoc('buy_contract')"}
+                      Next        
         %label.control-label.font-weight-bold.mt-2 Employee/Vendor Documents
         .contract-fields_wrapper.mt-2.contract-border
           .row

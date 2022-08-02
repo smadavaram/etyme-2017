@@ -118,14 +118,18 @@ class Company::ConversationsController < Company::BaseController
           part_of: @conversation,
           signers_ids: co_signers.to_s.tr('[', '{').tr(']', '}')
         )
-        result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
-        if !result.is_a?(Hash) && (result.status == 'sent')
-          @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
-          flash.now[:success] = 'Document is submitted to the candidate for signature'
+        if @document_sign.is_signable?
+          result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
+          if !result.is_a?(Hash) && (result.status == 'sent')
+            @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
+            flash.now[:success] = 'Document is submitted to the candidate for signature'
+          else
+            @document_sign.destroy
+            error = eval(result[:error_message])
+            flash.now[:errors] = ["#{error[:errorCode]}: #{error[:message]}"]
+          end
         else
-          @document_sign.destroy
-          error = eval(result[:error_message])
-          flash.now[:errors] = ["#{error[:errorCode]}: #{error[:message]}"]
+          flash.now[:success] = 'Document is submitted to the candidate for signature'
         end
       end
       flash[:success] = 'Document is submitted to the candidate for signature'

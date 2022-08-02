@@ -122,7 +122,7 @@ module ChatboxHelper
       elsif usr.group_name.include? "SC"
         obj = SellContract.where(number: usr.group_name).first&.contract
         link = contract_path(obj)
-      elsif usr.group_name.include? "J"
+      elsif usr.group_name.include? "JO"
         if params[:conversation].present?
           conv = Conversation.find params[:conversation]
           obj = conv.job
