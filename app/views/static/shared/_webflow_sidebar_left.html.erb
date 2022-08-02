@@ -19,7 +19,7 @@
                     <%= image_tag(image_path('sidebar-people-active.svg'), class: "mr-3") %>
                     For Hiring Managers
                 </a>
-                <%unless request.subdomain == "app" || ""%>
+                <%unless request.subdomain == "app"%>
                   <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  (params[:action] == "static_feeds") && params[:selected_categories] == "Training") ? "active" : ""  %>" href="<%= root_static_feeds_path %>?selected_categories=Training&input_search=">
                       <%= image_tag(image_path('presentation.png'), class: "mr-3") %>
                       <%= image_tag(image_path('presentation_active.png'), class: "mr-3") %>
