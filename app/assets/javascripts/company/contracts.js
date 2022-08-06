@@ -28,6 +28,18 @@ $(document).ready(function () {
         }
     });
 
+    $(document).on('change', '#buy_contract_company', function (e) {
+        var endclientid = $('#buy_contract_company').val();
+        if (endclientid) {
+            set_vendor_client_reporting_manger('#' + 'selectize_sell_company_vendors_contacts', "Please Select Or Add new Contacts-" + endclientid, "#buy_contract_company");
+        } else {
+            var buy_contract_company = $('#buy_contract_company').val();
+            if (buy_contract_company) {
+                set_company_reporting_manger('#selectize_sell_company_vendors_contacts', "Please Select Or Add new Contacts-" + buy_contract_company, "#buy_contract_company");
+            }
+        }
+    });
+
     $(document).on('change', '#select_clients', function (e) {
         var endclientid = $('#select_clients').val();
         if (endclientid) {

@@ -5,8 +5,10 @@
         %h2#myModalLabel.modal-title
           %strong Vendor Create Document
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-        ×
+          ×
       .modal-body
+        =link_to 'Add Document',attachments_path, target: "_blank",class: 'btn btn-primary right-flux'
+        %br
         =form_tag('/contracts/buy_document_create', remote: true, method: :post) do
           %input{name: "buy_contract_id", type:"hidden", value: @contract.buy_contract.id}
           .table-responsive

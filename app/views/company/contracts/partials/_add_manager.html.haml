@@ -21,10 +21,10 @@
 -#       = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_reporting_manager_contracts_path(contract_id: @contract.id,reporting_manager_id: bussiness_detail.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
 
 - if business_detail_objs.count > 0
-  %h6 Contacts
+  %h6{style: "width: 100%;"} Contacts
 - business_detail_objs.each do |bussiness_detail|
   - user = bussiness_detail.user
-  .col{style: 'padding-left: 4%'}
+  .col{style: 'padding-left: 4%; max-width: 160px;'}
     .profile-tile{style: 'border-bottom: unset'}
       .profile-tile-box{style: 'background-color: #f2f4f8'}
         .pt-avatar-w

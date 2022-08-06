@@ -56,6 +56,15 @@
     #ajax-modal
     = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
     = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
+- if @contract and @contract&.sell_contract&.persisted?
+  = render 'company/contracts/request_document_modal', contract: @contract
+  = render 'company/contracts/submit_document_modal', contract: @contract
+
+- if @contract and @contract&.buy_contract&.persisted?
+  = render 'company/contracts/buy_send_documents_modal', contract: @contract
+  = render 'company/contracts/buy_emp_req_docs_modal', contract: @contract
+  = render 'company/contracts/partials/buy_ven_req_docs_modal', contract: @contract
+    
   - content_for :scripts do
     :javascript
       function openAccept(){
@@ -97,9 +106,9 @@
                   %span
                   = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id), onclick: "open_chat(#{@contract.buy_contract.conversation.id})",class: 'ChatBtn buy_chat',id: 'ChatBtn', remote: true
 
-
 - content_for :scripts do
   :javascript
+      company_contract_signers('#select_sell_company_signers',"#{@contract.sell_contract.company.id}")
     function open_chat(id){
       $.get(`/company/conversations/mini_chat?conversation_id=${id}`)
     }

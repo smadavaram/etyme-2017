@@ -605,6 +605,7 @@
   = render 'company/contracts/partials/collaborator_modal',contract: @contract, contractable_type: @contract.sell_contract.class.name, contractable_id: @contract.sell_contract.id
 
 :javascript
+  $("#timesheet_approve").prop('disabled', true);
   $('.contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
     insertedItem.find('.filepicker-attach').each(function(i,e){
       $(".filepicker-attach").on('click',function() {

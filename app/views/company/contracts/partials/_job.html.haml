@@ -58,7 +58,7 @@
     .row.profile-section
       - @contract.contract_admins.each do |admin|
         -user = admin.user
-        .col{style: 'padding-left: 4%'}
+        .col{style: 'padding-left: 4%; max-width: 160px;'}
           .profile-tile{style: 'border-bottom: unset'}
             .profile-tile-box{style: 'background-color: #f2f4f8'}
               .pt-avatar-w
@@ -141,10 +141,10 @@
             .contract-fild
               - if @contract.new_record? or @contract.candidate_id.nil?
                 .plain-select
-                  = f.select :candidate_id, '', {}, multiple: true, id: 'select_candidates', required: true
+                  = f.select :candidate_id, '', {}, {multiple: true, id: 'select_candidates', required: true}
               - else
                 .plain-select
-                = f.select :candidate_id, '', {}, multiple: true, id: 'select_candidates'
+                = f.select :candidate_id, '', {}, {multiple: true, id: 'select_candidates'}
                 -# = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
         =f.fields_for :buy_contract, @contract.buy_contract || @contract.build_buy_contract do |bc|
           .col-md-7
@@ -158,17 +158,31 @@
                   %label.control-label 1099 (Freelancers)
                   = bc.radio_button :contract_type, "C2C",required: 'true'
                   %label.control-label Corp-Corp (Third Party)
-          .col-md-5.vendor_company{class: bc.object.contract_type == "C2C" ? '' : 'hidden'}
-            .form-group
-              %label.control-label Vendor(Pay To)
-              %label.control-label.pull-right
-                %button{class: 'btn btn-sm btn-primary',type: 'button', onclick: "$('#new-contract-company').modal('show')"} Add New
-              .contract-fild
-                - if @contract.new_record? or @contract.company_id.nil?
-                  .plain-select
-                    = bc.select :company_id, {}, {}, id: "buy_contract_company"
-                - else
-                  = text_field_tag :vendor_name, @contract.buy_contract.company.present? ? @contract.buy_contract.company.full_name.capitalize : '', disabled: "disabled"
+          .col-md-12.vendor_company{class: bc.object.contract_type == "C2C" ? '' : 'hidden'}
+            .row
+              .col-md-5
+                .form-group
+                  %br
+                  %label.control-label Vendor(Pay To)
+                  %label.control-label.pull-right
+                    %button{class: 'btn btn-sm btn-primary',type: 'button', onclick: "$('#new-contract-company').modal('show')"} Add New
+                  .contract-fild
+                    -# if @contract.new_record? or @contract.company_id.nil?
+                    .plain-select
+                      = bc.select :company_id, {}, {}, class: '', id: "buy_contract_company"
+                    -# else
+                      -# text_field_tag :vendor_name, @contract.buy_contract.company.present? ? @contract.buy_contract.company.full_name.capitalize : '', disabled: "disabled"
+              .col-md-6
+                .form-group
+                  -#%h5.mb-4.d-inline-block Customer Contacts
+                  %input{name: "vendor_contract", id: 'vendor_contract', value: "",hidden: "hidden"}
+                  .form-group
+                    %br
+                    %label.control-label Vendor Contacts
+                    .contract-fild
+                      .plain-select
+                        = select_tag "vendor_contacts_ids[]", [], {multiple: true  , class:"w-100", id: 'selectize_sell_company_vendors_contacts'}
+                        -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
 
 
   - if true #@contract.new_record? or @contract.sell_contract&.persisted?
@@ -197,9 +211,9 @@
                 .contract-fild
                   - if @contract.new_record? or sc.object.id.nil?
                     .plain-select
-                      = sc.select :company_id, {}, {}, id: "sell_contract_company", required: true
+                      = sc.select :company_id, {}, {}, class: '', id: "sell_contract_company", required: true
                   - else
-                    = sc.select :company_id, {}, {}, id: "sell_contract_company"
+                    = sc.select :company_id, {}, {}, class: '', id: "sell_contract_company"
                     -# = text_field_tag :customer_name, @contract.sell_contract.company.name.capitalize, disabled: "disabled"
                     = hidden_field_tag :sell_contract_company, @contract.sell_contract.company.id
             .col-md-6
@@ -213,10 +227,11 @@
                 -#%h5.mb-4.d-inline-block Customer Contacts
                 %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
                 .form-group
+                  %br
                   %label.control-label Customer Contacts
                   .contract-fild
                     .plain-select
-                      = select_tag "company_contacts_ids[]", [],  multiple: true  ,class:"w-100", id: 'selectize_sell_company_contacts'
+                      = select_tag "company_contacts_ids[]", [], {multiple: true  , class:"w-100", id: 'selectize_sell_company_contacts'}
                       -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
 
 
@@ -257,8 +272,7 @@
         %hr
         %br/
         .row.hr_reporting_admins_table_body
-        -# - unless @contract.new_record?
-        = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
+          = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
 
 
 
@@ -273,10 +287,7 @@
 
 
 - content_for :scripts do
-  :javascript
-    $("#selectize_sell_company_contacts").selectize({
-        maxItems: 5,
-    });
+  :javascript 
     function save_hr_admins(e){
       // e.preventDefault();
       let contract_id = $('#contract_id').val();
@@ -312,7 +323,7 @@
       // e.preventDefault();
       let contract_id = $('#contract_id').val();
       let user_ids = $('#selectize_sell_company_contacts').val();
-      let url = `/contracts//get_reporting_managers`;
+      let url = `/contracts/get_reporting_managers`;
       $.post(url, {contract_id: contract_id, company_contacts_ids: user_ids}).done(function (data) {
           flash_success("End Client Reporting Manager updated Successfully!")
       }).fail(function (data) {

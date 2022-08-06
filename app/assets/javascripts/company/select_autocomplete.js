@@ -408,7 +408,7 @@ function formatHrAdmins(user) {
         return user.text;
     }
     var photo_path = user.photo === undefined ? '/assets/avatars/male-6fdb3297a97307d20273866196068e696682f523355db573e7d5bd8581ab763e.png' : user.photo;
-    var markup = "<div> <table style='width: 100%;'><td><img src='" + photo_path + "'></td> <td>" + user.full_name + "</td><td> " + user.email + "</td><td>" + user.phone + "</td></table> </div>"
+    var markup = "<div> <table style='width: 100%;'><td style='width: 8%;'><img src='" + photo_path + "'></td> <td style='width: 14%;'>" + user.full_name + "</td><td style='width: 20%;' > " + user.email + "</td><td>" + user.phone + "</td></table> </div>"
 
     return markup;
 }
@@ -620,7 +620,7 @@ var set_company_reporting_manger = function (selector, place_holder, company_typ
             $('#selectize_sell_company_contacts').selectize(
                 {
                 persist: false,
-                maxItems: 1,
+                maxItems: 5,
                 valueField: 'id',
                 labelField: 'name',
                 searchField: ['name', 'email'],
@@ -730,7 +730,7 @@ var set_client_reporting_manger = function (selector, place_holder, company_type
             $('#selectize_sell_client_contacts').selectize(
                 {
                 persist: false,
-                maxItems: 1,
+                maxItems: 5,
                 valueField: 'id',
                 labelField: 'name',
                 searchField: ['name', 'email'],
@@ -823,6 +823,118 @@ var set_client_reporting_manger = function (selector, place_holder, company_type
     //     });
     // }
 }
+
+var set_vendor_client_reporting_manger = function (selector, place_holder, company_type) {
+    var company = place_holder.split("-");
+    var REGEX_EMAIL = "^[^@\s]+@[^@\s\.]+\.[^@\.\s]+$"
+    console.log('got request');
+    $.ajax({
+        url: '/api/select_searches/find_reporting_manger?company='+company[1],
+        type: "GET",
+        dataType: "json",
+        success: function (data) {
+            let element = jQuery(selector);
+
+            if(element[0].selectize){
+                element[0].selectize.destroy();
+            }
+            $(selector).selectize(
+                {
+                persist: false,
+                maxItems: 5,
+                valueField: 'id',
+                labelField: 'name',
+                searchField: ['name', 'email'],
+                options: data.contacts,
+                render: {
+                    item: function(item, escape) {
+                        return '<div>' +
+                            (item.name ? '<span class="name">' + escape(item.name) + '</span> &nbsp;' : '') +
+                            (item.email ? '<span class="email">' + '&lt' + escape(item.email) + '&gt' + '</span>' : '') +
+                            '</div>';
+                    },
+                    option: function(item, escape) {
+                        var label = item.name || item.email;
+                        var caption = item.name ? item.email : null;
+                        return '<div>' +
+                            '<span class="label">' + escape(label) + '</span> &nbsp;' +
+                            (caption ? '<span class="caption">' + '&lt' +  escape(caption) + '&gt' + '</span>' : '') +
+                            '</div>';
+                    }
+                },
+                createFilter: function(input) {
+                    var match, regex;
+
+                    // email@address.com
+                    regex = new RegExp('^' + REGEX_EMAIL + '$', 'i');
+                    match = input.match(regex);
+                    if (match) return !this.options.hasOwnProperty(match[0]);
+
+                    // name <email@address.com>
+                    regex = new RegExp('^([^<]*)\<' + REGEX_EMAIL + '\>$', 'i');
+                    match = input.match(regex);
+                    if (match) return !this.options.hasOwnProperty(match[2]);
+
+                    return false;
+                },
+                create: function(input) {
+                    if ((new RegExp('^' + REGEX_EMAIL + '$', 'i')).test(input)) {
+                        return {email: input, id: input};
+                    }
+                    var match = input.match(new RegExp('^([^<]*)\<' + REGEX_EMAIL + '\>$', 'i'));
+                    if (match) {
+                        return {
+                            email : match[2],
+                            name  : $.trim(match[1])
+                        };
+                    }
+                    alert('Invalid email address.');
+                    return false;
+                }
+            });
+        }
+    });
+
+    // if ($(selector).length > 0) {
+    //     $(selector).select2({
+    //         ajax: {
+    //             url: '/api/select_searches/find_reporting_manger?company='+company[1],
+    //             dataType: 'json',
+    //             delay: 250,
+    //             data: function (params) {
+    //                 return {
+    //                     per_page: 10,
+    //                     q: params.term, // search term
+    //                     page: params.page
+    //                 };
+    //             },
+    //             processResults: function (data, params) {
+    //                 params.page = params.page || 1;
+    //                 return {
+    //                     results: data.contacts,
+    //                     pagination: {
+    //                         more: (params.page * 10) < data.total_count
+    //                     }
+    //                 };
+    //             },
+    //             cache: true
+    //         },
+    //         placeholder: place_holder.split("-")[0],
+    //         language: {
+    //             noResults: function () {
+    //                 return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-company-contacts-modal' href='#'>Add New</a>";
+    //             }
+    //         },
+    //         multiple: true,
+    //         escapeMarkup: function (markup) {
+    //             return markup;
+    //         },
+    //         templateResult: formatCompanyContact,
+    //         templateSelection: formatCompanyContactSelection
+    //     });
+    // }
+}
+
 
 
 

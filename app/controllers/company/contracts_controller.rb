@@ -49,6 +49,7 @@ class Company::ContractsController < Company::BaseController
 
   def show
     add_breadcrumb @contract.number.to_s
+    set_docusign_documents
     if @contract.sell_contract
       @signature_documents = @contract.send('sell_contract').document_signs.where(documentable: CompanyCandidateDoc.where(is_require: 'E-Signature').ids)
       @request_documents = @contract.send('sell_contract').document_signs.where(documentable: CompanyCandidateDoc.where(is_require: 'Document').ids)
@@ -229,6 +230,9 @@ class Company::ContractsController < Company::BaseController
             @contract.sell_contract.contract_admins.find_or_create_by(user_id: id, contract_id: @contract.id, company_id: @contract.sell_contract.company.id)
           end
         end
+        if params[:vendor_contacts_ids].present?
+          @contract.buy_contract.update(vendor_contacts_ids: params[:vendor_contacts_ids])
+        end
         create_custom_activity(@contract, 'contracts.update', contract_params, @contract)
         format.html do
           flash[:success] = "#{@contract.title.titleize} updated successfully"
@@ -273,6 +277,9 @@ class Company::ContractsController < Company::BaseController
     if @contract.sell_contract
       @signature_documents = @contract.send('sell_contract').document_signs.where(part_of: @contract.sell_contract, signable: @contract.sell_contract.company.owner, documentable: @signature_templates.ids)
       @request_documents = @contract.send('sell_contract').document_signs.where(part_of: @contract.sell_contract, signable: @contract.sell_contract.company.owner, documentable: @documents_templates.ids)
+    end
+    if params[:vendor_contacts_ids].present?
+      @contract.buy_contract.update(vendor_contacts_ids: params[:vendor_contacts_ids])
     end
     respond_to do |format|
       if @contract.save
@@ -688,7 +695,7 @@ class Company::ContractsController < Company::BaseController
        :show_accounting_to_employee, :billing_frequency, :time_sheet_frequency, :assignee_id, :contractable_id,
        :contractable_type, :job_application_id, :parent_contract_id, :start_date, :is_client_customer,
        :payment_term, :b_time_sheet, :payrate, :contract_type, :end_date, :project_name,
-       :message_from_hiring, :status, :company_id, company_doc_ids: [],
+       :message_from_hiring, :status, :company_id, company_doc_ids: [], vendor_contacts_ids: [] ,
                                                    sell_contract_attributes: [
                                                      :ts_2day_of_week, :ta_2day_of_week,
                                                      :invoice_2day_of_week,
@@ -798,7 +805,7 @@ class Company::ContractsController < Company::BaseController
                                                          id signable_type signable_id _destroy
                                                        ]
                                                      ],
-                                                     change_rates_attributes: %i[id from_date to_date rate_type rate uscis rateable_type rateable_id working_hrs overtime_rate _destroy]
+                                                     change_rates_attributes: %i[id from_date to_date rate_type rate uscis rateable_type rateable_id working_hrs overtime_rate _destroy] 
                                                    ],
                                                    contract_terms_attributes: %i[
                                                      id created_by contract_id status terms_condition rate note _destroy

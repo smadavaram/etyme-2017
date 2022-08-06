@@ -561,6 +561,7 @@
   = render 'company/contracts/partials/buy_approval_modal',contract: @contract, contractable_type: @contract.buy_contract.class.name, contractable_id: @contract.buy_contract.id
 
 :javascript
+  $("#timesheet_approve").prop('disabled', true);
   $('.ts_day_time_picker').timepicker('setTime',new Date($(".ts_day_time_picker").val()).toLocaleTimeString('en-US'));
   $('.ta_day_time_picker').timepicker('setTime',new Date($(".ta_day_time_picker").val()).toLocaleTimeString('en-US'));
 
