@@ -141,10 +141,10 @@
             .contract-fild
               - if @contract.new_record? or @contract.candidate_id.nil?
                 .plain-select
-                  = f.select :candidate_id, '', {}, {multiple: true, id: 'select_candidates', required: true}
+                  = f.select :candidate_id, '', {}, {id: 'select_candidates', required: true}
               - else
                 .plain-select
-                = f.select :candidate_id, '', {}, {multiple: true, id: 'select_candidates'}
+                = f.select :candidate_id, '', {}, {id: 'select_candidates'}
                 -# = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
         =f.fields_for :buy_contract, @contract.buy_contract || @contract.build_buy_contract do |bc|
           .col-md-7
