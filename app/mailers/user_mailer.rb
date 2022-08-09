@@ -83,7 +83,7 @@ class UserMailer < ApplicationMailer
     end
     @candidates_ids = candidates_ids
     @company = current_company
-    mail(to: to, bcc: to_emails, subject: "#{current_company.name.titleize} #{subject}")
+    mail(from: to, to: "support@etyme.com", bcc: to_emails, subject: "#{current_company.name.titleize} #{subject}")
   end
 
   def send_message_to_candidate(name, subject, message, to, sender_email)
