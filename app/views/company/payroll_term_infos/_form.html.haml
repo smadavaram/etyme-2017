@@ -134,10 +134,11 @@
         var month = Number(tr.find('.payroll_term option:selected').val())-1;
         var frequency = tr.data('frequency');
         var date = get_date(value,frequency);
+        date = date.replaceAll("-", "/")
         if( day == 32){
-          var period = moment(date).subtract(month,'months').endOf('month').format("YYYY-MM-DD");
+          var period = moment(date).subtract(month,'months').endOf('month').format("MM-DD-YYYY");
         }else{
-          var period = moment(date).subtract(month,'months').subtract(day,'days').format("YYYY-MM-DD");
+          var period = moment(date).subtract(month,'months').subtract(day,'days').format("MM-DD-YYYY");
         }
         console.log(period)
         tr.find(".pay_period").val(period)
@@ -149,8 +150,10 @@
             }
         }
       });
+
       var disableDays = JSON.parse("#{escape_javascript(render(inline: current_company.holidays.pluck(:date).to_json)) }").map(e=>(new Date(e)))
       var data_src=JSON.parse("#{ escape_javascript(render(inline: payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.post_date, endDate: cc.post_date, postDate: cc.post_date} }.to_json)) }").map(e=>({...e,startDate: new Date(e.startDate),endDate: new Date(e.endDate),color: cc_color(e.name)}))
+      
       if (data_src.length > 0){
         $('.cycle_calendar').calendar({
           enableContextMenu: false,
@@ -180,12 +183,14 @@
           dataSource: data_src
         });
       }
+
       $('.c_date').datepicker({
         dateFormat: 'mm/dd/yy',
         prevText: '<i class="fa fa-chevron-left"></i>',
         nextText: '<i class="fa fa-chevron-right"></i>',
     });
     });
+
     function adjust_holiday(date){
       switch (moment(date).day()){
         case 6:
@@ -198,6 +203,7 @@
           return date
       }
     }
+    
     function get_date(value,frequency){
       switch(frequency) {
         case 'daily':
