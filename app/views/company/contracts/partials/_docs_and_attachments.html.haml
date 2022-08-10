@@ -458,98 +458,99 @@
                       Back
                     %i{class: "btn btn-primary pull-right next-btn", onClick:"nextDoc('buy_contract')"}
                       Next        
-        %label.control-label.font-weight-bold.mt-2 Employee/Vendor Documents
-        .contract-fields_wrapper.mt-2.contract-border
-          .row
-            .col-md-12.contract-attachment
-              %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
-                %li.nav-item.active.primary-nav.mr-0
-                  %a{"data-toggle" => "tab", :href => "#buy_emp_req_docs", class: "nav-link cumstom_nav-tab"}
-                    %span.badge.bg-color-blue.txt-color-white
-                    Request Documents
-                %li.nav-item.primary-nav.mr-0
-                  %a{"data-toggle" => "tab", :href => "#buy_send_documents", class: "nav-link cumstom_nav-tab"}
-                    %span.badge.bg-color-blue.txt-color-white
-                    Request E-Signature
-                - if @contract.buy_contract.company.present?
-                  %li.nav-item.primary-nav.mr-0
-                    %a{"data-toggle" => "tab", :href => "#buy_ven_req_docs", class: "nav-link cumstom_nav-tab"}
+        - if false 
+          %label.control-label.font-weight-bold.mt-2 Employee/Vendor Documents
+          .contract-fields_wrapper.mt-2.contract-border
+            .row
+              .col-md-12.contract-attachment
+                %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
+                  %li.nav-item.active.primary-nav.mr-0
+                    %a{"data-toggle" => "tab", :href => "#buy_emp_req_docs", class: "nav-link cumstom_nav-tab"}
                       %span.badge.bg-color-blue.txt-color-white
-                      Vendor Request Documents
-              .col-md-12.pl-0
-                .tab-content
-                  #buy_send_documents.tab-pane.padding-top-15
-                    .row
-                      .col-md-12
-                        .form-group
-                          .table-responsive
-                            %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_send_documents_modal", style: "color: #fff;"} Create Checklist
-                            %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
-                              %thead
-                                %tr{:role => "row"}
-                                  %th Document Title
-                                  %th Sent Date
-                                  %th Status
-                                  %th Signers
-                                  %th Envelope No
-                                  %th Signed Document
-                              %tbody#buy_send_documents_table
-                                - @candidate_signature_documents.each do |docusign|
-                                  %tr
-                                    %td= docusign.documentable.title
-                                    %td= docusign.created_at.strftime("%Y-%m-%d")
-                                    %td= docusign.is_sign_done ? "Signed" : "Pending"
-                                    %td.no-wrap
-                                      =show_users(docusign)
-                                    %td
-                                      = do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",10)
-                                    %td
-                                      = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
-                  #buy_emp_req_docs.tab-pane.padding-top-15.active.in
-                    .row
-                      .col-md-12
-                        .form-group
-                          .table-responsive
-                            %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_emp_req_docs_modal", style: "color: #fff;"} Create Checklist
-                            %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
-                              %thead
-                                %tr{:role => "row"}
-                                  %th Document Title
-                                  %th Sent Date
-                                  %th Status
-                                  %th Submitted Document
-                              %tbody#buy_emp_req_docs_table
-                                - @candidate_request_documents.each do |docusign|
-                                  %tr
-                                    %td= docusign.documentable.title
-                                    %td= docusign.created_at.strftime("%Y-%m-%d")
-                                    %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
-                                    %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign_file(docusign), title: "Download Document" if docusign.is_sign_done
-                  #buy_ven_req_docs.tab-pane.padding-top-15
-                    .row
-                      .col-md-12
-                        .form-group
-                          .table-responsive.p-4
-                            %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_ven_req_docs_modal", style: "color: #fff;"} Create Checklist
-                            %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
-                              %thead
-                                %tr{:role => "row"}
-                                  %th Document Title
-                                  %th Sent Date
-                                  %th Status
-                                  %th Signers
-                                  %th Envelope No
-                                  %th Signed Document
-                              %tbody#buy_ven_req_docs_table
-                                - @vendor_signature_documents.each do |docusign|
-                                  %tr
-                                    %td= docusign.documentable.title
-                                    %td= docusign.created_at.strftime("%Y-%m-%d")
-                                    %td= docusign.is_sign_done ? "Signed" : "Pending"
-                                    %td.d-flex
-                                      = show_users(docusign)
-                                    %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
-                                    %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+                      Request Documents
+                  %li.nav-item.primary-nav.mr-0
+                    %a{"data-toggle" => "tab", :href => "#buy_send_documents", class: "nav-link cumstom_nav-tab"}
+                      %span.badge.bg-color-blue.txt-color-white
+                      Request E-Signature
+                  - if @contract.buy_contract.company.present?
+                    %li.nav-item.primary-nav.mr-0
+                      %a{"data-toggle" => "tab", :href => "#buy_ven_req_docs", class: "nav-link cumstom_nav-tab"}
+                        %span.badge.bg-color-blue.txt-color-white
+                        Vendor Request Documents
+                .col-md-12.pl-0
+                  .tab-content
+                    #buy_send_documents.tab-pane.padding-top-15
+                      .row
+                        .col-md-12
+                          .form-group
+                            .table-responsive
+                              %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_send_documents_modal", style: "color: #fff;"} Create Checklist
+                              %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
+                                %thead
+                                  %tr{:role => "row"}
+                                    %th Document Title
+                                    %th Sent Date
+                                    %th Status
+                                    %th Signers
+                                    %th Envelope No
+                                    %th Signed Document
+                                %tbody#buy_send_documents_table
+                                  - @candidate_signature_documents.each do |docusign|
+                                    %tr
+                                      %td= docusign.documentable.title
+                                      %td= docusign.created_at.strftime("%Y-%m-%d")
+                                      %td= docusign.is_sign_done ? "Signed" : "Pending"
+                                      %td.no-wrap
+                                        =show_users(docusign)
+                                      %td
+                                        = do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",10)
+                                      %td
+                                        = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+                    #buy_emp_req_docs.tab-pane.padding-top-15.active.in
+                      .row
+                        .col-md-12
+                          .form-group
+                            .table-responsive
+                              %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_emp_req_docs_modal", style: "color: #fff;"} Create Checklist
+                              %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
+                                %thead
+                                  %tr{:role => "row"}
+                                    %th Document Title
+                                    %th Sent Date
+                                    %th Status
+                                    %th Submitted Document
+                                %tbody#buy_emp_req_docs_table
+                                  - @candidate_request_documents.each do |docusign|
+                                    %tr
+                                      %td= docusign.documentable.title
+                                      %td= docusign.created_at.strftime("%Y-%m-%d")
+                                      %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
+                                      %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign_file(docusign), title: "Download Document" if docusign.is_sign_done
+                    #buy_ven_req_docs.tab-pane.padding-top-15
+                      .row
+                        .col-md-12
+                          .form-group
+                            .table-responsive.p-4
+                              %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_ven_req_docs_modal", style: "color: #fff;"} Create Checklist
+                              %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
+                                %thead
+                                  %tr{:role => "row"}
+                                    %th Document Title
+                                    %th Sent Date
+                                    %th Status
+                                    %th Signers
+                                    %th Envelope No
+                                    %th Signed Document
+                                %tbody#buy_ven_req_docs_table
+                                  - @vendor_signature_documents.each do |docusign|
+                                    %tr
+                                      %td= docusign.documentable.title
+                                      %td= docusign.created_at.strftime("%Y-%m-%d")
+                                      %td= docusign.is_sign_done ? "Signed" : "Pending"
+                                      %td.d-flex
+                                        = show_users(docusign)
+                                      %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                                      %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
   - else
     .div.w-75.margin-auto
       %p.contract_warning_text= "You haven't onboarded the consultant/vendor to this contract. You can always #{link_to "GoBack",new_contract_path(contract_id: @contract.id)} to onboard a consultant/vendor. Incase it's entended, Please click 'Save and Continue'  to proceed as it is.".html_safe

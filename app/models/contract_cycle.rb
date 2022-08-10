@@ -72,7 +72,7 @@ class ContractCycle < ApplicationRecord
   scope :not_approved_and_completed, -> { where.not('status = ? OR status = ?', 1, 3) }
   scope :completed, -> { where(status: 'completed') }
   scope :overdue, -> { where('DATE(contract_cycles.end_date) < ?', DateTime.now.end_of_day.to_date) }
-  scope :todo, -> { where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today.beginning_of_day, Date.today.end_of_day) }
+  scope :todo, -> { where('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today.beginning_of_day, 3.month.from_now.end_of_day) }
   scope :todo_with_completed, -> { where('DATE(contract_cycles.end_date) BETWEEN ? AND ? OR status = ?', Date.today.beginning_of_day, Date.today.end_of_day, 1) }
   scope :todo_not, -> { where.not('DATE(contract_cycles.end_date) BETWEEN ? AND ?', Date.today.beginning_of_day, Date.today.end_of_day) }
 

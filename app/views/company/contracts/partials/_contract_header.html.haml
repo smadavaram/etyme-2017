@@ -4,6 +4,8 @@
       %span Contract ID:
       =contract.number
     %h4
+      =contract.title
+    %h7
       =contract.project_name
   %div.col-sm-6.text-right
     %h5{:class => "#{contract.status=='is_ended' || contract.status == 'pending' || contract.status == 'cancelled' ? 'text-danger' : 'text-success'}"}

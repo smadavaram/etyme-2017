@@ -43,7 +43,7 @@
   .timeline-blockwrap
     %h3.timeline-title
       To Do 
-    %p.small-text (Today's)
+    %p.small-text (Future 60 Days including today)
 
     - @contract_cycles.includes(:company).pending_with_submit.todo.order(start_date: :asc).each do |cc|
       / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)

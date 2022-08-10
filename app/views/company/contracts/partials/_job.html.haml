@@ -235,6 +235,10 @@
                       -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
 
 
+        %br
+        .row.hr_reporting_admins_table_body
+          = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
+      
       .contract-fields_wrapper.mt-4.toggle_sell_contract.contract-border
         -#%h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
         -#%h5.mb-4.d-inline-block.pull-right
@@ -269,10 +273,6 @@
                 .plain-select
                   = select_tag "company_contacts_ids[]", [] ,class:"w-100", id: 'selectize_sell_client_contacts'
                   -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
-        %hr
-        %br/
-        .row.hr_reporting_admins_table_body
-          = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
 
 
 
