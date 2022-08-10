@@ -74,7 +74,7 @@ class UserMailer < ApplicationMailer
         name: candidate.full_name,
         # url: "#{ENV['host_protocol']}://#{current_company.etyme_url}/static/companies/#{current_company.id}/candidates/#{cid}/resume",
         url: "#{ENV['host_protocol']}://#{current_company.etyme_url}/static/candidates/#{cid}/public/profile",
-        roles: candidate.try(:roles).present? ? candidate.roles.pluck(:name).to_sentence : '',
+        roles: candidate.try(:candidate_title).present? ? candidate.try(:candidate_title) : '',
         skills: candidate.skills.pluck(:name).to_sentence,
         location: candidate.try(:location),
         visa: candidate.candidate_visa,
@@ -83,7 +83,7 @@ class UserMailer < ApplicationMailer
     end
     @candidates_ids = candidates_ids
     @company = current_company
-    mail(from: to, to: "support@etyme.com", bcc: to_emails, subject: "#{current_company.name.titleize} #{subject}")
+    mail(from: to.include?("etyme.com") ? to : "support@etyme.com" ,to: to_emails, subject: "#{current_company.name.titleize} #{subject}")
   end
 
   def send_message_to_candidate(name, subject, message, to, sender_email)
