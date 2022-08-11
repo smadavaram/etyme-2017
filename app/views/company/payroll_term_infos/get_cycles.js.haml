@@ -12,7 +12,7 @@ var content = '';
 for(var i in e.events) {
 content += '<div class="event-tooltip-content">'
 + '<div class="event-name" style="color:' + e.events[i].color + '">' + e.events[i].name + '</div>'
-+ '<div class="event-location">Processed On: '  + e.events[i].postDate + '</div>'
++ '<div class="event-location">Processed On: '  + dateFormat(e.events[i].postDate, 'MM-dd-yyyy') + '</div>'
 + '</div>';
 }
 $(e.element).popover({

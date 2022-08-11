@@ -80,12 +80,12 @@
                 = f.radio_button :weekend_sch_biweekly, false,checked: payroll.weekend_sch_biweekly == false ? true : false, class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 After Holiday
             %tr{"data-frequency": "monthly",style: "#{ 'display: none;' unless ['monthly','twice a month'].include?(@payroll.payroll_type)}"}
-              %td.p-0{"data-type": "sc_date_1"}= f.text_field :sc_date_1, class: "p_date form-control", placeholder: "DD/MM/YYYY"
-              %td.p-0{"data-type": "sp_date_1"}= f.text_field :sp_date_1, class: "p_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
+              %td.p-0{"data-type": "sc_date_1"}= f.text_field :sc_date_1, class: "p_date form-control", placeholder: "MM/DD/YYYY"
+              %td.p-0{"data-type": "sp_date_1"}= f.text_field :sp_date_1, class: "p_date form-control sp_payroll init_period", placeholder: "MM/DD/YYYY"
               %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_monthly, months , {}, {class: "form-control init_period payroll_term" }
               %td.p-0{"data-type": "term_no"}= f.select :term_no_monthly, days , {}, {class: "form-control init_period term_no" }
               %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_monthly, class: "form-control pay_period", readonly: true
-              %td.p-0{"data-type": "sclr_date_1"}= f.text_field :sclr_date_1, class: "p_date form-control", placeholder: "DD/MM/YYYY"
+              %td.p-0{"data-type": "sclr_date_1"}= f.text_field :sclr_date_1, class: "p_date form-control", placeholder: "MM/DD/YYYY"
               %td.no-wrap{"data-type": "event"}
                 = f.radio_button :weekend_sch_monthly, true,checked: payroll.weekend_sch_monthly ? true : false, class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 Before Holiday
@@ -93,12 +93,12 @@
                 = f.radio_button :weekend_sch_monthly, false,checked: payroll.weekend_sch_monthly == false ? true : false ,class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 After Holiday
             %tr{"data-frequency": "twice a month",style: "#{ 'display: none;' unless @payroll.payroll_type == 'twice a month'}"}
-              %td.p-0{"data-type": "sc_date_2"}= f.text_field :sc_date_2, class: "p_date form-control", placeholder: "DD/MM/YYYY"
-              %td.p-0{"data-type": "sp_date_2"}= f.text_field :sp_date_2, class: "p_date form-control sp_payroll init_period", placeholder: "DD/MM/YYYY"
+              %td.p-0{"data-type": "sc_date_2"}= f.text_field :sc_date_2, class: "p_date form-control", placeholder: "MM/DD/YYYY"
+              %td.p-0{"data-type": "sp_date_2"}= f.text_field :sp_date_2, class: "p_date form-control sp_payroll init_period", placeholder: "MM/DD/YYYY"
               %td.p-0{"data-type": "payroll_term"}= f.select :payroll_term_twice_a_month, months , {}, {class: "form-control init_period payroll_term" }
               %td.p-0{"data-type": "term_no"}= f.select :term_no_twice_a_month, days , {}, {class: "form-control init_period term_no" }
               %td.p-0{"data-type": "pay_period"}= f.text_field :pay_period_twice_a_monthly, class: "form-control pay_period", readonly: true
-              %td.p-0{"data-type": "sclr_date_2"}= f.text_field :sclr_date_2, class: "p_date form-control", placeholder: "DD/MM/YYYY"
+              %td.p-0{"data-type": "sclr_date_2"}= f.text_field :sclr_date_2, class: "p_date form-control", placeholder: "MM/DD/YYYY"
               %td.no-wrap{"data-type": "event"}
                 = f.radio_button :weekend_sch_twice_a_month,true,checked: payroll.weekend_sch_twice_a_month ? true : false, class: 'set-checkbox payroll-schedule-btn'
                 %label.m-0 Before Holiday
@@ -150,10 +150,8 @@
             }
         }
       });
-
       var disableDays = JSON.parse("#{escape_javascript(render(inline: current_company.holidays.pluck(:date).to_json)) }").map(e=>(new Date(e)))
       var data_src=JSON.parse("#{ escape_javascript(render(inline: payroll.contract_cycles.map{|cc| {id: cc.id, name: cc.note, startDate: cc.post_date, endDate: cc.post_date, postDate: cc.post_date} }.to_json)) }").map(e=>({...e,startDate: new Date(e.startDate),endDate: new Date(e.endDate),color: cc_color(e.name)}))
-      
       if (data_src.length > 0){
         $('.cycle_calendar').calendar({
           enableContextMenu: false,
@@ -166,7 +164,7 @@
           for(var i in e.events) {
           content += '<div class="event-tooltip-content">'
           + '<div class="event-name" style="color:' + e.events[i].color + '">' + e.events[i].name + '</div>'
-          + '<div class="event-location">Processed On: '  + e.events[i].postDate + '</div>'
+          + '<div class="event-location">Processed On: '  + dateFormat(e.events[i].postDate, 'MM-dd-yyyy') + '</div>'
           + '</div>';
           }
           $(e.element).popover({
@@ -183,37 +181,59 @@
           dataSource: data_src
         });
       }
-
       $('.c_date').datepicker({
-        dateFormat: 'mm/dd/yy',
+        dateFormat: 'mm-dd-yy',
         prevText: '<i class="fa fa-chevron-left"></i>',
         nextText: '<i class="fa fa-chevron-right"></i>',
     });
     });
-
     function adjust_holiday(date){
       switch (moment(date).day()){
         case 6:
-          return moment(date).subtract(1, "days").format("YYYY-MM-DD");
+          return moment(date).subtract(1, "days").format("MM-DD-YYYY");
           break;
         case 0:
-          return moment(date).add(1, "days").format("YYYY-MM-DD");
+          return moment(date).add(1, "days").format("MM-DD-YYYY");
           break;
         default:
           return date
       }
     }
-    
     function get_date(value,frequency){
       switch(frequency) {
         case 'daily':
-          return moment().format("YYYY-MM-DD")
+          return moment().format("MM-DD-YYYY")
           break;
         case 'monthly' || 'twice a month':
           return value;
           break;
         case 'weekly' || 'biweekly':
-          return moment().day(value).format("YYYY-MM-DD");
+          return moment().day(value).format("MM-DD-YYYY");
           break;
       }
+    }
+
+    function dateFormat(inputDate, format) {
+      //parse the input date
+      const date = new Date(inputDate);
+
+      //extract the parts of the date
+      const day = date.getDate();
+      const month = date.getMonth() + 1;
+      const year = date.getFullYear();    
+
+      //replace the month
+      format = format.replace("MM", month.toString().padStart(2,"0"));        
+
+      //replace the year
+      if (format.indexOf("yyyy") > -1) {
+          format = format.replace("yyyy", year.toString());
+      } else if (format.indexOf("yy") > -1) {
+          format = format.replace("yy", year.toString().substr(2,2));
+      }
+
+      //replace the day
+      format = format.replace("dd", day.toString().padStart(2,"0"));
+
+      return format;
     }

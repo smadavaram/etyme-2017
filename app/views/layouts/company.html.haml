@@ -20,6 +20,31 @@
     %script{async: "async", src: 'https://platform-api.sharethis.com/js/sharethis.js#property=5f48045b584ea10012677add&product=inline-share-buttons', type: "text/javascript"}
     :javascript
       (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
+
+      function dateFormat(inputDate, format) {
+        //parse the input date
+        const date = new Date(inputDate);
+
+        //extract the parts of the date
+        const day = date.getDate();
+        const month = date.getMonth() + 1;
+        const year = date.getFullYear();    
+
+        //replace the month
+        format = format.replace("MM", month.toString().padStart(2,"0"));        
+
+        //replace the year
+        if (format.indexOf("yyyy") > -1) {
+            format = format.replace("yyyy", year.toString());
+        } else if (format.indexOf("yy") > -1) {
+            format = format.replace("yy", year.toString().substr(2,2));
+        }
+
+        //replace the day
+        format = format.replace("dd", day.toString().padStart(2,"0"));
+
+        return format;
+      };
     %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'} :cdata
     / GOOGLE FONT
     = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'

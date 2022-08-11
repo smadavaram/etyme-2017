@@ -82,7 +82,10 @@ module Cycle::Utils::DateUtils
       when 'biweekly'
         (start_date..end_date).to_a.find { |date| date.send(DAY_TRANSLATION[value.first.to_sym]) || date.send(DAY_TRANSLATION[value.second.to_sym]) }
       when 'monthly'
-        (start_date..end_date).to_a.find { |date| value.day == date.day }
+        begin
+          (start_date..end_date).to_a.find { |date| value.day == date.day }
+        rescue
+        end
       when 'weekly'
         (start_date..end_date).to_a.find { |date| date.send(DAY_TRANSLATION[value.to_sym]) }
       end
