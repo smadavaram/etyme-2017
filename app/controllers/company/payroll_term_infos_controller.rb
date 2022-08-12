@@ -32,22 +32,7 @@ class Company::PayrollTermInfosController < Company::BaseController
 
   def update
     if @payroll.update(payroll_params)
-      begin  
-        if payroll_params[:sclr_date_1].present?
-          date = Date.strptime(payroll_params[:sclr_date_1], '%m-%d-%Y')
-          @payroll.update(sclr_date_1: date.strftime('%Y/%m/%d'))
-        end
-      rescue
-        @payroll.update(sclr_date_1: payroll_params[:sclr_date_1])
-      end
-      begin
-        if payroll_params[:sc_date_1].present?
-          date = Date.strptime(payroll_params[:sc_date_1], '%m-%d-%Y')
-          @payroll.update(sc_date_1: date.strftime('%Y/%m/%d'))
-        end
-      rescue
-        @payroll.update(sc_date_1: payroll_params[:sc_date_1])
-      end
+      filters_date_parameters
       flash[:success] = 'Payroll has been updated'
       create_update_payroll
       redirect_to edit_payroll_term_info_path(@payroll), success: 'Cycles has been generated'
@@ -59,22 +44,7 @@ class Company::PayrollTermInfosController < Company::BaseController
   def create
     @payroll = current_company.payroll_infos.build(payroll_params)
     if @payroll.save
-      begin  
-        if payroll_params[:sclr_date_1].present?
-          date = Date.strptime(payroll_params[:sclr_date_1], '%m-%d-%Y')
-          @payroll.update(sclr_date_1: date.strftime('%Y/%m/%d'))
-        end
-      rescue
-        @payroll.update(sclr_date_1: payroll_params[:sclr_date_1])
-      end
-      begin
-        if payroll_params[:sc_date_1].present?
-          date = Date.strptime(payroll_params[:sc_date_1], '%m-%d-%Y')
-          @payroll.update(sc_date_1: date.strftime('%Y/%m/%d'))
-        end
-      rescue
-        @payroll.update(sc_date_1: payroll_params[:sc_date_1])
-      end
+      filters_date_parameters
       flash[:success] = 'Payroll has been created'
       create_update_payroll
       redirect_to edit_payroll_term_info_path(@payroll), success: 'Cycles has been generated'
@@ -329,5 +299,65 @@ class Company::PayrollTermInfosController < Company::BaseController
                                          :ven_term_no_1, :ven_term_no_2, :ven_bill_date_1, :ven_bill_date_2, :ven_pay_date_1, :ven_pay_date_2, :ven_clr_date_1, :ven_clr_date_2, :ven_bill_day_time,
                                          :ven_pay_day_time, :ven_clr_day_time, :ven_bill_end_of_month, :ven_pay_end_of_month, :ven_clr_end_of_month, :ven_payroll_type, :ven_term_num_1, :ven_term_num_2, :ven_term_1, :ven_term_2,
                                          tax_infos_attributes: %i[id tax_term _destroy])
+  end
+
+  def filters_date_parameters
+    begin  
+      if payroll_params[:sclr_date_1].present?
+        date = Date.strptime(payroll_params[:sclr_date_1], '%m-%d-%Y')
+        @payroll.update(sclr_date_1: date.strftime('%Y/%m/%d'))
+      end
+    rescue
+      @payroll.update(sclr_date_1: payroll_params[:sclr_date_1])
+    end
+    begin
+      if payroll_params[:sc_date_1].present?
+        date = Date.strptime(payroll_params[:sc_date_1], '%m-%d-%Y')
+        @payroll.update(sc_date_1: date.strftime('%Y/%m/%d'))
+      end
+    rescue
+      @payroll.update(sc_date_1: payroll_params[:sc_date_1])
+    end
+
+    begin  
+      if payroll_params[:sclr_date_2].present?
+        date = Date.strptime(payroll_params[:sclr_date_2], '%m-%d-%Y')
+        @payroll.update(sclr_date_2: date.strftime('%Y/%m/%d'))
+      end
+    rescue
+      @payroll.update(sclr_date_2: payroll_params[:sclr_date_2])
+    end
+    begin
+      if payroll_params[:sc_date_2].present?
+        date = Date.strptime(payroll_params[:sc_date_2], '%m-%d-%Y')
+        @payroll.update(sc_date_2: date.strftime('%Y/%m/%d'))
+      end
+    rescue
+      @payroll.update(sc_date_2: payroll_params[:sc_date_2])
+    end
+    begin
+      if payroll_params[:sp_date_2].present?
+        date = Date.strptime(payroll_params[:sp_date_2], '%m-%d-%Y')
+        @payroll.update(sp_date_2: date.strftime('%Y/%m/%d'))
+      end
+    rescue
+      @payroll.update(sp_date_2: payroll_params[:sp_date_2])
+    end
+    begin
+      if payroll_params[:sp_date_1].present?
+        date = Date.strptime(payroll_params[:sp_date_1], '%m-%d-%Y')
+        @payroll.update(sp_date_1: date.strftime('%Y/%m/%d'))
+      end
+    rescue
+      @payroll.update(sp_date_1: payroll_params[:sp_date_1])
+    end
+    begin
+      if payroll_params[:pay_period_twice_a_monthly].present?
+        date = Date.strptime(payroll_params[:pay_period_twice_a_monthly], '%m-%d-%Y')
+        @payroll.update(pay_period_twice_a_monthly: date.strftime('%Y/%m/%d'))
+      end
+    rescue
+      @payroll.update(pay_period_twice_a_monthly: payroll_params[:pay_period_twice_a_monthly])
+    end
   end
 end
