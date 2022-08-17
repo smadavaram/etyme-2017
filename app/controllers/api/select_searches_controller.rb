@@ -39,7 +39,7 @@ class Api::SelectSearchesController < ApplicationController
   end
 
   def find_jobs
-    @jobs = current_company.jobs.like_any([:title], params[:q].to_s.split).paginate(page: params[:page], per_page: params[:per_page])
+    @jobs = current_company.jobs.where(listing_type: "Job").like_any([:title], params[:q].to_s.split).paginate(page: params[:page], per_page: params[:per_page])
     respond_with @jobs
   end
 
