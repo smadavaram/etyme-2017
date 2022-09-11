@@ -123,7 +123,7 @@ class Company::ContractsController < Company::BaseController
   def buy_document_create
     @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
     @plugin = current_company.plugins.first
-    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 2 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
         @document_sign = current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false, part_of: @buy_contract, signers_ids: params[:signers].to_s.tr('[', '{').tr(']', '}'))
@@ -155,7 +155,7 @@ class Company::ContractsController < Company::BaseController
   def buy_ven_doc_create
     @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
     @plugin = current_company.plugins.docusign.first
-    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 2 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
         @document_sign = current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @buy_contract.company.owner, is_sign_done: false, part_of: @buy_contract, signers_ids: params[:signers].to_s.tr('[', '{').tr(']', '}'))
@@ -178,7 +178,7 @@ class Company::ContractsController < Company::BaseController
   def submit_document_create
     @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
     @plugin = current_company.plugins.first
-    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 2 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
         @document_sign = current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @sell_contract.team_admin, is_sign_done: false, part_of: @sell_contract, signers_ids: params[:signers].to_s.tr('[', '{').tr(']', '}'))

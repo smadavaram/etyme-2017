@@ -107,7 +107,7 @@ class Company::ConversationsController < Company::BaseController
     main_signer = get_main_signer
     co_signers = params[:signers]
     co_signers&.pop
-    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 2 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       @company_candidate_docs.each do |sign_doc|
         @document_sign = current_company.document_signs.create(

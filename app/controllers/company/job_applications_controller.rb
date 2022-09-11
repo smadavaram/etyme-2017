@@ -74,7 +74,7 @@ class Company::JobApplicationsController < Company::BaseController
 
   def request_sign
     @plugin = current_company.plugins.first
-    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 5 ? true : RefreshToken.new(@plugin).refresh_docusign_token
+    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 2 ? true : RefreshToken.new(@plugin).refresh_docusign_token
     if response.present?
       result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
       if !result.is_a?(Hash) && (result.status == 'sent')
