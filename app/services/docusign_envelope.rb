@@ -72,7 +72,8 @@ class DocusignEnvelope
   def create_envelope
     access_token  = @plugin.access_token
     account_id    = @plugin.account_id
-    base_path     = ENV['docusign_envelope_base_path']
+    base_path     = @plugin.base_path
+
 
     envelope_definition = DocuSign_eSign::EnvelopeDefinition.new
     envelope_definition.email_subject = 'Please sign this document sent from Etyme'
