@@ -1,0 +1,41 @@
+*.etyme.com
+  encode gzip
+  root * /home/deploy/apps/etyme/current/public
+
+  file_server
+
+  @notStatic {
+    not file
+  }
+
+  @websockets {
+    header Connection *Upgrade*
+    header Upgrade websocket
+  }
+
+  reverse_proxy @notStatic @websockets localhost:3000
+}
+
+:443 {
+  import Caddycommon
+  encode gzip
+  root * /home/deploy/apps/etyme/current/public
+
+  on_demand_tls {
+    # on-demand
+    ask localhost:3000/v1/company/companies/present.json
+  }
+
+  file_server
+
+  @notStatic {
+    not file
+  }
+
+  @websockets {
+    header Connection *Upgrade*
+    header Upgrade websocket
+  }
+
+  reverse_proxy @notStatic @websockets localhost:3000
+}

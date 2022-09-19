@@ -13,6 +13,15 @@ class Api::Company::CompaniesController < ApplicationController
 
   add_breadcrumb 'Companies', :companies_path, title: ''
 
+  def present
+    # host: For CNAMED site, e.g abc.com or live.abc.com.
+    Company.find_by!(custom_domain: params['domain'])
+
+    head :ok
+  rescue ActiveRecord::RecordNotFound
+    head :not_found
+  end
+
   def fetch_owner
     @admin = Job.find_by(id: params[:job_id]).company.owner
     render 'get_owner', admin: @admin, status: :ok
@@ -101,6 +110,7 @@ class Api::Company::CompaniesController < ApplicationController
       end
     end
   end
+
   def create_custom_company
     data =  params["data"]["contact"]["fields"]
     if data["email"].present? && data["first_name"].present?
@@ -127,7 +137,6 @@ class Api::Company::CompaniesController < ApplicationController
       render json: { message: 'Data incomplete!' }
     end
   end
-
 
   def update
     respond_to do |format|
@@ -388,10 +397,10 @@ class Api::Company::CompaniesController < ApplicationController
                                       company_contacts_attributes: %i[id type first_name last_name email company_id phone title _destroy],
                                       invited_by_attributes: %i[invited_by_company_id user_id],
                                       custom_fields_attributes: %i[id name value _destroy]],
-                                    addresses_attributes: %i[id address_1 address_2 country city state zip_code],
-                                    billing_infos_attributes: %i[id address country city zip],
-                                    branches_attributes: %i[id branch_name address country city zip],
-                                    departments_attributes: %i[id name])
+                                      addresses_attributes: %i[id address_1 address_2 country city state zip_code],
+                                      billing_infos_attributes: %i[id address country city zip],
+                                      branches_attributes: %i[id branch_name address country city zip],
+                                      departments_attributes: %i[id name])
   end
 
   def make_uniq_identifier
