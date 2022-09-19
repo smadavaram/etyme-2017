@@ -1,11 +1,9 @@
 # frozen_string_literal: true
-require 'puma/daemon'
 
 if ENV.fetch('RAILS_ENV') == 'production'
   max_threads_count = ENV.fetch('RAILS_MAX_THREADS') { 16 }
   min_threads_count = ENV.fetch('RAILS_MIN_THREADS') { max_threads_count }
 
-  daemonize true
   threads min_threads_count, max_threads_count
   port ENV.fetch('PORT') { 3000 }
   state_path 'tmp/pids/puma.state'

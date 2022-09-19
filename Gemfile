@@ -12,7 +12,6 @@ gem 'rails', '5.2.4.5'
 gem 'signature-pad-rails'
 
 gem 'browser-timezone-rails'
-gem 'puma-daemon', require: false
 gem 'puma'
 
 gem 'ajax-datatables-rails'
