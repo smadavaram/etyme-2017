@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+require 'puma/daemon'
 
 if ENV.fetch('RAILS_ENV') == 'production'
   max_threads_count = ENV.fetch('RAILS_MAX_THREADS') { 16 }

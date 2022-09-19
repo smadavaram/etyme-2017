@@ -1,0 +1,196 @@
+<div class="content-box">
+	<div class="element-wrapper">
+		<div class="element-box">
+			<%= render partial: 'company/companies/sub_menu_company'%>
+			<div id="content">
+				<div class="row" style="padding: 15px;">
+					<%= form_for @company,as: "company",url: company_company_path(@company.id),method: :put do |f| %>
+						<% #= f.fields_for :company_infos do |b| %>
+						<div class="row">
+							<div class="col-md-6">
+								<div class="form-group">
+									<%= f.text_field :name,placeholder: "Forward to Domain",class: 'form-control' %>
+								</div>
+							</div>
+							<div class="col-md-6">
+								<button class="btn btn-info" data-target="#myModal" data-toggle="modal" style="font-size:12px; color:white;" type="button">Set Domain</button>
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-md-6">
+								<%= f.text_field :phone , class: 'form-control' , placeholder: 'Phone Number' %>
+							</div>
+							<div class="col-md-6">
+								<%= f.text_field :fax_number , class: 'form-control' , placeholder: 'Fax Number' %>
+							</div>
+						</div>
+						<br/>
+						<%= f.fields_for :addresses do |address| %>
+							<div class="row">
+								<div class="col-md-12">
+									<div class="form-group">
+										<%= address.text_field :address_1,:placeholder => "Address 1",class: "form-control a_address",id:'ad1' %>
+									</div>
+								</div>
+							</div>
+							<div class="row">
+								<div class="col-md-4">
+									<div class="form-grup">
+										<%= address.text_field :city,placeholder: "city",class: 'form-control a_city' %>
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-group">
+										<%= address.text_field :country, placeholder: "country", class: 'form-control a_country' %>
+									</div>
+								</div>
+								<div class="col-md-4">
+									<div class="form-group">
+										<%= address.text_field :zip_code,placeholder: "zip/pincode",class: 'form-control a_zip' %>
+									</div>
+								</div>
+							</div>
+							<div class="row">
+								<div class="col-md-5">
+									<p>
+										<b>Billing and headquarter address same?</b>
+									</p>
+								</div>
+								<div class="col-md-3">
+									<div class="form-group">
+										<%= radio_button_tag 'same_billing_addr', true, false %>
+										<%= label_tag 'same_billing_addr', 'Yes' %>
+									</div>
+								</div>
+								<div class="col-md-3">
+									<div class="form-group">
+										<%= radio_button_tag 'same_billing_addr', false, true %>
+										<%= label_tag 'same_billing_addr', 'No' %>
+									</div>
+								</div>
+							</div>
+						<% end %>
+						<%= f.fields_for :billing_infos do |b| %>
+							<div class="billing_info">
+								<div class="row">
+									<div class="col-md-12">
+										<div class="form-group">
+											<%= b.text_area :address,placeholder: "address", class: 'form-control b_address' %>
+										</div>
+									</div>
+								</div>
+								<div class="row">
+									<div class="col-md-4">
+										<div class="form-group">
+											<%= b.text_field :city,placeholder: "city",class: 'form-control b_city' %>
+										</div>
+									</div>
+									<div class="col-md-4">
+										<div class="form-group">
+											<%= b.text_field :country, placeholder: "country", class: 'form-control b_country' %>
+										</div>
+									</div>
+									<div class="col-md-4">
+										<div class="form-group">
+											<%= b.text_field :zip,placeholder: "zip/pincode",class: 'form-control b_zip' %>
+										</div>
+									</div>
+								</div>
+							</div>
+						<% end %>
+						<div class="row form-group">
+							<div class="col-lg-12 multi-field-wrapper">
+								<p>
+									<b>Branch Info</b>
+								</p>
+								<!-- .form-group.candidate-association  
+								-->
+								<div class="multi-fields">
+									<%= f.fields_for :branches, f.object.branches do |b| %>
+										<%= render 'company/companies/branch_fields', f: b %>
+									<% end %>
+									<!-- = link_to_add_fields 'company/companies/branch_fields', f, :branches
+									-->
+									<strong>
+										<div class="links">
+											<%= link_to_add_association '+ Add Branch', f, :branches, class: '', partial: 'company/companies/branch_fields' %>
+										</div>
+									</strong>
+								</div>
+							</div>
+						</div>
+						<div class="row form-group">
+							<div class="col-lg-12 multi-field-wrapper">
+								<p>
+									<b>Custom Domain</b>
+								</p>
+								<div class="row">
+									<div class="col-md-12">
+										<div class="form-group">
+											<%= f.text_field :custom_domain, placeholder: "Custom Domain", class: 'form-control' %>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="row form-group">
+							<div class="col-lg-12 multi-field-wrapper">
+								<p>
+									<b>Banner</b>
+								</p>
+								<div class="row">
+									<div class="col-md-12">
+										<div class="form-group">
+											<%= f.text_field :banner_title, placeholder: "Banner Title", class: 'form-control' %>
+										</div>
+										<div class="form-group">
+											<%= f.text_field :banner_text, placeholder: "Banner Text", class: 'form-control' %>
+										</div>
+										<div class="form-group">
+											<%= f.text_field :banner_btn_label, placeholder: "Call to Action Label", class: 'form-control' %>
+										</div>
+										<div class="form-group">
+											<%= f.text_field :banner_btn_url, placeholder: "Call to Action URL", class: 'form-control' %>
+											<p class="mt-1">
+												<a href="#" id="banner-two">+ Add/Show</a>
+											</p>
+										</div>
+										<div class="form-group d-none">
+											<%= f.text_field :banner_two_btn_label, placeholder: "Call to Action Label", class: 'form-control' %>
+										</div>
+										<div class="form-group d-none">
+											<%= f.text_field :banner_two_btn_url, placeholder: "Call to Action URL", class: 'form-control' %>
+										</div>
+										<div class="form-group">
+											<%= label_tag :banner_color, "Background Color:" %>
+											<%= f.color_field :banner_color %>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="row">
+							<div class="col-lg-12">
+								<% #%button.btn.pull-left{:type => "button"} %>
+								<% #  Back %>
+								<button class="btn btn-primary pull-right" style="margin-left: 20px" type="button">
+									Next
+								</button>
+								<button class="btn btn-primary pull-right" type="submit">
+									Save
+								</button>
+							</div>
+						</div>
+					<% end %>
+				</div>
+
+			</div>
+		</div>
+	</div>
+</div>
+
+
+
+
+                    
+
