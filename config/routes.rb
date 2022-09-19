@@ -861,12 +861,13 @@ Rails.application.routes.draw do
 
     namespace :company do
       resources :companies, only: %i[index create] do
-        post :add_company, on: :collection
-        get :fetch_owner, on: :collection
+        collection do
+          post :add_company
+          get :fetch_owner
+          get :present
+        end
       end
-    end
-
-    namespace :company do
+      
       resources :jobs, only: %i[index create] do
         post :add_job, on: :collection
       end
