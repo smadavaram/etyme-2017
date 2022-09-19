@@ -14,8 +14,10 @@ class Api::Company::CompaniesController < ApplicationController
   add_breadcrumb 'Companies', :companies_path, title: ''
 
   def present
-    # host: For CNAMED site, e.g abc.com or live.abc.com.
-    Company.find_by!(custom_domain: params['domain'])
+    req = ActionDispatch::Request.new 'HTTP_HOST' => params['domain']
+    subdomain = req.subdomains.first
+    
+    Company.where(custom_domain: params['domain']).or(Company.where(slug: subdomain)).first!
 
     head :ok
   rescue ActiveRecord::RecordNotFound

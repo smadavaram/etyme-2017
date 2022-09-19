@@ -1,6 +1,18 @@
-*.etyme.com
+{
+  email support@etyme.com
+  on_demand_tls {
+    # on-demand
+    ask http://localhost:3000/v1/company/companies/present.json
+  }
+}
+
+www.etyme.com app.etyme.com {
   encode gzip
   root * /home/deploy/apps/etyme/current/public
+  
+  tls {
+    issuer acme
+  }
 
   file_server
 
@@ -17,13 +29,12 @@
 }
 
 :443 {
-  import Caddycommon
   encode gzip
   root * /home/deploy/apps/etyme/current/public
 
-  on_demand_tls {
-    # on-demand
-    ask localhost:3000/v1/company/companies/present.json
+  tls {
+    issuer acme
+    on_demand
   }
 
   file_server
