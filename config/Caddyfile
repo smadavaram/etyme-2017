@@ -6,7 +6,7 @@
   }
 }
 
-www.etyme.com app.etyme.com {
+app.etyme.com {
   encode gzip
   root * /home/deploy/apps/etyme/current/public
   
