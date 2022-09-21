@@ -7,7 +7,7 @@ class Company::TimesheetsController < Company::BaseController
   # before_action :set_timesheets , only: [:index]
   before_action :user_timesheet, only: %i[submit_timesheet add_hrs approve reject]
   before_action :authorized_user, only: %i[show approve]
-  skip_before_action :verify_authenticity_token, only: [:client_timesheets]
+  # skip_before_action :verify_authenticity_token, only: [:client_timesheets]
   add_breadcrumb 'Dashboard', :dashboard_path
 
   include CandidateHelper
