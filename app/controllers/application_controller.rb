@@ -2,7 +2,7 @@
 
 class ApplicationController < ActionController::Base
   impersonates :candidate
-  protect_from_forgery
+  # protect_from_forgery
   layout :set_devise_layout
   before_action :is_user_authorized?
   # before_action :set_raven_context
