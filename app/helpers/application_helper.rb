@@ -31,9 +31,9 @@ module ApplicationHelper
 
   def white_labled_company_user_url(user, company, request)
     if request.host == company.custom_domain
-      company_user_url(host: company.custom_domain)
+      company_user_url(current_user, host: company.custom_domain)
     else
-      company_user_url(subdomain: current_user.domain)
+      company_user_url(current_user, subdomain: current_user.domain)
     end
   end
 
