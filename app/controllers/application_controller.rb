@@ -120,7 +120,7 @@ class ApplicationController < ActionController::Base
 
   def current_company
     # return Company.first if Rails.env.development?
-    @current_company = Company.find_by(slug: request.subdomain)
+    @current_company = Company.find_by(slug: request.subdomain) || Company.find_by(custom_domain: request.domain)
   end
 
 
