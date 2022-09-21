@@ -113,9 +113,7 @@
         </div>
       </div>
       <div class="dropdown-menu">
-        <%#= link_to 'Dashboard', marketplace_url(subdomain: current_user.domain, company: 'on', 'search_by[term]': '', 'search_scope': ''), target: '_blank', class: 'dropdown-item' %>
-        <%= link_to 'Dashboard', dashboard_url(subdomain: current_user.domain), class: 'dropdown-item' %>
-        <%#= link_to 'Onboarding', company_url(current_company,onboarding: true, subdomain: current_user.domain), class: 'dropdown-item' %>
+        <%= link_to 'Dashboard', white_labled_dashboard_url(current_user, current_company, request), class: 'dropdown-item' %>
         <%# unless current_user.company.domain == "support" %>
           <% if company_contact&.subscribed?%>
             <%= link_to 'unsubscribe',
@@ -124,7 +122,7 @@
           <% end %>
         <%# end %>
 
-        <%= link_to 'Profile', company_user_url(current_user, subdomain: current_user.domain), class: 'dropdown-item' %>
+        <%= link_to 'Profile', white_labled_company_user_url(current_user, current_company, request), class: 'dropdown-item' %>
         <%= link_to "Logout", destroy_user_session_path, method: :delete, class: 'dropdown-item' %>
       </div>
     </div>
