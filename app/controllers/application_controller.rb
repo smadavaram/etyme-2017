@@ -118,14 +118,22 @@ class ApplicationController < ActionController::Base
     user.class.to_s == 'Candidate' ? :candidates : :users
   end
 
-  def current_company
-    # return Company.first if Rails.env.development?
-    puts "*****************REQUEST DOMAIN********************************"
-    puts request.domain
-    puts "***************************************************************"
-    @current_company = Company.find_by(slug: request.subdomain) || Company.find_by(custom_domain: request.domain)
+  def custom_domain?
+    if Rails.env == "development"
+      return false
+    else
+      request_domain_with_port = "#{request.domain}#{request.port_string}"
+      request_domain_with_port != Rails.application.config.domain
+    end
   end
 
+  def current_company
+    if custom_domain?
+      @current_company = Company.find_by(custom_domain: request.host)
+    else
+      @current_company = Company.find_by(slug: request.subdomain)
+    end
+  end
 
   def prepare_exception_notifier
     request.env['exception_notifier.exception_data'] = {

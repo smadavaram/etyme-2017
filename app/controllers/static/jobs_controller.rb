@@ -393,7 +393,7 @@ class Static::JobsController < ApplicationController
 
   def current_company
     if custom_domain?
-      Company.find_by(custom_domain: request.domain)
+      Company.find_by(custom_domain: request.host)
     else
       Company.find_by(slug: request.subdomain)
     end
