@@ -16,9 +16,8 @@ class Api::Company::CompaniesController < ApplicationController
   def present
     req = ActionDispatch::Request.new 'HTTP_HOST' => params['domain']
     subdomain = req.subdomains.first
-    
-    Company.where(custom_domain: params['domain']).or(Company.where(slug: subdomain)).first!
-
+    params[:domain] = params[:domain].delete_prefix("www.") if params[:domain].include?("www.")
+    Company.where(custom_domain: params[:domain]).or(Company.where(slug: subdomain)).first!
     head :ok
   rescue ActiveRecord::RecordNotFound
     head :not_found
