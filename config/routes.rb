@@ -647,6 +647,11 @@ Rails.application.routes.draw do
         post :create
       end
     end
+    resources :domain_settings, only: [] do
+      collection do
+        get 'index/:company_id', to: 'domain_settings#index', as: :add
+      end
+    end
     resources :contracts, concerns: :paginatable, except: [:destroy] do
       resources :contracts
       collection do
