@@ -31,3 +31,6 @@
       %li.nav-item{:class => ("active" if params[:controller]=="company/bank_details")}
         = link_to add_bank_details_path(current_company), class:"nav-link" do
           Banks
+      %li.nav-item{:class => ("active" if params[:controller]=="company/domain_settings")}
+        = link_to add_domain_settings_path(current_company), class:"nav-link" do
+          Customize
