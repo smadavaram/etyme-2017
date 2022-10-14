@@ -104,7 +104,6 @@ end
 
 group :development, :test do
   gem 'mailgun-ruby', '~>1.1.6'
-  # gem 'annotate' # , '~> 2.7'
   gem 'bcrypt_pbkdf', '< 2.0'
   # gem 'better_errors' # , '~> 1.1.0'
   gem 'binding_of_caller'
