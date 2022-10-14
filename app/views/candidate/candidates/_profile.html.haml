@@ -226,9 +226,11 @@
                     Add new
             .element-info.border-0
               .element-info-text
-                - candidate.skill_list.each do |sl|
-                  .badge.badge-primary.p-2.mb-1
-                    =sl
+                %ol{:class => ("sortable" if current_company ), "data-update-url" => sort_skills_company_candidate_path(candidate.id) }
+                  - candidate.skill_taggings.order(:position).each do |skill|
+                    %li.badge.badge-primary.p-2.m-1{:id => dom_id(skill)}
+                      = skill.tag.name
+
       .col-sm-8.col-xl-8
         .col-sm-12
           .element-wrapper
@@ -364,6 +366,10 @@
   %link{:href => "https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.5.8/slick-theme.min.css", :rel => "stylesheet", :type => "text/css"}
 
 :css
+  ol {
+    padding-inline-start: 0px;
+  }
+
   table {
     font-family: arial, sans-serif;
     border-collapse: collapse;
@@ -383,10 +389,21 @@
 :javascript
   var tags = #{raw @tags.to_json};
   var clients = #{raw @clients.to_json};
-  
-  $(document).ready(function() {    
-    $(".slick-track").css("width", "600px"); 
-    
+
+  $(document).ready(function() {
+    $(function() {
+      $('.sortable').sortable(
+        {
+          axis: "x, y",
+          update: function() {
+            $.post($(this).data('update-url'), $(this).sortable('serialize'));
+          }
+        }
+      );
+    });
+
+    $(".slick-track").css("width", "600px");
+
     (function( $ ) {
       "use strict";
       $.fn.jQCloud = function(word_array, options) {
@@ -610,30 +627,30 @@
     })(jQuery);
 
     slider_count = $(".slide-container").length
-    
+
     if (slider_count == 2){
-      $("#slick-slide00").empty().jQCloud(tags); 
-      $("#slick-slide01").empty().jQCloud(clients); 
+      $("#slick-slide00").empty().jQCloud(tags);
+      $("#slick-slide01").empty().jQCloud(clients);
 
       $(this).delay(100).queue(function() {
-        $("#slick-slide00").empty().jQCloud(tags); 
-        $("#slick-slide01").empty().jQCloud(clients); 
+        $("#slick-slide00").empty().jQCloud(tags);
+        $("#slick-slide01").empty().jQCloud(clients);
         $(this).dequeue();
       });
 
     }else{
-      $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags); 
-      $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients); 
-    
+      $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags);
+      $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients);
+
       $(this).delay(100).queue(function() {
-        $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags); 
-        $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients); 
+        $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags);
+        $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients);
         $(this).dequeue();
       });
 
     }
 
-    
+
 
   });
 
@@ -673,4 +690,3 @@
      }
    });
   }
-

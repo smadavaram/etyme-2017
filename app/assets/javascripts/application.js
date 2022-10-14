@@ -51,3 +51,6 @@
 
 
 // require cable
+
+//= require jquery_ujs
+//= require jquery-ui/widgets/sortable

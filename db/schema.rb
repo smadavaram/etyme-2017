@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_08_06_132743) do
+ActiveRecord::Schema.define(version: 2022_10_12_113634) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -1976,6 +1976,7 @@ ActiveRecord::Schema.define(version: 2022_08_06_132743) do
     t.integer "tagger_id"
     t.string "context", limit: 128
     t.datetime "created_at"
+    t.integer "position", default: 0
     t.index ["context"], name: "index_taggings_on_context"
     t.index ["tag_id", "taggable_id", "taggable_type", "context", "tagger_id", "tagger_type"], name: "taggings_idx", unique: true
     t.index ["tag_id"], name: "index_taggings_on_tag_id"
