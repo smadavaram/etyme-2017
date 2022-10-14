@@ -1684,15 +1684,15 @@ def contact_widget_user(user)
 contact_widget(user.email, user.phone, nil, color: '#3E4B5B; !important', chat_link: chat_link(user))
 end
 
-def fetch_tags(candidate)
+def fetch_tags candidate
   @tags = []
-  if candidate.skill_taggings.exists?
-    candidate.skill_taggings.order(:position)&.each do |skill_tagging|
-      @tags << { text: skill_tagging.tag.name, weight: skill_tagging.position * -1 }
+  if candidate.skills.present?
+    candidate.skills.order(:taggings_count)&.each do |tg|
+      @tags << { text: tg.name, weight: tg.taggings_count+9} 
     end
   end
+  return @tags
 
-  @tags
 end
 
 def fetch_clients candidate
