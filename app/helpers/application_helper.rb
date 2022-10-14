@@ -1686,7 +1686,7 @@ end
 
 def fetch_tags(candidate)
   @tags = []
-  if candidate.skill_taggings.present?
+  if candidate.skill_taggings.exists?
     candidate.skill_taggings.order(:position)&.each do |skill_tagging|
       @tags << { text: skill_tagging.tag.name, weight: skill_tagging.position * -1 }
     end
