@@ -4,7 +4,7 @@ class Company::CandidatesController < Company::BaseController
   add_breadcrumb 'Dashboard', :dashboard_path
 
   # add_breadcrumb "CANDIDATE", :candidate_path, options: { title: "CANDIDATE" }
-  before_action :find_candidate, only: %i[edit update add_reminder assign_status bench_info sort_skills]
+  before_action :find_candidate, only: %i[edit update add_reminder assign_status bench_info]
   before_action :find_signup_candidate, only: [:create_chat]
   before_action :get_conversation, only: :show
 
@@ -293,13 +293,6 @@ class Company::CandidatesController < Company::BaseController
   end
 
   def assign_status; end
-
-  def sort_skills
-    params[:acts_as_taggable_on_tagging].each_with_index do |id, index|
-      @candidate.skill_taggings.find(id).update(position: index + 1)
-    end
-    head :ok
-  end
 
   private
 

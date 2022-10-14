@@ -371,7 +371,6 @@ Rails.application.routes.draw do
     resources :candidates do
       member do
         get :profile
-        post :sort_skills
         get :impersonate
         post :company_candidate, as: :make
         post :request_for_more_information

@@ -1,7 +1,6 @@
 GEM
   remote: https://rubygems.org/
   remote: https://rails-assets.org/
-  remote: https://github.com/gulraiznaseer/acts-as-taggable-on.git/
   specs:
     ace-rails-ap (4.4)
     actioncable (5.2.4.5)
@@ -1761,7 +1760,7 @@ PLATFORMS
 DEPENDENCIES
   activeadmin
   activeadmin_json_editor (~> 0.0.7)
-  acts-as-taggable-on!
+  acts-as-taggable-on
   ajax-datatables-rails
   ancestry
   annotate
