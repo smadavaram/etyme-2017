@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2021_12_26_202604) do
+ActiveRecord::Schema.define(version: 2022_08_06_132743) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -269,6 +269,7 @@ ActiveRecord::Schema.define(version: 2021_12_26_202604) do
     t.string "sclr_2day_of_week"
     t.string "integration"
     t.bigint "payroll_info_id"
+    t.string "vendor_contacts_ids", default: [], array: true
     t.index ["candidate_id"], name: "index_buy_contracts_on_candidate_id"
     t.index ["contract_id"], name: "index_buy_contracts_on_contract_id"
   end
@@ -435,8 +436,8 @@ ActiveRecord::Schema.define(version: 2021_12_26_202604) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2022-04-08 16:44:00"
-    t.datetime "updated_at", default: "2022-04-08 16:44:00"
+    t.datetime "created_at", default: "2022-10-11 08:09:00"
+    t.datetime "updated_at", default: "2022-10-11 08:09:00"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -525,6 +526,22 @@ ActiveRecord::Schema.define(version: 2021_12_26_202604) do
     t.datetime "updated_at", null: false
     t.integer "ce_in_cycle_id"
     t.index ["job_id"], name: "index_client_expenses_on_job_id"
+  end
+
+  create_table "client_references", force: :cascade do |t|
+    t.string "name"
+    t.string "email"
+    t.string "country_code"
+    t.string "phone"
+    t.bigint "designation_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "recruiter_name"
+    t.string "recruiter_phone"
+    t.string "recruiter_email"
+    t.string "recruiter_phone_country_code"
+    t.string "recruiter_title"
+    t.index ["designation_id"], name: "index_client_references_on_designation_id"
   end
 
   create_table "clients", force: :cascade do |t|
@@ -1063,6 +1080,20 @@ ActiveRecord::Schema.define(version: 2021_12_26_202604) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "designation_projects", force: :cascade do |t|
+    t.string "project_name"
+    t.string "client_name"
+    t.string "location"
+    t.date "start_date"
+    t.date "end_date"
+    t.text "project_description"
+    t.text "job_description"
+    t.bigint "designation_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["designation_id"], name: "index_designation_projects_on_designation_id"
+  end
+
   create_table "designations", force: :cascade do |t|
     t.bigint "candidate_id"
     t.string "comp_name"
@@ -1078,6 +1109,11 @@ ActiveRecord::Schema.define(version: 2021_12_26_202604) do
     t.integer "confirmation", default: 0
     t.bigint "client_id"
     t.string "recruiter_phone_country_code"
+    t.text "project_description"
+    t.text "job_description"
+    t.string "project_name"
+    t.string "location"
+    t.string "nature_of_work"
     t.index ["candidate_id"], name: "index_designations_on_candidate_id"
   end
 
