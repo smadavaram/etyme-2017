@@ -56,10 +56,10 @@
                             %input{:type => "text", :name => "Title", :placeholder => "title", :class => "wi-100", value: c.candidate.candidate_title}/
                         %td
                           %span{:id => "skills_#{c.candidate.id}"}
-                            - c.candidate.skills.each do |skill|
-                              %span
-                                .label-info.badge.margin-bottom-5.badge-info
-                                  = skill.name
+                            %ol{:class => "sortable", "data-update-url" => sort_skills_company_candidate_path(c.candidate.id) }
+                              - c.candidate.skill_taggings.order(:position).each do |skill|
+                                %li.label-info.badge.margin-bottom-5.badge-info.m-1{:id => dom_id(skill)}
+                                  = skill.tag.name
                           %span{:id => "input_skills_#{c.candidate.id}", :class => "d-none"}
                             %input{:type => "text", :name => "job_invitation[skill_list]", :placeholder => "Add Skills Comma seperated", :class => "wi-100", 'data-role'=>'tagsinput',value: (c.candidate.skill_list.present? ? c.candidate.skill_list.join(", ") : "")}
                         %td
@@ -103,6 +103,10 @@
                         %span{:id => "bench_action_edit_#{c.candidate.id}", :class => "d-none"}
                           = link_to "save", "#", title: "Edit #{c.candidate.full_name}", :style => "color: white;", :class => "btn btn-primary save_bench_job", candidate_id: c.candidate.id, company_id: c.company.id
 :css
+  ol {
+    padding-inline-start: 0px;
+  }
+
   .form-control
   {
     background-color: white !important;
@@ -117,7 +121,17 @@
 
 -content_for :scripts do
   :javascript
-     $(document).ready(function(){
+      $(document).ready(function(){
+        $(function() {
+          $('.sortable').sortable(
+            {
+              axis: "x, y",
+              update: function() {
+                $.post($(this).data('update-url'), $(this).sortable('serialize'));
+              }
+            }
+          );
+        });
       default_active_nav('.ln-5');
     });
 
