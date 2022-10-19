@@ -51,14 +51,14 @@ source 'https://rails-assets.org' do
 end
 # Bullettrain uses this to detect the size of the logo assets.
 gem 'fastimage'
-
+gem 'phonelib'
 gem 'ancestry'
 gem 'awesome_print'
 gem 'pg', '~> 0.18'
 gem 'rails-jquery-autocomplete'
 #gem 'rails_12factor', group: :production
 
-gem 'acts-as-taggable-on', source: "https://github.com/gulraiznaseer/acts-as-taggable-on.git"
+gem 'acts-as-taggable-on'#, source: "https://github.com/gulraiznaseer/acts-as-taggable-on.git"
 gem 'will_paginate' # , '~> 3.1'
 
 gem 'bootstrap_form'
