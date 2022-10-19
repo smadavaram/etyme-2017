@@ -1,0 +1,7 @@
+<% if @result %>
+  $("#error-message").addClass("hidden")
+  $(".next_submit_link").removeClass("hidden")
+<% else %>
+  $("#error-message").removeClass("hidden")
+  $(".next_submit_link").addClass("hidden")
+<% end %>

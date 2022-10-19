@@ -1515,6 +1515,7 @@ GEM
     parser (3.0.1.1)
       ast (~> 2.4.1)
     pg (0.21.0)
+    phonelib (0.7.4)
     popper_js (1.12.9)
     power_assert (2.0.0)
     pretender (0.3.4)
@@ -1839,6 +1840,7 @@ DEPENDENCIES
   paper_trail
   paranoia
   pg (~> 0.18)
+  phonelib (~> 0.7.4)
   popper_js (~> 1.12.9)
   pretender (~> 0.3.2)
   pry

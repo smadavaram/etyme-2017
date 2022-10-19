@@ -21,6 +21,10 @@
           .form-group
             .input-group
               %a.btn.btn-primary.disabled.btn-lg{:href => "javascript:void(0);", :onclick => "smsLogin();", "area-disabled" =>  "true"} Send OTP
+      .row
+        .col-sm-12
+          .span.padding-bottom-10.text-danger.hidden#error-message
+            Invalid phone number provided
   %h4.element-header
     Verify Email
   .row

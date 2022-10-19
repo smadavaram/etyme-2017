@@ -220,6 +220,18 @@
         );
       };
 
+      $(document).on("change","#country_code, #phone_no", function(){
+        phone_no = $("#phone_no").val();
+        country_code = $("#country_code").val();
+        $.ajax({
+          type: 'PATCH',
+          dataType: 'script',
+          url: " #{ validate_phone_number_candidates_path } ",
+          data: { phone_number: country_code + phone_no, authenticity_token: window._token },
+          success: function (data) {  }
+        });
+      });
+
       $('#bootstrap-wizard-1').bootstrapWizard({
         'tabClass': 'form-wizard',
         'onNext': function (tab, navigation, index) {
