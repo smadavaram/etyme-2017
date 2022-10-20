@@ -93,8 +93,10 @@ class Candidate < ApplicationRecord
   devise :invitable, :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable, :confirmable
 
+  validate :phone_format, if: proc { |candidate| candidate.phone.present? }
   validates :first_name, presence: true
   validates :last_name, presence: true
+
   enum online_candidate_status: {
     online: 'online',
     in_a_meeting: 'in_a_meeting',
@@ -226,6 +228,10 @@ class Candidate < ApplicationRecord
   acts_as_taggable_on :skills, :designates
 
   validate :max_skill_size
+
+  def phone_format
+    errors.add(:phone, "invalid format") if Phonelib.invalid?(phone_country_code + phone)
+  end
 
   def self.from_omniauth(auth)
     candidate = Candidate.where(email: auth.info.email).first

@@ -28,17 +28,24 @@ namespace :import do
           imported_rows += 1
         end
       end
+
+      puts "#{total_rows} rows scanned"
     end
 
     puts "#{imported_rows} out of #{total_rows} Candidates Imported Successfully !!"
-    puts "These candidates already exists in database\n #{not_imported_candidates}" if not_imported_candidates.count.positive?
+    if not_imported_candidates.count.positive?
+      puts "These are the logs"
+      not_imported_candidates.each do |email, error|
+        puts "#{email} => #{error}"
+      end
+    end
   end
 
   private
 
   def candidates_params(row)
     splited_name_array = row['name'].split(' ', 2)
-    skill_list = row['skills'].split(' ')
+    skill_list = row['skills'].split(';')
     phone = Phonelib.parse(row['phone'])
     phone_number = phone.national_number
     phone_country_code = phone.country_code || "+1"
@@ -50,7 +57,9 @@ namespace :import do
       skill_list: skill_list,
       location: row['location'],
       phone: phone_number,
-      phone_country_code: phone_country_code
+      phone_country_code: phone_country_code,
+      password: row['email'],
+      password_confirmation: row['email']
     }
   end
 end
