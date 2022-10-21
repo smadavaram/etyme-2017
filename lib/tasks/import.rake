@@ -49,11 +49,11 @@ namespace :import do
   private
 
   def candidates_params(row)
-    splited_name_array = row['name'].split(' ', 2)
-    skill_list = row['skills'].split(';')
+    splited_name_array = row['name']&.split(' ', 2) || []
+    skill_list = row['skills']&.split(';')&.first(8) || []
     phone = Phonelib.parse(row['phone'])
-    phone_number = phone.national_number
-    phone_country_code = phone.country_code || "+1"
+    phone_number = phone.national_number == "N/A" ? nil : phone.national_number
+    phone_country_code = phone.country_code || (phone_number.nil? ? nil : "+1")
 
     {
       first_name: splited_name_array.first,
