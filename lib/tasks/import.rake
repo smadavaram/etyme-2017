@@ -86,12 +86,22 @@ namespace :import do
   end
 
   def generate_csv(data, file_name)
-    return if data.empty?
+    generate_empty_file(file_name) and return if data.empty?
 
     CSV.open("lib/tasks/#{file_name}.csv", "wb", {headers: data.first.keys} ) do |csv|
       csv << data.first.keys
       data.each do |hash|
         csv << hash
+      end
+    end
+  end
+
+  def generate_empty_file(file_name)
+    CSV.open("lib/tasks/#{file_name}.csv", "wb") do |csv|
+      if file_name == "valid_candidates"
+        csv << ["name", "phone", "email", "skills", "locations"]
+      else
+        csv << ["name", "phone", "email", "skills", "locations"]
       end
     end
   end
