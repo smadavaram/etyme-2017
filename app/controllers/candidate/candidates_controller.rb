@@ -315,6 +315,10 @@ class Candidate::CandidatesController < Candidate::BaseController
     @clients = fetch_clients(current_candidate)
   end
 
+  def validate_phone_number
+    @result = Phonelib.valid?(params["phone_number"])
+  end
+
   def onboarding_profile
     add_breadcrumb 'Onboard profile', onboarding_profile_path
 

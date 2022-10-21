@@ -110,6 +110,7 @@ Rails.application.routes.draw do
         end
       end
       collection do
+        patch :validate_phone_number
         get :companies
         get :groups
         get :contacts

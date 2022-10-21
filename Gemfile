@@ -5,6 +5,8 @@ source 'https://rubygems.org'
 gem 'paper_trail'
 
 ruby '2.6.5'
+
+gem 'phonelib', '~> 0.7.4'
 gem 'best_in_place'
 gem 'mina' # ,'~> 0.2.1'
 gem 'mina-multistage' # , '<= 1.0.1', require: false
