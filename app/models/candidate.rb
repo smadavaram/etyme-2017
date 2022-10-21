@@ -93,9 +93,9 @@ class Candidate < ApplicationRecord
   devise :invitable, :database_authenticatable, :registerable,
          :recoverable, :rememberable, :trackable, :confirmable
 
-  validate :phone_format, if: proc { |candidate| candidate.phone.present? }
   validates :first_name, presence: true
   validates :last_name, presence: true
+  validate :phone_format, if: proc { |candidate| candidate.phone.present? && candidate.phone_country_code.present? }
 
   enum online_candidate_status: {
     online: 'online',
