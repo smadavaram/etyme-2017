@@ -53,7 +53,6 @@ source 'https://rails-assets.org' do
 end
 # Bullettrain uses this to detect the size of the logo assets.
 gem 'fastimage'
-gem 'phonelib'
 gem 'ancestry'
 gem 'awesome_print'
 gem 'pg', '~> 0.18'
