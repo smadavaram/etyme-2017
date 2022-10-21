@@ -7,6 +7,13 @@
     .row.p-4
       .col-sm-4.col-md-5.col-lg-4.col-xl-4
         .user-profile.compact
+          - if current_company.present?
+            .element-wrapper
+            .element-box.px-4.py-3
+            .div
+              %h4.text-info
+                = etyme_recruiter_check(candidate.recruiter_id)
+
           .up-head-w{:style => "background-image:url(#{candidate.photo.blank? ? asset_path('avatars/m_sunny_big.png') : candidate.photo})"}
             - if own
               = link_to '#', class: 'profile--link', onclick: "upload_file_ajax(candidateLogoUpload)" do
@@ -124,6 +131,16 @@
                       %span Relocation
                     .bar-label-right
                       %span= candidate.relocation ? 'Yes' : 'No'
+
+                .os-progress-bar.primary
+                - if current_company.present?
+                  .bar-labels
+                    .bar-label-left.font-weight-bold
+                      %span Assigned By
+                    -if candidate.recruiter
+                      .bar-label-right
+                        %span=do_ellipsis(candidate.recruiter.first_name+" "+candidate.recruiter.last_name)
+                        %span.text-success
                 %h6.my-4 Linked Information
                 %div.d-flex.justify-content-between.flex-wrap.w-100
                   - if candidate.skypeid.present?
