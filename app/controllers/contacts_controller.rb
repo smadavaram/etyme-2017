@@ -15,4 +15,18 @@ class ContactsController < Company::BaseController
     flash[:success] = 'Import Contacts process has been started.Please check candidate or contacts section after sometime.'
   end
 
+  def add_to_group
+    if params[:contacts][:ids].blank?
+      flash[:errors] = 'No contacts selected!'
+    elsif params[:contacts][:group_ids].reject(&:blank?).blank?
+      flash[:errors] = 'No groups selected!'
+    else
+      params[:contacts][:ids].split(',').each do |c_id|
+        company_contact = CompanyContact.find(c_id.to_i)
+        company_contact.update_attribute(:group_ids, params[:contacts][:group_ids])
+      end
+      flash[:success] = 'Groups Assigned to selected contacts.'
+    end
+    redirect_back fallback_location: root_path
+  end
 end

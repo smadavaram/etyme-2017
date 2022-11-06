@@ -52,6 +52,9 @@ Rails.application.routes.draw do
   end
 
   resources :contacts, only: :index do
+    collection do
+      post :add_to_group
+    end
     get :import_contacts, on: :collection
   end
   get '/contacts/:importer/import_contacts' => 'contacts#import_contacts'
