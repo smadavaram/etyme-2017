@@ -63,7 +63,6 @@ class Company::JobsController < Company::BaseController
       @job.end_date   = Time.now + 100.years
     end
 
-    byebug
     respond_to do |format|
       if @job.save
         # CreateGoogleIndex.new(@job, "URL_UPDATED").index_job if @job.published?
