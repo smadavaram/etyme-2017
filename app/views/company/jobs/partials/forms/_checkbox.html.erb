@@ -1,0 +1,14 @@
+<% resource ||= form.object %>
+<% attributes ||= {} %>
+<% icon ||= nil %>
+<% field_id = "#{form.object.class.name.underscore}_#{attribute}" %>
+<% field_attributes = {class: "form-control set-checkbox", id: field_id}.merge(field_attributes || {}) %>
+<div class="form-group">
+  <%= form.label attribute, field_attributes[:label], for: field_id %>
+  </br>
+  <% if block_given? && yield.try(:strip).present? %>
+    <%= yield %>
+  <% else %>
+    <%= form.check_box attribute , field_attributes%>
+  <% end %>
+</div>

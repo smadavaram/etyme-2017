@@ -40,9 +40,15 @@ class Company::JobApplicationsController < Company::BaseController
   def create_multiple_for_candidate
     find_job
     if request.post?
+      messages = []
       Candidate.where(id: params[:temp_candidates]).each do |c|
-        c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id)
+        begin
+          c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id)
+        rescue ActiveRecord::RecordInvalid => e
+          messages << "#{c.first_name} is already an applicant"
+        end
       end
+      flash[:error] = messages
       @post = true
       redirect_back(fallback_location: root_path)
 
