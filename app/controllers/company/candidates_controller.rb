@@ -121,6 +121,38 @@ class Company::CandidatesController < Company::BaseController
     redirect_back fallback_location: root_path
   end
 
+  def assign_groups_to_candidate
+    @company_candidate = current_company.candidates.find(params[:candidate_id])
+    if request.post?
+      groups = params[:invited_company][:group_ids]
+      groups = groups.reject(&:empty?)
+      groups_id = groups.map(&:to_i)
+      @company_candidate.update_attribute(:group_ids, groups_id)
+      # @invited_company.update_attribute(:group_ids, groups_id)
+      if @company_candidate.save
+        flash[:success] = 'Groups has been assigned'
+      else
+        flash[:errors] = @company_candidate.errors.full_messages
+      end
+      redirect_back fallback_location: root_path
+    end
+  end
+
+  def add_to_group
+    if params[:candidates][:group_ids].reject(&:blank?).blank?
+      flash[:errors] = 'No groups selected!'
+    else
+      params[:candidates][:ids].split(',').each do |c_id|
+        company_candidate = current_company.candidates.find(c_id.to_i)
+        next unless company_candidate
+
+        company_candidate.update_attribute(:group_ids, params[:candidates][:group_ids])
+      end
+      flash[:success] = 'Groups Assigned to selected candidates.'
+    end
+    redirect_back fallback_location: root_path
+  end
+
   def get_or_create_bench_candidate
     candidate = Candidate.find_by(email: params[:candidate][:email]) || current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: 'campany_candidate'))
 

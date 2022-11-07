@@ -17,8 +17,7 @@
               %table#my_bench_datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
                 %thead
                   %tr
-                    %th
-                      %input{ type:"checkbox", name:"select_all", id:"example-select-all"}
+                    %th= "<input type='checkbox' onclick='selectAll(this);' name='select_all_bench' id='select_all'>".html_safe
                     %th Name
                     %th Role/Title
                     %th Skills
@@ -121,22 +120,22 @@
 
 -content_for :scripts do
   :javascript
-      $(document).ready(function(){
-        $(function() {
-          $('.sortable').sortable(
-            {
-              axis: "x, y",
-              update: function() {
-                $.post($(this).data('update-url'), $(this).sortable('serialize'));
-              }
+    $(document).ready(function(){
+      $(function() {
+        $('.sortable').sortable(
+          {
+            axis: "x, y",
+            update: function() {
+              $.post($(this).data('update-url'), $(this).sortable('serialize'));
             }
-          );
-        });
+          }
+        );
+      });
       default_active_nav('.ln-5');
     });
 
     if ("#{flash[:already_exist]}"){
-        $('#add-network').modal('toggle');
+      $('#add-network').modal('toggle');
     }
 
     $('.end_date').datepicker({dateFormat : 'dd/mm/yy'});
@@ -233,3 +232,10 @@
         }
       });
     });
+
+    function selectAll(obj) {
+      var checkBox = document.querySelectorAll('input[name="ids[]"]');
+      for (i = 0; i < checkBox.length; ++i) {
+        checkBox[i].checked = obj.checked;
+      }
+    };

@@ -52,6 +52,9 @@ Rails.application.routes.draw do
   end
 
   resources :contacts, only: :index do
+    collection do
+      post :add_to_group
+    end
     get :import_contacts, on: :collection
   end
   get '/contacts/:importer/import_contacts' => 'contacts#import_contacts'
@@ -207,13 +210,15 @@ Rails.application.routes.draw do
 
     # resources :contracts        , only: [:index]
     resources :candidates, only: %i[show update create] do
-      get 'current_status', on: :collection
-      get 'status_update', on: :collection
-      get 'chat_status_update', on: :collection
-      get 'move_to_employer', on: :collection
-      post 'online_candidates_status', on: :collection
-      get 'job/:id', to: 'candidates#get_job', on: :collection, as: :fetch_job
-      get 'build_profile/:id/resume', to: 'candidates#build_profile', on: :collection, as: :resume_profile
+      collection do
+        get 'current_status'
+        get 'status_update'
+        get 'chat_status_update'
+        get 'move_to_employer'
+        post 'online_candidates_status'
+        get 'job/:id', to: 'candidates#get_job', as: :fetch_job
+        get 'build_profile/:id/resume', to: 'candidates#build_profile', as: :resume_profile
+      end
     end
     resources :jobs do
       # resources :contracts , except: [:index] do
@@ -370,6 +375,10 @@ Rails.application.routes.draw do
       match :create_chat, via: %i[get post]
     end
     resources :candidates do
+      match :assign_groups_to_candidate, via: %i[get post]
+      collection do
+        post :add_to_group
+      end
       member do
         get :profile
         post :sort_skills

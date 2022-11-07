@@ -8,6 +8,7 @@
               .row.mr-1.ml-1
                 .col-sm-6
                   %a.btn.btn-sm.btn-secondary{ :href => "#{new_company_candidate_path}", :title => "New Candidate" } Add Candidate
+                  %a.btn.btn-sm.btn-secondary{ href: '#', title: 'Add to Group(s)', onclick: 'add_to_groups_modal();' } Add to Group(s)
                 .col-sm-6
                   .form-inline.justify-content-sm-end
                     %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'company-candidates-datatable-search'}
@@ -15,8 +16,7 @@
               %table#company-candidates-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped{"data-source" => "/candidates.json"}
                 %thead
                   %tr
-                    %th
-                      %input{ type:"checkbox", name:"select_all", id:"example-select-all"}
+                    %th= "<input type='checkbox' onclick='selectAll(this);' name='id[]' id='select_all'>".html_safe
                     %th Name
                     %th Recruiter
                     %th Visa
@@ -32,3 +32,30 @@
     $(document).ready(function(){
       default_active_nav('.ln-3');
     });
+
+    function selectAll(obj) {
+      var checkBox = document.querySelectorAll('input[name="id[]"]');
+      for (i = 0; i < checkBox.length; ++i) {
+        checkBox[i].checked = obj.checked;
+      }
+    };
+
+    function add_to_groups_modal() {
+      var array = [];
+      var checkBox = document.querySelectorAll('input[name="id[]"]:checked');
+      if (checkBox.length == 0)
+      {
+        flash_info('Please select Candidates(s) first!');
+        return null;
+      }
+      $('.remote_container').html("#{ j render 'company/candidates/partials/assign_groups_to_candidates_modal' }");
+      $('#candidates-groups-modal').modal('toggle');
+      $(".select2").select2({placeholder: "Select Group(s)"});
+      for (i = 0; i < checkBox.length; ++i) {
+        if (checkBox[i].value != 'on') {
+          array.push(checkBox[i].value);
+        }
+      }
+      $('#candidate_ids').val(array);
+    };
+
