@@ -4,7 +4,10 @@
       <div class="width-100 mx-0 mx-sm-2">
         <div class="thumb-100 thumb-xs-80" >
           <% if job&.files.present? %>
-            <%= image_tag(job.files) %>
+            <%begin %>
+              <%= image_tag(job.files) %>
+            <%rescue %>
+            <%end%>
           <% elsif job.tags.present? %>
             <div class="text-image text-image-font">
               <%= job.tags.first %>
