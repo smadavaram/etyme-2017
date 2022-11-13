@@ -27,12 +27,12 @@
                 .tabbable.tabs-below
                   .tab-content.padding-10
                     %section#widget-grid{}
-                      = render 'company/jobs/partials/vendor_invitation', job: job ,companies: companies
+                      = render 'company/jobs/partials/vendor_invitation', job: job ,companies: companies, groups: groups
               #hr2.tab-pane
                 .tabbable.tabs-below
                   .tab-content.padding-10
                     %section#widget-grid{style: 'margin-top: 10px;'}
-                      = render 'company/jobs/partials/send_candidate_invitation',job: job ,candidates: candidates
+                      = render 'company/jobs/partials/send_candidate_invitation',job: job ,candidates: candidates, groups: groups
                       -#=render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.rejected}
 
               #hr3.tab-pane
@@ -49,9 +49,15 @@
      $("#vendor_company").select2({
           placeholder: "Select Companies"
       });
+    $("#vendor_groups").select2({
+      placeholder: "Select Company Groups"
+    });
      $("#temp_candidates").select2({
      placeholder: "Select Candidate"
      });
+    $("#temp_groups").select2({
+      placeholder: "Select Candidate Groups"
+    });
      $('#job_invitation_expiry,#direct_email,#vendor_expiry').datepicker({
         dateFormat : 'dd/mm/yy'
      });

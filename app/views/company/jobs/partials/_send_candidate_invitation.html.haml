@@ -2,13 +2,20 @@
   = f.hidden_field :job_id , value: job.id
   = f.hidden_field :recipient_type , value: 'Candidate'
   %br
-  .form-group
-    %label.col-md-2.control-label
+
+  .form-group.pb-4
+    %label.row-lg-4.pl-2.control-label
       Select Candidate
       %sup.text-danger *
     .col-md-10
       = select_tag 'temp_candidates', options_for_select(candidates.uniq.collect { |c| [c.full_name,c.id] }),prompt: "Select Candidate" ,class: 'form-control' , required: true ,:multiple => true
-  .form-group
+  .form-group.pb-4
+    %label.row-lg-4.pl-2.control-label
+      Select Groups
+      %sup.text-danger *
+    .col-md-10
+      = select_tag 'temp_groups', options_for_select(groups.uniq.collect { |group| [group.group_name,group.id] }),prompt: "Select Group" ,class: 'form-control' , required: true ,:multiple => true
+  .form-group.pb-2
     %label.col-md-2.control-label
       Expiry Date
       %sup.text-danger *

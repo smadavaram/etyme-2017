@@ -5,7 +5,7 @@
       Select Groups
       %sup.text-danger *
     .col-md-8.mr-bottom-20.popup_select
-      = f.select :group_ids, options_for_select(current_company.groups.map { |c| [c.group_name, c.id] }, company.groups.map { |c| c.id }), {}, class: 'form-control select2' , multiple: true
+      = f.select :group_ids, options_for_select(current_company.groups.contact_groups.map { |c| [c.group_name, c.id] }, company.groups.contact_groups.map { |c| c.id }), {}, class: 'form-control select2' , multiple: true
   .modal-footer
     = f.button "Update Group".html_safe, class: 'btn btn-primary', data: {disable_with: ("Updating...")}, id: 'form_id'
     %button.btn.btn-default{ "data-dismiss" => "modal", :type => "button" }

@@ -120,7 +120,11 @@ class Company::JobInvitationsController < Company::BaseController
         current_company.sent_job_invitations.create!(invitation_params.merge!(created_by_id: current_user.id, invitation_type: 'candidate', recipient_type: 'Candidate', recipient_id: c.id))
       end
     end
-    redirect_back fallback_location: root_path
+    if params[:temp_groups].present?
+      SendJobInvitationsJob.perform_later(params[:temp_groups], invitation_params, current_company, current_user)
+      flash[:notice] = 'Sending Job invitations to all candidates from selected groups.'
+    end
+    redirect_back fallback_location: root_path, success: 'Job Invitation Sent'
   end
 
   def import
