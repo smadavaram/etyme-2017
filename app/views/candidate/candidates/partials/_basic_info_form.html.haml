@@ -15,9 +15,13 @@
         = f.text_field :dob  ,:placeholder => "Date Of Birth",class:'form-control input p_date'
     .col-sm-6
       %label SSN
-      .form-group
+      .mb-0.form-group
         = f.text_field :ssn  ,:placeholder => "SSN Number",class:'form-control input'
         .help-block.form-text.text-muted.form-control-feedback We will not share without permission
+    .col-sm-12
+      %label About Summary(Max 300 words)
+      .form-group
+        = f.text_area :about_summary ,:placeholder => "Enter Summary",class:'form-control input',:maxlength => 300
     -#.col-sm-6
     -#  %label Passport Number
     -#  .form-group
