@@ -436,8 +436,8 @@ ActiveRecord::Schema.define(version: 2022_11_15_145309) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2022-10-11 08:09:00"
-    t.datetime "updated_at", default: "2022-10-11 08:09:00"
+    t.datetime "created_at", default: "2022-11-03 23:36:55"
+    t.datetime "updated_at", default: "2022-11-03 23:36:55"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -1522,7 +1522,7 @@ ActiveRecord::Schema.define(version: 2022_11_15_145309) do
     t.float "latitude"
     t.float "longitude"
     t.integer "created_by_candidate_id"
-    t.boolean "allow_multiple_applications_for_candidate"
+    t.boolean "allow_multiple_applications_for_candidate", default: false
     t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
   end
 

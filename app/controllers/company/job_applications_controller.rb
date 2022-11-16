@@ -52,6 +52,7 @@ class Company::JobApplicationsController < Company::BaseController
           messages << "#{c.first_name} is already an applicant"
         end
       end
+      flash[:error] = messages
       @post = true
       redirect_back(fallback_location: root_path)
 

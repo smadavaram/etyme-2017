@@ -1,0 +1,18 @@
+= form_for :contacts , url: add_to_group_contacts_path,method: :post ,html:{ class:'form-horizontal',id: 'group-val'} do |f|
+  %br/
+  .form-group
+    = f.hidden_field 'ids', id: 'contact_ids', value: []
+    %label.col-md-3.control-label
+      Select Groups
+      %sup.text-danger *
+    .col-md-8.mr-bottom-20.popup_select
+      = f.select :group_ids, options_for_select(current_company.groups.map { |company| [company.group_name,company.id] }, []), {}, class: 'form-control select2', multiple: true
+  .modal-footer
+    = f.button "Update Group".html_safe, id: 'groups_select', class: 'btn btn-primary', data: { disable_with: ("Updating...") }, id: 'form_id'
+    %button.btn.btn-default{ "data-dismiss" => "modal", :type => "button" }
+      Cancel
+:css
+  .select2{
+    width: 389px;
+    }
+
