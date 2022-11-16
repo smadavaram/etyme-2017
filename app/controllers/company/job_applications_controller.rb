@@ -46,7 +46,7 @@ class Company::JobApplicationsController < Company::BaseController
           if @job.status == 'Bench'
             c.job_applications.create!(job_application_params.merge!(cover_letter: 'Application created by owner', job_id: @job.id, applied_by: current_user))
           else
-            c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id)
+            c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id, applied_by: current_user)
           end
         rescue ActiveRecord::RecordInvalid => e
           messages << "#{c.first_name} is already an applicant"
