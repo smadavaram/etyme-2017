@@ -3,4 +3,37 @@
 -else
   $('.remote_container').empty().html("#{ j render 'company/job_applications/partials/modal_create_multipile_for_candidate.html.haml' , job: @job}");
   $('#job-invitation-multiple-#{@job.id} ').modal('toggle');
-  $(".job_select2").select2({placeholder: "Select a Candidate(s)"});
+  $(".job_select2").select2({placeholder: "Select a Candidate"});
+  $(".resume_select2").select2({placeholder: "Please Select Or Add new Resume"});
+  $("#select_candidate_resume").select2({placeholder: "Please Select Or Add new Resume", minimumResultsForSearch: -1});
+  set_client_partner_select('#select_client_partner', "Please Select Or Add new Client Partner");
+  set_candidate_resumes('#select_candidate_resumes', "Please Select Or Add new Resume");
+  set_hr();
+
+  :plain
+    function set_hr(){
+      $("#select_candidate_resumes").val(null).trigger('change');
+      $.ajax({
+        url: "/company/candidates/"+$("#temp_candidates").val(),
+        cache: false,
+        success: function(data){
+          $(".hr_field").val(data.recruiter_name);
+        }
+      });
+    }
+    google.maps.event.addDomListener(window, 'load', function () {
+      console.log("GOOGLE1");
+      var places = new google.maps.places.Autocomplete(document.getElementById('location'));
+      google.maps.event.addListener(places, 'place_changed', function () {
+        var place = places.getPlace();
+        $("#post_ad_latitude").val(place.geometry.location.lat());
+        $("#post_ad_longitude").val(place.geometry.location.lng());
+      });
+    });
+    var input = document.getElementById('location');
+    google.maps.event.addDomListener(input, 'keydown', function(event) {
+      console.log("GOOGLE2");
+      if (event.keyCode === 13) {
+        event.preventDefault();
+      }
+    });

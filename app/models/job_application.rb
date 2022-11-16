@@ -37,6 +37,8 @@ class JobApplication < ApplicationRecord
   enum status: %i[applied short_listed prescreen rate_confirmation client_submission interviewing hired rejected pending_review]
   enum application_type: %i[direct candidate_direct vendor_direct invitation witout_registration with_recurator]
 
+  belongs_to :applied_by, class_name: 'User', foreign_key: 'user_id', optional: true
+  belongs_to :client_partner, class_name: 'CompanyContact', foreign_key: 'company_contact_id', optional: true
   belongs_to :job_invitation, optional: true
   belongs_to :applicationable, polymorphic: true, optional: true
   belongs_to :job, optional: true
@@ -56,6 +58,8 @@ class JobApplication < ApplicationRecord
 
   # validates :cover_letter , :applicant_resume ,presence: true
   validates :cover_letter, presence: false
+  validates :applicant_resume, presence: true
+  validates :applicationable, presence: true
 
   # validates :application_type, inclusion: { in: application_types.keys }
   validates :status, inclusion: { in: statuses.keys }

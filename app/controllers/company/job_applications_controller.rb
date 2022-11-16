@@ -40,8 +40,17 @@ class Company::JobApplicationsController < Company::BaseController
   def create_multiple_for_candidate
     find_job
     if request.post?
+      messages = []
       Candidate.where(id: params[:temp_candidates]).each do |c|
-        c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id)
+        begin
+          if @job.status == 'Bench'
+            c.job_applications.create!(job_application_params.merge!(cover_letter: 'Application created by owner', job_id: @job.id, applied_by: current_user))
+          else
+            c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id)
+          end
+        rescue ActiveRecord::RecordInvalid => e
+          messages << "#{c.first_name} is already an applicant"
+        end
       end
       @post = true
       redirect_back(fallback_location: root_path)
@@ -373,7 +382,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def job_application_params
-    params.require(:job_application).permit([:message, :cover_letter, :status, :applicant_resume, custom_fields_attributes:
+    params.require(:job_application).permit([:message, :cover_letter, :status, :applicant_resume, :client_name, :end_client_job_title, :company_contact_id, :work_type, :client_job_location, custom_fields_attributes:
         %i[
           id
           name

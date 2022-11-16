@@ -59,6 +59,92 @@ var set_company_select = function (selector, place_holder) {
     }
 }
 
+var set_client_partner_select = function (selector, place_holder) {
+    if ($(selector).length > 0) {
+        $(selector).select2({
+            ajax: {
+                url: "/api/select_searches/find_company_contacts_by_email",
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        per_page: 10,
+                        q: params.term, // search term
+                        page: params.page
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: data.contacts,
+                        pagination: {
+                            more: (params.page * 10) < data.total_count
+                        }
+                    };
+                },
+                cache: true
+            },
+            language: {
+                noResults: function () {
+                    return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-contract-company' href='#'>Add New</a>";
+                }
+            },
+            placeholder: place_holder,
+            escapeMarkup: function (markup) {
+                return markup;
+            },
+            templateResult: formatClientPartner,
+            templateSelection: formatCompanyContactSelection
+        });
+    }
+}
+
+var set_candidate_resumes = function (selector, place_holder) {
+    if ($(selector).length > 0) {
+        $(selector).select2({
+            ajax: {
+                url: function() {
+                  return "/api/company/candidates/"+$("#temp_candidates").val()+"/get_resumes";
+                },
+                dataType: 'json',
+                delay: 250,
+                data: function (params) {
+                    return {
+                        per_page: 10,
+                        page: params.page
+                    };
+                },
+                processResults: function (data, params) {
+                    params.page = params.page || 1;
+                    return {
+                        results: $.map(data.resumes, function (item) {
+                          return {
+                              text: item.name,
+                              id: item.resume
+                          }
+                        }),
+                        pagination: {
+                            more: (params.page * 10) < data.total_count
+                        }
+                    };
+                },
+                cache: false
+            },
+            language: {
+                noResults: function () {
+                    return "No results <a class='pull-right header-btn hidden-mobile' data-toggle='modal' data-target='#new-contract-company' href='#'>Add New</a>";
+                }
+            },
+            placeholder: place_holder,
+            dropdownCssClass : 'no-search',
+            escapeMarkup: function (markup) {
+                return markup;
+            },
+            minimumResultsForSearch: -1
+        });
+    }
+}
+
 var set_client_company_select = function (selector, place_holder) {
     if ($(selector).length > 0) {
         $(selector).select2({
@@ -400,6 +486,14 @@ function formatCompanyContact(contact) {
         return contact.text;
     }
     var markup = "<div> <table style='width: 100%;'> <td>" + contact.name + "</td><td> " + contact.email + "</td><td>" + contact.phone + "</td><td>" + contact.department + "</td></table> </div>"
+    return markup;
+}
+
+function formatClientPartner(contact) {
+    if (contact.loading) {
+        return contact.text;
+    }
+    var markup = "<div> <table style='width: 100%;'> <td>" + contact.name + "</td><td> " + contact.email + "</td></table> </div>"
     return markup;
 }
 
