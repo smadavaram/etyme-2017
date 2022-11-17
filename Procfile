@@ -1,1 +1,2 @@
-worker: rake jobs:work
+web: bin/rails s
+worker: bundle exec sidekiq -C config/sidekiq.yml
