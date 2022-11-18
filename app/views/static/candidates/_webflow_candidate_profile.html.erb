@@ -360,11 +360,29 @@
         </div>
     </div>
 
+    <!-- Professional Summary -->
+    <div class="webflow-profile-inner">
+      <div class="d-flex justify-content-between mb-10">
+        <div class="f-16 w-500 l-19 c-80">Professional Summary</div>
+      </div>
+
+      <% if candidate.about_summary.present? %>
+        <div class="element-info">
+          <div class="element-info-text">
+            <p class="break-text"><%=candidate.about_summary.html_safe%></p>
+          </div>
+        </div>
+      <% else %>
+        There is no professional summary
+      <% end %>
+    </div>
+
     <!-- Employment History -->
     <div class="webflow-profile-inner">
       <div class="d-flex justify-content-between mb-30">
         <div class="f-16 w-500 l-19 c-80">Employment History</div>
       </div>
+
       <% if candidate.designations.with_no_client.present? %>
         <div class="element-info">
           <div class="element-info-text">
@@ -395,7 +413,6 @@
       <% else %>
         There is no work Experience  
       <% end %>
-
     </div>
 
     <!-- Project Hisotry -->
@@ -412,11 +429,20 @@
                   <div class="project-header">
                     <h6 class="mb-1 text-primary"><%= project.project_name&.titleize%>, <%= project.location&.titleize%></h6>
                     <strong class="font-weight-bold font-sm text-capitalize" style="color: gray;">
-                    <%= project.start_date&.strftime('%B-%Y') %> -  <%= project.end_date&.strftime('%B-%Y')%>
+                      <%= project.start_date&.strftime('%B-%Y') %> -  <%= project.end_date&.strftime('%B-%Y')%>
                     </strong>
+
+                    <div>
+                      <strong> Client Name: </strong>
+                      <%= project.client_name %>
+                    </div>
                   </div>
                   <div class="project-description" style="margin-top: 12px;font-size: 16px;line-height: 25px;">
-                    <div><%= project.project_description.html_safe %></div>
+                    <div class="job-description" style="margin-top: 12px;font-size: 16px;line-height: 25px;">
+                      <strong class="font-weight-bold font-sm text-capitalize" style="color: gray;">Project description</strong>
+                      <div><%= project.project_description.html_safe %></div>
+                    </div>
+
                     <div class="job-description" style="margin-top: 12px;font-size: 16px;line-height: 25px;">
                       <strong class="font-weight-bold font-sm text-capitalize" style="color: gray;">Job description</strong>
                       <div> <%= project.job_description.html_safe %> </div>

@@ -271,6 +271,70 @@
                   .element-info-icon
                     %i.icon-badge
                   .element-info-text
+                    %h4.element-inner-header.m-0 Professional Summary
+              %div.d-flex.justify-content-between.align-items-center.element-info
+                - if candidate.about_summary.present?
+                  %p.break-text
+                    = candidate.about_summary.html_safe
+                - else
+                  .element-info-text
+                    .mb-2
+                      %div
+                        %span.mb-1.h6.d-block.text-secondary There is no Professional Summary
+
+            .element-box
+              %div.d-flex.justify-content-between.align-items-center.element-info
+                .element-info-with-icon.w-50
+                  .element-info-icon
+                    %i.icon-badge
+                  .element-info-text
+                    %h4.element-inner-header.m-0 Project History
+
+                - if is_editable
+                  %a.d-flex.justify-content-end{href: onboarding_profile_path}
+                    %i.fi-pencil.pr-2
+                    %span.bold
+                      Add new
+              - if candidate.designations.with_no_client.present?
+                - candidate.designations.with_no_client.each do |designation|
+                  - designation.designation_projects.each do |project|
+                    .element-info
+                      .element-info-text
+                        .mb-2
+                          .project-header
+                            %h6.mb-1.text-primary
+                              = project.project_name&.titleize
+                              , #{project.location&.titleize}
+                            %strong.font-weight-bold.font-sm.text-capitalize{:style => "color: gray;"}
+                              = project.start_date&.strftime('%B-%Y')
+                              \-  #{project.end_date&.strftime('%B-%Y')}
+                            %div
+                              %strong Client Name
+                              = project.client_name
+
+                          .project-description{:style => "margin-top: 12px;font-size: 16px;line-height: 25px;"}
+                            %div= project.project_description.html_safe
+                            .job-description{:style => "margin-top: 12px;font-size: 16px;line-height: 25px;"}
+                              %strong.font-weight-bold.font-sm.text-capitalize{:style => "color: gray;"} Job description
+                              %div
+                                = project.job_description.html_safe
+
+              - else
+                .element-info
+                  .element-info-text
+                    .mb-2
+                      %div
+                        %span.mb-1.h6.d-block.text-secondary There is no Project History
+                      .element-inner-desc
+                        -if own
+                          %P
+                            = link_to "Add New One", '/onboarding_profile?tag=skill'
+            .element-box
+              %div.d-flex.justify-content-between.align-items-center.element-info
+                .element-info-with-icon.w-50
+                  .element-info-icon
+                    %i.icon-badge
+                  .element-info-text
                     %h4.element-inner-header.m-0 Employment History
 
                 - if is_editable
@@ -298,49 +362,6 @@
                             %td= designation.start_date&.strftime('%B-%Y')
                             %td= designation.end_date&.strftime('%B-%Y')
                             %td= designation.nature_of_work
-
-              - else
-                .element-info
-                  .element-info-text
-                    .mb-2
-                      %div
-                        %span.mb-1.h6.d-block.text-secondary There is no work Experience
-                      .element-inner-desc
-                        -if own
-                          %P
-                            = link_to "Add New One", '/onboarding_profile?tag=skill'
-            .element-box
-              %div.d-flex.justify-content-between.align-items-center.element-info
-                .element-info-with-icon.w-50
-                  .element-info-icon
-                    %i.icon-badge
-                  .element-info-text
-                    %h4.element-inner-header.m-0 Project History
-
-                - if is_editable
-                  %a.d-flex.justify-content-end{href: onboarding_profile_path}
-                    %i.fi-pencil.pr-2
-                    %span.bold
-                      Add new
-              - if candidate.designations.with_no_client.present?
-                - candidate.designations.with_no_client.each do |designation|
-                  - designation.designation_projects.each do |project|
-                    .element-info
-                      .element-info-text
-                        .mb-2
-                          .project-header
-                            %h6.mb-1.text-primary
-                              = project.project_name&.titleize
-                              , #{project.location&.titleize}
-                            %strong.font-weight-bold.font-sm.text-capitalize{:style => "color: gray;"}
-                              = project.start_date&.strftime('%B-%Y')
-                              \-  #{project.end_date&.strftime('%B-%Y')}
-                          .project-description{:style => "margin-top: 12px;font-size: 16px;line-height: 25px;"}
-                            %div= project.project_description.html_safe
-                            .job-description{:style => "margin-top: 12px;font-size: 16px;line-height: 25px;"}
-                              %strong.font-weight-bold.font-sm.text-capitalize{:style => "color: gray;"} Job description
-                              %div
-                                = project.job_description.html_safe
 
               - else
                 .element-info
