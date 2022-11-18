@@ -117,12 +117,7 @@ var set_candidate_resumes = function (selector, place_holder) {
                 processResults: function (data, params) {
                     params.page = params.page || 1;
                     return {
-                        results: $.map(data.resumes, function (item) {
-                          return {
-                              text: item.name,
-                              id: item.resume
-                          }
-                        }),
+                        results: data.resumes,
                         pagination: {
                             more: (params.page * 10) < data.total_count
                         }
@@ -140,6 +135,8 @@ var set_candidate_resumes = function (selector, place_holder) {
             escapeMarkup: function (markup) {
                 return markup;
             },
+            templateResult: formatRepo,
+            templateSelection: formatRepoSelection,
             minimumResultsForSearch: -1
         });
     }

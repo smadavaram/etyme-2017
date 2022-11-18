@@ -12,14 +12,6 @@ class Api::Candidate::CandidatesController < ApplicationController
     end
   end
 
-  def get_resumes
-    candidate = Candidate.find(params[:candidate_id])
-    if candidate
-      render json: { resumes: candidate.candidate_resumes.to_json }
-    else
-      render json: { error: 'Cannot find candidate with this id' }, status: :not_found
-  end
-  
   def add_candidate
     candidate = Candidate.new
 
