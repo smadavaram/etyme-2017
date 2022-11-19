@@ -20,7 +20,9 @@
             -#  .col-md-10
             -#    = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
             .form-group
-              %label.col-md-6.control-label Select Candidates
+              %label.col-md-6.control-label 
+                Select Candidates
+                %sup.text-danger *
               .col-md-10.temp_select_candidates
                 = select_tag 'temp_candidates', options_for_select(current_company.candidates.uniq.reverse.collect{ |c| [c.full_name,c.id]}.compact),class: 'form-control job_select2' , required: true, onchange: 'set_hr();'
             -if job.status == "Bench"
@@ -33,6 +35,7 @@
               .form-group
                 %label.col-md-6.control-label
                   Select Resume
+                  %sup.text-danger *
                 %label.col-md-4.control-label.pull-right
                   = render 'shared/file_attachement',f:f,attr_name: :id, required_field: true, button_name: 'Add New'
                 .contract-fild

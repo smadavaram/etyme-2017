@@ -26,19 +26,3 @@
         }
       });
     }
-    google.maps.event.addDomListener(window, 'load', function () {
-      console.log("GOOGLE1");
-      var places = new google.maps.places.Autocomplete(document.getElementById('location'));
-      google.maps.event.addListener(places, 'place_changed', function () {
-        var place = places.getPlace();
-        $("#post_ad_latitude").val(place.geometry.location.lat());
-        $("#post_ad_longitude").val(place.geometry.location.lng());
-      });
-    });
-    var input = document.getElementById('location');
-    google.maps.event.addDomListener(input, 'keydown', function(event) {
-      console.log("GOOGLE2");
-      if (event.keyCode === 13) {
-        event.preventDefault();
-      }
-    });

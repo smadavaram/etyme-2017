@@ -45,12 +45,7 @@ class Company::JobApplicationsController < Company::BaseController
         begin
           if @job.status == 'Bench'
             resume = c.candidates_resumes.find_by(id: params[:job_application][:applicant_resume])
-            if resume.nil? and params[:job_application][:applicant_resume].include?("http")
-              resume = c.candidates_resumes.create(resume: params[:job_application][:applicant_resume]) 
-            else
-              messages << "Invalid Resume."
-              raise "Invalid Resume."
-            end
+            resume = c.candidates_resumes.create(resume: params[:job_application][:applicant_resume]) unless @resume
             c.job_applications.create!(job_application_params.merge!(cover_letter: 'Application created by owner', applicant_resume: resume.resume, job_id: @job.id, applied_by: current_user))
           else
             c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id, applied_by: current_user)
