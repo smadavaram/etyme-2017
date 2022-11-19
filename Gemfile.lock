@@ -1682,11 +1682,11 @@ GEM
     serviceworker-rails (0.6.0)
       railties (>= 3.1)
     sexp_processor (4.15.3)
-    sidekiq (5.2.9)
-      connection_pool (~> 2.2, >= 2.2.2)
-      rack (~> 2.0)
+    sidekiq (5.0.0)
+      concurrent-ruby (~> 1.0)
+      connection_pool (~> 2.2, >= 2.2.0)
       rack-protection (>= 1.5.0)
-      redis (>= 3.3.5, < 4.2)
+      redis (~> 3.3, >= 3.3.3)
     sidekiq-limit_fetch (3.4.0)
       sidekiq (>= 4)
     sidekiq-status (2.1.3)
@@ -1885,7 +1885,7 @@ DEPENDENCIES
   sentry-ruby
   sequence-sdk
   serviceworker-rails
-  sidekiq (< 6.0)
+  sidekiq (<= 5.0)
   sidekiq-limit_fetch
   sidekiq-status
   signature-pad-rails
