@@ -14,7 +14,7 @@ gem 'rails', '5.2.4.5'
 gem 'signature-pad-rails'
 
 gem 'browser-timezone-rails'
-gem 'puma'
+gem 'puma', '~> 5.3.2'
 
 gem 'ajax-datatables-rails'
 gem 'breadcrumbs_on_rails'
@@ -23,7 +23,7 @@ gem 'cocoon'
 gem 'coffee-rails' # , '~> 4.1.0'
 gem 'data-confirm-modal'
 gem 'font-awesome-rails'
-gem 'haml-rails' # , "~> 0.9"
+gem 'haml-rails' # , '~> 0.9'
 gem 'jbuilder', '~> 2.5'
 gem 'jquery-rails'
 gem 'jquery-ui-rails'
@@ -40,7 +40,7 @@ gem 'jquery_mask_rails', '~> 0.1.0'
 gem 'selectize-rails'
 
 gem 'stripe'
-gem "httparty"
+gem 'httparty'
 
 gem 'ogp'
 
@@ -58,7 +58,7 @@ gem 'ancestry'
 gem 'awesome_print'
 gem 'pg', '~> 0.18'
 gem 'rails-jquery-autocomplete'
-#gem 'rails_12factor', group: :production
+# gem 'rails_12factor', group: :production
 
 gem 'acts-as-taggable-on'
 gem 'will_paginate' # , '~> 3.1'
@@ -84,7 +84,7 @@ gem 'omniauth-facebook'
 gem 'omniauth-google-oauth2'
 gem 'omniauth-linkedin-oauth2'
 gem 'omniauth-rails_csrf_protection'
-gem 'paranoia' # , "~> 2.2"
+gem 'paranoia' # , '~> 2.2'
 gem 'ransack' # , '~> 1.7'
 gem 'roo'
 gem 'whenever', require: false
@@ -129,14 +129,17 @@ group :development, :test do
   # Capistrano Deployment
   gem 'capistrano', '3.15.0'
   gem 'capistrano-bundler'
+  gem 'capistrano3-delayed-job', '~> 1.0'
+
   # gem 'capistrano-passenger', '>= 0.1.1'
-  #gem 'capistrano-rvm'
+  # gem 'capistrano-rvm'
   gem 'capistrano-rbenv', '~> 2.2'
   gem 'capistrano3-puma'
 
   # Remove the following if your app does not use Rails
   gem 'capistrano-rails'
   gem 'annotate'
+  gem 'capistrano-sidekiq'
 end
 
 # gem 'mini_racer' # changed from therubyracer, since Bullettrain (or one of its dependencies) requires mini_racer
@@ -160,7 +163,6 @@ gem 'chronic'
 gem 'hashie'
 
 # gem 'trix',  '1.2.0'
-gem 'capistrano3-delayed-job', '~> 1.0'
 gem 'exception_notification'
 gem 'trix-rails', '~> 2.2', require: 'trix'
 
@@ -170,9 +172,11 @@ gem 'serviceworker-rails'
 gem 'activeadmin_json_editor', '~> 0.0.7'
 gem 'pretender', '~> 0.3.2'
 gem 'google-apis-indexing_v3', '~> 0.1.0'
-gem "image_processing", "~> 1.0"
+gem 'image_processing', '~> 1.0'
 gem 'rest-client'
-gem "sentry-ruby"
-gem "sentry-rails"
-gem 'sidekiq'
+gem 'sentry-ruby'
+gem 'sentry-rails'
+gem 'sidekiq', '<= 5.0'
+gem 'sidekiq-status'
+gem 'sidekiq-limit_fetch'
 gem 'safe_attributes'
