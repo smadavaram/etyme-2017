@@ -14,7 +14,7 @@ gem 'rails', '5.2.5'
 gem 'signature-pad-rails'
 
 gem 'browser-timezone-rails'
-gem 'puma'
+gem 'puma', '~> 5.3.2'
 
 gem 'ajax-datatables-rails'
 gem 'breadcrumbs_on_rails'
@@ -129,6 +129,8 @@ group :development, :test do
   # Capistrano Deployment
   gem 'capistrano', '3.15.0'
   gem 'capistrano-bundler'
+  gem 'capistrano3-delayed-job', '~> 1.0'
+
   # gem 'capistrano-passenger', '>= 0.1.1'
   # gem 'capistrano-rvm'
   gem 'capistrano-rbenv', '~> 2.2'
@@ -137,6 +139,7 @@ group :development, :test do
   # Remove the following if your app does not use Rails
   gem 'capistrano-rails'
   gem 'annotate'
+  gem 'capistrano-sidekiq'
 end
 
 # gem 'mini_racer' # changed from therubyracer, since Bullettrain (or one of its dependencies) requires mini_racer
@@ -160,8 +163,6 @@ gem 'chronic'
 gem 'hashie'
 
 # gem 'trix',  '1.2.0'
-gem 'capistrano3-delayed-job', '~> 1.0'
-gem 'capistrano-sidekiq'
 gem 'exception_notification'
 gem 'trix-rails', '~> 2.2', require: 'trix'
 
