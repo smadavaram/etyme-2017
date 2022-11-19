@@ -2,16 +2,16 @@
 
 # Load DSL and set up stages
 require 'capistrano/setup'
-require 'capistrano/delayed_job'
+# require 'capistrano/delayed_job'
 # Include default deployment tasks
 require 'capistrano/deploy'
 
 # Load the SCM plugin appropriate to your project:
 #
-# require "capistrano/scm/hg"
+# require 'capistrano/scm/hg'
 # install_plugin Capistrano::SCM::Hg
 # or
-# require "capistrano/scm/svn"
+# require 'capistrano/scm/svn'
 # install_plugin Capistrano::SCM::Svn
 # or
 require 'capistrano/scm/git'
@@ -30,13 +30,13 @@ install_plugin Capistrano::SCM::Git
 #   https://github.com/capistrano/passenger
 #
 # require 'capistrano/rvm'
-require "capistrano/rbenv"
-# require "capistrano/chruby"
+require 'capistrano/rbenv'
+# require 'capistrano/chruby'
 require 'capistrano/bundler'
 require 'capistrano/rails/assets'
 require 'capistrano/rails/migrations'
 require 'capistrano/sidekiq'
-require "whenever/capistrano"
+require 'whenever/capistrano'
 # require 'capistrano/passenger'
 require 'capistrano/puma'
 
