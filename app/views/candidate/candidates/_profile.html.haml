@@ -271,6 +271,23 @@
                   .element-info-icon
                     %i.icon-badge
                   .element-info-text
+                    %h4.element-inner-header.m-0 Professional Summary
+              %div.d-flex.justify-content-between.align-items-center.element-info
+                - if candidate.about_summary.present?
+                  %p.break-text
+                    = candidate.about_summary.html_safe
+                - else
+                  .element-info-text
+                    .mb-2
+                      %div
+                        %span.mb-1.h6.d-block.text-secondary There is no Professional Summary
+
+            .element-box
+              %div.d-flex.justify-content-between.align-items-center.element-info
+                .element-info-with-icon.w-50
+                  .element-info-icon
+                    %i.icon-badge
+                  .element-info-text
                     %h4.element-inner-header.m-0 Employment History
 
                 - if is_editable

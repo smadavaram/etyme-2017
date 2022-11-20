@@ -424,6 +424,7 @@ ActiveRecord::Schema.define(version: 2022_11_15_145309) do
     t.string "provider"
     t.string "uid"
     t.string "online_candidate_status"
+    t.text "about_summary"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
