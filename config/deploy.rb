@@ -46,6 +46,6 @@ set :linked_dirs, fetch(:linked_dirs, []).push('log', 'tmp/pids', 'tmp/cache', '
 
 namespace :deploy do
   after 'deploy:published', 'restart' do
-    invoke 'delayed_job:restart'
+    # invoke 'delayed_job:restart'
   end
 end
