@@ -33,6 +33,8 @@ class Group < ApplicationRecord
 
   scope :chat_groups, -> { where(member_type: 'Chat') }
   scope :contact_groups, -> { where("member_type IN('Candidate', 'Contact')") }
+  scope :candidate_groups, -> { where(member_type: 'Candidate') }
+  scope :company_groups, -> { where(member_type: 'Contact') }
 
   scope :user_chat_groups, lambda { |user, company|
     company.present? ?

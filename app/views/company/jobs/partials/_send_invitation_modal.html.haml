@@ -27,12 +27,12 @@
                 .tabbable.tabs-below
                   .tab-content.padding-10
                     %section#widget-grid{}
-                      = render 'company/jobs/partials/vendor_invitation', job: job ,companies: companies, groups: groups
+                      = render 'company/jobs/partials/vendor_invitation', job: job ,companies: companies, groups: groups.company_groups
               #hr2.tab-pane
                 .tabbable.tabs-below
                   .tab-content.padding-10
                     %section#widget-grid{style: 'margin-top: 10px;'}
-                      = render 'company/jobs/partials/send_candidate_invitation',job: job ,candidates: candidates, groups: groups
+                      = render 'company/jobs/partials/send_candidate_invitation',job: job ,candidates: candidates, groups: groups.candidate_groups
                       -#=render partial: 'company/leaves/partials/leave_show',locals:{leaves: @consultant_leaves.rejected}
 
               #hr3.tab-pane

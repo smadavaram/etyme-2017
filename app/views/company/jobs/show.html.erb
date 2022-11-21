@@ -130,6 +130,7 @@
               </div>
               <% if @conversation.chatable_type == "Group" %>
                 <% @conversation.chatable.groupables.each do |g| %>
+                  <% next if @job.created_by == g.groupable %>
                   <div class="user-w with-status">
                     <div class="user-avatar-w">
                       <div class="user-avatar">
@@ -169,7 +170,7 @@
         </div>
         <div class="element-box element-box-show">
           <h5 class="form-header">Share Job</h5>
-          <div class="sharethis-inline-share-buttons" data-url="<%= static_job_url(@job).to_s %>" style="z-index: auto"></div>
+          <div class="sharethis-inline-share-buttons" data-title="<%= @job.title %>" data-url="<%= static_job_url(@job).to_s %>" data-image="<%= static_job_url(@job).to_s %>" style="z-index: auto"></div>
           <!-- <div class="form-group">
             <%# if @job.files.present? %>
               <%# @job.files.split(',').each do |file| %>
