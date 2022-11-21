@@ -36,6 +36,14 @@
                 <div class="h6">
                   <%= @job.location %>
                 </div>
+                <% if @job.job_type.present? %>
+                  <div class="">
+                    Type
+                  </div>
+                  <div class="h6">
+                    <%= @job.job_type %>
+                  </div>
+                <% end %>
               </div>
               <div class="col-lg-6">
                 <div class="">
@@ -50,14 +58,16 @@
                 <div class="h6">
                   <%= @job.status %>
                 </div>
-                <% if @job.price.present? %>
                   <div class="">
                     Rate
                   </div>
-                  <div class="h6">
+                <div class="h6">
+                  <% if @job.price == 0.0 || @job.price.blank? %>
+                    Open
+                  <% else %>
                     <%= sprintf("$%0.2f", @job.price) %>
-                  </div>
-                <% end %>
+                  <% end %>
+                </div>
               </div>
             </div>
           </div>
@@ -102,11 +112,26 @@
         </div>
         <div class="element-box element-box-show">
           <h5 class="form-header">Collaborators</h5>
-          <% if @conversation.present? %>
             <div class="users-list-w">
+              <div class="user-w with-status">
+                <div class="user-avatar-w">
+                  <div class="user-avatar">
+                    <%=user_image(@job.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{@job.created_by.full_name}" )%>
+                  </div>
+                </div>
+                <div class="user-name">
+                  <h6 class="user-title"><%= @job.created_by.full_name %></h6>
+                  <div class="user-role"><%= @job.created_by.try(:type) %></div>
+                </div>
+                <em class="icon icon-star"></em>
+                <!-- <div class="user-action">
+                  <div class="os-icon os-icon-email-forward"></div>
+                </div> -->
+              </div>
               <% if @conversation.chatable_type == "Group" %>
                 <% @conversation.chatable.groupables.each do |g| %>
-                  <div class="user-w with-status status-green">
+                  <% next if @job.created_by == g.groupable %>
+                  <div class="user-w with-status">
                     <div class="user-avatar-w">
                       <div class="user-avatar">
                         <%=user_image(g.groupable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{g&.groupable&.full_name}" )%>
@@ -122,7 +147,7 @@
                   </div>
                 <% end %>
               <% else %>
-                <div class="user-w with-status status-green">
+                <div class="user-w with-status">
                   <div class="user-avatar-w">
                     <div class="user-avatar">
                       <img alt="" src="<%= current_user.photo %>">
@@ -138,9 +163,6 @@
                 </div>
               <% end %>
             </div>
-          <% else %>
-            <div><i>Currently, there is no collaborator. Create a conversation to add collaborators</i></div>
-          <% end %>
           <div class="ci-header">
             <a href="#" class="w-100 btn btn-default btn-primary add-to-conversation" data-conid=<%= @conversation.id %> data-cid=<%= @conversation.chatable.id %> data-ctype=<%= @conversation.chatable.class.to_s %>>Add
               Collaborators</a>
@@ -148,7 +170,7 @@
         </div>
         <div class="element-box element-box-show">
           <h5 class="form-header">Share Job</h5>
-          <div class="sharethis-inline-share-buttons" data-url="<%= static_job_url(@job).to_s %>" style="z-index: auto"></div>
+          <div class="sharethis-inline-share-buttons" data-title="<%= @job.title %>" data-url="<%= static_job_url(@job).to_s %>" data-image="<%= static_job_url(@job).to_s %>" style="z-index: auto"></div>
           <!-- <div class="form-group">
             <%# if @job.files.present? %>
               <%# @job.files.split(',').each do |file| %>
