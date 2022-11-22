@@ -43,7 +43,13 @@ class Company::JobApplicationsController < Company::BaseController
       messages = []
       Candidate.where(id: params[:temp_candidates]).each do |c|
         begin
-          c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id)
+          if @job.status == 'Bench'
+            resume = c.candidates_resumes.find_by(id: params[:job_application][:applicant_resume])
+            resume = c.candidates_resumes.create(resume: params[:job_application][:applicant_resume]) unless @resume
+            c.job_applications.create!(job_application_params.merge!(cover_letter: 'Application created by owner', applicant_resume: resume.resume, job_id: @job.id, applied_by: current_user))
+          else
+            c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id, applied_by: current_user)
+          end
         rescue ActiveRecord::RecordInvalid => e
           messages << "#{c.first_name} is already an applicant"
         end
@@ -379,7 +385,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def job_application_params
-    params.require(:job_application).permit([:message, :cover_letter, :status, :applicant_resume, custom_fields_attributes:
+    params.require(:job_application).permit([:message, :cover_letter, :status, :client_name, :end_client_job_title, :company_contact_id, :work_type, :client_job_location, custom_fields_attributes:
         %i[
           id
           name
