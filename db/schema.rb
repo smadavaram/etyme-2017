@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_11_15_145309) do
+ActiveRecord::Schema.define(version: 2022_11_15_135916) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -1449,12 +1449,6 @@ ActiveRecord::Schema.define(version: 2022_11_15_145309) do
     t.boolean "accept_rate", default: false
     t.boolean "accept_rate_by_company", default: false
     t.integer "recruiter_company_id"
-    t.string "work_type"
-    t.string "client_name"
-    t.string "end_client_job_title"
-    t.string "client_job_location"
-    t.integer "user_id"
-    t.integer "company_contact_id"
   end
 
   create_table "job_invitations", id: :serial, force: :cascade do |t|
