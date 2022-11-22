@@ -20,63 +20,10 @@
             -#  .col-md-10
             -#    = f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick'  , id: 'accept-filepiker' ,"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
             .form-group
-              %label.col-md-6.control-label 
-                Select Candidates
-                %sup.text-danger *
+              %label.col-md-6.control-label Select Candidates
               .col-md-10.temp_select_candidates
-                = select_tag 'temp_candidates', options_for_select(current_company.candidates.uniq.reverse.collect{ |c| [c.full_name,c.id]}.compact),class: 'form-control job_select2' , required: true, onchange: 'set_hr();'
-            -if job.status == "Bench"
-              .form-group
-                %label.col-md-6.control-label
-                  HR Partner
-                  %sup.text-danger
-                .col-md-10
-                  = f.text_field :message, class: "form-control hr_field", disabled: true, value: current_company.email
-              .form-group
-                %label.col-md-6.control-label
-                  Select Resume
-                  %sup.text-danger *
-                %label.col-md-4.control-label.pull-right
-                  = render 'shared/file_attachement',f:f,attr_name: :id, required_field: true, button_name: 'Add New'
-                .contract-fild
-                  .plain-select.col-md-10
-                    = f.select :applicant_resume, {}, {}, class: '', id: "select_candidate_resumes", required: true
-              .form-group
-                %label.col-md-6.control-label
-                  Work Type
-                .col-md-10.temp_select_candidates
-                  = select_tag 'job_application[work_type]', options_for_select(["Remote", "On-site", "Hybrid", "Off-shore"]),class: 'form-control job_select2'
-              .form-group
-                %label.col-md-6.control-label
-                  Client Name
-                  %sup.text-danger
-                .col-md-10
-                  = f.text_field :client_name, class: "form-control", placeholder: "Enter Client Name"
-              .form-group
-                %label.col-md-6.control-label
-                  Client Partner Email
-                %label.col-md-4.control-label.pull-right
-                  = link_to 'Add New', new_company_company_path,target:'_blank', class: 'btn btn-sm btn-primary'
-                .contract-fild
-                  -# if @contract.new_record? or @contract.company_id.nil?
-                  .plain-select.col-md-10
-                    = f.select :company_contact_id, {}, {}, class: '', id: "select_client_partner"
-
-              .form-group
-                %label.col-md-6.control-label
-                  End Client Job Title
-                  %sup.text-danger
-                .col-md-10
-                  = f.text_field :end_client_job_title, class: "form-control", placeholder: "Enter End Client Job Title"
-              .form-group
-                %label.col-md-6.control-label
-                  Client Job Location
-                  %sup.text-danger
-                .col-md-10
-                  = f.text_field :client_job_location , class: 'form-control pac-target-input' , id: 'location' , placeholder: "eg.1806 Beechwood Drive, Pittsburgh"
-
-            -else
-              .form-group
+                = select_tag 'temp_candidates', options_for_select(current_company.candidates.uniq.collect{ |c| [c.full_name,c.id]}.compact),class: 'form-control job_select2' , required: true ,:multiple => true
+            .form-group
               %label.col-md-6.control-label
                 Memo
                 %sup.text-danger
@@ -97,5 +44,5 @@
 
 :css
   .job_select2{
-    width: 300px;
+    width: 470px;
     }

@@ -864,7 +864,6 @@ Rails.application.routes.draw do
     resources :select_searches, only: :index do
       get :find_companies, on: :collection
       get :find_client_companies, on: :collection
-      get :find_company_contacts_by_email, on: :collection
       get :find_candidates, on: :collection
       get :find_contacts, on: :collection
       get :find_users, on: :collection
@@ -897,10 +896,6 @@ Rails.application.routes.draw do
           get :fetch_owner
           get :present
         end
-      end
-
-      resources :candidates do
-        get :get_resumes, on: :member
       end
       
       resources :jobs, only: %i[index create] do

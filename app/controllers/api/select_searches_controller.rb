@@ -8,11 +8,6 @@ class Api::SelectSearchesController < ApplicationController
     respond_with @companies
   end
 
-  def find_company_contacts_by_email
-    @contacts = current_company.try(:company_contacts).like_any([:email], params[:q].to_s.split).paginate(page: params[:page], per_page: params[:per_page])
-    respond_with @contacts
-  end
-
   def find_client_companies
     @contacts_company_ids = current_company.try(:company_contacts).pluck(:user_company_id).uniq
     @companies = Company.where(id: @contacts_company_ids).like_any([:name], params[:q].to_s.split).paginate(page: params[:page], per_page: params[:per_page])
