@@ -19,7 +19,7 @@ function upload_file(selector, name_selector = false, multiple = false) {
                 }
                 files_path = upload.url
             }
-            $(selector).val(files_path);
+            $(selector).val(files_path).trigger('change');
             if($(selector).hasClass("resume_field"))
             {
                 $('.uploaded_resume').show();
