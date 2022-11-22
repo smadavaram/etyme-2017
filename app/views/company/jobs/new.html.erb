@@ -1,7 +1,16 @@
 <div class="content-box">
   <div class="element-wrapper">
     <div class="element-box">
-      <h5 class="form-header">New <%= params[:type] || "Job" %></h5>
+      <div class='row'>
+        <div class='col'>
+          <h5 class="form-header">New <%= params[:type] || "Job" %></h5>
+        </div>
+        <% if @job.id.nil? %>
+          <div class='col'>
+            <a class='btn btn-sm btn-secondary'style='float: right;' href='#', onclick='copy_from_other_modal();'>Copy From Other <%= params[:type] || 'Job' %>s</a>
+          </div>
+        <% end %>
+      </div>
       <% if params[:type] == "Job" || params[:type].nil?%>
         <div class="form-desc">Create your offering and describe what you are looking for from the candidates</div>
       <% else %>
@@ -13,3 +22,12 @@
   </div>
 </div>
 
+<% content_for :scripts do %>
+  <script type="text/javascript">
+    function copy_from_other_modal() {
+      $('.remote_container').html("<%= j (render partial: 'company/jobs/partials/copy_job_from_other_modal') %>");
+      $('#copy-job-modal').modal('toggle');
+      $(".select2").select2({placeholder: "Select Group(s)"});
+    }
+  </script>
+<% end %>

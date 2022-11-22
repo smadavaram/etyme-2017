@@ -1,7 +1,7 @@
 -if @post.present?
   $("#job-invitation-multiple-#{@job.id}").modal("toggle");
 -else
-  $('.remote_container').empty().html("#{ j render 'company/job_applications/partials/modal_create_multipile_for_candidate.html.haml' , job: @job}");
+  $('.remote_container').empty().html("#{ j render 'company/job_applications/partials/modal_create_multipile_for_candidate.html.haml' , job: @job, job_application: @job_application}");
   $('#job-invitation-multiple-#{@job.id} ').modal('toggle');
   $(".job_select2").select2({placeholder: "Select a Candidate"});
   set_client_partner_select('#select_client_partner', "Please Select Or Add new Client Partner");

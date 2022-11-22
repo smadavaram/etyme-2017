@@ -57,7 +57,10 @@
                           = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, candidate_add_reminder_path(application.applicationable_id), remote: :true, title: "Remind Me", class: 'data-table-icons')
                           = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, application&.applicant_resume || candidate.candidates_resumes.first&.resume, target: "_blank", download: true, title: "Download Resume", class: 'data-table-icons')
                           = link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, make_company_candidate_path(application.applicationable), method: :post, title: 'Add to candidates', class: 'data-table-icons')
-
+                          - if application.job_applicant_reqs.present?
+                            = link_to(content_tag(:i, nil, class: 'icon-book-open').html_safe, job_applicant_reqs_preview_job_application_path(application), remote: true, title: 'Additional Requirements', class: 'data-table-icons')
+                          -else
+                            = link_to(content_tag(:i, nil, class: 'icon-book-open').html_safe, '#', title: 'No Additional Requirements', class: 'data-table-icons')
 
 -content_for :scripts do
   :javascript
