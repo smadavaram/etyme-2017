@@ -253,7 +253,7 @@ class Company::ConversationsController < Company::BaseController
     favourable.destroy
   end
 
-  def add_to_chat 
+  def add_to_chat
     conversation = Conversation.find(params[:chatconversation])
     if params[:directoryid].present?
       user = current_company.users.where(id: params[:directoryid]).first
@@ -296,6 +296,16 @@ class Company::ConversationsController < Company::BaseController
       group.groupables.create(groupable: user)
       group.groupables.create(groupable: user1)
       conversation.update(chatable: group, topic: 'GroupChat')
+    end
+    redirect_back(fallback_location: current_company.etyme_url)
+  end
+
+  def remove_from_chat
+    groupable = Groupable.find(params[:groupable_id])
+    if groupable.destroy
+      flash[:success] = 'Collaborator is removed'
+    else
+      flash[:errors] = groupable.errors.full_messages
     end
     redirect_back(fallback_location: current_company.etyme_url)
   end

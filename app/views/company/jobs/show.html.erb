@@ -141,6 +141,7 @@
                       <h6 class="user-title"><%= g.groupable&.full_name %></h6>
                       <div class="user-role"><%= g.groupable.try(:type) %></div>
                     </div>
+                    <%= link_to "", remove_from_chat_company_conversations_path(groupable_id: g.id), class: "icon icon-cross", method: :post, data: {confirm: 'This will remove the collaborator.'} %>
                     <!-- <div class="user-action">
                       <div class="os-icon os-icon-email-forward"></div>
                     </div> -->
@@ -157,9 +158,6 @@
                     <h6 class="user-title"><%= "#{current_user.first_name} #{current_user.last_name}" %></h6>
                     <div class="user-role"><%= current_user.type %></div>
                   </div>
-                  <!-- <div class="user-action">
-                    <div class="os-icon os-icon-email-forward"></div>
-                  </div> -->
                 </div>
               <% end %>
             </div>

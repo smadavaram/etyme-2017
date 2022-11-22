@@ -10,10 +10,11 @@
     <div class="col-8 col-md-10 feed-title">
       <h1 class="font-500 font-size-24"><%= @job.title %></h1>
     </div>
+    <div class="col-4 col-md-2 product-single-buy">
+      <div class="sharethis-inline-share-buttons" data-title="<%= @job.title %>" data-url="<%= static_job_url(@job).to_s %>" %> style="z-index: auto"></div>
+    </div>
     <div class="col-12">
       <span><i class="fa fa-clock-o mr-1" aria-hidden="true"></i> <%= "Created On #{@job.created_at.strftime('%B %e, %Y')}" %></span>
-      <a href="#" >Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
-      <a href="#" >Save this <i class="fa fa-heart ml-1" aria-hidden="true"></i></a>
       <%= render 'show_details_job_info', is_job: is_job %>
     </div>
   </div>
