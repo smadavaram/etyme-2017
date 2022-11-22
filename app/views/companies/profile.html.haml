@@ -273,7 +273,7 @@
           .element-box-tp
             - @directories.last(5).each do |d|
               .profile-tile
-                %a.profile-tile-box{:href => "users_profile_small.html"}
+                %a.profile-tile-box{:href => company_user_profile_path(d)}
                   .pt-avatar-w
                     =user_image(d, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{d.full_name}" )
                   .pt-user-name
