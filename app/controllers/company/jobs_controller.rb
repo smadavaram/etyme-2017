@@ -3,7 +3,7 @@
 class Company::JobsController < Company::BaseController
   before_action :set_company_job, only: %i[show edit update destroy send_invitation]
   # before_action :set_locations  , only: [:new , :index, :edit , :create,:show]
-  before_action :set_preferred_vendors, only: [:send_invitation]
+  before_action :set_preferred_vendors_and_groups, only: [:send_invitation]
   before_action :set_candidates, only: :send_invitation
   before_action :authorize_user, only: %i[show edit update destroy]
   add_breadcrumb 'Dashboard', :dashboard_path
@@ -403,9 +403,10 @@ class Company::JobsController < Company::BaseController
   #   @locations = current_company.locations || []
   # end
 
-  def set_preferred_vendors
+  def set_preferred_vendors_and_groups
     # @preferred_vendors_companies = Company.joins(:users).where("users.type = ?" , 'Vendor') - [current_company]|| []
     @preferred_vendors_companies = Company.vendors - [current_company, Company.get_freelancer_company] || []
+    @preferred_groups = current_company.groups.contact_groups
   end
 
   def company_job_params

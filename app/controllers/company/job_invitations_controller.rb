@@ -108,17 +108,19 @@ class Company::JobInvitationsController < Company::BaseController
 
   def create_multiple
     invitation_params = job_invitation_params
-    invitation_params["min_hourly_rate"] = 0 unless invitation_params["min_hourly_rate"].present? 
-    invitation_params["max_hourly_rate"] = 0 unless invitation_params["max_hourly_rate"].present? 
-    
-    if params.key?('vendor_company')
-      Company.vendor.where(id: params[:vendor_company]).each do |c|
-        current_company.sent_job_invitations.create!(invitation_params.merge!(created_by_id: current_user.id, invitation_type: 'vendor', recipient_type: 'User', recipient_id: c.id))
-      end
-    elsif params.key?('temp_candidates')
-      Candidate.where(id: params[:temp_candidates]).each do |c|
-        current_company.sent_job_invitations.create!(invitation_params.merge!(created_by_id: current_user.id, invitation_type: 'candidate', recipient_type: 'Candidate', recipient_id: c.id))
-      end
+    invitation_params['min_hourly_rate'] = 0 unless invitation_params['min_hourly_rate'].present?
+    invitation_params['max_hourly_rate'] = 0 unless invitation_params['max_hourly_rate'].present?
+
+    if params.key?('vendor_company') || params.key?('vendor_groups')
+      SendJobInvitationsJob.perform_later(params[:vendor_company], invitation_params.merge!(created_by_id: current_user.id, invitation_type: 'vendor', recipient_type: 'User'),
+                                          current_company, params[:vendor_groups])
+      flash[:success] = 'Sending Job invitations to selected vendors.'
+    elsif @params.key?('temp_groups') || @params.key?('temp_candidates')
+      SendJobInvitationsJob.perform_later(params[:temp_candidates], invitation_params.merge!(created_by_id: @current_user.id, invitation_type: 'candidate', recipient_type: 'Candidate'),
+                                          current_company, params[:temp_groups])
+      flash[:success] = 'Sending Job invitations to selected candidates.'
+    else
+      flash[:notice] = 'Please select atleast one vendor or candidate!'
     end
     redirect_back fallback_location: root_path
   end

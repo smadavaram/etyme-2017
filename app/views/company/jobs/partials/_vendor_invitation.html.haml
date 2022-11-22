@@ -3,25 +3,31 @@
   -#= f.hidden_field :recipient_type , value: 'User'
   -#= f.hidden_field :invitation_type , value: 'vendor'
   %br
-  .form-group
+  .form-group.pb-4
     %label.col-md-2.control-label
       Select Vendor
       %sup.text-danger *
     .col-md-10
-      = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }) ,class: 'form-control' , required: true ,:multiple => true
+      = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }) ,class: 'form-control' , required: true, multiple: true
+  .form-group.pb-4
+    %label.row-lg-4.pl-2.control-label
+      Select Groups
+    .col-md-10
+      = select_tag 'vendor_groups', options_for_select(groups.uniq.collect { |group| [group.group_name,group.id] }), prompt: "Select Group", class: 'form-control', multiple: true
   -#.row
   -#  .col-md-12
   -#    .form-group
   -#      = f.select :recipient_id,{} ,{include_blank: 'Select a Employee'},id: 'user_select' , class: "form-control" , required: 'required', placeholder: "Select something"
-  .form-group
+  .form-group.pb-2
     %label.col-md-2.control-label
-      Expiray Date
+      Expiry Date
       %sup.text-danger *
     .col-md-10
       = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date"
+
   .form-group
     %label.col-md-2.control-label
-      Description
+      Message
       %sup.text-danger
     .col-md-10
       = f.text_area :message ,class: "form-control" ,row: '3' , placeholder: "Enter Description"

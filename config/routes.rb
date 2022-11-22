@@ -449,17 +449,20 @@ Rails.application.routes.draw do
       get :batch_job, on: :member
     end
     resources :conversations do
-      post :update_company_conversation_title, on: :collection
-      post :delete_company_conversation_title, on: :collection
-      post :posposal_chats, on: :collection
-      get :search, on: :collection
-      get :add_to_favourite, on: :collection
-      get :remove_from_favourite, on: :collection
-      post :add_to_chat, on: :collection
+      collection do
+        post :update_company_conversation_title
+        post :delete_company_conversation_title
+        post :posposal_chats
+        get :search
+        get :add_to_favourite
+        get :remove_from_favourite
+        post :add_to_chat
+        post :remove_from_chat
+        get :mini_chat
+      end
       post :chat_docusign
       get :mute, on: :member
       get :unmute, on: :member
-      get :mini_chat, on: :collection
       resources :conversation_messages do
         get :mark_as_read, on: :member
       end

@@ -11,14 +11,10 @@
       <h1 class="font-500 font-size-24"><%= @job.title %></h1>
     </div>
     <div class="col-4 col-md-2 product-single-buy">
-      <div class="feed-article-btn-apply">
-        <%= link_to "Apply Now", static_job_apply_path(@job, status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true } %>
-      </div>
+      <div class="sharethis-inline-share-buttons" data-title="<%= @job.title %>" data-url="<%= static_job_url(@job).to_s %>" %> style="z-index: auto"></div>
     </div>
     <div class="col-12">
       <span><i class="fa fa-clock-o mr-1" aria-hidden="true"></i> <%= "Created On #{@job.created_at.strftime('%B %e, %Y')}" %></span>
-      <a href="#" >Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
-      <a href="#" >Save this <i class="fa fa-heart ml-1" aria-hidden="true"></i></a>
       <%= render 'show_details_job_info', is_job: is_job %>
     </div>
   </div>
@@ -43,6 +39,9 @@
   <!-- About Company -->
   <div class="product-single-subsection-title pb-3">
     <h7>About Company</h7>
+  </div>
+  <div class="btn btn-primary col-md-4 float-right">
+    <%= link_to "Apply Now", static_job_apply_path(@job, status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }, style: 'color: black;font-size: large;' %>
   </div>
   <div class="product-single-company-card d-flex pb-3">
     <div class="company-card-image">
