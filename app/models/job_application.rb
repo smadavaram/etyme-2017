@@ -58,7 +58,6 @@ class JobApplication < ApplicationRecord
 
   # validates :cover_letter , :applicant_resume ,presence: true
   validates :cover_letter, presence: false
-  validates :applicant_resume, presence: true
   validates :applicationable, presence: true
 
   # validates :application_type, inclusion: { in: application_types.keys }

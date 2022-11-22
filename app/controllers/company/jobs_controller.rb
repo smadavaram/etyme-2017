@@ -40,6 +40,15 @@ class Company::JobsController < Company::BaseController
     @job.end_date = "9999/12/31".to_datetime.strftime("%Y-%m-%d")
     @job.job_requirements.build
     @job.allow_multiple_applications_for_candidate = false
+
+    if params[:copy_id]
+      cloning_job = Job.find(params[:copy_id])
+      @job = cloning_job.dup
+      @job.title = ""
+      cloning_job.job_requirements.map do |req| 
+        @job.job_requirements << req.dup
+      end
+    end
   end
 
   def edit
@@ -54,7 +63,6 @@ class Company::JobsController < Company::BaseController
   def sites_jobs_iframe; end
 
   def create
-
     params[:job][:description] = params[:job][:description].gsub("width: 100%","width: 350px")
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
 
