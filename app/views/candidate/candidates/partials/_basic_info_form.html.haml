@@ -10,6 +10,10 @@
       .form-group
         = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
     .col-sm-6
+      %label Display Name As
+      .form-group
+        = f.text_field :display_name  ,:placeholder => "Enter Display Name ",class:'form-control input'
+    .col-sm-6
       %label Date Of birth
       .form-group
         = f.text_field :dob  ,:placeholder => "Date Of Birth",class:'form-control input p_date'
