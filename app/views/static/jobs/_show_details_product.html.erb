@@ -8,10 +8,8 @@
   <!-- Header: Title, updated, share, save and buy -->
   <div class="product-single-header row pb-3">
     <div class="col-8 col-md-10 feed-title">
+      <div class="sharethis-inline-share-buttons float-right" data-title="<%= @job.title %>" data-url="<%= static_job_url(@job).to_s %>" %> style="z-index: auto"></div>
       <h1 class="font-500 font-size-24"><%= @job.title %></h1>
-    </div>
-    <div class="col-4 col-md-2 product-single-buy">
-      <div class="sharethis-inline-share-buttons" data-title="<%= @job.title %>" data-url="<%= static_job_url(@job).to_s %>" %> style="z-index: auto"></div>
     </div>
     <div class="col-12">
       <span><i class="fa fa-clock-o mr-1" aria-hidden="true"></i> <%= "Created On #{@job.created_at.strftime('%B %e, %Y')}" %></span>
@@ -40,8 +38,8 @@
   <div class="product-single-subsection-title pb-3">
     <h7>About Company</h7>
   </div>
-  <div class="btn btn-primary col-md-4 float-right">
-    <%= link_to "Apply Now", static_job_apply_path(@job, status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }, style: 'color: black;font-size: large;' %>
+  <div class="btn btn-primary col-md-4 float-right" style="background-color: #5555A5;border-color: #5555A5;">
+    <%= link_to "Apply Now", static_job_apply_path(@job, status: candidate_signed_in?), method: :post , remote: true, data: { trigger_modal: true }, style: 'color: white;font-size: x-large;' %>
   </div>
   <div class="product-single-company-card d-flex pb-3">
     <div class="company-card-image">
