@@ -109,8 +109,9 @@ class Candidate < ApplicationRecord
   include ArchilliCandidateProfileBuilder
   include SovrenCandidateProfileBuilder
 
-  geocoded_by :location
-  after_validation :geocode
+  # TODO: will be uncommented after completing the import candidate rake task  
+  # geocoded_by :location
+  # after_validation :geocode
 
   enum status: %i[signup campany_candidate]
   enum visa: %i[Us_citizen GC OPT OPT_third_party H1B H1B_third_party]
