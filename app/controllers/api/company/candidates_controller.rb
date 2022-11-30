@@ -3,6 +3,13 @@
 class Api::Company::CandidatesController < ApplicationController
   respond_to :json
 
+  def show
+    @candidate = Candidate.find_by(id: params[:id])
+
+    ((render json: {message: "Candidate Not Found."}, status: :not_found); return) unless @candidate
+    render json: {candidate: @candidate, recruiter_name: @candidate.recruiter.email}
+  end
+
   def get_resumes
     candidate = Candidate.find(params[:id])
 

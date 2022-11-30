@@ -274,12 +274,30 @@ class Company::UsersController < Company::BaseController
     user.delete unless user.blank?
     redirect_to admins_path
   end
+
   def onlinestatus
     user = User.find(current_user.id)
     user.update(online_user_status: params[:online_status])
     ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
    render json:{data: user.id}
   end
+
+  def application_table_layouts_update
+    layout = current_user.application_table_layout || ApplicationTableLayout.new(user: current_user)
+    columns = layout.all_columns(params[:job_type])
+
+    columns.each do |col|
+      col[:display] = params[:application_table_layout][col[:key]]=='1' ? true : false
+    end
+
+    if params[:job_type]=='Bench'
+      layout.update_attributes(bench_columns: columns)
+    else
+      layout.update_attributes(columns: columns)
+    end
+    redirect_back(fallback_location: root_path)
+  end
+
   private
 
   def find_user

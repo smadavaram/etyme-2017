@@ -50,9 +50,6 @@ class Company::CandidatesController < Company::BaseController
 
   def show
     @candidate = Candidate.find_by(id: params[:id])
-
-    ((render json: {message: "Candidate Not Found."}, status: :not_found); return) unless @candidate
-    render json: {candidate: @candidate, recruiter_name: @candidate.recruiter.email}
   end
 
   def impersonate

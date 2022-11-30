@@ -19,7 +19,7 @@
     function set_hr(){
       $("#select_candidate_resumes").val(null).trigger('change');
       $.ajax({
-        url: "/company/candidates/"+$("#temp_candidates").val(),
+        url: "/api/company/candidates/"+$("#temp_candidates").val(),
         cache: false,
         success: function(data){
           $(".hr_field").val(data.recruiter_name);
