@@ -359,7 +359,6 @@ Rails.application.routes.draw do
       match :assign_groups, via: %i[get post]
       get :profile
       post :update_video
-      post :application_table_layouts_update
       collection do
         get :notify_notifications
         get 'notification/:id', to: 'users#notification', as: 'get_notification'
@@ -901,7 +900,7 @@ Rails.application.routes.draw do
         end
       end
 
-      resources :candidates, only: :show do
+      resources :candidates do
         get :get_resumes, on: :member
       end
       

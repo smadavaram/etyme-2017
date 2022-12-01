@@ -193,12 +193,7 @@
     <div class="row">
       <div class="col-md-12">
         <div class="element-box element-box-show">
-          <div class="row">
-            <div><h5 class="form-header">Applications</h5></div>
-            <div><div style="margin: auto; padding: 10px;">
-              <a title='Change Layout' href='#', onclick='change_layout();'><i class='fa fa-columns'></i></a>
-            </div></div>
-          </div>
+          <h5 class="form-header">Applications</h5>
           <div class="table-responsive">
             <% if @job_applications.count > 0 %>
               <%= render 'company/jobs/partials/job_applications_table' %>
@@ -243,12 +238,6 @@
   // document.addEventListener('DOMContentLoaded', function(){
   //     $(".open_chat").trigger('click');
   // }, false);
-
-  function change_layout() {
-    $('.remote_container').html("<%= j (render partial: 'company/jobs/partials/change_application_table_layout_modal') %>");
-    $('#change-application-table-layout-modal').modal('toggle');
-    $(".select2").select2({placeholder: "Select Group(s)"});
-  }
 
   function open_chat(id){$.get(`/company/conversations/mini_chat?conversation_id=${id}`)}
   function imagesUpload(url){

@@ -140,7 +140,6 @@ class User < ApplicationRecord
   has_many :created_notifications, as: :createable
   has_many :contract_cycles
   has_many :contract_admins
-  has_one :application_table_layout
 
   accepts_nested_attributes_for :attachable_docs, reject_if: :all_blank
   accepts_nested_attributes_for :custom_fields, reject_if: :all_blank
