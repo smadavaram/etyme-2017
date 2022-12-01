@@ -25,7 +25,6 @@ class Company::JobsController < Company::BaseController
     # @conversation = @conversations.first
     @job.create_job_conversation unless @job.conversation.present?
     @conversation = @job.conversation
-    @application_table_layout = current_user.application_table_layout || ApplicationTableLayout.new(user: current_user)
   end
 
   def new

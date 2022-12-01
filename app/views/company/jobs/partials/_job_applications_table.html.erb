@@ -39,13 +39,11 @@
           </td>
           <% recruiter = application.user.recruiter %>
           <td>
-            <% if recruiter %>
-              <%= user_image(recruiter, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{recruiter.try(:full_name)}" ) %>
-              <%= link_to(do_ellipsis(recruiter.try(:full_name),12), company_user_profile_path(recruiter), class: 'data-table-font candidate-name') %>
-              <span style="font-size: 0.80em; float: left;">
-                <%= contact_widget(recruiter.email, recruiter.phone, recruiter, chat_link: chat_link(recruiter,application&.conversation&.id),color: '#3E4B5B; !important') %>
-              </span>
-            <% end %>
+            <%= user_image(recruiter, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{recruiter.try(:full_name)}" ) %>
+            <%= link_to(do_ellipsis(recruiter.try(:full_name),12), company_user_profile_path(recruiter), class: 'data-table-font candidate-name') %>
+            <span style="font-size: 0.80em; float: left;">
+              <%= contact_widget(recruiter.email, recruiter.phone, recruiter, chat_link: chat_link(recruiter,application&.conversation&.id),color: '#3E4B5B; !important') %>
+            </span>
           </td>
           <td>
             <% application.user.skills.each do |skill| %>
@@ -101,21 +99,3 @@
     width: 100px;
   }
 </style>
-
-<% content_for :scripts do %>
-  <script type="text/javascript">
-    $(document).ready(function() {
-      var layout_headers = '<%=@application_table_layout.headers(@job.status).to_json.html_safe%>'.toLowerCase();
-      var a = JSON.parse(layout_headers);
-      var table = $('#jobs_datatable').DataTable();
-      table.columns().every(function() {
-        if(a.includes(this.header().textContent.toLowerCase()) || this.header().textContent=="Action"){
-          this.visible(true);
-        }
-        else{
-          this.visible(false);
-        }
-      })
-    })
-  </script>
-<% end %>
