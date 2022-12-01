@@ -3,59 +3,60 @@
     .row
       .col-md-12
         .row{style: "margin: 30px 0px 10px -10px"}
-          .col-md-6.col-xs-12
+          .col-md-5.col-xs-12
             %h6
-              %b Tell us about the nature of work for this assignment
-          .col-md-6.col-xs-12.word_nature_radio_button
+              %b Nature of work for this assignment
+          .col-md-7.col-xs-12
             %h6{style: "display: inline-flex;"}
               %label.radio-container{style: "margin: 0 10px"}
-                Contract
-                = f.radio_button :nature_of_work, "Contract", onClick: "updateClientName(this);"
+                Consulting
+                = f.radio_button :nature_of_work, "Consulting"
                 %span.radio-checkmark
               %label.radio-container{style: "margin: 0 10px"}
                 Full time
-                = f.radio_button :nature_of_work, "Full time", onClick: "updateClientName(this);"
+                = f.radio_button :nature_of_work, "Full time"
                 %span.radio-checkmark  
               %label.radio-container{style: "margin: 0 10px"}
                 Self Employed
-                = f.radio_button :nature_of_work, "Self Employed", onClick: "updateClientName(this);"
+                = f.radio_button :nature_of_work, "Self Employed"
                 %span.radio-checkmark          
     .multi-field-container
       .row
+        .col-md-12{style: "padding-top: 10px;"}
+          = render 'candidate/candidates/partials/gallery_form', f: f, reference: 'designation'
+      .row
         .col-md-12
           .multi-field-container.nested-fields5.client-fields
-            %h6.element-header
-              Client/Employment History
+            %h4.element-header
+              Employer History
         .col-md-12
           .row{style: "padding: 0 20px;"}
             .col-md-12
               .form-group
-                %label Client/Employer Name
-                = f.text_field :comp_name, placeholder: "Client/Employer Name",class: 'form-control  input'
+                %label Company Name
+                = f.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'
             .col-md-12
               .row
                 .col-md-6
                   .form-group
-                    %label Job Title
-                    = f.text_field :company_role, placeholder: "Job Title",class: 'form-control  input'
+                    %label Company Designation
+                    = f.text_field :company_role, placeholder: "Company Designation",class: 'form-control  input'
                 .col-md-6
                   .form-group
-                    %label Location
-                    = f.text_field :location, placeholder: "Location",class: 'form-control  input'
+                    %label Company Location
+                    = f.text_field :location, placeholder: "Company Location",class: 'form-control  input'
             .col-md-12
               .row
                 .col-md-6
                   .form-group
                     %label Start Date
-                    = f.date_field :start_date, placeholder: "Start Date",class: 'form-control input', style: 'text-transform: uppercase;'
+                    = f.date_field :start_date, placeholder: "Start Date",class: 'form-control input'
                 .col-md-6
                   .form-group
                     %label End Date
-                    = f.date_field :end_date, placeholder: "End Date",class: 'form-control input', style: 'text-transform: uppercase;'
+                    = f.date_field :end_date, placeholder: "End Date",class: 'form-control input'
         .col-md-12
           = render 'candidate/candidates/partials/client_reference', f: f, reference: 'client_reference'
-        .col-md-12{style: "padding-top: 10px;"}
-          = render 'candidate/candidates/partials/gallery_form', f: f, reference: 'designation'
         .col-md-12
           = render 'candidate/candidates/partials/designation_project', f: f, reference: 'designation_project'
 
@@ -69,27 +70,3 @@
   -#  .col-md-12
   -#    %a.bttn.btn-add.remove-multi-fields.pull-right.delete_icon
   -#      %i.fa.fa-trash
-
-:javascript
-  $(document).on('cocoon:after-insert', function(e, insertedItem, originalEvent) {
-    element_name = insertedItem.children()[0].childNodes[1].childNodes[1].childNodes[1].childNodes[3].childNodes[1].childNodes[1].childNodes[1].name;
-    updateClientName(element_name)
-  });
-
-  function updateClientName(element_name) {
-    $(`input[name="${element_name}"]`).change(function() {
-      let work_value = $(this).parent().parent().parent().parent().parent().parent().parent().children().children().children().children()[3].childNodes[1].childNodes[1].childNodes;
-      if ($(this).val() == "Self Employed") {
-        work_value[1].innerHTML = 'Client/Employer Name';
-        work_value[3].value = 'Self Employed';
-      }
-      else if ($(this).val() == "Full time") {
-        work_value[1].innerHTML = 'Employer Name';
-        work_value[3].value = '';
-      }
-      else if ($(this).val() == "Contract") {
-        work_value[1].innerHTML = 'Client Name';
-        work_value[3].value = '';
-      }
-    });
-  }
