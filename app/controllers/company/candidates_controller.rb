@@ -290,7 +290,8 @@ class Company::CandidatesController < Company::BaseController
       end
 
       email = e.include?('[') ? JSON.parse(e) : e
-      emails << email
+      multiple_email = email.include?(' ') ? email.split(' ') : [email]
+      multiple_email.each { |single_email| emails << single_email }
     end
     if params[:emails_bcc].present?
       params[:emails_bcc].each do |e|
@@ -302,7 +303,8 @@ class Company::CandidatesController < Company::BaseController
         end
 
         email = e.include?('[') ? JSON.parse(e) : e
-        emails << email
+        multiple_email = email.include?(' ') ? email.split(' ') : [email]
+        multiple_email.each { |single_email| emails << single_email }
       end
     end
 

@@ -2,14 +2,12 @@
   .modal-dialog.modal-md
     .modal-content
       .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
         %h5#myModalLabel.modal-title
           %strong Share Hot Candidates
           %hr
           %p.muted Share your hot candidates with external users and you can also attach a custom message along with.
-
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
-
       .modal-body
         .share_url
           Share
@@ -23,26 +21,26 @@
                 To
                 %sup.text-danger
               .col-md-12
-                =# text_field_tag "emails" ,nil ,class: "tagsinput form-control" ,"data-role" => "tagsinput", placeholder: "Groups/Customers/Emails" , required: true ,"data-role" => "tagsinput"
-                = select_tag "emails",options_for_select(current_company.groups.contact_groups.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2', required: true, :multiple => true}
+                =# text_field_tag "emails", nil, class: "tagsinput form-control" ,"data-role" => "tagsinput", placeholder: "Groups/Customers/Emails" , required: true ,"data-role" => "tagsinput"
+                = select_tag "emails", options_for_select(current_company.groups.contact_groups.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2', id:"emails", required: true, :multiple => true}
             .form-group
               %label.col-md-12.control-label
                 BCC
                 %sup.text-danger
               .col-md-12
-                = select_tag "emails_bcc",options_for_select(current_company.groups.contact_groups.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2', :multiple => true}
+                = select_tag "emails_bcc", options_for_select(current_company.groups.contact_groups.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2', id:"bcc_emails", :multiple => true}
             .form-group
               %label.col-md-12.control-label
                 Subject
                 %sup.text-danger
               .col-md-12
-                = text_field_tag "subject" ,nil ,class: "form-control ", :id=>"emailsubject" , placeholder: "Email Subject "
+                = text_field_tag "subject" ,nil ,class: "form-control ", :id=>"emailsubject" , placeholder: "Email Subject"
             .form-group
               %label.col-md-12.control-label
                 Message
                 %sup.text-danger
               .col-md-12
-                = text_area_tag "message" ,nil ,class: "form-control ", :id=>"emailbody" , placeholder: "Message "
+                = text_area_tag "message" ,nil ,class: "form-control ", :id=>"emailbody" , placeholder: "Message"
 
           .modal-footer
             %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
