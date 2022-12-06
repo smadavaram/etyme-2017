@@ -20,7 +20,7 @@ class Static::JobsController < ApplicationController
     @current_company = current_company
 
     if @current_company.present?
-      @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @candidates_hot = current_company.candidates_companies.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first} unless current_company.nil?
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
 
@@ -117,7 +117,7 @@ class Static::JobsController < ApplicationController
         @company_jobs = @company_jobs.where.not(listing_type: 'Job').paginate(page: params[:page], per_page: 20)
       end
 
-      @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @candidates_hot = @current_company.candidates_companies.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first} unless @current_company.nil?
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
     render layout: 'kulkakit'
