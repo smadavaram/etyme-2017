@@ -1,4 +1,3 @@
-- current_candidate.designations.build unless current_candidate.designations.present?
 #tab5_container{style: "padding: 0 14px;"}
   = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "skill"),method: :put, remote: true do |f|
     %br/
@@ -9,25 +8,10 @@
             .col-md-6
               %h4.element-header{style: "padding-bottom: 1rem;margin-bottom: 1rem;"}
                 Add Experience
-            .col-md-6  
-              %button.btn.btn-primary.add-designation-btn{onClick: "addExperience(this);", style: "float: right;"}
-                + Add Experience 
-          = hidden_field_tag :designations_flag, "#{current_candidate.designations.with_no_client.present? ? true : false}"
-          = f.fields_for :designations, f.object.designations.with_no_client do |b|
-            = render 'candidate/candidates/designations_fields', f: b
+          %div
+            = f.fields_for :designations, f.object.designations.with_no_client do |b|
+              = render 'candidate/candidates/designations_fields', f: b
 
-          %strong
-            .links.pull-right{style: "margin: 13px 0;"}
-              = link_to_add_association '+ Add Experience', f, :designations, class: "btn btn-primary experience-btn", partial: 'candidate/candidates/designations_fields'
-:javascript
-  function addExperience(arg){
-    btn_length = $( ".experience-btn" ).length
-    if($(".delete_icon:visible").length == 0){
-      $(".experience-btn").show();
-    }
-    $( ".experience-btn" ).each(function(index, i) {
-      if(btn_length -1 == index){
-        $(i).click();      
-      }
-    });
-  }
+            .links.pull-right
+              = link_to_add_association '+ Add Experience', f, :designations, class: "btn btn-primary", partial: 'candidate/candidates/designations_fields'
+

@@ -327,7 +327,6 @@ class Candidate::CandidatesController < Candidate::BaseController
     @user.educations.build unless @user.educations.present?
     @user.certificates.build unless @user.certificates.present?
     @user.clients.build unless @user.clients.present?
-    @user.designations.build unless @user.designations.present?
     @sub_cat = WORK_CATEGORIES[@user.category]
     @tab = params['tag']
   end
