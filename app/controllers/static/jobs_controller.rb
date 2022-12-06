@@ -71,11 +71,11 @@ class Static::JobsController < ApplicationController
     render layout: 'kulkakit'
   end
 
-  def static_feeds 
+  def static_feeds
     @current_company = current_company
     if @current_company.present?
       @company_jobs = @current_company.jobs.active.not_system_generated.includes(:created_by)
-      @company_jobs = @company_jobs.where('jobs.title like ? or jobs.description like ?', "%#{params[:input_search]}%", "%#{params[:input_search]}%")
+      @company_jobs = @company_jobs.search_with(params[:input_search]) if params[:input_search]
 
       if params.key?(:sort).present?
         if params[:sort] == 'created_asc'

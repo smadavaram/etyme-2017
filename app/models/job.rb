@@ -90,6 +90,7 @@ class Job < ApplicationRecord
 
   # scope :search_by, ->(term, _search_scop) { Job.joins(:tags).where('lower(tags.name) like :term or lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', term: "#{term&.downcase}%") }
   scope :search_by, ->(term) { Job.joins(:tags).where('lower(tags.name) like :term or lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', term: "#{term&.downcase}%") }
+  scope :search_with, ->(term) { where('lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', term: "#{term&.downcase}%").distinct }
 
   geocoded_by :location
   after_validation :geocode
