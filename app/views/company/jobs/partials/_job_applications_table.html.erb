@@ -1,12 +1,24 @@
 <table id="jobs_datatable" class="table text-center table-bordered table-lg table-v2 table-striped dataTable no-footer" data-class="Scaffolding::Thing">
   <thead>
   <tr>
-    <th width="30%;">Name</th>
+    <th width="30%;">Applicant Name</th>
+    <th>HR Partner</th>
     <th>Skills</th>
-    <th>Location</th>
-    <th>Visa</th>
-    <th>Recruiter</th>
-    <th>Action</th>
+    <% if @job.status=='Bench' %>
+      <th>End Client Job Title</th>
+      <th>Client</th>
+      <th>Client Job Location</th>
+      <th>Client Partner</th>
+      <th>Work Type</th>
+      <th>Visa</th>
+      <th>Applied By</th>
+      <th>Applied At</th>
+      <th>Status</th>
+    <% else %>
+      <th>Location</th>
+      <th>Visa</th>
+    <% end %>
+      <th>Action</th>
   </tr>
   </thead>
   <tbody>
@@ -18,26 +30,58 @@
           <!-- <td>
             <%#= link_to user_image(application.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{application.try(:user).try(:full_name)}" ), job_application_path(application)%>
           </td> -->
-          <td class="no-wrap pr-5">
+          <td>
             <%= user_image(application.applicationable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.applicationable.try(:full_name)}" ) %>
-            <%= link_to(do_ellipsis(application.applicationable.try(:full_name),13), public_profile_static_candidates_path(application.applicationable), class: 'data-table-font candidate-name') %>
-            <hr style="margin-top:-23px; visibility:hidden;"/>
-            <span style="margin-left:33px; font-size: 0.80em;">
+            <%= link_to(do_ellipsis(application.applicationable.try(:full_name),12), public_profile_static_candidates_path(application.applicationable), class: 'data-table-font candidate-name') %>
+            <span style="font-size: 0.80em; float: left;">
               <%= contact_widget(candidate.email, candidate.phone, candidate, chat_link: chat_link(candidate,application&.conversation&.id),color: '#3E4B5B; !important') %>
             </span>
+          </td>
+          <% recruiter = application.user.recruiter %>
+          <td>
+            <% if recruiter %>
+              <%= user_image(recruiter, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{recruiter.try(:full_name)}" ) %>
+              <%= link_to(do_ellipsis(recruiter.try(:full_name),12), company_user_profile_path(recruiter), class: 'data-table-font candidate-name') %>
+              <span style="font-size: 0.80em; float: left;">
+                <%= contact_widget(recruiter.email, recruiter.phone, recruiter, chat_link: chat_link(recruiter,application&.conversation&.id),color: '#3E4B5B; !important') %>
+              </span>
+            <% end %>
           </td>
           <td>
             <% application.user.skills.each do |skill| %>
               <span class="badge-success badge"><%= skill.name %></span>
             <% end %>
           </td>
-          <td><%= application.user.try(:location) %></td>
-          <td><%= application.user.visa %></td>
-          <td>
-            <% application.user.companies.each do |company| %>
-              <span class="badge-info badge mb-5"><%= company.name %></span>
+          <% if @job.status=='Bench' %>
+            <td><%= application.end_client_job_title %></td>
+            <td><%= application.client_name %></td>
+            <td><%= application.client_job_location %></td>
+            <td>
+            <% if application.company_contact_id %>
+              <%= user_image(application.client_partner, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.client_partner.try(:full_name)}" ) %>
+              <%= link_to(do_ellipsis(application.client_partner.try(:full_name),9), company_user_profile_path(application.client_partner), class: 'data-table-font candidate-name') %>
+              <span style="font-size: 0.80em; float: left;">
+                <%= contact_widget(application.client_partner.email, application.client_partner.phone, application.client_partner, chat_link: chat_link(application.client_partner,application&.conversation&.id),color: '#3E4B5B; !important') %>
+              </span>
             <% end %>
-          </td>
+            </td>
+            <td><%= application.work_type %></td>
+            <td><%= application.user.visa %></td>
+            <td>
+            <% if application.applied_by %>
+              <%= user_image(application.applied_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.applied_by.try(:full_name)}" ) %>
+              <%= link_to(do_ellipsis(application.applied_by.try(:full_name),12), company_user_profile_path(application.applied_by), class: 'data-table-font candidate-name') %>
+              <span style="font-size: 0.80em; float: left;">
+                <%= contact_widget(application.applied_by.email, application.applied_by.phone, application.applied_by, chat_link: chat_link(application.applied_by,application&.conversation&.id),color: '#3E4B5B; !important') %>
+              </span>
+            <% end %>
+            </td>
+            <td><%= application.created_at.strftime("%d, %b %Y %H:%M") %></td>
+            <td><%= application.status %></td>
+          <% else %>
+            <td><%= application.user.try(:location) %></td>
+            <td><%= application.user.visa %></td>
+          <% end %>
           <td class="no-wrap">
             <%= link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(application), title: 'View Detail', class: 'data-table-icons') %>
             <%= link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, candidate_add_reminder_path(application.applicationable_id), remote: :true, title: "Remind Me", class: 'data-table-icons') %>
@@ -54,6 +98,24 @@
 <style type="text/css">
   .candidate-name{
     float: left;
-    width: 120px;
+    width: 100px;
   }
 </style>
+
+<% content_for :scripts do %>
+  <script type="text/javascript">
+    $(document).ready(function() {
+      var layout_headers = '<%=@application_table_layout.headers(@job.status).to_json.html_safe%>'.toLowerCase();
+      var a = JSON.parse(layout_headers);
+      var table = $('#jobs_datatable').DataTable();
+      table.columns().every(function() {
+        if(a.includes(this.header().textContent.toLowerCase()) || this.header().textContent=="Action"){
+          this.visible(true);
+        }
+        else{
+          this.visible(false);
+        }
+      })
+    })
+  </script>
+<% end %>

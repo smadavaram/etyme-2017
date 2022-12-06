@@ -1,6 +1,28 @@
 -if @post.present?
   $("#job-invitation-multiple-#{@job.id}").modal("toggle");
 -else
-  $('.remote_container').empty().html("#{ j render 'company/job_applications/partials/modal_create_multipile_for_candidate.html.haml' , job: @job}");
+  $('.remote_container').empty().html("#{ j render 'company/job_applications/partials/modal_create_multipile_for_candidate.html.haml' , job: @job, job_application: @job_application}");
   $('#job-invitation-multiple-#{@job.id} ').modal('toggle');
-  $(".job_select2").select2({placeholder: "Select a Candidate(s)"});
+  $(".job_select2").select2({placeholder: "Select a Candidate"});
+  set_client_partner_select('#select_client_partner', "Please Select Or Add new Client Partner");
+  set_candidate_resumes('#select_candidate_resumes', "Please Select Or Add new Resume");
+  set_hr();
+
+  :plain
+    $('.resume_field').change(function () {
+      var uploaded_link = $('.resume_field').val();
+      urls = uploaded_link.split('/');
+      var mySelect = $("#select_candidate_resumes").append(`<option value='${uploaded_link}' selected=true>${urls[urls.length-1]}</option>`);
+      mySelect.trigger("change");
+    });
+  
+    function set_hr(){
+      $("#select_candidate_resumes").val(null).trigger('change');
+      $.ajax({
+        url: "/api/company/candidates/"+$("#temp_candidates").val(),
+        cache: false,
+        success: function(data){
+          $(".hr_field").val(data.recruiter_name);
+        }
+      });
+    }

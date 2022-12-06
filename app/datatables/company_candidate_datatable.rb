@@ -12,6 +12,7 @@ class CompanyCandidateDatatable < ApplicationDatatable
   def_delegator :@view, :unban_company_black_listers_path
   def_delegator :@view, :candidate_remove_from_comapny_path
   def_delegator :@view, :profile_company_candidate_path
+  def_delegator :@view, :company_candidate_assign_groups_to_candidate_path
 
   def view_columns
     @view_columns ||= {
@@ -116,7 +117,8 @@ class CompanyCandidateDatatable < ApplicationDatatable
     link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, candidate_add_reminder_path(record), remote: :true, title: 'Remind Me', class: 'data-table-icons') +
       get_edit_link(record) +
       link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, resume_download_link, download: true, target: :blank, title: resume_download_title, class: 'data-table-icons') +
-      get_status_links(record)
+      get_status_links(record) +
+      link_to(image_tag('groups.png', size: '16x16', class: '').html_safe, company_candidate_assign_groups_to_candidate_path(record), remote: true, title: 'Add to Group', class: 'data-table-icons')
   end
 
   def get_edit_link(record)

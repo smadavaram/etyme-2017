@@ -1,0 +1,30 @@
+.modal{id:"job-applicant-reqs-preview-modal"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h4.modal-title
+          %strong= "Additional Requirements"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body.no-padding
+        - application.job_applicant_reqs.each do |r|
+          %label.col-md-3.control-label
+            = r.job_requirement.questions
+          .col-md-8.mr-bottom-20
+            - if r.job_requirement.ans_type == "Free Text"
+              = text_field :group_ids, {}, class: 'form-control select2', disabled: true, value: r.applicant_ans
+            - elsif r.job_requirement.ans_type == "Multiple Answer"
+              - s=r.job_requirement.multiple_option
+              - s.gsub!('mytext=', ' ').gsub!('&','')
+              - opt_array = s.split(" ")
+              - if r.job_requirement.multiple_ans
+                -opt_array.each do |a|
+                  - if r.app_multi_ans.include?(a)
+                    %li= a
+              - else
+                -opt_array.each do |a|
+                  - if r.applicant_ans.include?(a)
+                    %li= a
+            - else
+              - file_name = r.applicant_ans.split('/')[-1]
+              %p{:class => "d-inline-block uploaded_file_#{@id}"}= file_name

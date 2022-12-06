@@ -25,7 +25,7 @@ class Static::CandidatesController < ApplicationController
     end
 
     @candidates_hot    = []
-    @candidates_hot    = CandidatesCompany.hot_candidate.where(company_id: current_company.id).first(3) unless current_company.nil?
+    @candidates_hot    = current_company.candidates_companies.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first} unless current_company.nil?
     @jobs_hot          = current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     @candidate_company = current_company.candidates_companies.includes(:candidate).find_by(candidate_id: params[:id])
     if @candidate_company.present?
@@ -60,7 +60,7 @@ class Static::CandidatesController < ApplicationController
     end
 
     @candidates_hot    = []
-    @candidates_hot    = CandidatesCompany.hot_candidate.where(company_id: current_company.id).first(3) unless current_company.nil?
+    @candidates_hot    = current_company.candidates_companies.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first} unless current_company.nil?
     @jobs_hot          = current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     @candidate_company = current_company.candidates_companies.includes(:candidate).find_by(candidate_id: params[:id])
     @candidate         = @candidate_company.candidate

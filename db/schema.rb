@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_10_12_113634) do
+ActiveRecord::Schema.define(version: 2022_11_24_002735) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -75,6 +75,15 @@ ActiveRecord::Schema.define(version: 2022_10_12_113634) do
     t.datetime "updated_at", null: false
     t.index ["email"], name: "index_admin_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_admin_users_on_reset_password_token", unique: true
+  end
+
+  create_table "application_table_layouts", force: :cascade do |t|
+    t.text "bench_columns"
+    t.text "columns"
+    t.bigint "user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_application_table_layouts_on_user_id"
   end
 
   create_table "approvals", force: :cascade do |t|
@@ -424,6 +433,7 @@ ActiveRecord::Schema.define(version: 2022_10_12_113634) do
     t.string "provider"
     t.string "uid"
     t.string "online_candidate_status"
+    t.text "about_summary"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
@@ -436,8 +446,8 @@ ActiveRecord::Schema.define(version: 2022_10_12_113634) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2022-10-11 08:09:00"
-    t.datetime "updated_at", default: "2022-10-11 08:09:00"
+    t.datetime "created_at", default: "2022-11-03 23:36:55"
+    t.datetime "updated_at", default: "2022-11-03 23:36:55"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -1448,6 +1458,12 @@ ActiveRecord::Schema.define(version: 2022_10_12_113634) do
     t.boolean "accept_rate", default: false
     t.boolean "accept_rate_by_company", default: false
     t.integer "recruiter_company_id"
+    t.string "work_type"
+    t.string "client_name"
+    t.string "end_client_job_title"
+    t.string "client_job_location"
+    t.integer "user_id"
+    t.integer "company_contact_id"
   end
 
   create_table "job_invitations", id: :serial, force: :cascade do |t|
@@ -1516,6 +1532,7 @@ ActiveRecord::Schema.define(version: 2022_10_12_113634) do
     t.float "latitude"
     t.float "longitude"
     t.integer "created_by_candidate_id"
+    t.boolean "allow_multiple_applications_for_candidate", default: false
     t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
   end
 

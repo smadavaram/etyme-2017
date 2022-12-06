@@ -2,6 +2,17 @@
 
 Rails.application.routes.draw do
   mount ActionCable.server => '/cable'
+
+  require 'sidekiq/web'
+
+  # Sidekiq Basic Auth from routes on production environment
+  Sidekiq::Web.use Rack::Auth::Basic do |username, password|
+    ActiveSupport::SecurityUtils.secure_compare(::Digest::SHA256.hexdigest(username), ::Digest::SHA256.hexdigest(ENV["SIDEKIQ_AUTH_USERNAME"])) &
+      ActiveSupport::SecurityUtils.secure_compare(::Digest::SHA256.hexdigest(password), ::Digest::SHA256.hexdigest(ENV["SIDEKIQ_AUTH_PASSWORD"]))
+  end if Rails.env.production?
+
+  mount Sidekiq::Web, at: '/sidekiq'
+
   concern :commentable do
     resources :comments
   end
@@ -52,6 +63,9 @@ Rails.application.routes.draw do
   end
 
   resources :contacts, only: :index do
+    collection do
+      post :add_to_group
+    end
     get :import_contacts, on: :collection
   end
   get '/contacts/:importer/import_contacts' => 'contacts#import_contacts'
@@ -207,13 +221,15 @@ Rails.application.routes.draw do
 
     # resources :contracts        , only: [:index]
     resources :candidates, only: %i[show update create] do
-      get 'current_status', on: :collection
-      get 'status_update', on: :collection
-      get 'chat_status_update', on: :collection
-      get 'move_to_employer', on: :collection
-      post 'online_candidates_status', on: :collection
-      get 'job/:id', to: 'candidates#get_job', on: :collection, as: :fetch_job
-      get 'build_profile/:id/resume', to: 'candidates#build_profile', on: :collection, as: :resume_profile
+      collection do
+        get 'current_status'
+        get 'status_update'
+        get 'chat_status_update'
+        get 'move_to_employer'
+        post 'online_candidates_status'
+        get 'job/:id', to: 'candidates#get_job', as: :fetch_job
+        get 'build_profile/:id/resume', to: 'candidates#build_profile', as: :resume_profile
+      end
     end
     resources :jobs do
       # resources :contracts , except: [:index] do
@@ -343,6 +359,7 @@ Rails.application.routes.draw do
       match :assign_groups, via: %i[get post]
       get :profile
       post :update_video
+      post :application_table_layouts_update
       collection do
         get :notify_notifications
         get 'notification/:id', to: 'users#notification', as: 'get_notification'
@@ -370,6 +387,10 @@ Rails.application.routes.draw do
       match :create_chat, via: %i[get post]
     end
     resources :candidates do
+      match :assign_groups_to_candidate, via: %i[get post]
+      collection do
+        post :add_to_group
+      end
       member do
         get :profile
         post :sort_skills
@@ -429,17 +450,20 @@ Rails.application.routes.draw do
       get :batch_job, on: :member
     end
     resources :conversations do
-      post :update_company_conversation_title, on: :collection
-      post :delete_company_conversation_title, on: :collection
-      post :posposal_chats, on: :collection
-      get :search, on: :collection
-      get :add_to_favourite, on: :collection
-      get :remove_from_favourite, on: :collection
-      post :add_to_chat, on: :collection
+      collection do
+        post :update_company_conversation_title
+        post :delete_company_conversation_title
+        post :posposal_chats
+        get :search
+        get :add_to_favourite
+        get :remove_from_favourite
+        post :add_to_chat
+        post :remove_from_chat
+        get :mini_chat
+      end
       post :chat_docusign
       get :mute, on: :member
       get :unmute, on: :member
-      get :mini_chat, on: :collection
       resources :conversation_messages do
         get :mark_as_read, on: :member
       end
@@ -575,6 +599,7 @@ Rails.application.routes.draw do
       member do
         post 'rate_negotiation/:conversation_id', to: 'job_applications#rate_negotiation', as: :rate_negotiation_for
         post 'accept_rate/:conversation_id', to: 'job_applications#accept_rate', as: :accept_rate
+        get :job_applicant_reqs_preview
         get :client_submission, as: :submit
         get :applicant, as: :applicant
         get :share
@@ -841,6 +866,7 @@ Rails.application.routes.draw do
     resources :select_searches, only: :index do
       get :find_companies, on: :collection
       get :find_client_companies, on: :collection
+      get :find_company_contacts_by_email, on: :collection
       get :find_candidates, on: :collection
       get :find_contacts, on: :collection
       get :find_users, on: :collection
@@ -873,6 +899,10 @@ Rails.application.routes.draw do
           get :fetch_owner
           get :present
         end
+      end
+
+      resources :candidates, only: :show do
+        get :get_resumes, on: :member
       end
       
       resources :jobs, only: %i[index create] do

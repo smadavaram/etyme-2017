@@ -3,7 +3,7 @@
 class Company::JobsController < Company::BaseController
   before_action :set_company_job, only: %i[show edit update destroy send_invitation]
   # before_action :set_locations  , only: [:new , :index, :edit , :create,:show]
-  before_action :set_preferred_vendors, only: [:send_invitation]
+  before_action :set_preferred_vendors_and_groups, only: [:send_invitation]
   before_action :set_candidates, only: :send_invitation
   before_action :authorize_user, only: %i[show edit update destroy]
   add_breadcrumb 'Dashboard', :dashboard_path
@@ -25,6 +25,7 @@ class Company::JobsController < Company::BaseController
     # @conversation = @conversations.first
     @job.create_job_conversation unless @job.conversation.present?
     @conversation = @job.conversation
+    @application_table_layout = current_user.application_table_layout || ApplicationTableLayout.new(user: current_user)
   end
 
   def new
@@ -39,6 +40,16 @@ class Company::JobsController < Company::BaseController
     @job.start_date = Time.now.strftime("%Y-%m-%d")
     @job.end_date = "9999/12/31".to_datetime.strftime("%Y-%m-%d")
     @job.job_requirements.build
+    @job.allow_multiple_applications_for_candidate = false
+
+    if params[:copy_id]
+      cloning_job = Job.find(params[:copy_id])
+      @job = cloning_job.dup
+      @job.title = ""
+      cloning_job.job_requirements.map do |req| 
+        @job.job_requirements << req.dup
+      end
+    end
   end
 
   def edit
@@ -53,7 +64,6 @@ class Company::JobsController < Company::BaseController
   def sites_jobs_iframe; end
 
   def create
-
     params[:job][:description] = params[:job][:description].gsub("width: 100%","width: 350px")
     @job = current_company.jobs.new(company_job_params.merge!(created_by_id: current_user.id))
 
@@ -394,13 +404,14 @@ class Company::JobsController < Company::BaseController
   #   @locations = current_company.locations || []
   # end
 
-  def set_preferred_vendors
+  def set_preferred_vendors_and_groups
     # @preferred_vendors_companies = Company.joins(:users).where("users.type = ?" , 'Vendor') - [current_company]|| []
     @preferred_vendors_companies = Company.vendors - [current_company, Company.get_freelancer_company] || []
+    @preferred_groups = current_company.groups.contact_groups
   end
 
   def company_job_params
-    params.require(:job).permit([:status, :source, :title, :files, :description, :location, :job_category, :is_public, :start_date, :end_date, :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, custom_fields_attributes:
+    params.require(:job).permit([:status, :source, :title, :files, :description, :location, :job_category, :is_public, :start_date, :end_date, :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, :allow_multiple_applications_for_candidate, custom_fields_attributes:
         %i[
           id
           name

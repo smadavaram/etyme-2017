@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # config valid only for current version of Capistrano
-lock '3.11.2'
+lock '3.15.0'
 
 set :application, 'etyme'
 set :repo_url,    'git@github.com:smadavaram/etyme-2017.git'
@@ -46,6 +46,6 @@ set :linked_dirs, fetch(:linked_dirs, []).push('log', 'tmp/pids', 'tmp/cache', '
 
 namespace :deploy do
   after 'deploy:published', 'restart' do
-    invoke 'delayed_job:restart'
+    # invoke 'delayed_job:restart'
   end
 end

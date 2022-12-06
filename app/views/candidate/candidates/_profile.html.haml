@@ -271,6 +271,23 @@
                   .element-info-icon
                     %i.icon-badge
                   .element-info-text
+                    %h4.element-inner-header.m-0 Professional Summary
+              %div.d-flex.justify-content-between.align-items-center.element-info
+                - if candidate.about_summary.present?
+                  %p.break-text
+                    = candidate.about_summary.html_safe
+                - else
+                  .element-info-text
+                    .mb-2
+                      %div
+                        %span.mb-1.h6.d-block.text-secondary There is no Professional Summary
+
+            .element-box
+              %div.d-flex.justify-content-between.align-items-center.element-info
+                .element-info-with-icon.w-50
+                  .element-info-icon
+                    %i.icon-badge
+                  .element-info-text
                     %h4.element-inner-header.m-0 Employment History
 
                 - if is_editable
@@ -325,22 +342,24 @@
               - if candidate.designations.with_no_client.present?
                 - candidate.designations.with_no_client.each do |designation|
                   - designation.designation_projects.each do |project|
-                    .element-info
-                      .element-info-text
-                        .mb-2
-                          .project-header
-                            %h6.mb-1.text-primary
-                              = project.project_name&.titleize
-                              , #{project.location&.titleize}
-                            %strong.font-weight-bold.font-sm.text-capitalize{:style => "color: gray;"}
-                              = project.start_date&.strftime('%B-%Y')
-                              \-  #{project.end_date&.strftime('%B-%Y')}
-                          .project-description{:style => "margin-top: 12px;font-size: 16px;line-height: 25px;"}
-                            %div= project.project_description.html_safe
-                            .job-description{:style => "margin-top: 12px;font-size: 16px;line-height: 25px;"}
-                              %strong.font-weight-bold.font-sm.text-capitalize{:style => "color: gray;"} Job description
-                              %div
-                                = project.job_description.html_safe
+                    .element-info-text
+                      %div
+                        - if designation.comp_name.present?
+                          %span
+                            = designation.comp_name
+                        %span{style: 'float: right;'}
+                          = designation.start_date&.strftime('%B-%Y')
+                          \-  #{designation.end_date&.strftime('%B-%Y')}
+                      - if designation.company_role.present?
+                        %div
+                          = designation.company_role
+                        .project-description{:style => "margin-top: 12px;font-size: 16px;line-height: 25px;"}
+                          %strong.font-weight-bold.font-sm.text-capitalize{:style => "color: gray;"} Project description
+                          %div= project.project_description.html_safe
+                          .job-description{:style => "margin-top: 12px;font-size: 16px;line-height: 25px;"}
+                            %strong.font-weight-bold.font-sm.text-capitalize{:style => "color: gray;"} Job description
+                            %div
+                              = project.job_description.html_safe
 
               - else
                 .element-info

@@ -40,7 +40,7 @@ class StaticController < ApplicationController
     else
       @jobs = Job.all.paginate(page: params[:page], per_page: 4)
     end
-    @jobs_group =  @jobs.group_by(&:job_category)
+    @jobs_group = @jobs.group_by(&:job_category)
   end
 
   def check_user
