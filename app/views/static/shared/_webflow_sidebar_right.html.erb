@@ -21,7 +21,7 @@ body{
     </div>
     <% if @candidates_hot.present? %>
       <div class="row justify-content-start">
-        <% @candidates_hot.each do |c| %>
+        <% @candidates_hot.uniq.each do |c| %>
           <div class="col-4">
             <figure class="figure">
               <div class="d-flex justify-content-center"><%= link_to user_avatar(c&.candidate), public_profile_static_candidates_path(c&.candidate), id: 'feed-talent-avatar', class: 'webflow-avatar-50-50', target: "_blank" %></div>

@@ -60,29 +60,36 @@
                                     <div class="col-12 col-xl-4 mb-4">
                                         <div class="people-card d-flex flex-column h-100">
                                             <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
-                                            <div class="cover-img" id="tag-<%=index%>" tag-value="tag-<%=index%>" data-value="<%= c&.candidate&.skills&.pluck(:name) %>">
-                                                <%= link_to (image_tag "#{c&.candidate&.designations&.with_no_client.present? ? c&.candidate.designations.with_no_client&.first&.portfolios&.first&.cover_photo : asset_path('') }", alt: "cover"), public_profile_static_candidates_path(c&.candidate), target: "_blank"  %>
+                                            <div class="cover-img" id="tag-<%=index%>" tag-value="tag-<%=index%>" >
+                                             <div class="candidate-name people-card-header flex-fill ">
+                                                <% if c&.candidate&.candidate_title.present? %>
+                                                  <%= c&.candidate&.candidate_title %>
+                                                <% else %>
+                                                  <p></p>
+                                                <% end %>
                                             </div>
-
+                                            <div class= "skills">
+                                              <% if c&.candidate&.skills.any? %>
+                                                    <ul>
+                                                        <% c.candidate.skills.each do |skill| %>
+                                                            <li><%= skill.name %></li>
+                                                        <% end %>
+                                                    </ul>   
+                                              <% end %>
+                                             </div>
+                                                <%# <%= link_to (image_tag "#{c&.candidate&.designations&.with_no_client.present? ? c&.candidate.designations.with_no_client&.first&.portfolios&.first&.cover_photo : asset_path('') }", alt: "cover"), public_profile_static_candidates_path(c&.candidate), target: "_blank"  %> 
+                                            </div>
                                             <div class="people-card-header d-flex justify-content-between">
                                                 <div class="media">
                                                     <%= link_to user_mini_avatar(c&.candidate), public_profile_static_candidates_path(c&.candidate), target: "_blank" %>
-                                                    <%= link_to c&.candidate&.full_name, public_profile_static_candidates_path(c&.candidate), target: "_blank" %>
+                                                    <%= link_to do_ellipsis(c&.candidate.try(:full_name),12), public_profile_static_candidates_path(c&.candidate), target: "_blank" %>
                                                 </div>
                                                 <div>
                                                     <%# <p class="m-0 f-12 f-mon-sembol txt-light"><%= c&.candidate&.location&.country %1></p> %>
                                                 </div>
                                             </div>
-
-                                            <div class="people-card-content flex-fill">
-                                                <% if c&.candidate&.candidate_title.present? %>
-                                                <%= c&.candidate&.candidate_title %>
-                                                <% end %>
-                                            </div>
-
                                             <div class="people-card-footer d-flex justify-content-between mb-3">
                                                 <div class="card-footer-icons d-flex">
-
                                                     <!-- Like Icon -->
                                                    <% if current_user.nil? and current_candidate.nil? %>
                                                     <div class="card-footer-like mr-2"  id="like-button-<%= c.id %>">
@@ -97,19 +104,8 @@
                                                     <div class="card-footer-like mr-2" id="like-button">
                                                       <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
                                                     </div>
-
-
                                                   <% end  %>
-
-
-
-
-
                                                     <!-- Chat Icon -->
-
-
-
-
                                                        <%c_candidate = c&.candidate_id%>
                                                        <%c_candidate_obj = Candidate.find_by(id: c_candidate)%>
                                                        <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
@@ -123,7 +119,6 @@
                                                                     alert('You must be logged in to chat.');
                                                                 })
                                                             </script>
-
                                                         <% else %>
                                                             <%if c_recruiter.present? && current_user != c_recruiter%>
                                                                 <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
@@ -131,8 +126,6 @@
                                                                  <button onclick="candidate_button(<%= c_candidate_obj.id %>)" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid me-2", alt: "Chat" %></button>
                                                             <%end%>
                                                             <% end %>
-
-
                                                         <div class="logged-user-role d-block">
                                                             <%if c_recruiter.present?%>
                                                               <%= chat_recruiter_link_image(c_recruiter) %>
@@ -140,11 +133,6 @@
                                                         </div>
                                                     </div>
                                                 </div>
-
-
-
-
-
                                                 <!-- Price -->
                                                 <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
                                                 <div class="pl-2">
@@ -473,9 +461,44 @@
         background: transparent !important;
         box-shadow: none !important;
     }
-
+    .skills{
+      background-color: white;
+      text-align: left;
+      padding: 15px;
+      margin-top: 30;
+    }
+    .skills ul{
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+    .skills ul li{
+      border: 1px solid rgb(217, 217, 217);
+      border-radius: 20px;
+      display: inline-block;
+      margin: 0 4px 4px 0;
+      padding: 4px;
+      background: rgb(217, 217, 217);
+      font-size: 12px;
+    }
+    .skill-list::-webkit-scrollbar-thumb{
+      background-color: rgb(116, 124, 142); 
+    }
+    .skill-list{
+      max-height:150px;
+      overflow-y:auto;
+      color: rgb(116, 124, 142);
+    }
+    .slider {
+      background: #d3d3d3;
+    }
     .txt-black a {
         color: #2A2C34 !important;
+    }
+    .candidate-name{
+     margin: auto;
+     text-align: center;
+     font-weight: bold;
     }
 
     .f-mon-bol a {
