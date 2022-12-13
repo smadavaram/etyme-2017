@@ -59,15 +59,14 @@ class Static::JobsController < ApplicationController
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
 
       if candidate_ids.present?
-        @uniq_candidates_company = CandidatesCompany.where(id: CandidatesCompany.where(company_id: @current_company.id, candidate_id: candidate_ids.uniq))
+        @uniq_candidates_company = current_company.candidates_companies.hot_candidate.where(candidate_id: candidate_ids).group_by(&:candidate_id).map{|a| a[1].first}
         @candidates = @uniq_candidates_company.paginate(page: params[:page], per_page: 50)
       else
-        @uniq_candidates_company = CandidatesCompany.where(id: CandidatesCompany.where(company_id: @current_company.id).hot_candidate.uniq(&:candidate_id))
+        @uniq_candidates_company = CandidatesCompany.where(company_id: @current_company.id).hot_candidate.uniq(&:candidate_id)
         @candidates = @uniq_candidates_company.paginate(page: params[:page], per_page: 50)
       end
     end
     flash.now[:alert] = 'Please login with Company ID' if params[:is_chat_candidate].present? && params[:is_chat_candidate] == 'true'
-
     render layout: 'kulkakit'
   end
 
