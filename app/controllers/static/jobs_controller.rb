@@ -71,11 +71,11 @@ class Static::JobsController < ApplicationController
     render layout: 'kulkakit'
   end
 
-  def static_feeds 
+  def static_feeds
     @current_company = current_company
     if @current_company.present?
-      @search = @current_company.jobs.active.not_system_generated.includes(:created_by).ransack(params[:q])
-      @company_jobs = @search.result
+      @company_jobs = @current_company.jobs.active.not_system_generated.includes(:created_by)
+      @company_jobs = @company_jobs.search_with(params[:input_search]) if params[:input_search]
 
       if params.key?(:sort).present?
         if params[:sort] == 'created_asc'
@@ -92,11 +92,11 @@ class Static::JobsController < ApplicationController
           @company_jobs = @company_jobs.left_joins(:job_applications).group(:id).order('COUNT(job_applications.id) DESC');
         else
           puts 'Sorting invalid input'
-          @company_jobs = @search.result.order(created_at: :desc)
+          @company_jobs = @company_jobs.order(created_at: :desc)
         end
       else
         puts 'Sorting not present'
-        @company_jobs = @search.result.order(created_at: :desc)
+        @company_jobs = @company_jobs.order(created_at: :desc)
       end
 
       if params.key?(:selected_categories).present?
