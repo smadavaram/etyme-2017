@@ -30,7 +30,7 @@ class Candidate::JobsController < Candidate::BaseController
   private
 
   def set_public_jobs
-    @jobs = Job.is_public.active.includes(:created_by).paginate(page: params[:page], per_page: 10)
+    @jobs = Job.is_public.active.includes(:created_by).where(listing_type: 'Job').paginate(page: params[:page], per_page: 10)
   end
 
   def set_job
