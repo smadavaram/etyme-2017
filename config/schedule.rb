@@ -46,4 +46,8 @@ every 1.day, :at => '12:01 am' do
   runner "Contract.create_next_timesheet"
 end
 
+every 1.day, :at => '12:01 am' do
+  runner "Job.archived"
+end
+
 # Learn more: http://github.com/javan/whenever
