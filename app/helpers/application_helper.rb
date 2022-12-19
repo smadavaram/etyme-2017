@@ -1607,7 +1607,6 @@ def user_image(user, attrs)
         if user.photo&.present?
           image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='offline_class' id='#{user_id}'></div>".html_safe
         else
-          byebug
           if (attrs[:class].to_s.include? 'company_header')
             entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class' id='#{user_id}'></div>".html_safe
           else
