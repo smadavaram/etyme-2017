@@ -238,17 +238,12 @@
 
   <div class="flex justify-between items-center bg-white border-b-2 w-full"  style='<%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 8vh;" : "height: 8vh;" %>' style="border-bottom: 2px solid #a0a4ac;">
     <div class="font-semibold" style="display: flex;justify-content: center;">
-
       <% if link.nil? %>
-                 <!-- <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" ><a class="d-inline" style="padding-left:10px;" href="#"><%#= pre_name %><%#= opt_obj.group_name if opt_obj.present? %></a></span></div> -->
-                 <a class="d-inline" style="padding-left:10px; color: #0b0b0b;" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a>
+        <a class="d-inline" style="padding-left:10px; color: #0b0b0b;" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a>
       <%else %>
         <a class="d-inline" style="padding-left:10px; color: #0b0b0b;" target="_blank" href="<%= link.nil? ? "#" : link %>"><%= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a>
-
-        <!--        <div class="div-chat-middle-etymeflow" ><span class=" row chat-middle-etymeflow" >-->
-<!--          <a class="d-inline" style="padding-left:10px; color: #0b0b0b; font-size: 20px !important;" target="_blank" href="<%#= link.nil? ? "#" : link %>"><%#= pre_name %><%= opt_obj.group_name if opt_obj.present? %></a>-->
-<!--        </span></div>-->
       <%end %>
+
       <div class="collaborator">
         <% if @conversation.present? %>
           <% user = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
@@ -271,11 +266,13 @@
         class="rounded-2xl bg-gray-100 py-2 px-5 w-1/2"
         style="  margin-right: 23px !important;"/>
     </div>
-<!--    <div-->
-<!--      class="h-12 w-12 p-2 bg-yellow-500 rounded-full text-white font-semibold flex items-center justify-center"-->
-<!--    >-->
-<!--      RA-->
-<!--    </div>-->
+  </div>
+  <div class="w-full" style="margin-top: -12px; z-index: 1; margin-left: -12px;">
+    <% if conversation&.job_application and nested_colap %>
+      <div id="job_application_links">
+        <%= render 'company/job_applications/partials/collapse_able_job_application', conversation: conversation, job_application: conversation.job_application %>
+      </div>
+    <% end %>
   </div>
 <!--  end here header first-->
 
