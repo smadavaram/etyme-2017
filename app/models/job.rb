@@ -165,9 +165,12 @@ class Job < ApplicationRecord
     build_conversation(chatable: group, topic: :Job, job_id: id).save if group
   end
 
-   def self.Archived
-    Job.where('updated_at <= ?', 3.day.ago.to_datetime).each do | job |
-      job.update(status: "Archived")
+  def self.Archived
+
+    Job.all.each do | job |
+      job.job_applications.where('updated_at <= ?', 3.day.ago.to_datetime).each do | application |
+         application.update(status: "Archived")
+      end
     end
   end
 
