@@ -214,7 +214,7 @@ class Static::JobsController < ApplicationController
     @current_company = current_company
 
     if @current_company.present?
-      @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @candidates_hot = @current_company.hot_candidates.uniq(&:candidate_id).first(3)
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
 
