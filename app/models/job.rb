@@ -168,8 +168,8 @@ class Job < ApplicationRecord
   def self.Archived
 
     Job.all.each do | job |
-      job.job_applications.where('updated_at <= ?', 3.day.ago.to_datetime).each do | application |
-         application.update(status: "Archived")
+     if job.job_applications.where('updated_at <= ?', 7.day.ago.to_datetime).any?
+        job.update(status: "Archived")
       end
     end
   end
