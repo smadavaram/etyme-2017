@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_11_24_002735) do
+ActiveRecord::Schema.define(version: 2022_12_28_021909) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -455,6 +455,13 @@ ActiveRecord::Schema.define(version: 2022_11_24_002735) do
     t.integer "candidate_id"
     t.index ["candidate_id"], name: "index_candidates_groups_on_candidate_id"
     t.index ["group_id"], name: "index_candidates_groups_on_group_id"
+  end
+
+  create_table "candidates_jobs", id: false, force: :cascade do |t|
+    t.bigint "candidate_id", null: false
+    t.bigint "job_id", null: false
+    t.index ["candidate_id", "job_id"], name: "index_candidates_jobs_on_candidate_id_and_job_id"
+    t.index ["job_id", "candidate_id"], name: "index_candidates_jobs_on_job_id_and_candidate_id"
   end
 
   create_table "candidates_resumes", force: :cascade do |t|
