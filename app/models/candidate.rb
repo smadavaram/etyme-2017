@@ -139,6 +139,7 @@ class Candidate < ApplicationRecord
   has_many :custom_fields, as: :customizable, dependent: :destroy
   has_many :job_applications, as: :applicationable
   has_many :job_invitations, as: :recipient
+  has_and_belongs_to_many :matches, class_name: 'Job'
   has_many :contracts, through: :job_applications, dependent: :destroy
   has_many :job_invitations_sender, as: :sender, class_name: 'JobInvitation'
 
@@ -347,6 +348,32 @@ class Candidate < ApplicationRecord
   def candidate_company(company_id)
      CandidatesCompany.where(candidate_id: id,
                             company_id: company_id).first
+  end
+
+  def start_matching_jobs
+    CandidateJobMatchWorker.perform_async(self.id, 'Candidate')
+  end
+
+  def matched_jobs
+    jobs = Job.where(listing_type: 'Job').where.not(status: ['cancelled', 'archived'])
+    candidate_skills = skill_list.map(&:downcase) 
+
+    matched = []
+    jobs.each do |job|
+      percentage = 0
+      matched_skills = job.tag_list.map(&:downcase) & candidate_skills
+
+      unless matched_skills.empty?
+        skill_percentage = (matched_skills.count.to_f/candidate_skills.count.to_f)*100
+        percentage = skill_percentage*0.6 unless skill_percentage.nil?
+      end
+
+      percentage += 20 if !dept_name&.empty? and dept_name == job.department
+      percentage += 20 if !industry_name&.empty? and industry_name == job.industry
+      matched << {:job => job, :percentage => percentage.round(2)} unless percentage.zero?
+    end
+    matched.sort_by {|c| c[:percentage]}.reverse!
+    self.matches = matched.map {|match| match[:job] }
   end
 
   private

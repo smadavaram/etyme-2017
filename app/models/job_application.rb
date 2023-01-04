@@ -35,7 +35,7 @@ class JobApplication < ApplicationRecord
   has_paper_trail only: [:rate_per_hour]
   include PublicActivity::Model
   enum status: %i[applied short_listed prescreen rate_confirmation client_submission interviewing hired rejected pending_review]
-  enum application_type: %i[direct candidate_direct vendor_direct invitation witout_registration with_recurator]
+  enum application_type: %i[direct candidate_direct vendor_direct invitation witout_registration with_recurator console_job console_bench console_internal]
 
   belongs_to :applied_by, class_name: 'User', foreign_key: 'user_id', optional: true
   belongs_to :client_partner, class_name: 'CompanyContact', foreign_key: 'company_contact_id', optional: true

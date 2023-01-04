@@ -366,6 +366,12 @@ Rails.application.routes.draw do
       end
     end
 
+    match 'console/jobs/:id', to: 'console#job', via: %i[get post], as: 'console_job'
+    get 'console/candidates/:id', to: 'console#candidate', as: 'console_candidate'
+    namespace :console do
+      get :jobs
+      get :candidates
+    end
 
     resources :company_contacts, only: %i[index new create destroy]
 

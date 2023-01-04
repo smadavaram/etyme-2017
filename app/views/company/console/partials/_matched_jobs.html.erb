@@ -1,0 +1,93 @@
+<%= stylesheet_link_tag 'console'%>
+<div class="content-body">
+  <div class="tab-content" id="pills-tabContent">
+    <div class="tab-pane active" id="pills-candidates" role="tabpanel" aria-labelledby="pills-candidates-tab" tabindex="0">
+      <!-- toolbar start -->
+      <div class="toolbar">
+        <div class="search-input-light toolbar-search-input input-group flex-nowrap col-lg-6 col-md-6 col-12">
+          <span class="input-group-text" id="addon-wrapping"><i class="fa fa-search"></i></span>
+          <input type="text" class="form-control" placeholder="Search" aria-label="Search" aria-describedby="addon-wrapping">
+        </div>
+        <div class="toolbar-right">
+          <div class="search-input-light toolbar-search-input input-group flex-nowrap">
+            <span class="input-group-text" id="addon-wrapping"><i class="fa fa-map-marker"></i></span>
+            <input type="text" class="form-control" placeholder="Location" aria-label="Location" aria-describedby="addon-wrapping">
+          </div>
+        </div>
+      </div>
+      <input type="text" class="form-control" placeholder="candidate id" id="candidate_id" value=<%=@candidate.id%> hidden>
+      <!-- toolbar end -->
+      <div class="content-listing">
+        <div class="row">
+          <% if @jobs.empty? %>
+            (No Matches Found)
+          <% end %>
+          <%@jobs.each do |job|%>
+            <% already_applied_application = job.job_applications.find_by_applicationable_id(@candidate.id)%>
+            <div class="col-lg-12 col-md-6 col-12">
+              <div class="theme-card mb-3">
+                <div class="align-items-center gap-3">
+                  <strong class="font-11 text-theme-light"><%= job&.company&.name %></strong>
+                  <% if already_applied_application.present? %>
+                    <div class="font-11 applied-badge float-right">applied</div>
+                  <% end %>
+                </div>
+                <div class="theme-card-header">
+                  <div class="job-header clearfix" style='margin-right: 10px;'>
+                    <%= image_tag job.company.logo,  style:"width:50px;height:50px", fit: 'clip'%>
+                  </div>
+                  <div class="info">
+                    <%= link_to(job.title, static_job_path(job), class: "theme-card-heading mb-1 font-16", target: "_blank")%>
+                    <div class="location d-flex align-items-center gap-2">
+                      <i class="font-11 fa fa-map-marker"></i>
+                      <p class="mb-0 font-12"><%= job&.location%></p>
+                    </div>
+                    <div class="location d-flex align-items-center gap-2">
+                      <i class="font-11 fa fa-calendar-o"></i>
+                      <p class="mb-0 font-12"><%= job.created_at.strftime("%d/%m/%Y")%></p>
+                    </div>
+                  </div>
+                </div>
+                <div class="theme-card-content">
+                  <p class="text-theme-light font-14">
+                    <%= truncate(strip_tags(job&.description), :length => 250, :omission => '..').html_safe%>
+                  </p>
+                  <!-- tags -->
+                  <div class="tags mb-2">
+                    <% job.tag_list.each do |skill| %>
+                      <span class="tag"><%= skill %></span>
+                    <% end %>
+                  </div>
+                  <hr class="dashed">
+                  <div class="align-items-center gap-3">
+                    <% if already_applied_application.present? %>
+                      <%= link_to "Chat with Owner", job_application_path(already_applied_application), class: "font-12 btn btn-primary", target: '_blank'%>
+                    <% else %>
+                      <a href="javascript:void(0)" class="font-12 btn btn-primary" onclick='apply(this);' data-job-id=<%=job.id%>>Apply Now</a>
+                    <% end %>
+                    <%if job.price and !job.price.zero?%>
+                      <h5 class="theme-card-heading mb-1 font-14 float-right">
+                        <%= "$" + job.price.to_s%>
+                      </h5>
+                    <%end%>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+<style>
+  .applied-badge{
+    border-radius: 25px;
+    border-style: solid;
+    color: green;
+    width: 60px;
+    text-align: center;
+  }
+</style>

@@ -59,6 +59,7 @@ class Job < ApplicationRecord
   # has_many     :received_job_applications, class_name: 'JobApplication', s
   has_many :job_invitations, dependent: :destroy
   has_many :custom_fields, as: :customizable
+  has_and_belongs_to_many :matches, class_name: 'Candidate'
   # has_many     :job_applications ,through: :job_invitations
   has_many :timesheet_approvers, through: :timesheets
   has_many :job_requirements
@@ -164,6 +165,32 @@ class Job < ApplicationRecord
       end
     end
     build_conversation(chatable: group, topic: :Job, job_id: id).save if group
+  end
+
+  def start_matching_candidates
+    CandidateJobMatchWorker.perform_async(self.id, 'Job')
+  end
+  
+  def matched_candidates
+    candidates = Candidate.all
+    job_tags = tag_list.map(&:downcase) 
+
+    matched = []
+    candidates.each do |candidate|
+      percentage = 0
+      matched_skills = candidate.skill_list.map(&:downcase) & job_tags
+
+      unless matched_skills.empty?
+        skill_percentage = (matched_skills.count.to_f/job_tags.count.to_f)*100 unless (job_tags.count - matched_skills.count).zero?
+        percentage = skill_percentage*0.6 unless skill_percentage.nil?
+      end
+
+      percentage += 20 if !department&.empty? and candidate.dept_name == department
+      percentage += 20 if !industry&.empty? and candidate.industry_name == industry
+      matched << {:candidate => candidate, :percentage => percentage.round(2)} unless percentage.zero?
+    end
+    matched.sort_by {|match| match[:percentage]}.reverse!
+    self.matches = matched.map {|match| match[:candidate] }
   end
 
   private
