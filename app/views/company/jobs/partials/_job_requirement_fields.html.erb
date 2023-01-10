@@ -34,29 +34,20 @@
       <%= f.text_field :questions , class: 'form-control question', :rows => 6, :cols => 60, :maxlength => 140, placeholder: "Structure your Applicant Instructions as free text, a multiple choice question or file upload.", require: true %>
     </div>
     <div class="col-md-12 select-filed">
-    <div class="row col-md-12 justify-content-between">
-      <div class="col-md-3 ">
+      <div class="col-md-3 pl-0">
         <label>Answer Type</label>
         <div class="plain-select ml-0">
           <%= f.select :ans_type, ["Free Text", "Multiple Answer", "Attached file"],{include_blank: false},{class: "form-control que-ans-type plain-select" } %>
         </div>
-       
       </div>
-        <div class="col-md-3 ">
-          <label>Assign To</label>
-          <%= f.text_field :assign_to , value: current_company.name, class: 'form-control assign-to' , :maxlength => 140, placeholder: "", :readonly => true %>
-      </div>
+        <%= f.label :ans_mandatroy, class:"fancy" do %>
+          <%= f.check_box :ans_mandatroy, class: 'set-checkbox' %>
+          Answer is mandatory
+        <% end %>
     </div>
     
-  
-        <div class="col-md-3 pl-0">
-          <%= f.label :ans_mandatroy, class:"fancy" do %>
-            <%= f.check_box :ans_mandatroy, class: 'set-checkbox' %>
-            Answer is mandatory
-          <% end %>
-        </div>
 
-    </div>
+
     <% if f.object.ans_type == "Multiple Answer" %>
       <% s=f.object.multiple_option %>
       <% s = s.gsub('mytext=', ' ').gsub('&','') %>
