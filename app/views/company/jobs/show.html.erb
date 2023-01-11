@@ -190,7 +190,7 @@
         </div> -->
       </div>
     </div>
-    <div class="row">
+    <div class="row" style="max-width: 1400px;">
       <div class="col-md-12">
         <div class="element-box element-box-show">
           <div class="row">
@@ -198,6 +198,9 @@
             <div><div style="margin: auto; padding: 10px;">
               <a title='Change Layout' href='#', onclick='change_layout();'><i class='fa fa-columns'></i></a>
             </div></div>
+            <div class="ml-auto">
+              <input class="form-control form-control-sm rounded bright" placeholder="Search" type="text" id='jobs_datatable-search'>
+            </div>
           </div>
           <div class="table-responsive">
             <% if @job_applications.count > 0 %>
@@ -288,4 +291,10 @@
   }
   });
   }
+  $("#jobs_datatable-search").keyup(function () {
+      $("#jobs_datatable").DataTable().search($(this).val()).draw();
+    });
+  $("#jobs_datatable").DataTable({
+    columnDefs: [{ targets: 0, searchable: false, orderable: false }],
+  });
 <% end %>
