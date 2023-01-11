@@ -122,6 +122,7 @@ class Candidate < ApplicationRecord
 
   # after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
   after_create :create_address
+  before_update :start_matching_jobs, if: proc { |candidate| candidate.skill_list.changed? || candidate.industry_name_changed? || candidate.dept_name_changed? }
   after_create :send_welcome_email, if: proc { |candidate| candidate.send_welcome_email_to_candidate.nil? }
   after_create :normalize_candidate_entries, if: proc { |candidate| candidate.signup? }
   # after_create  :set_on_seq
@@ -355,8 +356,8 @@ class Candidate < ApplicationRecord
   end
 
   def matched_jobs
-    jobs = Job.where(listing_type: 'Job').where.not(status: ['cancelled', 'archived'])
-    candidate_skills = skill_list.map(&:downcase) 
+    jobs = Job.where(listing_type: 'Job', status: 'Published')
+    candidate_skills = skill_list.map(&:downcase)
 
     matched = []
     jobs.each do |job|
@@ -366,11 +367,11 @@ class Candidate < ApplicationRecord
       unless matched_skills.empty?
         skill_percentage = (matched_skills.count.to_f/candidate_skills.count.to_f)*100
         percentage = skill_percentage*0.6 unless skill_percentage.nil?
+        
+        percentage += 20 if !dept_name&.empty? and dept_name == job.department
+        percentage += 20 if !industry_name&.empty? and industry_name == job.industry
+        matched << {:job => job, :percentage => percentage.round(2)} unless percentage.zero?
       end
-
-      percentage += 20 if !dept_name&.empty? and dept_name == job.department
-      percentage += 20 if !industry_name&.empty? and industry_name == job.industry
-      matched << {:job => job, :percentage => percentage.round(2)} unless percentage.zero?
     end
     matched.sort_by {|c| c[:percentage]}.reverse!
     self.matches = matched.map {|match| match[:job] }

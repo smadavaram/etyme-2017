@@ -15,19 +15,23 @@ class Company::ConsoleController < Company::BaseController
   def jobs
     add_breadcrumb 'Console'
 
-    @jobs = current_company.jobs.where(listing_type: 'Job').where.not(status: ['cancelled', 'archived']).order(created_at: :desc).paginate(page: params[:page], per_page: 10) || []
+    @jobs = current_company.jobs.where(listing_type: 'Job', status: 'Published').order(created_at: :desc).paginate(page: params[:page], per_page: 10) || []
   end
 
   def job
     if request.post?
-      application = apply_candidate_for_job()
+      application, application_type = apply_candidate_for_job()
+      ((render json: {}, status: :ok); return) if application_type==:console_bench
 
       respond_to do |format|
         format.html {redirect_back(fallback_location: root_path)}
-        format.js {render :js => "window.open('#{job_application_path(application)}', '_blank').focus();"}
+        format.js {(render :js => "window.open('#{job_application_path(application)}', '_blank').focus();")}
       end
     else
-      @candidates = @job.matches.uniq.first(20)
+      @search = @job.matches.includes(:skills).ransack(first_name_or_last_name_or_skills_or_candidate_title_cont: params[:q])
+      @candidates = @search.result.uniq.first(20)
+      @search_key = params[:q]
+
       respond_to do |format|
         format.js
         format.html { redirect_to company_console_jobs_path }
@@ -37,7 +41,10 @@ class Company::ConsoleController < Company::BaseController
 
   def candidate
     @candidate = Candidate.find(params[:id])
-    @jobs = @candidate.matches.uniq.first(20)
+    @search = @candidate.matches.includes(:tags).ransack(title_or_description_cont: params[:q])
+    @jobs = @search.result.uniq.first(20)
+    @search_key = params[:q]
+
     respond_to do |format|
       format.js
       format.html { redirect_to company_console_candidates_path }
@@ -47,6 +54,8 @@ class Company::ConsoleController < Company::BaseController
   def apply_candidate_for_job
     messages = []
     application = nil
+    application_type = nil
+
     Candidate.where(id: params[:temp_candidates]).each do |c|
       begin
         my_job = current_company.jobs.find_by(id: @job.id)
@@ -62,7 +71,6 @@ class Company::ConsoleController < Company::BaseController
 
         unless @job.status == 'Bench'
           application = c.job_applications.create!(applicant_resume: c.resume,
-                                                  cover_letter: (application_type==:console_bench ? 'Application created by external recruiter through Console' : 'Application created by owner'),
                                                   job_id: @job.id,
                                                   applied_by: current_user,
                                                   application_type: application_type)
@@ -72,7 +80,7 @@ class Company::ConsoleController < Company::BaseController
         messages << "#{c.first_name} is already an applicant"
       end
     end
-    return application
+    return application, application_type
   end
 
   def find_job

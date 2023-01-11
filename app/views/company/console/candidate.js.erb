@@ -1,5 +1,11 @@
 $("#matched-jobs").html("<%= j render "company/console/partials/matched_jobs" %>");
 
+function search_and_render(){
+  var candidate_id = $('#candidate_id').val();
+  var search_term = $('#search').val();
+  $.get(`/company/console/candidates/${candidate_id}?q=${search_term}`);
+}
+
 function apply(obj){
   var job_id = $(obj).attr('data-job-id');
   var candidate_id = $('#candidate_id').val();

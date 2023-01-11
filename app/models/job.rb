@@ -82,6 +82,8 @@ class Job < ApplicationRecord
 
   after_create :create_job_chat
   after_create :create_job_conversation
+  after_create :start_matching_candidates, if: proc { |job| job.listing_type == 'Job' and job.status == 'Published' }
+  before_update :start_matching_candidates, if: proc { |job| (job.listing_type == 'Job' and job.status == 'Published') and (job.tag_list_changed? or job.industry_changed? or job.department_changed?) }
   before_save :set_parent_job
 
   scope :active, -> { where('end_date>=? AND status = ?', Date.today, 'Published') }
@@ -183,11 +185,11 @@ class Job < ApplicationRecord
       unless matched_skills.empty?
         skill_percentage = (matched_skills.count.to_f/job_tags.count.to_f)*100 unless (job_tags.count - matched_skills.count).zero?
         percentage = skill_percentage*0.6 unless skill_percentage.nil?
+        
+        percentage += 20 if !department&.empty? and candidate.dept_name == department
+        percentage += 20 if !industry&.empty? and candidate.industry_name == industry
+        matched << {:candidate => candidate, :percentage => percentage.round(2)} unless percentage.zero?
       end
-
-      percentage += 20 if !department&.empty? and candidate.dept_name == department
-      percentage += 20 if !industry&.empty? and candidate.industry_name == industry
-      matched << {:candidate => candidate, :percentage => percentage.round(2)} unless percentage.zero?
     end
     matched.sort_by {|match| match[:percentage]}.reverse!
     self.matches = matched.map {|match| match[:candidate] }
