@@ -4,10 +4,10 @@
       .newsfeed-left
         %left-side-header.d-flex.align-items-center
           %strong.left-side-header-left
+            = link_to "+", '/jobs/new?type=Job', class:"font-12 btn btn-primary", title: "Add New Job"
             My Jobs
           %div.left-side-header-right
-            = link_to "My Bench", company_console_candidates_path, class:"font-12 btn btn-primary"
-            = link_to "+", '/jobs/new?type=Job', class:"font-12 btn btn-primary", title: "Add New Job"
+            = link_to '<i class="fa fa-refresh"></i> My Bench'.html_safe, company_console_candidates_path, class:"font-12 btn btn-primary"
         %hr{:style=>"margin: 0;"}
         %ul
           - if @jobs.empty?
@@ -20,7 +20,7 @@
                     =job.id
                   %span.pull-right
                     %i.fa.fa-calendar-o
-                    =job.created_at.strftime("%d/%m/%Y")
+                    =job.created_at.strftime("%m/%d/%Y")
                 %div.job-header.clearfix
                   = image_tag job.company.logo,  style:"width:50px;height:50px", fit: 'clip'
                   %p.job_title
@@ -40,7 +40,7 @@
   .timesheet_pagination_wrap.pt-3.m-3
     .pagination_label
       = page_entries_info @jobs
-    = will_paginate(@jobs, {previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'public_job_des_pagination_links'}.merge(link_options: {'data-remote': true}))
+    = will_paginate(@jobs, previous_label: "Previous",next_label: "Next", inner_window: 1, class: 'public_job_des_pagination_links', 'data-remote': true)
   .floated-chat-btn{:hidden=>true}
     %i.os-icon.os-icon-mail-07
     %span

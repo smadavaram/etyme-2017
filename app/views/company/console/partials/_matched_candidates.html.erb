@@ -6,7 +6,8 @@
       <div class="toolbar">
         <div class="search-input-light toolbar-search-input input-group flex-nowrap col-lg-6 col-md-6 col-12">
           <span class="input-group-text" id="addon-wrapping"><i class="fa fa-search"></i></span>
-          <input type="text" class="form-control" placeholder="Search" aria-label="Search" aria-describedby="addon-wrapping">
+          <input type="text" class="form-control" placeholder="Search" id="search" aria-label="Search" aria-describedby="addon-wrapping" value=<%=@search_key%>>
+          <a href="javascript:void(0)" class="font-12 btn btn-primary" onclick="search_and_render();">Search</a>
         </div>
         <div class="toolbar-right">
           <div class="search-input-light toolbar-search-input input-group flex-nowrap">
@@ -51,8 +52,8 @@
                 <div class="theme-card-content">
                   <!-- tags -->
                   <div class="tags mb-2">
-                    <% c.skill_list.each do |skill| %>
-                      <span class="tag"><%= skill %></span>
+                    <% c.skills.each do |skill| %>
+                      <span class="tag"><%= skill.name %></span>
                     <% end %>
                   </div>
                   <hr class="dashed">

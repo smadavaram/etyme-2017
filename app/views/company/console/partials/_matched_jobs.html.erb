@@ -6,7 +6,8 @@
       <div class="toolbar">
         <div class="search-input-light toolbar-search-input input-group flex-nowrap col-lg-6 col-md-6 col-12">
           <span class="input-group-text" id="addon-wrapping"><i class="fa fa-search"></i></span>
-          <input type="text" class="form-control" placeholder="Search" aria-label="Search" aria-describedby="addon-wrapping">
+          <input type="text" class="form-control" placeholder="Search" id="search" aria-label="Search" aria-describedby="addon-wrapping" value="<%=@search_key%>">
+          <a href="javascript:void(0)" class="font-12 btn btn-primary" onclick="search_and_render();">Search</a>
         </div>
         <div class="toolbar-right">
           <div class="search-input-light toolbar-search-input input-group flex-nowrap">
@@ -54,14 +55,14 @@
                   </p>
                   <!-- tags -->
                   <div class="tags mb-2">
-                    <% job.tag_list.each do |skill| %>
-                      <span class="tag"><%= skill %></span>
+                    <% job.tags.each do |skill| %>
+                      <span class="tag"><%= skill.name %></span>
                     <% end %>
                   </div>
                   <hr class="dashed">
                   <div class="align-items-center gap-3">
                     <% if already_applied_application.present? %>
-                      <%= link_to "Chat with Owner", job_application_path(already_applied_application), class: "font-12 btn btn-primary", target: '_blank'%>
+                      <%= link_to "Track Job", job_application_path(already_applied_application), class: "font-12 btn btn-primary", target: '_blank'%>
                     <% else %>
                       <a href="javascript:void(0)" class="font-12 btn btn-primary" onclick='apply(this);' data-job-id=<%=job.id%>>Apply Now</a>
                     <% end %>
