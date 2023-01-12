@@ -674,6 +674,6 @@ $(document).ready(function () {
     ],
   });
   $("#my_bench_datatable").DataTable({
-    columnDefs: [{ targets: 0, searchable: false, orderable: false }],
+    columnDefs: [{ targets: 0, searchable: false, orderable: false }, { targets: 8, searchable: false, orderable: false }],
   });
 });
