@@ -25,7 +25,6 @@ task cycle: :environement do
   puts 'done.'
 end
 
-
 task archived_job: :environement do
   puts 'archived_job...'
   Job.archived
