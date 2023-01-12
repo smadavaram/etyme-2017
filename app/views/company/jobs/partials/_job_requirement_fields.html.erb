@@ -40,13 +40,14 @@
           <%= f.select :ans_type, ["Free Text", "Multiple Answer", "Attached file"],{include_blank: false},{class: "form-control que-ans-type plain-select" } %>
         </div>
       </div>
-      <div class="col-md-3 pl-0">
         <%= f.label :ans_mandatroy, class:"fancy" do %>
           <%= f.check_box :ans_mandatroy, class: 'set-checkbox' %>
           Answer is mandatory
         <% end %>
-      </div>
     </div>
+    
+
+
     <% if f.object.ans_type == "Multiple Answer" %>
       <% s=f.object.multiple_option %>
       <% s = s.gsub('mytext=', ' ').gsub('&','') %>

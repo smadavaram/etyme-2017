@@ -59,23 +59,22 @@ class Static::JobsController < ApplicationController
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
 
       if candidate_ids.present?
-        @uniq_candidates_company = CandidatesCompany.where(id: CandidatesCompany.where(company_id: @current_company.id, candidate_id: candidate_ids.uniq))
+        @uniq_candidates_company = current_company.candidates_companies.hot_candidate.where(candidate_id: candidate_ids).group_by(&:candidate_id).map{|a| a[1].first}
         @candidates = @uniq_candidates_company.paginate(page: params[:page], per_page: 50)
       else
-        @uniq_candidates_company = CandidatesCompany.where(id: CandidatesCompany.where(company_id: @current_company.id).hot_candidate.uniq(&:candidate_id))
+        @uniq_candidates_company = CandidatesCompany.where(company_id: @current_company.id).hot_candidate.uniq(&:candidate_id)
         @candidates = @uniq_candidates_company.paginate(page: params[:page], per_page: 50)
       end
     end
     flash.now[:alert] = 'Please login with Company ID' if params[:is_chat_candidate].present? && params[:is_chat_candidate] == 'true'
-
     render layout: 'kulkakit'
   end
 
-  def static_feeds 
+  def static_feeds
     @current_company = current_company
     if @current_company.present?
-      @search = @current_company.jobs.active.not_system_generated.includes(:created_by).ransack(params[:q])
-      @company_jobs = @search.result
+      @company_jobs = @current_company.jobs.active.not_system_generated.includes(:created_by)
+      @company_jobs = @company_jobs.search_with(params[:input_search]) if params[:input_search]
 
       if params.key?(:sort).present?
         if params[:sort] == 'created_asc'
@@ -92,11 +91,11 @@ class Static::JobsController < ApplicationController
           @company_jobs = @company_jobs.left_joins(:job_applications).group(:id).order('COUNT(job_applications.id) DESC');
         else
           puts 'Sorting invalid input'
-          @company_jobs = @search.result.order(created_at: :desc)
+          @company_jobs = @company_jobs.order(created_at: :desc)
         end
       else
         puts 'Sorting not present'
-        @company_jobs = @search.result.order(created_at: :desc)
+        @company_jobs = @company_jobs.order(created_at: :desc)
       end
 
       if params.key?(:selected_categories).present?
@@ -215,7 +214,7 @@ class Static::JobsController < ApplicationController
     @current_company = current_company
 
     if @current_company.present?
-      @candidates_hot = CandidatesCompany.hot_candidate.where(company_id: @current_company.id).first(3)
+      @candidates_hot = @current_company.hot_candidates.uniq(&:candidate_id).first(3)
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
 

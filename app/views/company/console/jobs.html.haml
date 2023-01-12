@@ -1,0 +1,89 @@
+#content.newsfeed
+  %body
+    %section#widget-grid.clearfix
+      .newsfeed-left
+        %left-side-header.d-flex.align-items-center
+          %strong.left-side-header-left
+            = link_to "+", '/jobs/new?type=Job', class:"font-12 btn btn-primary", title: "Add New Job"
+            My Jobs
+          %div.left-side-header-right
+            = link_to '<i class="fa fa-refresh"></i> My Bench'.html_safe, company_console_candidates_path, class:"font-12 btn btn-primary"
+        %hr{:style=>"margin: 0;"}
+        %ul
+          - if @jobs.empty?
+            (No Jobs Found)
+          - @jobs.each do |job|
+            %li
+              = link_to company_console_job_path(job), remote: true, id: 'public_job_link', onclick: 'changes_selected(this);' do
+                %div.public-job-list.clearfix
+                  %span.pull-left
+                    =job.id
+                  %span.pull-right
+                    %i.fa.fa-calendar-o
+                    =job.created_at.strftime("%m/%d/%Y")
+                %div.job-header.clearfix
+                  = image_tag job.company.logo,  style:"width:50px;height:50px", fit: 'clip'
+                  %p.job_title
+                    = truncate(job.title,length: 50)
+                  %p.job_title
+                    %i.fa.fa-usd
+                    =job.price
+                %div.public-job-other-info
+                  %span
+                    %i.fa.fa-map-marker
+                    =job.location
+                  %span
+                    %i.fa.fa-user
+                    =job.created_by&.full_name
+      .newsfeed-right
+        %div#matched-candidates
+  .timesheet_pagination_wrap.pt-3.m-3
+    .pagination_label
+      = page_entries_info @jobs
+    = will_paginate(@jobs, previous_label: "Previous",next_label: "Next", inner_window: 1, class: 'public_job_des_pagination_links', 'data-remote': true)
+  .floated-chat-btn{:hidden=>true}
+    %i.os-icon.os-icon-mail-07
+    %span
+    = link_to 'Conversation', "#",class: 'ChatBtn sell_chat',id: 'ChatBtn', remote: true
+
+
+-content_for :body_class, 'greybg'
+- content_for :modals do
+  #job_application
+
+:css
+  .left-side-header{
+    width:100%;
+    height:60px;
+    overflow: hidden;
+  }
+  .left-side-header-left{
+    margin: auto;
+    float: left;
+  }
+  .left-side-header-right{
+    margin: auto;
+    float: right;
+    padding: 12px;
+    text-decoration: none;
+    font-size: 18px;
+    line-height: 25px;
+    border-radius: 4px;
+  }
+  .selected{
+    background-color: #F2F9FB 
+  }
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      default_active_nav('.ln-4');
+    });
+
+    function changes_selected(obj){
+      var all_links = document.querySelectorAll('a[id="public_job_link"]');
+      for(var i=0; i<all_links.length; i++){
+        all_links[i].classList.remove('selected');
+      }
+      $(obj).addClass("selected");
+    }

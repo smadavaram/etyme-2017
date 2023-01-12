@@ -18,6 +18,7 @@ Rails.application.config.assets.paths << Rails.root.join("app", "assets", "fonts
 Rails.application.config.assets.precompile += %w[company.js]
 Rails.application.config.assets.precompile += %w[cable.js]
 Rails.application.config.assets.precompile += %w[company.css]
+Rails.application.config.assets.precompile += %w[console.css]
 Rails.application.config.assets.precompile += %w[mycompany.css]
 
 Rails.application.config.assets.precompile += %w[plugin/pace/pace.min.js]

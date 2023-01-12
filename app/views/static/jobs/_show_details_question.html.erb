@@ -22,7 +22,7 @@
         <% @job.files.split(',').each do |job_file| %>
           <div class="pr-3">
             <div class="webflow-thumbnail-170-105">
-              <%= image_tag job_file %>
+              <%= link_to image_tag(job_file), job_file, {target: "_blank"} %>
             </div>
           </div>
         <% end %>
