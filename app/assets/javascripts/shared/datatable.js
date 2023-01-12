@@ -139,6 +139,12 @@ $(document).ready(function () {
         searchable: false,
         orderable: false,
       },
+      {
+        targets: 10,
+        searchable: true,
+        orderable: true,
+        type: 'date'
+      },
     ],
   });
 
