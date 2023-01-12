@@ -16,7 +16,7 @@
             - candidate = hot_candidate.candidate
             -# if !(Time.parse(job.created_at.to_s) <= Time.parse(Time.now.to_s) && job.job_applications.blank?)
             %li
-              = link_to company_console_candidate_path(candidate), remote: true do
+              = link_to company_console_candidate_path(candidate), id: 'bench_link', onclick: 'changes_selected(this);', remote: true do
                 %div.public-job-list.clearfix
                   %span.pull-left
                     =candidate.candidate_title
@@ -70,9 +70,20 @@
     line-height: 25px;
     border-radius: 4px;
   }
+  .selected{
+    background-color: #F2F9FB 
+  }
 
 - content_for :scripts do
   :javascript
     $(document).ready(function() {
       default_active_nav('.ln-4');
     });
+
+    function changes_selected(obj){
+      var all_links = document.querySelectorAll('a[id="bench_link"]');
+      for(var i=0; i<all_links.length; i++){
+        all_links[i].classList.remove('selected');
+      }
+      $(obj).addClass("selected");
+    }
