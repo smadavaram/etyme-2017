@@ -2,20 +2,13 @@
 $("input[type=checkbox]").on("click", function () {});
 // for share of checked rows
 let global_arr = [];
-$("#my_bench_datatable")
-  .find(".check")
-  .change((e) => {
-    id = e.target.value;
-    if (global_arr.includes(id)) {
-      global_arr = global_arr.filter((x) => x !== id);
-    } else {
-      global_arr.push(id);
-    }
-  });
 $(".share").on("click", function () {
-  //   $("input[name='ids[]']:checked").each(function () {
-  //     checkedRows.push($(this).val());
-  //   });
+  var table = $('#my_bench_datatable').dataTable();
+  var checkBox = table.$('input:checked');
+  global_arr = []
+  for (i = 0; i < checkBox.length; ++i) {
+    global_arr.push(checkBox[i].value)
+  }
   if (global_arr.length > 0) {
     var candidate_url =
       window.location.origin + "/static/people?ids=" + global_arr;

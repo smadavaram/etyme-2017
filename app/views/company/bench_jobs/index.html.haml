@@ -33,9 +33,7 @@
                 %tbody{:style => "font-size: 12px;"}
                   - @candidates.each do |c|
                     - @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id)
-                    - recruiter_name = nil
-                    -if c.candidate.invited_by_user.present?
-                      - recruiter_name = User.find_by(id: @c_bench_job&.sender_id).try(:full_name)
+                    - recruiter_name = User.find_by(id: @c_bench_job&.sender_id).try(:full_name)
                     %tr
                       %td
                         = check_box_tag "ids[]", c.candidate.id, false, class: 'check'
@@ -241,7 +239,8 @@
     });
 
     function selectAll(obj) {
-      var checkBox = document.querySelectorAll('input[name="ids[]"]');
+      var table = $('#my_bench_datatable').dataTable();
+      var checkBox = table.$('.check');
       for (i = 0; i < checkBox.length; ++i) {
         checkBox[i].checked = obj.checked;
       }
