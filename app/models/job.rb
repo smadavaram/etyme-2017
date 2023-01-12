@@ -169,6 +169,14 @@ class Job < ApplicationRecord
     build_conversation(chatable: group, topic: :Job, job_id: id).save if group
   end
 
+  def self.archived
+    Job.where(status: 'Published').each do | job |
+      unless job.job_applications.where('updated_at >= ?', 7.day.ago.to_datetime).any? || (job.updated_at > 7.day.ago.to_datetime)
+        job.update(status: "Archived")
+      end
+    end
+  end
+
   def start_matching_candidates
     CandidateJobMatchWorker.perform_async(self.id, 'Job')
   end

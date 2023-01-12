@@ -24,3 +24,9 @@ task cycle: :environement do
   Contract.set_cycle
   puts 'done.'
 end
+
+task archived_job: :environement do
+  puts 'archived_job...'
+  Job.archived
+  puts 'done.'
+end
