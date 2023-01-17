@@ -1,4 +1,4 @@
-<table id="jobs_datatable" class="table text-center table-bordered table-lg table-v2 table-striped dataTable no-footer" data-class="Scaffolding::Thing">
+<table id="job_application_datatable" class="table text-center table-bordered table-lg table-v2 table-striped dataTable no-footer" data-class="Scaffolding::Thing">
   <thead>
   <tr>
     <th width="30%;">Applicant Name</th>
@@ -108,7 +108,35 @@
     $(document).ready(function() {
       var layout_headers = '<%=@application_table_layout.headers(@job.status).to_json.html_safe%>'.toLowerCase();
       var a = JSON.parse(layout_headers);
-      var table = $('#jobs_datatable').DataTable();
+      var type = '<%=@job.status%>';
+      if(type=='Bench'){
+        $("#job_application_datatable").dataTable({
+          columnDefs: [
+            {
+              targets: 0,
+              searchable: false,
+              orderable: false,
+            },
+            {
+              targets: 10,
+              searchable: true,
+              orderable: true,
+              type: 'date'
+            },
+          ],
+        });
+      }else{
+        $("#job_application_datatable").dataTable({
+          columnDefs: [
+            {
+              targets: 0,
+              searchable: false,
+              orderable: false,
+            },
+          ],
+        });
+      }
+      var table = $("#job_application_datatable").DataTable();
       table.columns().every(function() {
         if(a.includes(this.header().textContent.toLowerCase()) || this.header().textContent=="Action"){
           this.visible(true);
