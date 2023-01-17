@@ -139,12 +139,6 @@ $(document).ready(function () {
         searchable: false,
         orderable: false,
       },
-      {
-        targets: 10,
-        searchable: true,
-        orderable: true,
-        type: 'date'
-      },
     ],
   });
 
@@ -405,6 +399,9 @@ $(document).ready(function () {
   });
   $("#jobs_datatable-search").keyup(function () {
     $("#jobs_datatable").DataTable().search($(this).val()).draw();
+  });
+  $("#job_application_datatable-search").keyup(function () {
+    $("#job_application_datatable").DataTable().search($(this).val()).draw();
   });
 
   $("#payroll-cycles-datatable").dataTable();

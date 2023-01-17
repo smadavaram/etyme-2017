@@ -199,7 +199,7 @@
               <a title='Change Layout' href='#', onclick='change_layout();'><i class='fa fa-columns'></i></a>
             </div></div>
             <div class="ml-auto">
-              <input class="form-control form-control-sm rounded bright" placeholder="Search" type="text" id='jobs_datatable-search'>
+              <input class="form-control form-control-sm rounded bright" placeholder="Search" type="text" id='job_application_datatable-search'>
             </div>
           </div>
           <div class="table-responsive">
@@ -291,10 +291,4 @@
   }
   });
   }
-  $("#jobs_datatable-search").keyup(function () {
-      $("#jobs_datatable").DataTable().search($(this).val()).draw();
-    });
-  $("#jobs_datatable").DataTable({
-    columnDefs: [{ targets: 0, searchable: false, orderable: false }],
-  });
 <% end %>
