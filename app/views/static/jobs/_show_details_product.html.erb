@@ -18,13 +18,17 @@
   </div>
 
   <!-- Thumbnails -->
-  <% unless @job.files.size.zero? %>
-    <div class="product-single-thumbnails">
+  <div class="product-single-thumbnails d-flex">
+    <% if @job.files.present? %>
       <% @job.files.split(',').each do |job_file| %>
-        <%= image_tag job_file %>
+        <div class="pr-3">
+          <div class="webflow-thumbnail-170-105">
+            <%= link_to image_tag(job_file), job_file, {target: "_blank"} %>
+          </div>
+        </div>
       <% end %>
-    </div>
-  <% end %>
+    <% end %>
+  </div>
 
   <!-- Description -->
   <div class="product-single-subsection-title pb-3">
