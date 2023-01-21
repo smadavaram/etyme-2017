@@ -2284,7 +2284,6 @@ a.webflow-product-details-buy-now {
     margin-bottom: 30px;
 
     width: 194px;
-    height: 123px;
 
     img {
       object-position: center;
@@ -2292,6 +2291,11 @@ a.webflow-product-details-buy-now {
       width: 100%;
       height: 100%;
       border-radius: 4px;
+    }
+  }
+  @media (max-width: 600px) {
+    .product-single-thumbnails {
+      flex-wrap: wrap;
     }
   }
 
