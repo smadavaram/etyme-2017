@@ -2,10 +2,16 @@
   %body
     %section#widget-grid.clearfix
       .newsfeed-left
-        %left-side-header.d-flex.align-items-center
+        %left-side-header.d-flex
           %strong.left-side-header-left
-            = link_to "+", '/jobs/new?type=Job', class:"font-12 btn btn-primary", title: "Add New Job"
-            My Jobs
+            = link_to "+", '/jobs/new?type=Job', title: "Add New Job", style: 'text-decoration:none'
+            -if params[:type]=='company'
+              Company Jobs /
+              = link_to "My Jobs", company_console_jobs_path, style: 'text-decoration:none'
+            -else
+              My Jobs /
+              = link_to "Company Jobs", company_console_jobs_path+"?type=company", style: 'text-decoration:none'
+            
           %div.left-side-header-right
             = link_to '<i class="fa fa-refresh"></i> My Bench'.html_safe, company_console_candidates_path, class:"font-12 btn btn-primary"
         %hr{:style=>"margin: 0;"}
