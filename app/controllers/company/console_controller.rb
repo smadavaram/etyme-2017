@@ -9,13 +9,25 @@ class Company::ConsoleController < Company::BaseController
   def candidates
     add_breadcrumb 'Console'
 
-    @candidates = current_company.hot_candidates.order(created_at: :desc).uniq(&:candidate_id).paginate(page: params[:page], per_page: 10) || []
+    if params[:type]=='company'
+      add_breadcrumb 'Company Bench'
+      @candidates = current_company.hot_candidates.order(created_at: :desc).uniq(&:candidate_id).paginate(page: params[:page], per_page: 10) || []
+    else
+      add_breadcrumb 'My Bench'
+      @candidates = current_company.hot_candidates.joins(:candidate).where(candidates: {recruiter_id: current_user.id}).order(created_at: :desc).uniq(&:candidate_id).paginate(page: params[:page], per_page: 10) || []
+    end
   end
 
   def jobs
     add_breadcrumb 'Console'
-
-    @jobs = current_company.jobs.where(listing_type: 'Job', status: 'Published').order(created_at: :desc).paginate(page: params[:page], per_page: 10) || []
+    
+    if params[:type]=='company'
+      add_breadcrumb 'Company Jobs'
+      @jobs = current_company.jobs.where(listing_type: 'Job', status: 'Published').order(created_at: :desc).paginate(page: params[:page], per_page: 10) || []
+    else
+      add_breadcrumb 'My Jobs'
+      @jobs = current_company.jobs.where(listing_type: 'Job', status: 'Published', created_by: current_user).order(created_at: :desc).paginate(page: params[:page], per_page: 10) || []
+    end
   end
 
   def job
@@ -82,6 +94,16 @@ class Company::ConsoleController < Company::BaseController
     end
     return application, application_type
   end
+
+  def set_job_applications
+    application_ids = current_company.received_job_applications.pluck(:id) + current_company.sent_job_applications.pluck(:id)
+    @search = JobApplication.where(id: application_ids).includes(:job, :applicationable).search(params[:q])
+    @received_job_applications = @search.result.order(created_at: :desc).paginate(page: params[:page], per_page: 20) || []
+    @sent_search = current_company.sent_job_applications.order(created_at: :desc).includes(:job, :applicationable).search(params[:q])
+    @sent_job_applications = @sent_search.result(distinct: true).paginate(page: params[:page], per_page: 20) || []
+  end
+  
+  private
 
   def find_job
     @job = Job.find(params[:id])
