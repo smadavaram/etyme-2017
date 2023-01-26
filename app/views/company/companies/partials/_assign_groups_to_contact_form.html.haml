@@ -1,4 +1,4 @@
-= form_for :invited_company , url:company_company_assign_groups_to_contact_path,method: :post ,html:{ class:'form-horizontal',id: 'group-val'} do |f|
+= form_for :invited_company , url:company_company_assign_groups_to_contact_path,method: :post, remote: true, html:{ class:'form-horizontal',id: 'group-val'} do |f|
   %br/
   .form-group
     %label.col-md-3.control-label
