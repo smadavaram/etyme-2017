@@ -5,9 +5,10 @@
         .multi-fields
           %h6.element-header
             Project History
-      .col-md-3.col-xs-3      
-        .links.pull-right{style: "margin-top: 10px;"}
-          = link_to_add_association '+ Add Project', f, :designation_projects, :class => 'btn btn-primary add_fields', :partial => 'candidate/candidates/partials/project_fields', data: {"association-insertion-node" =>  ".gallery-wrapper-#{f.object.id}-#{local_assigns[:reference]}", "association-insertion-method" => 'append'}
+      .col-md-3.col-xs-3     
+
+      .links.pull-right{style: "margin-top: 10px; right: 10px; position: absolute;"}
+        = link_to_add_association '+ Add Project', f, :designation_projects, class: 'btn btn-primary add_fields', partial: 'candidate/candidates/partials/project_fields'
     .wrapper
       .d{style:"width: initial;", class: "gallery-wrapper-#{f.object.id}-#{local_assigns[:reference]}" }
       .form-group
