@@ -1416,16 +1416,20 @@ module ApplicationHelper
     'N/A'
   end
 
-  def bind_initials(first_name = "", last_name = "")
-    content_tag(:span, get_initial(first_name.nil? ? "" : first_name.to_s  + '.' + get_initial(last_name)), title: (first_name.present? ? first_name&.capitalize : "") + ' ' + (last_name.present? ? last_name&.capitalize : "")).html_safe
+  def bind_initials(first_name = "", last_name = "", font_size = "")
+    content_tag(:span, get_initial(first_name.nil? ? "" : first_name.to_s  + '.' + get_initial(last_name)), title: (first_name.present? ? first_name&.capitalize : "") + ' ' + (last_name.present? ? last_name&.capitalize : ""), class: font_size.to_s).html_safe
   end
 
   def colorfull_text(value, color_code)
     content_tag(:span, value, style: "color: #{color_code}")
   end
 
-  def default_user_img(first_name = "", last_name = "", circle_div_class = 'circle')
-    content_tag(:span, bind_initials(first_name, last_name), class: circle_div_class.to_s)
+  def default_user_img(first_name = "", last_name = "", circle_div_class = 'circle', default_img_classes = '')
+    if default_img_classes.to_s == 'company_header'
+      content_tag(:span, bind_initials(first_name, last_name, 'size-17'), class: circle_div_class.to_s + ' ' + 'company-logo')
+    else
+      content_tag(:span, bind_initials(first_name, last_name, 'size-20'), class: circle_div_class.to_s + ' ' + 'name-logo')
+    end
   end
 
 def user_avatar(user)
@@ -1510,71 +1514,107 @@ end
 
 
 def user_image(user, attrs)
-if user.present?
-if user.has_attribute?("online_candidate_status") == true
-return if user.nil?
-user_id = "candidate_id_" + user.id.to_s
-if user.online_candidate_status == "online"
-if user.photo&.present? 
-image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='online_class' id='#{user_id}'></div>".html_safe
-else
-entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='online_class' id='#{user_id}'></div>".html_safe
-end
-elsif user.online_candidate_status == "in_a_meeting"
-if user.photo&.present? 
-image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='in_meeting_class' id='#{user_id}'></div>".html_safe
-else
-entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='in_meeting_class' id='#{user_id}'></div>".html_safe
-end
-elsif user.online_candidate_status == "onway"
-if user.photo&.present? 
-image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='onway_class' id='#{user_id}'></div>".html_safe
-else
-entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='onway_class' id='#{user_id}'></div>".html_safe
-end
-elsif user.online_candidate_status == "offline" || user.online_candidate_status == nil
-if user.photo&.present? 
-image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='offline_class' id='#{user_id}'></div>".html_safe
-else
-entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class' id='#{user_id}'></div>".html_safe
-end
-end
-elsif user.has_attribute?("online_user_status") == true
-return if user.nil?
-user_id = "user_id_" + user.id.to_s
-if user.online_user_status == "online"
-if user.photo&.present? 
-image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='online_class' id='#{user_id}'></div>".html_safe
-else
-entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='online_class' id='#{user_id}'></div>".html_safe
-end
-elsif user.online_user_status == "in_a_meeting"
-if user.photo&.present? 
-image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='in_meeting_class' id='#{user_id}'></div>".html_safe
-else
-entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='in_meeting_class' id='#{user_id}'></div>".html_safe
-end
-elsif user.online_user_status == "onway"
-if user.photo&.present? 
-image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='onway_class' id='#{user_id}'></div>".html_safe
-else
-entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='onway_class' id='#{user_id}'></div>".html_safe
-end
-elsif user.online_user_status == "offline" || user.online_user_status == nil
-if user.photo&.present? 
-image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='offline_class' id='#{user_id}'></div>".html_safe
-else
-entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class' id='#{user_id}'></div>".html_safe
-end
-end
-else
-if user.photo&.present? 
-image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='offline_class' id='#{user_id}'></div>".html_safe
-else
-entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class' id='#{user_id}'></div>".html_safe
-end
-end
-end
+  if user.present?
+    if user.has_attribute?("online_candidate_status") == true
+      return if user.nil?
+      user_id = "candidate_id_" + user.id.to_s
+      if user.online_candidate_status == "online"
+        if user.photo&.present?
+          image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='online_class' id='#{user_id}'></div>".html_safe
+        else
+          if (attrs[:class].to_s.include? 'company_header')
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='online_class' id='#{user_id}'></div>".html_safe
+          else
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='online_class ml-4' id='#{user_id}'></div>".html_safe
+          end
+        end
+      elsif user.online_candidate_status == "in_a_meeting"
+        if user.photo&.present?
+          image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='in_meeting_class' id='#{user_id}'></div>".html_safe
+        else
+          if (attrs[:class].to_s.include? 'company_header')
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='in_meeting_class' id='#{user_id}'></div>".html_safe
+          else
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='in_meeting_class ml-4' id='#{user_id}'></div>".html_safe
+          end
+        end
+      elsif user.online_candidate_status == "onway"
+        if user.photo&.present?
+          image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='onway_class' id='#{user_id}'></div>".html_safe
+        else
+          if (attrs[:class].to_s.include? 'company_header')
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='onway_class' id='#{user_id}'></div>".html_safe
+          else
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='onway_class ml-4' id='#{user_id}'></div>".html_safe
+          end
+        end
+      elsif user.online_candidate_status == "offline" || user.online_candidate_status == nil
+        if user.photo&.present?
+          image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='offline_class' id='#{user_id}'></div>".html_safe
+        else
+          if (attrs[:class].to_s.include? 'company_header')
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class' id='#{user_id}'></div>".html_safe
+          else
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class ml-4' id='#{user_id}'></div>".html_safe
+          end
+        end
+      end
+    elsif user.has_attribute?("online_user_status") == true
+      return if user.nil?
+      user_id = "user_id_" + user.id.to_s
+      if user.online_user_status == "online"
+        if user.photo&.present?
+          image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='online_class' id='#{user_id}'></div>".html_safe
+        else
+          if (attrs[:class].to_s.include? 'company_header')
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='online_class' id='#{user_id}'></div>".html_safe
+          else
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='online_class ml-4' id='#{user_id}'></div>".html_safe
+          end
+        end
+      elsif user.online_user_status == "in_a_meeting"
+        if user.photo&.present?
+          image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='in_meeting_class' id='#{user_id}'></div>".html_safe
+        else
+          if (attrs[:class].to_s.include? 'company_header')
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='in_meeting_class' id='#{user_id}'></div>".html_safe
+          else
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='in_meeting_class ml-4' id='#{user_id}'></div>".html_safe
+          end
+        end
+      elsif user.online_user_status == "onway"
+        if user.photo&.present?
+          image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='onway_class' id='#{user_id}'></div>".html_safe
+        else
+          if (attrs[:class].to_s.include? 'company_header')
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='onway_class' id='#{user_id}'></div>".html_safe
+          else
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='onway_class ml-4' id='#{user_id}'></div>".html_safe
+          end
+        end
+      elsif user.online_user_status == "offline" || user.online_user_status == nil
+        if user.photo&.present?
+          image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='offline_class' id='#{user_id}'></div>".html_safe
+        else
+          if (attrs[:class].to_s.include? 'company_header')
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class' id='#{user_id}'></div>".html_safe
+          else
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class ml-4' id='#{user_id}'></div>".html_safe
+          end
+        end
+      end
+      else
+        if user.photo&.present?
+          image_tag(user.photo, style: (attrs[:style]).to_s, class: "img-icon-size data-table-image #{attrs[:class]} company-div-style-7", title: (attrs[:title]).to_s, alt: image_alt(user)).html_safe + "<div class='offline_class' id='#{user_id}'></div>".html_safe
+        else
+          if (attrs[:class].to_s.include? 'company_header')
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class' id='#{user_id}'></div>".html_safe
+          else
+            entity_image(user.first_name, user.last_name, 'circle', attrs[:class]) + "<div class='offline_class ml-4' id='#{user_id}'></div>".html_safe
+          end
+      end
+    end
+  end
 end
 
 
@@ -1646,11 +1686,10 @@ end
 end
 
 def entity_image(first_name = "", last_name = " ", circle_div_class = 'circle', default_img_classes = '')
-  # content_tag(:img, nil , src: "https://t3.ftcdn.net/jpg/03/46/83/96/360_F_346839683_6nAPzbhpSkIpb8pmAwufkC7c5eD7wYws.jpg", width: "50", height: "50", class: "img-circle rounded-circle")
   if first_name == '' || last_name == ''
-  image_tag(asset_path('avatars/camera-default.png', size: '19'), class: "circle-images #{default_img_classes}" )
+    image_tag(asset_path('avatars/camera-default.png', size: '19'), class: "circle-images #{default_img_classes}" )
   else
-  default_user_img(first_name, last_name, circle_div_class)
+    default_user_img(first_name, last_name, circle_div_class, default_img_classes)
   end
 end
 
