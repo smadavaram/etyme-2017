@@ -283,7 +283,6 @@ class Company::CompaniesController < Company::BaseController
       else
         flash[:errors] = @company_contact.errors.full_messages
       end
-      redirect_back fallback_location: root_path
     end
   end
 
