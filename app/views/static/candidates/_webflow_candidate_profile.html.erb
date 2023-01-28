@@ -89,7 +89,7 @@
             Location
           </div>
           <div class="information-value">
-            <%= Candidate.last.criminal_check.last&.address&.split(",")&.drop(1)&.join(",") %>
+            <%= candidate.location %>
           </div>
         </div>
         <div class="profile-information">
@@ -97,8 +97,8 @@
             Visa Status
           </div>
           <div class="information-value">
-            <% if candidate.visas.last %>
-              <%= candidate.visas.last&.status%>
+            <% if candidate.candidate_visa %>
+              <%= candidate.candidate_visa%>
             <% else %>
               Unknown
             <% end %>
