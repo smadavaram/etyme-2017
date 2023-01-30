@@ -5,27 +5,27 @@
         <div class="sidenav-items p-0">
             <div class="nav flex-column nav-pills">
               <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" && params[:selected_categories] != "Training" &&  (params[:action] == "static_feeds" || (params[:action] == "show" && params[:type] == 'feed'))) ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
-                    <%= image_tag(image_path('feed.png'), class: "mr-3") %>
-                    <%= image_tag(image_path('feed-active.png'), class: "mr-3") %>
-                    Feed
+                <%= image_tag(image_path('feed.png'), class: "mr-3") %>
+                <%= image_tag(image_path('feed-active.png'), class: "mr-3") %>
+                Feed
+              </a>
+              <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "people") || (params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile") ? "active" : ""  %>" href="<%= static_people_path %>">
+                <%= image_tag(image_path('sidebar-people.svg'), class: "mr-3") %>
+                <%= image_tag(image_path('sidebar-people-active.svg'), class: "mr-3") %>
+                Bench
+              </a>
+              <a class="nav-link sidebar-link <%= params[:controller] == "static/jobs" &&  (params[:action] == "index" || (params[:action] == "show" && params[:type] == 'job')) ? "active" : ""  %>" href="<%= static_jobs_path %>">
+                <%= image_tag(image_path('sidebar-jobs.svg'), class: "mr-3") %>
+                <%= image_tag(image_path('sidebar-jobs-active.svg'), class: "mr-3") %>
+                Jobs
+              </a>
+              <%unless request.subdomain == "app"%>
+                <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  (params[:action] == "static_feeds") && params[:selected_categories] == "Training") ? "active" : ""  %>" href="<%= root_static_feeds_path %>?selected_categories=Training&input_search=">
+                  <%= image_tag(image_path('presentation.png'), class: "mr-3") %>
+                  <%= image_tag(image_path('presentation-active.png'), class: "mr-3") %>
+                  Trainings
                 </a>
-                <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "people") || (params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile") ? "active" : ""  %>" href="<%= static_people_path %>">
-                    <%= image_tag(image_path('sidebar-people.svg'), class: "mr-3") %>
-                    <%= image_tag(image_path('sidebar-people-active.svg'), class: "mr-3") %>
-                    Bench
-                </a>
-                <a class="nav-link sidebar-link <%= params[:controller] == "static/jobs" &&  (params[:action] == "index" || (params[:action] == "show" && params[:type] == 'job')) ? "active" : ""  %>" href="<%= static_jobs_path %>">
-                    <%= image_tag(image_path('sidebar-jobs.svg'), class: "mr-3") %>
-                    <%= image_tag(image_path('sidebar-jobs-active.svg'), class: "mr-3") %>
-                    Jobs
-                </a>
-                <%unless request.subdomain == "app"%>
-                  <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  (params[:action] == "static_feeds") && params[:selected_categories] == "Training") ? "active" : ""  %>" href="<%= root_static_feeds_path %>?selected_categories=Training&input_search=">
-                      <%= image_tag(image_path('presentation.png'), class: "mr-3") %>
-                      <%= image_tag(image_path('presentation-active.png'), class: "mr-3") %>
-                      Trainings
-                  </a>
-                <%end%>
+              <%end%>
             </div>
         
 

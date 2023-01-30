@@ -1,5 +1,12 @@
 <!-- Product Details -->
-<div class="webflow-content-inner webflow-blog webflow-product-single col-12 p-4">
+<div class="webflow-content-inner webflow-blog webflow-product-single col-12">
+  <div class="webflow-blog-banner">
+    <% if @job.files.present? %>
+      <%= image_tag @job.files.split(',').first %>
+    <% else %>
+      <%= image_tag 'demo/s1.jpg' %>
+    <% end %>
+  </div>
   <!-- Back to Listings -->
   <div class="product-single-back pt-3 pb-3">
     <a href="#"><i class="fa fa-arrow-left mr-1" aria-hidden="true"></i> Back to Listings</a>

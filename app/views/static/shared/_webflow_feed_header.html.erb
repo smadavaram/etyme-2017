@@ -6,9 +6,17 @@
         <div>
           <div class="feed-banner-title">
             <%= current_company&.banner_title %>
+            <% if request.subdomain == 'app' %>
+              Marketplace, website, ATS, Contract books, chat - all at one spot
+            <% end %>
           </div>
           <div class="feed-banner-text">
             <%= current_company&.banner_text %>
+            <% if request.subdomain == 'app' %>
+              <p>Automated HR Path for all your Contract Employees</p>
+              <p>Create, Manage & Discover  talent pools instantly</p>
+              <p>Onboard Contractors in 24 hrs or less</p>
+            <% end %>
           </div>
         </div>
         <div>

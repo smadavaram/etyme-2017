@@ -80,7 +80,7 @@
                   <small><%= link_to "#{job.comments.size} comments", static_job_path(job, type: 'feed') %></small>
                 </div>
                 <div class="col-7 d-flex justify-content-end">
-                  <% if current_company.owner == current_user %>
+                  <% if current_company.present? and current_company&.owner == current_user %>
                     <small class="mr-2"><%= link_to 'Delete', job, method: 'delete', class: 'text-danger' %></small>
                   <% end %>
                 </div>
