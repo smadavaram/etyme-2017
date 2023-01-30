@@ -32,7 +32,9 @@ yarn.lock
 ngrok
 
 *.pem
-
+*.rej
+*.diff
+*.tar
 .env
 
 
