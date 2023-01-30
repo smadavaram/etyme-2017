@@ -1,6 +1,6 @@
 .content-i
   .content-box
-    .row
+    .row{:style=>"max-width: 1400px;"}
       .col-sm-12
         .element-wrapper
           .element-box-tp
@@ -17,12 +17,19 @@
                     %th
                       %input{ type:"checkbox", name:"select_all", id:"example-select-all"}
                       %th NO/Job Title
-                      %th Name
+                      %th Applicant Name
                       %th Bench/Recruiter
                       %th Status
-                      %th Source/Type
+                      %th Source
+                      - if params[:type]=='Bench'
+                        %th End Client Job Title
+                        %th Client
+                        %th Client Job Location
+                        %th Client Partner
+                        %th Work Type
                       %th Visa
                       %th Exp.
+                      %th Applied At
                       %th Skill Set.
                       %th Actions
                 %tbody
@@ -46,11 +53,23 @@
                         %td
                           %span
                             -#uncomment for production = image_tag(application.applicationable.associated_company.logo,class: 'data-table-image', title: application.applicationable.associated_company.name)
-                            =do_ellipsis(candidate&.recruiter&.company&.email)
+                            =do_ellipsis(candidate&.recruiter&.company&.email || candidate&.associated_company&.email || candidate&.associated_company&.full_name || candidate&.companies&.first&.email || candidate&.companies&.first&.full_name || "info@freelancer.com")
                         %td.no-wrap= colorfull_text( snake_to_words(application.status),application.status=='applied' ? 'orange' : 'green')
                         %td= application.job_invitation_id ? "Invited/#{application.application_type}" : "Direct/#{snake_to_words(application.application_type)}"
+                        -if params[:type]=='Bench'
+                          %td= application.end_client_job_title
+                          %td= application.client_name
+                          %td= application.client_job_location
+                          %td
+                          -if application.company_contact_id 
+                            = user_image(application.client_partner, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.client_partner.try(:full_name)}" ) 
+                            = link_to(do_ellipsis(application.client_partner.try(:full_name),9), company_user_profile_path(application.client_partner), class: 'data-table-font candidate-name') 
+                            %span{:style=>"font-size: 0.80em; float: left;"}
+                              = contact_widget(application.client_partner.email, application.client_partner.phone, application.client_partner, chat_link: chat_link(application.client_partner,application&.conversation&.id),color: '#3E4B5B; !important')
+                          %td= application.work_type
                         %td= application.applicationable&.candidate_visa
                         %td= application.applicationable.experiences.first
+                        %td= application.created_at.strftime("%d, %b %Y %H:%M")
                         %td= do_ellipsis(application.applicationable.skill_list.join(', '))
                         %td.no-wrap
                           = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(application), title: 'View Detail', class: 'data-table-icons')
@@ -68,6 +87,11 @@
       $('#job_application-datatable-search').keyup(function(){
         $('#job_application_dataTable').DataTable().search( $(this).val() ).draw();
       });
-      default_active_nav('.ln-6');
+      var type = "#{params[:type]}";
+      if(type=="Bench"){
+        default_active_nav('.ln-5');
+      }else{
+        default_active_nav('.ln-6');
+      }
     })
 

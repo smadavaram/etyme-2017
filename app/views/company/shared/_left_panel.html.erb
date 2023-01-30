@@ -166,6 +166,7 @@
         <a href="<%= company_bench_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">My Bench</a>
         <a href="<%= company_job_receives_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Received</a>
         <a href="<%= company_owen_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Bench Jobs</a>
+        <a href="<%= job_applications_path+"?type=Bench" %>" class="l2 side-bar_links nested_tab boarder_bottom home_links">Bench Applications</a>
       </div>
       <a class="ln-6 sidebar_collapsible side-bar_tab home_links">
         <div class="icon-w">
@@ -181,7 +182,7 @@
           <a href="<%= job_invitations_path %>" class="l2 side-bar_links nested_tab boarder_bottom home_links">Invitations</a>
         <% end %>
         <% if has_permission?('manage_job_applications') %>
-          <a href="<%= job_applications_path %>" class="l2 side-bar_links nested_tab boarder_bottom home_links">Applicants</a>
+          <a href="<%= job_applications_path %>" class="l2 side-bar_links nested_tab boarder_bottom home_links">Applications</a>
         <% end %>
       </div>
       <% if has_permission?('manage_contracts') %>
@@ -237,6 +238,7 @@
       </div>
     </div>
   </div>
+  
   <div style="color: lightgrey; height: 5vh;" class="pl-4">
       <p><i>Powered by  <%= image_tag 'etyme-logo-dark.png', class: "img-responsive", width:"76" ,height:"30" %></i></p>
    </div>

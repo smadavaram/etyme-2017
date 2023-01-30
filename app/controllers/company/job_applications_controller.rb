@@ -18,7 +18,7 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def index
-    add_breadcrumb 'JOB APPLICATIONS', job_applications_path, options: { title: 'JOBS APPLICATION' }
+    add_breadcrumb (@status=='Bench' ? 'Bench ' : '') + 'JOB APPLICATIONS', job_applications_path, options: { title: 'JOBS APPLICATION' }
 
     respond_to do |format|
       format.html {}
@@ -372,7 +372,10 @@ class Company::JobApplicationsController < Company::BaseController
 
   def set_job_applications
     application_ids = current_company.received_job_applications.pluck(:id) + current_company.sent_job_applications.pluck(:id)
-    @search = JobApplication.where(id: application_ids).includes(:job, :applicationable).search(params[:q])
+    @search = current_company.received_job_applications.includes(:job, :applicationable).search(params[:q])
+    @status = params[:type]=='Bench' ? 'Bench' : 'Published'
+    @search = JobApplication.joins(:job).where(id: application_ids, jobs: { status: @status }).includes(:applicationable)
+    @search = @search.search(params[:q])
     @received_job_applications = @search.result.order(created_at: :desc).paginate(page: params[:page], per_page: 20) || []
     @sent_search = current_company.sent_job_applications.order(created_at: :desc).includes(:job, :applicationable).search(params[:q])
     @sent_job_applications = @sent_search.result(distinct: true).paginate(page: params[:page], per_page: 20) || []
