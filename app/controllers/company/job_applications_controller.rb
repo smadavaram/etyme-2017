@@ -373,7 +373,7 @@ class Company::JobApplicationsController < Company::BaseController
   def set_job_applications
     application_ids = current_company.received_job_applications.pluck(:id) + current_company.sent_job_applications.pluck(:id)
     @search = current_company.received_job_applications.includes(:job, :applicationable).search(params[:q])
-    @status = params[:type] || 'Published'
+    @status = params[:type]=='Bench' ? 'Bench' : 'Published'
     @search = JobApplication.joins(:job).where(id: application_ids, jobs: { status: @status }).includes(:applicationable)
     @search = @search.search(params[:q])
     @received_job_applications = @search.result.order(created_at: :desc).paginate(page: params[:page], per_page: 20) || []
