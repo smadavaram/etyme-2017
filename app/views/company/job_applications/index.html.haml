@@ -61,11 +61,11 @@
                           %td= application.client_name
                           %td= application.client_job_location
                           %td
-                          -if application.company_contact_id 
-                            = user_image(application.client_partner, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.client_partner.try(:full_name)}" ) 
-                            = link_to(do_ellipsis(application.client_partner.try(:full_name),9), company_user_profile_path(application.client_partner), class: 'data-table-font candidate-name') 
-                            %span{:style=>"font-size: 0.80em; float: left;"}
-                              = contact_widget(application.client_partner.email, application.client_partner.phone, application.client_partner, chat_link: chat_link(application.client_partner,application&.conversation&.id),color: '#3E4B5B; !important')
+                            -if application.company_contact_id 
+                              = user_image(application.client_partner, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.client_partner.try(:full_name)}" ) 
+                              = link_to(do_ellipsis(application.client_partner.try(:full_name),9), company_user_profile_path(application.client_partner), class: 'data-table-font candidate-name') 
+                              %span{:style=>"font-size: 0.80em; float: left;"}
+                                = contact_widget(application.client_partner.email, application.client_partner.phone, application.client_partner, chat_link: chat_link(application.client_partner,application&.conversation&.id),color: '#3E4B5B; !important')
                           %td= application.work_type
                         %td= application.applicationable&.candidate_visa
                         %td= application.applicationable.experiences.first
@@ -87,7 +87,8 @@
       $('#job_application-datatable-search').keyup(function(){
         $('#job_application_dataTable').DataTable().search( $(this).val() ).draw();
       });
-      var type = "#{params[:type]}";
+      var type = '<%=params[:type]%>';
+      console.log('type: ', type);
       if(type=="Bench"){
         default_active_nav('.ln-5');
       }else{
