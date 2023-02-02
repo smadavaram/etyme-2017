@@ -63,6 +63,14 @@ class Company::ConsoleController < Company::BaseController
     end
   end
 
+  def job_applications
+    add_breadcrumb 'Console Job Applications'
+    @search = current_company.received_job_applications.joins(:job).where(application_type: [:console_job, :console_bench, :console_internal])
+    @received_job_applications = @search.order(created_at: :desc).paginate(page: params[:page], per_page: 20) || []
+    @sent_search = current_company.sent_job_applications.joins(:job).where(application_type: [:console_job, :console_bench, :console_internal])
+    @sent_job_applications = @sent_search.order(created_at: :desc).paginate(page: params[:page], per_page: 20) || []
+  end
+
   def apply_candidate_for_job
     messages = []
     application = nil
