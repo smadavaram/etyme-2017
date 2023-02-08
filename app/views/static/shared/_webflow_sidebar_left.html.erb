@@ -28,7 +28,11 @@
                   Trainings
                 </a>
               <%end%>
-              <a class="nav-link sidebar-link" href="<%= current_company ? company_console_jobs_url(subdomain: current_company&.slug) : '#' %>" onclick="<%= 'flash_error(\'Login as a Company to use Console.\')' unless current_company %>">
+              <%if request.subdomain == "app"%>
+                <a class="nav-link sidebar-link" href="#" onclick="flash_error('Login to Company Domain to use Console.')">
+              <%else%>
+                <a class="nav-link sidebar-link" href="<%= current_user ? company_console_jobs_path : '#' %>" onclick="<%= 'flash_error(\'Login as a Company to use Console.\')' unless current_user %>">
+              <%end%>
                 <%= image_tag(image_path('console.png'), class: "mr-3") %>
                 <%= image_tag(image_path('console-active.png'), class: "mr-3") %>
                 Console
