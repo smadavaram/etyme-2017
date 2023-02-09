@@ -111,6 +111,7 @@ class ApplicationController < ActionController::Base
   end
 
   def render_not_found(exception = nil)
+    puts "An Error Occured: #{exception}"
     render_exception(404, 'Not Found', exception)
   end
 
