@@ -133,7 +133,7 @@
           Login
         </button>
         <div class="dropdown-menu">
-          <%= link_to 'Company', request.subdomain.present? ? new_user_session_path : signin_path , class: 'dropdown-item' %>
+          <%= link_to 'Company', (request.subdomain.present? and request.subdomain !='app') ? new_user_session_path : signin_path , class: 'dropdown-item' %>
           <% if current_candidate.present? %>
             <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path, class: 'dropdown-item' %>
           <% else %>
