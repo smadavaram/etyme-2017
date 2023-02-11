@@ -149,7 +149,8 @@
         <% if has_permission?('manage_job_applications') %>
           <a href="<%= company_console_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Console</a>
         <% end %>
-        <a href="<%= marketplace_path(market_place_field_radio: 'company', 'search_by[term]': '', 'search_scope': '') %>" class=" side-bar_links nested_tab boarder_bottom home_links">Marketplace</a>
+        <%# <a href="<%= marketplace_path(market_place_field_radio: 'company', 'search_by[term]': '', 'search_scope': '') %>
+        <%# " class=" side-bar_links nested_tab boarder_bottom home_links">Marketplace</a> %>
         <a href="<%= prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Network Requests</a>
         <% if has_permission?('manage_vendors') %>
           <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Clients / Vendors</a>
