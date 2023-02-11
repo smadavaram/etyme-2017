@@ -371,6 +371,7 @@ Rails.application.routes.draw do
     namespace :console do
       get :jobs
       get :candidates
+      get :job_applications
     end
 
     resources :company_contacts, only: %i[index new create destroy]
