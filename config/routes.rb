@@ -286,7 +286,7 @@ Rails.application.routes.draw do
 
   class NakedEtymeDomain
     def self.matches?(request)
-      (request.subdomain.blank? || request.subdomain == 'www') # && request.domain == ENV['domain']
+      (request.subdomain.blank? || request.subdomain == 'www' || request.subdomain == 'app') # && request.domain == ENV['domain']
     end
   end
 
@@ -366,6 +366,13 @@ Rails.application.routes.draw do
       end
     end
 
+    match 'console/jobs/:id', to: 'console#job', via: %i[get post], as: 'console_job'
+    get 'console/candidates/:id', to: 'console#candidate', as: 'console_candidate'
+    namespace :console do
+      get :jobs
+      get :candidates
+      get :job_applications
+    end
 
     resources :company_contacts, only: %i[index new create destroy]
 
@@ -859,7 +866,7 @@ Rails.application.routes.draw do
 
   # Route set when subdomain is not present
   constraints(NakedEtymeDomain) do
-    match '/' => 'static#index', via: %i[get post]
+    match '/' => 'static/jobs#index', via: %i[get]
   end
 
   namespace :api do

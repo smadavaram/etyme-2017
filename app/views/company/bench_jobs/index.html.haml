@@ -33,10 +33,12 @@
                 %tbody{:style => "font-size: 12px;"}
                   - @candidates.each do |c|
                     - @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id)
+                    - recruiter_name = User.find_by(id: @c_bench_job&.sender_id).try(:full_name)
                     %tr
                       %td
-                        = check_box_tag "ids[]", c.candidate.id
+                        = check_box_tag "ids[]", c.candidate.id, false, class: 'check'
                       %td.no-wrap
+                        %p{:hidden=>true}=c.candidate.try(:full_name)
                         =link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),public_profile_static_candidates_path(c.candidate)
                         = link_to  do_ellipsis(c.candidate.try(:full_name).try(:titleize),10),public_profile_static_candidates_path(c.candidate),class: "pr-5"
                         -# =link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),profile_company_candidate_path(c.candidate)
@@ -80,16 +82,17 @@
                           %span{:id => "input_location_#{c.candidate.id}", :class => "d-none"}
                             %input{:type => "text", :name => "job_invitation[location]", :placeholder => "eg.1806 Beechwood Drive, Pittsburgh", :id => "input_field_location_#{c.candidate.id}", style: "width: 132px !important;", :class => "location", value: c.candidate.try(:location), :candidate_id => c.candidate.id}/
                         %td
+                          %p{:hidden=>true}=recruiter_name
                           %span{:id => "visa_#{c.candidate.id}"}
                             = c.candidate.candidate_visa
                           %span{:id => "input_visa_#{c.candidate.id}", :class => "d-none"}
                             %input{:type => "text", :name => "job_invitation[candidate_visa]", :placeholder => "Visa", :id => "", style: "width: 55px !important;", :class => "", value: c.candidate.candidate_visa}/
                         %td
                           %span
-                            -if c.candidate.invited_by_user.present?
+                            -if recruiter_name
                               %span{:id => "recuiter_#{c.candidate.id}"}
                                 .label-info.badge.margin-bottom-5.badge-info
-                                  = User.find_by(id: @c_bench_job&.sender_id).try(:full_name)
+                                  = recruiter_name
                             %span{:id => "select_recuiter_#{c.candidate.id}", :class => "d-none"}
                               = select_tag "job_invitation[sender_id]", options_from_collection_for_select(current_company.users, :id, :full_name, @c_bench_job&.sender_id)
                       %td
@@ -237,7 +240,8 @@
     });
 
     function selectAll(obj) {
-      var checkBox = document.querySelectorAll('input[name="ids[]"]');
+      var table = $('#my_bench_datatable').dataTable();
+      var checkBox = table.$('.check');
       for (i = 0; i < checkBox.length; ++i) {
         checkBox[i].checked = obj.checked;
       }

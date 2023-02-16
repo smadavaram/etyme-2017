@@ -6,9 +6,15 @@
         <div>
           <div class="feed-banner-title">
             <%= current_company&.banner_title %>
+            <% if request.subdomain == 'app' %>
+              AI Meets Contractor Management: Hire and Onboard the Right Fit in no time
+            <% end %>
           </div>
           <div class="feed-banner-text">
             <%= current_company&.banner_text %>
+            <% if request.subdomain == 'app' %>
+              <p>Say goodbye to time-consuming contractor management and hello to AI-powered onboarding, talent pool management, and on-demand niche skill matching</p>
+            <% end %>
           </div>
         </div>
         <div>
@@ -23,7 +29,7 @@
     </div>
   </div> 
   <div class="col-12 px-0 mt-3 d-flex justify-content-between">
-  <% if(request.path != "/static/jobs")%>
+  <% unless params[:controller] == "static/jobs" && (params[:action] == "index" || (params[:action] == "show" && params[:type] == 'job'))%>
 <!--    <select id="selectFilter" name="selectFilter" class="select-filter">-->
         <div class="d-flex filterdiv">
           <button class="btn filterBtn filter1" onclick="btnClick1()" value="all">All</button>

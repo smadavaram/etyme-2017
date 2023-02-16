@@ -59,6 +59,7 @@ class Job < ApplicationRecord
   # has_many     :received_job_applications, class_name: 'JobApplication', s
   has_many :job_invitations, dependent: :destroy
   has_many :custom_fields, as: :customizable
+  has_and_belongs_to_many :matches, class_name: 'Candidate'
   # has_many     :job_applications ,through: :job_invitations
   has_many :timesheet_approvers, through: :timesheets
   has_many :job_requirements
@@ -81,6 +82,8 @@ class Job < ApplicationRecord
 
   after_create :create_job_chat
   after_create :create_job_conversation
+  after_create :start_matching_candidates, if: proc { |job| job.listing_type == 'Job' and job.status == 'Published' }
+  before_update :start_matching_candidates, if: proc { |job| (job.listing_type == 'Job' and job.status == 'Published') and (job.tag_list_changed? or job.industry_changed? or job.department_changed?) }
   before_save :set_parent_job
 
   scope :active, -> { where('end_date>=? AND status = ?', Date.today, 'Published') }
@@ -90,6 +93,7 @@ class Job < ApplicationRecord
 
   # scope :search_by, ->(term, _search_scop) { Job.joins(:tags).where('lower(tags.name) like :term or lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', term: "#{term&.downcase}%") }
   scope :search_by, ->(term) { Job.joins(:tags).where('lower(tags.name) like :term or lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', term: "#{term&.downcase}%") }
+  scope :search_with, ->(term) { where('lower(title) like :term or lower(description) like :term or lower(location) like :term or lower(job_category) like :term', term: "#{term&.downcase}%").distinct }
 
   geocoded_by :location
   after_validation :geocode
@@ -163,6 +167,40 @@ class Job < ApplicationRecord
       end
     end
     build_conversation(chatable: group, topic: :Job, job_id: id).save if group
+  end
+
+  def self.archived
+    Job.where(status: 'Published').each do | job |
+      unless job.job_applications.where('updated_at >= ?', 7.day.ago.to_datetime).any? || (job.updated_at > 7.day.ago.to_datetime)
+        job.update(status: "Archived")
+      end
+    end
+  end
+
+  def start_matching_candidates
+    CandidateJobMatchWorker.perform_async(self.id, 'Job')
+  end
+  
+  def matched_candidates
+    candidates = Candidate.all
+    job_tags = tag_list.map(&:downcase) 
+
+    matched = []
+    candidates.each do |candidate|
+      percentage = 0
+      matched_skills = candidate.skill_list.map(&:downcase) & job_tags
+
+      unless matched_skills.empty?
+        skill_percentage = (matched_skills.count.to_f/job_tags.count.to_f)*100 unless (job_tags.count - matched_skills.count).zero?
+        percentage = skill_percentage*0.6 unless skill_percentage.nil?
+        
+        percentage += 20 if !department&.empty? and candidate.dept_name == department
+        percentage += 20 if !industry&.empty? and candidate.industry_name == industry
+        matched << {:candidate => candidate, :percentage => percentage.round(2)} unless percentage.zero?
+      end
+    end
+    matched.sort_by {|match| match[:percentage]}.reverse!
+    self.matches = matched.map {|match| match[:candidate] }
   end
 
   private

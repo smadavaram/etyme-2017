@@ -6,7 +6,7 @@ class Company::PublicJobsController < Company::BaseController
   def index
     add_breadcrumb 'Public Job(s)'
     # @jobs = Job.joins("INNER JOIN experiences on jobs.industry = experiences.industry AND jobs.department = experiences.department INNER JOIN candidates on experiences.user_id = candidates.id").where("candidates.id in (?)", current_company.candidates.pluck(:id)).order("id DESC").uniq.paginate(page: params[:page], per_page: 10) || []
-    @jobs = Job.all.order(created_at: :desc).paginate(page: params[:page], per_page: 10) || []
+    @jobs = current_company.jobs.where(status: "Published").order(created_at: :desc).paginate(page: params[:page], per_page: 10) || []
   end
 
   def job

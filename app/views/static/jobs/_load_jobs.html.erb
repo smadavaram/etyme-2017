@@ -111,7 +111,7 @@
                   </p>
                 </li>
               <% end %>
-              <% if current_company&.owner == current_user %>
+              <% if current_company.present? and current_company&.owner == current_user %>
                 <li class="d-block">
                   <p class="feed-article-time">
                     <small class="mr-3"><%= link_to 'Delete', job, method: 'delete', class: 'text-danger' %></small>

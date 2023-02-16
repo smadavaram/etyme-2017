@@ -122,6 +122,7 @@ class Candidate < ApplicationRecord
 
   # after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
   after_create :create_address
+  before_update :start_matching_jobs, if: proc { |candidate| candidate.skill_list_changed? || candidate.industry_name_changed? || candidate.dept_name_changed? }
   after_create :send_welcome_email, if: proc { |candidate| candidate.send_welcome_email_to_candidate.nil? }
   after_create :normalize_candidate_entries, if: proc { |candidate| candidate.signup? }
   # after_create  :set_on_seq
@@ -139,6 +140,7 @@ class Candidate < ApplicationRecord
   has_many :custom_fields, as: :customizable, dependent: :destroy
   has_many :job_applications, as: :applicationable
   has_many :job_invitations, as: :recipient
+  has_and_belongs_to_many :matches, class_name: 'Job'
   has_many :contracts, through: :job_applications, dependent: :destroy
   has_many :job_invitations_sender, as: :sender, class_name: 'JobInvitation'
 
@@ -347,6 +349,32 @@ class Candidate < ApplicationRecord
   def candidate_company(company_id)
      CandidatesCompany.where(candidate_id: id,
                             company_id: company_id).first
+  end
+
+  def start_matching_jobs
+    CandidateJobMatchWorker.perform_async(self.id, 'Candidate')
+  end
+
+  def matched_jobs
+    jobs = Job.where(listing_type: 'Job', status: 'Published')
+    candidate_skills = skill_list.map(&:downcase)
+
+    matched = []
+    jobs.each do |job|
+      percentage = 0
+      matched_skills = job.tag_list.map(&:downcase) & candidate_skills
+
+      unless matched_skills.empty?
+        skill_percentage = (matched_skills.count.to_f/candidate_skills.count.to_f)*100
+        percentage = skill_percentage*0.6 unless skill_percentage.nil?
+        
+        percentage += 20 if !dept_name&.empty? and dept_name == job.department
+        percentage += 20 if !industry_name&.empty? and industry_name == job.industry
+        matched << {:job => job, :percentage => percentage.round(2)} unless percentage.zero?
+      end
+    end
+    matched.sort_by {|c| c[:percentage]}.reverse!
+    self.matches = matched.map {|match| match[:job] }
   end
 
   private

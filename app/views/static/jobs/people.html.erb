@@ -97,7 +97,7 @@
                                                     </div>
                                                     <script type="text/javascript" charset="utf-8">
                                                         $('#like-button-<%= c.id %>').click(function (){
-                                                            alert('You must be logged in to like a candidate');
+                                                            flash_error('You must be logged in to like a candidate');
                                                         })
                                                     </script>
                                                   <% else %>
@@ -116,7 +116,7 @@
 
                                                             <script type="text/javascript" charset="utf-8">
                                                                 $('#chat-button-<%= c.id %>').click(function (){
-                                                                    alert('You must be logged in to chat.');
+                                                                    flash_error('You must be logged in to chat.');
                                                                 })
                                                             </script>
                                                         <% else %>

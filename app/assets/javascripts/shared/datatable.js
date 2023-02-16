@@ -400,6 +400,9 @@ $(document).ready(function () {
   $("#jobs_datatable-search").keyup(function () {
     $("#jobs_datatable").DataTable().search($(this).val()).draw();
   });
+  $("#job_application_datatable-search").keyup(function () {
+    $("#job_application_datatable").DataTable().search($(this).val()).draw();
+  });
 
   $("#payroll-cycles-datatable").dataTable();
   $("#payroll-cycles-datatable-search").keyup(function () {
@@ -668,6 +671,6 @@ $(document).ready(function () {
     ],
   });
   $("#my_bench_datatable").DataTable({
-    columnDefs: [{ targets: 0, searchable: false, orderable: false }],
+    columnDefs: [{ targets: 0, searchable: false, orderable: false }, { targets: 8, searchable: false }],
   });
 });

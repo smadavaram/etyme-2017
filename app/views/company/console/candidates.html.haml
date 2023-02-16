@@ -1,0 +1,94 @@
+#content.newsfeed
+  %body
+    %section#widget-grid.clearfix
+      .newsfeed-left
+        %left-side-header.d-flex.align-items-center
+          %strong.left-side-header-left
+            = link_to "+", new_company_candidate_path, title: "Add New Bench", style: 'text-decoration:none'
+            -if params[:type]=='company'
+              Company Bench /
+              = link_to "My Bench", company_console_candidates_path, style: 'text-decoration:none'
+            -else
+              My Bench /
+              = link_to "Company Bench", company_console_candidates_path+"?type=company", style: 'text-decoration:none'
+          %div.left-side-header-right
+            = link_to '<i class="fa fa-refresh"></i> My Jobs'.html_safe, company_console_jobs_path, class:"font-12 btn btn-primary"
+        %hr{:style=>"margin: 0;"}
+        %ul
+          - if @candidates.empty?
+            (No Bench Found)
+          - @candidates.each do |hot_candidate|
+            - candidate = hot_candidate.candidate
+            -# if !(Time.parse(job.created_at.to_s) <= Time.parse(Time.now.to_s) && job.job_applications.blank?)
+            %li
+              = link_to company_console_candidate_path(candidate), id: 'bench_link', onclick: 'changes_selected(this);', remote: true do
+                %div.public-job-list.clearfix
+                  %span.pull-left
+                    =candidate.candidate_title
+                  %span.pull-right
+                    %i.fa.fa-calendar-o
+                    =candidate.created_at.strftime("%m/%d/%Y")
+                %div.job-header.clearfix
+                  = user_mini_avatar(candidate)
+                  %p.job_title
+                    = candidate.try(:full_name)
+                  %p.job_title
+                    - job_invitation = JobInvitation.find_by(recipient_id: candidate.id, company_id: hot_candidate.company&.id)
+                    - if job_invitation
+                      = job_invitation&.min_hourly_rate.to_s + "-" + job_invitation&.max_hourly_rate.to_s
+                      %i.fa.fa-usd
+                %div.public-job-other-info
+                  %span
+                    %i.fa.fa-map-marker
+                    = candidate.try(:location)
+                  %span
+                    %i.fa.fa-user
+                    = candidate.recruiter.try(:full_name)
+      .newsfeed-right
+        %div#matched-jobs
+  .timesheet_pagination_wrap.pt-3.m-3
+    .pagination_label
+      = page_entries_info @candidates
+    = will_paginate(@candidates, previous_label: "Previous",next_label: "Next", inner_window: 1, class: 'public_job_des_pagination_links', 'data-remote': true)
+
+
+-content_for :body_class, 'greybg'
+- content_for :modals do
+  #job_application
+
+:css
+  .left-side-header{
+    width:100%;
+    height:60px;
+    overflow: hidden;
+  }
+  .left-side-header-left{
+    margin: auto;
+    float: left;
+  }
+  .left-side-header-right{
+    margin: auto;
+    float: right;
+    padding: 12px;
+    text-decoration: none;
+    font-size: 18px;
+    line-height: 25px;
+    border-radius: 4px;
+  }
+  .selected{
+    background-color: #F2F9FB 
+  }
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      default_active_nav('.ln-4');
+    });
+
+    function changes_selected(obj){
+      var all_links = document.querySelectorAll('a[id="bench_link"]');
+      for(var i=0; i<all_links.length; i++){
+        all_links[i].classList.remove('selected');
+      }
+      $(obj).addClass("selected");
+    }

@@ -1,0 +1,25 @@
+$("#matched-candidates").html("<%= j render 'company/console/partials/matched_candidates' %>");
+
+function search_and_render(){
+  var job_id = $('#job_id').val();
+  var search_term = $('#search').val();
+  $.get(`/company/console/jobs/${job_id}?q=${search_term}`);
+}
+
+function apply(obj){
+  var candidate_id = $(obj).attr('data-candidate-id');
+  var job_id = $('#job_id').val();
+  console.log('candidate id: ', candidate_id, 'job_id: ', job_id);
+  let url = `/company/console/jobs/${job_id}`;
+  $.ajax({
+      type: "POST",
+      url: url,
+      data: {temp_candidates: [candidate_id]},
+      dataType: 'script',}
+    ).done(function (data) {
+    flash_success("Applied Successfully");
+    $.get(`/company/console/jobs/${job_id}`);
+  }).fail(function (data) {
+    flash_error(data.status)
+  });
+}

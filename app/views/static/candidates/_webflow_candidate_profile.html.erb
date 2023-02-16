@@ -252,7 +252,7 @@
 
 
         <% else %>
-          <%= "No Ressume Available" %>
+          <%= "No Resume Available" %>
         <% end %>
 
 <!--        <a  href="#"   class="pl-4 profile-link-download"  >-->
@@ -427,23 +427,24 @@
               <div class="element-info-text">
                 <div class="mb-2">
                   <div class="project-header">
-                    <span><%= designation.try(:comp_name) %></span>
+                    <span style='font-weight: bold;'><%= designation.try(:comp_name) %></span>
                     <span style="float: right;"><%= designation.start_date&.strftime('%B-%Y') %> -  <%= designation.end_date&.strftime('%B-%Y')%></span>
                     <div><%= designation.company_role %></div>
                   </div>
 
-                  <div class="project-description" style="margin-top: 12px;font-size: 16px;line-height: 25px;">
+                  <div class="project-description" style="margin-left: 12px; margin-top: 12px;font-size: 16px;line-height: 25px;">
                     <strong class="font-weight-bold font-sm text-capitalize" style="color: gray;">Project description</strong>
                     <div> <%= project.project_description.html_safe %> </div>
                   </div>
 
-                  <div class="job-description" style="margin-top: 12px;font-size: 16px;line-height: 25px;">
+                  <div class="job-description" style="margin-left: 12px; margin-top: 12px;font-size: 16px;line-height: 25px;">
                     <strong class="font-weight-bold font-sm text-capitalize" style="color: gray;">Job description</strong>
                     <div> <%= project.job_description.html_safe %> </div>
                   </div>
                 </div>
               </div>
             </div>
+            <hr class="solid">
           <% end %>
         <%end%>
       <% else %>

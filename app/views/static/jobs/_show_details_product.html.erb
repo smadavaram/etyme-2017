@@ -1,5 +1,12 @@
 <!-- Product Details -->
-<div class="webflow-content-inner webflow-blog webflow-product-single col-12 p-4">
+<div class="webflow-content-inner webflow-blog webflow-product-single col-12">
+  <div class="webflow-blog-banner">
+    <% if @job.files.present? %>
+      <%= image_tag @job.files.split(',').first %>
+    <% else %>
+      <%= image_tag 'demo/s1.jpg' %>
+    <% end %>
+  </div>
   <!-- Back to Listings -->
   <div class="product-single-back pt-3 pb-3">
     <a href="#"><i class="fa fa-arrow-left mr-1" aria-hidden="true"></i> Back to Listings</a>
@@ -18,13 +25,17 @@
   </div>
 
   <!-- Thumbnails -->
-  <% unless @job.files.size.zero? %>
-    <div class="product-single-thumbnails">
+  <div class="product-single-thumbnails d-flex">
+    <% if @job.files.present? %>
       <% @job.files.split(',').each do |job_file| %>
-        <%= image_tag job_file %>
+        <div class="pr-3">
+          <div class="webflow-thumbnail-170-105">
+            <%= link_to image_tag(job_file), job_file, {target: "_blank"} %>
+          </div>
+        </div>
       <% end %>
-    </div>
-  <% end %>
+    <% end %>
+  </div>
 
   <!-- Description -->
   <div class="product-single-subsection-title pb-3">
