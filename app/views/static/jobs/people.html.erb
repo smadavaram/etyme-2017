@@ -1,188 +1,169 @@
 <section class="content-wrapper">
-    <%= stylesheet_link_tag "mycompany" %>
-    <%= javascript_include_tag "cable" %>
-    <style>
+  <%= stylesheet_link_tag "mycompany" %>
+  <%= javascript_include_tag "cable" %>
+  <style>
     .bot_style{
-        background: none  !important;
-        border: none !important;
-        margin: 0px;
-        padding: 0px;
+      background: none  !important;
+      border: none !important;
+      margin: 0px;
+      padding: 0px;
     }
     .bot_style:hover {
-        outline: none !important;
+      outline: none !important;
     }
     .bot_style:focus {
-        outline: none !important;
+      outline: none !important;
     }
     .imag_css{
-    height: 17px;
-    width: 17px;
-    margin-right: 5px;
-    border-radius: 50%;
+      height: 17px;
+      width: 17px;
+      margin-right: 5px;
+      border-radius: 50%;
     }
     .imag_css_for_pic{
-        margin-left:7px
+      margin-left:7px
     }
     .scrool::-webkit-scrollbar {
-    width: 8px;
-    margin: 3px;
-}
+      width: 8px;
+      margin: 3px;
+    }
     /* Track */
     .scrool::-webkit-scrollbar-track {
-        box-shadow: inset 0 0 5px white;
-        border-radius: 5px;
+      box-shadow: inset 0 0 5px white;
+      border-radius: 5px;
     }
 
     /* Handle */
     .scrool::-webkit-scrollbar-thumb {
-        background: #047bf8;
-        border-radius: 10px;
+      background: #047bf8;
+      border-radius: 10px;
     }
 
     /* Handle on hover */
     .scrool::-webkit-scrollbar-thumb:hover {
-        background: #047bf8;
+      background: #047bf8;
     }
 
 
-    </style>
-    <div class="container-fluid">
-        <div class="row">
-            <%= render 'static/shared/webflow_header' %>
-            <div class="col-12 content-main">
-                <div class="tab-content">
-                    <div class="tab-pane fade show active">
-                        <div class="row">
-                            <div class="col-12 col-xl-9 feed-main">
-                                <div class="row mx-1 align-items-stretch mt-3">
-                                    <% if @candidates.present? %>
-                                    <% @candidates.each_with_index do |c , index| %>
-                                    <div class="col-12 col-xl-4 mb-4">
-                                        <div class="people-card d-flex flex-column h-100">
-                                            <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
-                                            <div class="cover-img" id="tag-<%=index%>" tag-value="tag-<%=index%>" data-value="<%= c&.candidate&.skills&.pluck(:name) %>">
-                                                <%= link_to (image_tag "#{c&.candidate&.designations&.with_no_client.present? ? c&.candidate.designations.with_no_client&.first&.portfolios&.first&.cover_photo : asset_path('') }", alt: "cover"), public_profile_static_candidates_path(c&.candidate), target: "_blank"  %>
-                                            </div>
-
-                                            <div class="people-card-header d-flex justify-content-between">
-                                                <div class="media">
-                                                    <%= link_to user_mini_avatar(c&.candidate), public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank" %>
-                                                    <%if c&.candidate&.display_name.present? %>
-                                                     <%= link_to c&.candidate&.display_name, public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank" %>
-                                                    <%else%>
-                                                     <%= link_to c&.candidate&.first_name + " "+c&.candidate&.last_name[0]+"..." ,  public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank" %>
-                                                    <% end %>
-                                                </div>
-                                                <div>
-                                                    <%# <p class="m-0 f-12 f-mon-sembol txt-light"><%= c&.candidate&.location&.country %1></p> %>
-                                                </div>
-                                            </div>
-
-                                            <div class="people-card-content flex-fill">
-                                                <% if c&.candidate&.candidate_title.present? %>
-                                                <%= c&.candidate&.candidate_title %>
-                                                <% end %>
-                                            </div>
-
-                                            <div class="people-card-footer d-flex justify-content-between mb-3">
-                                                <div class="card-footer-icons d-flex">
-
-                                                    <!-- Like Icon -->
-                                                   <% if current_user.nil? and current_candidate.nil? %>
-                                                    <div class="card-footer-like mr-2"  id="like-button-<%= c.id %>">
-                                                        <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
-                                                    </div>
-                                                    <script type="text/javascript" charset="utf-8">
-                                                        $('#like-button-<%= c.id %>').click(function (){
-                                                            flash_error('You must be logged in to like a candidate');
-                                                        })
-                                                    </script>
-                                                  <% else %>
-                                                    <div class="card-footer-like mr-2" id="like-button">
-                                                      <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
-                                                    </div>
-
-
-                                                  <% end  %>
-
-
-
-
-
-                                                    <!-- Chat Icon -->
-
-
-
-
-                                                       <%c_candidate = c&.candidate_id%>
-                                                       <%c_candidate_obj = Candidate.find_by(id: c_candidate)%>
-                                                       <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
-                                                    <div class="logged-user-role d-flex justify-content-center align-items-center pl-2  <%= "border border-light rounded" if c_recruiter %>"  style="border-color: grey !important;">
-
-                                                          <% if current_user.nil? and current_candidate.nil? %>
-                                                            <button id="chat-button-<%= c.id %>" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
-
-                                                            <script type="text/javascript" charset="utf-8">
-                                                                $('#chat-button-<%= c.id %>').click(function (){
-                                                                    flash_error('You must be logged in to chat.');
-                                                                })
-                                                            </script>
-
-                                                        <% else %>
-                                                            <%if c_recruiter.present? && current_user != c_recruiter%>
-                                                                <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
-                                                            <%else%>
-                                                                 <button onclick="candidate_button(<%= c_candidate_obj.id %>)" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid me-2", alt: "Chat" %></button>
-                                                            <%end%>
-                                                            <% end %>
-
-
-                                                        <div class="logged-user-role d-block">
-                                                            <%if c_recruiter.present?%>
-                                                              <%= chat_recruiter_link_image(c_recruiter) %>
-                                                            <%end%>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-
-
-
-
-                                                <!-- Price -->
-                                                <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
-                                                <div class="pl-2">
-                                                    <p class="d-inline-block card-people-footer-max-rate mb-0 mr-1">
-                                                        <del>
-                                                            <%= "$#{@c_bench_job.present? && @c_bench_job&.max_hourly_rate.present? ? number_with_precision(@c_bench_job&.max_hourly_rate, precision: 2) : ""}/hr" %>
-                                                        </del>
-                                                    </p>
-                                                    <p class="d-inline-block card-people-footer-min-rate mb-0">
-                                                        <%= "$#{@c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? ? number_with_precision(@c_bench_job&.min_hourly_rate, precision: 2) : ""}/hr" %>
-                                                    </p>
-                                                </div>
-                                                <% end %>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <% end %>
-                                    <% else %>
-                                    <div>No People Available</div>
-                                    <% end %>
-                                </div>
-                                <% if @candidates.present? %>
-                                <div class="mt-3">
-                                    <%= digg_pagination(@candidates ,class: "pagination ")%>
-                                </div>
+  </style>
+  <div class="container-fluid">
+    <div class="row">
+      <%= render 'static/shared/webflow_header' %>
+      <div class="col-12 content-main">
+        <div class="tab-content">
+          <div class="tab-pane fade show active">
+            <div class="row">
+              <div class="col-12 col-xl-9 feed-main">
+                <div class="row mx-1 align-items-stretch mt-3">
+                  <% if @candidates.present? %>
+                    <% @candidates.each_with_index do |c , index| %>
+                      <div class="col-12 col-xl-4 mb-4">
+                        <div class="people-card d-flex flex-column h-100">
+                          <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
+                          <div class="cover-img" id="tag-<%=index%>" tag-value="tag-<%=index%>" >
+                            <div class="candidate-name people-card-header flex-fill ">
+                                <% if c&.candidate&.candidate_title.present? %>
+                                  <%= c&.candidate&.candidate_title %>
+                                <% else %>
+                                  <p></p>
                                 <% end %>
                             </div>
-                            <%= render 'static/shared/webflow_sidebar_right' %>
+                            <div class= "skills">
+                              <% if c&.candidate&.skills.any? %>
+                                <ul>
+                                  <% c.candidate.skills.each do |skill| %>
+                                    <li><%= skill.name %></li>
+                                  <% end %>
+                                </ul>
+                              <% end %>
+                            </div>
+                                <%# <%= link_to (image_tag "#{c&.candidate&.designations&.with_no_client.present? ? c&.candidate.designations.with_no_client&.first&.portfolios&.first&.cover_photo : asset_path('') }", alt: "cover"), public_profile_static_candidates_path(c&.candidate), target: "_blank"  %> 
+                          </div>
+                          <div class="people-card-header d-flex justify-content-between">
+                            <div class="media">
+                              <%= link_to user_mini_avatar(c&.candidate), public_profile_static_candidates_path(c&.candidate), target: "_blank" %>
+                              <%if c&.candidate&.display_name.present? %>
+                                <%= link_to c&.candidate&.display_name, public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank" %>
+                              <%else%>
+                                <%= link_to c&.candidate&.first_name + " "+c&.candidate&.last_name[0]+"..." ,  public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank" %>
+                              <%end%>
+                            </div>
+                            <div>
+                                <%# <p class="m-0 f-12 f-mon-sembol txt-light"><%= c&.candidate&.location&.country %1></p> %>
+                            </div>
+                          </div>
+                          <div class="people-card-footer d-flex justify-content-between" style="margin: 10px;">
+                            <div class="card-footer-icons d-flex">
+                                <!-- Like Icon -->
+                              <% if current_user.nil? and current_candidate.nil? %>
+                                <div class="card-footer-like mr-2"  id="like-button-<%= c.id %>">
+                                  <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
+                                </div>
+                                <script type="text/javascript" charset="utf-8">
+                                  $('#like-button-<%= c.id %>').click(function (){
+                                    flash_error('You must be logged in to like a candidate');
+                                  })
+                                </script>
+                              <% else %>
+                                <div class="card-footer-like mr-2" id="like-button">
+                                  <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
+                                </div>
+                              <% end  %>
+                                <!-- Chat Icon -->
+                              <%c_candidate = c&.candidate_id%>
+                              <%c_candidate_obj = Candidate.find_by(id: c_candidate)%>
+                              <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
+                              <div class="logged-user-role d-flex justify-content-center align-items-center pl-2  <%= "border border-light rounded" if c_recruiter %>"  style="border-color: grey !important;">
+                                  <% if current_user.nil? and current_candidate.nil? %>
+                                    <button id="chat-button-<%= c.id %>" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
+                                    <script type="text/javascript" charset="utf-8">
+                                      $('#chat-button-<%= c.id %>').click(function (){
+                                          flash_error('You must be logged in to chat.');
+                                      })
+                                    </script>
+                                  <% else %>
+                                    <%if c_recruiter.present? && current_user != c_recruiter%>
+                                      <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
+                                    <%else%>
+                                      <button onclick="candidate_button(<%= c_candidate_obj.id %>)" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid me-2", alt: "Chat" %></button>
+                                    <%end%>
+                                  <% end %>
+                                  <div class="logged-user-role d-block">
+                                    <%if c_recruiter.present?%>
+                                      <%= chat_recruiter_link_image(c_recruiter) %>
+                                    <%end%>
+                                  </div>
+                              </div>
+                            </div>
+                            <!-- Price -->
+                            <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
+                              <div class="pl-2">
+                                <p class="d-inline-block card-people-footer-min-rate mb-0">
+                                    <%= "$" + @c_bench_job&.min_hourly_rate.to_s + "-" + @c_bench_job&.max_hourly_rate.to_s + "/hr"%>
+                                </p>
+                              </div>
+                            <% end %>
+                          </div>
                         </div>
-                    </div>
+                      </div>
+                    <% end %>
+                  <% else %>
+                    <div>No People Available</div>
+                  <% end %>
                 </div>
+                <% if @candidates.present? %>
+                  <div class="mt-3">
+                      <%= digg_pagination(@candidates ,class: "pagination ")%>
+                  </div>
+                <% end %>
+              </div>
+              <%= render 'static/shared/webflow_sidebar_right' %>
             </div>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 </section>
 
 <link href="http://www.jqueryscript.net/css/jquerysctipttop.css" rel="stylesheet" type="text/css"></link>
@@ -477,9 +458,44 @@
         background: transparent !important;
         box-shadow: none !important;
     }
-
+    .skills{
+      background-color: white;
+      text-align: left;
+      padding: 15px;
+      margin-top: 30;
+    }
+    .skills ul{
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+    .skills ul li{
+      border: 1px solid #F9F9F9;
+      border-radius: 20px;
+      display: inline-block;
+      margin: 0 4px 4px 0;
+      padding: 4px;
+      background: #F9F9F9;
+      font-size: 12px;
+    }
+    .skill-list::-webkit-scrollbar-thumb{
+      background-color: rgb(116, 124, 142);
+    }
+    .skill-list{
+      max-height:150px;
+      overflow-y:auto;
+      color: rgb(116, 124, 142);
+    }
+    .slider {
+      background: #d3d3d3;
+    }
     .txt-black a {
         color: #2A2C34 !important;
+    }
+    .candidate-name{
+     margin: auto;
+     text-align: center;
+     font-weight: bold;
     }
 
     .f-mon-bol a {
