@@ -4,10 +4,10 @@
       .newsfeed-left
         %left-side-header.d-flex
           %strong.left-side-header-left
-            = link_to "+", '/jobs/new?type=Job', title: "Add New Job", style: 'text-decoration:none'
+            = link_to '<i class="ti-plus" style="font-size: large;border: solid;border-radius: 50%;border-color: #017801;"></i>'.html_safe, '/jobs/new?type=Job', title: "Add New Job", style: 'text-decoration:none'
             -if params[:type]=='company'
-              Company Jobs /
               = link_to "My Jobs", company_console_jobs_path, style: 'text-decoration:none'
+              = "/ Company Jobs"
             -else
               My Jobs /
               = link_to "Company Jobs", company_console_jobs_path+"?type=company", style: 'text-decoration:none'
