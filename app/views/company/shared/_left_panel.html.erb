@@ -156,7 +156,19 @@
           <a href="<%= network_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Clients / Vendors</a>
         <% end %>
         <a href="<%= vendor_activity_prefer_vendors_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Vendor Activity</a>
-        <a href="<%= company_console_job_applications_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Console Applications</a>
+      </div>
+      <a class="ln-2 sidebar_collapsible side-bar_tab home_links">
+        <div class="icon-w">
+          <i class="ti-files"></i>
+        </div>
+        <span>Applications</span>
+      </a>
+      <div class="pl-4 w-100 l2 text-justify nav-sidebar-collaps">
+        <% if has_permission?('manage_job_applications') %>
+          <a href="<%= company_console_job_applications_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Console Applications</a>
+          <a href="<%= job_applications_path+"?type=Bench" %>" class="l2 side-bar_links nested_tab boarder_bottom home_links">Bench Applications</a>
+          <a href="<%= job_applications_path %>" class="l2 side-bar_links nested_tab boarder_bottom home_links">Published Applications</a>
+        <% end %>
       </div>
       <a class="ln-5 sidebar_collapsible side-bar_tab home_links">
         <div class="icon-w">
@@ -168,7 +180,7 @@
         <a href="<%= company_bench_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">My Bench</a>
         <a href="<%= company_job_receives_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Received</a>
         <a href="<%= company_owen_jobs_path %>" class=" side-bar_links nested_tab boarder_bottom home_links">Bench Jobs</a>
-        <a href="<%= job_applications_path+"?type=Bench" %>" class="l2 side-bar_links nested_tab boarder_bottom home_links">Bench Applications</a>
+
       </div>
       <a class="ln-6 sidebar_collapsible side-bar_tab home_links">
         <div class="icon-w">
@@ -182,9 +194,6 @@
         <% end %>
         <% if has_permission?('manage_job_invitations') %>
           <a href="<%= job_invitations_path %>" class="l2 side-bar_links nested_tab boarder_bottom home_links">Invitations</a>
-        <% end %>
-        <% if has_permission?('manage_job_applications') %>
-          <a href="<%= job_applications_path %>" class="l2 side-bar_links nested_tab boarder_bottom home_links">Applications</a>
         <% end %>
       </div>
       <% if has_permission?('manage_contracts') %>
@@ -214,19 +223,23 @@
           <a href="<%= client_expenses_path %>" class="l2 side-bar_links nested_tab boarder_bottom home_links">Client Expenses</a>
         </div>
       <% end %>
-      <a class="ln-9 sidebar_collapsible side-bar_tab home_links" id="accounting_tab">
+      <%# <a class="ln-9 sidebar_collapsible side-bar_tab home_links" id="accounting_tab">
         <div class="icon-w" >
           <i class="picons-thin-icon-thin-0417_calculator" ></i>
         </div>
         <span>Accounting</span>
-      </a>
-      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+      </a> %>
+      <%# <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
         <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="#">Banking</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%= sale_invoices_path %>">Sales</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%= purchase_invoices_path %>">Purchases</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%= pay_expense_expenses_path() %>">Expenses</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%= salaries_path %>">Salaries</a>
-      </div>
+        <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%= sale_invoices_path %>
+        <%# ">Sales</a> %> 
+        <%# <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%= purchase_invoices_path %>
+        <%# ">Purchases</a> %> 
+        <%# <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%= pay_expense_expenses_path() %>
+        <%# ">Expenses</a> %>
+        <%# <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%= salaries_path %>
+        <%# ">Salaries</a> %> 
+      <%# </div>
 
       <a class="ln-7 sidebar_collapsible side-bar_tab home_links">
         <div class="icon-w">
@@ -234,10 +247,12 @@
         </div>
         <span>Sites</span>
       </a>
-      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
-        <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%=sites_jobs_iframe_path%>">Iframe</a>
-        <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%= sites_jobs_preview_path %>">Preview</a>
-      </div>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps"> %>
+        <%# <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%=sites_jobs_iframe_path%>
+        <%# ">Iframe</a> %> 
+        <%# <a class="l2 side-bar_links nested_tab boarder_bottom home_links" href="<%= sites_jobs_preview_path %>
+        <%# ">Preview</a> %> 
+      <%# </div> %>
     </div>
   </div>
   

@@ -87,12 +87,6 @@
       $('#job_application-datatable-search').keyup(function(){
         $('#job_application_dataTable').DataTable().search( $(this).val() ).draw();
       });
-      var type = '<%=params[:type]%>';
-      console.log('type: ', type);
-      if(type=="Bench"){
-        default_active_nav('.ln-5');
-      }else{
-        default_active_nav('.ln-6');
-      }
+      default_active_nav('.ln-2');
     })
 
