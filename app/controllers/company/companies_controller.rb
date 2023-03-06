@@ -509,7 +509,7 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def company_params
-    params.require(:company).permit(:name, :company_type, :domain, :skill_list, :website, :logo, :description, :phone, :email, :linkedin_url, :facebook_url, :twitter_url, :google_url, :is_activated, :status, :time_zone, :tag_line, :custom_domain, :banner_title, :banner_text, :banner_btn_label, :banner_btn_url, :banner_two_btn_label, :banner_two_btn_url, :banner_color, group_ids: [], owner_attributes: %i[id type first_name last_name email password password_confirmation], locations_attributes: [:id, :name, :status, address_attributes: %i[id address_1 country city state zip_code]], invited_by_attributes: %i[invited_by_company_id user_id])
+    params.require(:company).permit(:name, :company_type, :domain, :skill_list, :website, :logo, :description, :phone, :email, :linkedin_url, :facebook_url, :twitter_url, :google_url, :is_activated, :status, :time_zone, :tag_line, :custom_domain, :banner_title, :banner_text, :banner_btn_label, :banner_btn_url, :banner_two_btn_label, :banner_two_btn_url, :banner_color, group_ids: [], owner_attributes: %i[id type first_name last_name email password password_confirmation], locations_attributes: [:id, :name, :status, address_attributes: %i[id address_1 country city state zip_code]], invited_by_attributes: %i[invited_by_company_id user_id], slider: %i[id image_1 title_1 text_1 image_2 title_2 text_2 image_3 title_3 text_3])
   end
 
   def create_params
@@ -520,7 +520,9 @@ class Company::CompaniesController < Company::BaseController
                                     addresses_attributes: %i[id address_1 address_2 country city state zip_code],
                                     billing_infos_attributes: %i[id address country city zip],
                                     branches_attributes: %i[id branch_name address country city zip],
-                                    departments_attributes: %i[id name])
+                                    departments_attributes: %i[id name],
+                                    :show_slider,
+                                    slider_attributes: %i[id image_1 title_1 text_1 text_1_color image_2 title_2 text_2 text_2_color image_3 title_3 text_3 text_3_color height])
   end
 
   def company_contact_params

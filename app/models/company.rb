@@ -161,6 +161,7 @@ class Company < ApplicationRecord
   # validates           :domain, uniqueness:   true
   has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
   has_many :holidays
+  has_one :slider
   # validates_uniqueness_of   :name, message: "This company is already registered on etyme. You can connect with its Admin and he can allow you to be added into the company"
   # validates_length_of :name,  minimum:    3   , message: "must be atleat 3 characters"
   validates :name, presence: true
@@ -171,6 +172,7 @@ class Company < ApplicationRecord
   validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: 'is not allowed. Please choose another subdomain.'
   validates_exclusion_of :domain, in: EXCLUDED_DOMAINS, message: 'is not allowed. Please use comapany email'
 
+  accepts_nested_attributes_for :slider, allow_destroy: true
   accepts_nested_attributes_for :owner, allow_destroy: true
   accepts_nested_attributes_for :company_contacts, allow_destroy: true
   accepts_nested_attributes_for :locations, allow_destroy: true, reject_if: :all_blank

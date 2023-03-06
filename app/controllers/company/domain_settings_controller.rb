@@ -6,6 +6,7 @@ class Company::DomainSettingsController < Company::BaseController
   
   def index
     add_breadcrumb 'Domain Settings'
+    @company.build_slider if @company.slider.nil?
   end
 
   def set_company

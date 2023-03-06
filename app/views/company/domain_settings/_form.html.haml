@@ -27,16 +27,56 @@
     .row.form-group
       .col-lg-12.multi-field-wrapper
         %p
-          %b Banner
-        .row
+          %b Show Slider?
+          = f.check_box :show_slider, class: 'form-check-input', style: 'margin-left: 10px', id: 'show_slider'
+        .row#slider_div
           .col-md-12
-            .form-group
-              = f.text_field :banner_title, placeholder: "Banner Title", class: 'form-control'
-            .form-group
-              = f.text_field :banner_text, placeholder: "Banner Text", class: 'form-control'
-            .form-group
-              = label_tag :banner_color, "Background Color:"
-              = f.color_field :banner_color
+            = f.fields_for :slider do |sl|
+              .form-group
+                = label_tag "", "Image Size Should be 1050x250px. Image will be auto-Adjusted otherwise.", style: "color: red;"
+              .form-group
+                = render 'shared/file_attachement',f:sl,attr_name: :image_1, name_selector: ".uploaded_file_name", required_field: true, button_name: 'Slider Image 1'
+                = sl.label :image_1, (@company.slider&.image_1&.split('/')&.last or "No File Selected"), class:"d-inline-block uploaded_file_#{@id}"
+              .form-group
+                = sl.text_field :title_1, placeholder: "Slider 1 Title", class: 'form-control'
+              .form-group
+                = sl.text_field :text_1, placeholder: "Slider 1 Text", class: 'form-control'
+              .form-group
+                = label_tag :text_1_color, "Text 1 Color:"
+                = sl.color_field :text_1_color
+              .form-group
+                = render 'shared/file_attachement',f:sl,attr_name: :image_2, name_selector: ".uploaded_file_name", required_field: true, button_name: 'Slider Image 2'
+                = sl.label :image_1, (@company.slider&.image_2&.split('/')&.last or "No File Selected"), class:"d-inline-block uploaded_file_#{@id}"
+              .form-group
+                = sl.text_field :title_2, placeholder: "Slider 2 Title", class: 'form-control'
+              .form-group
+                = sl.text_field :text_2, placeholder: "Slider 2 Text", class: 'form-control'
+              .form-group
+                = label_tag :text_2_color, "Text 2 Color:"
+                = sl.color_field :text_2_color
+
+              .form-group
+                = render 'shared/file_attachement',f:sl,attr_name: :image_3, name_selector: ".uploaded_file_name", required_field: true, button_name: 'Slider Image 3'
+                = sl.label :image_1, (@company.slider&.image_3&.split('/')&.last or "No File Selected"), class:"d-inline-block uploaded_file_#{@id}"
+              .form-group
+                = sl.text_field :title_3, placeholder: "Slider 3 Title", class: 'form-control'
+              .form-group
+                = sl.text_field :text_3, placeholder: "Slider 3 Text", class: 'form-control'
+              .form-group
+                = label_tag :text_3_color, "Text 3 Color:"
+                = sl.color_field :text_3_color
+        %div#banner_div
+          %p
+            %b Banner
+          .row
+            .col-md-12
+              .form-group
+                = f.text_field :banner_title, placeholder: "Banner Title", class: 'form-control'
+              .form-group
+                = f.text_field :banner_text, placeholder: "Banner Text", class: 'form-control'
+              .form-group
+                = label_tag :banner_color, "Background Color:"
+                = f.color_field :banner_color
         %p
           %b Button 1
         .row
@@ -57,3 +97,32 @@
       .col-lg-12
         %button.btn.btn-primary.pull-right{:type => "submit"}
           Save
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      if ($("#show_slider").is(':checked')) {
+        $("#slider_div").fadeIn();
+        $("#banner_div").hide();
+      }else{
+        $("#banner_div").fadeIn();
+        $("#slider_div").hide();
+      }
+      $('#show_slider').change(function() {
+        if ($(this).is(':checked')) {
+          $("#slider_div").fadeIn();
+          $("#banner_div").hide();
+        } else {
+          $("#banner_div").fadeIn();
+          $("#slider_div").hide();
+        }
+      });
+    });
+
+    function changes_selected(obj){
+      var all_links = document.querySelectorAll('a[id="public_job_link"]');
+      for(var i=0; i<all_links.length; i++){
+        all_links[i].classList.remove('selected');
+      }
+      $(obj).addClass("selected");
+    }
