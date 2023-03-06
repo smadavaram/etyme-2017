@@ -19,12 +19,12 @@ class Static::JobsController < ApplicationController
 
     @current_company = current_company
 
-    if @current_company.present?
-      @candidates_hot = current_company.candidates_companies.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first} unless current_company.nil?
-      @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
-    elsif request.subdomain == 'app'
+    if request.subdomain == 'app'
       @candidates_hot = CandidatesCompany.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first}
       @jobs_hot = Job.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
+    elsif @current_company.present?
+      @candidates_hot = current_company.candidates_companies.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first} unless current_company.nil?
+      @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
 
     render layout: 'kulkakit'
