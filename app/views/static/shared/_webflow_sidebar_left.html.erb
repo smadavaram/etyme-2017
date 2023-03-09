@@ -48,13 +48,6 @@
       </div>
     </div> 
     <div>
-      <%# <ul class="sidebar-left-links" style="margin-top: 0px; margin-top: 16px; margin-bottom: 0px; padding-left: 1px; padding-right: 0px;">
-        <li>About</li>
-        <li>Terms</li>
-        <li>Privacy</li>
-        <li>Contact</li>
-        <li>Help</li>
-      </ul> %>
       <div class="text-center">
         <% if current_candidate.present? %>
           <%= link_to '<i class="fa fa-user mx-3"></i>'.html_safe, my_profile_url(subdomain: 'app'), title: 'Profile', style: "color:#5555A5"%>
