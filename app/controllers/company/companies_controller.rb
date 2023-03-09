@@ -513,7 +513,7 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def create_params
-    params.require(:company).permit([:name, :email, :domain, :company_type, :currency_id, :phone, :fax_number, :send_email, :slug, :website, :custom_domain, :banner_title, :banner_text, :banner_btn_label, :banner_btn_url, :banner_two_btn_label, :banner_two_btn_url, :banner_color, group_ids: [],
+    params.require(:company).permit([:name, :email, :domain, :company_type, :currency_id, :phone, :fax_number, :send_email, :slug, :website, :custom_domain, :banner_title, :banner_text, :banner_btn_label, :banner_btn_url, :banner_two_btn_label, :banner_two_btn_url, :banner_color, :show_slider, :apply_gradient, group_ids: [],
                                                                                                                                              company_contacts_attributes: %i[id type first_name last_name email company_id phone title _destroy],
                                                                                                                                              invited_by_attributes: %i[invited_by_company_id user_id],
                                                                                                                                              custom_fields_attributes: %i[id name value _destroy]],
@@ -521,7 +521,6 @@ class Company::CompaniesController < Company::BaseController
                                     billing_infos_attributes: %i[id address country city zip],
                                     branches_attributes: %i[id branch_name address country city zip],
                                     departments_attributes: %i[id name],
-                                    :show_slider,
                                     slider_attributes: %i[id image_1 title_1 text_1 text_1_color image_2 title_2 text_2 text_2_color image_3 title_3 text_3 text_3_color height])
   end
 

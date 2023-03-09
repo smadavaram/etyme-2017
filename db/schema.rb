@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2023_03_06_203134) do
+ActiveRecord::Schema.define(version: 2023_03_09_221531) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -653,6 +653,7 @@ ActiveRecord::Schema.define(version: 2023_03_06_203134) do
     t.string "banner_two_btn_label"
     t.string "banner_two_btn_url"
     t.boolean "show_slider", default: false
+    t.boolean "apply_gradient", default: true
     t.index ["owner_id"], name: "index_companies_on_owner_id"
   end
 
