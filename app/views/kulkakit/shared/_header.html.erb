@@ -50,8 +50,6 @@
         </div>
       </div>
       <div class="dropdown-menu">
-        <%= link_to 'Dashboard', candidate_candidate_dashboard_url(subdomain: 'app') , class: 'dropdown-item' %>
-        <%= link_to 'Onboarding', onboarding_profile_url(subdomain: 'app') , class: 'dropdown-item' %>
         <% if current_candidate.candidate_company(current_company&.id) %>
           <% if cc.subscribed?%>
             <%= link_to 'unsubscribe',
@@ -60,7 +58,6 @@
             <% end %>
           <% end %>
 
-        <%= link_to 'Profile',my_profile_url, class: 'dropdown-item' %>
         <%= link_to "Logout", destroy_candidate_session_path, method: :delete, class: 'dropdown-item' %>
       </div>
     </div>
@@ -117,7 +114,6 @@
         </div>
       </div>
       <div class="dropdown-menu">
-        <%= link_to 'Dashboard', white_labled_dashboard_url(current_user, current_company, request), class: 'dropdown-item' %>
         <%# unless current_user.company.domain == "support" %>
           <% if company_contact&.subscribed?%>
             <%= link_to 'unsubscribe',
@@ -126,7 +122,6 @@
           <% end %>
         <%# end %>
 
-        <%= link_to 'Profile', white_labled_company_user_url(current_user, current_company, request), class: 'dropdown-item' %>
         <%= link_to "Logout", destroy_user_session_path, method: :delete, class: 'dropdown-item' %>
       </div>
     </div>
