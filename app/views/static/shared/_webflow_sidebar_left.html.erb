@@ -59,7 +59,7 @@
           <%= link_to '<i class="fa fa-user mx-3"></i>'.html_safe, white_labled_company_user_url(current_user, current_company, request), title: 'Profile', style: "color:#5555A5"%>
           <%= link_to '<i class="fa fa-gear mx-3"></i>'.html_safe, company_path(current_user.company.id), title: 'Company Settings', style: "color:#5555A5"%>
           <%= link_to '<i class="fa fa-home mx-3"></i>'.html_safe, white_labled_dashboard_url(current_user, current_company, request), title: 'Dashboard', style: "color:#5555A5"%>
-          <% marketplace = request.subdomain=='app' ? root_url(subdomain: (current_user&company&.domain or 'app')) : root_url(subdomain: 'app') %>
+          <% marketplace = request.subdomain=='app' ? root_url(subdomain: (current_user&.company&.domain or 'app')) : root_url(subdomain: 'app') %>
           <%= link_to '<i class="fa fa-shopping-bag mx-3"></i>'.html_safe, marketplace, title: (request.subdomain=='app' ? 'The Hub' : 'Marketplace'), style: "color:#5555A5"%>
         <% else %>
 
