@@ -176,12 +176,11 @@
       $(this).parent('div').remove();
     });
     $(document).on('change', '.que-ans-type',  function () {
-      console.log($('option:selected', this).text())
         if($('option:selected', this).text() == "Multiple Answer"){
-          $('.multi-ans-div').css({ display: "block" });
+          $(`#multi_${this.id}`).css({ display: "block" });
         }
         else{
-          $('.multi-ans-div').css({ display: "none" });
+          $(`#multi_${this.id}`).css({ display: "none" });
           // $('.multi-ans-div').addClass('hidden'); 
         }
     });

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2023_03_09_221531) do
+ActiveRecord::Schema.define(version: 2023_03_16_011715) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -1543,6 +1543,7 @@ ActiveRecord::Schema.define(version: 2023_03_09_221531) do
     t.float "longitude"
     t.integer "created_by_candidate_id"
     t.boolean "allow_multiple_applications_for_candidate", default: false
+    t.integer "blog_type"
     t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
   end
 

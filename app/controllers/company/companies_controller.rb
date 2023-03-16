@@ -129,6 +129,10 @@ class Company::CompaniesController < Company::BaseController
               # Branch.where(id: params[:company][:branches_attributes][mul_field]['id']).destroy_all unless params[:company][:branches_attributes][mul_field].reject { |p| p == 'id' }.present?
             end
           end
+          @company.set_about_us_blog(params[:about_us_blog]) if params[:about_us_blog].present?
+          @company.set_contact_blog(params[:contact_blog]) if params[:contact_blog].present?
+          @company.set_privacy_blog(params[:privacy_blog]) if params[:privacy_blog].present?
+          @company.set_terms_blog(params[:terms_blog]) if params[:terms_blog].present?
           flash[:success] = 'Company Updated Successfully'
         else
           flash[:errors] = @company.errors.full_messages
