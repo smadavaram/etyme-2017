@@ -41,8 +41,14 @@
 class Job < ApplicationRecord
   STATUSES  = { draft: 'Draft', bench: 'Bench', published: 'Published', archived: 'Archived', cancelled: 'Cancelled' }
 
+  enum blog_type: [:about_us, :contact, :privacy, :terms]
   # validates :end_date , presence: true , if: Proc.new{ |job| !job.is_system_generated }
   validates :title, presence: true
+  # add a validation to ensure that only one blog can be 'about_us'
+  validates_uniqueness_of :blog_type, scope: :company_id, conditions: -> { where(blog_type: :about_us, listing_type: "Blog") }
+  validates_uniqueness_of :blog_type, scope: :company_id, conditions: -> { where(blog_type: :contact, listing_type: "Blog") }
+  validates_uniqueness_of :blog_type, scope: :company_id, conditions: -> { where(blog_type: :privacy, listing_type: "Blog") }
+  validates_uniqueness_of :blog_type, scope: :company_id, conditions: -> { where(blog_type: :terms, listing_type: "Blog") }
   # validates :start_date, presence: true, date: { after_or_equal_to: Proc.new { Date.today }, message: "must be at least #{(Date.today + 1).to_s}" }, on: :create
   # validates :end_date, presence: true, date: { after_or_equal_to: :start_date, message: "must be at least #{(Date.today + 1).to_s}" }, on: :create
   # validates :start_date,:end_date, date: { allow_blank: false, message:"Date must be present" }

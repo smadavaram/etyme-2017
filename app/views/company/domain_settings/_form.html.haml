@@ -96,6 +96,35 @@
               = f.text_field :banner_two_btn_label, placeholder: "Call to Action Label", class: 'form-control'
             .form-group
               = f.text_field :banner_two_btn_url, placeholder: "Call to Action URL", class: 'form-control'
+        
+        .form-group
+          %p{style: "color: red;"}
+            = link_to "Create New", new_job_path(type: "Blog"), style:"text-decoration: underline; color: red;"
+            or Select Existing Published Blogs for following options.
+        %p
+          %b About Us
+        .row
+          .col-md-12
+            .form-group
+              = select_tag 'about_us_blog', options_for_select(current_company.blogs.collect{ |c| [c.id.to_s+" - "+c.title,c.id]}.compact, current_company.about_us_blog&.id), include_blank: true, class: 'form-control job_select2'
+        %p
+          %b Contact
+        .row
+          .col-md-12
+            .form-group
+              = select_tag 'contact_blog', options_for_select(current_company.blogs.collect{ |c| [c.id.to_s+" - "+c.title,c.id]}.compact, current_company.contact_blog&.id), include_blank: true, class: 'form-control job_select2'
+        %p
+          %b Terms and Conditions
+        .row
+          .col-md-12
+            .form-group
+              = select_tag 'terms_blog', options_for_select(current_company.blogs.collect{ |c| [c.id.to_s+" - "+c.title,c.id]}.compact, current_company.terms_blog&.id), include_blank: true, class: 'form-control job_select2'
+        %p
+          %b Privacy Policies
+        .row
+          .col-md-12
+            .form-group
+              = select_tag 'privacy_blog', options_for_select(current_company.blogs.collect{ |c| [c.id.to_s+" - "+c.title,c.id]}.compact, current_company.privacy_blog&.id), include_blank: true, class: 'form-control job_select2'
     .row
       .col-lg-12
         %button.btn.btn-primary.pull-right{:type => "submit"}
