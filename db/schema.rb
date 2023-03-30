@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2023_03_16_011715) do
+ActiveRecord::Schema.define(version: 2023_03_30_030626) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -1963,6 +1963,18 @@ ActiveRecord::Schema.define(version: 2023_03_16_011715) do
     t.integer "file_type"
     t.index ["creatable_type", "creatable_id"], name: "index_sell_send_documents_on_creatable_type_and_creatable_id"
     t.index ["sell_contract_id"], name: "index_sell_send_documents_on_sell_contract_id"
+  end
+
+  create_table "share_link_previews", force: :cascade do |t|
+    t.bigint "company_id"
+    t.bigint "user_id"
+    t.string "url"
+    t.string "key"
+    t.string "preview"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_share_link_previews_on_company_id"
+    t.index ["user_id"], name: "index_share_link_previews_on_user_id"
   end
 
   create_table "shared_candidates", force: :cascade do |t|

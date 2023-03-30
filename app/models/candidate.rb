@@ -122,6 +122,7 @@ class Candidate < ApplicationRecord
 
   # after_create :send_job_invitation, if: Proc.new{ |candidate| candidate.invited_by.present?}
   after_create :create_address
+  after_create :start_matching_jobs
   before_update :start_matching_jobs, if: proc { |candidate| candidate.skill_list_changed? || candidate.industry_name_changed? || candidate.dept_name_changed? }
   after_create :send_welcome_email, if: proc { |candidate| candidate.send_welcome_email_to_candidate.nil? }
   after_create :normalize_candidate_entries, if: proc { |candidate| candidate.signup? }

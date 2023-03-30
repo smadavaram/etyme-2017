@@ -11,7 +11,7 @@
               <div class="row mr-1 ml-1">
                 <div class="col-sm-6">
                   <%= link_to "Add #{params[:type] || "Job"}", new_job_path(type: params[:type] || "Job"), class: 'btn btn-sm btn-secondary ml-2' %>
-                  <%= link_to "Share Jobs", '#', class: 'btn share btn-sm btn-secondary ml-2' %>
+                  <%= link_to "Share Jobs", '#', class: 'btn share btn-sm btn-secondary ml-2', id: 'share_jobs_button' %>
                 </div>
                 <div class="col-sm-6">
                   <div class="form-inline justify-content-sm-end">
