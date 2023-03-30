@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      .datatable {
+        font-family: Arial, Helvetica, sans-serif;
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 40px;
+      }
+
+      .datatable th, .datatable td {
+        text-align: left;
+        padding: 8px;
+      }
+
+      .datatable th {
+        background-color: #5555A5;
+        color: white;
+        font-weight: bold;
+        border-top: 2px solid #5555A5;
+        border-bottom: 2px solid #5555A5;
+      }
+
+      .datatable tr:nth-child(even) {
+        background-color: #f2f2f2;
+      }
+
+      .datatable tr:hover {
+        background-color: #ddd;
+      }
+
+      .company-name {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 20px;
+        font-size: 28px;
+        color: #5555A5;
+      }
+
+      .skills {
+        display: inline-block;
+        font-weight: bold;
+        color: #193b6b;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="company-name">
+      <%= @current_company.name %>
+    </div>
+    <table class="datatable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Role/Title</th>
+          <th>Skills</th>
+          <th>Location</th>
+          <th>Visa</th>
+          <th>Recruiter Name</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @candidates.each do |candidate| %>
+          <tr>
+            <td><%= candidate.full_name %></td>
+            <td><%= candidate.try(:candidate_title).present? ? candidate.try(:candidate_title) : '' %></td>
+            <td class="skills">
+              <%= candidate.skills.first(5).pluck(:name).join(', ') %>
+            </td>
+            <td><%= candidate.try(:location) %></td>
+            <td><%= candidate.candidate_visa %></td>
+            <td><%= candidate.invited_by_user.present? ? candidate.invited_by_user.full_name + ' ' + candidate.invited_by_user.email.to_s : '' %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </body>
+<html>

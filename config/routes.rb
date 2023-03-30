@@ -599,6 +599,7 @@ Rails.application.routes.draw do
       end
       collection do
         get :share_candidates, as: :share_hot_candidates
+        get :get_link_preview, as: :get_link_preview
       end
     end
     resources :job_applications, concerns: :paginatable, only: %i[index show] do

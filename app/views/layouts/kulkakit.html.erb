@@ -17,7 +17,16 @@
 
     <meta  content="<%= meta_description %>" property="og:description">
     <meta  content="Etyme" property="og:site_name">
+    <% if params[:preview]%>
+      <% preview = ShareLinkPreview.find_by(key: params[:preview])%>
+      <% if preview.present?%>
+        <meta property="og:image" content=<%= preview.preview%> >
+      <% else %>
+        <meta property="og:image" content="<%= meta_image %>" >
+      <% end %>
+    <%else%>
       <meta property="og:image" content="<%= meta_image %>" >
+    <% end %>
     <meta  content="<%= meta_url %>" property="og:url">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:image:alt" content="Etyme">

@@ -41,6 +41,8 @@ gem 'selectize-rails'
 
 gem 'stripe'
 gem 'httparty'
+gem 'imgkit'
+gem 'wkhtmltoimage-binary'
 
 gem 'ogp'
 
