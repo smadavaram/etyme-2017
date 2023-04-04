@@ -1,3 +1,31 @@
+.company-chat-listing{
+  background-color: #F2F4F8;
+}
+.company-chat-list-container{
+  margin: 10px;
+  border-radius: 50px !important;
+  padding-right: 5px;
+  background-color: #ffffff;
+  border-bottom: 0.1px solid lightblue !important;
+}
+.last-message-date{
+  background-color: gray;
+  border-radius: 50px;
+  padding-left: 19px;
+}
+.last-message-date div{
+  color: #ffffff !important;
+}
+.chat-image-container{
+  display:flex;
+  width:45px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-left:2px; border: 1px solid lightblue;
+}
+.chat-date-separator{
+  text-align: center;
+}
 .icon-side-bar {
   height: 100vh;
   //width: 90px;
@@ -115,8 +143,7 @@
   }
 }
 .unread-div-color {
-  background-color: rgba(242, 244, 248, 0.89);
-  border-bottom: 1px solid rgba(242, 244, 248, 0.89);
+  background-color: lightgray;
   border-radius: 23px;
 }
 .chat-user-name-style {
@@ -164,6 +191,7 @@
   line-height: 100%;
   color: #3d3c3c;
 }
+
 .user-list-item-style:hover {
   background-color: #4e9df1 !important;
   border-radius: 23px;

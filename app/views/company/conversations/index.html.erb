@@ -59,14 +59,9 @@ margin-top: 15px;
         </div>
         
         <div class="px-22" style="padding-top: 9px;">
-                  <ul class="chat-user-list_heights company-conversation-scorll" role="tablist" id="company-conversation-list">
-                    <%= render 'conversations_list', conversations: @conversations %>
-                    <div id="all-infinite-scrolling-con" style="display: none">
-                      <% if @conversation.present?%>
-                        <%#= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
-                      <% end %>
-                    </div>
-                  </ul>
+          <ul class="company-chat-listing chat-user-list_heights company-conversation-scorll" role="tablist" id="company-conversation-list">
+            <%= render 'conversations_list', conversations: @conversations %>
+          </ul>
 
         </div>
       </div>
@@ -120,9 +115,6 @@ margin-top: 15px;
     .full-chat-w .full-chat-left {
         padding: 0px 0px;
     }
-    .full-chat-left1{
-      margin-top: 15%;
-    }
     .input-search-style{
       border-radius: 4px !important;
     }
@@ -135,10 +127,6 @@ margin-top: 15px;
     }
     .user-list-item-style {
       width: initial;
-      border:  none;
-    }
-    .left-chat-bar{
-      height: 80vh;
     }
     .convo_box{
       background-color: #f8f8f8;
@@ -148,16 +136,6 @@ margin-top: 15px;
     }
     .full-width-style a:hover, a:active, a:visited, a:focus {
         text-decoration:none;
-    }
-    .user-list-item-style:hover {
-      background-color: #047bf8; !important;
-      border-radius: 0px;
-    }
-
-    .etyme_conversations:hover {
-      background-color: #047bf8; !important;
-      border-radius: 0px;
-      color: white !important;
     }
     .conversation_image {
       height: 35px;

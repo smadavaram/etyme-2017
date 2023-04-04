@@ -7,7 +7,7 @@
 
 <% if @messages.next_page.nil? && i == (@messages.size - 1) %>
 <%# @prev_date = msg.created_at.strftime('%d %b, %Y') %>
-<div class="chat-date-separator" style="margin-left: 40%">
+<div class="chat-date-separator">
     <span>
         <% if Date.parse(msg.created_at.strftime('%d %b, %Y')) == Date.today %>
         Today
@@ -304,7 +304,7 @@
 <% end %>
 <%end%>
 <% if @prev_date != msg.created_at.strftime('%d %b, %Y') %>
-<div class="chat-date-separator" style="margin-left: 40%">
+<div class="chat-date-separator">
     <span>
         <% if Date.parse(@prev_date) == Date.today %>
         Today
