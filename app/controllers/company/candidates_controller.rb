@@ -298,7 +298,7 @@ class Company::CandidatesController < Company::BaseController
     @candidates = current_company.candidates.where(id: c_ids)
     @title = params[:title].present? ? params[:title] : "Top Talent Available Now"
     html = render_to_string(template: 'user_mailer/share_hot_candidates_image', layout: false)
-    kit = IMGKit.new(html, width: 940, height: 788, quality: 100)
+    kit = IMGKit.new(html, width: 1200, height: 630, quality: 100)
     img = kit.to_img(:png)
     
     prev_url = upload_file(img, 'link_image.png') rescue nil
