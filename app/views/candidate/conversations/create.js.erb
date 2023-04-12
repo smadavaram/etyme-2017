@@ -14,9 +14,9 @@ if ($("#conversation_<%= @conversation.id %>")[0]) {
 }
 
 <% opt_usr = @conversation.opt_participant(current_candidate) %>
-$("#company-conversation-list .conversation_user_<%= @conversation.id  %>").remove();
-$("#company-conversation-list").prepend("<div class='row user-list-item-style-candidate  active-div-color conversation_user_<%=  @conversation.id  %>'> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
+$(".user-list-item-style-candidate").removeClass('active-div-color')
 
+$(".conversation_user_<%=  @conversation.id  %>").addClass('active-div-color')
 
 
 

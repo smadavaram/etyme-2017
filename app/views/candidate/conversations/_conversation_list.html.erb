@@ -2,7 +2,7 @@
 <!--new html-->
 <% chat_user_data = set_company_chat_user_data(con, usr) %>
 <%= link_to  candidate_conversations_path(conversation: con.id), class: "user-w full-width-style", remote: true, method: :post do %>
-  <div class="row conversation-list-style" >
+  <div class="row conversation-list-style align-items-center" >
     <div class="col-sm-2 col-md-2 col-lg-2 div-usergroup-style" >
       <div class="row padding-10">
         <%#= image_tag("/assets/active_group_icon.png",  class: "data-table-image  img-icon-size data-table-image")

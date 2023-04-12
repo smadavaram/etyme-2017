@@ -21,8 +21,7 @@
         <div class="flex items-center justify-start flex-row-reverse">
           <!--              Avatar-->
           <div
-            class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500 flex-shrink-0"
-          style="margin-bottom: -35px;">
+            class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500 flex-shrink-0">
             <% if msg.userable.photo&.present? %>
               <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>
             <% else %>
@@ -130,8 +129,7 @@
               <div class="flex items-center justify-start flex-row-reverse">
                           <!--              Avatar-->
                 <div
-                  class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-300 flex-shrink-0" style="margin-bottom: -35px;"
-                >
+                  class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-300 flex-shrink-0">
                   <% if msg.userable.photo&.present? %>
                     <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>
                   <% else %>

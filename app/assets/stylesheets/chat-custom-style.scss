@@ -1,0 +1,48 @@
+.chat-listing{
+    background-color: #F2F4F8;
+}
+.chat-list-container{
+    margin: 10px;
+    border-radius: 15px !important;
+    padding-right: 5px;
+    background-color: #ffffff;
+    border-bottom: 0.1px solid lightblue !important;
+}
+.chat-user-list_height {
+    height: 100vh;
+    overflow-y: scroll;
+    margin-left: -10px;
+    width: 100%;
+}
+
+.user-list-item-style {
+    width: 100%;
+    //height: 7%;
+    //border-radius: 23px;
+    margin-top: 5px;
+    border-bottom: 1px solid #4e9df1;
+  }
+.active-div-color {
+background-color: #4e9df1;
+border-radius: 23px;
+.chat-user-name-style {
+    color: black;
+}
+.chat-user-date-style {
+    color: black;
+}
+.chat-user-client-name-style {
+    color: black;
+    //margin-bottom: 10%;
+}
+.chat-user-message-style {
+    color: black;
+    //margin-bottom: 10%;
+}
+.svg-image-style path {
+    fill: white;
+}
+}
+.conversation-container{
+    margin-top: 20px;
+}
