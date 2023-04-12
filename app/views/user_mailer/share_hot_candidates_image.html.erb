@@ -1,79 +1,148 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <title>Bootstrap Table with Grey Background and Spaces</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <%# <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet"> %>
     <style>
-      .datatable {
-        font-family: Arial, Helvetica, sans-serif;
-        border-collapse: collapse;
+      .table_a {
         width: 100%;
-        margin-bottom: 40px;
+        margin-bottom: 10px;
+        
       }
 
-      .datatable th, .datatable td {
-        text-align: left;
-        padding: 8px;
-      }
-
-      .datatable th {
-        background-color: #5555A5;
-        color: white;
-        font-weight: bold;
-        border-top: 2px solid #5555A5;
-        border-bottom: 2px solid #5555A5;
-      }
-
-      .datatable tr:nth-child(even) {
-        background-color: #f2f2f2;
-      }
-
-      .datatable tr:hover {
-        background-color: #ddd;
-      }
-
-      .company-name {
+      tbody td {
+        padding: 10px;
         text-align: center;
-        font-weight: bold;
-        margin-bottom: 20px;
-        font-size: 28px;
-        color: #5555A5;
+        position: relative;
+        font-size: smaller;
+        font-family: sans-serif;
+        text-align: left;
       }
 
-      .skills {
-        display: inline-block;
+      thead td {
+        padding: 10px;
+      }
+
+      thead td {
+        font-family: sans-serif;
         font-weight: bold;
-        color: #193b6b;
+        text-align: left;
+      }
+
+      .title {
+        padding: 10px 20px 10px 20px;
+        text-align: left;
+        width: calc(100% - 40px);
+        
+        margin-left: auto;
+        margin-right: auto;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        background-size: cover;
+        background-position: center center;
+        position: relative;
+        z-index: 0;
+      }
+      .table-wrapper {
+        position: relative;
+        z-index: 1;
+      }
+
+      .title h1 {
+        margin: 0;
+        padding: 0;
+        font-size: 30px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        font-family: sans-serif;
+      }
+      .chat-link {
+        align-items: center;
+        text-decoration: none;
+        font-size: 20px;
+        font-weight: 500;
+      }
+      .branding{
+        margin-right:50px
+      }
+
+      .divider {      
+        border-top: 1px dotted #585B72;
+        padding: 0;
       }
     </style>
   </head>
-  <body>
-    <div class="company-name">
-      <%= @current_company.name %>
-    </div>
-    <table class="datatable">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Role/Title</th>
-          <th>Skills</th>
-          <th>Location</th>
-          <th>Visa</th>
-          <th>Recruiter Name</th>
+  <body style='background-color: #F9F7FC'>
+    <div class="container">
+      <table class="title" style="width: 980px; margin-left: 0px;">
+        <tr class="divider">
+          <td class="divider" colspan="5"></td>
         </tr>
-      </thead>
-      <tbody>
-        <% @candidates.each do |candidate| %>
-          <tr>
-            <td><%= candidate.full_name %></td>
-            <td><%= candidate.try(:candidate_title).present? ? candidate.try(:candidate_title) : '' %></td>
-            <td class="skills">
-              <%= candidate.skills.first(5).pluck(:name).join(', ') %>
-            </td>
-            <td><%= candidate.try(:location) %></td>
-            <td><%= candidate.candidate_visa %></td>
-            <td><%= candidate.invited_by_user.present? ? candidate.invited_by_user.full_name + ' ' + candidate.invited_by_user.email.to_s : '' %></td>
+        <tr>
+          <td class="title">
+            <p style="margin: 0px;">
+              <%= image_tag @current_company.logo, style: 'height: 30px;' %>
+              <%= @current_company.name %>
+            </p>
+            <h1><%= @title%></h1>
+          </td>
+          <td class="title" style="text-align: right;">
+            <span class="branding">
+                <a class="btn chat-link" style="background-color: #EFEFEF; border-radius: 0px; border: 1px solid; font-size: 15px;">Chat with HR Partner !</a>
+            </span>
+          </td>
+        </tr>
+      </table>
+      <table class="table_a">
+        <thead>
+          <tr class="divider" style="border-top: 1px solid #585B72;">
+            <td class="divider" colspan="4"></td>
           </tr>
-        <% end %>
-      </tbody>
-    </table>
+          <tr>
+            <td>Name</td>
+            <td>Location/Visa</td>
+            <td>Skills</td>
+            <td>HR Partner</td>
+          </tr>
+          <tr class="divider" style="border-top: 1px solid #585B72;">
+            <td class="divider" colspan="4"></td>
+          </tr>
+        </thead>
+        <tbody>
+          <% @candidates.each do |candidate| %>
+            <tr>
+              <td>
+                <div style="font-weight: bold;">
+                  <%= candidate.first_name %>
+                </div>
+                <%= candidate.try(:candidate_title).present? ? candidate.try(:candidate_title) : '' %>
+              </td>
+              <td>
+                <%= candidate.try(:location) +"/"+ candidate.candidate_visa %>
+              </td>
+              <td>
+                <%= candidate.skills.first(5).pluck(:name).join(', ') %>
+              </td>
+              <td>
+                <div style="width: 30px; height: 30px;">
+                  <%= candidate.invited_by_user.present? ? chat_recruiter_link_image(candidate.invited_by_user) : '' %>
+                </div>
+                <%= candidate.invited_by_user.present? ? candidate.invited_by_user.email.to_s : '' %>
+              </td>
+            </tr>
+            <tr class="divider">
+              <td class="divider" colspan="7"></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
   </body>
-<html>
+</html>

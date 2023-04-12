@@ -7,7 +7,8 @@
             .controls-above-table
               .row.mr-1.ml-1
                 .col-sm-6
-                  = link_to "Share", '#', class: 'btn share btn-sm btn-secondary ml-2', id: "share_bench_button"
+                  = link_to "Email", '#', class: 'btn share btn-sm btn-secondary ml-2', id: "share_bench_button"
+                  = link_to "Share", '#', class: 'btn share btn-sm btn-secondary ml-2', id: "share_via_bench_button"
                   = link_to "New", "#candidate-bench_invite", :class => "btn btn-sm btn-secondary", "data-toggle" => "modal"
                   = link_to "Public View", request.base_url + "/static/people", class: 'btn btn-sm btn-secondary ml-2', target: "_blank"
                 .col-sm-6
@@ -117,6 +118,7 @@
 - content_for :modals do
   = render 'company/candidates/partials/add_to_my_network'
   = render 'company/candidates/partials/share_hot_candidates'
+  = render 'company/candidates/partials/share_hot_candidates_with_link_preview'
   = render 'company/bench_jobs/candidate_bench_invite_modal'
   #candidate_bench_job_invitation
 
