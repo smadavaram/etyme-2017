@@ -657,7 +657,7 @@
   }
   width: 61px;
   height: 61px;
-  color: white;
+  // color: white;
 }
 .notification-icon {
   @media only screen and (max-width: 600px) {
@@ -666,10 +666,8 @@
   }
   width: 61px;
   height: 61px;
-  box-shadow: 0px 4px 15px rgba(255, 0, 0, 0.42);
-  background: rgba(255, 0, 0, 0.61);
   border-radius: 50px;
-  color: #ffffff;
+  font-weight: bold;
 }
 .search-div-style {
   @media only screen and (max-width: 600px) {

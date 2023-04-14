@@ -16,12 +16,12 @@ class StaticController < ApplicationController
 
   def index
     blog = current_company.about_us_blog
-    redirect_to static_job_path(blog, type: 'feed') 
+    redirect_to static_job_path(blog, type: 'feed') if blog.present? 
   end
 
   def contact_us
     blog = current_company.contact_blog
-    redirect_to static_job_path(blog, type: 'feed') 
+    redirect_to static_job_path(blog, type: 'feed')  if blog.present?
   end
 
   def privacy_policy 
@@ -31,7 +31,7 @@ class StaticController < ApplicationController
 
   def terms_of_use
     blog = current_company.terms_blog
-    redirect_to static_job_path(blog, type: 'feed') 
+    redirect_to static_job_path(blog, type: 'feed') if blog.present?
   end
 
   def signup; end
