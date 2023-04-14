@@ -283,6 +283,17 @@ class Company::CandidatesController < Company::BaseController
     url = static_people_url + '?ids=' + c_ids.join(',')
     preview = ShareLinkPreview.find_by(url: url)
 
+    ########## don't delete these comments, these are totally for debugginng and fixing bugs
+    # @candidates = current_company.candidates.where(id: c_ids)
+    # @title = params[:title].present? ? params[:title] : "Top Talent Available Now"
+    # # render template: 'user_mailer/share_hot_candidates_image', layout: false
+    # # return
+    # html = render_to_string(template: 'user_mailer/share_hot_candidates_image', layout: false)
+    # kit = IMGKit.new(html, width: 1200, height: 630, quality: 80)
+    # img = kit.to_img(:png)
+    # compressed_img_size_kb = img.bytesize.to_f / 1024
+    # puts "----------------------------------SIZE: --------------------------          #{compressed_img_size_kb} -------------------------------------------------------"
+    # send_data(img, type: 'image/png', disposition: 'inline'); return
     if preview
       render json: { key: preview.key, preview: preview.preview }, status: :ok
     else
@@ -298,9 +309,9 @@ class Company::CandidatesController < Company::BaseController
     @candidates = current_company.candidates.where(id: c_ids)
     @title = params[:title].present? ? params[:title] : "Top Talent Available Now"
     html = render_to_string(template: 'user_mailer/share_hot_candidates_image', layout: false)
-    kit = IMGKit.new(html, width: 1200, height: 630, quality: 100)
+    kit = IMGKit.new(html, width: 1200, height: 630, quality: 80)
     img = kit.to_img(:png)
-    
+
     prev_url = upload_file(img, 'link_image.png') rescue nil
     if preview
       preview.update(preview: prev_url) if prev_url.present?
@@ -314,7 +325,6 @@ class Company::CandidatesController < Company::BaseController
       render json: { message: 'Could Not Create Preview Image.'}, status: :unprocessable_entity
     end
     return
-    # send_data(img, type: 'image/png', disposition: 'inline')
   end
 
   def share_candidates
