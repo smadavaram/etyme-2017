@@ -130,7 +130,7 @@ module ChatboxHelper
         end
       elsif conversation.job_application_id.present?
         obj = conversation.job_application
-        link = "#"
+        link = job_application_path(obj)
       else
         link = nil
       end
