@@ -19,6 +19,7 @@
         font-size: smaller;
         font-family: sans-serif;
         text-align: left;
+        letter-spacing: 0.2px;
       }
 
       thead td {
@@ -68,8 +69,9 @@
         font-size: 20px;
         font-weight: 500;
       }
-      .branding{
-        margin-right:50px
+      .row-dotted{
+        border-bottom: 1px dotted;
+        border-color: black;
       }
 
       .divider {      
@@ -80,7 +82,7 @@
   </head>
   <body style='background-color: #F9F7FC'>
     <div class="container">
-      <table class="title" style="width: 980px; margin-left: 0px;">
+      <table class="title" style="width: 100%; margin-left: 0px;">
         <tr class="divider">
           <td class="divider" colspan="5"></td>
         </tr>
@@ -93,7 +95,7 @@
             <h1><%= @title%></h1>
           </td>
           <td class="title" style="text-align: right;">
-            <span class="branding">
+            <span>
                 <a class="btn chat-link" style="background-color: #EFEFEF; border-radius: 0px; border: 1px solid; font-size: 15px;">Chat with HR Partner !</a>
             </span>
           </td>
@@ -116,7 +118,7 @@
         </thead>
         <tbody>
           <% @candidates.each do |candidate| %>
-            <tr>
+            <tr class="row-dotted">
               <td>
                 <div style="font-weight: bold;">
                   <%= candidate.first_name %>
@@ -126,7 +128,7 @@
               <td>
                 <%= candidate.try(:location) +"/"+ candidate.candidate_visa %>
               </td>
-              <td>
+              <td style="max-width: 390px;">
                 <%= candidate.skills.first(5).pluck(:name).join(', ') %>
               </td>
               <td>
@@ -135,9 +137,6 @@
                 </div>
                 <%= candidate.invited_by_user.present? ? candidate.invited_by_user.email.to_s : '' %>
               </td>
-            </tr>
-            <tr class="divider">
-              <td class="divider" colspan="7"></td>
             </tr>
           <% end %>
         </tbody>
