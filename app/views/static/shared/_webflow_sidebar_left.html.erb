@@ -6,25 +6,29 @@
         <div class="nav flex-column nav-pills">
           <%unless request.subdomain == "app"%>
             <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" && params[:selected_categories] != "Training" &&  (params[:action] == "static_feeds" || (params[:action] == "show" && params[:type] == 'feed'))) ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
-              <%= image_tag(image_path('feed.png'), class: "mr-3") %>
-              <%= image_tag(image_path('feed-active.png'), class: "mr-3") %>
-              Feed
+              <span class="material-symbols-outlined left-side-icon" >
+                home
+              </span>
+              Home
             </a>
           <%end%>
           <a class="nav-link sidebar-link <%= params[:controller] == "static/jobs" &&  (params[:action] == "index" || (params[:action] == "show" && params[:type] == 'job')) ? "active" : ""  %>" href="<%= static_jobs_path %>">
-            <%= image_tag(image_path('sidebar-jobs.svg'), class: "mr-3") %>
-            <%= image_tag(image_path('sidebar-jobs-active.svg'), class: "mr-3") %>
+            <span class="material-symbols-outlined left-side-icon">
+              work
+            </span>
             Jobs
           </a>
           <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "people") || (params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile") ? "active" : ""  %>" href="<%= static_people_path %>">
-            <%= image_tag(image_path('sidebar-people.svg'), class: "mr-3") %>
-            <%= image_tag(image_path('sidebar-people-active.svg'), class: "mr-3") %>
+            <span class="material-symbols-outlined left-side-icon">
+              star
+            </span>
             Bench
           </a>
           <%unless request.subdomain == "app"%>
             <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  (params[:action] == "static_feeds") && params[:selected_categories] == "Training") ? "active" : ""  %>" href="<%= root_static_feeds_path %>?selected_categories=Training&input_search=">
-              <%= image_tag(image_path('presentation.png'), class: "mr-3") %>
-              <%= image_tag(image_path('presentation-active.png'), class: "mr-3") %>
+              <span class="material-symbols-outlined left-side-icon">
+                model_training
+              </span>
               Trainings
             </a>
           <%end%>
@@ -46,43 +50,17 @@
           <div class="my-5 py-5 w-100"></div>
         <% end %>
       </div>
-    </div> 
+    </div>
     <div>
-      <div class="text-center">
-        <% if current_candidate.present? %>
-          <%= link_to '<i class="fa fa-user mx-3"></i>'.html_safe, my_profile_url(subdomain: 'app'), title: 'Profile', style: "color:#5555A5"%>
-          <%= link_to '<i class="fa fa-gear mx-3"></i>'.html_safe, onboarding_profile_url(subdomain: 'app'), title: 'Onboarding', style: "color:#5555A5"%>
-          <%= link_to '<i class="fa fa-home mx-3"></i>'.html_safe, candidate_candidate_dashboard_url(subdomain: 'app'), title: 'Dashboard', style: "color:#5555A5"%>
-          <%= link_to '<i class="fa fa-shopping-bag mx-3"></i>'.html_safe, root_url(subdomain: 'app'), title: 'Marketplace', style: "color:#5555A5"%>
-        <% elsif current_user.present? %>
-
-          <%= link_to '<i class="fa fa-user mx-3"></i>'.html_safe, white_labled_company_user_url(current_user, current_company, request), title: 'Profile', style: "color:#5555A5"%>
-          <%= link_to '<i class="fa fa-gear mx-3"></i>'.html_safe, company_path(current_user.company.id), title: 'Company Settings', style: "color:#5555A5"%>
-          <%= link_to '<i class="fa fa-home mx-3"></i>'.html_safe, white_labled_dashboard_url(current_user, current_company, request), title: 'Dashboard', style: "color:#5555A5"%>
-          <% marketplace = request.subdomain=='app' ? root_url(subdomain: (current_user&.company&.domain or 'app')) : root_url(subdomain: 'app') %>
-          <%= link_to '<i class="fa fa-shopping-bag mx-3"></i>'.html_safe, marketplace, title: (request.subdomain=='app' ? 'The Hub' : 'Marketplace'), style: "color:#5555A5"%>
-        <% else %>
-
-          <%= link_to '<i class="fa fa-user mx-3"></i>'.html_safe, "#", title: 'Profile', style: "color:#5555A5", class: "shortcut_link"%>
-          <%= link_to '<i class="fa fa-gear mx-3"></i>'.html_safe, "#", title: 'Settings', style: "color:#5555A5", class: "shortcut_link"%>
-          <%= link_to '<i class="fa fa-home mx-3"></i>'.html_safe, "#", title: 'Dashboard', style: "color:#5555A5", class: "shortcut_link"%>
-          <%= link_to '<i class="fa fa-shopping-bag mx-3"></i>'.html_safe, root_url(subdomain: 'app'), title: 'Marketplace', style: "color:#5555A5"%>
-          <script type="text/javascript" charset="utf-8">
-            $('.shortcut_link').click(function (){
-                flash_error('You must be logged in.');
-            })
-          </script>
-        <% end %>
-
-      </div>
-      <hr style="margin-bottom: 0px;">
+      <hr style="margin-bottom: 0px; border-top: 1px solid rgb(0 0 0 / 0%);">
       <div class="footer text-center">
-        <%= link_to 'About us', '/static/'%>
-        <%= link_to 'Contact', '/contact_us/'%>
+        <%= link_to 'About', '/static/'%>
         <%= link_to 'Terms', '/terms_of_use/'%>
-        <%= link_to 'Privacy', '/privacy_policy/'%>
+        <%= link_to 'Privacy', '/privacy_policy/'%></br>
+        <%= link_to 'Contact', '/contact_us/'%>
+        <%= link_to 'Help', '/privacy_policy/'%>
       </div>
-      <hr style="margin-top: 0px;">
+      <hr style="margin-bottom: 0px; border-top: 1px solid rgb(0 0 0 / 0%);">
       <div class="powerby text-center">
         <div class="col-12 position-absolute fixed-bottom mb-3">
           <p class="m-0">Powered by
@@ -107,9 +85,8 @@
     justify-content: flex-start;
   }
   .left-navbar .footer a{
-    font-weight: bold;
-    font-size: x-small;
-    color:#B3B3B3
+    font-size: small;
+    color: #9F9F9F;
   }
 
   .nav-pills .nav-link.active, .nav-pills .show > .nav-link{
@@ -119,6 +96,10 @@
   .nav-pills .nav-link.active, .nav-pills .show > .nav-link {
     color: #fff;
     background-color: white!important;
+  }
+  .left-side-icon{
+    margin-right: 5px;
+    font-size: 28px !important; 
   }
 </style>
 <script type="text/javascript">
