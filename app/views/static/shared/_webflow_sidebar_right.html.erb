@@ -21,13 +21,17 @@ body{
     </div>
     <% if @candidates_hot.present? %>
       <div class="row justify-content-start">
-        <% @candidates_hot.each do |c| %>
+        <% @candidates_hot.uniq.each do |c| %>
           <div class="col-4">
             <figure class="figure">
               <div class="d-flex justify-content-center"><%= link_to user_avatar(c&.candidate), public_profile_static_candidates_path(c&.candidate), id: 'feed-talent-avatar', class: 'webflow-avatar-50-50', target: "_blank" %></div>
               <figcaption class="figure-caption text-center">
                 <h5 class="candidate-name mt-0">
-                  <%= link_to c&.candidate&.full_name, public_profile_static_candidates_path(c&.candidate), target: "_blank" %>
+                  <%if c&.candidate&.display_name.present? %>
+                    <%= link_to c&.candidate&.display_name, public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank" %>
+                  <%else%>
+                    <%= link_to c&.candidate&.first_name + " "+c&.candidate&.last_name[0]+"..." ,  public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank" %>
+                  <%end%>
                   <% if is_verify(!!c.candidate.confirmed_at) == "verified" %>
                     <%= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
                   <% end %>

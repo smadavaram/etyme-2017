@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2022_12_28_021909) do
+ActiveRecord::Schema.define(version: 2023_03_30_030626) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -434,6 +434,7 @@ ActiveRecord::Schema.define(version: 2022_12_28_021909) do
     t.string "uid"
     t.string "online_candidate_status"
     t.text "about_summary"
+    t.text "display_name"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
@@ -446,8 +447,8 @@ ActiveRecord::Schema.define(version: 2022_12_28_021909) do
     t.integer "company_id"
     t.integer "status", default: 0
     t.integer "candidate_status", default: 0
-    t.datetime "created_at", default: "2022-11-03 23:36:55"
-    t.datetime "updated_at", default: "2022-11-03 23:36:55"
+    t.datetime "created_at", default: "2021-02-24 22:47:21"
+    t.datetime "updated_at", default: "2021-02-24 22:47:21"
   end
 
   create_table "candidates_groups", id: false, force: :cascade do |t|
@@ -651,6 +652,8 @@ ActiveRecord::Schema.define(version: 2022_12_28_021909) do
     t.string "banner_color"
     t.string "banner_two_btn_label"
     t.string "banner_two_btn_url"
+    t.boolean "show_slider", default: false
+    t.boolean "apply_gradient", default: true
     t.index ["owner_id"], name: "index_companies_on_owner_id"
   end
 
@@ -1321,7 +1324,7 @@ ActiveRecord::Schema.define(version: 2022_12_28_021909) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "member_type"
-    t.string "branchout", default: [], array: true
+    t.string "branchout"
     t.string "branchoutname"
     t.text "branch_array", default: [], array: true
     t.index ["company_id"], name: "index_groups_on_company_id"
@@ -1540,6 +1543,7 @@ ActiveRecord::Schema.define(version: 2022_12_28_021909) do
     t.float "longitude"
     t.integer "created_by_candidate_id"
     t.boolean "allow_multiple_applications_for_candidate", default: false
+    t.integer "blog_type"
     t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
   end
 
@@ -1961,6 +1965,18 @@ ActiveRecord::Schema.define(version: 2022_12_28_021909) do
     t.index ["sell_contract_id"], name: "index_sell_send_documents_on_sell_contract_id"
   end
 
+  create_table "share_link_previews", force: :cascade do |t|
+    t.bigint "company_id"
+    t.bigint "user_id"
+    t.string "url"
+    t.string "key"
+    t.string "preview"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["company_id"], name: "index_share_link_previews_on_company_id"
+    t.index ["user_id"], name: "index_share_link_previews_on_user_id"
+  end
+
   create_table "shared_candidates", force: :cascade do |t|
     t.bigint "candidate_id"
     t.integer "shared_by_id"
@@ -1970,6 +1986,26 @@ ActiveRecord::Schema.define(version: 2022_12_28_021909) do
     t.index ["candidate_id"], name: "index_shared_candidates_on_candidate_id"
     t.index ["shared_by_id"], name: "index_shared_candidates_on_shared_by_id"
     t.index ["shared_to_id"], name: "index_shared_candidates_on_shared_to_id"
+  end
+
+  create_table "sliders", force: :cascade do |t|
+    t.bigint "company_id"
+    t.string "image_1"
+    t.string "title_1"
+    t.text "text_1"
+    t.string "image_2"
+    t.string "title_2"
+    t.text "text_2"
+    t.string "image_3"
+    t.string "title_3"
+    t.text "text_3"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "text_1_color", default: "#fff"
+    t.string "text_2_color", default: "#fff"
+    t.string "text_3_color", default: "#fff"
+    t.float "height", default: 250.0
+    t.index ["company_id"], name: "index_sliders_on_company_id"
   end
 
   create_table "statuses", id: :serial, force: :cascade do |t|

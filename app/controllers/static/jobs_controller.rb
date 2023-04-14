@@ -19,7 +19,10 @@ class Static::JobsController < ApplicationController
 
     @current_company = current_company
 
-    if @current_company.present?
+    if request.subdomain == 'app'
+      @candidates_hot = CandidatesCompany.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first}
+      @jobs_hot = Job.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
+    elsif @current_company.present?
       @candidates_hot = current_company.candidates_companies.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first} unless current_company.nil?
       @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
@@ -53,6 +56,8 @@ class Static::JobsController < ApplicationController
       else
         @candidates = @uniq_candidates_company.paginate(page: params[:page], per_page: 50)
       end
+      @candidates_hot = CandidatesCompany.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first}
+      @jobs_hot = Job.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     elsif @current_company.present?
       @uniq_candidates_company = CandidatesCompany.where(id: CandidatesCompany.hot_candidate.uniq(&:candidate_id))
       @candidates_hot = @uniq_candidates_company.where(company_id: @current_company.id).first(3)
@@ -72,8 +77,15 @@ class Static::JobsController < ApplicationController
 
   def static_feeds
     @current_company = current_company
-    if @current_company.present?
-      @company_jobs = @current_company.jobs.active.not_system_generated.includes(:created_by)
+    if @current_company.present? || request.subdomain == 'app'
+      if request.subdomain == 'app'
+        @company_jobs = Job.all.active.not_system_generated.includes(:created_by)
+        @candidates_hot = CandidatesCompany.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first}
+      else
+        @company_jobs = @current_company.jobs.active.not_system_generated.includes(:created_by)
+        @candidates_hot = @current_company.candidates_companies.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first}
+      end
+      @jobs_hot = @company_jobs.where(listing_type: 'Job').order(created_at: :desc).first(3)
       @company_jobs = @company_jobs.search_with(params[:input_search]) if params[:input_search]
 
       if params.key?(:sort).present?
@@ -115,9 +127,6 @@ class Static::JobsController < ApplicationController
       else  
         @company_jobs = @company_jobs.where.not(listing_type: 'Job').paginate(page: params[:page], per_page: 20)
       end
-
-      @candidates_hot = @current_company.candidates_companies.hot_candidate.group_by(&:candidate_id).first(3).map{ |a| a[1].first} unless @current_company.nil?
-      @jobs_hot = @current_company.jobs.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
     end
     render layout: 'kulkakit'
   end

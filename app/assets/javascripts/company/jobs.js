@@ -2,7 +2,7 @@ $("#select_all_" ).on( "click", function() {
     $("input[name='ids[]']").prop('checked', this.checked);
 });
 var checkedRows = new Array();
-$(".share" ).on( "click", function() {
+$("#share_jobs_button" ).on( "click", function() {
     $("input[name='ids[]']:checked").each(function(){
         checkedRows.push($(this).val());
     });
@@ -11,7 +11,7 @@ $(".share" ).on( "click", function() {
         $('#share-jobs').modal('show');
     }
     else{
-        alert("Please select atleast one job to proceed before.");
+        flash_error("Please select atleast one job to proceed.");
     }
 });
 $('#share-jobs').on('shown.bs.modal', function() {

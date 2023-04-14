@@ -1,0 +1,60 @@
+.modal#share-candidates-link-preview
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header{:style => "padding: 1rem 1rem 0rem 1rem;"}
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h5#myModalLabel.modal-title
+          %strong Share Hot Candidates
+          %hr
+          %p.muted Share your hot candidates with link preview to Social Medias.
+
+      .modal-body{:style => "display: flex; flex-direction: column; padding: 0rem 1rem 1rem 1rem;"}
+        .col-md-12
+          %br
+          .sharethis-inline-share-buttons{'data-url': request.base_url + "/static/people" }
+        .share_url
+          Share
+          %br/
+          %a#preview_candidate_share_url{:target => "_blank"}
+        %form
+          = hidden_field_tag 'candidates_ids',value ='',{class: "candidates_ids"}
+          %fieldset
+            .form-group
+              %label.col-md-12.control-label
+                Title
+                %sup.text-danger
+              .col-md-12
+                = text_field_tag "title" ,nil ,class: "form-control ", :id=>"title" , placeholder: "Preview Title", required: true
+            .form-group
+              %label.col-md-12.control-label
+                Link Preview
+                %sup.text-danger
+              .col-md-12
+                %img#preview_image{:src=>"#", :style=>"max-inline-size: -webkit-fill-available;"}
+
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = button_tag "Generate New Preview".html_safe , class: 'btn btn-primary', type: "button" , data: {disable_with: disable_spinning('Generating...')}, id: "generate_link_preview_btn"
+
+:css
+  .select2{
+    width: 470px;
+    }
+  .share_url{
+    margin-bottom: 10px;
+    margin-left: 12px
+  }  
+  #st-1 .st-btn {
+    display: inline-block !important
+  }
+  @media only screen and (max-device-width: 480px) {
+    #share-candidates .modal-dialog{
+      width: 93%;
+    }
+    .share_url{
+      margin-bottom: 44px;
+      margin-left: 12px;
+    }
+  }

@@ -161,6 +161,8 @@ class Company < ApplicationRecord
   # validates           :domain, uniqueness:   true
   has_many :activities, as: :trackable, class_name: 'PublicActivity::Activity', dependent: :destroy
   has_many :holidays
+  has_many :share_link_previews
+  has_one :slider
   # validates_uniqueness_of   :name, message: "This company is already registered on etyme. You can connect with its Admin and he can allow you to be added into the company"
   # validates_length_of :name,  minimum:    3   , message: "must be atleat 3 characters"
   validates :name, presence: true
@@ -171,6 +173,7 @@ class Company < ApplicationRecord
   validates_format_of :slug, with: /\A[\w\-]+\Z/i, allow_blank: true, message: 'is not allowed. Please choose another subdomain.'
   validates_exclusion_of :domain, in: EXCLUDED_DOMAINS, message: 'is not allowed. Please use comapany email'
 
+  accepts_nested_attributes_for :slider, allow_destroy: true
   accepts_nested_attributes_for :owner, allow_destroy: true
   accepts_nested_attributes_for :company_contacts, allow_destroy: true
   accepts_nested_attributes_for :locations, allow_destroy: true, reject_if: :all_blank
@@ -315,6 +318,50 @@ class Company < ApplicationRecord
 
   def directory
     User.left_outer_joins(:company_contacts).where('users.company_id = ? OR company_contacts.company_id = ?', self.id, self.id)
+  end
+
+  def blogs
+    jobs.where(listing_type: "Blog", status: "Published")
+  end
+
+  def about_us_blog
+    jobs.find_by(listing_type: 'Blog', blog_type: :about_us )
+  end
+
+  def contact_blog
+    jobs.find_by(listing_type: 'Blog', blog_type: :contact )
+  end
+
+  def privacy_blog
+    jobs.find_by(listing_type: 'Blog', blog_type: :privacy )
+  end
+
+  def terms_blog
+    jobs.find_by(listing_type: 'Blog', blog_type: :terms )
+  end
+
+  def set_about_us_blog(id)
+    blog = about_us_blog
+    blog.update(blog_type: nil) if blog.present?
+    jobs.find_by(id: id, status: "Published", listing_type: 'Blog').update(blog_type: :about_us )
+  end
+
+  def set_contact_blog(id)
+    blog = contact_blog
+    blog.update(blog_type: nil) if blog.present?
+    jobs.find_by(id: id, status: "Published", listing_type: 'Blog').update(blog_type: :contact )
+  end
+
+  def set_privacy_blog(id)
+    blog = privacy_blog
+    blog.update(blog_type: nil) if blog.present?
+    jobs.find_by(id: id, status: "Published", listing_type: 'Blog').update(blog_type: :privacy )
+  end
+
+  def set_terms_blog(id)
+    blog = terms_blog
+    blog.update(blog_type: nil) if blog.present?
+    jobs.find_by(id: id, status: "Published", listing_type: 'Blog').update(blog_type: :terms )
   end
 
   private
