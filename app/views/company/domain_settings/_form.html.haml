@@ -27,6 +27,16 @@
     .row.form-group
       .col-lg-12.multi-field-wrapper
         %p
+          %b Show Company Name and Logo
+        .row
+          .col-md-12
+            .form-group
+              = f.collection_radio_buttons(:show_name_logo, Company.show_name_logos.keys, :to_s, :titlecase, html_options: { class: 'form-check-input' }) do |b|
+                .col-md-4
+                  = b.label { b.radio_button + " " + b.text }
+    .row.form-group
+      .col-lg-12.multi-field-wrapper
+        %p
           %b Show Slider?
           = f.check_box :show_slider, class: 'form-check-input', style: 'margin-left: 10px', id: 'show_slider'
         .row#slider_div
@@ -130,6 +140,14 @@
         %button.btn.btn-primary.pull-right{:type => "submit"}
           Save
 
+:css
+  .form-check {
+    margin-right: 10px;
+  }
+
+  .form-check-input {
+    margin-right: 5px;
+  }
 - content_for :scripts do
   :javascript
     $(document).ready(function() {

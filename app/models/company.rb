@@ -60,6 +60,7 @@ class Company < ApplicationRecord
   acts_as_taggable_on :skills
 
   enum company_type: %i[hiring_manager vendor]
+  enum show_name_logo: %i[both company_name company_logo]
 
   # Note: Do not change the through association order.
   belongs_to :owner, class_name: 'Admin', foreign_key: 'owner_id', optional: true

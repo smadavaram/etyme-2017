@@ -22,6 +22,10 @@
       .mb-0.form-group
         = f.text_field :ssn  ,:placeholder => "SSN Number",class:'form-control input'
         .help-block.form-text.text-muted.form-control-feedback We will not share without permission
+    .col-sm-6
+      %label Preferred Work Type
+      .form-group
+        = f.select :work_type, Candidate.work_types.keys.map { |w| [w.humanize, w] }, {}, class:'form-control input'
     .col-sm-12
       %label Professinoal Summary(Max 1000 characters)
       .form-group.break-text

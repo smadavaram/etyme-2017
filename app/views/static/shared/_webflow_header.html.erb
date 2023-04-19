@@ -12,20 +12,22 @@
             </span>
           </div>
           <div class="d-md-flex justify-content-center">
-            <div class="webflow-logo-50 webflow-logo-xs-40">
-              <%= link_to root_path do %>
-                <% if request.subdomain == "app" %>
+            <% if ( @current_company.present? and ['both', 'company_logo'].include?(@current_company.show_name_logo))%>
+              <div class="webflow-logo-50 webflow-logo-xs-40">
+                <%= link_to root_path do %>
+                  <% if @current_company.present? && @current_company.logo.present? %>
+                    <%= image_tag @current_company.logo %>
+                  <% else %>
                     <%= image_tag(image_path('etyme-logo-dark.png')) %>
-                <% elsif @current_company.present? && @current_company.logo.present? %>
-                  <%= image_tag @current_company.logo %>
-                <% else %>
-                  <%= image_tag(image_path('etyme-logo-dark.png')) %>
-                <% end %>
-              <%end%>
-            </div>
-            <div class="d-none d-lg-block header-logo-label m-3">
-              <%= @current_company&.name %>
-            </div>
+                  <% end %>
+                <%end%>
+              </div>
+            <%end%>
+            <% if ( @current_company.present? and ['both', 'company_name'].include?(@current_company.show_name_logo))%>
+              <div class="d-none d-lg-block header-logo-label m-3">
+                <%= @current_company&.name %>
+              </div>
+            <% end %>
           </div>
         </div>
         <div class="header-right d-flex">
