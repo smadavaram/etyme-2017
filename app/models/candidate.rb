@@ -113,6 +113,7 @@ class Candidate < ApplicationRecord
   after_validation :geocode
 
   enum status: %i[signup campany_candidate]
+  enum work_type: %i[onsite remote hybrid]
   enum visa: %i[Us_citizen GC OPT OPT_third_party H1B H1B_third_party]
 
   # validates :password,presence: true,if: Proc.new { |candidate| !candidate.password.nil? }

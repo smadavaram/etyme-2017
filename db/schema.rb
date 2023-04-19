@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2023_03_30_030626) do
+ActiveRecord::Schema.define(version: 2023_04_19_011131) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -435,6 +435,7 @@ ActiveRecord::Schema.define(version: 2023_03_30_030626) do
     t.string "online_candidate_status"
     t.text "about_summary"
     t.text "display_name"
+    t.integer "work_type", default: 0
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"
@@ -654,6 +655,7 @@ ActiveRecord::Schema.define(version: 2023_03_30_030626) do
     t.string "banner_two_btn_url"
     t.boolean "show_slider", default: false
     t.boolean "apply_gradient", default: true
+    t.integer "show_name_logo", default: 0
     t.index ["owner_id"], name: "index_companies_on_owner_id"
   end
 
@@ -1544,6 +1546,7 @@ ActiveRecord::Schema.define(version: 2023_03_30_030626) do
     t.integer "created_by_candidate_id"
     t.boolean "allow_multiple_applications_for_candidate", default: false
     t.integer "blog_type"
+    t.integer "work_type", default: 0
     t.index ["deleted_at"], name: "index_jobs_on_deleted_at"
   end
 

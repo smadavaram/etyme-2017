@@ -411,7 +411,7 @@ class Company::JobsController < Company::BaseController
   end
 
   def company_job_params
-    params.require(:job).permit([:status, :source, :title, :files, :description, :location, :job_category, :is_public, :start_date, :end_date, :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, :allow_multiple_applications_for_candidate, custom_fields_attributes:
+    params.require(:job).permit([:status, :source, :title, :files, :description, :location, :job_category, :is_public, :start_date, :end_date, :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, :allow_multiple_applications_for_candidate, :work_type, custom_fields_attributes:
         %i[
           id
           name

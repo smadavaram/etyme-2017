@@ -231,6 +231,7 @@ class Static::JobsController < ApplicationController
       # handle_google_update(@job)
 
       add_breadcrumb @job.title, static_job_path
+      @related = @current_company.jobs.active.is_public.where(listing_type: 'Blog').first(2)
       render layout: 'kulkakit'
     else
       flash[:error] = 'Job not found.'

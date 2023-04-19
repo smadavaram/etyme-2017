@@ -30,42 +30,44 @@
 </div>
 
 <!-- Related Content -->
-<div class="webflow-content-inner webflow-related col-12">
-  <h1 class="webflow-related-title">Related</h1>
-  <div class="row">
-    <div class="webflow-related-card col-12 col-md-6 mb-4 mb-sm-0 d-flex">
-      <div class="webflow-related-card-image">
-        <%= image_tag 'demo/s1.jpg' %>
-      </div>
-      <div class="pl-3">
-        <div class="webflow-related-card-title">
-          Blog Title
+<% if @related.present? %>
+  <div class="webflow-content-inner webflow-related col-12">
+    <h1 class="webflow-related-title">Related</h1>
+    <div class="row">
+      <% @related.each do |blg| %>
+        <div class="webflow-related-card col-12 col-md-6 mb-4 mb-sm-0 d-flex">
+          <div class="webflow-related-card-image">
+            <% if blg&.files.present? %>
+              <%= image_tag(blg.files) %>
+            <% elsif blg.tags.present? %>
+              <div class="text-image text-image-font">
+                <%= blg.tags.first %>
+              </div>
+            <% elsif blg.company&.logo.present? %>
+              <%= image_tag(blg.company.logo) %>
+            <% elsif blg.company&.name.present? %>
+              <div class="text-image text-image-font">
+                <%= blg.company.name.split.first %>
+              </div>
+            <% else %>
+              <%= image_tag 'static-job.png' %>
+            <% end %>
+          </div>
+          <div class="pl-3">
+            <div class="webflow-related-card-title">
+              <%= link_to truncate(blg.title,length: 50), static_job_path(blg, type: 'feed'), style: "color: black;"%>
+            </div>
+            <div class="webflow-related-card-summary">
+              <%= truncate(strip_tags(blg&.description), :length => 100, :omission => '..').html_safe%>
+            </div>
+            <div class="webflow-related-card-author">
+              <%= "By " + blg.created_by.first_name %>
+            </div>
+          </div>
         </div>
-        <div class="webflow-related-card-summary">
-          Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit. 
-        </div>
-        <div class="webflow-related-card-author">
-          by John Doe
-        </div>
-      </div>
-    </div>
-    <div class="webflow-related-card col-12 col-md-6 mb-4 mb-sm-0 d-flex">
-      <div class="webflow-related-card-image">
-        <%= image_tag 'demo/s1.jpg' %>
-      </div>
-      <div class="pl-3">
-        <div class="webflow-related-card-title">
-          Blog Title
-        </div>
-        <div class="webflow-related-card-summary">
-          Cras vel tincidunt mi, nec auctor lorem. Quisque euismod, elit sed condimentum hendrerit.
-        </div>
-        <div class="webflow-related-card-author">
-          by John Doe
-        </div>
-      </div>
+      <% end %>
     </div>
   </div>
-</div>
+<% end %>
 
 <%= render 'webflow_job_comments' %>

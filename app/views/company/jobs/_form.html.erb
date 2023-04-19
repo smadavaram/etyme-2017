@@ -61,7 +61,7 @@
         <%= render 'company/jobs/partials/forms/field', form: form, attribute: :location, field_type: :text_field, field_attributes: {id: 'google_search_location'} %>
       </div>
       <div class="col-lg-6">
-        <%= render 'company/jobs/partials/forms/checkbox', form: form, attribute: :allow_multiple_applications_for_candidate, field_attributes: {id: 'allow_multiple_applications_for_candidate'} %>
+        <%= render 'company/jobs/partials/forms/select', form: form, attribute: :work_type, options: Job.work_types.keys.map { |w| [w.humanize, w] }, field_attributes: {label:'Work Type'} %>
       </div>
     </div>
     <div class="row">
@@ -91,6 +91,11 @@
       </div>
       <div class="col-lg-6">
         <%= render 'company/jobs/partials/forms/field', form: form, attribute: :source,title: "Source", field_type: :text_field, field_attributes: {autofocus: true}, note: "Please Add Original Link" %>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-lg-6">
+        <%= render 'company/jobs/partials/forms/checkbox', form: form, attribute: :allow_multiple_applications_for_candidate, field_attributes: {id: 'allow_multiple_applications_for_candidate'} %>
       </div>
     </div>
     <div class="mt-2"></div>
