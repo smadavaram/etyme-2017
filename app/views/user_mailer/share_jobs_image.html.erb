@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Bootstrap Table with Grey Background and Spaces</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <%# <link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet"> %>
+    <style>
+      .table_a {
+        width: 100%;
+        margin-bottom: 10px;
+        
+      }
+
+      tbody td {
+        padding: 10px;
+        text-align: center;
+        position: relative;
+        font-size: smaller;
+        font-family: sans-serif;
+        text-align: left;
+        letter-spacing: 0.2px;
+      }
+
+      thead td {
+        padding: 10px;
+      }
+
+      thead td {
+        font-family: sans-serif;
+        font-weight: bold;
+        text-align: left;
+      }
+
+      .title {
+        padding: 10px 20px 10px 20px;
+        text-align: left;
+        width: calc(100% - 40px);
+        
+        margin-left: auto;
+        margin-right: auto;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        background-size: cover;
+        background-position: center center;
+        position: relative;
+        z-index: 0;
+      }
+      .table-wrapper {
+        position: relative;
+        z-index: 1;
+      }
+
+      .title h1 {
+        margin: 0;
+        padding: 0;
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: 2px;
+        font-family: sans-serif;
+      }
+      .chat-link {
+        align-items: center;
+        text-decoration: none;
+        font-size: 20px;
+        font-weight: 500;
+      }
+      .row-dotted{
+        border-bottom: 1px dotted;
+        border-color: black;
+      }
+
+      .divider {      
+        border-top: 1px dotted #585B72;
+        padding: 0;
+      }
+    </style>
+  </head>
+  <body style='background-color: #F9F7FC'>
+    <div class="container">
+      <table class="title" style="width: 100%; margin-left: 0px;">
+        <tr class="divider">
+          <td class="divider" colspan="5"></td>
+        </tr>
+        <tr>
+          <td class="title">
+            <p style="margin: 0px;">
+              <%= image_tag @current_company.logo, style: 'height: 30px;' %>
+              <%= @current_company.name %>
+            </p>
+            <h1><%= @title%></h1>
+          </td>
+          <td class="title" style="text-align: right;">
+            <span>
+                <a class="btn chat-link" style="background-color: #EFEFEF; border-radius: 0px; border: 1px solid; font-size: 15px;">Apply Now !</a>
+            </span>
+          </td>
+        </tr>
+      </table>
+      <table class="table_a">
+        <thead>
+          <tr class="divider" style="border-top: 1px solid #585B72;">
+            <td class="divider" colspan="4"></td>
+          </tr>
+          <tr>
+            <td>Title</td>
+            <td>Location</td>
+            <td>Relocation</td>
+          </tr>
+          <tr class="divider" style="border-top: 1px solid #585B72;">
+            <td class="divider" colspan="4"></td>
+          </tr>
+        </thead>
+        <tbody>
+          <% @jobs.each do |job| %>
+            <tr class="row-dotted">
+              <td>
+                <div style="font-weight: bold;">
+                  <%= job.title %>
+                </div>
+              </td>
+              <td>
+                <%= job.location %>
+              </td>
+              <td>
+                <%= job.work_type.humanize %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

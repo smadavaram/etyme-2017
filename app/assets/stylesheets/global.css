@@ -65,6 +65,9 @@
 .img-icon-size {
   height: 32px !important;
   width: 35px !important;
+  object-fit: contain;
+  -o-object-position: center;
+  object-position: center;
 }
 .group-text-align {
   text-align-last: center !important;
