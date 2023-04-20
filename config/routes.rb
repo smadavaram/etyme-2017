@@ -776,6 +776,8 @@ Rails.application.routes.draw do
 
       collection do
         post :share_jobs, as: :share_jobs
+        get :get_link_preview, as: :get_job_link_preview
+        post :generate_link_preview, as: :generate_job_link_preview
         post :update_media
         post :update_images
       end
