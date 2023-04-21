@@ -323,14 +323,16 @@ class Company::ConversationsController < Company::BaseController
   end
 
   def chat_members
-    @company_contacts = current_company.company_contacts.map{|cc| {email: cc.email, id: cc.id, name: cc.full_name}}
+    @company_contacts = current_company.company_contacts.pluck(:email, :id, :first_name, :last_name)
+                          .map{|cc| {email: cc[0], id: cc[1], name: cc[2].to_s.capitalize + ' ' + cc[3].capitalize}}
     render status: 200, json: {
         message: 'Success!',
         data: @company_contacts
     }
   end
   def chat_candidates
-    @candidates = current_company.candidates.map{|cc| {email: cc.email, id: cc.id, name: cc.full_name}}
+    @candidates = current_company.candidates.pluck(:email, :id, :first_name, :last_name)
+                    .map{|cc| {email: cc[0], id: cc[1], name: cc[2].to_s.capitalize + ' ' + cc[3].capitalize}}
     render status: 200, json: {
         message: 'Success!',
         data: @candidates
