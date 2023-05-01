@@ -42,10 +42,10 @@ if ($("#conversation_<%= @conversation.id %>")[0]) {
 <% else %>
 <% color = colors[0] %>
 <% end %>
-$("#company-conversation-list .conversation_user_<%= @conversation.id  %>").remove();
-$('#convo_box').removeClass('active-div-color')
+$('.etyme_conversations').removeClass('active-div-color')
+
 <% if @conversation.sub_chats == false %>
-$("#company-conversation-list").prepend("<div id='convo_box' class='user-list-item-style  active-div-color conversation_user_<%=  @conversation.id  %> '> <%= j render 'conversation_list', con: @conversation, usr: opt_usr, is_favourite: false %> </div>")
+    $('.conversation_user_<%=  @conversation.id  %>').addClass('active-div-color')
 <% end %>
 var coll = document.getElementsByClassName("collapsible-click");
 var i;

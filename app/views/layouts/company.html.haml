@@ -77,10 +77,11 @@
         .content-w.cont-comany
           = render partial: 'company/shared/header'
           #main{:role => "main" ,style: ""}
-            #ribbon
-              %ol.breadcrumb
-                = render_breadcrumbs tag: :li, separator: " / "
-            -#= yield :ribbon
+            -unless params[:controller].include?"conversation"
+              #ribbon
+                %ol.breadcrumb
+                  = render_breadcrumbs tag: :li, separator: " / "
+              -#= yield :ribbon
             = yield
           -#.remote_container
           #modals

@@ -1,3 +1,40 @@
+.last-message-date{
+  background-color: gray;
+  border-radius: 50px;
+  padding-left: 19px;
+}
+.last-message-date div{
+  color: #ffffff !important;
+}
+.chat-image-container{
+  display:flex;
+  width:45px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-left:2px; border: 1px solid lightblue;
+}
+.chat-date-separator{
+  text-align: center;
+  position: relative;
+  background-color: #ffffff;
+}
+.chat-date-separator span{
+  display: inline-block;
+  background: white;
+  position: relative;
+  padding: 0 10px;
+  color: rgba(0, 0, 0, 0.3);
+}
+.chat-date-separator::before{
+  content: "";
+  background-color: rgba(0, 0, 0, 0.1);
+  height: 1px;
+  width: 100%;
+  position: absolute;
+  top: 10px;
+  left: 0px;
+  right: 0px;
+} 
 .icon-side-bar {
   height: 100vh;
   //width: 90px;
@@ -74,14 +111,8 @@
 .margin-top-21 {
   margin-top: 10px;
 }
-.chat-user-list_height {
-  height: 100vh;
-  overflow-y: scroll;
-  margin-left: -10px;
-  width: 100%;
-}
 .chat-user-list_heights {
-  height: 80vh;
+  height: 77vh;
   overflow-y: scroll;
   margin-left: -10px;
   width: 100%;
@@ -90,7 +121,6 @@
   width: 100%;
   //height: 7%;
   //border-radius: 23px;
-  margin-top: 5px;
   border-bottom: 1px solid #4e9df1;
 }
 .active-div-color {
@@ -115,9 +145,7 @@
   }
 }
 .unread-div-color {
-  background-color: rgba(242, 244, 248, 0.89);
-  border-bottom: 1px solid rgba(242, 244, 248, 0.89);
-  border-radius: 23px;
+  background-color: lightgray;
 }
 .chat-user-name-style {
   @media only screen and (max-width: 600px) {
@@ -164,9 +192,9 @@
   line-height: 100%;
   color: #3d3c3c;
 }
+
 .user-list-item-style:hover {
   background-color: #4e9df1 !important;
-  border-radius: 23px;
   .chat-user-name-style {
     color: white !important;
   }

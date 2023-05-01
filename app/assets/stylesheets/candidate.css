@@ -58,6 +58,7 @@
  *= require candidate/dashboard
  *= require candidate_chat_custom
  *= require candidate/profile
+*= require chat-custom-style
 
  */
 .icon-text{

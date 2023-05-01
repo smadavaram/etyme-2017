@@ -86,7 +86,7 @@
   content: "\f078";
   font: normal normal normal 17px/1 FontAwesome;
   color: #047bf8;
-  right: 2%;
+  right: 10%;
   top: -2%;
   //height: 34px;
   padding: 15px 0px 0px 10px;
@@ -105,40 +105,7 @@
 .margin-top-21 {
   margin-top: 10px;
 }
-.chat-user-list_height {
-  //height: 70vh;
-  //overflow-y: scroll;
-  margin-left: -10px;
-  width: 100%;
-}
-.user-list-item-style-candidate {
-  width: 95%;
-  //height:7%;
-  //border-radius: 23px;
-  margin-top: 5px;
-  border-bottom: 1px solid #047bf8;
-}
-.active-div-color {
-  background-color: #047bf8;
-  border-radius: 23px;
-  .chat-user-name-style {
-    color: white !important;
-  }
-  .chat-user-date-style {
-    color: white !important;
-  }
-  .chat-user-client-name-style {
-    color: white !important;
-    //margin-bottom: 10%;
-  }
-  .chat-user-message-style {
-    color: white !important;
-    //margin-bottom: 10%;
-  }
-  .svg-image-style path {
-    fill: white;
-  }
-}
+
 .unread-div-color {
   background-color: rgba(242, 244, 248, 0.89);
   border-bottom: 1px solid rgba(242, 244, 248, 0.89);
@@ -191,7 +158,6 @@
 }
 .user-list-item-style-candidate:hover {
   background-color: #047bf8 !important;
-  border-radius: 23px;
   .chat-user-name-style {
     color: white !important;
   }
@@ -551,6 +517,7 @@
   box-shadow: 3px 2px 26px rgba(219, 219, 219, 0.67);
   //overflow-x: scroll;
   margin-left: 3px;
+  padding-top: 20px;
 }
 .collab-row {
   @media only screen and (max-width: 768px) {
