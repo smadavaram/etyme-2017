@@ -2,12 +2,12 @@
   .modal-dialog.modal-md
     .modal-content
       .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
         %h5#myModalLabel.modal-title
           %strong Share jobs
           %hr
           %p.muted Share your jobs with external users and you can also attach a custom message along with.
-        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
-          ×
       .modal-body
         = form_for '', url: share_jobs_jobs_path, html: {class: 'form-horizontal'} do |f|
           = hidden_field_tag 'jobs_ids',value ='',{class: "jobs_ids"}

@@ -42,6 +42,7 @@ class Job < ApplicationRecord
   STATUSES  = { draft: 'Draft', bench: 'Bench', published: 'Published', archived: 'Archived', cancelled: 'Cancelled' }
 
   enum blog_type: [:about_us, :contact, :privacy, :terms]
+  enum work_type: %i[onsite remote hybrid]
   # validates :end_date , presence: true , if: Proc.new{ |job| !job.is_system_generated }
   validates :title, presence: true
   # add a validation to ensure that only one blog can be 'about_us'

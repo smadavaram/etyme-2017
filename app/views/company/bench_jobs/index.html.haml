@@ -30,7 +30,7 @@
                     %th Actions
                 %tbody{:style => "font-size: 12px;"}
                   - @candidates.each do |c|
-                    - @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id)
+                    - @c_bench_job = c.candidate.job_invitations.find_by(company_id: c&.company&.id)
                     - recruiter_name = User.find_by(id: @c_bench_job&.sender_id).try(:full_name)
                     %tr
                       %td
@@ -63,7 +63,7 @@
                                 %li.label-info.badge.margin-bottom-5.badge-info.m-1{:id => dom_id(skill)}
                                   = skill.tag.name
                           %span{:id => "input_skills_#{c.candidate.id}", :class => "d-none"}
-                            %input{:type => "text", :name => "job_invitation[skill_list]", :placeholder => "Add Skills Comma seperated", :class => "wi-100", 'data-role'=>'tagsinput',value: (c.candidate.skill_list.present? ? c.candidate.skill_list.join(", ") : "")}
+                            %input{:type => "text", :name => "job_invitation[skill_list]", :placeholder => "Add Skills Comma seperated", :class => "wi-100", 'data-role'=>'tagsinput',value: c.candidate.skills.pluck(:name).join(", ")}
                         %td
                           %span{:id => "input_min_rate_#{c.candidate.id}", :class => "d-none"}
                             %input{:type => "number", :name => "job_invitation[min_hourly_rate]", :placeholder => "Min Hourly Rate", :id => "job_invitation_min_hourly_rate_index", style: "width: 55px !important;", :class => "", value: (@c_bench_job.present? ? @c_bench_job&.min_hourly_rate : "")}/

@@ -94,24 +94,23 @@
 
 </script>
 <div id="toggledmenubar" style="<%= "display: none; height: 100vh; z-index:1000;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
-  <div class="logged-user-w avatar-inline p-1 m-1" style="height: 7vh !important;">
+  <div class="logged-user-w avatar-inline p-1 m-1 d-md-flex justify-content-center" style="height: 7vh !important;">
     <div class="logged-user-i">
-      <div class="avatar-w">
-        <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
-      </div>
-      <div class="logged-user-info-w">
-        <div class="logged-user-name">
-          <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
+      <% if (['both', 'company_logo'].include?(current_company.show_name_logo))%>
+        <div class="avatar-w">
+          <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
         </div>
-      </div>
+      <% end %>
+      <% if (['both', 'company_name'].include?(current_company.show_name_logo))%>
+        <div class="logged-user-info-w">
+          <div class="logged-user-name">
+            <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
+          </div>
+        </div>
+      <% end %>
       <div class="bread-style bread-styles" style="margin-left:30px !important; background: none !important;" onclick="toglleMenu1()">
             <div class="os-icon os-icon-hamburger-menu-1 bread-style1" style="background: none !important;" ></div>
       </div>
-<!--      <div class="icon-button-style1" style="display: none;" >-->
-<!--        <div id="togglebutton" onclick="toglleMenu1()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox1' : 'togglebtncontainer' %>" style="display: none;">-->
-<!--          <div class="os-icon os-icon-hamburger-menu-1 hamburger-icon" style="display: none;"></div>-->
-<!--        </div>-->
-<!--      </div>-->
     </div>
   </div>
   <div class="logged-user-w avatar-inline pl-4 pt-0 pr-0" >

@@ -68,6 +68,12 @@
                     <%= sprintf("$%0.2f", @job.price) %>
                   <% end %>
                 </div>
+                <div class="">
+                  Work Type
+                </div>
+                <div class="h6">
+                  <%= @job.work_type.humanize %>
+                </div>
               </div>
             </div>
           </div>

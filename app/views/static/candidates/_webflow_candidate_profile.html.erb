@@ -130,6 +130,19 @@
           </div>
         </div>
 
+        <div class="profile-information">
+          <div class="information-label">
+            Preferred Work Type 
+          </div>
+          <div class="information-value">
+            <% if candidate.work_type %>
+              <%= candidate.work_type.humanize %>
+            <% else %>
+              Unknown
+            <% end %>
+          </div>
+        </div>
+
         <div class="d-flex justify-content-between flex-wrap w-100">
 
           <% if candidate.twitter_url.present? %>

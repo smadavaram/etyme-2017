@@ -96,7 +96,7 @@
           </td>
           <td class="title" style="text-align: right;">
             <span>
-                <a class="btn chat-link" style="background-color: #EFEFEF; border-radius: 0px; border: 1px solid; font-size: 15px;">Chat with HR Partner !</a>
+                <a class="btn chat-link" style="background-color: #EFEFEF; border-radius: 0px; border: 1px solid; font-size: 15px;">Apply Now !</a>
             </span>
           </td>
         </tr>
@@ -107,35 +107,27 @@
             <td class="divider" colspan="4"></td>
           </tr>
           <tr>
-            <td>Name</td>
-            <td>Location/Visa</td>
-            <td>Skills</td>
-            <td>HR Partner</td>
+            <td>Title</td>
+            <td>Location</td>
+            <td>Relocation</td>
           </tr>
           <tr class="divider" style="border-top: 1px solid #585B72;">
             <td class="divider" colspan="4"></td>
           </tr>
         </thead>
         <tbody>
-          <% @candidates.each do |candidate| %>
+          <% @jobs.each do |job| %>
             <tr class="row-dotted">
               <td>
                 <div style="font-weight: bold;">
-                  <%= candidate.first_name %>
+                  <%= job.title %>
                 </div>
-                <%= candidate.try(:candidate_title).present? ? candidate.try(:candidate_title) : '' %>
               </td>
               <td>
-                <%= candidate.try(:location) +"/"+ candidate.candidate_visa %>
-              </td>
-              <td style="max-width: 390px;">
-                <%= candidate.skills.first(5).pluck(:name).join(', ') %>
+                <%= job.location %>
               </td>
               <td>
-                <div style="width: 30px; height: 30px;">
-                  <%= candidate.invited_by_user.present? ? chat_recruiter_link_image(candidate.invited_by_user) : '' %>
-                </div>
-                <%= candidate.invited_by_user.present? ? candidate.invited_by_user.email.to_s : '' %>
+                <%= job.work_type.humanize %>
               </td>
             </tr>
           <% end %>

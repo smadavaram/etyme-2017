@@ -69,6 +69,12 @@
                   
                   <ul>
                     <li>
+                    <%= link_to 'Settings', company_path(current_company), class: 'dropdown-item'%>
+                    </li>
+                    <li>
+                        <%= link_to 'Dashboard', "/dashboard", class: 'dropdown-item'%>
+                    </li>
+                    <li>
                         <%= link_to '<span>My Site</span>'.html_safe, root_path, target: '_blank'%>
                     </li>
                     <li>

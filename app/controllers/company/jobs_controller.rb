@@ -390,7 +390,68 @@ class Company::JobsController < Company::BaseController
               type: 'text/html'
   end
 
+  def get_link_preview
+    c_ids = params[:ids].split(',').first(10)
+    url = static_jobs_url + '?ids=' + c_ids.join(',')
+    preview = ShareLinkPreview.find_by(url: url)
+
+    ########## don't delete these comments, these are totally for debugginng and fixing bugs
+    # @jobs = current_company.jobs.where(id: c_ids)
+    # @title = params[:title].present? ? params[:title] : "Jobs Available Now"
+    # # render template: 'user_mailer/share_jobs_image', layout: false
+    # # return
+    # html = render_to_string(template: 'user_mailer/share_jobs_image', layout: false)
+    # kit = IMGKit.new(html, width: 1200, height: 630, quality: 80)
+    # img = kit.to_img(:png)
+    # compressed_img_size_kb = img.bytesize.to_f / 1024
+    # puts "----------------------------------SIZE: --------------------------          #{compressed_img_size_kb} -------------------------------------------------------"
+    # send_data(img, type: 'image/png', disposition: 'inline'); return
+    if preview
+      render json: { key: preview.key, preview: preview.preview }, status: :ok
+    else
+      render json: { message: 'No Link Preview Found.'}, status: :not_found
+    end
+  end
+
+  def generate_link_preview
+    job_ids = params[:ids].split(',').first(10)
+    url = static_jobs_url + '?ids=' + job_ids.join(',')
+    preview = ShareLinkPreview.find_by(url: url)
+
+    @jobs = current_company.jobs.active.is_public.where(id: job_ids)
+    @title = params[:title].present? ? params[:title] : "Top Jobs Available Now"
+    html = render_to_string(template: 'user_mailer/share_jobs_image', layout: false)
+    kit = IMGKit.new(html, width: 1200, height: 630, quality: 80)
+    img = kit.to_img(:png)
+
+    prev_url = upload_file(img, 'link_image.png') rescue nil
+    if preview
+      preview.update(preview: prev_url) if prev_url.present?
+    else
+      preview = ShareLinkPreview.create(user: current_user, url: url, company: current_company, preview: prev_url) if prev_url.present?
+    end
+
+    if preview
+      render json: { key: preview.key, preview: preview.preview }, status: :ok
+    else
+      render json: { message: 'Could Not Create Preview Image.'}, status: :unprocessable_entity
+    end
+    return
+  end
+
   private
+
+  def upload_file(file, file_name)
+    client = Aws::S3::Client.new(access_key_id: ENV['DO_ACCESS_KEY_ID'], secret_access_key: ENV['DO_SECRET_ACCESS_KEY'], endpoint: "https://#{ENV['DO_REGION']}.digitaloceanspaces.com", region: ENV['DO_REGION'])
+    file_name_slug = SecureRandom.hex(10)
+    response = client.put_object(
+      body: file,
+      bucket: ENV['DO_BUCKET'],
+      key: file_name_slug+ file_name,
+      acl: 'public-read',
+    )
+    "https://#{ENV['DO_BUCKET']}.#{ENV['DO_REGION']}.digitaloceanspaces.com/#{file_name_slug + file_name}"
+  end
 
   def set_candidates
     @candidates = current_company.candidates
@@ -411,7 +472,7 @@ class Company::JobsController < Company::BaseController
   end
 
   def company_job_params
-    params.require(:job).permit([:status, :source, :title, :files, :description, :location, :job_category, :is_public, :start_date, :end_date, :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, :allow_multiple_applications_for_candidate, custom_fields_attributes:
+    params.require(:job).permit([:status, :source, :title, :files, :description, :location, :job_category, :is_public, :start_date, :end_date, :tag_list, :video_file, :industry, :department, :job_type, :price, :education_list, :comp_video, :listing_type, :allow_multiple_applications_for_candidate, :work_type, custom_fields_attributes:
         %i[
           id
           name
