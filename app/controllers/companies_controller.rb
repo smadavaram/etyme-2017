@@ -73,7 +73,11 @@ class CompaniesController < ApplicationController
   end
 
   def set_domain
-    company_domain = domain_from_email(owner_params[:email])
+    if owner_params[:email].present? && URI::MailTo::EMAIL_REGEXP.match?(owner_params[:email])
+      company_domain = domain_from_email(owner_params[:email])
+    else
+      redirect_to register_path, error: 'Invalid Email Address!'
+    end
 
     if FreeEmailProvider.exists?(domain_name: company_domain)
       flash[:notice] = "#{company_domain} is a public email provider. Please use your company email!"
