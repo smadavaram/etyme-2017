@@ -107,9 +107,7 @@
 }
 
 .unread-div-color {
-  background-color: rgba(242, 244, 248, 0.89);
-  border-bottom: 1px solid rgba(242, 244, 248, 0.89);
-  border-radius: 23px;
+  background-color: lightgray;
 }
 .chat-user-name-style {
   @media only screen and (max-width: 600px) {
@@ -157,7 +155,7 @@
   color: #3d3c3c;
 }
 .user-list-item-style-candidate:hover {
-  background-color: #047bf8 !important;
+  background-color: #4e9df1 !important;
   .chat-user-name-style {
     color: white !important;
   }

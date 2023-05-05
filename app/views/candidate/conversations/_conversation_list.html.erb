@@ -18,8 +18,8 @@
       <% contract = get_contract(usr) %>
       <div class="row name_and_date_style" >
         <% messages = con.conversation_messages.where.not(userable_id: current_candidate) %>
-        <div class=" col-sm-8 col-md-8 col-lg-8" ><div class="row chat-user-name-style"  ><%= usr.full_name.truncate(20) %></div> </div>
-        <div class="col-sm-4 col-md-4 col-lg-4 mobile_chat_subtitle"><div class="row chat-user-date-style" ><%= messages.present? && (messages.last.created_at  < DateTime.now - 24.hours) ? messages.last.created_at.strftime("%H:%M %p") : messages.present? && (messages.last.created_at  > DateTime.now - 24.hours) ? distance_of_time_in_words(Time.now,messages.last.created_at) : "" %></div></div>
+        <div class=" col-sm-9 col-md-9 col-lg-9" ><div class="row chat-user-name-style"  ><%= usr.full_name.truncate(20) %></div> </div>
+        <div class="col-sm-3 col-md-3 col-lg-3 mobile_chat_subtitle"><div class="row chat-user-date-style" ><%= messages.present? && (messages.last.created_at  < DateTime.now - 24.hours) ? messages.last.created_at.strftime("%H:%M %p") : messages.present? && (messages.last.created_at  > DateTime.now - 24.hours) ? distance_of_time_in_words(Time.now,messages.last.created_at) : "" %></div></div>
       </div>
       <div>
         <div class="margin-top-5 name_and_message_style" >
