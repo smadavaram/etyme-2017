@@ -16,11 +16,10 @@
 
 .user-list-item-style {
     width: 100%;
-    border-bottom: 1px solid #4e9df1;
+    border-bottom: 1px solid #bad7f7b3;
   }
 .active-div-color {
-background-color: #4e9df1;
-border-radius: 23px;
+background-color: #bad7f7b3;
 .chat-user-name-style {
     color: black;
 }
@@ -41,4 +40,34 @@ border-radius: 23px;
 }
 .conversation-container{
     margin-top: 20px;
+}
+.last-message-date{
+    background-color: gray;
+    border-radius: 50px;
+    padding-left: 19px;
+}
+.last-message-date div{
+color: #ffffff !important;
+}
+.chat-date-separator{
+    text-align: center;
+    position: relative;
+    background-color: #ffffff;
+}
+.chat-date-separator span{
+display: inline-block;
+background: white;
+position: relative;
+padding: 0 10px;
+color: rgba(0, 0, 0, 0.3);
+}
+.chat-date-separator::before{
+content: "";
+background-color: rgba(0, 0, 0, 0.1);
+height: 1px;
+width: 100%;
+position: absolute;
+top: 10px;
+left: 0px;
+right: 0px;
 }

@@ -94,20 +94,17 @@ function set_conversation(data) {
                     $(`.usr_Group_${data.grp_id}`).find('.last-message').html('<div class="status-pill green" title="New Message"></div>' + data.msg.slice(0, 25) + '...')
                 }
             }
-            $(data.dom).append("<div class='chat-message'>" +
-                "<div class='chat-message-content-w'>" +
-                "<div class='chat-message-content'>" +
-                data.msg +
-                file_url +
-                "</div>" +
-                "</div>" +
-                "<div class='chat-message-avatar'>" +
-                "<img src='" + data.msg_url + "' alt='"+ data.img_alt +"'>" +
-                "</div>" +
-                "<div class=chat-message-date>" +
-                data.msg_time +
-                "</div>" +
-                "</div>"
+            $(data.dom).append(
+                '<div class="col-md-8 p-3 rounded-lg">'+
+                    '<div class="flex flex-row items-center">'+
+                        '<div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-300 flex-shrink-0" >'+
+                          "<img src='" + data.msg_url + "' alt='"+ data.img_alt +"' class='image-35-imp new-class-avatar'>" +
+                        '</div>'+
+                      '<div class="relative ml-3 text-sm bg-white py-2 px-4 shadow rounded-xl">'+
+                        data.msg + file_url +
+                      '</div>'+
+                    '</div>'+
+                '</div>'
             );
         }
     }
