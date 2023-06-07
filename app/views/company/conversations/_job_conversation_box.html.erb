@@ -284,7 +284,7 @@
 
 
 <!-- CHAT BOX HEAD  -->
-  <div class="responsive-chat-message" style="width: 100%;  border-bottom: 1px solid #F2F4F8;overflow-y: scroll; padding: 10px;overflow-x: hidden; <%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 54vh;" : "height: 58vh;" %>">
+  <div class="responsive-chat-message" style="width: 100%;  border-bottom: 1px solid #F2F4F8;overflow-y: scroll; padding: 10px;overflow-x: hidden; <%= (conversation&.job_application.present? and nested_colap.present?) ? "height: 45vh;" : "height: 58vh;" %>">
 
     <div class="chat-content" id="conversation_<%= conversation.id if conversation.present? %>">
       <div id="all-infinite-scrolling-msg" style="display:none"></div>
