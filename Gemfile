@@ -13,7 +13,6 @@ gem 'mina-multistage' # , '<= 1.0.1', require: false
 gem 'rails', '5.2.8.1'
 gem 'sprockets', '3.7.2'
 gem 'mimemagic', '~> 0.3.10'
-gem 'signature-pad-rails'
 
 gem 'browser-timezone-rails'
 gem 'puma', '~> 5.3.2'

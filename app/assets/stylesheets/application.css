@@ -32,7 +32,7 @@
  *= require lockscreen
  *
  * Signature Pad
- *= require signature-pad
+ *= require jquery.signaturepad
  *
  *= require amaran.min
 
