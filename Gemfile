@@ -10,8 +10,9 @@ gem 'phonelib', '~> 0.7.4'
 gem 'best_in_place'
 gem 'mina' # ,'~> 0.2.1'
 gem 'mina-multistage' # , '<= 1.0.1', require: false
-gem 'rails', '5.2.4.6'
+gem 'rails', '5.2.5'
 gem 'sprockets', '3.7.2'
+gem 'mimemagic', '~> 0.3.10'
 gem 'signature-pad-rails'
 
 gem 'browser-timezone-rails'
