@@ -4,7 +4,7 @@ source 'https://rubygems.org'
 
 gem 'paper_trail'
 
-ruby '2.6.5'
+ruby '2.7.6'
 
 gem 'phonelib', '~> 0.7.4'
 gem 'best_in_place'
