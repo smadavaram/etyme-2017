@@ -116,7 +116,7 @@ group :development, :test do
   gem 'ed25519', '< 2.0'
   gem 'hirb' # , '~> 0.7.3'
   gem 'letter_opener', '1.4.1'
-  gem 'listen', '>= 3.0.5', '< 3.2'
+  gem 'listen', '~> 3.8'
   gem 'pry'
   gem 'pry-rails'
   gem 'rails-erd'
