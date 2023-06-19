@@ -118,7 +118,8 @@ class Company < ApplicationRecord
   has_many :custom_fields, as: :customizable, dependent: :destroy
   has_many :reminders, as: :reminderable
   has_many :chats, dependent: :destroy
-  has_many :prefer_vendors_chats, -> { where chatable_type: 'Company' }, class_name: 'Chat', foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
+  # has_many :prefer_vendors_chats, -> { where chatable_type: 'Company' }, class_name: 'Chat', foreign_key: :chatable_id, foreign_type: :chatable_type, dependent: :destroy
+  has_many :prefer_vendors_chats, -> { where chatable_type: 'Company' }, as: :chatable, class_name: 'Chat', foreign_key: :chatable_id, dependent: :destroy
   has_many :branches
   has_many :billing_infos
   has_many :company_departments
