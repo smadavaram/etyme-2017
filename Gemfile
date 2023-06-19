@@ -7,10 +7,10 @@ gem 'paper_trail'
 ruby '2.7.6'
 
 gem 'phonelib', '~> 0.7.4'
-gem 'best_in_place'
+gem "best_in_place", git: "https://github.com/mmotherwell/best_in_place"
 gem 'mina' # ,'~> 0.2.1'
 gem 'mina-multistage' # , '<= 1.0.1', require: false
-gem 'rails', '6.0.6.1'
+gem 'rails', '6.1.0'
 gem 'sprockets', '3.7.2'
 gem 'mimemagic', '~> 0.3.10'
 
@@ -182,4 +182,3 @@ gem 'sentry-rails'
 gem 'sidekiq', '<= 5.0'
 gem 'sidekiq-status'
 gem 'sidekiq-limit_fetch'
-gem 'safe_attributes'
