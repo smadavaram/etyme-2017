@@ -59,7 +59,7 @@ gem 'fastimage'
 
 gem 'ancestry'
 gem 'awesome_print'
-gem 'pg', '~> 0.18'
+gem 'pg', '1.1'
 gem 'rails-jquery-autocomplete'
 # gem 'rails_12factor', group: :production
 
