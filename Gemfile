@@ -74,7 +74,7 @@ gem 'geocoder'
 gem 'ruby-duration' # , '~> 3.2', '>= 3.2.1'
 gem 'validates_timeliness' # , '~> 4.0'
 
-gem 'carrierwave'
+gem 'carrierwave', '2.2.0'
 gem 'daemons'
 gem 'delayed_job_active_record' # , '4.0.3'
 gem 'figaro'
