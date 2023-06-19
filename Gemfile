@@ -147,7 +147,7 @@ end
 
 # gem 'mini_racer' # changed from therubyracer, since Bullettrain (or one of its dependencies) requires mini_racer
 gem 'redis', '~> 3.3.3'
-gem 'select2-rails', '~> 3.5.9.1'
+gem 'select2-rails', '~> 3.5.9.3'
 
 # gem 'sequence-sdk', '~> 1.5', require: 'sequence'
 gem 'docusign_esign'

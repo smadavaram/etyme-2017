@@ -1901,7 +1901,7 @@ DEPENDENCIES
   sass-rails (~> 6.0)
   sdoc
   seed_dump
-  select2-rails (~> 3.5.9.1)
+  select2-rails (~> 3.5.9.3)
   selectize-rails
   sentry-rails
   sentry-ruby
