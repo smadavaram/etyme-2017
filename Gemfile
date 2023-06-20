@@ -167,7 +167,7 @@ gem 'hashie'
 
 # gem 'trix',  '1.2.0'
 gem 'exception_notification'
-gem 'trix-rails', '~> 2.2', require: 'trix'
+gem 'trix-rails', '~> 2.4', require: 'trix'
 
 gem 'activeadmin'
 gem 'serviceworker-rails'
