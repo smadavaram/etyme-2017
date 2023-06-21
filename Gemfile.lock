@@ -1224,6 +1224,15 @@ GEM
       capistrano (~> 3.7)
       capistrano-bundler
       puma (>= 4.0, < 6.0)
+    capybara (3.36.0)
+      addressable
+      matrix
+      mini_mime (>= 0.1.3)
+      nokogiri (~> 1.8)
+      rack (>= 1.6.0)
+      rack-test (>= 0.6.3)
+      regexp_parser (>= 1.5, < 3.0)
+      xpath (~> 3.2)
     carrierwave (2.2.0)
       activemodel (>= 5.0.0)
       activesupport (>= 5.0.0)
@@ -1434,6 +1443,7 @@ GEM
       mimemagic (~> 0.3.2)
     markio (0.1)
       nokogiri
+    matrix (0.4.2)
     memoist (0.16.2)
     method_source (1.0.0)
     mime-types (3.3.1)
@@ -1602,6 +1612,7 @@ GEM
       rbnacl (>= 3.0.1)
     rdoc (6.3.2)
     redis (3.3.5)
+    regexp_parser (2.8.1)
     representable (3.1.1)
       declarative (< 0.1.0)
       trailblazer-option (>= 0.1.1, < 0.2.0)
@@ -1766,6 +1777,8 @@ GEM
     will_paginate (3.3.0)
     wkhtmltoimage-binary (0.12.5)
     wkhtmltopdf-binary (0.12.6.5)
+    xpath (3.2.0)
+      nokogiri (~> 1.8)
     zeitwerk (2.4.2)
 
 PLATFORMS
@@ -1797,6 +1810,7 @@ DEPENDENCIES
   capistrano-sidekiq
   capistrano3-delayed-job (~> 1.0)
   capistrano3-puma
+  capybara
   carrierwave
   chronic
   city-state
