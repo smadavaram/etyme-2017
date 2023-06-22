@@ -17,8 +17,10 @@ class CandidatesTest < ApplicationSystemTestCase
 
   test "logging in a candidate" do
     puts 'TOP OF TEST BLOCK'
+    puts page.driver.browser
     visit root_url
     puts 'AFTER VISIT ROOT_URL'
+    puts current_url
     assert_selector "button", text: "Login"
     puts 'AFTER ASSERT SELECTOR BUTTON'
     assert_no_selector "a", text: "Candidate"
