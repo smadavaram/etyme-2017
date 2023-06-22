@@ -47,6 +47,10 @@ jobs:
 
       - name: Run system tests
         run: bundle exec bin/rails test:system
+
+      - name: Print server logs
+        run: cat log/test.log
+
 #   lint:
 #     runs-on: ubuntu-latest
 #     steps:
