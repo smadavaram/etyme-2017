@@ -20,17 +20,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      # Add or replace dependency steps here
       - name: Install Ruby and gems
         uses: ruby/setup-ruby@55283cc23133118229fd3f97f9336ee23a179fcf # v1.146.0
         with:
           bundler-cache: true
-      # Add or replace database setup steps here
+      - name: Install sodium library
+        run: sudo apt-get install libsodium-dev
       - name: Set up database schema
-        run: bin/rails db:schema:load
-      # Add or replace test runners here
+        run: bundle exec bin/rails db:schema:load
       - name: Run unit tests
-        run: bin/rails test
+        run: bundle exec bin/rake test
 #       - name: Run system tests
 #         run: bin/rails test:system
 
