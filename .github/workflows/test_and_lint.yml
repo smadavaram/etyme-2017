@@ -30,8 +30,8 @@ jobs:
         run: bundle exec bin/rails db:schema:load
       - name: Run unit tests
         run: bundle exec bin/rails test
-#       - name: Run system tests
-#         run: bin/rails test:system
+      - name: Run system tests
+        run: bundle exec bin/rails test:system
 
 #   lint:
 #     runs-on: ubuntu-latest
