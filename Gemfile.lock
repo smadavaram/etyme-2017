@@ -1514,6 +1514,8 @@ GEM
     nio4r (2.5.9)
     nokogiri (1.15.2-arm64-darwin)
       racc (~> 1.4)
+    nokogiri (1.15.2-x86_64-linux)
+      racc (~> 1.4)
     numerizer (0.1.1)
     oauth2 (1.4.7)
       faraday (>= 0.8, < 2.0)
@@ -1808,6 +1810,7 @@ GEM
 
 PLATFORMS
   arm64-darwin-21
+  x86_64-linux
 
 DEPENDENCIES
   activeadmin (= 2.11.1)
