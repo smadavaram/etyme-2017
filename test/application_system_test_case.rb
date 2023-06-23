@@ -9,7 +9,6 @@ class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
     client.read_timeout = 120 # seconds
     Capybara::Selenium::Driver.new(app, browser: :chrome, http_client: client)
   end
-  Capybara.server_boot_timeout = 120 # seconds
   Capybara.default_max_wait_time = 10 # seconds
   Capybara.server = :webrick
 end
