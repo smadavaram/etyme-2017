@@ -104,6 +104,7 @@ group :development do
   gem 'rubocop', '~> 0.78.0', require: false
   gem 'rubocop-performance'
   gem 'dotenv-rails', '~> 2.7', '>= 2.7.6'
+  gem 'web-console', '>= 3.3.0'
 end
 
 group :development, :test do
@@ -127,7 +128,6 @@ group :development, :test do
   gem 'bullet'
   gem 'spring'
   gem 'spring-watcher-listen', '~> 2.0.0'
-  gem 'web-console', '>= 3.3.0'
   # Capistrano Deployment
   gem 'capistrano', '3.15.0'
   gem 'capistrano-bundler'
@@ -142,6 +142,11 @@ group :development, :test do
   gem 'capistrano-rails'
   gem 'annotate'
   gem 'capistrano-sidekiq'
+end
+
+group :test do
+  gem 'capybara'
+  gem 'selenium-webdriver', '~> 3.142'
 end
 
 # gem 'mini_racer' # changed from therubyracer, since Bullettrain (or one of its dependencies) requires mini_racer

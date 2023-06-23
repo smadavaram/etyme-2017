@@ -35,7 +35,7 @@
 <div class="m-3">
   <div class="d-md-flex row">
     <div class="col-12">
-      <% if current_company.show_slider and current_company.slider %>
+      <% if current_company&.show_slider and current_company&.slider %>
         <div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel">
           <ol class="carousel-indicators">
             <li data-target="#carouselExampleIndicators" data-slide-to="0" class="active"></li>
