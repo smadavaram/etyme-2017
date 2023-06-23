@@ -42,6 +42,9 @@ jobs:
       - name: Set up database schema
         run: bundle exec bin/rails db:schema:load
 
+      - name: Precompile assets
+        run: bundle exec rails assets:precompile
+
       - name: Run unit tests
         run: bundle exec bin/rails test
 
@@ -49,7 +52,7 @@ jobs:
         run: bundle exec bin/rails test:system
 
       - name: Print server logs
-        run: cat log/test.log
+        run: cat log/*.log
 
 #   lint:
 #     runs-on: ubuntu-latest
