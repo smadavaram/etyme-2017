@@ -177,7 +177,7 @@ class Job < ApplicationRecord
   end
 
   def self.archived
-    Job.where(status: 'Published').each do | job |
+    Job.where(status: 'Published', listing_type: 'Job').each do | job |
       unless job.job_applications.where('updated_at >= ?', 7.day.ago.to_datetime).any? || (job.updated_at > 7.day.ago.to_datetime)
         job.update(status: "Archived")
       end
