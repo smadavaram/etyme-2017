@@ -31,9 +31,6 @@
  * Lock screen related styles
  *= require lockscreen
  *
- * Signature Pad
- *= require jquery.signaturepad
- *
  *= require amaran.min
 
  *= require candidate_override
