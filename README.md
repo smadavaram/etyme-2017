@@ -1,10 +1,10 @@
 
 # **ETyme** #
 ### Ruby version ###
-     * 2.6.5         #### 2.4.2
+     * 2.7.6         #### 2.6.5
 
 ###  Rails version ###
-     * 5.2.4.5      #### 5.1.2
+     * 6.1.7.3       #### 5.2.4.5
 
 ###  Configuration ###
      Super Admin: ActiveAdmin

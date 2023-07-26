@@ -11,7 +11,7 @@
       = f.text_area :response_from_vendor, value: '' , class: "form-control", rows: "2" ,placeholder: 'Write tour message'
   - if status == 'accept'
     .form-group
-      = render partial: 'company/contracts/partials/received_by_signarture_pad',locals: {f: f}
+      = render partial: 'company/contracts/partials/received_by_signature_pad',locals: {f: f}
   .modal-footer
     %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
       Cancel

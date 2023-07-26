@@ -4,14 +4,15 @@ source 'https://rubygems.org'
 
 gem 'paper_trail'
 
-ruby '2.6.5'
+ruby '2.7.6'
 
 gem 'phonelib', '~> 0.7.4'
-gem 'best_in_place'
+gem 'best_in_place', git: 'https://github.com/mmotherwell/best_in_place'
 gem 'mina' # ,'~> 0.2.1'
 gem 'mina-multistage' # , '<= 1.0.1', require: false
-gem 'rails', '5.2.4.5'
-gem 'signature-pad-rails'
+gem 'rails', '~> 6.1.7'
+gem 'sprockets', '3.7.2'
+gem 'mimemagic', '~> 0.3.10'
 
 gem 'browser-timezone-rails'
 gem 'puma', '~> 5.3.2'
@@ -58,7 +59,7 @@ gem 'fastimage'
 
 gem 'ancestry'
 gem 'awesome_print'
-gem 'pg', '~> 0.18'
+gem 'pg', '1.1'
 gem 'rails-jquery-autocomplete'
 # gem 'rails_12factor', group: :production
 
@@ -73,7 +74,7 @@ gem 'geocoder'
 gem 'ruby-duration' # , '~> 3.2', '>= 3.2.1'
 gem 'validates_timeliness' # , '~> 4.0'
 
-gem 'carrierwave'
+gem 'carrierwave', '2.2.0'
 gem 'daemons'
 gem 'delayed_job_active_record' # , '4.0.3'
 gem 'figaro'
@@ -116,7 +117,7 @@ group :development, :test do
   gem 'ed25519', '< 2.0'
   gem 'hirb' # , '~> 0.7.3'
   gem 'letter_opener', '1.4.1'
-  gem 'listen', '>= 3.0.5', '< 3.2'
+  gem 'listen', '~> 3.8'
   gem 'pry'
   gem 'pry-rails'
   gem 'rails-erd'
@@ -151,7 +152,7 @@ end
 
 # gem 'mini_racer' # changed from therubyracer, since Bullettrain (or one of its dependencies) requires mini_racer
 gem 'redis', '~> 3.3.3'
-gem 'select2-rails', '~> 3.5.9.1'
+gem 'select2-rails', '~> 3.5.11'
 
 # gem 'sequence-sdk', '~> 1.5', require: 'sequence'
 gem 'docusign_esign'
@@ -171,9 +172,9 @@ gem 'hashie'
 
 # gem 'trix',  '1.2.0'
 gem 'exception_notification'
-gem 'trix-rails', '~> 2.2', require: 'trix'
+gem 'trix-rails', '~> 2.4', require: 'trix'
 
-gem 'activeadmin'
+gem 'activeadmin', '2.11.1'
 gem 'serviceworker-rails'
 
 gem 'activeadmin_json_editor', '~> 0.0.7'
@@ -186,4 +187,3 @@ gem 'sentry-rails'
 gem 'sidekiq', '<= 5.0'
 gem 'sidekiq-status'
 gem 'sidekiq-limit_fetch'
-gem 'safe_attributes'

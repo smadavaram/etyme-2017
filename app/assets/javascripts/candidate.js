@@ -161,11 +161,6 @@
 //= require highcharts.js
 //= require highcharts-exporting.js
 
-// Signature Pad
-//= require signature-pad/jquery.signaturepad
-//= require signature-pad/flashcanvas
-//= require signature-pad/json2.min
-
 //= require cable
 //= require candidate/chat_status
 
