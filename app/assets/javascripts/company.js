@@ -101,11 +101,6 @@
 // Amaran For Alerts
 //= require jquery.amaran
 
-// Signature Pad
-//= require jquery.signaturepad
-//= require flashcanvas
-//= require json2.min
-
 //= require addevent
 
 //= require data-confirm-modal
@@ -118,7 +113,6 @@
 
 //= require highcharts.js
 //= require highcharts-exporting.js
-
 
 //=require addevent
 

@@ -39,11 +39,6 @@
 // Amaran For Alerts
 //= require jquery.amaran
 
-// Signature Pad
-//= require jquery.signaturepad
-//= require flashcanvas
-//= require json2.min
-
 //= require global
 
 //= require home/scrolling-text
