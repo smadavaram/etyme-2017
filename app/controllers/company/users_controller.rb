@@ -4,41 +4,42 @@ class Company::UsersController < Company::BaseController
   respond_to :js, :json, :html
   add_breadcrumb 'Dashboard', :dashboard_path
   before_action :find_user, only: %i[add_reminder profile]
+  before_action :current_company
   has_scope :search_by, only: :dashboard
 
   def dashboard
     get_cards
-    @job_types = { 'Training' => 0, 'Job' => 0, 'Blog' => 0, 'Product' => 0, 'Service' => 0 }.merge(current_company.jobs.group(:listing_type).count)
-    if current_company&.vendor?
+    @job_types = { 'Training' => 0, 'Job' => 0, 'Blog' => 0, 'Product' => 0, 'Service' => 0 }.merge(@current_company.jobs.group(:listing_type).count)
+    if @current_company&.vendor?
       @data = []
       respond_to do |format|
         format.js do
           if params[:value] == 'Jobs'
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
+            @data += apply_scopes(Job.where(company_id: @current_company.prefer_vendor_companies.map(&:id)))
           elsif params[:value] == 'Candidates'
-            @data += apply_scopes(current_company.candidates)
+            @data += apply_scopes(@current_company.candidates)
           elsif params[:value] == 'Contacts'
-            @data += apply_scopes(current_company.invited_companies_contacts)
+            @data += apply_scopes(@current_company.invited_companies_contacts)
           else
-            @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
-            @data += apply_scopes(current_company.invited_companies_contacts)
-            @data += apply_scopes(current_company.candidates)
+            @data += apply_scopes(Job.where(company_id: @current_company.prefer_vendor_companies.map(&:id)))
+            @data += apply_scopes(@current_company.invited_companies_contacts)
+            @data += apply_scopes(@current_company.candidates)
           end
           @data = @data.sort { |y, z| z.created_at <=> y.created_at }
         end
         format.html do
-          @directory = current_company.users # .paginate(page: params[:page],per_page: 5)
-          @data += apply_scopes(Job.where(company_id: current_company.prefer_vendor_companies.map(&:id)))
-          @data += apply_scopes(current_company.invited_companies_contacts)
-          @data += apply_scopes(current_company.candidates)
+          @directory = @current_company.users # .paginate(page: params[:page],per_page: 5)
+          @data += apply_scopes(Job.where(company_id: @current_company.prefer_vendor_companies.map(&:id)))
+          @data += apply_scopes(@current_company.invited_companies_contacts)
+          @data += apply_scopes(@current_company.candidates)
           @data = @data.sort { |y, z| z.created_at <=> y.created_at }
-          @jobs_count = current_company.jobs.count
-          @applications_count = JobApplication.joins(job: :company).where("jobs.company": current_company)
+          @jobs_count = @current_company.jobs.count
+          @applications_count = JobApplication.joins(job: :company).where("jobs.company": @current_company)
         end
       end
     end
-    @activities = PublicActivity::Activity.where(owner_type: 'Company', owner_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))
-                                          .or(PublicActivity::Activity.where(owner_type: 'User', owner_id: User.where(company_id: current_company.prefer_vendors.accepted.pluck(:vendor_id))))
+    @activities = PublicActivity::Activity.where(owner_type: 'Company', owner_id: @current_company.prefer_vendors.accepted.pluck(:vendor_id))
+                                          .or(PublicActivity::Activity.where(owner_type: 'User', owner_id: User.where(company_id: @current_company.prefer_vendors.accepted.pluck(:vendor_id))))
                                           .paginate(page: params[:page], per_page: 15)
   end
 
@@ -57,11 +58,11 @@ class Company::UsersController < Company::BaseController
     @current_user_cards = {}
     start_date = get_start_date
     end_date = get_end_date
-    @cards['JOB'] = current_company.jobs.where(created_at: start_date...end_date).count
-    @cards['BENCH JOB'] = current_company.jobs.where(status: 'Bench').where(created_at: start_date...end_date).count
-    @cards['BENCH'] = current_company.candidates_companies.hot_candidate.joins(:candidate).where('candidates.created_at': start_date...end_date).count
-    @cards['APPLICATION'] = current_company.received_job_applications.where(created_at: start_date...end_date).count
-    @cards['STATUS'] = Company.status_count(current_company, start_date, end_date)
+    @cards['JOB'] = @current_company.jobs.where(created_at: start_date...end_date).count
+    @cards['BENCH JOB'] = @current_company.jobs.where(status: 'Bench').where(created_at: start_date...end_date).count
+    @cards['BENCH'] = @current_company.candidates_companies.hot_candidate.joins(:candidate).where('candidates.created_at': start_date...end_date).count
+    @cards['APPLICATION'] = @current_company.received_job_applications.where(created_at: start_date...end_date).count
+    @cards['STATUS'] = Company.status_count(@current_company, start_date, end_date)
     @cards['ACTIVE'] = params[:filter]
     @current_user_cards['JOB'] = Job.where(created_by_id: current_user, created_at: start_date...end_date).count
     @current_user_cards['BENCH JOB'] = Job.where(created_by_id: current_user, status: 'Bench').where(created_at: start_date...end_date).count
@@ -109,7 +110,7 @@ class Company::UsersController < Company::BaseController
         next unless (email =~ /\A([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})\z/i).present?
 
         password = SecureRandom.hex(10)
-        user = current_company.admins.where(email: email).first_or_initialize(password_hash)
+        user = @current_company.admins.where(email: email).first_or_initialize(password_hash)
         user.save! unless user.persisted?
       end
       flash.now[:success] = 'All the email are processed successfully'
@@ -127,7 +128,7 @@ class Company::UsersController < Company::BaseController
           next unless (email =~ /\A([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})\z/i).present?
 
           user = DiscoverUser.new.discover_user(email)
-          contact = current_company.company_contacts.where(user: user).first_or_initialize(created_by: current_user, user_company: user.company, email: user.email)
+          contact = @current_company.company_contacts.where(user: user).first_or_initialize(created_by: current_user, user_company: user.company, email: user.email)
           contact.save! unless contact.persisted?
         end
         flash.now[:success] = 'All the email are processed successfully'
@@ -149,7 +150,7 @@ class Company::UsersController < Company::BaseController
           next unless (email =~ /\A([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})\z/i).present?
 
           candidate = DiscoverUserdiscover_candidate(email)
-          company_candidate = current_company.candidates_companies.normal.where(candidate: candidate).first_or_initialize(candidate: candidate)
+          company_candidate = @current_company.candidates_companies.normal.where(candidate: candidate).first_or_initialize(candidate: candidate)
           company_candidate.save! unless company_candidate.persisted?
         end
         flash.now[:success] = 'All the email are processed successfully'
@@ -164,9 +165,9 @@ class Company::UsersController < Company::BaseController
 
   def change_owner
     if with_company_domain?
-      owner = current_company.admins.where(email: params[:email].downcase).first_or_initialize(password_hash.merge(owner_params))
+      owner = @current_company.admins.where(email: params[:email].downcase).first_or_initialize(password_hash.merge(owner_params))
       if owner.save
-        current_company.update(owner_id: owner.id)
+        @current_company.update(owner_id: owner.id)
         flash.now[:success] = 'Owner/Adminstrator has been changed'
       else
         flash.now[:errors] = owner.errors.full_messages
@@ -191,7 +192,7 @@ class Company::UsersController < Company::BaseController
   end
 
   def assign_groups
-    @user = current_company.users.find(params[:user_id])
+    @user = @current_company.users.find(params[:user_id])
     if request.post?
       groups = params[:user][:group_ids]
       groups = groups.reject(&:empty?)
@@ -305,7 +306,7 @@ class Company::UsersController < Company::BaseController
   end
 
   def with_company_domain?
-    current_company.domain == Mail::Address.new(params[:email].downcase).domain.split('.').first
+    @current_company.domain == Mail::Address.new(params[:email].downcase).domain.split('.').first
   end
 
   def password_hash
