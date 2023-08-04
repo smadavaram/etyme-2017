@@ -14,7 +14,8 @@
 class CandidatesResume < ApplicationRecord
   belongs_to :candidate, optional: true
   # after_save :build_archilli_profile
-  after_save :build_sovren_profile
+  after_save :build_openai_profile
+  # after_save :build_sovren_profile
   scope :primary_resume, -> { where(is_primary: true).first }
 
   def build_archilli_profile
@@ -22,6 +23,13 @@ class CandidatesResume < ApplicationRecord
       response = ResumeParser.new(resume).binary_parse
       candidate.build_profile(JSON.parse(response.body)) if response.code == '200'
     end
+  rescue StandardError => e
+    puts e
+  end
+
+  def build_openai_profile
+    response = ResumeParser.new(resume).openai_parse if candidate.first_resume?
+    candidate.openai_build_profile(response) if response.present?
   rescue StandardError => e
     puts e
   end

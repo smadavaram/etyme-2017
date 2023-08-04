@@ -107,6 +107,7 @@ class Candidate < ApplicationRecord
 
   include PublicActivity::Model
   include ArchilliCandidateProfileBuilder
+  include OpenaiCandidateProfileBuilder
   include SovrenCandidateProfileBuilder
 
   geocoded_by :location
@@ -341,7 +342,7 @@ class Candidate < ApplicationRecord
   end
 
   def first_resume?
-    candidates_resumes.count == 1
+    candidates_resumes.size == 1
   end
 
   def subscribed?(company_id)

@@ -40,6 +40,10 @@ gem 'wkhtmltopdf-binary'
 gem 'jquery_mask_rails', '~> 0.1.0'
 gem 'selectize-rails'
 
+# for resume parsing
+gem 'pdf-reader'
+gem 'ruby-openai'
+
 gem 'stripe'
 gem 'httparty'
 gem 'imgkit'
