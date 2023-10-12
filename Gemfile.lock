@@ -1469,6 +1469,8 @@ GEM
       oily_png
     momentjs-rails (2.20.1)
       railties (>= 3.1)
+    moonrope-client (1.0.5)
+      json
     multi_json (1.15.0)
     multi_xml (0.6.0)
     multipart-post (2.1.1)
@@ -1534,6 +1536,10 @@ GEM
     pg (0.21.0)
     phonelib (0.7.4)
     popper_js (1.12.9)
+    postal-rails (1.0.1)
+      postal-ruby (>= 0.0.2, < 2.0)
+    postal-ruby (1.0.1)
+      moonrope-client (>= 1.0.2, < 1.1)
     power_assert (2.0.0)
     pretender (0.3.4)
       actionpack (>= 4.2)
@@ -1874,6 +1880,7 @@ DEPENDENCIES
   pg (~> 0.18)
   phonelib (~> 0.7.4)
   popper_js (~> 1.12.9)
+  postal-rails (~> 1.0)
   pretender (~> 0.3.2)
   pry
   pry-rails
