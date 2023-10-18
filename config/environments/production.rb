@@ -91,15 +91,20 @@ Rails.application.configure do
 
   config.action_mailer.default_url_options = { host: ENV['host_url'] || 'etyme.com', protocol: ENV['host_protocol'] || 'https' }
 
-
-  config.action_mailer.smtp_settings = {
-    :address              => 'smtp.sendgrid.net',
-    :port                 => 587,
-    :user_name            => ENV['SENDGRID_USER_NAME'],
-    :password             => ENV['SENDGRID_API_KEY'],
-    :authentication       => 'plain',
-    :enable_starttls_auto => true
+  config.action_mailer.delivery_method = :postal
+  config.action_mailer.postal_settings = {
+    address: ENV['MAILCRUX_SERVER'],
+    server_key: ENV['MAILCRUX_SERVER_KEY']
   }
+
+  # config.action_mailer.smtp_settings = {
+  #   :address              => 'smtp.sendgrid.net',
+  #   :port                 => 587,
+  #   :user_name            => ENV['SENDGRID_USER_NAME'],
+  #   :password             => ENV['SENDGRID_API_KEY'],
+  #   :authentication       => 'plain',
+  #   :enable_starttls_auto => true
+  # }
 
   # Send deprecation notices to registered listeners.
   config.active_support.deprecation = :notify

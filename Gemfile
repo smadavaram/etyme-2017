@@ -187,3 +187,6 @@ gem 'sidekiq', '<= 5.0'
 gem 'sidekiq-status'
 gem 'sidekiq-limit_fetch'
 gem 'safe_attributes'
+
+# for mailcrux
+gem 'postal-rails', '~> 1.0'
