@@ -6,6 +6,7 @@ class UserMailer < ApplicationMailer
     @name = name
     @exception = exception
     # mail(to: UserMailer.exception_admins, subject: 'Etyme - Exception')
+    # TODO: the hardcoded email value should come from env vars instead
     mail(to: %w[dit.sagar@gmail.com], subject: 'Etyme - Exception')
   end
 
