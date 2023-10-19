@@ -93,7 +93,7 @@ Rails.application.configure do
 
   config.action_mailer.delivery_method = :postal
   config.action_mailer.postal_settings = {
-    address: ENV['MAILCRUX_SERVER'],
+    host: ENV['MAILCRUX_SERVER'],
     server_key: ENV['MAILCRUX_SERVER_KEY']
   }
 
