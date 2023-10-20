@@ -2,7 +2,7 @@
 
 class ApplicationMailer < ActionMailer::Base
   # TODO: FIXME: we need to setup domain etyme.com in the mailcrux server
-  default from: 'support@etyme.com'
+  default from: 'support@etymenotifications.com'
 
   # layout 'mailer'
 end
