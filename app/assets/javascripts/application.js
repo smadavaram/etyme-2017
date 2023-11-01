@@ -45,6 +45,7 @@
 //= require signature-pad/json2.min
 
 //= require global
+//= require login_both
 
 //= require home/scrolling-text
 //= require selectize

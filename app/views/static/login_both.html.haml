@@ -1,0 +1,107 @@
+!!!
+%html{:lang => "en"}
+  %head
+    %meta{:charset => "UTF-8"}
+    %meta{:name => "viewport", :content => "width=device-width, initial-scale=1.0"}
+    %title login
+    %link{:href => "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css", :rel => "stylesheet", :integrity => "sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN", :crossorigin => "anonymous"}
+    %link{:href => "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.0/css/all.min.css", :rel => "stylesheet"}
+    = stylesheet_link_tag    'application'
+    = javascript_include_tag 'application'
+    = csrf_meta_tags
+
+  %body.digg_pagination
+    .container-fluid.login
+      .logo
+        =image_tag "Logo.png", alt: "etyme"
+      .outer-container
+        .left-container
+          .inner-box1
+            =image_tag "login.svg", alt: "login", width: "72%"
+            %h3
+              <span class='etyme'>"Etyme</span> offers a comprehensive, seamless solution for contract employee management"
+            -# %p
+              Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s,
+        .right-container
+          .inner-box2
+            .inner-box3
+              / Welcome Text
+              .welcome-text
+                %p.welcome
+                  Welcome to
+                  %span{style: "float: right;padding: 0;padding-left: 10px;"} eTyme
+                .no-account-text
+                  = link_to register_path, id: "sign_up_login_both", style: "border: none;" do
+                    %p
+                      No Account ?
+                      %br
+                      %span Sign up
+              .login-text
+                .form-check.form-check-inline.mb-0.align-items-center
+                  %input.form-check-input{:checked => true, :type => "radio", :name => "inlineRadioOptions", :id => "inlineRadio1", :value => "option1", style: "margin-top: 3px;", id: "business_login_both_option"}
+                  %label.form-check-label{:for => "inlineRadio1", style: "padding-left: 0;"}
+                    Business Login
+                .form-check.form-check-inline.mb-0.align-items-center
+                  %input.form-check-input{:type => "radio", :name => "inlineRadioOptions", :id => "inlineRadio2", :value => "option2", style: "margin-top: 3px;", id: "candidate_login_both_option"}
+                  %label.form-check-label{:for => "inlineRadio2", style: "padding-left: 0;"}
+                    Candidate Login
+              / Form
+              %section.signup
+                .container.px-0
+                  .signup-content
+                    .signup-form
+                      %h2.form-title Sign in
+                      -# %p
+                        Lorem ipsum dolor sit amet consectetur. Sem quam sed non pellentesque. Ac feugiat neque felis mi.
+                      %form.register-form#register-form{:method => "POST", action: "/users/login", authenticity_token: true}
+                        = hidden_field_tag :authenticity_token, form_authenticity_token
+                        .form-group
+                          %label{:for => "email"}
+                            %i.zmdi.zmdi-email
+                          %input.email{:type => "email", :name => "candidate[email]", :id => "email", :placeholder => "Enter Email"}
+                        .form-group
+                          %label{:for => "pass"}
+                            %i.zmdi.zmdi-lock
+                          %input.pass{:type => "password", :name => "candidate[password]", :id => "pass", :placeholder => "Password "}
+                          %span.toggle-password{:id => "togglePassword"}
+                            %i.fas.fa-eye-slash
+                        .remember.align-items-center.my-3
+                          .form-check
+                            %input.form-check-input{:type => "checkbox", :value => "", :id => "flexCheckDefault"}
+                            %label.form-check-label{:for => "flexCheckDefault", style: "padding-left: 0;"}
+                              Remember me
+                          %div
+                            = link_to new_user_password_path, id: "fogot_password_login_both", style: "border: none;" do
+                              %p.mb-0 Forgot password ?
+                        .form-group.form-button
+                          %input.form-submit.fw-bold{:type => "submit", :name => "signup", :id => "signup", :value => "Login"}
+                    -# .signup-image
+                    -#   %p.fw-bold or continue with
+                    -#   .icons
+                    -#     %a{:href => "#"}
+                    -#       %img{:width => "30", :height => "30", :src => "images/google.svg", :alt => "google-logo"}
+                    -#     %a{:href => "#"}
+                    -#       %img{:width => "30", :height => "30", :src => "images/linkedin.svg", :alt => "linkedin"}
+                    -#     %a{:href => "#"}
+                    -#       %img{:width => "30", :height => "30", :src => "images/git.svg", :alt => "github"}
+                    -#     %a{:href => "#"}
+                    -#       %img{:width => "30", :height => "30", :src => "images/microsoft-outlook.svg", :alt => "outlook"}
+    -# %script
+    -#   // Change the type of input to password or text
+      -# function Toggle() {
+      -#     let temp = document.getElementById("pass");
+      -#     let toggleIcon = document.querySelector(".toggle-password i");
+
+      -#     if (temp.type === "password") {
+      -#         temp.type = "text";
+      -#         toggleIcon.classList.remove("fa-eye-slash");
+      -#         toggleIcon.classList.add("fa-eye");
+      -#     }
+      -#     else {
+      -#         temp.type = "password";
+      -#         toggleIcon.classList.remove("fa-eye");
+      -#         toggleIcon.classList.add("fa-eye-slash");
+      -#     }
+      -# }
+    -# %script{:src => "https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js", :integrity => "sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r", :crossorigin => "anonymous"}
+    -# %script{:src => "https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js", :integrity => "sha384-BBtl+eGJRgqQAUMxJ7pMwbEyER4l1g+O15P+16Ep7Q9Q+zqX6gSbd85u4mG4QzX+", :crossorigin => "anonymous"}
