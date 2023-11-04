@@ -213,6 +213,8 @@ class Job < ApplicationRecord
   private
 
   def create_job_chat
+    # NOTE: create_chat is provided by ActiveRecord
+    # equivalent to chat.create(company: company)
     create_chat(company: company)
 
     job_created_by = created_by || created_by_candidate
