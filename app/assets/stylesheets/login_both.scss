@@ -1,0 +1,338 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@200&display=swap');
+body{
+    margin: 0px ;
+    padding: 0px;
+    font-family: 'Poppins', sans-serif;
+}
+/* .container{
+    width: 100%;
+    margin: auto;
+} */
+.login span{
+    color: #E16400;;
+}
+.login a{
+    text-decoration: none;
+    color: #000;
+}
+.logo{
+    width: 100%;
+    margin: auto;
+    padding: 10px;
+}
+.outer-container{
+    /* width: 90%; */
+    display: flex;
+    margin: auto;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 60px);
+}
+.left-container{
+    width: 50%;
+}
+.etyme{
+    background: linear-gradient(to right, #E16400, #5236FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.inner-box1{
+    width: 75%;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    margin: auto;
+}
+.inner-box1 h3{
+    font-family: Poppins;
+    font-size: 21px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: normal;
+}
+.inner-box1 p{
+    font-family: Poppins;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
+}
+.inner-box1 img{
+    padding: 10px;
+}
+
+.right-container{
+    width: 50%;
+}
+.inner-box2{
+    width: 66%;
+    text-align: center;
+    padding: 40px 30px;
+    margin: auto;
+    /* box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+    border-radius: 15px; */
+    border-radius: 40px;
+background: #FFF;
+box-shadow: 0px 4px 35px 0px rgba(0, 0, 0, 0.08);
+}
+.inner-box3{
+    width: 100%;
+    margin: auto;
+}
+input[type=radio] {
+    accent-color: #E16400;;
+ }
+
+.welcome-text{
+    width: 100%;
+    margin: auto;
+    display: flex;
+    justify-content: space-between;
+}
+
+.login-text{
+    display: flex;
+    gap: 10px;
+}
+
+.login-text input,label{
+    cursor: pointer;
+}
+.icons{
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+.icons a{
+    text-decoration: none;
+}
+.remember{
+    display: flex;
+    justify-content: space-between;
+}
+.signup-form{
+    text-align: left;
+}
+.welcome{
+    color: #000;
+    font-family: Poppins;
+    font-size: 21px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: normal;
+    text-align: left;
+}
+.no-account-text{
+    color: black !important;
+    font-family: Poppins;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
+}
+.login-text{
+    color: var(--gray-500, #667085);
+    font-family: Poppins;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 20px;
+}
+.signup-form h2{
+    color: #000;
+    font-family: Poppins !important;
+    font-size: 2qpx;
+    font-style: normal;
+    font-weight: 600;
+    margin: 10px 0px ;
+    line-height: normal;
+}
+.signup-form p{
+    color: #000;
+    font-family: Poppins;
+    font-size: 14px;
+    font-style: normal;
+    font-weight: 300;
+    margin: 5px 0px 25px 0px ;
+    line-height: normal;
+    opacity: 0.5;
+}
+.signup-image p{
+    color: #B5B5B5;
+    font-family: Poppins;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: normal;
+}
+.form-group{
+    width: 100%;
+    display: flex;
+}
+.form-group span{
+    align-items: center;
+}
+.form-group1{
+    display: flex;
+    align-items: center;
+}
+
+/* Basic styling for the password input and toggle */
+.form-group {
+    position: relative;
+}
+
+.pass {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    position: relative;
+}
+
+.password-input {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    cursor: pointer;
+    z-index: 1;
+    color: black !important;
+    font-size: 18px;
+}
+
+/* Style the password input when the toggle is clicked */
+.pass.show-password {
+    -webkit-text-security: none; /* Show the password text */
+    text-security: none;
+}
+.login .form-check-input:checked{
+    background-color: #E16400;
+    border-color: #e16400;
+}
+
+.login .form-check-input:focus{
+    box-shadow: 0 0 0 0.25rem rgba(225,100,0,0.25);
+}
+
+.form-submit{
+    width: 100%;
+    font-size: 18px;
+    font-weight: 500;
+    color: white;
+    /* background-color: #755EFF;
+    box-shadow: rgba(0, 0, 0, 0.35) 0px 15px 25px, rgba(0, 0, 0, 0.05) 0px 5px 10px;
+    border-radius: 8px; */
+    border-radius: 9px;
+    background: #755EFF;
+    box-shadow: 0px 4px 61px 0px rgba(77, 71, 195, 0.40);
+    border: none;
+    padding: 12px 0px;
+    cursor: pointer;
+    margin: 8px 0px ;
+}
+.email{
+    width: 100%;
+    border: none;
+    color: #A7A3FF !important;
+    border: none;
+    font-size: 15px;
+    padding: 12px;
+    border-radius: 8px;
+    background-color: #F0EFFF;
+    margin: 5px 0px;
+}
+.pass{
+    width: 100%;
+    border: none;
+    font-size: 15px;
+    color: #A7A3FF !important;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    margin: 5px 0px;
+    background-color: #F0EFFF;
+}
+
+/* Media query for screens with a maximum width of 768px (typical for tablets) */
+@media screen and (max-width: 780px) {
+
+    .container {
+        width: 80%;
+    }
+    .outer-container{
+        flex-direction: column;
+        height: unset;
+        margin-bottom: 25px;
+    }
+    .left-container{
+        width: 100%;
+    }
+    .right-container{
+        width: 100%;
+    }
+    .right-container .inner-box2{
+        width: 100%;
+    }
+    .logo {
+        width: 80%;
+    }
+}
+
+/* Media query for screens with a maximum width of 480px (typical for smartphones) */
+@media screen and (max-width: 480px) {
+    .container {
+        width: 100%;
+    }
+    .outer-container{
+        flex-direction: column;
+    }
+    .left-container{
+        width: 100%;
+    }
+    .right-container{
+        width: 100%;
+    }
+    .logo {
+        width: 100%;
+    }
+    .inner-box1, .inner-box2 {
+        width: 100%;
+    }
+    /* Adjust other styles as needed for smartphone-sized screens */
+}
+@media screen and (max-width: 375px) {
+    .container {
+        width: 100%;
+    }
+    .outer-container{
+        flex-direction: column;
+    }
+    .left-container{
+        width: 100%;
+    }
+    .right-container{
+        width: 100%;
+    }
+    .logo {
+        width: 100%;
+    }
+    .inner-box1, .inner-box2, .inner-box3 {
+        width: 100%;
+    }
+    .inner-box3{
+        width: 90%;
+    }
+    .email{
+        padding: 10px 3px;
+    }
+    .pass{
+        padding: 10px 3px;
+    }
+    /* Adjust other styles as needed for smartphone-sized screens */
+}

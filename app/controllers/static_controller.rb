@@ -94,6 +94,10 @@ class StaticController < ApplicationController
     end
   end
 
+  def login_both
+    render layout: false
+  end
+
   def domain_suggestion
     @company = Company.find_by(website: @website)
     respond_to do |format|
