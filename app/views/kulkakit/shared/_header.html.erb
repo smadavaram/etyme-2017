@@ -78,7 +78,7 @@
     <%  company_contact = current_user.user_company(current_company&.id) %>
 
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left d-inline-block mx-1">
-        <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications") %>" style="padding-right:10px; color: #585858; text-decoration: none; background-color: transparent;"><i class="ti-bell notification-icon"></i></a>
+        <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications", subdomain: (current_user&.company&.domain)) %>" style="padding-right:10px; color: #585858; text-decoration: none; background-color: transparent;"><i class="ti-bell notification-icon"></i></a>
         <% if current_user.notifications.unread.count > 0 %>
             <div class="new-messages-count" style="background-color: #e65252; color: #fff; border-radius: 6px; font-weight: 500; position: absolute; top: -5px; right: 5px; padding: 4px 4px; vertical-align: middle; font-size: 0.72rem; line-height: 1;">
               <%= current_user.notifications.unread.count %>
@@ -87,7 +87,7 @@
     </div>
     <div>
       <div class="os-dropdown-position-left d-inline-block mx-1">
-        <a href="<%= company_conversations_path %>" target="_blank" style="color: #585858; text-decoration: none; background-color: transparent;"><i class="os-icon chat-icon os-icon-mail-14 " style=""></i></a>
+        <a href="<%= company_conversations_path(subdomain: (current_user&.company&.domain)) %>" target="_blank" style="color: #585858; text-decoration: none; background-color: transparent;"><i class="os-icon chat-icon os-icon-mail-14 " style=""></i></a>
       </div>
     </div>
     <% if request.subdomain!='app'%>
