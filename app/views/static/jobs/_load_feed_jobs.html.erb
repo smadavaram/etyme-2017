@@ -1,11 +1,13 @@
 <% if company_jobs.present? %>
   <% company_jobs.each do |job| %>
-    <% if job&.listing_type.present? && job&.listing_type == "Blog" %>
-      <%= render 'webflow_feed_article_blog', job: job %>
-    <% elsif job&.listing_type.present? && job&.listing_type == "Question" %>
-      <%= render 'webflow_feed_article_question', job: job %>
-    <% elsif job&.listing_type.present? && (job&.listing_type == "Training" || job&.listing_type == "Service" || job&.listing_type == "Product" ) %>
-      <%= render 'webflow_feed_article_other', job: job %>
+    <% unless ["about_us", "contact", "privacy", "terms"].include?(job&.listing_type) %>
+      <% if job&.listing_type.present? && job&.listing_type == "Blog" %>
+        <%= render 'webflow_feed_article_blog', job: job %>
+      <% elsif job&.listing_type.present? && job&.listing_type == "Question" %>
+        <%= render 'webflow_feed_article_question', job: job %>
+      <% elsif job&.listing_type.present? && (job&.listing_type == "Training" || job&.listing_type == "Service" || job&.listing_type == "Product" ) %>
+        <%= render 'webflow_feed_article_other', job: job %>
+      <% end %>
     <% end %>
   <% end %>
 <% else %>

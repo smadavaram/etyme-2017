@@ -1,5 +1,5 @@
 <label class="toggle" for="toggle"></label>
-<div class="mx-2 mb-md-0 login-btns text-right d-flex justify-content-around">
+<div class="mx-2 mb-md-0 login-btns text-right d-flex justify-content-around" style="font-size: 24px;">
   <% if current_candidate.present? %>
     <%  cc = current_candidate.candidate_company(current_company&.id) %>
 
@@ -77,6 +77,19 @@
   <% elsif current_user.present? %>
     <%  company_contact = current_user.user_company(current_company&.id) %>
 
+    <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left d-inline-block mx-1">
+        <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications") %>" style="padding-right:10px; color: #585858; text-decoration: none; background-color: transparent;"><i class="ti-bell notification-icon"></i></a>
+        <% if current_user.notifications.unread.count > 0 %>
+            <div class="new-messages-count" style="background-color: #e65252; color: #fff; border-radius: 6px; font-weight: 500; position: absolute; top: -5px; right: 5px; padding: 4px 4px; vertical-align: middle; font-size: 0.72rem; line-height: 1;">
+              <%= current_user.notifications.unread.count %>
+            </div>
+        <% end %>
+    </div>
+    <div>
+      <div class="os-dropdown-position-left d-inline-block mx-1">
+        <a href="<%= company_conversations_path %>" target="_blank" style="color: #585858; text-decoration: none; background-color: transparent;"><i class="os-icon chat-icon os-icon-mail-14 " style=""></i></a>
+      </div>
+    </div>
     <% if request.subdomain!='app'%>
       <div class="dropdown dropdown-container d-flex justify-content-end">
         <!--      TOOD: if company_contact is nill or unsubscribed user must subscribe-->

@@ -1,8 +1,8 @@
-<div class="header">
+<div class="header" style="border-bottom: 1px solid lightgray; font-family: 'Whitney SF', 'Open Sans', sans-serif;">
   <div class="col-12">
     <div class="header-items">
-      <div class="d-flex align-items-center justify-content-center">
-        <div class="header-left">
+      <div class="d-flex align-items-center">
+        <div class="header-left d-flex">
           <div class="header-left-mobile">
             <span class="sidebar-left-btn txt-dark">
               <i class="fa fa-bars f-20 purple-100" aria-hidden="true"></i>
@@ -11,24 +11,22 @@
               <i class="fa fa-search gray-30" aria-hidden="true"></i>
             </span>
           </div>
-          <div class="d-md-flex justify-content-center">
-            <% if ( @current_company.present? and ['both', 'company_logo'].include?(@current_company.show_name_logo))%>
-              <div class="webflow-logo-50 webflow-logo-xs-40">
-                <%= link_to root_path do %>
-                  <% if @current_company.present? && @current_company.logo.present? %>
-                    <%= image_tag @current_company.logo %>
-                  <% else %>
-                    <%= image_tag(image_path('etyme-logo-dark.png')) %>
-                  <% end %>
-                <%end%>
-              </div>
-            <%end%>
-            <% if ( @current_company.present? and ['both', 'company_name'].include?(@current_company.show_name_logo))%>
-              <div class="d-none d-lg-block header-logo-label m-3">
-                <%= @current_company&.name %>
-              </div>
-            <% end %>
-          </div>
+          <% if ( @current_company.present? and ['both', 'company_logo'].include?(@current_company.show_name_logo))%>
+            <div class="webflow-logo-50 webflow-logo-xs-40">
+              <%= link_to root_path do %>
+                <% if @current_company.present? && @current_company.logo.present? %>
+                  <%= image_tag @current_company.logo %>
+                <% else %>
+                  <%= image_tag(image_path('etyme-logo-dark.png')) %>
+                <% end %>
+              <%end%>
+            </div>
+          <%end%>
+          <% if ( @current_company.present? and ['both', 'company_name'].include?(@current_company.show_name_logo))%>
+            <div class="d-none d-lg-block header-logo-label m-3">
+              <%= @current_company&.name %>
+            </div>
+          <% end %>
         </div>
         <div class="header-right d-flex">
           <div class="d-none d-md-flex flex-fill mb-2 mb-md-0 col-xl-9">

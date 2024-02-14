@@ -1,7 +1,7 @@
 <!-- Side Wrapper Start -->
 <section class="side-wrapper" id="side-wrapper">
   <div class="left-navbar pl-3 pr-2">
-    <div style="height: 80vh;">
+    <div>
       <div class="sidenav-items p-0">
         <div class="nav flex-column nav-pills">
           <%unless request.subdomain == "app"%>
@@ -34,24 +34,9 @@
           <%end%>
         </div>
       
-
-        <% if !current_candidate.present? && !current_user.present? %>
-          <div class="roadmap">
-              <ul>
-                  <li><i class="roadmap-border"></i>Step 1</li>
-                  <span>Join our Tribe</span>
-                  <li><i class="roadmap-border"></i>Step 2</li>
-                  <span>Ask and Engage</span>
-                  <li><i class="roadmap-border"></i>Step 3</li>
-                  <span>Hire, apply for jobs, & services</span>
-              </ul>
-          </div>
-        <% else %>
-          <div class="my-5 py-5 w-100"></div>
-        <% end %>
       </div>
     </div>
-    <div>
+    <div class="static_links">
       <hr style="margin-bottom: 0px; border-top: 1px solid rgb(0 0 0 / 0%);">
       <div class="footer text-center">
         <%= link_to 'About', '/static/'%>
