@@ -13,13 +13,13 @@
               <%= job.tags.first %>
             </div>
           <% elsif job.company&.logo.present? %>
-            <%= image_tag(job.company.logo) %>
+            <%= image_tag(job.company.logo, style: 'object-fit: contain;') %>
           <% elsif job.company&.name.present? %>
             <div class="text-image text-image-font">
               <%= job.company.name.split.first %>
             </div>
           <% else %>
-            <%= image_tag 'static-job.png' %>
+            <%= image_tag 'static-job.png', style: 'object-fit: contain;' %>
           <% end %>
         </div>
       </div>

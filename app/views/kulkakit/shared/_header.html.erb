@@ -77,42 +77,7 @@
   <% elsif current_user.present? %>
     <%  company_contact = current_user.user_company(current_company&.id) %>
 
-    <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left d-inline-block mx-1">
-        <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications", subdomain: (current_user&.company&.domain)) %>" style="padding-right:10px; color: #585858; text-decoration: none; background-color: transparent;"><i class="ti-bell notification-icon"></i></a>
-        <% if current_user.notifications.unread.count > 0 %>
-            <div class="new-messages-count" style="background-color: #e65252; color: #fff; border-radius: 6px; font-weight: 500; position: absolute; top: -5px; right: 5px; padding: 4px 4px; vertical-align: middle; font-size: 0.72rem; line-height: 1;">
-              <%= current_user.notifications.unread.count %>
-            </div>
-        <% end %>
-    </div>
-    <div>
-      <div class="os-dropdown-position-left d-inline-block mx-1">
-        <a href="<%= company_conversations_path(subdomain: (current_user&.company&.domain)) %>" target="_blank" style="color: #585858; text-decoration: none; background-color: transparent;"><i class="os-icon chat-icon os-icon-mail-14 " style=""></i></a>
-      </div>
-    </div>
     <% if request.subdomain!='app'%>
-      <div class="dropdown dropdown-container d-flex justify-content-end">
-        <!--      TOOD: if company_contact is nill or unsubscribed user must subscribe-->
-          <% if company_contact.nil? || company_contact&.unsubscribed? %>
-              <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="alert('Subscribe to this space first')">
-                <i class="fa fa-plus-circle" aria-hidden="true"></i>
-              </button>
-
-          <% else  %>
-            <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-              <i class="fa fa-plus-circle" aria-hidden="true"></i>
-            </button>
-          <% end  %>
-
-          <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
-            <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostModal">
-              Add Post
-            </button>
-            <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostJobModal">
-              Add Job
-            </button>
-          </ul>
-      </div>
       <!--    subscribed-->
       <div>
         <%# unless current_user.company.domain == "support" %>
@@ -128,7 +93,42 @@
         <%# end %>
 
       </div>
+      <div class="dropdown dropdown-container d-flex justify-content-end">
+        <!--      TOOD: if company_contact is nill or unsubscribed user must subscribe-->
+          <% if company_contact.nil? || company_contact&.unsubscribed? %>
+              <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="alert('Subscribe to this space first')">
+                <i class="fa fa-plus" style="color: #585858;" aria-hidden="true"></i>
+              </button>
+
+          <% else  %>
+            <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+              <i class="fa fa-plus" style="color: #585858;" aria-hidden="true"></i>
+            </button>
+          <% end  %>
+
+          <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
+            <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostModal">
+              Add Post
+            </button>
+            <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostJobModal">
+              Add Job
+            </button>
+          </ul>
+      </div>      
     <% end %>
+    <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left d-inline-block mx-1">
+        <a href="<%= notify_notifications_company_users_url(status: "unread", notification_type: "all_notifications", subdomain: (current_user&.company&.domain)) %>" style="padding-right:10px; color: #585858; text-decoration: none; background-color: transparent;"><i class="ti-bell notification-icon"></i></a>
+        <% if current_user.notifications.unread.count > 0 %>
+            <div class="new-messages-count" style="background-color: #e65252; color: #fff; border-radius: 6px; font-weight: 500; position: absolute; top: -5px; right: 5px; padding: 4px 4px; vertical-align: middle; font-size: 0.72rem; line-height: 1;">
+              <%= current_user.notifications.unread.count %>
+            </div>
+        <% end %>
+    </div>
+    <div>
+      <div class="os-dropdown-position-left d-inline-block mx-1">
+        <a href="<%= company_conversations_url(subdomain: (current_user&.company&.domain)) %>" target="_blank" style="color: #585858; text-decoration: none; background-color: transparent;"><i class="os-icon chat-icon os-icon-mail-14 " style=""></i></a>
+      </div>
+    </div>
     <div class="dropdown">
       <button class="dropdown-login dropdown-toggle" style="width: 45px" type="button" data-toggle="dropdown">  
         <span class="material-symbols-outlined" style="margin-right: 10px; font-size: 28px; margin-top: 5px;">

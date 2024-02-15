@@ -3,11 +3,166 @@
 <%# content_for :meta_url, current_company&.website %>
 <% content_for :meta_image, current_company&.logo %>
 <%# content_for :meta_image, convert_image(200,200,current_company&.logo) %>
-
+<%= stylesheet_link_tag "mycompany" %>
+<%= javascript_include_tag "cable" %>
 <style>
-body{
-  padding:0px !important;
-}
+  body{
+    padding:0px !important;
+  }
+  .bot_style{
+    background: none  !important;
+    border: none !important;
+    margin: 0px;
+    padding: 0px;
+  }
+  .bot_style:hover {
+    outline: none !important;
+  }
+  .bot_style:focus {
+    outline: none !important;
+  }
+  .imag_css{
+    height: 17px;
+    width: 17px;
+    margin-right: 5px;
+    border-radius: 50%;
+  }
+  .imag_css_for_pic{
+    margin-left:7px
+  }
+  .scrool::-webkit-scrollbar {
+    width: 8px;
+    margin: 3px;
+  }
+  /* Track */
+  .scrool::-webkit-scrollbar-track {
+    box-shadow: inset 0 0 5px white;
+    border-radius: 5px;
+  }
+
+  /* Handle */
+  .scrool::-webkit-scrollbar-thumb {
+    background: #047bf8;
+    border-radius: 10px;
+  }
+
+  /* Handle on hover */
+  .scrool::-webkit-scrollbar-thumb:hover {
+    background: #047bf8;
+  }
+</style>
+<style type="text/css">
+    .bg-transparent {
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+    .skills{
+      background-color: white;
+      text-align: left;
+      padding: 15px;
+      margin-top: 30;
+    }
+    .skills ul{
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+    .skills ul li{
+      border: 1px solid #F9F9F9;
+      border-radius: 20px;
+      display: inline-block;
+      margin: 0 4px 4px 0;
+      padding: 4px;
+      background: #F9F9F9;
+      font-size: 12px;
+    }
+    .skill-list::-webkit-scrollbar-thumb{
+      background-color: rgb(116, 124, 142);
+    }
+    .skill-list{
+      max-height:150px;
+      overflow-y:auto;
+      color: rgb(116, 124, 142);
+    }
+    .slider {
+      background: #d3d3d3;
+    }
+    .txt-black a {
+        color: #2A2C34 !important;
+    }
+    .candidate-name{
+     margin: auto;
+     text-align: center;
+     font-weight: bold;
+    }
+
+    .f-mon-bol a {
+        color: #fff !important;
+    }
+
+    .media .circle {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        font-size: 15px;
+        color: #fff;
+        padding: 5px;
+        text-align: center;
+        background: gray;
+        display: inline-block;
+    }
+
+    .log-prof .circle {
+        width: 50px;
+        height: 37px;
+        border-radius: 50%;
+        font-size: 20px;
+        color: gray;
+        padding: 5px;
+        text-align: center;
+        display: inline-block;
+    }
+
+    .chat_img a {
+        color: #fff !important;
+    }
+</style>
+<style>
+  .card {
+    box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+    transition: 0.3s;
+    border-radius: 5px;
+  }
+
+  .card:hover {
+    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+  }
+</style>
+<style>
+  .see-more-btn{
+    background-color: #5555A5;
+    border: none;
+    color: white !important;
+    padding: 8px;
+    text-align: center;
+    text-decoration: none !important;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 50%;
+    transition-duration: 0.4s;
+    position: absolute;
+    bottom: 40%;
+    right: 2%;
+    width: 32px;
+    height: 32px;
+  }
+
+  .see-more-btn:hover {
+    background-color: #5555A5 !important; /* Darker blue on hover */
+    color: white;
+  }
 </style>
 
 
