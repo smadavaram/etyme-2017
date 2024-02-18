@@ -275,10 +275,10 @@
               <div class="clearfix">
                 <h6 class="element-header text-left">Company Candidates (<%= @current_company.candidates.count %>)</h6>
               </div>
-              <% if @current_company.candidates.present? %>
+              <% if @candidates.present? %>
                 <div class="col-sm-12">
                   <ul class="list-inline friends-list dashboard-list">
-                    <% @current_company.candidates.take(30).uniq.each do |candidate| %>
+                    <% @candidates.each do |candidate| %>
                       <% cache candidate do %>
                         <li>
                           <%= user_image(candidate, style: 'outline: 0px !important; width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{candidate.full_name}" ) %>
@@ -301,11 +301,11 @@
               <div class="clearfix">
                 <h6 class="element-header text-left">Company Contacts (<%= @current_company.invited_companies_contacts.count %>)</h6>
               </div>
-              <% if @current_company.invited_companies_contacts.present? %>
+              <% if @invited_companies_contacts.present? %>
                 <div class="col-sm-12">
                   <ul class="list-inline friends-list dashboard-list">
                     <br/>
-                    <% @current_company.invited_companies_contacts.take(30).uniq.each do |contact| %>
+                    <% @invited_companies_contacts.each do |contact| %>
                       <% cache contact do %>
                         <li>
                           <%= user_image(contact, style: 'outline: 0px !important; width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{contact.full_name}" ) %>
@@ -332,7 +332,7 @@
                 <div class="col-sm-12">
                   <ul class="list-inline friends-list dashboard-list">
                     <br/>
-                    <% @current_company.consultants.take(30).uniq.each do |consultant| %>
+                    <% @consultants.each do |consultant| %>
                       <% cache consultant do %>
                         <li>
                           <%= link_to user_image( consultant ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), company_user_profile_path(consultant),target: "_blank" , title: consultant.full_name,"data-content" => "Email: #{consultant.email}", "data-placement" => "top","data-img"=>"#{consultant.photo}" ,:rel => "hover" %>
@@ -355,11 +355,11 @@
               <div class="clearfix">
                 <h6 class="element-header text-left">My Vendors (<%= @current_company.send_or_received_network.count %>)</h6>
               </div>
-              <% if @current_company.send_or_received_network.present? %>
+              <% if @send_or_received_network.present? %>
                 <div class="col-sm-12">
                   <ul class="list-inline friends-list dashboard-list">
                     <br/>
-                    <% @current_company.send_or_received_network.take(30).uniq.each do |vendor| %>
+                    <% @send_or_received_network.take(30).uniq.each do |vendor| %>
                       <% cache vendor do %>
                         <li>
                           <%= link_to image_tag( vendor.prefer_vendor.logo ,class:"margin-bottom-5 margin-top-5",alt: ' LOGO ' ), profile_company_path(vendor.prefer_vendor),target: "_blank" , title: vendor.prefer_vendor.name,"data-content" => "Email : #{vendor.try(:prefer_vendor).try(:email)}", "data-placement" => "top",:rel => "hover" %>
@@ -383,11 +383,11 @@
               <div class="clearfix">
                 <h6 class="element-header text-left">Companies 3rd Party (<%= @current_company.invited_companies.count %>)</h6>
               </div>
-              <% if @current_company.invited_companies.present? %>
+              <% if @invited_companies.present? %>
                 <div class="col-sm-12">
                   <ul class="list-inline friends-list dashboard-list">
                     <br/>
-                    <% @current_company.invited_companies.take(30).uniq.each do |company| %>
+                    <% @invited_companies.each do |company| %>
                       <% cache company do %>
                         <li>
                           <%= link_to image_tag( company.invited_company.logo ,class:"margin-bottom-5 margin-top-5",alt: 'Logo' ), profile_company_path(company.invited_company),target: "_blank", title:company.invited_company.name,"data-content" => "Email : #{company.invited_company.email}", "data-placement" => "top",:rel => "hover" %>

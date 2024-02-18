@@ -29,10 +29,12 @@ class Company::UsersController < Company::BaseController
         end
         format.html do
           @directory = @current_company.users # .paginate(page: params[:page],per_page: 5)
-          @data += apply_scopes(Job.where(company_id: @current_company.prefer_vendor_companies.map(&:id)))
-          @data += apply_scopes(@current_company.invited_companies_contacts)
-          @data += apply_scopes(@current_company.candidates)
-          @data = @data.sort { |y, z| z.created_at <=> y.created_at }
+          @jobs = apply_scopes(Job.where(company_id: @current_company.prefer_vendor_companies.map(&:id)))
+          @invited_companies_contacts = apply_scopes(@current_company.invited_companies_contacts.take(30).uniq)
+          @candidates = apply_scopes(@current_company.candidates.take(30).uniq)
+          @consultants = apply_scopes(@current_company.consultants.take(30).uniq)
+          @send_or_received_network = apply_scopes(@current_company.send_or_received_network.take(30).uniq)
+          @invited_companies = apply_scopes(@current_company.invited_companies.take(30).uniq)
           @jobs_count = @current_company.jobs.count
           @applications_count = JobApplication.joins(job: :company).where("jobs.company": @current_company)
         end

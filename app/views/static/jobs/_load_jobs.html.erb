@@ -5,19 +5,19 @@
       <div class="width-100 mx-0 mx-sm-3">
         <div class="thumb-100 thumb-xs-80">
           <% if job&.files.present? %>
-            <%= image_tag(job.files) %>
+            <%= image_tag(job.files, style: 'object-fit: contain;') %>
           <% elsif job.tags.present? %>
             <div class="text-image text-image-font">
               <%= job.tags.first %>
             </div>
           <% elsif job.company&.logo.present? %>
-            <%= image_tag(job.company.logo) %>
+            <%= image_tag(job.company.logo, style: 'object-fit: contain;') %>
           <% elsif job.company&.name.present? %>
             <div class="text-image text-image-font">
               <%= job.company.name.split.first %>
             </div>
           <% else %>
-            <%= image_tag 'static-job.png' %>
+            <%= image_tag 'static-job.png', style: 'object-fit: contain;' %>
           <% end %>
         </div>
       </div>

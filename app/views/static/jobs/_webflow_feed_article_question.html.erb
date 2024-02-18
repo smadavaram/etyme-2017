@@ -5,7 +5,7 @@
         <div class="thumb-100 thumb-xs-80" >
           <% if job&.files.present? %>
             <%begin %>
-              <%= image_tag(job.files) %>
+              <%= image_tag(job.files, style: 'object-fit: contain;') %>
             <%rescue %>
             <%end%>
           <% elsif job.tags.present? %>
