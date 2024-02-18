@@ -143,6 +143,10 @@ class ApplicationController < ActionController::Base
     }
   end
 
+  def not_found
+    render json: { error: "page not found" }, status: 404
+  end
+
   # def set_raven_context
   #   if user_signed_in?
   #     Raven.user_context(id: current_user.id) # or anything else in session
