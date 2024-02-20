@@ -6,7 +6,8 @@ class Company::BenchJobsController < Company::BaseController
 
   def index
     add_breadcrumb 'My Bench'
-    @candidates = current_company.hot_candidates.includes(
+    @current_company = current_company
+    @candidates = @current_company.hot_candidates.includes(
       candidate: [
         { skill_taggings: :tag },
         :skills,
@@ -14,7 +15,7 @@ class Company::BenchJobsController < Company::BaseController
         { job_invitations: [:sender, :company] }
       ]
     )
-    @groups = current_company.groups.contact_groups.all.map { |c| [c.group_name, c.candidates.map { |e| e.email }] }
+    @groups = @current_company.groups.contact_groups.all.map { |c| [c.group_name, c.candidates.map { |e| e.email }] }
   end
 
   def edit_job_invitation

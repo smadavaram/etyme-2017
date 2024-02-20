@@ -89,8 +89,8 @@ class Job < ApplicationRecord
 
   after_create :create_job_chat
   after_create :create_job_conversation
-  after_create :start_matching_candidates, if: proc { |job| job.listing_type == 'Job' and job.status == 'Published' }
-  before_update :start_matching_candidates, if: proc { |job| (job.listing_type == 'Job' and job.status == 'Published') and (job.tag_list_changed? or job.industry_changed? or job.department_changed?) }
+  after_create :start_matching_candidates, if: proc { |job| job.listing_type == 'Job' and ['Published', 'Bench'].include?(job.status) }
+  after_save :start_matching_candidates, if: proc { |job| (job.listing_type == 'Job' and ['Published', 'Bench'].include?(job.status)) and (job.tag_list_changed? or job.industry_changed? or job.department_changed?) }
   before_save :set_parent_job
 
   scope :active, -> { where('end_date>=? AND status = ?', Date.today, 'Published') }
@@ -189,7 +189,7 @@ class Job < ApplicationRecord
   end
   
   def matched_candidates
-    candidates = Candidate.all
+    candidates = self.status=="Bench" ? self.company.candidates : Candidate.all
     job_tags = tag_list.map(&:downcase) 
 
     matched = []
