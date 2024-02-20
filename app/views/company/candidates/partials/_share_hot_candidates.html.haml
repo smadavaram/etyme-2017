@@ -24,13 +24,13 @@
                 %sup.text-danger
               .col-md-12
                 =# text_field_tag "emails" ,nil ,class: "tagsinput form-control" ,"data-role" => "tagsinput", placeholder: "Groups/Customers/Emails" , required: true ,"data-role" => "tagsinput"
-                = select_tag "emails",options_for_select(current_company.groups.contact_groups.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2', required: true, :multiple => true}
+                = select_tag "emails",options_for_select(@groups),{class: 'form-control select2', required: true, :multiple => true}
             .form-group
               %label.col-md-12.control-label
                 BCC
                 %sup.text-danger
               .col-md-12
-                = select_tag "emails_bcc",options_for_select(current_company.groups.contact_groups.all.map{|c| [c.group_name,c.candidates.map{|e| e.email}] }),{class: 'form-control select2', :multiple => true}
+                = select_tag "emails_bcc",options_for_select(@groups),{class: 'form-control select2', :multiple => true}
             .form-group
               %label.col-md-12.control-label
                 Subject

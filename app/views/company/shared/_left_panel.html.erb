@@ -34,11 +34,11 @@
   <div style="display: flex !important; margin-bottom: 10px !important;">
       <div class="col-sm-10 col-md-10 col-lg-10 logged-user-i" style="display: inline-flex !important; align-items:center; padding-left: 0.7rem; margin-top: 10px;">
         <div class="avatar-w" style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">
-          <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
+          <%= link_to image_tag(@current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
         </div>
         <div class="logged-user-info-w" style="padding-left: 15px;">
           <div class="logged-user-name">
-            <%= link_to content_tag(:span, current_company.full_name, class: "lead hello"), company_profile_page_companies_path, class: "side-bar_links" %>
+            <%= link_to content_tag(:span, @current_company.full_name, class: "lead hello"), company_profile_page_companies_path, class: "side-bar_links" %>
           </div>
         </div>
       </div>
@@ -96,15 +96,15 @@
 <div id="toggledmenubar" style="<%= "display: none; height: 100vh; z-index:1000;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
   <div class="logged-user-w avatar-inline p-1 m-1 d-md-flex justify-content-center" style="height: 7vh !important;">
     <div class="logged-user-i">
-      <% if (['both', 'company_logo'].include?(current_company.show_name_logo))%>
+      <% if (['both', 'company_logo'].include?(@current_company.show_name_logo))%>
         <div class="avatar-w">
-          <%= link_to image_tag(current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
+          <%= link_to image_tag(@current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
         </div>
       <% end %>
-      <% if (['both', 'company_name'].include?(current_company.show_name_logo))%>
+      <% if (['both', 'company_name'].include?(@current_company.show_name_logo))%>
         <div class="logged-user-info-w">
           <div class="logged-user-name">
-            <%= link_to content_tag(:span, current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
+            <%= link_to content_tag(:span, @current_company.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
           </div>
         </div>
       <% end %>

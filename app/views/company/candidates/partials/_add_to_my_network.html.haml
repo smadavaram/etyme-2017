@@ -16,6 +16,6 @@
           .font-sm
             Would You Like to add this to Your Network?
           %hr
-          = link_to "Yes i would like to ", company_company_add_to_network_path(current_company,email: flash[:email]), class: 'btn btn-success btn-md',remote: true, method: :post
+          = link_to "Yes i would like to ", company_company_add_to_network_path(@current_company,email: flash[:email]), class: 'btn btn-success btn-md',remote: true, method: :post
           %button.btn.btn-danger{"data-dismiss" => "modal", :type => "button"}
             No

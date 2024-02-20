@@ -29,9 +29,11 @@
                     %th Recruiter Name
                     %th Actions
                 %tbody{:style => "font-size: 12px;"}
+                  - company = current_company
+                  - company_users = current_company.users
                   - @candidates.each do |c|
-                    - @c_bench_job = c.candidate.job_invitations.find_by(company_id: c&.company&.id)
-                    - recruiter_name = User.find_by(id: @c_bench_job&.sender_id).try(:full_name)
+                    - c_bench_job = c.candidate.job_invitations.find_by(company_id: c&.company_id)
+                    - recruiter_name = User.find_by(id: c_bench_job&.sender_id).try(:full_name)
                     %tr
                       %td
                         = check_box_tag "ids[]", c.candidate.id, false, class: 'check'
@@ -43,7 +45,7 @@
                         -# = link_to  do_ellipsis(c.candidate.try(:full_name).try(:titleize),10),profile_company_candidate_path(c.candidate),class: "pr-5"
                       = form_for "job_invitation" , url: update_bench_job_company_bench_jobs_path, html:{ class:'form-horizontal',id: "edit-candidate-val-#{c.candidate.id}"} do |f|
                         %input{:type => "hidden", :name => "candidate_id", :value => c.candidate.id}
-                        %input{:type => "hidden", :name => "company_id", :value => c.company.id}
+                        %input{:type => "hidden", :name => "company_id", :value => c.company_id}
                         %td
                           - if c.candidate.try(:roles).present?
                             - c.candidate.try(:roles).each do |role|
@@ -66,14 +68,14 @@
                             %input{:type => "text", :name => "job_invitation[skill_list]", :placeholder => "Add Skills Comma seperated", :class => "wi-100", 'data-role'=>'tagsinput',value: c.candidate.skills.pluck(:name).join(", ")}
                         %td
                           %span{:id => "input_min_rate_#{c.candidate.id}", :class => "d-none"}
-                            %input{:type => "number", :name => "job_invitation[min_hourly_rate]", :placeholder => "Min Hourly Rate", :id => "job_invitation_min_hourly_rate_index", style: "width: 55px !important;", :class => "", value: (@c_bench_job.present? ? @c_bench_job&.min_hourly_rate : "")}/
+                            %input{:type => "number", :name => "job_invitation[min_hourly_rate]", :placeholder => "Min Hourly Rate", :id => "job_invitation_min_hourly_rate_index", style: "width: 55px !important;", :class => "", value: (c_bench_job.present? ? c_bench_job&.min_hourly_rate : "")}/
                           %span{:id => "min_rate_#{c.candidate.id}"}
-                            = @c_bench_job.present? ? "$#{@c_bench_job&.min_hourly_rate}" : ""
+                            = c_bench_job.present? ? "$#{c_bench_job&.min_hourly_rate}" : ""
                         %td
                           %span{:id => "input_max_rate_#{c.candidate.id}", :class => "d-none"}
-                            %input{:type => "number", :name => "job_invitation[max_hourly_rate]", :placeholder => "Max Hourly Rate", :id => "job_invitation_max_hourly_rate_index", style: "width: 55px !important;", :class => "", value: (@c_bench_job.present? ? @c_bench_job&.max_hourly_rate : "")}/
+                            %input{:type => "number", :name => "job_invitation[max_hourly_rate]", :placeholder => "Max Hourly Rate", :id => "job_invitation_max_hourly_rate_index", style: "width: 55px !important;", :class => "", value: (c_bench_job.present? ? c_bench_job&.max_hourly_rate : "")}/
                           %span{:id => "max_rate_#{c.candidate.id}"}
-                            = @c_bench_job.present? ? "$#{@c_bench_job&.max_hourly_rate}" : ""
+                            = c_bench_job.present? ? "$#{c_bench_job&.max_hourly_rate}" : ""
                         %td
                           %span{:id => "location_#{c.candidate.id}"}
                             = c.candidate.try(:location)
@@ -92,7 +94,7 @@
                                 .label-info.badge.margin-bottom-5.badge-info
                                   = recruiter_name
                             %span{:id => "select_recuiter_#{c.candidate.id}", :class => "d-none"}
-                              = select_tag "job_invitation[sender_id]", options_from_collection_for_select(current_company.users, :id, :full_name, @c_bench_job&.sender_id)
+                              = select_tag "job_invitation[sender_id]", options_from_collection_for_select(company_users, :id, :full_name, c_bench_job&.sender_id)
                       %td
                         %span{:id => "bench_action_#{c.candidate.id}"}
                           = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
@@ -101,10 +103,10 @@
                           = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate), remote:true,class: '',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: '',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(c.candidate) ,remote:true, method: :post ,  class: '',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                          = link_to raw("<i class='fa fa-pencil '></i>"), "#", title: "Edit #{c.candidate.full_name}", class: "edit_bench", candidate_id: c.candidate.id, company_id: c.company.id
-                          =# link_to raw("<i class='fa fa-pencil '></i>"), edit_job_invitation_company_bench_jobs_path(candidate_id: c.candidate.id, company_id: c.company.id), :remote => true, title: "Edit #{c.candidate.full_name}"
+                          = link_to raw("<i class='fa fa-pencil '></i>"), "#", title: "Edit #{c.candidate.full_name}", class: "edit_bench", candidate_id: c.candidate.id, company_id: c.company_id
+                          =# link_to raw("<i class='fa fa-pencil '></i>"), edit_job_invitation_company_bench_jobs_path(candidate_id: c.candidate.id, company_id: c.company_id), :remote => true, title: "Edit #{c.candidate.full_name}"
                         %span{:id => "bench_action_edit_#{c.candidate.id}", :class => "d-none"}
-                          = link_to "save", "#", title: "Edit #{c.candidate.full_name}", :style => "color: white;", :class => "btn btn-primary save_bench_job", candidate_id: c.candidate.id, company_id: c.company.id
+                          = link_to "save", "#", title: "Edit #{c.candidate.full_name}", :style => "color: white;", :class => "btn btn-primary save_bench_job", candidate_id: c.candidate.id, company_id: c.company_id
 :css
   ol {
     padding-inline-start: 0px;

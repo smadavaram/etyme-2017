@@ -68,6 +68,7 @@
     = yield :google_address_search_api if block_given?
 
   %body.smart-style-6{class: "#{yield :body_class} menu-position-side menu-side-left full-screen"}
+    - @current_user = current_user
     .all-wrapper
       %ul.dropdown-menu.lpm#links_block
         =render('company/shared/links_block')

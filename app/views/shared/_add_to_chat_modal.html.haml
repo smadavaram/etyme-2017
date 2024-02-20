@@ -8,7 +8,7 @@
               Add To Collaborator
             .p-4
               = form_tag add_to_chat_company_conversations_path do
-                = select_tag :directoryid, options_for_select(current_company.users.order(:first_name).map{|u| ["#{u.full_name} <#{u.email}>", u.id]}), {include_blank: "Select From Directory", id: 'sel-dir-to-chat', class: 'form-control'}
+                = select_tag :directoryid, options_for_select(@current_company.users.order(:first_name).map{|u| ["#{u.full_name} <#{u.email}>", u.id]}), {include_blank: "Select From Directory", id: 'sel-dir-to-chat', class: 'form-control'}
                 = label_tag "", "OR", class: "my-2 d-block text-center"
                 = select_tag :candidateid, {}, placeholder: "Select From Candidates"
                 = label_tag "", "OR", class: "my-2 d-block text-center"
