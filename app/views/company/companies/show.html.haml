@@ -109,7 +109,7 @@
             .panel.pl-2.pt-2{style: 'background: #FFF!important;border: 1px solid #ccc;'}
               %h6.text-center Company Videos
               - current_company.company_videos.each do |data|
-                - if data&.video_type.include?('video')
+                - if data&.video_type&.include?('video')
                   %video.mr-left-20{:controls => "", :width => "50", :height=> "50"}
                     %source{src: "#{data.video}",type:"#{current_company.company_videos.first.video_type}"}
             = button_tag "Upload Media", fit: 'clip',:class =>"mb-4 video-pic img1 btn btn-xl btn-primary",style: 'width:100%;'
@@ -118,7 +118,7 @@
             .panel.pl-2.pt-2{style: 'background: #FFF!important;border: 1px solid #ccc;'}
               %h6.text-center Company Images
               - current_company.company_videos.each do |data|
-                -if data&.video_type.include?('image')
+                -if data&.video_type&.include?('image')
                   = image_tag image_path(data.video),  style: "", fit: 'clip',:class =>" circle_img"
             = button_tag "Upload Media", fit: 'clip',:class =>"mb-4 video-pic img1 btn btn-xl btn-primary",style: 'width:100%;'
 

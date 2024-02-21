@@ -216,6 +216,10 @@ class User < ApplicationRecord
     self == company.owner
   end
 
+  def is_superuser?
+    self.email=='admin@admin.com'
+  end
+
   def full_name
     if first_name.present? || first_name.present?
       first_name + ' ' + last_name

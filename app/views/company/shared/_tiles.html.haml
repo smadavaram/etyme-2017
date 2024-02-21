@@ -1,12 +1,12 @@
 #shortcut
   %ul
     %li
-      = link_to company_phone_page_companies_path(:company_id=>@current_company.id), class: 'jarvismetro-tile big-cubes selected bg-color-blueDark' do
+      = link_to company_phone_page_companies_path(:company_id=>current_company.id), class: 'jarvismetro-tile big-cubes selected bg-color-blueDark' do
         %span.iconbox
           %i.fa.fa-mobile-phone.fa-4x
           %span Verify Number
     %li
-      = link_to company_path(@current_company), class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
+      = link_to company_path(current_company), class: 'jarvismetro-tile big-cubes bg-color-blueDark' do
         %span.iconbox
           %i.fa.fa-building.fa-4x
           %span Company Info

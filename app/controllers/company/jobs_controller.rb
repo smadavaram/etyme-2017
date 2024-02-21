@@ -458,7 +458,11 @@ class Company::JobsController < Company::BaseController
   end
 
   def set_company_job
-    @job = current_company.jobs.find_by_id(params[:id]) || []
+    if current_user.is_superuser?
+      @job = Job.find_by_id(params[:id]) || nil
+    else
+      @job = current_company.jobs.find_by_id(params[:id]) || nil
+    end
   end
 
   # def set_locations
