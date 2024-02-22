@@ -376,7 +376,7 @@
         height: 4.5vh;
         border: 0.5px solid rgba(18, 18, 18, 0.3);
         position: absolute;
-        left: 45%;
+        left: 10%;
         bottom: 2px;
 
         img {
@@ -387,7 +387,15 @@
         }
     }
 }
+.search-bar-mobile {
+    display: none !important;
+}
 
+    @media screen and (max-width: 600px) {
+        .search-bar-mobile {
+        display: flex !important;
+    }
+}
 .hidden-xs {
     @media (max-width: 576px) {
         display: none !important;

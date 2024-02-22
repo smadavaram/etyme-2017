@@ -14,7 +14,14 @@ body{
           <div class="tab-pane fade show active" >
             <div class="row">
               <div class="col-12 col-xl-9 feed-main">
-
+                <div class="search-bar-mobile m-2">
+                  <input type="text" placeholder="<%="Search #{@current_company.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
+                  <div class="btn-search">
+                    <button class="btn border-0">
+                      <%= image_tag(image_path('search.png'), class: "img-fluid") %>
+                    </button>
+                  </div>
+                </div>
                 <!-- .webflow_feed_header -->
                 <%= render '/static/shared/webflow_feed_header' %>
                 <!-- /.webflow_feed_header -->

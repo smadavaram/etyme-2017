@@ -3,7 +3,7 @@
     <div class="content-box">
       <% #<span class="skype-button rounded" data-contact-id="live:vinusdeveloperstech"></span> %>
       <div class="row">
-        <div class="element-wrapper w-100">
+        <div class="element-wrapper col-md-9">
           <h6 class="element-header">
             Dashboard
           </h6>
@@ -29,90 +29,12 @@
             <%= render 'company/users/partials/dashboard_cards', cards: @cards %>
           </div>
         </div>
-        <div class="col-sm-9">
-          <div class="element-wrapper">
-            <h6 class="element-header">
-              Accounting
-            </h6>
-            <div class="element-box">
-              <div class="os-tabs-w">
-                <div class="os-tabs-controls">
-                  <ul class="nav nav-tabs smaller">
-                    <li class="nav-item">
-                      <a class="nav-link active" data-toggle="tab" href="#profit">Profit</a>
-                    </li>
-                    <li class="nav-item">
-                      <a class="nav-link" data-toggle="tab" href="#receivable">Receivable</a>
-                    </li>
-                    <li class="nav-item">
-                      <a class="nav-link" data-toggle="tab" href="#payable">Payable</a>
-                    </li>
-                  </ul>
-                  <ul class="nav nav-pills smaller d-none d-md-flex">
-                    <li class="nav-item">
-                      <a class="nav-link" data-toggle="tab" href="#">Today</a>
-                    </li>
-                    <li class="nav-item">
-                      <a class="nav-link active" data-toggle="tab" href="#">7 Days</a>
-                    </li>
-                    <li class="nav-item">
-                      <a class="nav-link" data-toggle="tab" href="#">14 Days</a>
-                    </li>
-                    <li class="nav-item">
-                      <a class="nav-link" data-toggle="tab" href="#">Last Month</a>
-                    </li>
-                  </ul>
-                </div>
-                <div class="tab-content">
-                  <div class="tab-pane active" id="profit">
-                    <div class="el-tablo bigger">
-                      <div class="label">
-                        Profit
-                      </div>
-                      <div class="value">
-                        12,537
-                      </div>
-                    </div>
-                    <div class="el-chart-w">
-                      <canvas height="150px" id="lineChart" width="600px"></canvas>
-                    </div>
-                  </div>
-                  <div class="tab-pane" id="receivable">
-                    <div class="el-tablo bigger">
-                      <div class="label">
-                        Receivable
-                      </div>
-                      <div class="value">
-                        12,537
-                      </div>
-                    </div>
-                    <div class="el-chart-w">
-                      <canvas height="150px" id="lineChart" width="600px"></canvas>
-                    </div>
-                  </div>
-                  <div class="tab-pane" id="payable">
-                    <div class="el-tablo bigger">
-                      <div class="label">
-                        Payable
-                      </div>
-                      <div class="value">
-                        12,537
-                      </div>
-                    </div>
-                    <div class="el-chart-w">
-                      <canvas height="150px" id="lineChart" width="600px"></canvas>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
         <div class="col-md-3">
           <div class="element-wrapper">
             <h6 class="element-header">
               Jobs
             </h6>
+            <div class="row mb-4" style="margin-bottom: 78px !important;"></div>
             <div class="element-box less-padding">
               <div class="el-chart-w">
                 <canvas height="120" id="jobs_types" width="120"></canvas>

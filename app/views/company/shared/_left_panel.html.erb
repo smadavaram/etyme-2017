@@ -94,7 +94,7 @@
 
 </script>
 <div id="toggledmenubar" style="<%= "display: none; height: 100vh; z-index:1000;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link">
-  <div class="logged-user-w avatar-inline p-1 m-1 d-md-flex justify-content-center" style="height: 7vh !important;">
+  <div class="logged-user-w avatar-inline p-1 m-1 d-md-flex justify-content-left" style="height: 7vh !important;">
     <div class="logged-user-i">
       <% if (['both', 'company_logo'].include?(@current_company&.show_name_logo))%>
         <div class="avatar-w">
