@@ -44,6 +44,7 @@
       .col-sm-6
         .form-inline.justify-content-sm-end
           %input.form-control.form-control-sm.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
+          %button.btn.btn-sm.btn-secondary{type: "button", id: 'my_bench_datatable-search-btn'} Search
     .mt-3
       - unless @timesheets.present?
         .div.w-75.margin-auto

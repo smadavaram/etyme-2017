@@ -97,12 +97,12 @@
         <!--      TOOD: if company_contact is nill or unsubscribed user must subscribe-->
           <% if company_contact.nil? || company_contact&.unsubscribed? %>
               <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="alert('Subscribe to this space first')">
-                <i class="fa fa-plus" style="color: #585858;" aria-hidden="true"></i>
+                <span style="color: #585858; font-size: 40px" aria-hidden="true">+</span>
               </button>
 
           <% else  %>
             <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
-              <i class="fa fa-plus" style="color: #585858;" aria-hidden="true"></i>
+              <span style="color: #585858; font-size: 40px" aria-hidden="true">+</span>
             </button>
           <% end  %>
 

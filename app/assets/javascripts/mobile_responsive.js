@@ -10,7 +10,6 @@ $(document).ready(function(){
        $("#ChatBtn").html("<i class='os-icon os-icon-mail-07'></i>");
        if ($(window).width() < 960) {
             $(".trix-button--icon").css("font-size", "9px");
-            $(".content-box").css("padding", "0rem");
           }
     });
 

@@ -25,13 +25,8 @@ body.smart-style-6 #content {
 //  padding-left: 10px;
 //}
 
-body.smart-style-6 #ribbon {
-  background: #fff none repeat scroll 0 0 !important;
-  //margin-top: -17px;
-}
-
 body.smart-style-6 #ribbon .breadcrumb li:last-child, #ribbon .breadcrumb body.smart-style-6 > .active, body.smart-style-6 #ribbon .breadcrumb, body.smart-style-6 #ribbon .breadcrumb a, .breadcrumb body.smart-style-6 > li + li::before {
-  color: #888 !important;
+  // color: #888 !important;
   font-size: 11px;
   font-weight: 300;
 }

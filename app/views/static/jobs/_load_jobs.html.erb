@@ -42,7 +42,23 @@
             </div>
           <% end %>
         </div>
-<!--        Bound-->
+        <!--Bound-->
+        <div class="row justify-content-between d-flex" style="white-space: nowrap;">
+          <div class="col-6 d-flex align-items-center">
+            <div class="d-flex align-items-center col- ml-2">
+              <i class="fa fa-briefcase mr-1"></i>
+              <%= job&.job_type %>
+            </div>
+            <div class="d-flex align-items-center col-2 ml-2">
+              <i class="fa fa-briefcase mr-1"></i>
+              <%= job&.work_type %>
+            </div>
+            <div class="d-flex align-items-center col-2 ml-2">
+              <i class="fa fa-map-marker mr-1"></i>
+              <%= job&.location %>
+            </div>
+          </div>
+        </div>
         <div class="row justify-content-between">
           <div class="col-6 col-md-6 col-lg-4 d-flex align-items-center">
             <ul class="list-unstyled m-0 p-0">
@@ -103,14 +119,6 @@
 
           <div class="col-6 col-md-6 col-lg-4 d-flex align-items-center">
             <ul class="list-unstyled m-0 p-0">
-              <% if job.location.present? %>
-                <li class="d-block">
-                  <p class="feed-article-location font-size-12 font-weight-bold">
-                    <%#= image_tag 'placeholder.svg', class: "img-fluid w-15 mr-2", alt: "placeholder" %>
-                    <%= job&.location %>
-                  </p>
-                </li>
-              <% end %>
               <% if current_company.present? and current_company&.owner == current_user %>
                 <li class="d-block">
                   <p class="feed-article-time">

@@ -143,18 +143,18 @@ $(document).ready(function () {
   });
 
   $("#prefer_vendors_table").dataTable();
-  $("#prefer_vendors_table-search").keyup(function () {
-    $("#prefer_vendors_table").DataTable().search($(this).val()).draw();
+  $("#prefer_vendors_table-search-btn").click(function () {
+    $("#prefer_vendors_table").DataTable().search($('#prefer_vendors_table-search').val()).draw();
     default_active_nav(".ln-4");
   });
   $("#receive_prefer_vendors_table").dataTable();
-  $("#receive_prefer_vendors_table-search").keyup(function () {
-    $("#receive_prefer_vendors_table").DataTable().search($(this).val()).draw();
+  $("#receive_prefer_vendors_table-search-btn").click(function () {
+    $("#receive_prefer_vendors_table").DataTable().search($('#receive_prefer_vendors_table-search').val()).draw();
     default_active_nav(".ln-4");
   });
   $("#network_prefer_vendors_table").dataTable();
-  $("#network_prefer_vendors_table-search").keyup(function () {
-    $("#network_prefer_vendors_table").DataTable().search($(this).val()).draw();
+  $("#network_prefer_vendors_table-search-btn").click(function () {
+    $("#network_prefer_vendors_table").DataTable().search($('#network_prefer_vendors_table-search').val()).draw();
     default_active_nav(".ln-4");
   });
   $("#company_bench_datatable").dataTable();
@@ -162,25 +162,25 @@ $(document).ready(function () {
     $("#company_bench_datatable").DataTable().search($(this).val()).draw();
   });
   $("#job_sent_inv_dataTable").dataTable();
-  $("#job_sent_inv_dataTable-search").keyup(function () {
-    $("#job_sent_inv_dataTable").DataTable().search($(this).val()).draw();
+  $("#job_sent_inv_dataTable-search-btn").click(function () {
+    $("#job_sent_inv_dataTable").DataTable().search($('#job_sent_inv_dataTable-search').val()).draw();
   });
   $("#job_receive_inv_dataTable").dataTable();
-  $("#job_receive_inv_dataTable-search").keyup(function () {
-    $("#job_receive_inv_dataTable").DataTable().search($(this).val()).draw();
+  $("#job_receive_inv_dataTable-search-btn").click(function () {
+    $("#job_receive_inv_dataTable").DataTable().search($('#job_receive_inv_dataTable-search').val()).draw();
   });
   $("#company_sell_contract-datatable").dataTable();
-  $("#company_sell_contract-datatable-search").keyup(function () {
+  $("#company_sell_contract-datatable-search-btn").click(function () {
     $("#company_sell_contract-datatable")
       .DataTable()
-      .search($(this).val())
+      .search($('#company_sell_contract-datatable-search').val())
       .draw();
   });
   $("#company-buy-contracts-datatable").dataTable();
-  $("#company-buy-contracts-datatable-search").keyup(function () {
+  $("#company-buy-contracts-datatable-search-btn").click(function () {
     $("#company-buy-contracts-datatable")
       .DataTable()
-      .search($(this).val())
+      .search($('#company-buy-contracts-datatable-search').val())
       .draw();
   });
   $("#candidate_job_invite_datatable_1").dataTable();
@@ -212,8 +212,8 @@ $(document).ready(function () {
       .draw();
   });
   $("#Req_by_candi_to_bench").dataTable();
-  $("#Req_by_candi_to_bench_search").keyup(function () {
-    $("#Req_by_candi_to_bench").DataTable().search($(this).val()).draw();
+  $("#Req_by_candi_to_bench_search-btn").click(function () {
+    $("#Req_by_candi_to_bench").DataTable().search($('#Req_by_candi_to_bench_search').val()).draw();
   });
   $("#company-legal-doc").dataTable();
   $("#company-legal-doc-search").keyup(function () {
@@ -374,34 +374,37 @@ $(document).ready(function () {
     $("#payroll-datatable").DataTable().search($(this).val()).draw();
   });
 
-  $("#group-datatable-search").keyup(function () {
-    $("#group-datatable").DataTable().search($(this).val()).draw();
+  $("#group-datatable-search-btn").click(function () {
+    $("#group-datatable").DataTable().search($('#group-datatable-search').val()).draw();
     default_active_nav(".ln-3");
   });
 
-  $("#company-directory-datatable-search").keyup(function () {
-    $("#company-directory-datatable").DataTable().search($(this).val()).draw();
+  $("#company-directory-datatable-search-btn").click(function () {
+    $("#company-directory-datatable").DataTable().search($('#company-directory-datatable-search').val()).draw();
     default_active_nav(".ln-3");
   });
-  $("#companies-datatable-search").keyup(function () {
-    $("#companies-datatable").DataTable().search($(this).val()).draw();
+  $("#companies-datatable-search-btn").click(function () {
+    $("#companies-datatable").DataTable().search($('#companies-datatable-search').val()).draw();
     default_active_nav(".ln-3");
   });
-  $("#company-contacts-datatable-search").keyup(function () {
-    $("#company-contacts-datatable").DataTable().search($(this).val()).draw();
+  $("#company-contacts-datatable-search-btn").click(function () {
+    $("#company-contacts-datatable").DataTable().search($('#company-contacts-datatable-search').val()).draw();
     default_active_nav(".ln-3");
   });
-  $("#company-candidates-datatable-search").keyup(function () {
-    $("#company-candidates-datatable").DataTable().search($(this).val()).draw();
+  $("#company-candidates-datatable-search-btn").click(function () {
+    $("#company-candidates-datatable").DataTable().search($('#company-candidates-datatable-search').val()).draw();
   });
-  $("#my_bench_datatable-search").keyup(function () {
-    $("#my_bench_datatable").DataTable().search($(this).val()).draw();
+  $("#my_bench_datatable-search-btn").click(function () {
+    $("#my_bench_datatable").DataTable().search($('#my_bench_datatable-search').val()).draw();
   });
-  $("#jobs_datatable-search").keyup(function () {
-    $("#jobs_datatable").DataTable().search($(this).val()).draw();
+  $("#jobs_datatable-search-btn").click(function () {
+    $("#jobs_datatable").DataTable().search($('#jobs_datatable-search').val()).draw();
   });
-  $("#job_application_datatable-search").keyup(function () {
-    $("#job_application_datatable").DataTable().search($(this).val()).draw();
+  $('#job_application-datatable-search-btn').click(function(){
+    $('#job_application_dataTable').DataTable().search( $('#job_application-datatable-search').val() ).draw();
+  });
+  $("#job_application_datatable-search-btn").click(function () {
+    $("#job_application_datatable").DataTable().search($('#job_application_datatable-search').val()).draw();
   });
 
   $("#payroll-cycles-datatable").dataTable();
@@ -416,7 +419,8 @@ $(document).ready(function () {
       var id = row.getAttribute("data-id");
       var date = row.children[1].textContent;
       var name = row.children[2].textContent;
-      var success = true;
+      var success = true;company_sell_contract-datatable-search
+
 
       $.ajax({
         url: `/holidays/${id}`,

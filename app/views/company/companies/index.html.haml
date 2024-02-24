@@ -11,6 +11,7 @@
                 .col-sm-6
                   .form-inline.justify-content-sm-end
                     %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: 'search', id: 'companies-datatable-search'}
+                    %button.btn.btn-sm.btn-secondary{type: "button", id: 'companies-datatable-search-btn'} Search
             .table-responsive
               %table#companies-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped{"data-source" => "#{companies_path(format: :json)}",  width: "100%"}
                 %thead

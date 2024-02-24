@@ -9,7 +9,7 @@
 }
 .top-bar {
   background-color: $top-bar-light-bg;
-  box-shadow: $element-box-shadow;
+  // box-shadow: $element-box-shadow;
   padding: 0px 20px 0px 0px;
   text-align: center;
   display: flex;
@@ -100,8 +100,8 @@
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    margin-bottom: 20px;
-    margin-top: 18px;
+    // margin-bottom: 20px;
+    // margin-top: 18px;
     margin-left: auto;
     .element-search {
       @media only screen and (max-width: 600px) {
@@ -295,7 +295,7 @@
   &.color-scheme-transparent {
     background-color: transparent;
     box-shadow: none;
-    //border-bottom: 1px solid rgba(0,0,0,0.05);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
   }
 
   &.color-scheme-light,

@@ -73,16 +73,15 @@
       %ul.dropdown-menu.lpm#links_block
         =render('company/shared/links_block')
 
-      .layout-w.flex-d-column
+      .layout-w
         = render partial: 'company/shared/left_panel'
         .content-w.cont-comany
           = render partial: 'company/shared/header'
+          -unless params[:controller].include?"conversation"
+            #ribbon
+              %ul.breadcrumb
+                = render_breadcrumbs tag: :li, separator: " / "
           #main{:role => "main" ,style: ""}
-            -unless params[:controller].include?"conversation"
-              #ribbon
-                %ol.breadcrumb
-                  = render_breadcrumbs tag: :li, separator: " / "
-              -#= yield :ribbon
             = yield
           -#.remote_container
           #modals

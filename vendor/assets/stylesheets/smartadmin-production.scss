@@ -11522,13 +11522,11 @@ aside {
 }
 #ribbon .breadcrumb a,
 #ribbon .breadcrumb {
-  color: #bbb !important;
+  // color: #bbb !important;
   text-decoration: none !important;
 }
 #ribbon .breadcrumb > .active,
-#ribbon .breadcrumb li:last-child {
-  color: #e4e4e4;
-}
+
 .fixed-ribbon #ribbon {
   position: fixed;
   right: 0;
@@ -17107,7 +17105,7 @@ label:hover input[type="checkbox"][disabled].checkbox:checked + span:before {
   #ribbon {
     border-bottom: 1px solid #cfcfcf;
     border-top: 1px solid #e6e6e6;
-    background: #f5f5f5;
+    background: transparent;
   }
   #ribbon .breadcrumb a,
   #ribbon .breadcrumb {

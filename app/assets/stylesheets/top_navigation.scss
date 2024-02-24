@@ -1,6 +1,5 @@
 //
 .menu-mobile {
-  display: none;
   @media (max-width: 1024px) and (min-width: 768px) {
     width: auto !important;
   }
@@ -12,12 +11,6 @@
 }
 
 @media (max-width: 768px) {
-  .menu-mobile .mm-logo-buttons-w .mm-buttons {
-    display: none;
-  }
-  .menu-mobile .mm-logo-buttons-w .mm-logo span {
-    display: none;
-  }
   .top-menu-controls .top-icon {
     margin-left: 0px !important;
   }
@@ -56,9 +49,6 @@
   //@media (min-width: 1024px) {
   //  display: none;
   //}
-}
-.mm-logo-buttons-w {
-  margin-top: 55px;
 }
 .leftChanged {
   left: 210px;

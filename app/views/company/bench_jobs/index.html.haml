@@ -14,6 +14,7 @@
                 .col-sm-6
                   .form-inline.justify-content-sm-end
                     %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
+                    %button.btn.btn-sm.btn-secondary{type: "button", id: 'my_bench_datatable-search-btn'} Search
             .table-responsive
               %table#my_bench_datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
                 %thead
@@ -102,7 +103,7 @@
                           = link_to raw("<i class='fa fa-eye'></i>") , impersonate_company_candidate_path(c.candidate) , class: '',title: "Detail Show" ,target: "_blank",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate), remote:true,class: '',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: '',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
-                          = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(c.candidate) ,remote:true, method: :post ,  class: '',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          -# = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(c.candidate) ,remote:true, method: :post ,  class: '',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
                           = link_to raw("<i class='fa fa-pencil '></i>"), "#", title: "Edit #{c.candidate.full_name}", class: "edit_bench", candidate_id: c.candidate.id, company_id: c.company_id
                           =# link_to raw("<i class='fa fa-pencil '></i>"), edit_job_invitation_company_bench_jobs_path(candidate_id: c.candidate.id, company_id: c.company_id), :remote => true, title: "Edit #{c.candidate.full_name}"
                         %span{:id => "bench_action_edit_#{c.candidate.id}", :class => "d-none"}
@@ -247,3 +248,19 @@
         checkBox[i].checked = obj.checked;
       }
     };
+    document.addEventListener('trix-change', function(event) {
+      const maxChars = 100;
+      const editor = event.target;
+      let editorContent = editor.editor.getDocument().toString();
+
+      if (editorContent.length > maxChars) {
+        // If content exceeds maxChars, trim it and update the editor
+        const trimmedContent = editorContent.substring(0, maxChars);
+        editor.editor.loadJSON({document: editor.editor.getDocument().copyUsing((piece) => {
+          if (piece.toString().length > maxChars) {
+            return piece.copyWithString(trimmedContent);
+          }
+          return piece;
+        })});
+      }
+    });
