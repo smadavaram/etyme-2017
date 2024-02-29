@@ -132,14 +132,33 @@ $(document).ready(function () {
     ],
   });
 
-  $("#jobs_datatable").dataTable({
+  $('#jobs_datatable').DataTable({
+    drawCallback: function (settings) {
+      addeventatc.refresh();
+    },
+    processing: true,
+    serverSide: true,
+    order: [[1, "desc"]],
     columnDefs: [
-      {
-        targets: 0,
-        searchable: false,
-        orderable: false,
+    {
+      targets: 0,
+      searchable: false,
+      orderable: false,
+      render: function (data, type, full, meta) {
+        return '<input type="checkbox" name="ids[]" value="' + full.id + '">';
       },
-    ],
+    }],
+    ajax: $('#jobs_datatable').data('source'),
+    columns: [
+      { data: "id" },
+      { data: "title" },
+      { data: "category" },
+      { data: "end_date", searchable: false, orderable: false },
+      { data: "location" },
+      { data: "posted_by" },
+      { data: "status", searchable: false, orderable: false},
+      { data: "actions", searchable: false, orderable: false }
+    ]
   });
 
   $("#prefer_vendors_table").dataTable();
