@@ -69,6 +69,7 @@
 
   %body.smart-style-6{class: "#{yield :body_class} menu-position-side menu-side-left full-screen"}
     - @current_user = current_user
+    - @current_company = current_company
     .all-wrapper
       %ul.dropdown-menu.lpm#links_block
         =render('company/shared/links_block')

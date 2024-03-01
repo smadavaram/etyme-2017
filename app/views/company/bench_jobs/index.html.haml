@@ -108,7 +108,67 @@
                           =# link_to raw("<i class='fa fa-pencil '></i>"), edit_job_invitation_company_bench_jobs_path(candidate_id: c.candidate.id, company_id: c.company_id), :remote => true, title: "Edit #{c.candidate.full_name}"
                         %span{:id => "bench_action_edit_#{c.candidate.id}", :class => "d-none"}
                           = link_to "save", "#", title: "Edit #{c.candidate.full_name}", :style => "color: white;", :class => "btn btn-primary save_bench_job", candidate_id: c.candidate.id, company_id: c.company_id
+            .timesheet_pagination_wrap.pt-3.m-3
+              .pagination_label
+                = page_entries_info @candidates
+              .digg_pagination
+                = will_paginate(@candidates, {previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'public_job_des_pagination_links'}.merge(link_options: {'data-remote': true}))
 :css
+  .digg_pagination {
+    background: white;
+    cursor: default;}
+  .digg_pagination a, .digg_pagination span, .digg_pagination em {
+    padding: 0.2em 0.5em;
+    display: block;
+    float: left;
+    margin-right: 1px; }
+  .digg_pagination .disabled {
+    color: #999999;
+    border: 1px solid #dddddd; }
+  .digg_pagination .current {
+    font-style: normal;
+    font-weight: bold;
+    background: #2e6ab1;
+    color: white;
+    border: 1px solid #2e6ab1; }
+  .digg_pagination a {
+    text-decoration: none;
+    color: #105cb6;
+    border: 1px solid #9aafe5; }
+    .digg_pagination a:hover, .digg_pagination a:focus {
+      color: #000033;
+      border-color: #000033; }
+  .digg_pagination .page_info {
+    background: #2e6ab1;
+    color: white;
+    padding: 0.4em 0.6em;
+    width: 22em;
+    margin-bottom: 0.3em;
+    text-align: center; }
+    .digg_pagination .page_info b {
+      color: #000033;
+      background: #6aa6ed;
+      padding: 0.1em 0.25em; }
+  .digg_pagination:after {
+    content: ".";
+    display: block;
+    height: 0;
+    clear: both;
+    visibility: hidden; }
+  * html .digg_pagination {
+    height: 1%; }
+  *:first-child + html .digg_pagination {
+    overflow: hidden; 
+  }
+  .dataTables_info {
+    display: none;
+  }
+  .dataTables_paginate{
+    display: none;
+  }
+  .dataTables_length{
+    display: none !important;
+  }
   ol {
     padding-inline-start: 0px;
   }

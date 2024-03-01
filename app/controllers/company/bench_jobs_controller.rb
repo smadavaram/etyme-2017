@@ -6,6 +6,10 @@ class Company::BenchJobsController < Company::BaseController
 
   def index
     add_breadcrumb 'My Bench'
+
+    page = params[:page] || 1
+    per_page = params[:per_page] || 10
+
     @current_company = current_company
     @candidates = @current_company.hot_candidates.includes(
       candidate: [
@@ -14,7 +18,7 @@ class Company::BenchJobsController < Company::BaseController
         :job_invitations,
         { job_invitations: [:sender, :company] }
       ]
-    )
+    ).paginate(page: page, per_page: per_page) || []
     @groups = @current_company.groups.contact_groups.all.map { |c| [c.group_name, c.candidates.map { |e| e.email }] }
   end
 
