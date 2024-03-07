@@ -91,10 +91,19 @@ Rails.application.configure do
 
   config.action_mailer.default_url_options = { host: ENV['host_url'] || 'etyme.com', protocol: ENV['host_protocol'] || 'https' }
 
-  config.action_mailer.delivery_method = :postal
-  config.action_mailer.postal_settings = {
-    host: ENV['MAILCRUX_SERVER'],
-    server_key: ENV['MAILCRUX_SERVER_KEY']
+  # config.action_mailer.delivery_method = :postal
+  # config.action_mailer.postal_settings = {
+  #   host: ENV['MAILCRUX_SERVER'],
+  #   server_key: ENV['MAILCRUX_SERVER_KEY']
+  # }
+
+  config.action_mailer.smtp_settings = {
+    :address              => 'mail.smtp2go.com',
+    :port                 => 587,
+    :user_name            => ENV['SMPTGO_USER_NAME'],
+    :password             => ENV['SMPTGO_PASS'],
+    :authentication       => 'login',
+    :enable_starttls_auto => true
   }
 
   # config.action_mailer.smtp_settings = {
