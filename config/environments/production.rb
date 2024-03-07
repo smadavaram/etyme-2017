@@ -100,9 +100,10 @@ Rails.application.configure do
   config.action_mailer.smtp_settings = {
     :address              => 'mail.smtp2go.com',
     :port                 => 587,
+    :domain               => ENV["SMPTGO_DOMAIN"],
     :user_name            => ENV['SMPTGO_USER_NAME'],
     :password             => ENV['SMPTGO_PASS'],
-    :authentication       => 'login',
+    :authentication       => 'plain',
     :enable_starttls_auto => true
   }
 
