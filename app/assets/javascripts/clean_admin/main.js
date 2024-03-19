@@ -1046,8 +1046,32 @@ $(function(){
     }
     return false;
   });
+  $('.phone_field').each(function() {
+    const phone_input = this;
+    const errorMap = ["Invalid number", "Invalid country code", "Too short", "Too long", "Invalid number"];
 
-  // #25. Phone field
-  $('input[type="tel"]').intlTelInput();
+    const iti = window.intlTelInput(phone_input, {
+      initialCountry: "us",
+      utilsScript: "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/utils.js"
+    });
+    const reset = () => {
+      phone_input.classList.remove("error");
+    };
 
+    const showError = (msg) => {
+      phone_input.classList.add("error");
+    };
+    phone_input.addEventListener('keyup', function(){
+      reset();
+      if (!phone_input.value.trim()) {
+        showError("Required");
+      } else if (iti.isValidNumber()) {
+        reset();
+      } else {
+        const errorCode = iti.getValidationError();
+        const msg = errorMap[errorCode] || "Invalid number";
+        showError(msg);
+      }
+    });
+  });
 });

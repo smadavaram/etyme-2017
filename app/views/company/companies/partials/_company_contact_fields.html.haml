@@ -7,4 +7,4 @@
     .col-md-6
       = f.text_field :last_name , placeholder: "Last Name"
   = f.text_field :title ,  placeholder: 'Title '
-  = f.phone_field :phone , label: 'Mobile Phone',  placeholder: 'Mobile Number ' , data: { phone_field: true }
+  = f.text_field :phone , type: 'tel', class: 'form-control phone_field', label: 'Mobile Phone', id: 'phone' , placeholder: "Mobile Number", data: {phone_field: true}

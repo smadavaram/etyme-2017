@@ -61,7 +61,6 @@
  *= require navigation
  *= require top_navigation
  *= require jobs_small_chat
- *= require intlTelInput
  *= require calendar_custom
 
  *= require company/prefer_vendors

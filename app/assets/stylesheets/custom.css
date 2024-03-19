@@ -276,8 +276,12 @@ label.required:after {
   color: red;
 }
 
-.intl-tel-input {
+.iti {
   height: calc(2.25rem + 9px) !important;
+  display: block !important;
+  .phone_field {
+    height: 100%;
+  }
 }
 
 .margin-auto {

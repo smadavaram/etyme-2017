@@ -28,7 +28,7 @@
                 Phone
                 %sup.text-danger *
               .col-md-10
-                = f.phone_field :phone , class: 'form-control' , placeholder: 'Phone' , required: true
+                = f.text_field :phone , type: 'tel', class: 'form-control phone_field', id: 'phone' , placeholder: "PhoneOffice Number", required: true
 
             = f.fields_for :owner do |u|
               .form-group

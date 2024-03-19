@@ -64,7 +64,7 @@ Rails.application.configure do
   config.action_mailer.smtp_settings = { :address => "lvh.me", :port => 1025 }
   config.domain = 'lvh.me'
 
+  config.hosts = []
   config.hosts << 'lvh.me'
   config.hosts << /.+\.lvh\.me/
-
 end
