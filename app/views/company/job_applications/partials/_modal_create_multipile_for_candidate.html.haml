@@ -1,9 +1,9 @@
-.modal{ id: "job-invitation-multiple-#{job.id}"}
+.modal{ id: "job-invitation-multiple-#{@job.id}"}
   .modal-dialog.modal-md
     .modal-content
       .modal-header
         %h2#myModalLabel.modal-title
-          %strong Job Application - #{job.title}
+          %strong Job Application - #{@job.title}
         %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
           ×
 
@@ -24,8 +24,8 @@
                 Select Candidates
                 %sup.text-danger *
               .col-md-10.temp_select_candidates
-                = select_tag 'temp_candidates', options_for_select(current_company.candidates.uniq.reverse.collect{ |c| [c.full_name,c.id]}.compact),class: 'form-control job_select2' , required: true, onchange: 'set_hr();'
-            -if job.status == "Bench"
+                = select_tag 'temp_candidates', id: "temp_candidates", class: 'form-control job_select2' , required: true, onchange: 'set_hr();'
+            -if @job.status == "Bench"
               .form-group
                 %label.col-md-6.control-label
                   HR Partner
@@ -85,10 +85,10 @@
 
             %hr
             %h6
-              - if job.job_requirements
+              - if @job.job_requirements
                 %strong Additional Requirements
             .nested-fields
-              - job.job_requirements.each do |r|
+              - @job.job_requirements.each do |r|
                 = f.fields_for :job_applicant_reqs do |ja|
                   = ja.hidden_field :job_requirement_id,value: r.id
                   .form-group
@@ -118,10 +118,10 @@
 
             %hr
             %h6
-              - unless job.custom_fields.empty?
+              - unless @job.custom_fields.empty?
                 %strong Custom Fields
             .nested-fields
-              - job.custom_fields.each do |cus|
+              - @job.custom_fields.each do |cus|
                 = f.fields_for :custom_fields do |custom|
                   .form-group
                     %label.col-md-2.control-label #{cus.name}

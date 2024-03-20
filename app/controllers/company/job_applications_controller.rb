@@ -2,7 +2,7 @@
 
 class Company::JobApplicationsController < Company::BaseController
   # CallBacks
-  before_action :find_job, only: %i[create creates_multiple_for_candidate job_applicant_reqs_preview]
+  before_action :find_job, only: %i[create create_multiple_for_candidate job_applicant_reqs_preview]
   before_action :find_received_job_invitation, only: [:create]
   before_action :set_job_applications, only: [:index]
   before_action :find_attachments, :find_signers, only: [:send_templates]
@@ -38,7 +38,6 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def create_multiple_for_candidate
-    find_job
     if request.post?
       messages = []
       Candidate.where(id: params[:temp_candidates]).each do |c|

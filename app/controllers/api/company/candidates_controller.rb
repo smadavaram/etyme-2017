@@ -19,4 +19,20 @@ class Api::Company::CandidatesController < ApplicationController
       render json: { error: 'Cannot find candidate with this id' }, status: :not_found
     end
   end
+
+  def get_candidates
+    candidates = if params[:q].present?
+                   current_company.candidates.where("LOWER(first_name) LIKE ?", "%#{params[:q].downcase}%")
+                 else
+                   current_company.candidates
+                 end
+  
+    candidates = candidates.paginate(page: params[:page] || 1, per_page: 20)
+    candidates_json = candidates.map do |candidate|
+      { id: candidate.id, text: candidate.full_name }
+    end
+    more = candidates.next_page.present?
+
+    render json: { results: candidates_json, pagination: { more: more } }
+  end  
 end

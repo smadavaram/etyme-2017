@@ -915,6 +915,7 @@ Rails.application.routes.draw do
 
       resources :candidates, only: :show do
         get :get_resumes, on: :member
+        get :get_candidates, on: :collection
       end
       
       resources :jobs, only: %i[index create] do
