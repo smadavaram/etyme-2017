@@ -102,7 +102,7 @@ class ApplicationController < ActionController::Base
     @message = message
     ExceptionNotifier.notify_exception(exception,
                                        data: { current_user: current_user, current_company: current_company })
-    UserMailer.exception_notify(exception, exception.backtrace[0..25].join('\n'), params.inspect).deliver if Rails.env.production?
+    # UserMailer.exception_notify(exception, exception.backtrace[0..25].join('\n'), params.inspect).deliver if Rails.env.production?
     render template: 'shared/404', formats: [:html], layout: false
   end
 
