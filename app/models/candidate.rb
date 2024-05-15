@@ -390,7 +390,7 @@ class Candidate < ApplicationRecord
   # send welcome email to candidate
   def send_welcome_email
     handle_email_errors do
-      CandidateMailer.welcome_candidate(self).deliver_now
+      ::Candidate::CandidateMailer.welcome_candidate(self).deliver_now
     end
   end
 
