@@ -120,17 +120,14 @@
         <span style="color: #585858; font-size: 40px" aria-hidden="true">+</span>
       </button>
 
-      <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
-        <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostJobModal">
+      <div class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
+        <button class="btn btn-ask-a-question text-left" data-toggle="modal" data-target="#feedPostJobModal" style="margin-left: 12px;">
           Add Job
         </button>
-        <button class="btn btn-ask-a-question" onclick="window.location.href='/company/candidates/new'">
-          Add Candidate
-        </button>
-        <button class="btn btn-ask-a-question" onclick="window.location.href='/company/companies/new'">
-          Invite Business
-        </button>
-      </ul>
+
+        <a class="dropdown-item text-left" href="/company/candidates/new">Add Candidate</a>
+        <a class="dropdown-item text-left" href="/company/companies/new">Invite Business</a>
+      </div>
     <% end %>
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left d-inline-block mx-1">
         <a href="<%= notify_notifications_company_users_url(status: "unread", notification_type: "all_notifications", subdomain: (current_user&.company&.domain)) %>" style="padding-right:10px; color: #585858; text-decoration: none; background-color: transparent;"><i class="ti-bell notification-icon"></i></a>
