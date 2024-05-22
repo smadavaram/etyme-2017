@@ -10,18 +10,21 @@
             <i class="fa fa-plus-circle" aria-hidden="true"></i>
           </button>
         <% else  %>
-          <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+          <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true" style="margin-bottom: 5px;">
             <i class="fa fa-plus-circle" aria-hidden="true"></i>
           </button>
         <% end  %>
 
         <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
-          <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostModal">
+          <button class="btn btn-ask-a-question text-left" data-toggle="modal" data-target="#feedPostModal" style="margin-left: 12px;">
             Add Post
           </button>
-          <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostJobModal">
+          <button class="btn btn-ask-a-question text-left" data-toggle="modal" data-target="#feedPostJobModal" style="margin-left: 12px;">
             Add Job
           </button>
+
+          <a class="dropdown-item text-left" href="/company/candidates/new" target="_blank">Add Candidate</a>
+          <a class="dropdown-item text-left" href="/company/companies/new" target="_blank">Invite Business</a>
         </ul>
       </div>
       <!--  subscribe-->
