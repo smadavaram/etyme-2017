@@ -23,8 +23,8 @@
             Add Job
           </button>
 
-          <a class="dropdown-item text-left" href="/company/candidates/new" target="_blank">Add Candidate</a>
-          <a class="dropdown-item text-left" href="/company/companies/new" target="_blank">Invite Business</a>
+          <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/candidates/new" %>" target="_blank">Add Candidate</a>
+          <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/companies/new"%>" target="_blank">Invite Business</a>
         </ul>
       </div>
       <!--  subscribe-->
@@ -117,8 +117,8 @@
               Add Job
             </button>
 
-            <a class="dropdown-item text-left" href="/company/candidates/new" target="_blank">Add Candidate</a>
-            <a class="dropdown-item text-left" href="/company/companies/new" target="_blank">Invite Business</a>
+            <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/candidates/new" %>" target="_blank">Add Candidate</a>
+            <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/companies/new" %>" target="_blank">Invite Business</a>
           </ul>
       </div>
     <% else %>
@@ -131,8 +131,8 @@
           Add Job
         </button>
 
-        <a class="dropdown-item text-left" href="/company/candidates/new" target="_blank">Add Candidate</a>
-        <a class="dropdown-item text-left" href="/company/companies/new" target="_blank">Invite Business</a>
+        <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/candidates/new" %>" target="_blank">Add Candidate</a>
+        <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/companies/new" %>" target="_blank">Invite Business</a>
       </div>
     <% end %>
     <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left d-inline-block mx-1">
