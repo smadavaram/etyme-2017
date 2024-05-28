@@ -34,7 +34,7 @@
 
         <!--    notification start -->    
         <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
-            <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications") %>"><i class="ti-bell notification-icon"></i></a>
+            <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications") %>"><i class="ti-bell notification-icon" style="font-weight: bold;"></i></a>
             <% if @current_user.notifications.unread.count > 0 %>
                 <div class="new-messages-count"><%= @current_user.notifications.unread.count %></div>
             <% end %>
