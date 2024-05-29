@@ -54,7 +54,7 @@ class Static::JobsController < ApplicationController
       if candidate_ids.present?
         @candidates = CandidatesCompany.hot_candidate.where(candidate_id: candidate_ids.uniq).paginate(page: params[:page], per_page: 50)
       else
-        @candidates = @uniq_candidates_company.paginate(page: params[:page], per_page: 50)
+        @candidates = @uniq_candidates_company.order(updated_at: :desc).paginate(page: params[:page], per_page: 50)
       end
       @candidates_hot = CandidatesCompany.hot_candidate.group_by(&:candidate_id).sort.reverse.first(3).map{ |a| a[1].first}
       @jobs_hot = Job.active.is_public.where(listing_type: 'Job').order(created_at: :desc).first(3)
