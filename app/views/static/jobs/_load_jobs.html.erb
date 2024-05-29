@@ -25,7 +25,7 @@
         <div class="row justify-content-between">
           <div class="col-12 col-md-6 col-lg-7 text-md-left d-flex align-self-center">
             <h3 class="feed-article-title mb-0">
-              <%= link_to truncate(job.title, length: 35), static_job_path(job, type: 'job'), class: "font-weight-bold" %>
+              <%= link_to job.title, static_job_path(job, type: 'job'), class: "font-weight-bold" %>
             </h3>
           </div>
           <% if job.job_category.present? %>
