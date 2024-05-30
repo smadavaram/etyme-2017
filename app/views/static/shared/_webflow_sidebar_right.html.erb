@@ -30,7 +30,7 @@ body{
                   <%if c&.candidate&.display_name.present? %>
                     <%= link_to c&.candidate&.display_name, public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank", style: "color: black;" %>
                   <%else%>
-                    <%= link_to c&.candidate&.first_name + " "+c&.candidate&.last_name, public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank", style: "color: black;" %>
+                    <%= link_to c&.candidate&.first_name + " "+c&.candidate&.last_name[0], public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank", style: "color: black;" %>
                   <%end%>
                   <% if is_verify(!!c.candidate.confirmed_at) == "verified" %>
                     <%= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
@@ -72,7 +72,7 @@ body{
                 <%# end %>
                 <%#= image_tag 'follower-user.png' ,class: "mr-3 align-self-center", alt: "user" %>
                 <div class="media-body ">
-                  <h5 class="job-title my-0" title="<%= c_job.title %>"><%= link_to do_ellipsis(c_job.title,20),static_job_path(c_job)%>
+                  <h5 class="job-title my-0" title="<%= c_job.title %>"><%= link_to c_job.title, static_job_path(c_job)%>
                     <%#= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
                   </h5>
                   <% if c_job.job_category.present? %>

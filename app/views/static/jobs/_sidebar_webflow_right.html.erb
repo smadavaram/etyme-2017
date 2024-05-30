@@ -67,7 +67,7 @@
                 <%# end %>
                 <%#= image_tag 'follower-user.png' ,class: "mr-3 align-self-center", alt: "user" %>
                 <div class="media-body ">
-                  <h5 class="job-title my-0" title="<%= c_job.title %>"><%= link_to do_ellipsis(c_job.title,20),static_job_path(c_job)%>
+                  <h5 class="job-title my-0" title="<%= c_job.title %>"><%= link_to c_job.title, static_job_path(c_job)%>
                     <%#= image_tag 'verified.svg' ,class: "img-fluid ml-2", alt: "verified" %>
                   </h5>
                   <% if c_job.job_category.present? %>
