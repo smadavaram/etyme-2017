@@ -54,7 +54,7 @@ class UserMailer < ApplicationMailer
 
     @company   = company
     @name      = @owner.full_name
-    mail(to: @owner.email, subject: "#{@company.name.titleize} welcome to Etyme")
+    mail(to: @owner.email, subject: "Welcome to Etyme")
   end
 
   # method for sharing of message

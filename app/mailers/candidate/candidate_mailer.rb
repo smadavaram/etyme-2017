@@ -3,7 +3,7 @@
 class Candidate::CandidateMailer < ApplicationMailer
   def welcome_candidate(candidate)
     @candidate = candidate
-    mail(to: @candidate.email, subject: "#{@candidate.full_name.titleize}, Welcome To Etyme")
+    mail(to: @candidate.email, subject: "Welcome To Etyme")
   end
 
   def invite_user(candidate, user)
