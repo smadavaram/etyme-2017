@@ -13,7 +13,11 @@
           <br />
           <%= form.text_field :education_list, placeholder: 'Enter a comma-separated list of certifications...', class: 'webflow-input-text-field' %>
           <% if current_user.present? %>
-            <%= form.select :status, job_status, {}, {class: 'webflow-input-select'} %>
+            <% if request.subdomain == 'app' %>
+              <%= form.select :status, [['Published', 'published']], {}, {class: 'webflow-input-select'} %>
+            <% else %>
+              <%= form.select :status, job_status, {}, {class: 'webflow-input-select'} %>
+            <% end %>
           <% end %>
           <%= form.select :department, department_list, {}, {class: 'webflow-input-select'} %>
           <%= form.select :industry, industry_list, {}, {class: 'webflow-input-select'} %>

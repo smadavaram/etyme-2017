@@ -44,7 +44,7 @@ class Job < ApplicationRecord
   enum blog_type: [:about_us, :contact, :privacy, :terms]
   enum work_type: %i[onsite remote hybrid]
   # validates :end_date , presence: true , if: Proc.new{ |job| !job.is_system_generated }
-  validates :title, presence: true
+  validates :title, :tag_list, presence: true
   # add a validation to ensure that only one blog can be 'about_us'
   validates_uniqueness_of :blog_type, scope: :company_id, conditions: -> { where(blog_type: :about_us, listing_type: "Blog") }
   validates_uniqueness_of :blog_type, scope: :company_id, conditions: -> { where(blog_type: :contact, listing_type: "Blog") }
