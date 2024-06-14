@@ -66,6 +66,69 @@
                   <% if @candidates.present? %>
                     <% @candidates.each_with_index do |c , index| %>
                       <div class="col-12 col-xl-4 mb-4">
+                        <div class="card card-profile">
+                          <div class="card-body text-center">
+                            <%# <img src= "=c.try(:candidate).try(:photo)" alt="Profile Picture" class="mb-3"> %>
+                            <img src="https://via.placeholder.com/100" alt="Profile Picture" class="mb-3">
+                            <h5 class="card-title">
+                              <%if c&.candidate&.display_name.present? %>
+                                <%= link_to c&.candidate&.display_name, public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank", style: 'color: black;' %>
+                              <%else%>
+                                <%= link_to c&.candidate&.first_name + " "+c&.candidate&.last_name[0] ,  public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank", style: 'color: black;' %>
+                              <%end%>
+                            </h5>
+                            <p class="card-text">
+                                <% if c&.candidate&.candidate_title.present? %>
+                                  <%= c&.candidate&.candidate_title %>
+                                <% else %>
+                                  <p></p>
+                                <% end %>
+                            </p>
+                            <div class= "skills mb-3">
+                              <% if c&.candidate&.skills.any? %>
+                                <% c.candidate.skills.each do |skill| %>
+                                  <span class="badge badge-secondary"><%= skill.name %></span>
+                                <% end %>
+                              <% end %>
+                            </div>
+                            <div class="row mb-3">
+                              <div class="col">
+                                <p class="mb-0"><strong>Rate</strong></p>
+                                <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
+                                  <p><%= "$" + @c_bench_job&.min_hourly_rate.to_s + "-" + @c_bench_job&.max_hourly_rate.to_s + "/hr"%></p>
+                                <% else %>
+                                  <p>-</p>
+                                <% end %>
+                              </div>
+                              <div class="col">
+                                <p class="mb-0"><strong>Location</strong></p>
+                                <p><%= c.try(:candidate).try(:location) || "-" %></p>
+                              </div>
+                              <div class="col">
+                                <p class="mb-0"><strong>Rating</strong></p>
+                                <% if c.try(:rating).try(:total).to_f.positive? %>
+                                  <p><%= (c.try(:rating).try(:average).to_i || 0) / (c.try(:rating).try(:total)) %></p>
+                                <% else %>
+                                  <p>-</p>
+                                <% end %>
+                              </div>
+                            </div>
+                            <div class="row">
+                              <div class="col-6 mt-1">
+                                <%= c.try(:company).try(:name)%>
+                              </div>
+
+                              <div class="col-6 contact mb-3">
+                                <img src="https://via.placeholder.com/30" alt="Contact Person">
+                                <p class="mb-0"><%= c.try(:company).try(:owner).try(:first_name) %></p>
+                              </div>
+                            </div>
+                            <div class="d-flex align-items-center mb-2">
+                              <a href="#" class="btn btn-outline-primary btn-block" style="color: black !important; background-color: seagreen !important; border-color: seagreen;"><i class="ti-user"></i><span style="color: white;">See profile</span></a>
+                            </div>
+                            <a href="#" class="btn btn-outline-secondary btn-block"><i class="ti-themify-favicon" style="color: black;"></i>Chat with Hr Managers</a>
+                          </div>
+                        </div>
                         <div class="people-card d-flex flex-column h-100">
                           <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
                           <div class="cover-img" id="tag-<%=index%>" tag-value="tag-<%=index%>" >
