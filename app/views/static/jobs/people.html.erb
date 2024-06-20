@@ -65,6 +65,7 @@
                 <div class="row mx-1 align-items-stretch mt-3">
                   <% if @candidates.present? %>
                     <% @candidates.each_with_index do |c , index| %>
+                      <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
                       <div class="col-12 col-xl-4 mb-4">
                         <div class="card card-profile">
                           <div class="card-body text-center">
@@ -124,96 +125,9 @@
                               </div>
                             </div>
                             <div class="d-flex align-items-center mb-2">
-                              <a href="#" class="btn btn-outline-primary btn-block" style="color: black !important; background-color: seagreen !important; border-color: seagreen;"><i class="ti-user"></i><span style="color: white;">See profile</span></a>
+                              <a href="<%= public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug) %>" class="btn btn-outline-primary btn-block" style="color: black !important; background-color: black !important; border-color: black;" target="_blank"><i class="ti-user"></i><span style="color: white;">See profile</span></a>
                             </div>
                             <a href="#" class="btn btn-outline-secondary btn-block"><i class="ti-themify-favicon" style="color: black;"></i>Chat with Hr Managers</a>
-                          </div>
-                        </div>
-                        <div class="people-card d-flex flex-column h-100">
-                          <% @c_bench_job = JobInvitation.find_by(recipient_id: c&.candidate&.id, company_id: c&.company&.id) %>
-                          <div class="cover-img" id="tag-<%=index%>" tag-value="tag-<%=index%>" >
-                            <div class="candidate-name people-card-header flex-fill ">
-                                <% if c&.candidate&.candidate_title.present? %>
-                                  <%= c&.candidate&.candidate_title %>
-                                <% else %>
-                                  <p></p>
-                                <% end %>
-                            </div>
-                            <div class= "skills">
-                              <% if c&.candidate&.skills.any? %>
-                                <ul>
-                                  <% c.candidate.skills.each do |skill| %>
-                                    <li><%= skill.name %></li>
-                                  <% end %>
-                                </ul>
-                              <% end %>
-                            </div>
-                                <%# <%= link_to (image_tag "#{c&.candidate&.designations&.with_no_client.present? ? c&.candidate.designations.with_no_client&.first&.portfolios&.first&.cover_photo : asset_path('') }", alt: "cover"), public_profile_static_candidates_path(c&.candidate), target: "_blank"  %> 
-                          </div>
-                          <div class="people-card-header d-flex justify-content-between">
-                            <div class="media">
-                              <%= link_to user_mini_avatar(c&.candidate), public_profile_static_candidates_path(c&.candidate), target: "_blank" %>
-                              <%if c&.candidate&.display_name.present? %>
-                                <%= link_to c&.candidate&.display_name, public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank" %>
-                              <%else%>
-                                <%= link_to c&.candidate&.first_name + " "+c&.candidate&.last_name[0] ,  public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug), target: "_blank" %>
-                              <%end%>
-                            </div>
-                            <div>
-                                <%# <p class="m-0 f-12 f-mon-sembol txt-light"><%= c&.candidate&.location&.country %1></p> %>
-                            </div>
-                          </div>
-                          <div class="people-card-footer d-flex justify-content-between" style="margin: 10px;">
-                            <div class="card-footer-icons d-flex">
-                                <!-- Like Icon -->
-                              <% if current_user.nil? and current_candidate.nil? %>
-                                <div class="card-footer-like mr-2"  id="like-button-<%= c.id %>">
-                                  <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
-                                </div>
-                                <script type="text/javascript" charset="utf-8">
-                                  $('#like-button-<%= c.id %>').click(function (){
-                                    flash_error('You must be logged in to like a candidate');
-                                  })
-                                </script>
-                              <% else %>
-                                <div class="card-footer-like mr-2" id="like-button">
-                                  <%= image_tag 'hearth.svg', class: "img-fluid", alt: "Like" %>
-                                </div>
-                              <% end  %>
-                                <!-- Chat Icon -->
-                              <%c_candidate = c&.candidate_id%>
-                              <%c_candidate_obj = Candidate.find_by(id: c_candidate)%>
-                              <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
-                              <div class="logged-user-role d-flex justify-content-center align-items-center pl-2  <%= "border border-light rounded" if c_recruiter %>"  style="border-color: grey !important;">
-                                  <% if current_user.nil? and current_candidate.nil? %>
-                                    <button id="chat-button-<%= c.id %>" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
-                                    <script type="text/javascript" charset="utf-8">
-                                      $('#chat-button-<%= c.id %>').click(function (){
-                                          flash_error('You must be logged in to chat.');
-                                      })
-                                    </script>
-                                  <% else %>
-                                    <%if c_recruiter.present? && current_user != c_recruiter%>
-                                      <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid mr-2", alt: "Chat" %></button>
-                                    <%else%>
-                                      <button onclick="candidate_button(<%= c_candidate_obj.id %>)" class="bot_style"><%= image_tag 'reply.svg', class: "img-fluid me-2", alt: "Chat" %></button>
-                                    <%end%>
-                                  <% end %>
-                                  <div class="logged-user-role d-block">
-                                    <%if c_recruiter.present?%>
-                                      <%= chat_recruiter_link_image(c_recruiter) %>
-                                    <%end%>
-                                  </div>
-                              </div>
-                            </div>
-                            <!-- Price -->
-                            <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
-                              <div class="pl-2">
-                                <p class="d-inline-block card-people-footer-min-rate mb-0">
-                                    <%= "$" + @c_bench_job&.min_hourly_rate.to_s + "-" + @c_bench_job&.max_hourly_rate.to_s + "/hr"%>
-                                </p>
-                              </div>
-                            <% end %>
                           </div>
                         </div>
                       </div>
