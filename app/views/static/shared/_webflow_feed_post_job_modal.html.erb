@@ -14,7 +14,7 @@
           <%= form.text_field :education_list, placeholder: 'Enter a comma-separated list of certifications...', class: 'webflow-input-text-field' %>
           <% if current_user.present? %>
             <% if request.subdomain == 'app' %>
-              <%= form.select :status, [['Published', 'published']], {}, {class: 'webflow-input-select'} %>
+              <%= form.select :status, [['Published', 'Published']], {}, {class: 'webflow-input-select'} %>
             <% else %>
               <%= form.select :status, job_status, {}, {class: 'webflow-input-select'} %>
             <% end %>
