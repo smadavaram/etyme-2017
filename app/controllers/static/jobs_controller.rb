@@ -313,7 +313,7 @@ class Static::JobsController < ApplicationController
 
   def post_job
     if current_user.present?
-      @job = current_company.jobs.new(company_user_job_params.merge!(created_by_id: current_user.id, listing_type: 'Job', status: 'Draft'))
+      @job = current_company.jobs.new(company_user_job_params.merge!(created_by_id: current_user.id, listing_type: 'Job'))
       if @job.save
         handle_google_update(@job)
         flash[:success] = 'The job was successfully created!'
