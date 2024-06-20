@@ -317,6 +317,7 @@ class Static::JobsController < ApplicationController
       if @job.save
         handle_google_update(@job)
         flash[:success] = 'The job was successfully created!'
+        return redirect_to root_path if request.subdomain == "app"
         return  redirect_to @job
       else
         flash[:errors] = @job.errors.full_messages
