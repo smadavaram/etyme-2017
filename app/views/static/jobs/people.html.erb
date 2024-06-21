@@ -127,7 +127,7 @@
                             <div class="d-flex align-items-center mb-2">
                               <a href="<%= public_profile_static_candidates_url(c&.candidate, subdomain: c&.company&.slug) %>" class="btn btn-outline-primary btn-block" style="color: black !important; background-color: black !important; border-color: black;" target="_blank"><i class="ti-user"></i><span style="color: white;">See profile</span></a>
                             </div>
-                            <a href="#" class="btn btn-outline-secondary btn-block"><i class="ti-themify-favicon" style="color: black;"></i>Chat with Hr Managers</a>
+                            <a class="btn btn-outline-secondary btn-block" onclick="recruiter_button(<%= User.find_by(id: c&.candidate&.recruiter_id).try(:id) %>)"><i class="ti-themify-favicon" style="color: black;"></i>Chat with Hr Managers</a>
                           </div>
                         </div>
                       </div>
