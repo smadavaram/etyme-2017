@@ -1268,6 +1268,12 @@ span:hover {
   }
 }
 
+@media only screen and (max-width: 600px){
+  .job-class.d-flex {
+   display: block !important;
+  }
+ }
+
 .content-wrapper .static-feeds .feed-article .feed-article-category {
   padding-top: 3px;
   padding-bottom: 3px;
