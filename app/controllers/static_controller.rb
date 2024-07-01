@@ -57,20 +57,24 @@ class StaticController < ApplicationController
 
   def check_user
     user = @company.users.find_by(email: params[:email].downcase)
-    if user.present?
-      if user.sign_in_count.to_i.zero?
+    if verify_recaptcha(model: user)
+      if user.present?
+        if user.sign_in_count.to_i.zero?
+          user.send_reset_password_instructions
+          flash[:error] = 'Looks like a lot of people want you on etyme. You are welcome. Better late than never. Check your email and get started'
+        end
+      else
+        user = @company.users.create(
+          email: params[:email].downcase,
+          company_id: @company.id,
+          password: "passpass#{rand(999)}",
+          password_confirmation: "passpass#{rand(999)}"
+        )
         user.send_reset_password_instructions
-        flash[:error] = 'Looks like a lot of people want you on etyme. You are welcome. Better late than never. Check your email and get started'
+        flash[:error] = "Looks like Team #{@company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
       end
     else
-      user = @company.users.create(
-        email: params[:email].downcase,
-        company_id: @company.id,
-        password: "passpass#{rand(999)}",
-        password_confirmation: "passpass#{rand(999)}"
-      )
-      user.send_reset_password_instructions
-      flash[:error] = "Looks like Team #{@company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
+      flash[:error] = 'No such domain in the system'
     end
   end
 

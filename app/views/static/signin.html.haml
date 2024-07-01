@@ -10,6 +10,7 @@
     .help-block.form-text.with-errors.form-control-feedback
       = link_to 'Sign in as candidate?', new_candidate_session_path, class: "more-link"
     .pre-icon.os-icon.os-icon-email-2-at2
-  = submit_tag :continue, class: "float btn btn-primary form-btn"
+  = recaptcha_tags
+  = submit_tag :continue, class: "float btn btn-primary form-btn mt-2"
 
 :css
