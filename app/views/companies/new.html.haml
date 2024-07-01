@@ -56,8 +56,9 @@
             .note.text-muted.errors.text-danger
             .help-block.form-text.with-errors.form-control-feedback
             .pre-icon.fa.fa-globe
+        = recaptcha_tags
 
-        %input.btn.btn-primary.float{"data-disable-with" => "Register", :name => "commit", :type => "submit", :value => "Register"}/
+        %input.btn.btn-primary.float{"data-disable-with" => "Register", :name => "commit", :type => "submit", :value => "Register", :class => "mt-2"}/
 
   .companies-new--column
     %p Through eTyme, you’re able to manage everything:

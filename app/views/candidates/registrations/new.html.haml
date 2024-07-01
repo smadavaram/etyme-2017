@@ -36,7 +36,8 @@
         %i
       %a{"data-target" => "#myModal", "data-toggle" => "modal", :href => "#"} Terms and Conditions
   .field-group
-    %input.btn.btn-primary.float{"data-disable-with" => "Sign Up", :name => "commit", :type => "submit", :value => "Sign Up"}/
+    = recaptcha_tags
+    %input.btn.btn-primary.float{"data-disable-with" => "Sign Up", :name => "commit", :type => "submit", :value => "Sign Up", :class => "mt-2"}/
     .buttons-w.mt-4
     -# = link_to '/auth/google_oauth2?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
     -#   %i.ti-google

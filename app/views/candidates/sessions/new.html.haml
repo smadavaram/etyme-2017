@@ -17,7 +17,8 @@
       = link_to 'Sign in as business user?', signin_path, class: "more-link"
     .pre-icon.os-icon.os-icon-fingerprint
   .field-group
-    %input.btn.btn-primary.float{"data-disable-with" => "Sign In", :name => "commit", :type => "submit", :value => "Sign In"}/
+    = recaptcha_tags
+    %input.btn.btn-primary.float{"data-disable-with" => "Sign In", :name => "commit", :type => "submit", :value => "Sign In", :class => "mt-2"}/
     .form-check-inline
       %label.form-check-label
     .buttons-w.mt-4

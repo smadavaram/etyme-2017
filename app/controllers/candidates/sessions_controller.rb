@@ -16,12 +16,16 @@ class Candidates::SessionsController < Devise::SessionsController
   # POST /resource/sign_in
   def create
     super
-    cookies.permanent.signed[:candidateid] = resource.id if resource.present?
-    candidate = Candidate.find_by(id: current_candidate.id)
-    if candidate.online_candidate_status == "offline" || candidate.online_candidate_status == nil
-      candidate.update(online_candidate_status: "online")
+    if verify_recaptcha(model: current_candidate)
+      cookies.permanent.signed[:candidateid] = resource.id if resource.present?
+      candidate = Candidate.find_by(id: current_candidate.id)
+      if candidate.online_candidate_status == "offline" || candidate.online_candidate_status == nil
+        candidate.update(online_candidate_status: "online")
+      end
+      ActionCable.server.broadcast("online_channel", id: current_candidate.id, type: "candidate", current_status: candidate.online_candidate_status)
+    else
+      flash[:error] = 'Please complete recaptcha process!'
     end
-    ActionCable.server.broadcast("online_channel", id: current_candidate.id, type: "candidate", current_status: candidate.online_candidate_status)
   end
 
   # DELETE /resource/sign_out

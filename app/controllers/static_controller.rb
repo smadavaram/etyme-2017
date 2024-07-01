@@ -74,7 +74,7 @@ class StaticController < ApplicationController
         flash[:error] = "Looks like Team #{@company.domain.capitalize} is registered with us but you are missing all the action. Check your email to activate the account and get started"
       end
     else
-      flash[:error] = 'No such domain in the system'
+      flash[:error] = 'Please complete recaptcha process!'
     end
   end
 

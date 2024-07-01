@@ -9,7 +9,8 @@
     = f.email_field :email, autofocus: true,class:'form-control field',placeholder:"Enter Email",required: true
     .help-block.form-text.with-errors.form-control-feedback
     .pre-icon.os-icon.os-icon-email-2-at2
-  = f.submit 'Reset Password',class:'form-btn btn btn-primary'
+  = recaptcha_tags
+  = f.submit 'Reset Password',class:'form-btn btn btn-primary mt-2'
 
 -content_for :scripts do
   :javascript

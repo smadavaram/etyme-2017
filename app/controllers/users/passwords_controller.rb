@@ -10,21 +10,25 @@ class Users::PasswordsController < Devise::PasswordsController
 
   # POST /resource/password
   def create
-    if check_company_user
-      self.resource = resource_class.send_reset_password_instructions(params[resource_name])
-      unless resource.errors.empty?
-        flash[:errors] = resource.errors.full_messages
+    if verify_recaptcha(model: resource)
+      if check_company_user
+        self.resource = resource_class.send_reset_password_instructions(params[resource_name])
+        unless resource.errors.empty?
+          flash[:errors] = resource.errors.full_messages
+          redirect_back fallback_location: root_path
+        end
+        yield resource if block_given?
+
+        if successfully_sent?(resource)
+          flash[:success] = 'Crap! we are easy though. Check your email and get started'
+          respond_with({}, location: after_sending_reset_password_instructions_path_for(resource_name))
+        end
+      else
+        flash[:error] = 'User is not registerd on this domain'
         redirect_back fallback_location: root_path
       end
-      yield resource if block_given?
-
-      if successfully_sent?(resource)
-        flash[:success] = 'Crap! we are easy though. Check your email and get started'
-        respond_with({}, location: after_sending_reset_password_instructions_path_for(resource_name))
-      end
     else
-      flash[:error] = 'User is not registerd on this domain'
-      redirect_back fallback_location: root_path
+      flash[:error] = 'Please complete recaptcha process!'
     end
   end
 

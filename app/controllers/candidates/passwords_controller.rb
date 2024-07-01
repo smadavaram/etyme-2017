@@ -10,10 +10,14 @@ class Candidates::PasswordsController < Devise::PasswordsController
 
   # POST /resource/password
   def create
-    self.resource = resource_class.send_reset_password_instructions(params[resource_name])
-    redirect_back fallback_location: root_path unless resource.errors.empty?
-    yield resource if block_given?
-    respond_with({}, location: after_sending_reset_password_instructions_path_for(resource_name)) if successfully_sent?(resource)
+    if verify_recaptcha(model: resource)
+      self.resource = resource_class.send_reset_password_instructions(params[resource_name])
+      redirect_back fallback_location: root_path unless resource.errors.empty?
+      yield resource if block_given?
+      respond_with({}, location: after_sending_reset_password_instructions_path_for(resource_name)) if successfully_sent?(resource)
+    else
+      flash[:error] = 'Please complete recaptcha process!'
+    end
   end
 
   # GET /resource/password/edit?reset_password_token=abcdef
