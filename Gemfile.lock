@@ -1618,6 +1618,8 @@ GEM
     rbnacl-libsodium (1.0.16)
       rbnacl (>= 3.0.1)
     rdoc (6.3.2)
+    recaptcha (5.9.0)
+      json
     redis (3.3.5)
     regexp_parser (2.8.1)
     representable (3.1.1)
@@ -1897,6 +1899,7 @@ DEPENDENCIES
   rating (~> 0.11.0)
   rbnacl (< 5.0)
   rbnacl-libsodium
+  recaptcha
   redis (~> 3.3.3)
   rest-client
   roo
