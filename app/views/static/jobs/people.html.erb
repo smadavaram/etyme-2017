@@ -85,9 +85,11 @@
                                   <p></p>
                                 <% end %>
                             </p>
-                            <div class= "skills pb-1">
+                            <% gc= Geocoder.search(c.try(:candidate).try(:location))&.first %>
+                            <div class="p-0 m-0" style="font-size: smaller;"><%= "#{gc&.city}, #{gc&.state}, #{gc&.country}" || "-" %></div>
+                            <div class= "skills">
                               <% if c&.candidate&.skills.any? %>
-                                <% c.candidate.skills.each do |skill| %>
+                                <% c.candidate.skills.last(8).each do |skill| %>
                                   <span class="badge badge-secondary"><%= skill.name %></span>
                                 <% end %>
                               <% end %>
@@ -102,8 +104,6 @@
                                 <% end %>
                               </div>
                               <div class="col">
-                                <p class="mb-0"><strong>Location</strong></p>
-                                <p><%= c.try(:candidate).try(:location) || "-" %></p>
                               </div>
                               <div class="col">
                                 <p class="mb-0"><strong>Rating</strong></p>
