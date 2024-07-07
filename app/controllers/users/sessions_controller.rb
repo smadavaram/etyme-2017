@@ -25,12 +25,16 @@ class Users::SessionsController < Devise::SessionsController
   def create
     # if check_company_user
       super
-      cookies.permanent.signed[:userid] = resource.id if resource.present?
-      user = User.find_by(id: current_user.id)
-      if user.online_user_status == "offline" || user.online_user_status == nil
-        user.update(online_user_status: "online")
+      if verify_recaptcha(model: resource)
+        cookies.permanent.signed[:userid] = resource.id if resource.present?
+        user = User.find_by(id: current_user.id)
+        if user.online_user_status == "offline" || user.online_user_status == nil
+          user.update(online_user_status: "online")
+        end
+        ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
+      else
+        flash[:error] = 'Please complete recaptcha process!'
       end
-     ActionCable.server.broadcast("online_channel", id: current_user.id, type: "user", current_status: user.online_user_status)
     # else
     #   flash[:error] = "Please first create your account with etyme.com and then subscribe"
     #   redirect_back fallback_location: root_path
