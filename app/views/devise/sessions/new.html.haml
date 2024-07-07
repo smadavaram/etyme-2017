@@ -15,7 +15,6 @@
       = link_to "Don't have an account?", register_path, class: "more-link"
     .pre-icon.os-icon.os-icon-fingerprint
     = hidden_field_tag 'allow_chat', params[:allow_chat].present? ? params[:allow_chat] : ""
-  = recaptcha_tags
   %input.btn.btn-primary.float{"data-disable-with" => "Sign In", :name => "commit", :type => "submit", :value => "Sign In"}/
 
 :css
