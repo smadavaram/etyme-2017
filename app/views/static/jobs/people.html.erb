@@ -85,8 +85,7 @@
                                   <p></p>
                                 <% end %>
                             </p>
-                            <% gc= Geocoder.search(c.try(:candidate).try(:location))&.first %>
-                            <div class="p-0 m-0" style="font-size: smaller;"><%= "#{gc&.city}, #{gc&.state}, #{gc&.country}" || "-" %></div>
+                            <div class="p-0 m-0" style="font-size: smaller;"><%= "#{c&.candidate&.city}, #{c&.candidate&.state}, #{c&.candidate&.country}" || "-" %></div>
                             <div class= "skills">
                               <% if c&.candidate&.skills.any? %>
                                 <% c.candidate.skills.last(8).each do |skill| %>
@@ -95,7 +94,7 @@
                               <% end %>
                             </div>
                             <div class="row">
-                              <div class="col">
+                              <div class="col-5">
                                 <p class="mb-0"><strong>Rate</strong></p>
                                 <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
                                   <p><%= "$" + @c_bench_job&.min_hourly_rate.to_s + "-" + @c_bench_job&.max_hourly_rate.to_s + "/hr"%></p>
@@ -103,9 +102,9 @@
                                   <p>-</p>
                                 <% end %>
                               </div>
-                              <div class="col">
+                              <div class="col-2">
                               </div>
-                              <div class="col">
+                              <div class="col-5">
                                 <p class="mb-0"><strong>Rating</strong></p>
                                 <% if c.try(:rating).try(:total).to_f.positive? %>
                                   <p><%= (c.try(:rating).try(:average).to_i || 0) / (c.try(:rating).try(:total)) %></p>

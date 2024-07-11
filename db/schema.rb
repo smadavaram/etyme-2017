@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2023_04_19_011131) do
+ActiveRecord::Schema.define(version: 2024_07_11_064244) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "hstore"
@@ -436,6 +436,9 @@ ActiveRecord::Schema.define(version: 2023_04_19_011131) do
     t.text "about_summary"
     t.text "display_name"
     t.integer "work_type", default: 0
+    t.text "city"
+    t.text "state"
+    t.text "country"
     t.index ["invitation_token"], name: "index_candidates_on_invitation_token", unique: true
     t.index ["invitations_count"], name: "index_candidates_on_invitations_count"
     t.index ["invited_by_id"], name: "index_candidates_on_invited_by_id"

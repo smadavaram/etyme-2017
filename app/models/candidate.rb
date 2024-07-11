@@ -111,6 +111,7 @@ class Candidate < ApplicationRecord
 
   geocoded_by :location
   after_validation :geocode
+  before_save :set_location_attributes
 
   enum status: %i[signup campany_candidate]
   enum work_type: %i[onsite remote hybrid]
@@ -319,6 +320,15 @@ class Candidate < ApplicationRecord
     end
     handle_email_errors do
       CandidateMailer.invite_user(self, invited_by).deliver_now
+    end
+  end
+
+  def set_location_attributes
+    if (self.geocoded?) && (location_changed? || new_record?)
+      result = Geocoder.search(self.location).first
+      self.country = result.country if result
+      self.city = result.city if result
+      self.state = result.state if result
     end
   end
 
