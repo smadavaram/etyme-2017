@@ -191,3 +191,4 @@ gem 'safe_attributes'
 # for mailcrux
 gem 'postal-rails', '~> 1.0'
 gem "recaptcha"
+gem 'countries'

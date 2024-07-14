@@ -85,7 +85,7 @@
                                   <p></p>
                                 <% end %>
                             </p>
-                            <div class="p-0 m-0" style="font-size: smaller;"><%= "#{c&.candidate&.city}, #{c&.candidate&.state}, #{c&.candidate&.country}" || "-" %></div>
+                            <div class="p-0 m-0" style="font-size: smaller;"><%= c&.candidate&.short_location %></div>
                             <div class= "skills">
                               <% if c&.candidate&.skills.any? %>
                                 <% c.candidate.skills.last(8).each do |skill| %>

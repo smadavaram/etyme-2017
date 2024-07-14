@@ -294,6 +294,29 @@ class Candidate < ApplicationRecord
     (ENV['app_domain']).to_s
   end
 
+  def short_location
+    location = "".dup
+    if city.present?
+      location << city
+    end
+    if city.present? && state.present?
+      location << ", "
+    end
+    if state.present?
+      location << state
+    end
+    if country.present? && state.present?
+      location << ", "
+    end
+    if country.present?
+      country_data = ISO3166::Country.find_country_by_name(country)
+      abbreviated_country = country_data&.alpha2 if country_data
+      country = abbreviated_country if abbreviated_country.present?
+      location << country
+    end
+    location == "" ? "-" : location
+  end
+
   def full_name
     first_name.capitalize + ' ' + last_name.capitalize
   end
