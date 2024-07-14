@@ -71,6 +71,18 @@ class JobInvitation < ApplicationRecord
     self.company == company
   end
 
+  def hourly_average
+    if min_hourly_rate.positive? && !(max_hourly_rate.positive?)
+      "$" + min_hourly_rate.to_s + "/hr"
+    elsif !(min_hourly_rate.positive?) && max_hourly_rate.positive?
+      "$" + max_hourly_rate.to_s + "/hr"
+    elsif min_hourly_rate.positive? && max_hourly_rate.positive?
+      "$" + ((min_hourly_rate + max_hourly_rate) / 2).round(2).to_s + "/hr"
+    else
+      "-"
+    end
+  end
+
   private
 
   def reject_request

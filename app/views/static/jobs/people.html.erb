@@ -96,8 +96,8 @@
                             <div class="row">
                               <div class="col-5">
                                 <p class="mb-0"><strong>Rate</strong></p>
-                                <% if @c_bench_job.present? && @c_bench_job&.min_hourly_rate.present? && @c_bench_job&.max_hourly_rate.present? %>
-                                  <p><%= "$" + @c_bench_job&.min_hourly_rate.to_s + "-" + @c_bench_job&.max_hourly_rate.to_s + "/hr"%></p>
+                                <% if @c_bench_job.present? %>
+                                  <p><%= @c_bench_job&.hourly_average %></p>
                                 <% else %>
                                   <p>-</p>
                                 <% end %>
