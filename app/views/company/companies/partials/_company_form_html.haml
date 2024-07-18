@@ -41,21 +41,24 @@
             = radio_button_tag 'same_billing_addr', false, true
             = label_tag 'same_billing_addr', 'No'
     = f.fields_for :billing_infos do |b|
-      .billing_info
+      .billing_info{style: "padding: 15px;"}
         .row
-          .col-md-12
+          .col-md-6
+            .row
+              .col-md-12
+                .form-group
+                  = b.text_field :city,placeholder: "city",class: 'form-control b_city'
+            .row
+              .col-md-12
+                .form-group
+                  = b.text_field :country, placeholder: "country", class: 'form-control b_country'
+            .row
+              .col-md-12
+                .form-group
+                  = b.text_field :zip,placeholder: "zip/pincode",class: 'form-control b_zip'
+          .col-md-6
             .form-group
-              = b.text_area :address,placeholder: "address", class: 'form-control b_address'
-        .row
-          .col-md-4
-            .form-group
-              = b.text_field :city,placeholder: "city",class: 'form-control b_city'
-          .col-md-4
-            .form-group
-              = b.text_field :country, placeholder: "country", class: 'form-control b_country'
-          .col-md-4
-            .form-group
-              = b.text_field :zip,placeholder: "zip/pincode",class: 'form-control b_zip'
+              = b.text_area :address,placeholder: "address", class: 'form-control b_address',style: 'min-height:145px;'
     .row.form-group
       .col-lg-12.multi-field-wrapper
         %p
