@@ -312,7 +312,14 @@ class Static::JobsController < ApplicationController
 
 
   def post_job
+    Rails.logger.info "current_user_id>>>>>>#{current_user.id}"
     if current_user.present?
+      Rails.logger.info "current_company_id>>>>>>#{current_company.id}"
+      Rails.logger.info "request.host>>>>>>#{request.host}"
+      Rails.logger.info "request.domain>>>>>>#{request.domain}"
+      Rails.logger.info "request.subdomain>>>>>>#{request.subdomain}"
+      Rails.logger.info "request.port_string>>>>>>#{request.port_string}"
+      current_company = current_user.company if current_user.company.present?
       @job = current_company.jobs.new(company_user_job_params.merge!(created_by_id: current_user.id, listing_type: 'Job'))
       if @job.save
         handle_google_update(@job)
