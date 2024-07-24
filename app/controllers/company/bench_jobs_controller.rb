@@ -18,7 +18,7 @@ class Company::BenchJobsController < Company::BaseController
         :job_invitations,
         { job_invitations: [:sender, :company] }
       ]
-    ).paginate(page: page, per_page: per_page) || []
+    ).order(created_at: :desc).paginate(page: page, per_page: per_page) || []
     @groups = @current_company.groups.contact_groups.all.map { |c| [c.group_name, c.candidates.map { |e| e.email }] }
   end
 
