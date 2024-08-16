@@ -2,7 +2,8 @@
   <script src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['google_search_location_api_key'] %>&libraries=places" type="text/javascript"></script>
 <% end %>
 
-<%= form_with(model: [@job], local: true) do |form| %>
+<%= form_with(model: [@job], local: true, html: { id: 'job_form' }) do |form| %>
+  <%= button_tag 'AI Auto Fill', type: 'button', id: 'autofill-btn', class: 'btn btn-secondary d-flex ml-auto' %>
   <%= render 'company/jobs/partials/forms/errors', form: form %>
   <% if params[:type] == "Blog" %>
     <%= render 'company/jobs/partials/forms/field', form: form, attribute: :title, field_type: :text_field, field_attributes: {autofocus: true} %>
@@ -142,6 +143,58 @@
 </style>
 <% content_for :scripts do %>
   <script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+      const autofillBtn = document.getElementById('autofill-btn');
+      const descriptionField = document.querySelector('.trix-content.trix-description');
+
+      autofillBtn.addEventListener('click', async function() {
+        const description = descriptionField.innerText;
+
+        if (description.trim() === "") {
+          alert("Please enter a job description first.");
+          return;
+        }
+
+        try {
+          const response = await fetch('/jobs/autofill_job_fields', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ description: description })
+          });
+
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+
+          const data = await response.json();
+
+          // Directly map the returned data to your form fields
+          debugger
+          document.getElementById('job_title').value = data.title || '';
+          document.getElementById('job_education_list').value = data.education_list.join(', ') || '';
+          document.getElementById('job_status').value = data.status || '';
+          document.getElementById('job_department').value = data.department || '';
+          document.getElementById('job_industry').value = data.industry || '';
+          document.getElementById('job_job_category').value = data.job_category || '';
+          document.getElementById('job_tag_list').value = data.tag_list.join(', ') || '';
+          document.getElementById('job_location').value = data.location || '';
+          document.getElementById('job_work_type').value = data.work_type || '';
+          document.getElementById('job_start_date').value = data.start_date || '';
+          document.getElementById('job_end_date').value = data.end_date || '';
+          document.getElementById('job_price').value = data.price || '';
+          document.getElementById('job_job_type').value = data.job_type || '';
+
+        } catch (error) {
+          console.error('Error:', error);
+          alert('There was an error processing the request.');
+        }
+      });
+    });
+
+
     $(document).ready(function() {
       pageSetUp();
       // Job End Date
@@ -186,7 +239,7 @@
         }
         else{
           $(`#multi_${this.id}`).css({ display: "none" });
-          // $('.multi-ans-div').addClass('hidden'); 
+          // $('.multi-ans-div').addClass('hidden');
         }
     });
     $(document).on('click', '.save-req',  function (e) {

@@ -781,6 +781,7 @@ Rails.application.routes.draw do
         post :generate_link_preview, as: :generate_job_link_preview
         post :update_media
         post :update_images
+        post :autofill_job_fields
       end
     end
 
@@ -917,7 +918,7 @@ Rails.application.routes.draw do
         get :get_resumes, on: :member
         get :get_candidates, on: :collection
       end
-      
+
       resources :jobs, only: %i[index create] do
         post :add_job, on: :collection
       end

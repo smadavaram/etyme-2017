@@ -16,6 +16,14 @@ class Company::JobsController < Company::BaseController
     end
   end
 
+  def autofill_job_fields
+    description = params[:description]
+    service = JobAutofillService.new(description)
+    autofill_data = service.call
+
+    render json: autofill_data
+  end
+
   def show
     add_breadcrumb 'job(s)', jobs_path, options: { title: 'JOBS' }
     add_breadcrumb @job.try(:title).try(:titleize)[0..30], job_path, options: { title: 'Job Invitation' }
@@ -32,7 +40,7 @@ class Company::JobsController < Company::BaseController
       flash[:notice] == "Complete the Payment to perform this action"
       redirect_to new_charge_path
     end
-    
+
     add_breadcrumb params[:type].blank? ? 'job' : 'job ' + params[:type], jobs_path, options: { title: 'JOBS' }
     add_breadcrumb 'NEW', new_job_path, options: { title: 'NEW JOB' }
     @job = current_company.jobs.new
@@ -45,7 +53,7 @@ class Company::JobsController < Company::BaseController
       cloning_job = Job.find(params[:copy_id])
       @job = cloning_job.dup
       @job.title = ""
-      cloning_job.job_requirements.map do |req| 
+      cloning_job.job_requirements.map do |req|
         @job.job_requirements << req.dup
       end
     end
