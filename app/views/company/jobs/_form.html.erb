@@ -2,6 +2,11 @@
   <script src="https://maps.googleapis.com/maps/api/js?key=<%= ENV['google_search_location_api_key'] %>&libraries=places" type="text/javascript"></script>
 <% end %>
 
+<div id="loader" style="display: none;">
+  <div class="spinner"></div>
+</div>
+
+
 <%= form_with(model: [@job], local: true, html: { id: 'job_form' }) do |form| %>
   <%= button_tag 'AI Auto Fill', type: 'button', id: 'autofill-btn', class: 'btn btn-secondary d-flex ml-auto' %>
   <%= render 'company/jobs/partials/forms/errors', form: form %>
@@ -146,6 +151,7 @@
     document.addEventListener('DOMContentLoaded', function() {
       const autofillBtn = document.getElementById('autofill-btn');
       const descriptionField = document.querySelector('.trix-content.trix-description');
+      const loader = document.getElementById('loader');
 
       autofillBtn.addEventListener('click', async function() {
         const description = descriptionField.innerText;
@@ -154,6 +160,8 @@
           alert("Please enter a job description first.");
           return;
         }
+
+        loader.style.display = 'flex';
 
         try {
           const response = await fetch('/jobs/autofill_job_fields', {
@@ -190,6 +198,8 @@
         } catch (error) {
           console.error('Error:', error);
           alert('There was an error processing the request.');
+        } finally {
+          loader.style.display = 'none';
         }
       });
     });
