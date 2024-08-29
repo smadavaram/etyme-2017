@@ -3,10 +3,11 @@ class JobAutofillService
   # Add available options for each field
   STATUS_OPTIONS = ["Draft", "Bench", "Published", "Archived", "Cancelled"]
   LISTING_TYPE_OPTIONS = ["Job", "Training", "Service", "Product", "Blog"]
-  DEPARTMENT_OPTIONS = ["Engineering", "Marketing", "Sales", "HR"] # Add actual options
-  INDUSTRY_OPTIONS = ["Software Development", "Finance", "Healthcare"] # Add actual options
-  WORK_TYPE_OPTIONS = WORK_CATEGORIES.keys
+  DEPARTMENT_OPTIONS = ['IT - Services & Product Development','Marketing Department','Sales','Human resourcesNon-IT','Research and Development','Engineering','Production','Quality Assurance','Logistics/Supply chain','Doctors & Nurses','Human resourcesNon-IT','Research and Development']
+  INDUSTRY_OPTIONS = ['Banking, Investment Services & Insurance','Education','Energy & Utilities','Government & Public Sector','Pharmaceutical','Healthcare/Medical','Insurance','High Tech & Telecom Providers','Real Estate','Construction & Labour','Manufacturing','Hospitality']
+  WORK_TYPE_OPTIONS = ['Onsite', 'Remote', 'Hybrid']
   JOB_TYPE_OPTIONS = ["Contract", "Full Time", "Contract To Hire"]
+  JOB_CATEGORY_OPTIONS = WORK_CATEGORIES.keys
 
   def initialize(description)
     @description = description
@@ -61,6 +62,7 @@ class JobAutofillService
       - Industry: #{INDUSTRY_OPTIONS.join(', ')}
       - Work Type: #{WORK_TYPE_OPTIONS.join(', ')}
       - Job Type: #{JOB_TYPE_OPTIONS.join(', ')}
+      - Job Category: #{JOB_CATEGORY_OPTIONS.join(', ')}
 
       Format your response in JSON format with the keys:
       - title

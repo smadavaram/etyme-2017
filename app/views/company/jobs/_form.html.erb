@@ -172,7 +172,7 @@
           const data = await response.json();
 
           // Directly map the returned data to your form fields
-          debugger
+
           document.getElementById('job_title').value = data.title || '';
           document.getElementById('job_education_list').value = data.education_list.join(', ') || '';
           document.getElementById('job_status').value = data.status || '';
@@ -180,7 +180,7 @@
           document.getElementById('job_industry').value = data.industry || '';
           document.getElementById('job_job_category').value = data.job_category || '';
           document.getElementById('job_tag_list').value = data.tag_list.join(', ') || '';
-          document.getElementById('job_location').value = data.location || '';
+          document.getElementById('google_search_location').value = data.location || '';
           document.getElementById('job_work_type').value = data.work_type || '';
           document.getElementById('job_start_date').value = data.start_date || '';
           document.getElementById('job_end_date').value = data.end_date || '';
