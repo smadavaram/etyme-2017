@@ -27,6 +27,9 @@ class CompaniesController < ApplicationController
     @company.owner.confirmed_at = DateTime.now
 
     if verify_recaptcha(model: @company) && @company.save
+      if @company.owner.present?
+        @company.owner.update_column(:invitation_limit, nil) # Using update_column to skip validations if any
+      end
       render 'companies/signup_success', layout: 'static'
     else
       flash.now[:errors] = @company.errors.full_messages

@@ -70,6 +70,7 @@ class JobApplication < ApplicationRecord
   after_create :notify_job_owner_or_admins
   after_update :notify_recipient_on_status_change, if: proc { |application| application.status_changed? }
   after_create :send_message
+  after_create :ensure_conversation_with_context
   accepts_nested_attributes_for :custom_fields, reject_if: :all_blank
   accepts_nested_attributes_for :job_applicant_reqs, reject_if: :all_blank
   accepts_nested_attributes_for :job_applicantion_without_registrations, reject_if: :all_blank
@@ -130,6 +131,28 @@ class JobApplication < ApplicationRecord
 
   def is_rate_accepted?
     accept_rate && accept_rate_by_company
+  end
+
+  def ensure_conversation_with_context
+    # Check if a conversation already exists. If so, ensure its context is correct.
+    # If not, create it with the correct context.
+    convo = self.conversation || self.build_conversation
+    convo.topic = :JobApplication
+    convo.job_application = self # Ensures job_application_id is set
+
+    # Set default participants: applicant and job poster/owner
+    # Ensure these are valid User/Candidate objects.
+    applicant = self.applicationable
+    job_poster = self.job&.created_by || self.job&.company&.owner
+
+    if applicant && job_poster
+      # Determine who is sender/recipient. Conventionally, applicant might be sender.
+      # This might be arbitrary until first message.
+      convo.senderable = applicant
+      convo.recipientable = job_poster
+    end
+    
+    convo.save if convo.new_record? || convo.changed?
   end
 
   private
