@@ -68,6 +68,7 @@ class ApplicationController < ActionController::Base
       company_conversations_path
     elsif %w[Admin Consultant User].include?(class_name)
       if resource.sign_in_count == 1
+        current_company ||= current_user.company
         company_path(current_company.id)
       else
         "/"
