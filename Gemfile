@@ -4,14 +4,15 @@ source 'https://rubygems.org'
 
 gem 'paper_trail'
 
-ruby '2.6.5'
+ruby '3.3.0'
 
 gem 'phonelib', '~> 0.7.4'
 gem 'best_in_place'
 gem 'mina' # ,'~> 0.2.1'
 gem 'mina-multistage' # , '<= 1.0.1', require: false
-gem 'rails', '5.2.4.5'
-gem 'signature-pad-rails'
+gem 'rails', '~> 7.2.0'
+# OUTDATED: gem 'signature-pad-rails'
+# Alternative: Use signature_pad.js via npm/yarn or import maps for signature capture
 
 gem 'browser-timezone-rails'
 gem 'puma', '~> 5.3.2'
@@ -20,20 +21,27 @@ gem 'ajax-datatables-rails'
 gem 'breadcrumbs_on_rails'
 gem 'city-state'
 gem 'cocoon'
-gem 'coffee-rails' # , '~> 4.1.0'
+# OUTDATED: gem 'coffee-rails' # , '~> 4.1.0'
+# Alternative: Use modern JS bundler (esbuild, webpacker) or import maps
 gem 'data-confirm-modal'
-gem 'font-awesome-rails'
+# OUTDATED: gem 'font-awesome-rails'
+# Alternative: Use npm/yarn or import maps for font-awesome in Rails 7
 gem 'haml-rails' # , '~> 0.9'
 gem 'jbuilder', '~> 2.5'
-gem 'jquery-rails'
-gem 'jquery-ui-rails'
+# OUTDATED: gem 'jquery-rails'
+# Alternative: Use npm/yarn or import maps for jquery in Rails 7
+# OUTDATED: gem 'jquery-ui-rails'
+# Alternative: Use npm/yarn or import maps for jquery-ui in Rails 7
 gem 'public_activity'
 gem 'pusher'
-gem 'sass-rails', '~> 6.0'
+# OUTDATED: gem 'sass-rails', '~> 6.0'
+gem 'sassc-rails' # Alternative: Use sassc-rails or cssbundling-rails for SASS in Rails 7
 gem 'sdoc' # , '~> 0.4.0', group: :doc
 gem 'simple_form'
-gem 'tinymce-rails'
-gem 'uglifier', '>= 1.3.0'
+# OUTDATED: gem 'tinymce-rails'
+# Alternative: Use npm/yarn or import maps for tinymce in Rails 7
+# OUTDATED: gem 'uglifier', '>= 1.3.0'
+# Alternative: Use esbuild, rollup, or webpacker for JS minification in Rails 7
 gem 'wicked_pdf'
 gem 'wkhtmltopdf-binary'
 gem 'jquery_mask_rails', '~> 0.1.0'
@@ -171,7 +179,8 @@ gem 'hashie'
 
 # gem 'trix',  '1.2.0'
 gem 'exception_notification'
-gem 'trix-rails', '~> 2.2', require: 'trix'
+# OUTDATED: gem 'trix-rails', '~> 2.2', require: 'trix'
+# Alternative: Use trix via npm/yarn or import maps for modern Rails
 
 gem 'activeadmin'
 gem 'serviceworker-rails'
@@ -183,7 +192,8 @@ gem 'image_processing', '~> 1.0'
 gem 'rest-client'
 gem 'sentry-ruby'
 gem 'sentry-rails'
-gem 'sidekiq', '<= 5.0'
+# OUTDATED: gem 'sidekiq', '<= 5.0'
+gem 'sidekiq' # Alternative: Use the latest Sidekiq (>= 7.x) for Ruby 3.3 and Rails 7 compatibility
 gem 'sidekiq-status'
 gem 'sidekiq-limit_fetch'
 gem 'safe_attributes'
