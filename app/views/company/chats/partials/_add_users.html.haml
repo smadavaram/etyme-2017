@@ -1,0 +1,24 @@
+.modal{ id: "add_users","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Invite Users
+      .modal-body
+        = form_for chat, url:  company_chat_add_users_path(chat) , method: :post,  html:{ class:'form-horizontal',id: 'group-val'} do |f|
+          .form-group
+            %label.col-md-3.control-label
+              Select Admins
+              %sup.text-danger *
+            .col-md-8
+              = f.select :user_ids, current_company.admins.map {|c| [c.first_name,c.id]  if chat.chat_users.where(userable: c).blank? && c!=current_user },{},class: 'form-control select2',:multiple => true
+          .modal-footer
+            = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+:css
+  .select2{
+    width: 389px;
+    }

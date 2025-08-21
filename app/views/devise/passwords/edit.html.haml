@@ -1,0 +1,16 @@
+= render 'partials/password_edit'
+
+-content_for :scripts do
+  :javascript
+    $('#login-form').validate(
+      {
+         rules: {
+          password:{
+          required: true
+          },
+          cPassword:{
+          required: true,
+          equalTo: "#password"
+          }
+       }
+     } );

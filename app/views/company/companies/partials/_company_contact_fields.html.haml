@@ -1,0 +1,10 @@
+.col-md-12.nested-fields{style: 'background: #f5f5f7; margin-top: 4%; padding: 4%'}
+  = link_to_remove_association "Remove Contact", f, class: 'text-info pull-right'
+  = f.email_field :email ,  placeholder: 'Email' , required: true, data: { email_field: true }, onblur: 'validate_email();'
+  .row
+    .col-md-6
+      = f.text_field :first_name ,  placeholder: "First Name"
+    .col-md-6
+      = f.text_field :last_name , placeholder: "Last Name"
+  = f.text_field :title ,  placeholder: 'Title '
+  = f.text_field :phone , type: 'tel', class: 'form-control phone_field', label: 'Mobile Phone', id: 'phone' , placeholder: "Mobile Number", data: {phone_field: true}

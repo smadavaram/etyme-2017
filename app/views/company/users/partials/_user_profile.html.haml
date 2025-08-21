@@ -1,0 +1,107 @@
+.content-i
+  .content-box
+    .element-wrapper
+      %h6.element-header
+        User Profile
+      .element-box
+        #content
+          .row
+            .col-sm-12.col-md-12.col-lg-3
+              .panel-body.status.profile-margin
+                .text
+                  %div.profile-hover
+                    %p.imgDescription.col-sm-offset-4  Change Image
+                    %div.pictureContainer.col-md-offset-2
+                      -#= filepicker_field_tag "" ,class: "hidden user-logo", onchange:"userLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                      -if(user.photo.present?)
+                        = image_tag user.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+
+                      -else
+                        = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"profile-pic image-setting"
+
+                .panel-body.status.profile-margin
+                  .text
+                    %div.profile-hover
+                      %p.imgDescription.col-sm-offset-4 Upload Video
+                      %div.pictureContainer.col-md-offset-2
+                        -#= filepicker_field_tag "" ,class: "hidden file", onchange:"usersVideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                        -if(user.video.present?)
+                          %video{:controls => "", :width => "200", :height=> "200"}
+                            %source{:src => user.video, :type => "#{user.video_type}"}
+                        -else
+                          = image_tag image_path('default_user.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
+                        %br
+                        = button_tag "Upload Video", fit: 'clip',:class =>"video-pic img1 mt-3"
+
+
+            .col-sm-12.col-md-12.col-lg-9
+              =render partial: 'company/users/partials/basic_info',locals: {user: user}
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+
+      $( ".profile-pic" ).click(function()
+      {
+        upload_file_ajax(userLogoUpload);
+      });
+       $(".best_in_place").best_in_place();
+       $(".best_in_place").on('change', function(event) {
+          flash_success('Change Saved!');
+      });
+      $( ".video-pic" ).click(function() {
+        upload_file_ajax(usersVideoUpload);
+     });
+     $( ".resume" ).click(function() {
+        $( ".resume_file" ).trigger( "click" );
+     });
+      $('.p_date').datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c",
+        dateFormat: "mm-dd-yy"
+      });
+    });
+    function userLogoUpload(url,type){
+      photo_url = url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{update_photo_path}",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.text img').attr("src",photo_url);
+        location.reload();
+       }
+     });
+    }
+    function usersVideoUpload(url,type){
+      video_url = url
+      video_type=type
+      $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{company_user_update_video_path(user_id:current_user.id)}",
+       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
+       success: function (data) {
+         location.reload();
+       }
+     });
+    }
+    $.datepicker.setDefaults({
+        changeYear: true,
+        yearRange: "c-60:c",
+        showMonthAfterYear: true,
+        showButtonPanel: true,
+        showAnim: "fold",
+        selectOtherMonths: true,
+        autoSize: true,
+        dateFormat: "mm-dd-yy"
+
+      });
+    $(".edit_in_line").css("display","none");
+    $('td').on('mouseover mouseout',function(){
+    $(this).find('.editprofile-pic_in_line').toggle();
+    });

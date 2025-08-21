@@ -1,0 +1,104 @@
+.content-box
+  .element-wrapper
+    .element-box
+      = render partial: 'company/companies/sub_menu_company'
+      .content-i
+        .content-box
+          .row
+            .col-sm-12
+              .element-wrapper
+                .element-box-tp
+                  .controls-above-table
+                    .row.mr-1.ml-1
+                      .col-sm-6
+                        =link_to 'New', new_role_path ,class: "btn btn-primary", remote: true
+                      .col-sm-6
+                        .form-inline.justify-content-sm-end
+                          %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'company_role_search'}
+                  .table-responsive
+                  %table#company_role.table.table-striped.table-bordered
+                    %thead
+                      %tr{:role => "row"}
+                        %th{"data-hide" => "phone",:width => "2%"} ID
+                        %th{"data-class" => "expand",:width => "10%"}
+                          %i.fa.fa-fw.fa-user.text-muted.hidden-md.hidden-sm.hidden-xs
+                          Name
+                        %th{"data-hide" => "phone,tablet",:width => "40%"}Permisions
+                        %th{"data-hide" => "phone,tablet",:width => "10%"}
+                          %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                          Date
+                        %th{style:"width:20%"}
+                          Actions
+                    %tbody
+                      - @roles.each_with_index do |r , index|
+                        %tr
+                          %td= index+1
+                          %td= r.name
+                          %td
+                            - r.permissions.each do |p|
+                              %span.badge.bg-color-blue.margin-bottom-5
+                                = p.name.titleize
+                          %td= r.created_at.try(:strftime,'%B %d, %Y')
+                          %td
+                            = link_to raw("<i class='fa fa-pencil '></i>") , edit_role_path(r) , class: 'btn btn-xs btn-default ' , remote: true,title: "Edit #{r.name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+  .digg_pagination
+  {
+    background-color: #fafafa !important;
+  }
+-content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+     pageSetUp();
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
+            }
+
+        });
+
+
+      // Apply the filter
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+            .column( $(this).parent().index()+':visible' )
+            .search( this.value )
+            .draw();
+
+      } );
+      /* COLUMN SHOW - HIDE */
+        $('#datatable_col_reorder').dataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6'f><'col-sm-6 col-xs-6 hidden-xs'C>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-sm-6 col-xs-12'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
+            },
+            "preDrawCallback" : function() {
+                // Initialize the responsive datatables helper once.
+                if (!responsiveHelper_datatable_col_reorder) {
+                    responsiveHelper_datatable_col_reorder = new ResponsiveDatatablesHelper($('#datatable_col_reorder'), breakpointDefinition);
+                }
+            },
+            "rowCallback" : function(nRow) {
+                responsiveHelper_datatable_col_reorder.createExpandIcon(nRow);
+            },
+            "drawCallback" : function(oSettings) {
+                responsiveHelper_datatable_col_reorder.respond();
+            }
+        });
+
+    });

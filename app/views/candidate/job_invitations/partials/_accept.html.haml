@@ -1,0 +1,43 @@
+.modal{ id: "job-invite-#{job_invitation.id}"}
+  .modal-dialog.modal-lg
+    .modal-content.d-block
+      .modal-header.w-100
+        %h2
+          %strong Job Application - #{job.title}
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      = form_for [:candidate , job,job_application], html: {class: 'form-horizontal'} do |f|
+        .modal-body
+          = f.hidden_field  :job_invitation_id , value: job_invitation.id
+          %fieldset
+            .form-group
+              %label.d-block Resume
+              .col-md-10
+                .file_selector{style: "display: flex;"}
+                  .form-group.d-inline-block
+                    = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
+                  %p.d-inline-block.uploaded_file_name  No File Selected
+            .form-group
+              %label.col-md-2.control-label Cover Letter
+              .col-md-10
+                = f.trix_editor :cover_letter, required: true, autofocus: true,class: "trix-content"
+                -#=  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
+                =  tinymce :default
+            .form-group
+              %label.col-md-2.control-label Message (optional)
+              .col-md-10
+                = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+            -#= job.custom_fields.each do |c|
+            .nested-fields
+              = f.fields_for :custom_fields do |custom|
+                .form-group
+                  %label.col-md-2.control-label #{custom.object.name}
+                  .col-md-10
+                    = custom.hidden_field  :name , value: custom.object.name
+                    = custom.text_field  :value, class: "form-control", placeholder: custom.object.name
+        .modal-footer
+          %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+            Cancel
+          = f.submit 'Save' , class: 'btn btn-primary'
+
+

@@ -1,0 +1,73 @@
+/*
+ * This is a manifest file that'll be compiled into application.css, which will include all the files
+ * listed below.
+ *
+ * Any CSS and SCSS file within this directory, lib/assets/stylesheets, vendor/assets/stylesheets,
+ * or any plugin's vendor/assets/stylesheets directory can be referenced here using a relative path.
+ *
+ * You're free to add application-wide styles to this file and they'll appear at the bottom of the
+ * compiled file so the styles you add here take precedence over styles defined in any other CSS/SCSS
+ * files in this directory. Styles in this file should be added after the last require_* statement.
+ * It is generally better to create a new file per style scope.
+ *
+ * Basic Styles
+ * require bootstrap
+ *= require font-awesome
+ *
+ * SmartAdmin Styles : Caution! DO NOT change the order
+ *= require smartadmin-production-plugins
+ *= require smartadmin-production
+
+ *= require smartadmin-rtl
+ *
+ * We recommend you use "your_style.scss" to override SmartAdmin
+ * specific styles this will also ensure you retrain your customization with
+ * each SmartAdmin update.
+ *= require your_style
+ *
+ * Demo purpose only: goes with demo.js, you can delete this css when designing
+ * your own WebApp
+ *= require demo
+ *= require_self
+ *
+ * Invoice related styles
+ *= require invoice
+ *
+ * Lock screen related styles
+ *= require lockscreen
+ *= require theme8
+
+ *= require amaran.min
+ *= require custom
+ *= require candidate/jobs
+ *= require global
+ *= require chat_box
+ *= require conversation/chat
+ *= require style
+ *= require bootstrap-switch
+ *= require bullettrain-public
+ *= require bullettrain-global
+ *= require navigation
+ *= require top_navigation
+ *= require shared/datatable
+ *= require fullcalendar
+ *= require calendar_custom
+ *= require company/contracts
+ *= require trix
+ *= require slick-carousel/slick/slick
+ *= require candidate/dashboard
+ *= require candidate_chat_custom
+ *= require candidate/profile
+*= require chat-custom-style
+
+ */
+.icon-text{
+    font-size: 12px;
+    line-height: normal;
+    display: block;
+    color: #047bf8;
+}
+.new-messages-count{
+    top: -2px !important;
+    right: 0px !important;
+}

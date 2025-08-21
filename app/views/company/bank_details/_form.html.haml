@@ -1,0 +1,78 @@
+= form_for @bank_detail , url: update_acc_info_bank_details_path, html:{class: 'form-horizontal'}  do |f|
+  .row
+    .col-md-6
+      %label Treasury Account
+      = f.select :bank_name, options_for_select(BankDetail.bank_names.keys.map { |key| [key.titleize, key] }),{required: true}
+
+    .col-md-6
+      %label Balance
+      = f.number_field :balance, class: 'form-control', required: true
+
+  .row
+    .col-md-4
+      %label New Balance
+      = f.number_field :new_balance, class: 'form-control', required: true
+
+    .col-md-4
+      %label Reconciliation Date
+      = f.date_field :recon_date, class: 'form-control'
+
+    .col-md-4
+      %label Unidentified Balance
+      = f.number_field :unidentified_bal, class: 'form-control'
+
+  %br
+  = f.submit 'Submit', class: 'btn btn-primary'
+
+
+- content_for :scripts do
+  :javascript 
+
+    $(document).ready(function() {
+      var bank_name = $( "#bank_detail_bank_name option:selected" ).val();
+      update_acc_info(bank_name)
+
+      $('#bank_detail_bank_name').on('change', function() {
+        bank_name = $( "#bank_detail_bank_name option:selected" ).val();
+        update_acc_info(bank_name)
+      });
+
+      $('input#bank_detail_new_balance').on('change', function(){
+        update_unidentified_balance();
+      })
+
+
+    });
+    function update_acc_info(bank_name){
+      $.ajax({
+        url: "#{acc_info_bank_details_path}",
+        type: 'GET',
+        data: {bank_name: bank_name},
+        dataType: 'JSON'
+      }).done(function(data){
+        if (data.acc_info == null){
+          $('#bank_detail_balance').val('');
+          $('#bank_detail_new_balance').val('');
+          $('#bank_detail_recon_date').val('');
+          $('#bank_detail_unidentified_bal').val('');
+        }
+        else{      
+          $('#bank_detail_balance').val(data.acc_info.balance);
+          $('#bank_detail_new_balance').val(data.acc_info.new_balance);
+          $('#bank_detail_recon_date').val(data.acc_info.recon_date);
+          $('#bank_detail_unidentified_bal').val(data.acc_info.unidentified_bal);
+        }
+      });
+    }
+
+    function update_unidentified_balance(){
+      var balance = $('#bank_detail_balance').val();
+      var new_bal = $('#bank_detail_new_balance').val();
+      var unidentified_bal =  (balance - new_bal)
+      if (unidentified_bal > 0 && new_bal > 0){
+        $('#bank_detail_unidentified_bal').val(unidentified_bal);
+      }
+      if (new_bal > balance){
+        $('#bank_detail_unidentified_bal').val(0);
+      }
+    }

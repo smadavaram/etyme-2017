@@ -1,0 +1,32 @@
+%fieldset
+  .form-group
+    %label.col-md-2.control-label
+      Documents
+      %sup.text-danger *
+    .col-md-10
+      = e.collection_select :company_doc_ids, current_company.company_candidate_docs,:id,:title ,{}, {:class=>"form-control input-lg",placeholder: 'Select docs(s)' ,:multiple => true, required: false,id:'docs'}
+      %span.help-block.m-b-none
+        Attach company documents like Contracts, Company Letter, Hiring Manifesto, W4, W9 Forms and etc.
+  %hr
+  .form-group#contract-attachment
+    .col-md-12
+      = e.fields_for :attachments do |attachment|
+        = render 'company/contracts/attachment_fields', f: attachment
+      .links
+        = link_to_add_association 'Add Attachment', e, :attachments,partial:'company/contracts/attachment_fields',class:"btn btn-primary pull-right"
+-#- content_for :scripts do
+-#  :javascript
+-#     $('#contract-attachment').on('cocoon:after-insert', function(e, insertedItem) {
+-#        insertedItem.find('.filepicker-attachment').each(function(i,e){
+-#          filepicker.constructWidget(e);
+-#
+-#        $(".filepicker-attachment").on('click',function() {
+-#        $('.fp__overlay').css({'z-index':'99999'})
+-#        });
+-#
+-#        $('.filepicker-attachment').on('click',function() {
+-#          $(this).hide();
+-#         });
+-#
+-#        });
+-#    });

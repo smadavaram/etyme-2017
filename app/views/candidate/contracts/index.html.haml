@@ -1,0 +1,46 @@
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-12
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: "candidate_contracts_datatable-search"}
+            .table-responsive
+              %table.table.table-striped.table-bordered.table-hover.table-lg{id: "candidate_contracts_datatable"}
+                %thead
+                  %tr
+                    %th Contract
+                    %th Sender
+                    %th Company
+                    %th Job
+                    %th Valid Period
+                    %th Time sheet
+                    %th Status
+                    %th Contact
+                %tbody
+                  - @contracts.each do |d|
+                    %tr{class: "#{set_background_status_color(d.status)}"}
+                      %td
+                        = d.project_name
+                        %a.pull-right{:href => candidate_contract_path(d)}
+                          %i.fa.fa-key
+                      %td= d.created_by.full_name.capitalize
+                      %td= d.created_by.company.name.capitalize if d.created_by.company.present?
+                      %td= link_to d.job.title.capitalize , static_job_path(d.job)
+                      %td= "#{d.start_date} - #{d.end_date}"
+                      %td= link_to "TimeSheet", new_candidate_timesheet_path if d.accepted?
+                      %td= snake_to_words(d.status)
+                      %td= contact_widget(d.created_by.email,d.created_by.phone,nil,color: '#3E4B5B; !important',chat_link: candidate_conversations_path(d.buy_contract.conversation.present? ? {conversation: d.buy_contract.conversation} : {}))
+
+
+- content_for :modals do
+  #ajax-modal
+- content_for :scripts do
+  :javascript
+    $(document).ready(function () {
+      default_active_nav('.ln-5');
+    });

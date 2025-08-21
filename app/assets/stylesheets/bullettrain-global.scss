@@ -1,0 +1,126 @@
+@import 'clean_admin/main';
+
+// fixes an ugly css3 animation bug in safari.
+html {
+  -webkit-font-smoothing: antialiased;
+}
+
+#error_explanation {
+  h2 {
+    display: none;
+  }
+  ul {
+    display: inline;
+  }
+  li {
+    list-style: none;
+    &:after {
+      content: ".";
+    }
+  }
+}
+
+// this aligns the 'remember me' checkbox to the submit button on the login page.
+input[type="submit"] + div.form-check-inline .form-check-label {
+  padding-top: 10px;
+}
+
+// this fixes how narrow the alerts are on the sign-in and sign-up pages.
+.auth-wrapper {
+  form {
+    .alert {
+      margin-top: -15px;
+    }
+  }
+}
+
+.with-pattern {
+  // min-height: 100vh;
+}
+
+.body-background-dark {
+  background-color: rgb(10, 26, 61);
+  &:before {
+    background: none;
+  }
+}
+
+.body-no-padding {
+  padding: 0;
+}
+
+body.body-account .pricing-plans {
+  margin-left: -50px !important;
+  margin-right: -50px !important;
+}
+
+.plans-cancel-link {
+  margin-top: 20px;
+}
+
+.intro-description-logo {
+  margin-bottom: 30px;
+}
+
+ul.main-menu > li > a {
+  text-decoration: none;
+  &:hover {
+    text-decoration: none;
+  }
+}
+
+.logged-user-menu {
+  min-width: 250px;
+}
+
+// add a custom style for the navigation items in the menus.
+ul.sub-menu li a.navigation-item {
+  text-transform: uppercase !important;
+  font-size: 0.67rem !important;
+  font-weight: 500 !important;
+}
+
+.auth-box-w {
+  .alert {
+    margin-top: -25px;
+    margin-bottom: 20px;
+  }
+  .alert + .alert {
+    margin-top: -10px;
+  }
+  form .form-group .pre-icon {
+    top: 32px;
+  }
+}
+
+.btn {
+  [class^="ti-"],
+  [class*=" ti-"] {
+    color: white;
+    line-height: 0;
+    font-size: 22px;
+    vertical-align: -5px;
+    margin-right: 5px;
+  }
+  &.btn-link {
+    [class^="ti-"],
+    [class*=" ti-"] {
+      color: inherit;
+    }
+  }
+}
+.intl-tel-input {
+  display: block;
+}
+
+.icon-widgets {
+  color: #ffffff !important;
+  font-size: 20px;
+  background-color: #097cff;
+  height: 40px;
+  width: 40px;
+  text-align: center;
+  line-height: 40px;
+  border-radius: 3px;
+  display: inline-block;
+}

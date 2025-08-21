@@ -1,0 +1,40 @@
+.nested-fields7.multi-field-container
+  .row
+    = f.hidden_field :client_id
+    = f.hidden_field :candidate_id,value: current_candidate.id
+    = f.hidden_field :_destroy, class: "destroy_client_employer"
+    .col-md-12
+      .form-group
+        %label Company Name
+        = f.text_field :comp_name, placeholder: "Company Name",class: 'form-control  input'
+    .col-md-12
+      .form-group
+        %label Company Designation
+        = f.text_field :company_role, placeholder: "Designation",class: 'form-control  input'
+    .col-md-12
+      .row
+        .col-md-6
+          .form-group
+            %label Start Date
+            = f.text_field :start_date, placeholder: "Start Date",class: 'form-control p_date input'
+        .col-md-6
+          .form-group
+            %label End Date
+            = f.text_field :end_date, placeholder: "End Date",class: 'form-control p_date input'
+    .col-md-12
+      .form-group
+        %label Recruiter Name
+        = f.text_field :recruiter_name, placeholder: "HR/Recruiter Name",class: 'form-control  input'
+    .col-md-12
+      .form-group
+        %label Recruiter Email
+        = f.text_field :recruiter_email, placeholder: "Recruiter Email",class: 'form-control  input'
+    .col-md-12{style: 'display: flex; align-items: center;'}
+      .form-group
+        %label Recruiter Phone
+        .row
+          .col-md-3
+            = f.text_field :recruiter_phone_country_code, placeholder: "+00",class: 'form-control input'
+          .col
+            = f.text_field :recruiter_phone, placeholder: "Recruiter Phone",class: 'form-control  input'
+      %button{style: 'height: 37px;border-radius: 0;', class: 'mt-2 btn btn-sm btn-primary'} verify

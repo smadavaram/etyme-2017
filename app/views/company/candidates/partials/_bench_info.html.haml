@@ -1,0 +1,28 @@
+.modal{id:"candidate-bench-info"}
+  .modal-dialog
+    .modal-content
+      .modal-header.border_bottom
+        %h4.modal-title
+          %strong= "Candidate Bench Info"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body
+        -if @is_bench
+          .logged-user-w
+            .avatar-w
+              %img{:alt => "", :src => @candidate.associated_company.photo}/
+            .logged-user-name= @candidate.associated_company.name
+            .logged-user-role= @candidate.address
+
+          .padded-v-big.todo-list
+            .todo-item.chat-heat_justify
+              - @candidate.skills.each do |skill|
+                %span
+                  .badge.badge-primary.margin-bottom-5
+                    = skill.name
+        -else
+          %div.paddeda.p-2.m-2.todo-list
+            .todo-item
+              .ti-header Candidate is not in this company's bench
+
+

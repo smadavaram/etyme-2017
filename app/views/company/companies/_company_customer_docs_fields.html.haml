@@ -1,0 +1,69 @@
+.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
+  
+  .row
+    .col-md-2
+      .form-group
+        %p Title
+        = f.text_field :title, placeholder: "Title",class: 'form-control  input'
+       
+    .col-md-2
+      .form-group
+        %p Title Type
+        / = f.text_field :title_type, placeholder: "Title",class: 'form-control  input' 
+        = f.select :title_type , [["Job", 'Job'], ["Training", 'Training'],["Product", 'Product'],["Service", 'Service'],["Contract", 'Contract'],["USACS", 'USACS']],{include_blank: '-- Select Type --'} ,:class => 'form-control company_type'  
+    / .col-md-3
+    /   .form-group
+    /     %p Input
+    /     = f.text_field :custome_name, placeholder: "Custome Details",class: 'form-control  input'
+           
+    .col-md-2
+      .form-group
+        %p Expiry Date
+        = f.text_field :exp_date, placeholder: "YYYY-MM-DD",class: 'form-control input candidate_doc_exp_date'    
+    / .col-md-3    
+    /   .form-group.mr-top-20
+    /     %label.checkbox.col-md-8.control-label Is Required Signature
+    /     .col-md-4.mr-top-10
+    /       =f.check_box :is_required_signature
+
+    .col-md-2
+      .form-group.mr-top-30
+        %label.radio-container
+          Is Require Signature
+          = f.radio_button :is_require, "signature", checked:true
+          %span.radio-checkmark
+    .col-md-2
+      .form-group.mr-top-30
+        %label.radio-container
+          Is require Document
+          = f.radio_button :is_require, "Document"
+          %span.radio-checkmark    
+    
+    .col-md-2
+      .form-group
+        %p Upload Template
+        / = f.text_field :file, class: 'hidden file_education_document'
+        / = filepicker_field_tag "" , class: " hidden education_file filepicker-attach", onchange:"uploadFileDoc(event, $(this).prev())"
+                          = render "shared/file_attachement", f:f,attr_name: :attachment,multiple: false, required_field: false
+        = f.filepicker_field :file, :button_text => "Upload Template", disable: true , class: 'file-pick btn btn-primary filepicker-attach filepicker-attach-doc'
+        / = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev())"
+    .col-md-2    
+      .col-lg-12
+        %button.btn.btn-primary.pull-right.mr-right-30{:type => "submit"}
+          Saved     
+
+
+- content_for :scripts do
+  :javascript  
+
+    function select_visa_file(prev){
+      prev.trigger("click");
+    }  
+
+    function uploadVisaDoc(event, file_el){
+      document_url = event.fpfile.url
+      $("#"+file_el.attr("id")).val(document_url)
+    }      
+
+    
+         

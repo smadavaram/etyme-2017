@@ -1,0 +1,50 @@
+.modal-body#rate-confirmation-modal-body
+  - if ["weekly","biweekly"].include?(@cyclable.contract_cycle.cycle_frequency)
+    %table.table.table-bordred
+      %thead
+        %tr
+          %th MON
+          %th TUE
+          %th WED
+          %th THU
+          %th FRI
+          %th SAT
+          %th SUN
+      %tbody
+        %tr
+          -(0..6).each do |index|
+            - transaction = get_day_transaction(index,@cyclable.transactions)
+            %td{style: "border-top: none !important"}
+              - if transaction
+                %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100%", disabled: transaction.start_time <= DateTime.now ? false : true,:type => "number", :value => "#{transaction.total_time}"}/
+                %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{transaction.id}"}/
+              - else
+                %input{name:"no_transaction", disabled: "disabled",:style => "width: 100%",value:"0", type:"number"}
+  -elsif ["monthly","twice a month"].include?(@cyclable.contract_cycle.cycle_frequency)
+    -@cyclable.transactions.each_with_index do |transaction,index|
+      .d-inline-block
+        %p.mb-1.mt-1= transaction.start_time.strftime("%Y-%m-%d")
+        %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100px",disabled: transaction.start_time <= DateTime.now ? false : true, :type => "number", :value => "#{transaction.total_time}"}/
+        %input{id: "timesheet_transactions_attributes_#{index}_id",:name => "timesheet[transactions_attributes][#{index}][id]", :type => "hidden", :value => "#{transaction.id}"}/
+  -elsif ["daily"].include?(@cyclable.contract_cycle.cycle_frequency)
+    .row
+      .col-sm-3
+        - index = 0
+        %label.d-block Add Hour
+        .form-group.d-inline-block
+          %input{id: "timesheet_transactions_attributes_#{index}_total_time",:name => "timesheet[transactions_attributes][#{index}][total_time]", :style => "width: 100px",disabled: true, :type => "number", :value => "#{cyclable.transactions.first.total_time}"}/
+      .col-sm-9
+        -if  @cyclable.transactions.first.file.present?
+          %label.d-block File
+          .file_selector{style: "display: flex;"}
+            %p.d-inline-block.uploaded_file_name= File.basename(@cyclable.transactions.first.file)
+      .col-sm-12
+        =text_area_tag "timesheet[transactions_attributes][#{index}][memo]",@cyclable.transactions.first.memo,placeholder:"Add Note", class: "w-100 p-2"
+.modal-footer
+  -# - if @cyclable.submitted? and @cycleable.can_approve?(current_company,current_user)
+  =link_to :approve, timesheet_approve_path(@cyclable), class: "btn btn-secondary btn-sm"
+  =link_to "Notify candidate to re-submit", timesheet_reject_path(@cyclable), class: "btn btn-danger btn-sm"
+
+  -#=form_for @cyclable, method: "put" do |tf|
+  -#  = select_tag "Status", options_for_select( [:submitted, :approved, :partially_approved, :rejected].map{|type| [type, type]}),{class: "form-control candidate_list", prompt: @cyclable.status}
+  -#  = tf.submit :update

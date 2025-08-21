@@ -1,0 +1,44 @@
+.x_overflow_y_h
+  %table#company-contracts-datatable.table.table-bordered.table-lg.table-v2.table-striped
+    %thead
+      %tr
+        %th Id
+        %th Title
+        %th Customer
+        %th Rate
+        %th Candidate
+        %th Cost
+        %th Created By
+        %th Start date
+        %th Contract
+        %th Status
+        %th Action
+    %tbody
+      - data.each do |contract|
+        %tr{class: "#{set_background_status_color(contract.status)}"}
+          %td=link_to contract.buy_contract.try(:number) , company_buy_contract_contract_path(contract)
+          %td=contract.try(:title)
+          %td= contract.client.try(:full_name)
+          %td= contract.rate
+          %td= contract.candidate.try(:full_name)
+          %td not know
+          %td= link_to contract.created_by.full_name , '#'
+          %td= (contract.start_date)
+          %td= contract.try(:number)
+          %td.no-wrap
+            = colorfull_text(snake_to_words(contract.status), contract.status=="pending" ? 'orange' : 'green')
+          %td.no-wrap 
+            - if ['pending','draft'].include?(contract.status)
+              = link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, new_contract_path(contract_id: contract.id), title: "Edit #{contract.title}", class: 'data-table-icons')
+            = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, contract_path(contract), title: "Edit #{contract.title}", class: 'data-table-icons')
+.timesheet_pagination_wrap.pt-3
+  .pagination_label
+    = page_entries_info data
+  = will_paginate(data, {params: params.merge(tab: 'buy_contract'),previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'buy_contract_pagination_links'}.merge(link_options: {'data-remote': true}))
+
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+

@@ -1,0 +1,62 @@
+<% user = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) %>
+<div class="row mt-4 ml-2 mr-2" id="collapsible_job_application">
+  <div class="col-sm-12">
+    <div class="element-wrapper pb-0">
+      <div class="element-content">
+        <div class="mt-2">
+          <div class="collapsible" style="display:inline-flex; display: none">
+            <%if @previous%>
+              <span><%= link_to "<i class='fa fa-caret-left'></i>".html_safe, @previous,title:'Previous Job Application' %></span>
+            <%end%>
+             <span><h6 class="collapsible-click  align-job-header"><%=job_application.job.id %> : <%=job_application.job.title %><small>(<%=job_application.job.created_at.strftime("%d of %B, %Y") %>)</small></h6></span>
+            <%if @next%>
+              <span><%= link_to "<i class='fa fa-caret-right'></i>".html_safe, @next,title:'Next Job Application' %></span>
+            <%end%>
+          </div>
+          <div class="element-box w-100 text-justify job-application-collaps">
+            <div class="col-lg-12">
+              <%= render partial: 'partials/job_show', locals: {job: job_application.job} %>
+            </div>
+          </div>
+        </div>
+        <div class="mt-2" >
+          <div class="collapsible job-status-on-mobile" style="margin-left: 1%">
+            <h6 class="collapsible-click ">Job Application</h6>
+            <hr/>
+            <%= render 'company/job_applications/partials/job_status_links', app: job_application, conversation: conversation, btn_size_class: 'btn-link mt-12 margin-right-5' %>
+          </div>
+          <div class="element-box w-100 text-justify chat-collaps">
+            <div class="row">
+              <div class="col-sm-12">
+                <%= content_for :links do %>
+                  <% if job_application.applicant_resume %>
+                    <%= link_to "#{job_application.applicant_resume}", class: 'btn btn-primary mt-1 pull-right', download: true do %>
+                      <i class="os-icon os-icon-arrow-down6"></i>
+                      Resume
+                    <% end %>
+                  <% end %>
+                  <% if job_application.share_key %>
+                    <%= button_tag('Client Submission', class: 'btn btn-primary pull-right mr-1 mt-1', "data-toggle": "modal", "data-target": "#share_application_#{job_application.id}") %>
+                  <% end %>
+                <% end %>
+                <%= render partial: 'partials/job_application_show', locals: {job_application: job_application, conversation: conversation}
+                %>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%= content_for :modals do %>
+  <div id="candidate_pre_screen_modal">
+    <%= render 'shared/prescreen_modal', job_application: job_application, conversation: conversation %>
+  </div>
+  <div id="candidate_rate_confirmation_modal">
+    <%= render 'shared/rate_confirmation_modal', job_application: job_application, conversation: conversation %>
+  </div>
+  <div id="candidate_interview_modal">
+    <%= render 'shared/interview_modal', job_application: job_application, conversation: conversation %>
+  </div>
+<% end %>

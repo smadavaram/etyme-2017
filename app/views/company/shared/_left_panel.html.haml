@@ -1,0 +1,23 @@
+%aside#left-panel
+  / User info
+  .login-info
+    %span
+      / User image size is adjusted inside CSS, it should stay as it
+      %a{:href => company_profile_page_companies_path}
+        = image_tag((current_user.photo.present? ? current_user.photo : 'avatars/m_sunny_big.png'), alt: 'me', class: 'online')
+       
+      %a{:href => company_user_profile_page_companies_path}  
+        %span
+          = current_user.full_name
+        %i.fa.fa-angle-down
+  / end user info
+  / NAVIGATION : This navigation is also responsive
+  %nav
+    /
+      NOTE: Notice the gaps after each icon usage <i></i>..
+      Please note that these links work a bit different than
+      traditional href="" links. See documentation for details.
+    %ul
+      = left_menu
+  %span.minifyme{"data-action" => "minifyMenu"}
+    %i.fa.fa-arrow-circle-left.hit

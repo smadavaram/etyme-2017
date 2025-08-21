@@ -1,0 +1,16 @@
+.modal{ id: "extend_contract#{contract.id}","aria-hidden": "true", "aria-labelledby": "extendContract", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h1 Extend Contract
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body
+        %fieldset
+          = form_for contract, url: extend_contract_contract_path(contract), method: :post, remote: true do |f|
+            .form-group
+              %label.col-md-12.control-label Please Select the date for extension
+              .col-md-12
+                =f.text_field :end_date, class: "form-control p_date"
+              .col-sm-12
+                = f.submit "Extend", class: "btn btn-primary pull-right mt-2"

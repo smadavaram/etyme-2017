@@ -1,0 +1,242 @@
+.content-i
+  .content-box
+    .row
+      .col-sm-4
+        .user-profile.compact
+          .up-head-w#company_profile_pic{:style => "background-image:url(#{current_user.photo.blank? ? asset_path('avatars/m_sunny_big.png') : current_user.photo})"}
+
+            .up-main-info.profile-wrapper#company_info{style: 'display:none;'}
+              %h2.up-header
+                %i.icon-feather-camera
+              %h2.up-header
+                = current_user.full_name
+              %h6.up-sub-header
+                =current_user.company.name
+          .up-controls
+            .row
+              .col-sm-6{style: "display: flex;justify-content: space-evenly;"}
+                - if current_user.present?
+                  = contact_widget(current_user.email,current_user.phone,nil,color: '#3E4B5B; !important',chat_link: chat_link(current_user))
+                - else
+                  = contact_widget(current_user.email,current_user.phone,nil,color: '##3E4B5B; !important',chat_link: register_path,remote_false: true)
+              .col-sm-6
+                = link_to candidate_conversations_path, class: "btn btn-primary btn-sm" do
+                  %i.ti-email
+                  %span Contact Me
+
+
+          .up-contents
+            .m-b
+              .row.m-b
+                .col-sm-6.b-r.b-b
+                  .el-tablo.centered.padded-v
+                    .value
+                      25
+                    .label
+                      Products Sold
+                .col-sm-6.b-b
+                  .el-tablo.centered.padded-v
+                    .value
+                      315
+                    .label
+                      Friends
+              .padded
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Name
+                    .bar-label-right
+                      %span=do_ellipsis(current_user.full_name,15)
+                      %span.text-success
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Contact Info
+                      .bar-label-right
+                        %span=do_ellipsis(current_user.phone,15)
+                        %span.text-success
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Email
+                    .bar-label-right
+                      %span=do_ellipsis(current_user.email,15)
+                      %span.text-success=is_verify(!!current_user.confirmed_at)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Date of Birth
+                    .bar-label-right
+                      -#%span=do_ellipsis(current_user.dob,15)
+                      %span.text-success
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Visa Status
+                    .bar-label-right
+                      -#%span=do_ellipsis(current_user.visa,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Current Location
+                    .bar-label-right
+                      -#%span=do_ellipsis(current_user.location,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Skyp ID
+                    .bar-label-right
+                      -#%span=do_ellipsis(current_user.skypeid,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span Linkdin
+                    .bar-label-right
+                      -#%span=do_ellipsis(current_user.linkedin_url,15)
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span SSN(YES / NO)
+                    .bar-label-right
+                      -#%span=do_ellipsis(current_user.ssn,15)
+
+
+        .element-wrapper
+          .element-box
+            %h4.element-header
+              Education
+            .padded
+              - current_user.user_educations.each do |edu|
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span=edu.degree_level
+                    .bar-label-right
+                      %span=edu.degree_title
+        .element-wrapper
+          .element-box
+            %h4.element-header
+              Certification
+            .padded
+              - current_user.user_certificates.each do |cert|
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                      %span=cert.title
+                    .bar-label-right
+                      %span=cert.institute
+        .element-wrapper
+          .element-box
+            %h4.element-header
+              Skills
+            .padded
+              - current_user.skill_list.each do |sl|
+                .os-progress-bar.primary
+                  .bar-labels
+                    .bar-label-left
+                  .badge.badge-primary.p-2.mb-1
+                    .bar-label-right
+                      %span=sl
+
+      .col-sm-8
+        .element-wrapper
+          .element-box
+            .element-info
+              .element-info-with-icon
+                .element-info-icon
+                  %i.icon-badge
+                .element-info-text
+                  %h4.element-inner-header
+                    Work history
+            - if current_user.user_work_clients.present?
+              - current_user.user_work_clients.each do |c|
+                .element-info
+                  .element-info-text
+                    .mb-2
+                      %div
+                        %h5.mb-1.text-primary #{c.name}
+                        %span.mb-1.h6.d-block.text-secondary at #{c.industry}
+                        %strong.font-weight-bold.font-sm.text-capitalize
+                          #{c.start_date&.strftime('%B-%Y')} - #{c.end_date&.strftime('%B-%Y')}
+                      .element-inner-desc
+                        %P
+                          #{c.project_description}
+            - else
+              .element-info
+                .element-info-text
+                  .mb-2
+                    %div
+                      %span.mb-1.h6.d-block.text-secondary There is no work history
+                    .element-inner-desc
+                      %P
+                        = link_to "Add New One", company_user_path(current_user)
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+
+      $( "#company_info" ).click(function()
+      {
+        upload_file_ajax(userLogoUpload);
+      });
+       $(".best_in_place").best_in_place();
+       $(".best_in_place").on('change', function(event) {
+          flash_success('Change Saved!');
+      });
+      $( ".video-pic" ).click(function() {
+        upload_file_ajax(usersVideoUpload);
+     });
+     $( ".resume" ).click(function() {
+        $( ".resume_file" ).trigger( "click" );
+     });
+      $('.p_date').datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c",
+        dateFormat: "mm-dd-yy"
+      });
+    });
+    function userLogoUpload(url,type){
+      photo_url = url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{update_photo_path}",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.text img').attr("src",photo_url);
+        location.reload();
+       }
+     });
+    }
+    function usersVideoUpload(url,type){
+      video_url = url
+      video_type=type
+      $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{company_user_update_video_path(user_id:current_user.id)}",
+       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
+       success: function (data) {
+         location.reload();
+       }
+     });
+    }
+    $.datepicker.setDefaults({
+        changeYear: true,
+        yearRange: "c-60:c",
+        showMonthAfterYear: true,
+        showButtonPanel: true,
+        showAnim: "fold",
+        selectOtherMonths: true,
+        autoSize: true,
+        dateFormat: "mm-dd-yy"
+
+      });
+    $(".edit_in_line").css("display","none");
+    $('td').on('mouseover mouseout',function(){
+    $(this).find('.editprofile-pic_in_line').toggle();
+    });

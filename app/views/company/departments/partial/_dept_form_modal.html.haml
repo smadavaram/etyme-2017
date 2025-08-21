@@ -1,0 +1,10 @@
+.modal{id: dept.new_record? ? "new_dept" : "dept-#{dept.id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h4#myModalLabel.modal-title
+          %strong= dept.new_record? ? "Add New Department" : "Edit Department"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+
+      = render 'company/departments/partial/form',dept: dept

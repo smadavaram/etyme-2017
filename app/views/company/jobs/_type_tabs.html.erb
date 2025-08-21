@@ -1,0 +1,24 @@
+<div class="os-tabs-w m-4">
+  <div class="os-tabs-controls">
+    <ul class="nav nav-tabs upper">
+      <li class="nav-item">
+        <a aria-expanded="false" class="nav-link <% if params[:type] == 'Job' || !params[:type].present? %>active<% end %>" href="/jobs?type=Job"> Jobs</a>
+      </li>
+      <li class="nav-item">
+        <a aria-expanded="false" class="nav-link <% if params[:type] == 'Training' %>active<% end %>" href="/jobs?type=Training"> Trainings</a>
+      </li>
+      <li class="nav-item">
+        <a aria-expanded="false" class="nav-link <% if params[:type] == 'Product' %>active<% end %>" href="/jobs?type=Product"> Products</a>
+      </li>
+      <li class="nav-item">
+        <a aria-expanded="true" class="nav-link <% if params[:type] == 'Service' %>active<% end %>" href="/jobs?type=Service"> Services</a>
+      </li>
+      <li class="nav-item">
+        <a aria-expanded="true" class="nav-link <% if params[:type] == 'Blog' %>active<% end %>" href="/jobs?type=Blog"> Blogs</a>
+      </li>
+      <li class="nav-item">
+        <a aria-expanded="true" class="nav-link <% if params[:type] == 'Question' %>active<% end %>" href="/jobs?type=Question"> Questions</a>
+      </li>
+    </ul>
+  </div>
+</div>

@@ -1,0 +1,103 @@
+<%# content_for :head do %>
+<!--  <meta content="<%#= candidate_job_url(@job&.id) %>" property="og:url"/>-->
+<!--  <meta content="<%#= @job&.company&.name %>" property="og:title"/>-->
+<!--  <meta content="summary" name="twitter:card" />-->
+<!--  <meta content="<%#= @job&.title %>" name="twitter:title"/>-->
+<!--  <meta content=" " property="fb:app_id"/>-->
+<!--  <meta content="<%#= @job&.description %>" property="og:description"/>-->
+<!--  <meta content="article" property="og:type"/>-->
+<%# end %>
+
+<% content_for :meta_title, @job&.title  %>
+<% content_for :meta_description, truncate( remove_html(@job&.description), length: 100) %>
+<% content_for :meta_url, candidate_job_url(@job&.id) %>
+<% content_for :meta_image, @job&.company&.logo %>
+<%# content_for :meta_image, convert_image(200, 200,@job&.company&.logo) %>
+
+
+<section class="content-wrapper"> <!-- Section Content Wrapper -->
+  <div class="container-fluid"> <!-- Div Container Fluid -->
+    <div class="row"> <!-- Div Row -->
+      <%= render 'static/shared/webflow_header' %>
+      <div class="content-main col-12 col-xl-9"> <!-- Div Content Main -->
+          <% if @job.listing_type == "Blog" %>
+            <%= render 'show_details_blog' %>
+          <% elsif @job.listing_type == "Question" %>
+            <%= render 'show_details_question' %>
+          <% elsif @job.listing_type == "Product" %>
+            <%= render 'show_details_product', is_job: false %>
+          <% elsif @job.listing_type == "Service" %>
+            <%= render 'show_details_product', is_job: false %>
+          <% elsif @job.listing_type == "Training" %>
+            <%= render 'show_details_product', is_job: false %>
+          <% elsif @job.listing_type == "Job" %>
+            <%= render 'show_details_product', is_job: true %>
+          <% end %>
+      </div> <!-- Div Content Main -->
+      <%= render 'static/shared/webflow_sidebar_right' %>
+    </div> <!-- Div Row -->
+  </div> <!-- Div Container Fluid -->
+</section> <!-- Content Wrapper -->
+
+<script type="application/1d+json">
+{
+"@context": "http://schema.org",
+"@type": "JobPosting",
+"title": "<%= @job.title %>",
+"description": "<%= @job.description %>",
+"datePosted": "<%= @job.start_date.strftime("%Y-%m-%d") %>",
+"validThrough": "<%= @job.end_date.strftime("%Y-%m-%d") %>",
+"hiringOrganization": {
+  "@type": "Organization",
+  "name": "<%= @job.company.name %>",
+  "sameAs": "<%= @job.company.website %>",
+  "logo": "<%= @job.company.logo %>"
+},
+"jobLocation": {
+  "@type": "Place",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "12829 Piney Point Place, Herndon, VA,20171-2975 USA",
+    "addressLocality": "Herndon",
+    "addressRegion": "VA",
+    "postalCode": "20171-2975",
+    "addressCountry": "US"
+  }
+}
+}
+</script>
+<%= javascript_include_tag 'shared/hide_show_toggler'%>
+
+
+
+
+
+<script>
+    var selected_categories = [];
+    $(document).ready(function () {
+      $(".openbtn").click(function () {
+          $(".side-wrapper").addClass("side-active")
+      });
+
+      $(".closebtn").click(function () {
+          $(".side-wrapper").removeClass("side-active")
+          $(".side-wrapper").removeClass("inactive")
+      });
+    });
+</script>
+
+<style type="text/css">
+  @media only screen and (max-device-width: 480px) {
+    .without-registration_modal {
+      margin: 50px auto !important;
+      position: relative;
+      width: auto;
+      margin: 0.5rem;
+      pointer-events: none;
+      width: 85%;
+      height: 50%;
+      padding: 0;
+      position: relative;
+    }
+  }
+</style>

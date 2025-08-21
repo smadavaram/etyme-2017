@@ -1,0 +1,145 @@
+#content
+  .row
+  %section
+    .row
+      = form_for @expense , html:{class: 'form-horizontal'}  do |f|
+        = f.hidden_field :bill_type, value: 'client_expense'
+        = text_field_tag 'ce_ap_ids[]', '', class: 'ce_ap_ids'
+        %article.col-sm-12.col-md-12.col-lg-12
+          #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+            %header
+              %span.widget-icon
+                %i.fa.fa-check
+              %h2 Add New Client Expense Bill
+            %div
+              .jarviswidget-editbox
+              .widget-body
+                .row
+                  .col-md-3
+                    %label Contract
+                  .col-md-4
+                    = f.select :contract_id, options_for_select(Contract.where(status: 'in_progress').map{|c| [c.title,c.id] }),{required: true, prompt: 'Select Contract' }
+
+                %br
+                .row
+                  .col-md-3
+                    %label.contract_type Consultant
+                  .col-md-4
+                    = f.text_field :account_id, readonly: true
+
+                %br
+                .row
+                  .col-md-3.form-group
+                    %label{:for => "mailing_address"} Mailing Address:
+                    = f.text_area :mailing_address, class: 'form-control'
+
+                  .col-md-2
+                    %label{:for => "terms"} Terms:
+                    = f.select :terms, options_for_select((0..10).to_a.map{ |e| 'Net '+e.to_s}), {required: true }
+
+                  .col-md-2
+                    %label{:for => 'bill_date'} Bill Date:
+                    = f.date_field :bill_date, class: 'form-control'
+
+                  .col-md-2
+                    %label{:for => 'due_date'} Due Date:
+                    = f.date_field :due_date , class: 'form-control'
+
+                  .col-md-2
+                    %label{:for => 'bill_no'} Bill no.
+                    = f.text_field :bill_no, class: 'form-control'
+
+                .approved_client_expense
+                  = render partial: 'approved_client_expense'
+                %br
+
+                %br
+                .row
+                  .col-md-4 
+
+                  .col-md-4.total-amount
+                    %label{:for => 'total_amount'} Total amount:
+                    = f.text_field :total_amount, readonly: true
+                = f.submit 'Submit', class: 'btn btn-primary'
+
+- content_for :scripts do
+  :javascript 
+    $(document).ready(function() {
+      var expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
+      var due_date = "";
+      $('#expense_terms').on('change', function() {
+        expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
+        var date = new Date($( "#expense_bill_date" ).val()),
+        days = parseInt(expense_terms, 10);
+        if(!isNaN(date.getTime())){
+            dd = new Date(date.setDate(date.getDate() + days));
+            due_date =  dd.getFullYear() + "-" + ("0" + (dd.getMonth() + 1)).slice(-2)+ "-" + ("0" + dd.getDate()).slice(-2)
+
+            $("#expense_due_date").val(due_date);
+        }
+      });
+
+      $('#expense_bill_date').on('change', function() {
+
+        var date = new Date($( "#expense_bill_date" ).val()),
+        days = parseInt(expense_terms, 10);
+        if(!isNaN(date.getTime())){
+            dd = new Date(date.setDate(date.getDate() + days));
+            due_date =  dd.getFullYear() + "-" + ("0" + (dd.getMonth() + 1)).slice(-2)+ "-" + ("0" + dd.getDate()).slice(-2)
+
+            $("#expense_due_date").val(due_date);
+        }
+
+      });
+
+      $(document).on("change","#expense_contract_id", function() {
+        $.ajax({
+          url: "/api/select_searches/find_contract_candidate",
+          type: 'GET',
+          data: {contract_id: $('#expense_contract_id option:selected').val()},
+          dataType: 'JSON'
+        }).done(function(data){         
+          if (data.buy_contracts[0].contract_type == 'C2C'){
+            $('.contract_type').text('Vendor Company');
+            $('#expense_account_id').val(data.buy_contracts[0].company_id);
+            $('#expense_account_id').val(data.buy_contracts[0].company.name);
+          }
+          else{
+            $('#expense_account_id').val(data.candidate.id);
+            $('#expense_account_id').val(data.candidate.first_name + ' ' +data.candidate.last_name);
+            $('.contract_type').text('Consultant');
+          }
+        });
+
+      });
+
+      function getSum(total, num) {
+          return parseFloat(total) + parseFloat(num);
+      }
+
+      $(document).on("change","#expense_contract_id", function() {
+        $.ajax({
+          url: "#{filter_approved_client_expense_expenses_path}",
+          type: 'GET',
+          data: {contract_id: $('#expense_contract_id option:selected').val()},
+          dataType: 'script'
+        }).done(function(data){
+        var values = $('td.expense_amount').map(function() {
+            return $(this).text();
+        }).get();
+        var ce_ap_ids = $('td.ce_ap_ids').map(function() {
+            return $(this).text();
+        }).get();
+        $('#expense_total_amount').val(values.reduce(getSum));
+        $('.ce_ap_ids').val(ce_ap_ids);
+
+        });    
+      });
+
+    }); 
+
+
+
+
+
+

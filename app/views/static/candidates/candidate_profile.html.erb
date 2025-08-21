@@ -1,0 +1,40 @@
+<style>
+body{
+  padding: 0px !important;
+}
+</style>
+
+
+
+<% content_for :meta_title, @candidate&.full_name  %>
+<% content_for :meta_description, truncate(@candidate&.description, length: 100) || "Candidate on app.etyme.com" %>
+<%# content_for :meta_url, candidate_job_url(@job&.id) %>
+<%  unless @candidate.photo.nil? %>
+<% content_for :meta_image, @candidate.photo unless @candidate.photo.nil? %>
+<% end %>
+
+<section class="content-wrapper"> <!-- Section Content Wrapper -->
+  <div class="container-fluid"> <!-- Div Container Fluid -->
+    <div class="row"> <!-- Div Row -->
+      <%= render 'static/shared/webflow_header' %>
+      <div class="content-main webflow-content-main col-12"> <!-- Div Content Main -->
+        <%= render 'webflow_candidate_profile', candidate: @candidate, candidate_company: @candidate_company, can_review: @can_review %>
+      </div> <!-- Div Content Main -->
+    </div> <!-- Div Row -->
+  </div> <!-- Div Container Fluid -->
+</section> <!-- Content Wrapper -->
+
+<%= javascript_include_tag 'shared/hide_show_toggler'%>
+<script>
+    var selected_categories = [];
+    $(document).ready(function () {
+      $(".openbtn").click(function () {
+          $(".side-wrapper").addClass("side-active")
+      });
+
+      $(".closebtn").click(function () {
+          $(".side-wrapper").removeClass("side-active")
+          $(".side-wrapper").removeClass("inactive")
+      });
+    });
+</script>

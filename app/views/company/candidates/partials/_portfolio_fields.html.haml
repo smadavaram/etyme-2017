@@ -1,0 +1,23 @@
+.nested-fields
+  .form-group
+    %label.col-md-2.control-label
+      Portfolio Title
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :name,placeholder: "Title ",class: 'form-control' ,required:true
+  .form-group
+    %label.col-md-2.control-label
+      Portfolio Photo
+      %sup.text-danger *
+    .col-md-10
+      = render 'shared/file_attachement',f:f,attr_name: :cover_photo,cstm_class: "cover-photo btn btn-primary", required_field: false
+      -#= f.filepicker_field :cover_photo,class: 'cover-photo btn btn-primary',"data-fp-extensions" => ".png,.jpg,.bpg,.svg"
+  .form-group
+    %label.col-md-2.control-label
+      Portfolio description
+      %sup.text-danger *
+    .col-md-10
+      = f.text_area :description,placeholder: "Description",class: 'form-control',required:true
+  .form-group
+    .col-md-12
+      = link_to_remove_association "Remove", f , class: 'btn btn-danger pull-right'

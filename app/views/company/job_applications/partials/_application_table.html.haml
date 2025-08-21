@@ -1,0 +1,78 @@
+
+%body
+  %section#widget-grid
+    .row
+      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+        #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+          %header{:role => "heading"}
+            %span.widget-icon
+              %i.fa.fa-table
+            %h2 Job Applications
+          / widget div
+          %div{:role => "content"}
+            .jarviswidget-editbox
+            .widget-body.no-padding
+              #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                .dt-toolbar
+                  .col-xs-12.col-sm-6.hidden-xs
+                    #datatable_fixed_column_filter.dataTables_filter
+                      %label
+                        %span.input-group-addon{style: "background-color:#eee;"}
+                          %i.glyphicon.glyphicon-search
+                        %input.form-control{"aria-controls" => "datatable_fixed_column", :placeholder => "", :type => "search"}/
+                  .col-sm-6.col-xs-12.hidden-xs
+                    .toolbar
+                      .text-right
+                        -#= button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5' , "data-toggle": "modal" , "data-target":"#new-job"
+                %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                  %thead
+                    %tr{:role => "row"}
+                      %th.hasinput{ :style => "width:17%"}
+                        %input.form-control{:placeholder => "Filter Pic", :type => "text"}/
+                      %th.hasinput{ :style => "width:18%"}
+                        %input.form-control{:placeholder => "Filter Name", :type => "text"}/
+                      %th.hasinput{ :style => "width:18%"}
+                        %input.form-control{:placeholder => "Filter ID", :type => "text"}/
+                      %th.hasinput{ :style => "width:16%"}
+                        %input.form-control{:placeholder => "Filter Job", :type => "text"}/
+                      %th.hasinput{:colspan => "1", :rowspan => "1", :style => "width:17%"}
+                        %input.form-control{:placeholder => "Filter User", :type => "text"}/
+                      %th.hasinput
+                        %input.form-control{:placeholder => "Filter Date", :type => "text"}/
+
+                      %th.hasinput{:style => "width:16%"}
+                        %input.form-control{:placeholder => "Filter Actions", :type => "text"}/
+                    %tr{:role => "row"}
+                      %th.expand.sorting_asc{"aria-controls" => "datatable_fixed_column", "aria-label" => "Name: activate to sort column descending", "aria-sort" => "ascending", :colspan => "1", "data-class" => "expand", :rowspan => "1", :style => "width: 198px;", :tabindex => "0"}Pic
+                      %th.sorting{"aria-controls" => "datatable_fixed_column", "aria-label" => "Position: activate to sort column ascending",  :style => "width: 212px;", :tabindex => "0"} Name
+                      %th.sorting{"aria-controls" => "datatable_fixed_column", "aria-label" => "Position: activate to sort column ascending",  :style => "width: 212px;", :tabindex => "0"} Application Id
+                      %th.sorting{"aria-controls" => "datatable_fixed_column", "aria-label" => "Office: activate to sort column ascending", :colspan => "1", "data-hide" => "phone", :rowspan => "1", :style => "width: 185px;", :tabindex => "0"} Job
+                      %th.sorting{"aria-controls" => "datatable_fixed_column", "aria-label" => "Age: activate to sort column ascending", :colspan => "1", "data-hide" => "phone", :rowspan => "1", :style => "width: 198px;", :tabindex => "0"} Email / Username
+                      %th.sorting{"aria-controls" => "datatable_fixed_column", "aria-label" => "Start date: activate to sort column ascending", :colspan => "1", "data-hide" => "phone,tablet", :rowspan => "1", :style => "width: 189px;", :tabindex => "0"}Status
+                      %th.sorting{"aria-controls" => "datatable_fixed_column", "aria-label" => "Salary: activate to sort column ascending", :colspan => "1", "data-hide" => "phone,tablet", :rowspan => "1", :style => "width: 186px;", :tabindex => "0"} Action
+                  %tbody
+                    - data.each_with_index  do |application,index|
+                      -if index%2==0
+                        %tr.even{:role => "row"}
+                          %td= user_image(application.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{application.user.full_name}" )
+                          %td= link_to application.user.full_name , '#'
+                          %td= link_to application.job.title ,job_path(application.job)
+                          %td= application.user.email
+                          %td
+                            %span.label.label-success= application.status.humanize
+                          %td
+                            = link_to raw("<i class='fa fa-eye '></i>"),job_application_path(application) ,class: '',title: "View Detail",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            =# link_to raw("<i class='fa fa-comment '></i>"), candidate_create_chat_path(application.user) ,class: 'btn btn-default btn-xs margin-bottom-5',method: :post,title: "Chat With Applicant",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-comment'></i>"), "#", class: "start-conversation", title: "Chat",
+                                "data-chattopic" => "Job",
+                                "data-cid" => application.job.id,
+                                "data-ctype" => application.job.class.to_s,
+                                "data-rid" => application.user.id,
+                                "data-rtype" => application.user.class.to_s
+= digg_pagination(data)
+
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }

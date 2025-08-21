@@ -1,0 +1,452 @@
+//
+.f-rubik {
+    font-family: Rubik;
+}
+
+.fw-400 {
+    font-weight: 400;
+}
+
+.fw-500 {
+    font-weight: 500;
+}
+// Font Weights
+.w-500 {
+    font-weight: 500;
+}
+
+// Font Colors
+.purple-100 {
+    color: #5555A5;
+}
+
+.gray-30 {
+    color: rgba(18, 18, 18, 0.3);
+}
+
+.c-35 {
+    color: rgba(18, 18, 18, 0.35);
+}
+
+.c-50 {
+    color: rgba(18, 18, 18, 0.5);
+}
+
+.c-80 {
+    color: rgba(18, 18, 18, 0.8);
+}
+
+.c-100 {
+    color: rgba(18, 18, 18, 1.0);
+}
+
+// Spacing
+// Margins
+.mr-12 {
+    margin-right: 12px;
+}
+
+.mb-2 {
+    margin-bottom: 2px !important;
+}
+
+.mb-16 {
+    margin-bottom: 16px;
+}
+
+.mb-20 {
+    margin-bottom: 20px;
+}
+
+.mb-30 {
+    margin-bottom: 30px;
+}
+
+.mb-40 {
+    margin-bottom: 40px;
+}
+
+.width-100 {
+    width: 100px;
+    min-width: 100px;
+}
+
+.feed-blank-thumb-100 {
+    border: 1px solid #cccccc;
+    height: 100px;
+    width: 100px;
+    
+    @media (max-width: 575.98px) {
+      height: 80px;
+      width: 80px;
+    }
+}
+
+// Avatars
+.webflow-avatar-20-20 {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.webflow-avatar-32-32 {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.avatar-50 {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.webflow-avatar-50-50 {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.avatar-100 {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.avatar-xs-80 {
+    @media (max-width: 575.98px) {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        overflow: hidden;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+    }
+}
+
+// Thumbnails
+.thumb-80 {
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+
+    height: 80px;
+    min-height: 80px;
+    max-height: 80px;
+
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.webflow-thumbnail-80-80 {
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+
+    height: 80px;
+    min-height: 80px;
+    max-height: 80px;
+
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.thumb-100 {
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+
+    height: 100px;
+    min-height: 100px;
+    max-height: 100px;
+
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.thumb-120 {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+
+  height: 120px;
+  min-height: 120px;
+  max-height: 120px;
+
+  overflow: hidden;
+
+  img {
+    width: 120%;
+    height: 120%;
+    object-fit: cover;
+    object-position: center;
+  }
+}
+
+.webflow-thumbnail-100-100 {
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+
+    height: 100px;
+    min-height: 100px;
+    max-height: 100px;
+
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.webflow-thumbnail-340-210 {
+    width: 340px;
+    height: 210px;
+    border-radius: 4px;
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.webflow-thumbnail-170-105 {
+    width: 170px;
+    height: 105px;
+    border-radius: 4px;
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+}
+
+.thumb-xs-80 {
+    @media (max-width: 575.98px) {
+        width: 80px;
+        min-width: 80px;
+        max-width: 80px;
+
+        height: 80px;
+        min-height: 80px;
+        max-height: 80px;
+
+        overflow: hidden;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+    }
+}
+
+.thumb-xs-100 {
+  @media (max-width: 575.98px) {
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+
+    height: 100px;
+    min-height: 100px;
+    max-height: 100px;
+
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
+  }
+}
+
+.webflow-thumbnail-xs-80 {
+    @media (max-width: 575.98px) {
+        width: 80px;
+        min-width: 80px;
+        max-width: 80px;
+
+        height: 80px;
+        min-height: 80px;
+        max-height: 80px;
+
+        overflow: hidden;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+    }
+}
+
+.webflow-logo-50 {
+    width: 50px;
+    height: 50px;
+    border-radius: 4px;
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center;
+    }
+}
+
+.webflow-logo-xs-40 {
+    @media (max-width: 575.98px) {
+        width: 10%;
+        height: 4.5vh;
+        border: 0.5px solid rgba(18, 18, 18, 0.3);
+        position: absolute;
+        left: 10%;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center;
+        }
+    }
+}
+.search-bar-mobile {
+    display: none !important;
+}
+
+    @media screen and (max-width: 600px) {
+        .search-bar-mobile {
+        display: flex !important;
+    }
+}
+.hidden-xs {
+    @media (max-width: 576px) {
+        display: none !important;
+    }
+}
+.font-weight-500 {
+  font-weight: 500!important;
+}
+.user-avatar {
+  border-radius: 50%;
+  width: 1rem;
+  height: 1rem;
+  vertical-align: -webkit-baseline-middle;
+}
+
+.show-xs {
+  @media (min-width: 576px) {
+    font-size: 11px!important;
+    display: none!important;
+  }
+}
+
+.text-image {
+  width: 100%;
+  height: 100%;
+  background: #e1e4ef;
+  color: #465B64;
+  text-align: center;
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.text-image-font {
+  font-size: 15px;
+  font-weight: bold;
+  @media (max-width: 576px) {
+    font-size: 13px!important;
+  }
+}
+
+.user-avatar-text {
+  border-radius: 50%;
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  font-weight: bold;
+  background: #e1e4ef;
+  color: #465B64;
+  text-align: center;
+  justify-content: center;
+  vertical-align: -webkit-baseline-middle;
+  padding: 1px;
+}

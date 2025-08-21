@@ -1,0 +1,71 @@
+%table.table.table-striped.table-bordered.table-v2.table-lg
+  %thead
+    %tr
+      %th= "<input type='checkbox' name='select_all' id='ts_select_all'>".html_safe
+      %th Emp
+      %th Contract ID & Title
+      %th Sal Cy ID
+      %th
+      %th Hr
+      %th Timesheet
+      %th Sal Advances
+      %th Perdium/Expenses
+      %th Commission
+      %th Total
+      %th Paid
+      %th Actions
+  %tbody
+    - contract_cycles.each do |cc|
+      -if cc.cyclable.total_approve_time > 0
+
+        %tr
+          %td{:rowspan => 4}= "<input type='checkbox' id='ts_ids' name='ids[]' value='#{cc.cyclable.id}'>".html_safe if cc.cyclable.calculated?
+          %td.emp{:rowspan => 4}
+            - user = cc.contract.candidate
+            =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{user.full_name}" )
+          %td{:rowspan => 4}= cc.contract.title
+          %td{:rowspan => 4}= cc.id
+
+          %td
+          %td
+          %td= cc.cyclable.approved_amount
+          %td
+          %td
+          %td= cc.cyclable.commission_amount
+          %td= cc.cyclable.total_amount
+          %td
+          %td
+
+        %tr
+          %td= "Process"
+          %td= cc.cyclable.total_approve_time
+          %td= cc.cyclable.approved_amount
+          %td= cc.cyclable.salary_advance
+          %td= cc.cyclable.contract_expenses
+          %td= cc.cyclable.commission_amount
+          %td= cc.cyclable.total_amount
+          %td{id:"#{cc.cyclable.id}"}= cc.cyclable.billing_amount
+          %td= link_to "Pay", salary_pay_path(cc.cyclable), remote: true
+
+
+        %tr.disabled-row
+          %td= "Send"
+          %td
+          %td
+          %td
+          %td
+          %td
+          %td
+          %td
+          %td
+
+        %tr.disabled-row
+          %td= "Settlement"
+          %td
+          %td
+          %td
+          %td
+          %td
+          %td
+          %td
+          %td

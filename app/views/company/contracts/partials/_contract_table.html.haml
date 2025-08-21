@@ -1,0 +1,132 @@
+.x_overflow_y_h
+  = link_to 'Add Contract',create_contract_contracts_path ,class: 'btn btn-sm btn-secondary float-left mb-2'
+  .table-responsive
+    %table#company-contracts-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped
+      %thead
+        %tr
+          %th Id
+          %th Title
+          %th Customer
+          %th Rate
+          %th Candidate
+          %th Cost
+          %th Created By
+          %th Start date
+          -#%th Sell Contract
+          -#%th Buy Contract
+          %th Status
+          %th Reminder/Notes
+          %th Action
+      %tbody
+        - data.each do |contract|
+          %tr
+            %td=link_to "#{contract.try(:number)} - #{contract.project_name}"  ,contract_path(contract)
+            %td=contract.try(:title)
+            %td
+              = contract.client.try(:full_name)
+            %td
+              = contract&.sell_contract&.change_rates&.last&.rate
+            %td= contract.candidate.try(:full_name)
+            %td
+              = contract&.buy_contract&.change_rates&.last&.rate
+
+            %td= link_to contract.created_by.full_name , company_user_profile_path(contract.created_by.id)
+            %td= contract.start_date.strftime("%m-%d-%Y")
+            -#%td
+            -#  = link_to contract.sell_contract.try(:number), company_sell_contract_path(contract.sell_contract.try(:number)) if contract.sell_contract
+            -#  =contract.sell_contract.try(:customer_rate)
+            -#  =contract.sell_contract.try(:time_sheet)
+            -#  =contract.sell_contract.try(:invoice_terms_period)
+            -#  =contract.sell_contract.try(:show_accounting_to_employee)
+            -#%td
+            -#  = link_to contract.buy_contract.try(:number), company_buy_contract_path(contract.buy_contract.try(:number)) if contract.buy_contract
+            -#  =contract.buy_contract.try(:contract_type)
+            -#  =contract.buy_contract.try(:payrate)
+            -#  =contract.buy_contract.try(:time_sheet)
+            -#  =contract.buy_contract.try(:payment_term)
+            %td.no-wrap
+              = colorfull_text(snake_to_words(contract.status), contract.status=="pending" ? 'orange' : 'green')
+            %td.no-wrap
+              = raw(contract&.reminders.where(user_id: current_user.id)&.last&.title)
+            %td.no-wrap
+              = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, contract_path(contract.id), title: "Edit #{contract.title}", class: 'data-table-icons')
+              = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, contract_add_reminder_path(contract), remote: :true, title: 'Remind Me', class: 'data-table-icons')
+              - if ['pending','draft'].include?(contract.status)
+                = link_to(content_tag(:i, nil, class: 'fa fa-edit').html_safe, new_contract_path(contract_id: contract.id), title: "Edit #{contract.title}", class: 'data-table-icons')
+                = link_to(content_tag(:i, nil, class: 'fa fa-trash').html_safe, destroy_company_contract_path(contract), method: :delete, title: "Destroy #{contract.title}", class: 'data-table-icons')
+
+
+-#.timesheet_pagination_wrap.pt-3
+-#  .pagination_label
+-#    = page_entries_info data
+-#  = will_paginate(data, {params: params.merge(tab: 'contract_table'),previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'contract_table_pagination_links'}.merge(link_options: {'data-remote': true}))
+
+.br
+.row.top_margin
+  .col
+    .page_info
+      = page_entries_info data
+  .col
+    .digg_pagination.pagination_label.pull-right
+      = will_paginate(data, {params: params.merge(tab: 'contract_table'),previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'contract_table_pagination_links'}.merge(link_options: {'data-remote': true}))
+
+
+
+
+
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+  .top_margin{
+    margin-top: 2%
+  }
+  .digg_pagination {
+    background: #FFFFFF;
+    font-size: 1.2em;
+    cursor: default;
+    /* self-clearing method: */ }
+  .digg_pagination a, .digg_pagination span, .digg_pagination em {
+    padding: 0.2em 0.5em;
+    display: block;
+    float: left;
+    margin-right: 1px; }
+  .digg_pagination .disabled {
+    color: #999999;
+    border: 1px solid #dddddd; }
+  .digg_pagination .current {
+    font-style: normal;
+    font-weight: bold;
+    background: #2e6ab1;
+    color: white;
+    border: 1px solid #2e6ab1; }
+  .digg_pagination a {
+    text-decoration: none;
+    color: #105cb6;
+    border: 1px solid #9aafe5; }
+    .digg_pagination a:hover, .digg_pagination a:focus {
+      color: #000033;
+      border-color: #000033; }
+  .digg_pagination .page_info {
+    background: #2e6ab1;
+    color: white;
+    padding: 0.4em 0.6em;
+    width: 22em;
+    margin-bottom: 0.3em;
+    text-align: center; }
+    .digg_pagination .page_info b {
+      color: #000033;
+      background: #6aa6ed;
+      padding: 0.1em 0.25em; }
+  .digg_pagination:after {
+    content: ".";
+    display: block;
+    height: 0;
+    clear: both;
+    visibility: hidden; }
+  * html .digg_pagination {
+    height: 1%; }
+  *:first-child + html .digg_pagination {
+    overflow: hidden;
+  }

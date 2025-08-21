@@ -1,0 +1,5 @@
+<% favourites.each do |fav| %>
+  <div class="user-fav usr_<%= fav.favourabled_type.to_s+"_"+fav.favourabled_id.to_s %>">
+    <%= render 'conversation_user', usr: fav.favourabled, is_favourite: true %>
+  </div>
+<% end if favourites.present?  %>

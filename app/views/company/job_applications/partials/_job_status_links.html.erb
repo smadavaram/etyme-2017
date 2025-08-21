@@ -1,0 +1,57 @@
+<% if local_assigns[:btn_size_class] %>
+  <% btn_size = btn_size_class %>
+<% else %>
+  <% btn_size = "btn btn-primary btn-md mt-12 margin-right-5" %>
+<% end %>
+<% if app.job.company == current_company && has_permission?('manage_job_applications') %>
+<!--  [:applied, :short_listed, :prescreen, :rate_confirmation, :client_submission, :interviewing, :hired, :rejected, :pending_review]-->
+<%
+  app_status = app.status
+  @index = JobApplication.statuses[app_status]
+  %>
+  <%= link_to('Short list', applicant_job_application_path(app), class: "btn-outline-primary btn btn-xs  #{@index<1 && (@index-1).abs==1 ? '' : 'disabled btn-to-gray' }") %>
+  <%#= link_to('Pre Screen',prescreen_job_application_path(app,conversation_id: @conversation.id),class: "#{btn_size} #{app.rejected? || app.hired? || app.prescreen? ? 'disabled' : "" } prescreen",method: :post) %>
+  <%= link_to('Pre Screen','#',class: "btn-outline-primary btn btn-xs  #{@index<2 && (@index-2).abs==1 ? '' : 'disabled btn-to-gray' }",data: {toggle: "modal", target: "#{app.rejected? || app.hired? || app.prescreen? ? 'disabled' : "#show-candidate-#{app.applicationable_id}" }"}) %>
+  <%= link_to('Rate Confirmation','#',class: "btn-outline-primary btn btn-xs  #{@index<3 && (@index-3).abs==1 ? '' : 'disabled btn-to-gray' }",data: {toggle: "modal", target: "#candidate-rate-confirmation-#{app.applicationable_id}"})%>
+  <%= link_to('Agreement(s)',templates_job_application_path(app),class: "btn btn-outline-primary btn-xs") %>
+  <%#= link_to('Client Submission',submit_job_application_path(app),class: "btn-outline-primary btn btn-xs  #{@index<4 && (@index-4).abs==1 ? '' : 'disabled btn-to-gray' }") if app.job.source.present? %>
+
+  <%#= link_to('Interview', '#', class: "btn-outline-primary btn btn-xs  #{@index<5 && (@index-5).abs==1 ? '' : 'disabled btn-to-gray' }", data: {toggle: "modal", target: "#candidate-interview-#{app.applicationable_id}" })%>
+  <%#= link_to('Client Submission', '#', interviewing, data: {toggle: "modal", target: "#share_application_#{app.id}" })%>
+  <%#= link_to('Hire', hire_job_application_path(app, conversation_id: conversation.id), method: :post, class: "btn-outline-primary btn btn-xs  #{@index<6 && (@index-6).abs==1 ? '' : 'disabled btn-to-gray' }")%>
+  <%#= link_to('Reject', reject_job_application_path(app, conversation_id: conversation.id), method: :post,  class: "btn-outline-danger btn btn-xs  #{@index<7 && (@index-7).abs==1 ? '' : 'disabled btn-to-gray' }")%>
+  <%# if app.is_candidate_applicant? && !current_company.consultants.where(candidate_id: app.applicationable_id).present? %>
+    <%#= link_to('Start On-Boarding', new_job_application_consultant_path(app), class: "contract #{btn_size}#{  !app.hired? || app.contract.present? ? 'disabled' : "" }")%>
+  <%# else %>
+    <%#= link_to('Start Contract', accept_job_application_path(app), method: :post, remote: true, class: "btn-outline-primary btn btn-xs contract #{  !app.hired? || app.contract.present? ? 'btn-to-gray disabled' : "" }")%>
+  <%# end %>
+  <% if app.job.source.present? %>
+    <%= link_to('Client Submission',submit_job_application_path(app),class: "btn-outline-primary btn btn-xs  #{@index<4 && (@index-4).abs==1 ? '' : 'disabled btn-to-gray' }")  %>
+    <%= link_to('Interview', '#', class: "btn-outline-primary btn btn-xs  #{@index<5 && (@index-5).abs==1 ? '' : 'disabled btn-to-gray' }", data: {toggle: "modal", target: "#candidate-interview-#{app.applicationable_id}" })%>
+    <%#= link_to('Client Submission', '#', interviewing, data: {toggle: "modal", target: "#share_application_#{app.id}" })%>
+    <%= link_to('Hire', hire_job_application_path(app, conversation_id: conversation.id), method: :post, class: "btn-outline-primary btn btn-xs  #{@index<6 && (@index-6).abs==1 ? '' : 'disabled btn-to-gray' }")%>
+    <%= link_to('Reject', reject_job_application_path(app, conversation_id: conversation.id), method: :post,  class: "btn-outline-danger btn btn-xs  #{@index<7 && (@index-7).abs==1 ? '' : 'disabled btn-to-gray' }")%>
+    <% if app.is_candidate_applicant? && !current_company.consultants.where(candidate_id: app.applicationable_id).present? %>
+      <%#= link_to('Start On-Boarding', new_job_application_consultant_path(app), class: "contract #{btn_size}#{  !app.hired? || app.contract.present? ? 'disabled' : "" }")%>
+    <% else %>
+      <%= link_to('Start Contract', accept_job_application_path(app), method: :post, remote: true, class: "btn-outline-primary btn btn-xs contract #{  !app.hired? || app.contract.present? ? 'btn-to-gray disabled' : "" }")%>
+    <% end %>
+  <%else %>
+    <%#= link_to('Client Submission',submit_job_application_path(app),class: "btn-outline-primary btn btn-xs  #{@index<4 && (@index-4).abs==1 ? '' : 'disabled btn-to-gray' }")  %>
+    <%= link_to('Interview', '#', class: "btn-outline-primary btn btn-xs  #{@index<4 && (@index-4).abs==2 ? '' : 'disabled btn-to-gray' }", data: {toggle: "modal", target: "#candidate-interview-#{app.applicationable_id}" })%>
+    <%#= link_to('Client Submission', '#', interviewing, data: {toggle: "modal", target: "#share_application_#{app.id}" })%>
+    <%= link_to('Hire', hire_job_application_path(app, conversation_id: conversation.id), method: :post, class: "btn-outline-primary btn btn-xs ")%>
+    <%= link_to('Reject', reject_job_application_path(app, conversation_id: conversation.id), method: :post,  class: "btn-outline-danger btn btn-xs  #{@index<7 && (@index-7).abs==1 ? '' : 'disabled btn-to-gray' }")%>
+    <% if app.is_candidate_applicant? && !current_company.consultants.where(candidate_id: app.applicationable_id).present? %>
+      <%#= link_to('Start On-Boarding', new_job_application_consultant_path(app), class: "contract #{btn_size}#{  !app.hired? || app.contract.present? ? 'disabled' : "" }")%>
+    <% else %>
+      <%= link_to('Start Contract', accept_job_application_path(app), method: :post, remote: true, class: "btn-outline-primary btn btn-xs contract #{  !app.hired? || app.contract.present? ? 'btn-to-gray disabled' : "" }")%>
+    <% end %>
+  <%end%>
+
+<% end %>
+<style>
+  .collapsible a{
+    margin-bottom: 10px;
+  }
+</style>

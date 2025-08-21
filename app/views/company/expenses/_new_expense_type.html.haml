@@ -1,0 +1,22 @@
+.modal{ id: "new-expense-type","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong New Expense Type
+      .modal-body
+        = form_for @expense_type , url: create_expense_type_expenses_path ,html:{ class:'form-horizontal', id: 'expense_type_form', remote: ((defined? for_remote) ? true :false)} do |f|
+          %fieldset
+            .form-group
+              %label.col-md-2.control-label
+                Name
+                %sup.text-danger *
+              .col-md-10
+                = f.text_field :name , class: 'form-control' , placeholder: 'Enter Expense type' , required: true ,id:'company'
+          .form-actions
+            .row
+              .col-md-12
+                = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
+                = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")} , class: 'btn btn-primary' ,id:'form_id'

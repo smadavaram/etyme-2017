@@ -1,0 +1,28 @@
+
+#add-portfolio.modal{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4#education.modal-title Add New Portfolio
+      .modal-body
+        = form_for Portfolio.new do |pf|
+          .row
+            .col-md-12
+              .form-group
+                = pf.text_field :name,placeholder: "Title",class: 'form-control'
+          .row
+            .col-md-12
+              .form-group
+                = pf.filepicker_field :cover_photo,class: 'file-portfolio btn btn-primary',"data-fp-extensions" => ".png,.jpg,.bpg,.svg"
+          .row
+            .col-md-12
+              .form-group
+                = pf.text_area :description,placeholder: "Description",class: 'form-control'
+
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            %button.btn.btn-primary{:type => "submit"}
+              Create

@@ -1,0 +1,39 @@
+.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
+  .row
+    .col-sm-3
+      .form-group
+        %p Title
+        = f.text_field :title, placeholder: "Title",class: 'form-control input'
+
+    .col-sm-3
+      .form-group
+        %p Expiry Date
+        = f.text_field :exp_date,placeholder: "YYYY-MM-DD",class: 'form-control education_doc_expiry_date p-location input'
+
+        / = filepicker_field_tag "" ,class: "resume_file", onchange:"uploadResume(event)"
+    .col-sm-3
+      .form-group
+        %p Select Document
+        -#= f.text_field :file, class: 'hidden file_education_document'
+        = render "shared/file_attachement", f:f,attr_name: :file,button_name: "Upload Document",multiple: false, required_field: false
+        -#= filepicker_field_tag "" , class: " hidden education_file filepicker-attach", onchange:"uploadFileDoc(event, $(this).prev())"
+        = link_to "Select Document" ,"#",class: 'col-lg-12 education_doc btn btn-md btn-primary', style: "margin-bottom: 10px", onclick:"select_file($(this).prev())"
+
+
+- content_for :scripts do
+  :javascript  
+
+    function select_file(prev){
+      prev.trigger("click");
+    }  
+
+    function uploadEducationDoc(event, file_el){
+      document_url = event.fpfile.url
+      $("#"+file_el.attr("id")).val(document_url)
+    }
+
+   
+
+    
+
+

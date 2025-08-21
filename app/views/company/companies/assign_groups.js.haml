@@ -1,0 +1,3 @@
+$('.remote_container').html("#{ j render 'company/companies/partials/assign_group_modal' , company: @invited_company }");
+$('#company-#{@invited_company.invited_company_id}').modal('toggle');
+$(".select2").select2({placeholder: "Select Group(s)"});

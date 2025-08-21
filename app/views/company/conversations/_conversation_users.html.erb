@@ -1,0 +1,15 @@
+<% users.each do |usr| %>
+  <div class="user-fav usr_<%= usr.class.to_s+"_"+usr.id.to_s %>">
+    <%= render 'conversation_user', usr: usr, is_favourite: false %>
+  </div>
+<% end if users.present?  %>
+<% candidates.each do |usr| %>
+    <div class="user-fav usr_<%= usr.class.to_s+"_"+usr.id.to_s %>">
+      <%= render 'conversation_user', usr: usr, is_favourite: false %>
+    </div>
+<% end if candidates.present?  %>
+<% groups.each do |grp| %>
+    <div class="user-fav usr_<%= grp.class.to_s+"_"+grp.id.to_s %>">
+      <%= render 'conversation_group', grp: grp, is_favourite: false %>
+    </div>
+<% end if groups.present?  %>

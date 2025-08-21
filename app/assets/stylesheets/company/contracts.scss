@@ -1,0 +1,180 @@
+// Place all the styles related to the company/contracts controller here.
+// They will automatically be included in application.css.
+// You can use Sass (SCSS) here: http://sass-lang.com/
+.contract-fields_wrapper{
+  border: 2px solid #b6bcbf;
+  padding: 25px;
+}
+
+.x_overflow_y_h{
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.cumstom_nav-tab{
+  border: none !important;
+  background-color: transparent !important;
+}
+
+.cumstom_nav-tab .active {
+  border: none !important;
+}
+.select2-selection__arrow b:before, .select2-container .select2-choice .select2-arrow b:before{
+  content: none !important;
+}
+.select2-selection__arrow{
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  margin-top: 5px;
+}
+
+.wizard-action{
+  background: no-repeat;
+  margin: 0;
+  border: none;
+  ul.wizard{
+    li{
+      list-style: none;
+      a{
+        border: none;
+        background-color: transparent;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #046fdf;
+        cursor: pointer;
+        letter-spacing: 1px;
+        position: relative;
+        text-decoration: none;
+        &:after{
+          font-family: 'osfont' !important;
+          speak: none;
+          font-style: normal;
+          font-weight: normal;
+          font-variant: normal;
+          text-transform: none;
+          line-height: 1;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          font-size: 15px;
+          color: #047bf8;
+          position: absolute;
+          top: 50%;
+          -webkit-transform: translateY(-50%);
+          transform: translateY(-50%);
+        }
+        &:hover{
+          color:#334152;
+        }
+      }
+      &.previous{
+        a{
+          &:after{
+            content: "\e987";
+            left: -20px;
+          }
+        }
+      }
+      &.next{
+        a{
+          &:after{
+            content: "\e986";
+            right: -20px;
+          }
+        }
+      }
+    }
+  }
+}
+select{
+  padding: 1px !important;
+}
+
+.img-round-sm-50{
+  height: 50px;
+  width: 50px;
+  border-radius: 25px;
+  border: 1px solid black;
+}
+
+.contract_warning_text{
+  margin: 100px;
+  padding: 30px;
+  border: 2px dashed #0aa66e;
+  font-size: medium;
+  text-align: justify;
+}
+
+.bg-shade{
+  background-color: #F2F4F8;
+}
+
+.individual_contracts_headers{
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+}
+
+.contract_links{
+  text-align: center;
+  margin-top: 40px !important;
+  margin-bottom: 40px !important;
+}
+
+.contract_sub_heading{
+  font-size: 18px;
+  padding-top: 20px !important;
+  padding-bottom: 20px !important;
+  padding-left: 10px !important;
+  background-color: #C7C3FA;
+}
+
+.customer_detail{
+  display: flex;
+  flex-direction: column;
+}
+.contract_users_team{
+  padding-top: 20px;
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.select_rate_type{
+  width: 162px !important;
+  height: 45px !important;
+}
+.sell-change-rate{
+  width: 100%;
+  border-radius: 0px;
+}
+
+.rate_label{
+  padding-top: 3px;
+}
+
+.box_rate{
+  padding: 0px !important;
+  display: inline-block;
+  width: inherit;
+}
+
+.c_red{
+  color: red;
+}
+.c_green{
+  color: green;
+}
+
+.upcomming_timeline{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  float: none !important;
+}
+.error{
+  color: red;
+}
+.bottom-padding{
+  padding-bottom: 5% !important;
+}

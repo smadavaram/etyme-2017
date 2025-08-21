@@ -1,0 +1,121 @@
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-12
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: "consultants_datatable-search"}
+            .table-responsive
+              %table.table.table-striped.table-bordered.table-hover.table-lg{id: "consultants_datatable"}
+                %thead
+                  %tr{:role => "row"}
+                    %th{style: "width:10%"} Name
+                    %th{style: "width:10%"} Email
+                    %th{style: "width:10%"} Phone
+                    %th{style: "width:5%"} Visa
+                    %th{style: "width:15%"} Roles
+                    %th{style: "width:20%"} Skills
+                    %th{style: "width:10%"}  Last Login
+                    %th{style: "width:10%"} Last Reminder
+                    -#%th Groups
+                    -#%th Salary
+                    %th{style: "width:20%"}
+                      Actions
+                %tbody
+                  - @consultants.each_with_index do |consultant , index|
+                    %tr.even{:role => "row"}
+                      %td.no-wrap
+                        = user_image(consultant, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{consultant.full_name}" )
+                        = link_to consultant.try(:full_name) , company_user_profile_path(consultant) , target: '_blank'
+                      %td= consultant.try(:email)
+                      %td= consultant.try(:phone)
+                      %td= consultant.try(:visa_status)
+                      %td
+                        - consultant.roles.each do |role|
+                          %span.badge.bg-color-blue.margin-bottom-5
+                            = role.try(:name).try(:titleize)
+                      %td
+                        - consultant.skills.each do |skill|
+                          %span.badge.bg-color-blue.margin-bottom-5
+                            = skill.name
+                      %td= consultant.try(:last_sign_in_at).try(:strftime,"%A, %d %b %Y %l:%M %p")
+                      %td
+                        - reminder = find_reminderable_last_reminder(consultant)
+                        = reminder.present? ? reminder.try(:title).try(:titleize) : ''
+                      -#%td= consultant.consultant_profile.salaried? ? "$#{consultant.consultant_profile.salary} / month"  : "$#{consultant.consultant_profile.salary} / hour"
+                      -#%td
+                        - consultant.groups.each do |group|
+                          %span.badge.bg-color-blue
+                            = group.try(:group_name).try(:titleize)
+                      %td
+                        = link_to raw("<i class='picons-thin-icon-thin-0014_notebook_paper_todo'></i>")     ,add_reminder_company_users_path(user_id: consultant.id)  ,class: 'margin-bottom-5 data-table-icons', remote: :true, title: "Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                        = link_to raw("<i class='fa fa-tasks '></i>")     ,company_activities_index_path(index: true), class: 'margin-bottom-5 data-table-icons', title: "Activity Log",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                        = link_to raw("<i class='fa fa-edit '></i>") , edit_consultant_path(consultant,edit: true) , class: 'margin-bottom-5 data-table-icons', title: "Edit #{consultant.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                        = link_to image_tag('groups.png', size: '16x16', class: '').html_safe, company_user_assign_groups_path(consultant) , remote:true,class: 'margin-bottom-5 data-table-icons', title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                      -#= link_to raw("<i class='fa fa-times '></i>") , consultant_path(consultant) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' , title: "Delete #{consultant.full_name}",data: {confirm: "Are you sure you want to Delete this Consultants ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+  .digg_pagination
+  {
+    background-color: #fafafa !important;
+  }
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+     pageSetUp();
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
+            }
+
+        });
+      $("div.toolbar").html("<div class='text-right'><a href='#{new_consultant_path}' title= 'Add NEW Consultant' class= 'btn btn-success share btn-md pull-right header-btn margin-top-5'><i class='fa fa-user-plus'></i> NEW</a></div>");
+
+      // Apply the filter
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+            .column( $(this).parent().index()+':visible' )
+            .search( this.value )
+            .draw();
+
+      } );
+      /* COLUMN SHOW - HIDE */
+        $('#datatable_col_reorder').dataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6'f><'col-sm-6 col-xs-6 hidden-xs'C>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-sm-6 col-xs-12'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
+            },
+            "preDrawCallback" : function() {
+                // Initialize the responsive datatables helper once.
+                if (!responsiveHelper_datatable_col_reorder) {
+                    responsiveHelper_datatable_col_reorder = new ResponsiveDatatablesHelper($('#datatable_col_reorder'), breakpointDefinition);
+                }
+            },
+            "rowCallback" : function(nRow) {
+                responsiveHelper_datatable_col_reorder.createExpandIcon(nRow);
+            },
+            "drawCallback" : function(oSettings) {
+                responsiveHelper_datatable_col_reorder.respond();
+            }
+        });
+
+    });

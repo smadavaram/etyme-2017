@@ -1,0 +1,12 @@
+#content.no-border
+  #wid-id-5.no-border.jarviswidget
+    %div
+      .col-md-12
+        = render 'company/job_receives/partials/received_jobs' , data: @received_jobs
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      pageSetUp();
+      default_active_nav('.ln-5');
+    });

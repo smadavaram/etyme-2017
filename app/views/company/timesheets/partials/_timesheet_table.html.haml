@@ -1,0 +1,33 @@
+-#= form_with(url: client_submit_invoice_invoices_path, method: :post) do |f|
+  -#- if @tab == 'approved_timesheets'
+    -#.controls-above-table
+    -#  = f.submit 'Submit Invoice',class: 'btn share btn-sm btn-secondary'
+.table-responsive
+  %table.table.table-striped.table-bordered.table-v2.table-lg
+    %thead
+      %tr
+        %th= "<input type='checkbox' name='select_all' id='ts_select_all'>".html_safe
+        %th Ts ID
+        %th Ts Type
+        %th Contract ID & Title - Client
+        %th Client
+        %th From & To Date
+        %th Plan. Hr
+        %th Act. Hr
+    %tbody
+      - timesheets.each do |ts|
+        %tr
+          - user = ts.contract_cycle.cycle_of.company
+          %td= "<input type='checkbox' id='ts_ids' name='ids[]' value='#{ts.id}'>".html_safe
+          %td= ts.id
+          %td= ts.contract_cycle.cycle_frequency.capitalize
+          %td= ts.contract.title
+          %td= user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{user.full_name}" )
+          %td= "#{ts.start_date} - #{ts.end_date}"
+          %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
+          %td= ts.calculate_total_time
+
+.timesheet_pagination_wrap
+  .pagination_label
+    = page_entries_info timesheets
+  = will_paginate(timesheets, {params: params.merge(tab: tab,contract_id: contract_id, cycle_id: cycle_id),previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'timesheet_pagination_links'}.merge(link_options: {'data-remote': true}))

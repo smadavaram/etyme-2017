@@ -1,0 +1,97 @@
+.table thead tr,
+.fc-head-container thead tr {
+  background-color: transparent;
+}
+
+.data-table-image {
+  height: 41px !important;
+  width: 41px !important;
+  border-radius: 50%;
+}
+
+.image_bench img {
+  margin-left: 55px;
+}
+
+.image-35 {
+  height: 35px;
+  width: 35px;
+  border-radius: 50%;
+}
+.image-35-imp {
+  max-width: 35px !important;
+  max-height: 35px !important;
+  height: 35px !important;
+  width: 35px !important;
+  border-radius: 50%;
+}
+.data-table-icons {
+  margin-right: 5px;
+  color: #3e4b5b;
+  margin-left: 5px;
+}
+
+.modal--top {
+  top: 10%;
+}
+
+.data-table-icons:link,
+.data-table-icons:visited {
+  color: currentColor;
+}
+
+.data-table-font a:hover {
+  text-decoration: none;
+  color: #3e4b5b;
+}
+
+.os-icon-ui-15 {
+  color: red;
+}
+
+.data-table-font {
+  font-family: "Avenir Next W01";
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #3e4b5b;
+  text-align: left;
+}
+
+/*.dataTable th, .dataTable td, .dataTable .ellipsis {*/
+/*    white-space: nowrap;*/
+/*    overflow: hidden;*/
+/*}*/
+
+.no-wrap {
+  white-space: nowrap;
+  overflow: hidden;
+  /* display: flex; */
+}
+
+.dataTables_filter {
+  display: none;
+}
+
+.parent--flex {
+  display: flex;
+}
+.add-flex {
+  display: inline-flex;
+  width: 100%;
+  justify-content: space-between !important;
+}
+
+.display-block {
+  display: inline-block;
+}
+
+.company--content {
+  height: calc(100vh - 202px);
+  overflow-y: scroll;
+}
+
+.company--content-footer {
+  padding-top: 0;
+  padding-bottom: 0;
+}

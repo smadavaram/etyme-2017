@@ -1,0 +1,99 @@
+.modal{ id: "new-contract-company","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong New Company
+      .modal-body
+        = form_for @new_company , url: company_companies_path , html:{ class:'form-horizontal',id:"companyform"} do |f|
+          = f.fields_for :invited_by do |i|
+            = i.hidden_field :user_id , value: current_user.id
+            = i.hidden_field :invited_by_company_id , value: current_company.id
+          %fieldset
+            .form-group
+              %label.col-md-2.control-label
+                Name
+                %sup.text-danger *
+              .col-md-10
+                = f.text_field :name , class: 'form-control' , placeholder: 'Enter Company Name' , required: true ,id:'company'
+            = f.fields_for :owner do |u|
+              .form-group
+                %label.col-md-2.control-label
+                  First Name
+                  %sup.text-danger *
+                .col-md-4
+                  = u.text_field :first_name ,class: "form-control" , required: 'required', placeholder: "First Name" ,id:'fname'
+                %label.col-md-2.control-label
+                  Last Name
+                  %sup.text-danger *
+                .col-md-4
+                  = u.text_field :last_name ,class: "form-control" , required: 'required', placeholder: "Last Name",id:'lname;'
+              .form-group
+                %label.col-md-2.control-label
+                  Email
+                  %sup.text-danger *
+                .col-md-10
+                  = u.text_field :email , class: 'form-control' , placeholder: 'Email' , required: true ,email: true ,id: 'email'
+              %br/
+          .form-actions
+            .row
+              .col-md-12
+                = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
+                = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")} , class: 'btn btn-primary' ,id:'form_id'
+
+- content_for :scripts do
+  :javascript
+    var $validator = $("#companyform").validate({
+
+          rules: {
+            email: {
+              required: true,
+              email: "Your email address must be in the format of name@domain.com"
+            },
+            fname: {
+              required: true
+            },
+            lname: {
+              required: true
+            },
+            company: {
+              required: true
+            }
+          },
+
+          messages: {
+            fname: "Please specify your First name",
+            lname: "Please specify your Last name",
+            email: {
+              required: "We need your email address to contact you",
+              email: "Your email address must be in the format of name@domain.com"
+            }
+          },
+
+          highlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
+          },
+          unhighlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
+          },
+          errorElement: 'span',
+          errorClass: 'help-block',
+          errorPlacement: function (error, element) {
+            if (element.parent('.input-group').length) {
+              error.insertAfter(element.parent());
+            } else {
+              error.insertAfter(element);
+            }
+          }
+        });
+
+
+         $('.form_id').click(function(){
+            if ($("#companyform").valid()) {
+              $('#companyform').submit();
+
+            }
+            return false;
+        });

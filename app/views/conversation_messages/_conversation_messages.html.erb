@@ -1,0 +1,233 @@
+<% unless @prev_date.present? %>
+<% @prev_date = msg.created_at.strftime('%d %b, %Y') %>
+<% end %>
+
+<% if @messages.next_page.nil? && i == (@messages.size - 1) %>
+  <div class="chat-date-separator">
+    <span>
+      <% if Date.parse(msg.created_at.strftime('%d %b, %Y')) == Date.today %>
+      Today
+      <% elsif Date.parse(msg.created_at.strftime('%d %b, %Y')) == Date.yesterday %>
+      Yesterday
+      <% else %>
+      <%= msg.created_at.strftime('%d %b, %Y') %>
+      <% end %>
+    </span>
+  </div>
+<% end %>
+  <% if  (request.referer && request.env["HTTP_REFERER"].split("conversation").count <= 1)%>
+    <% if msg.userable == get_current_user %>
+      <div class="col-start-6 col-end-13 p-3 rounded-lg">
+        <div class="flex items-center justify-start flex-row-reverse">
+          <!--              Avatar-->
+          <div
+            class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-500 flex-shrink-0">
+            <% if msg.userable.photo&.present? %>
+              <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>
+            <% else %>
+              <%= msg.userable.first_name[0] %>
+            <% end %>
+          </div>
+          <!--              Message-->
+          <div
+            class="relative mr-3 text-sm bg-blue-100 py-2 px-4 shadow rounded-xl" style="margin-left: 30px;"
+          >
+            <%= msg.body.html_safe %>
+            <% if msg.rate_confirmation? %>
+              <a href=" <%= get_current_user.class.to_s == 'Candidate' ? accept_rate_candidate_job_application_path(msg.conversation.job_application, msg.conversation) :
+                              accept_rate_job_application_path(msg.conversation.job_application, msg.conversation) %>" data-method='post'>
+
+
+                Click Here </a> to Accept or
+              <a href='' data-toggle='modal' data-target="#candidate-rate-confirmation-<%= msg.conversation.job_application.applicationable_id %>">Click
+                Here</a> to Counter
+            <% end %>
+
+            <% if msg.schedule_interview? %>
+              <a data-method='post' href="<%= get_current_user.class.to_s == 'Candidate' ?
+                                                accept_interview_candidate_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id)
+                                                :
+                                                accept_interview_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id) %>">Click Here </a> accept this time or
+              <a class='btn-link mt-12 margin-right-5' data-toggle='modal' data-target='#candidate-interview-<%= msg.conversation.job_application.applicationable_id %>' href='#'>
+                Click Here
+              </a> to change details
+            <% end %>
+
+            <% if msg.file_url.present? %>
+              <hr />
+              <a href=<%= msg.file_url %> target="_blank">Attachment</a>
+            <% end %>
+
+          </div>
+        </div>
+      </div>
+    <% else %>
+
+        <div class="flex flex-col h-full overflow-x-auto mb-4">
+          <div class="flex flex-col h-full">
+            <div class="grid grid-cols-12 gap-y-2">
+              <div class="col-start-1 col-end-8 p-3 rounded-lg">
+                <div class="flex flex-row items-center">
+                  <div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-300 flex-shrink-0" >
+                    <% if msg.userable.photo&.present? %>
+                      <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>
+                    <% else %>
+                      <%= msg.userable.first_name[0] %>
+                    <% end %>
+                  </div>
+                  <div class="relative ml-3 text-sm bg-white py-2 px-4 shadow rounded-xl">
+                    <%= msg.body.html_safe %>
+                    <% if msg.rate_confirmation? %>
+                      <a href=" <%= get_current_user.class.to_s == 'Candidate' ? accept_rate_candidate_job_application_path(msg.conversation.job_application, msg.conversation) :
+                                      accept_rate_job_application_path(msg.conversation.job_application, msg.conversation)
+                      %>" data-method='post'>
+                        Click Here </a> to Accept or
+                      <a href='' data-toggle='modal' data-target="#candidate-rate-confirmation-<%= msg.conversation.job_application.applicationable_id %>">Click
+                        Here</a> to Counter
+                    <% end %>
+                    <% if msg.schedule_interview? %>
+                      <a data-method='post' href="<%= get_current_user.class.to_s == 'Candidate' ?
+                                                        accept_interview_candidate_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id)
+                                                        :
+                                                        accept_interview_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id) %>">Click Here </a> accept this time or
+                      <a class='btn-link mt-12 margin-right-5' data-toggle='modal' data-target="#candidate-interview-<%= msg.conversation.job_application.applicationable_id %>" href='#'>
+                        Click Here
+                      </a> to change details
+                    <% end %>
+                    <% if msg.file_url.present? %>
+                      <hr />
+                      <a href=<%= msg.file_url %> target="_blank">Attachment</a>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+
+              <div class="chat-message left" style="margin-bottom: 14px">
+                  <div class="row" style="margin-top: auto">
+                      <div class="col-lg-7 col-md-7 col-sm-7">
+                        <div class="row" style="justify-content: flex-start; background: #F1F8FF;
+                            border-radius: 21px; border-bottom-right-radius: unset"> </div>
+                      </div>
+                      <div class="col-lg-2 col-md-2 col-sm-2">
+                          <div class="row" style="justify-content: flex-start"> </div>
+                      </div>
+                      <div class="col-lg-3 col-md-3 col-sm-3"></div>
+                  </div>
+              </div>
+    <% end %>
+  <%else%>
+              <%# main chat %>
+
+                          <!--  main chat area-->
+        <% if msg.userable == get_current_user %>
+                          <!--START OF NEW MAIN CHAT-->
+                          <!--    LEFT-->
+
+
+                          <!--          RIGHT-->
+            <div class="col-start-6 col-end-13 p-3 rounded-lg">
+              <div class="flex items-center justify-start flex-row-reverse" style="display:flex; align-item: center;">
+                          <!--              Avatar-->
+                <div
+                  class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-300 flex-shrink-0">
+                  <% if msg.userable.photo&.present? %>
+                    <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>
+                  <% else %>
+                    <%= msg.userable.first_name[0] %>
+                  <% end %>
+                </div>
+                  <!--              Message-->
+                <div
+                  class="relative mr-3 text-sm bg-blue-100 py-2 px-4 shadow rounded-xl" style="margin-left: 30px;"
+                >
+                  <%= msg.body.html_safe %>
+                  <% if msg.rate_confirmation? %>
+                    <a href=" <%= get_current_user.class.to_s == 'Candidate' ? accept_rate_candidate_job_application_path(msg.conversation.job_application, msg.conversation) :
+                                    accept_rate_job_application_path(msg.conversation.job_application, msg.conversation) %>" data-method='post'>
+
+
+                      Click Here </a> to Accept or
+                    <a href='' data-toggle='modal' data-target="#candidate-rate-confirmation-<%= msg.conversation.job_application.applicationable_id %>">Click
+                      Here</a> to Counter
+                  <% end %>
+
+                  <% if msg.schedule_interview? %>
+                    <a data-method='post' href="<%= get_current_user.class.to_s == 'Candidate' ?
+                                                      accept_interview_candidate_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id)
+                                                      :
+                                                      accept_interview_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id) %>">Click Here </a> accept this time or
+                    <a class='btn-link mt-12 margin-right-5' data-toggle='modal' data-target='#candidate-interview-<%= msg.conversation.job_application.applicationable_id %>' href='#'>
+                      Click Here
+                    </a> to change details
+                  <% end %>
+
+                  <% if msg.file_url.present? %>
+                    <hr />
+                    <a href=<%= msg.file_url %> target="_blank">Attachment</a>
+                  <% end %>
+
+                </div>
+              </div>
+            </div>
+            <!--    end of new main chat-->
+
+  <% else %>
+          <!--LEFT SIDE-->
+
+          <div class="flex flex-col h-full mb-4">
+            <div class="col-xs-12 h-full">
+              <% if @prev_date != msg.created_at.strftime('%d %b, %Y') %>
+                <div class="chat-date-separator">
+                  <span>
+                    <% if Date.parse(@prev_date) == Date.today %>
+                    Today
+                    <% elsif Date.parse(@prev_date) == Date.yesterday %>
+                    Yesterday
+                    <% else %>
+                    <%= @prev_date %>
+                    <% end %>
+                  </span>
+                <% @prev_date = msg.created_at.strftime('%d %b, %Y') %>
+              <% end %>
+                <div class="col-md-8 p-3 rounded-lg">
+                  <div class="flex flex-row items-center">
+                    <div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-300 flex-shrink-0" >
+                      <% if msg.userable.photo&.present? %>
+                        <%= image_tag(msg.userable.photo, class: "image-35-imp new-class-avatar", alt: image_alt(msg.userable)) %>
+                      <% else %>
+                        <%= msg.userable.first_name[0] %>
+                      <% end %>
+                    </div>
+                    <div class="relative ml-3 text-sm bg-white py-2 px-4 shadow rounded-xl">
+                      <%= msg.body.html_safe %>
+                      <% if msg.rate_confirmation? %>
+                        <a href=" <%= get_current_user.class.to_s == 'Candidate' ? accept_rate_candidate_job_application_path(msg.conversation.job_application, msg.conversation) :
+                                        accept_rate_job_application_path(msg.conversation.job_application, msg.conversation)
+                        %>" data-method='post'>
+                          Click Here </a> to Accept or
+                        <a href='' data-toggle='modal' data-target="#candidate-rate-confirmation-<%= msg.conversation.job_application.applicationable_id %>">Click
+                          Here</a> to Counter
+                      <% end %>
+                      <% if msg.schedule_interview? %>
+                        <a data-method='post' href="<%= get_current_user.class.to_s == 'Candidate' ?
+                                                          accept_interview_candidate_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id)
+                                                          :
+                                                          accept_interview_job_application_path(id: msg.conversation.job_application.id, interview_id: msg.resource_id, conversation_id: msg.conversation_id) %>">Click Here </a> accept this time or
+                        <a class='btn-link mt-12 margin-right-5' data-toggle='modal' data-target="#candidate-interview-<%= msg.conversation.job_application.applicationable_id %>" href='#'>
+                          Click Here
+                        </a> to change details
+                      <% end %>
+                      <% if msg.file_url.present? %>
+                        <hr />
+                        <a href=<%= msg.file_url %> target="_blank">Attachment</a>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+              
+
+  <% end %>
+<%end%>

@@ -1,0 +1,26 @@
+- content_for :html_id, "extr-page"
+- content_for :body_class, "animated fadeInDown"
+- content_for :top_right do
+  %span#extr-page-header-space
+    %span.hidden-mobile.hiddex-xs
+#main{:role => "main"}
+  / MAIN CONTENT
+  #content.container
+    .row
+      %h1.txt-color-red.login-header-big Sign Up Successful
+      .row
+        .col-md-6
+
+          %h4.paragraph-header
+          Your trial is ready, We at eTyme would love you to explore and enjoy eTyme’s FULL benefits for 14 days - absolutely FREE!
+          %br
+          %br
+          To activate your trial, click the email we’ve just sent to your mailbox.
+          %h5
+            Didn’t find it?
+            =link_to "Send again", @company.etyme_url+new_user_password_path
+          %hr
+          %div{style: 'margin-top: 40px;'}
+            (Oh... and please check your Spam/Junk folder in the very unfortunate event our email got there)
+        .col-md-6{style: "padding-left: 40px"}
+          %img.pull-right.display-image{:alt => "", :src => "#{image_path('demo/iphoneview.png')}", :style => "width: 100%"}

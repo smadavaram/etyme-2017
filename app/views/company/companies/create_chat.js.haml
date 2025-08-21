@@ -1,0 +1,3 @@
+$('.remote_container').html("#{ j render 'company/chats/partials/create_company_chat' , company: @company}");
+$('#prefer_vendor_chat-#{@company.id}').modal('toggle');
+$("#remind").datepicker({dateFormat: "mm-dd-yy"  });

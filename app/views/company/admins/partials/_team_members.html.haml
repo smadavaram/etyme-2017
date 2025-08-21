@@ -1,0 +1,14 @@
+- if @user.children.present?
+  .form-group
+    %label{:class => "d-block"} Team Members
+    .table-responsive
+      %table.table.table-bordered.table-lg.table-v2.table-striped
+        %thead
+          %tr
+            %th Name
+            %th Email
+        %tbody
+          - @user.children.each do |c|
+            %tr
+              %td= c.full_name
+              %td= c.email

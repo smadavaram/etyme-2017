@@ -1,0 +1,142 @@
+
+.content-box
+  .element-wrapper
+    .h6.element-header
+      Contract Details
+    .padded-lg
+      .row
+        .col-lg-8
+          .element-box.element-box-show
+            =render 'company/contracts/partials/contract_header',contract: @contract
+            %br/
+            %br/
+        .col-lg-4
+          .element-box.element-box-show
+            .h5.form-header
+              Quick Actions
+            %div{style: "display: flex;flex-direction: column;"}
+              = render 'company/contracts/partials/contracts_links', contract: @contract
+      %hr
+      .row
+        .col-lg-6
+          .element-box.element-box-show
+            %div.pull-right
+              %btn.show-chat-btn.display_sell_chat{style: 'position: inherit !important'}
+                %i.fa.fa-comment-o
+            =render 'company/contracts/partials/sell_side',editable: @contract.company == current_company
+        .col-lg-6
+          - if current_company == @contract.company
+            .element-box.element-box-show
+              %div.pull-right
+                %btn.display_buy_chat.show-chat-btn{style: 'position: inherit !important'}
+                  %i.fa.fa-comment-o
+              =render 'company/contracts/partials/buy_side',editable: @contract.company == current_company
+
+
+
+
+-#.w-100.p-4.bg_white
+-#  .contract-fields_wrapper.mb-4.bg-shade
+-#    =render 'company/contracts/partials/contract_header',contract: @contract
+-#  .contract_links.col-sm-12.mt-2.mb-2
+-#    = render 'company/contracts/partials/contracts_links', contract: @contract
+-#  .row
+-#    .col-sm-6.col-md-6.col-lg-6
+-#      = render 'company/contracts/partials/sell_side',editable: @contract.company == current_company
+-#    - if current_company == @contract.company
+-#      .col-sm-6.col-md-6.col-lg-6
+-#        = render 'company/contracts/partials/buy_side',editable: @contract.company == current_company
+
+- if @contract.in_progress?
+  - content_for :modals do
+    = render 'company/contracts/partials/extend_contract_modal', contract: @contract
+
+- if @contract.pending? && !@contract.is_sent?(current_company)
+  - content_for :modals do
+    #ajax-modal
+    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
+    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
+- if @contract and @contract&.sell_contract&.persisted?
+  = render 'company/contracts/request_document_modal', contract: @contract
+  = render 'company/contracts/submit_document_modal', contract: @contract
+
+- if @contract and @contract&.buy_contract&.persisted?
+  = render 'company/contracts/buy_send_documents_modal', contract: @contract
+  = render 'company/contracts/buy_emp_req_docs_modal', contract: @contract
+  = render 'company/contracts/partials/buy_ven_req_docs_modal', contract: @contract
+    
+  - content_for :scripts do
+    :javascript
+      function openAccept(){
+        $("#contract-accept-#{@contract.id}").modal('show');
+      }
+      $(".upload-doc-button").click(function(){
+        file = '.'+$(this).attr('id');
+        filepicker.setKey("#{ENV['filepicker_api_key']}");
+        filepicker.pick({},function(blob){
+          $(file).val(blob.url);
+          $(file).parent().submit();
+        });
+      });
+
+- if @contract.sell_contract&.persisted?
+  %fieldset{id: 'sell_chat', style: 'display: none'}
+    .contract-fields_wrapper.mt-4.contract-border
+      .row
+        .col-md-6
+          .form-group
+            %h3.control-label.pull-right.text-muted
+              - if @contract&.sell_contract&.conversation.present?
+                .floated-chat-btn
+                  %i.os-icon.os-icon-mail-07
+                  %span
+                  = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.sell_contract.conversation.id), onclick: "open_chat(#{@contract.sell_contract.conversation.id})",class: 'ChatBtn sell_chat',id: 'ChatBtn', remote: true
+
+
+- if @contract.buy_contract&.persisted?
+  %fieldset{id: 'buy_chat', style: 'display: none'}
+    .contract-fields_wrapper.mt-4.contract-border
+      .row
+        .col-md-6
+          .form-group
+            %h3.control-label.pull-right.text-muted
+              - if @contract&.buy_contract&.conversation.present?
+                .floated-chat-btn
+                  %i.os-icon.os-icon-mail-07
+                  %span
+                  = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id), onclick: "open_chat(#{@contract.buy_contract.conversation.id})",class: 'ChatBtn buy_chat',id: 'ChatBtn', remote: true
+
+- content_for :scripts do
+  :javascript
+      company_contract_signers('#select_sell_company_signers',"#{@contract.sell_contract.company.id}")
+    function open_chat(id){
+      $.get(`/company/conversations/mini_chat?conversation_id=${id}`)
+    }
+    console.log("3333333333333333333333333333333")
+    $('.contract_progress').attr('data-content','0%');
+    $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
+    $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');
+
+    $(document).on('click', '.buy-change-rate', function(){
+      $('#buy-change-rate').toggleClass('hidden');
+    });
+    $(document).on('click', '.display_sell_chat',function(){
+      $('#sell_chat').show();
+      $('#buy_chat').hide();
+      $('.sell_chat').click();
+    })
+     $(document).on('click', '.display_buy_chat',function(){
+      $('#sell_chat').hide();
+      $('#buy_chat').show();
+      $('.buy_chat').click();
+    })
+    $(document).ready(function(){
+      $('#sell_chat').hide();
+      $('#buy_chat').hide();
+    });
+    $(document).on('click', '.sell-change-rate', function(){
+      $('#sell-change-rate').toggleClass('hidden');
+    });
+
+
+

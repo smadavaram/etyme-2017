@@ -1,0 +1,19 @@
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .table-responsive
+              %table.table.table-striped.table-bordered.table-hover.table-lg
+                %thead
+                  %tr
+                    %th Company Name
+                    %th Website
+                    %th Domain
+                %tbody
+                  - @subscriptions.each do |subscription|
+                    %tr
+                      %td= subscription.name
+                      %td= subscription.website
+                      %td= subscription.domain

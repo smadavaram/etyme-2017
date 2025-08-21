@@ -1,0 +1,8 @@
+<% if object.errors.present? %>
+  <div class="alert alert-danger">
+    <h4><%= pluralize(object.errors.count, "error") %> prohibited this data from being saved:</h4>
+    <% object.errors.full_messages.each do |message| %>
+      <li><%= message %></li>
+    <% end %>
+  </div>
+<% end %>

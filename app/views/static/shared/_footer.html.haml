@@ -1,0 +1,51 @@
+
+.footer
+  .container
+    .row
+      .col-md-2.col-sm-6.text-left
+        %h4.heading.no-margin Company
+        %hr.mint/
+        .no-padding
+          %a{:href => static_index_path} Home
+          %a{:href => "#"} About
+          %a{:href => static_jobs_path} Jobs
+          %a{:href => "#"} Candidates
+          %a{:href => "#"} How it works
+          %a{:href => "#"} Contact
+      / /.col-md-2
+      .col-md-3.col-sm-6.text-left
+        %h4.heading.no-margin Other Services
+        %hr.mint/
+        .no-padding
+          %a{:href => "#"} Privacy Policy
+          %a{:href => "#"} Terms of Use
+          %a{:href => "#"} FAQ
+      / /.col-md-3
+    .clearfix
+
+%footer#main-footer.main-footer
+  .container
+    .row
+      .col-lg-4.col-md-4.col-sm-6.col-xs-12
+        %ul.social-links
+          %li.revealOnScroll{"data-animation" => "slideInLeft", "data-timeout" => "800"}
+            %a{:href => "#link"}
+              %i.fa.fa-facebook.fa-fw
+          %li.revealOnScroll{"data-animation" => "slideInLeft", "data-timeout" => "600"}
+            %a{:href => "#link"}
+              %i.fa.fa-twitter.fa-fw
+          %li.revealOnScroll{"data-animation" => "slideInLeft", "data-timeout" => "400"}
+            %a{:href => "#link"}
+              %i.fa.fa-google-plus.fa-fw
+          %li.revealOnScroll{"data-animation" => "slideInLeft", "data-timeout" => "200"}
+            %a{:href => "#link"}
+              %i.fa.fa-pinterest.fa-fw
+          %li.revealOnScroll{"data-animation" => "slideInLeft"}
+            %a{:href => "#link"}
+              %i.fa.fa-linkedin.fa-fw
+      / /.col-sm-4
+      .col-lg-4.col-md-4.col-sm-6.col-xs-12.revealOnScroll{"data-animation" => "bounceIn", "data-timeout" => "200"}
+      .col-lg-4.col-md-4.col-sm-6.col-xs-12.text-right.revealOnScroll{"data-animation" => "slideInRight", "data-timeout" => "200"}
+        %p
+          ©#{Date.today().strftime("%Y")} The Etyme.
+%a#scrollup Scroll

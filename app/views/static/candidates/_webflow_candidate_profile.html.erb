@@ -1,0 +1,835 @@
+<%= stylesheet_link_tag "mycompany" %>
+<style>
+.bot_styles{
+        background: none  !important;
+        border: none !important;
+        margin: 0px;
+        padding: 0px;
+}
+.bot_styles:hover {
+    outline: none !important;
+}
+.bot_styles:focus {
+    outline: none !important;
+}
+</style>
+
+<div class="webflow-profile row">
+  <div class="webflow-profile-left col-12 col-xl-4">
+    <div class="webflow-profile-inner" id="print-screen">
+      <div class="profile-available">
+        <i class="fa fa-circle" aria-hidden="true"></i>
+        Available
+      </div>
+      <div class="profile-avatar">
+<!--        <img src="https://cdn1.vectorstock.com/i/1000x1000/72/35/male-avatar-profile-icon-round-man-face-vector-18307235.jpg" alt="">-->
+        
+        <%= image_tag "#{candidate&.photo.blank? ? "https://cdn1.vectorstock.com/i/1000x1000/72/35/male-avatar-profile-icon-round-man-face-vector-18307235.jpg" : candidate.photo }", class: "rounded-circle", alt: "#{candidate.full_name}" %>
+      </div>
+      <div class="profile-name">
+        <%= candidate.full_name %>
+        <span class="profile-location"> USA </span>
+      </div>
+      <div class="profile-title">
+        <%= candidate.candidate_title %>
+      </div>
+
+      <div class="profile-rating">
+        <%= rating_starts(candidate_company&.rating&.average || 0) %>
+      </div>
+      <div class="profile-reviews-links">
+        <span class="profile-reviews-link"><%= pluralize(candidate_company&.rating&.total, 'Review') %></span>
+
+      <%if can_review %>
+        <span class="profile-reviews-link" onclick="showReviewModal();">Add a Review</span>
+      <%end%>
+      </div>
+      <div class="profile-stats">
+        <div class="profile-stats-container">
+          <div class="profile-stats-number">
+            <%= candidate&.experiences.count %>
+          </div>
+          <div class="profile-stats-label">
+            Years of Experience
+          </div>
+        </div>
+        <div class="profile-stats-container">
+          <div class="profile-stats-number">
+           <%= candidate.designations&.with_no_client.count %>
+          </div>
+          <div class="profile-stats-label">
+            Clients
+          </div>
+        </div>
+      </div>
+      <div class="mb-4">
+        <% if candidate&.phone %>
+        <div class="profile-contact">
+          <i class="fa fa-phone" aria-hidden="true"></i>
+          <%= mask(candidate&.phone, 4, "*") %>
+        </div>
+        <% end %>
+        <div class="profile-contact">
+          <i class="fa fa-envelope" aria-hidden="true"></i>
+          <%= mask(candidate&.email, 4, "*") %>
+          <span class="profile-contact-verified">Verified</span>
+        </div>
+      </div>
+      <div class="mb-5">
+        <div class="profile-information">
+          <div class="information-label">
+            Age
+          </div>
+          <div class="information-value">
+            <%= pluralize((Date.today.to_s(:number).to_i - candidate.dob.to_s(:number).to_i) / 10000,'year') rescue 'N/A'%>
+          </div>
+        </div>
+        <div class="profile-information">
+          <div class="information-label">
+            Location
+          </div>
+          <div class="information-value">
+            <%= Candidate.last.criminal_check.last&.address&.split(",")&.drop(1)&.join(",") %>
+          </div>
+        </div>
+        <div class="profile-information">
+          <div class="information-label">
+            Visa Status
+          </div>
+          <div class="information-value">
+            <% if candidate.visas.last %>
+              <%= candidate.visas.last&.status%>
+            <% else %>
+              Unknown
+            <% end %>
+          </div>
+        </div>
+        <div class="profile-information">
+          <div class="information-label">
+            SSN(YES / NO)
+          </div>
+          <div class="information-value">
+            <% if candidate.ssn %>
+              <%= candidate.ssn.present? ? 'Yes' : 'No' %>
+            <% else %>
+              Unknown
+            <% end %>
+          </div>
+        </div>
+
+        <div class="profile-information">
+          <div class="information-label">
+            Relocation
+          </div>
+          <div class="information-value">
+            <% if candidate.relocation %>
+              <%= candidate.relocation ? 'Yes' : 'No' %>
+            <% else %>
+              Unknown
+            <% end %>
+          </div>
+        </div>
+
+        <div class="profile-information">
+          <div class="information-label">
+            Preferred Work Type 
+          </div>
+          <div class="information-value">
+            <% if candidate.work_type %>
+              <%= candidate.work_type.humanize %>
+            <% else %>
+              Unknown
+            <% end %>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between flex-wrap w-100">
+
+          <% if candidate.twitter_url.present? %>
+            <div class="os-progress-bar primary w-50 d-flex justify-content-center">
+              <div class="bar-labels">
+                <div class="bar-label-left font-weight-bold d-flex align-items-center">
+                  <i class="fi-social-skype"></i>
+                  <span class="ml-2"><%=do_ellipsis(candidate.skypeid, 15)%></span>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
+          <% if candidate.facebook_url.present? %>
+            <div class="os-progress-bar primary w-50 d-flex justify-content-center">
+              <div class="bar-labels">
+                <a href="<%= candidate.facebook_url%>" target="_blank">
+                  <div class="bar-label-left font-weight-bold d-flex align-items-center">
+                    <i class="fi-social-facebook"></i>
+                    <span class="ml-2">Facebook</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          <% end %>
+
+          <% if candidate.gtalk_url.present? %>
+            <div class="os-progress-bar primary w-50 d-flex justify-content-center">
+              <div class="bar-labels">
+                <a href="<%= candidate.gtalk_url%>" target="_blank">
+                  <div class="bar-label-left font-weight-bold d-flex align-items-center">
+                    <i class="fi-social-google-plus"></i>
+                    <span class="ml-2">Google</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          <% end %>
+
+          <% if candidate.twitter_url.present? %>
+            <div class="os-progress-bar primary w-50 d-flex justify-content-center">
+              <div class="bar-labels">
+                <a href="<%= candidate.twitter_url%>" target="_blank">
+                  <div class="bar-label-left font-weight-bold d-flex align-items-center">
+                    <i class="fi-social-google-plus"></i>
+                    <span class="ml-2">Twitter</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          <% end %>
+
+          <% if candidate.linkedin_url.present? %>
+            <div class="os-progress-bar primary w-50 d-flex justify-content-center">
+              <div class="bar-labels">
+                <a href="<%= candidate.linkedin_url %>" target="_blank">
+                  <div class="bar-label-left font-weight-bold d-flex align-items-center">
+                    <i class="fi-social-linkedin"></i>
+                    <span class="ml-2">Linkedin</span>
+                  </div>
+                </a>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+      <div class="profile-rate-value">
+        <div class="profile-buttons">
+          <!--        <a href="#" class="profile-button-add">-->
+          <!--          Add as Candidate-->
+          <!--        </a>-->
+          <%c_candidate_obj = Candidate.find_by(id: @candidate)%>
+          <% c_recruiter = User.find_by(id: c_candidate_obj&.recruiter_id)%>
+
+          <div class="logged-user-role d-block">
+            <%if c_recruiter.present? && current_user != c_recruiter%>
+              <button onclick="recruiter_button(<%= c_recruiter.id %>)" class="bot_styles"><div class='profile-button-chat'>
+                <span class="pr-2 w-7">Chat with HR Partner </span>
+                <div class="logged-user-role d-block  ">
+                    <%= chat_recruiter_link_image(c_recruiter) %>
+                </div>
+
+              </div></button>
+            <%else%>
+              <button onclick="candidate_button(<%= c_candidate_obj.id %>)" class="bot_styles"><div class='profile-button-chat'> <i class='fa fa-commenting mr-2' aria-hidden='true'></i> Chat </div></button>
+            <%end%>
+        </div>
+
+
+
+
+
+
+
+
+        </div>
+        <% job_invitation = candidate.try(:job_invitations).try(:last) %>
+        $<%= job_invitation.present? ? job_invitation.min_hourly_rate : "NA" %>
+        -
+        <%= job_invitation.present? ? job_invitation.max_hourly_rate : "NA" %>
+        /hr
+      </div>
+
+      <div class="profile-links">
+        <a href="#" class="profile-link-share">
+          Share Profile <i class="fa fa-share-alt ml-1" aria-hidden="true"></i>
+        </a>
+        <%if candidate.candidates_resumes&.last.present? %>
+          <% file = candidate.candidates_resumes&.last.resume %>
+          <% if file.blank? %>
+           <a href="#" class="pl-4 profile-link-download" > Resume Missing</a>
+          <% elsif File.extname(URI.parse(file).path) == '.pdf' %>
+            <a href="<%=candidate.candidates_resumes&.last.resume %>" id="print-doc" class="profile-link-download" target="_blank" >
+              Print Resume
+            </a>
+          <% else %>
+            <a href="<%=candidate.candidates_resumes&.last.resume %>" id="print-doc" download class="profile-link-download" target="_blank" >
+              Download Resume </a>
+          <% end %>
+
+
+        <% else %>
+          <%= "No Resume Available" %>
+        <% end %>
+
+<!--        <a  href="#"   class="pl-4 profile-link-download"  >-->
+<!--          </a>-->
+        <a href="<%= public_profile_print_static_candidates_path(candidate.id)  %>"  class="profile-link-download pl-4" target="_blank" id="print-page"  > Print Page </a>
+
+      </div>
+      <div class="profile-section">
+        <div class="profile-section-header">
+          <div class="profile-section-title">Skills</div>
+          <div class="profile-section-line"></div>
+        </div>
+        <ul class="profile-skills-tags">
+          <% candidate.skills.each do |skill| %>
+            <li><%= skill %></li>
+          <% end %>
+        </ul>
+      </div>
+      <div class="profile-section">
+        <div class="profile-section-header">
+          <div class="profile-section-title">Education</div>
+          <div class="profile-section-line"></div>
+        </div>
+        <% if candidate.educations.blank? %>
+          Unknown
+        <% end %>
+        <% candidate.educations.each do |education| %>
+          <div class="profile-section-content-label">
+            <%= "#{education.degree_title&.capitalize} - #{education.institute&.capitalize}" %>
+          </div>
+          <div class="profile-section-content-value pb-2">
+            <%= [education.degree_level, education.completion_year && ", Graduated #{education.completion_year.year}"].join %>
+          </div>
+        <% end %>
+      </div>
+      <div class="profile-section">
+        <div class="profile-section-header">
+          <div class="profile-section-title">Languages</div>
+          <div class="profile-section-line"></div>
+        </div>
+        <div class="row">
+          <div class="profile-section-content-label col-4">
+            English (Lorem)
+          </div>
+          <div class="profile-section-content-value col-8">
+            Native (Lorem)
+          </div>
+        </div>
+      </div>
+      <div class="profile-section">
+        <div class="profile-section-header">
+          <div class="profile-section-title">Certifications</div>
+          <div class="profile-section-line"></div>
+        </div>
+        <% if candidate.certificates.blank? %>
+          Unknown
+        <% end %>
+        <% candidate.certificates.each do |certificate| %>
+        <div class="profile-section-content-label">
+          <%= certificate.title %>
+        </div>
+        <div class="profile-section-content-value pb-2">
+          <%= certificate.institute %>, <%= certificate.start_date&.year %>-<%= certificate.end_date&.year %>
+        </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <div class="webflow-profile-right col-12 col-xl-8">
+
+    <!-- Portfolio -->
+    <div class="webflow-profile-inner" id="print-screen">
+      <div class="d-flex justify-content-between mb-20">
+        <div class="f-16 w-500 l-19 c-80">Portfolio</div>
+      </div>
+        <div class="d-flex w-100 justify-content-center">
+          <% if candidate.designations.with_no_client.present? %>
+            <div class="portfolio-slick">
+              <% candidate.designations.with_no_client.each do |client| %>
+                <% client.portfolios.each do |portfolio| %>
+                  <% if url_image?(portfolio.cover_photo) %>
+                    <div class="slide-container">
+                      <img src="<%= portfolio.cover_photo %>"/>
+                    </div>
+                  <% end %>
+                  <% if url_video?(portfolio.cover_photo) %>
+                    <div class="slide-container">
+                      <video controls="<%= true %>">
+                        <source src="<%= portfolio.cover_photo %>"></source>
+                      </video>
+                    </div>
+                  <% end %>
+                <% end %>
+              <% end %>
+              <div class="slide-container" id="tags"></div>
+              <div class="slide-container" id="clients"></div>
+            </div>
+          <% else %>
+            <div class="portfolio-slick">
+              <div class="slide-container" id="tags"></div>
+              <div class="slide-container" id="clients"></div>
+            </div>
+          <% end %>
+        </div>
+    </div>
+
+    <!-- Professional Summary -->
+    <div class="webflow-profile-inner">
+      <div class="d-flex justify-content-between mb-10">
+        <div class="f-16 w-500 l-19 c-80">Professional Summary</div>
+      </div>
+      <% if candidate.about_summary.present? %>
+        <div class="element-info">
+          <div class="element-info-text">
+            <p class="break-text"><%=candidate.about_summary.html_safe%></p>
+          </div>
+        </div>
+      <% else %>
+        There is no professional summary
+      <% end %>
+
+    </div>
+
+    <!-- Employment History -->
+    <div class="webflow-profile-inner">
+      <div class="d-flex justify-content-between mb-30">
+        <div class="f-16 w-500 l-19 c-80">Employment History</div>
+      </div>
+      <% if candidate.designations.with_no_client.present? %>
+        <div class="element-info">
+          <div class="element-info-text">
+            <div class="mb-2">
+              <table>
+                <tr>
+                  <th>Sr No.</th>
+                  <th>Organization</th>
+                  <th>Industry</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Role</th>
+                </tr>
+                <% candidate.designations.with_no_client.each_with_index do |designation, idx| %>          
+                  <tr>
+                    <td><%= idx+1 %></td>
+                    <td><%= designation.comp_name %></td>
+                    <td><%= designation.company_role %></td>
+                    <td><%= designation.start_date&.strftime('%B-%Y') %></td>
+                    <td><%= designation.end_date&.strftime('%B-%Y')  %></td>
+                    <td><%= designation.nature_of_work %></td>
+                  </tr>
+                <%end%>
+              </table>
+            </div>
+          </div>
+        </div>
+      <% else %>
+        There is no work Experience  
+      <% end %>
+
+    </div>
+
+    <!-- Project History -->
+    <div class="webflow-profile-inner">
+      <div class="d-flex justify-content-between mb-30">
+        <div class="f-16 w-500 l-19 c-80">Project History</div>
+      </div>
+      <% if candidate.designations.with_no_client.present? %>
+        <% candidate.designations.with_no_client.each do |designation| %>
+          <% designation.designation_projects.each do |project|%>
+            <div class="element-info">
+              <div class="element-info-text">
+                <div class="mb-2">
+                  <div class="project-header">
+                    <span style='font-weight: bold;'><%= designation.try(:comp_name) %></span>
+                    <span style="float: right;"><%= designation.start_date&.strftime('%B-%Y') %> -  <%= designation.end_date&.strftime('%B-%Y')%></span>
+                    <div><%= designation.company_role %></div>
+                  </div>
+
+                  <div class="project-description" style="margin-left: 12px; margin-top: 12px;font-size: 16px;line-height: 25px;">
+                    <strong class="font-weight-bold font-sm text-capitalize" style="color: gray;">Project description</strong>
+                    <div> <%= project.project_description.html_safe %> </div>
+                  </div>
+
+                  <div class="job-description" style="margin-left: 12px; margin-top: 12px;font-size: 16px;line-height: 25px;">
+                    <strong class="font-weight-bold font-sm text-capitalize" style="color: gray;">Job description</strong>
+                    <div> <%= project.job_description.html_safe %> </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <hr class="solid">
+          <% end %>
+        <%end%>
+      <% else %>
+        There is no Project history present.
+      <% end %>
+
+    </div>
+
+
+    <%# <!-- Project Experience --> %>
+    <%# <div class="webflow-profile-inner"> %>
+    <%#   <div class="d-flex justify-content-between mb-30"> %>
+    <%#     <div class="f-16 w-500 l-19 c-80">Experience</div> %>
+    <%#   </div> %>
+    <%#   <% if candidate.experiences.blank? %1> %>
+    <%#     No Experience %>
+    <%#   <% end %1> %>
+    <%#   <% candidate.experiences.each do |experience| %1> %>
+    <%#   <div class="mb-20"> %>
+    <%#     <div class="f-14 l-17 c-80 mb-2"> %>
+    <%#       <%= experience.experience_title %1> %>
+    <%#     </div> %>
+    <%#     <div class="d-flex f-12 l-14"> %>
+    <%#       <div class="c-50 mr-12"> %>
+    <%#         <%= experience.institute %1> %>
+    <%#       </div> %>
+    <%#       <div class="c-35"> %>
+    <%#         From <%= experience.start_date %1> to <%= experience.end_date %1> %>
+    <%#       </div> %>
+    <%#     </div> %>
+    <%#   </div> %>
+    <%#   <% end %1> %>
+    <%# </div> %>
+
+    <!-- Reviews -->
+    <div class="webflow-profile-inner webflow-comments col-12">
+      <%if candidate_company.present?%>
+        <%= render 'static/candidates/webflow_candidate_reviews', candidate_company: candidate_company %>
+      <% end %>
+    </div>
+  </div>
+</div>
+<%= render 'static/candidates/webflow_candidate_add_review', candidate: candidate, rating_categories: @rating_categories %>
+
+
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>
+
+<link href="http://www.jqueryscript.net/css/jquerysctipttop.css" rel="stylesheet" type="text/css"></link>
+<link href="/jqcloud/jqcloud.css" media="screen" rel="stylesheet" type="text/css"></link>
+<script src="/jqcloud/jqcloud-1.0.4.js" type="text/javascript"></script>
+
+
+<% content_for :head do %>
+  <link href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.css" rel="stylesheet" type="text/css"></link>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.5.8/slick-theme.min.css" rel="stylesheet" type="text/css"></link>
+<% end %>
+
+<% content_for :scripts do %>
+  <script>
+    function showReviewModal() {
+      $('#add-review').modal('show');
+    }
+
+    $('.portfolio-slick').slick({
+      infinite: true,
+      slidesToShow: 1,
+      dots:true,
+      arrows: true,
+      speed: 500,
+      fade: true,
+    });
+  </script>
+<% end %>
+
+<script>
+  var tags = <%= raw @tags.to_json %>;
+  var clients = <%= raw @clients.to_json %>;
+  
+  $(document).ready(function() {    
+    $(".slick-track").css("width", "620px"); 
+    
+    (function( $ ) {
+      "use strict";
+      $.fn.jQCloud = function(word_array, options) {
+        // Reference to the container element
+        var $this = this;
+        // Namespace word ids to avoid collisions between multiple clouds
+        var cloud_namespace = $this.attr('id') || Math.floor((Math.random()*1000000)).toString(36);
+
+        // Default options value
+        var default_options = {
+          width: $this.width(),
+          height: $this.height(),
+          center: {
+            x: ((options && options.width) ? options.width : $this.width()) / 2.0,
+            y: ((options && options.height) ? options.height : $this.height()) / 2.0
+          },
+          delayedMode: word_array.length > 50,
+          shape: false, // It defaults to elliptic shape
+          encodeURI: true,
+          removeOverflowing: true
+        };
+
+        options = $.extend(default_options, options || {});
+
+        // Add the "jqcloud" class to the container for easy CSS styling, set container width/height
+        $this.addClass("jqcloud").width(options.width).height(options.height);
+
+        // Container's CSS position cannot be 'static'
+        if ($this.css("position") === "static") {
+          $this.css("position", "relative");
+        }
+
+        var drawWordCloud = function() {
+          // Helper function to test if an element overlaps others
+          var hitTest = function(elem, other_elems) {
+            // Pairwise overlap detection
+            var overlapping = function(a, b) {
+              if (Math.abs(2.0*a.offsetLeft + a.offsetWidth - 2.0*b.offsetLeft - b.offsetWidth) < a.offsetWidth + b.offsetWidth) {
+                if (Math.abs(2.0*a.offsetTop + a.offsetHeight - 2.0*b.offsetTop - b.offsetHeight) < a.offsetHeight + b.offsetHeight) {
+                  return true;
+                }
+              }
+              return false;
+            };
+            var i = 0;
+            // Check elements for overlap one by one, stop and return false as soon as an overlap is found
+            for(i = 0; i < other_elems.length; i++) {
+              if (overlapping(elem, other_elems[i])) {
+                return true;
+              }
+            }
+            return false;
+          };
+
+          // Make sure every weight is a number before sorting
+          for (var i = 0; i < word_array.length; i++) {
+            word_array[i].weight = parseFloat(word_array[i].weight, 10);
+          }
+
+          // Sort word_array from the word with the highest weight to the one with the lowest
+          word_array.sort(function(a, b) { if (a.weight < b.weight) {return 1;} else if (a.weight > b.weight) {return -1;} else {return 0;} });
+
+          var step = (options.shape === "rectangular") ? 18.0 : 2.0,
+              already_placed_words = [],
+              aspect_ratio = options.width / options.height;
+
+          // Function to draw a word, by moving it in spiral until it finds a suitable empty place. This will be iterated on each word.
+          var drawOneWord = function(index, word) {
+            // Define the ID attribute of the span that will wrap the word, and the associated jQuery selector string
+            var word_id = cloud_namespace + "_word_" + index,
+                word_selector = "#" + word_id,
+                angle = 6.28 * Math.random(),
+                radius = 0.0,
+
+                // Only used if option.shape == 'rectangular'
+                steps_in_direction = 0.0,
+                quarter_turns = 0.0,
+
+                weight = 5,
+                custom_class = "",
+                inner_html = "",
+                word_span;
+
+            // Extend word html options with defaults
+            word.html = $.extend(word.html, {id: word_id});
+
+            // If custom class was specified, put them into a variable and remove it from html attrs, to avoid overwriting classes set by jQCloud
+            if (word.html && word.html["class"]) {
+              custom_class = word.html["class"];
+              delete word.html["class"];
+            }
+
+            // Check if min(weight) > max(weight) otherwise use default
+            if (word_array[0].weight > word_array[word_array.length - 1].weight) {
+              // Linearly map the original weight to a discrete scale from 1 to 10
+              weight = Math.round((word.weight - word_array[word_array.length - 1].weight) /
+                                  (word_array[0].weight - word_array[word_array.length - 1].weight) * 9.0) + 1;
+            }
+            word_span = $('<span>').attr(word.html).addClass('w' + weight + " " + custom_class);
+
+            // Append link if word.url attribute was set
+            if (word.link) {
+              // If link is a string, then use it as the link href
+              if (typeof word.link === "string") {
+                word.link = {href: word.link};
+              }
+
+              // Extend link html options with defaults
+              if ( options.encodeURI ) {
+                word.link = $.extend(word.link, { href: encodeURI(word.link.href).replace(/'/g, "%27") });
+              }
+
+              inner_html = $('<a>').attr(word.link).text(word.text);
+            } else {
+              inner_html = word.text;
+            }
+            word_span.append(inner_html);
+
+            // Bind handlers to words
+            if (!!word.handlers) {
+              for (var prop in word.handlers) {
+                if (word.handlers.hasOwnProperty(prop) && typeof word.handlers[prop] === 'function') {
+                  $(word_span).bind(prop, word.handlers[prop]);
+                }
+              }
+            }
+
+            $this.append(word_span);
+
+            var width = word_span.width(),
+                height = word_span.height(),
+                left = options.center.x - width / 2.0,
+                top = options.center.y - height / 2.0;
+
+            // Save a reference to the style property, for better performance
+            var word_style = word_span[0].style;
+            word_style.position = "absolute";
+            word_style.left = left + "px";
+            word_style.top = top + "px";
+
+            while(hitTest(word_span[0], already_placed_words)) {
+              // option shape is 'rectangular' so move the word in a rectangular spiral
+              if (options.shape === "rectangular") {
+                steps_in_direction++;
+                if (steps_in_direction * step > (1 + Math.floor(quarter_turns / 2.0)) * step * ((quarter_turns % 4 % 2) === 0 ? 1 : aspect_ratio)) {
+                  steps_in_direction = 0.0;
+                  quarter_turns++;
+                }
+                switch(quarter_turns % 4) {
+                  case 1:
+                    left += step * aspect_ratio + Math.random() * 2.0;
+                    break;
+                  case 2:
+                    top -= step + Math.random() * 2.0;
+                    break;
+                  case 3:
+                    left -= step * aspect_ratio + Math.random() * 2.0;
+                    break;
+                  case 0:
+                    top += step + Math.random() * 2.0;
+                    break;
+                }
+              } else { // Default settings: elliptic spiral shape
+                radius += step;
+                angle += (index % 2 === 0 ? 1 : -1)*step;
+
+                left = options.center.x - (width / 2.0) + (radius*Math.cos(angle)) * aspect_ratio;
+                top = options.center.y + radius*Math.sin(angle) - (height / 2.0);
+              }
+              word_style.left = left + "px";
+              word_style.top = top + "px";
+            }
+
+            // Don't render word if part of it would be outside the container
+            if (options.removeOverflowing && (left < 0 || top < 0 || (left + width) > options.width || (top + height) > options.height)) {
+              word_span.remove()
+              return;
+            }
+
+
+            already_placed_words.push(word_span[0]);
+
+            // Invoke callback if existing
+            if ($.isFunction(word.afterWordRender)) {
+              word.afterWordRender.call(word_span);
+            }
+          };
+
+          var drawOneWordDelayed = function(index) {
+            index = index || 0;
+            if (!$this.is(':visible')) { // if not visible then do not attempt to draw
+              setTimeout(function(){drawOneWordDelayed(index);},10);
+              return;
+            }
+            if (index < word_array.length) {
+              drawOneWord(index, word_array[index]);
+              setTimeout(function(){drawOneWordDelayed(index + 1);}, 10);
+            } else {
+              if ($.isFunction(options.afterCloudRender)) {
+                options.afterCloudRender.call($this);
+              }
+            }
+          };
+
+          // Iterate drawOneWord on every word. The way the iteration is done depends on the drawing mode (delayedMode is true or false)
+          if (options.delayedMode){
+            drawOneWordDelayed();
+          }
+          else {
+            $.each(word_array, drawOneWord);
+            if ($.isFunction(options.afterCloudRender)) {
+              options.afterCloudRender.call($this);
+            }
+          }
+        };
+
+        // Delay execution so that the browser can render the page before the computatively intensive word cloud drawing
+        setTimeout(function(){drawWordCloud();}, 10);
+        return $this;
+      };
+    })(jQuery);
+
+    slider_count = $(".slide-container").length 
+    
+    if (slider_count == 2){
+      $("#slick-slide00").empty().jQCloud(tags); 
+      $("#slick-slide01").empty().jQCloud(clients); 
+
+      $(this).delay(100).queue(function() {
+        $("#slick-slide00").empty().jQCloud(tags); 
+        $("#slick-slide01").empty().jQCloud(clients); 
+        $(this).dequeue();
+      });
+
+    }else{
+      $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags); 
+      $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients); 
+    
+      $(this).delay(100).queue(function() {
+        $("#slick-slide0"+(slider_count-2)).empty().jQCloud(tags); 
+        $("#slick-slide0"+(slider_count-1)).empty().jQCloud(clients); 
+        $(this).dequeue();
+      });
+
+    }
+  });
+
+  $(".openbtn").click(function() {
+      $(".side-wrapper").toggleClass("side-active")
+  });
+  function recruiter_button(recruiter){
+        $.ajax({
+            url: `/company/conversations/mini_chat`,
+            type: "GET",
+            dataType: "script",
+            data: {recruiter:recruiter},
+            success: function (data) {
+            }
+        });
+  }
+
+  function candidate_button(candidate){
+        $.ajax({
+            url: `/company/conversations/mini_chat`,
+            type: "GET",
+            dataType: "script",
+            data: {candidate: candidate},
+            success: function (data) {
+                
+            }
+        });
+  }
+</script>
+
+<style type="text/css">
+  table {
+    font-family: arial, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  td, th {
+    border: 1px solid #dddddd;
+    text-align: left;
+    padding: 8px;
+  }
+
+  tr:nth-child(even) {
+    background-color: #dddddd;
+  }
+</style>

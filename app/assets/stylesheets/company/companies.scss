@@ -1,0 +1,91 @@
+// Place all the styles related to the Company/Companies controller here.
+// They will automatically be included in application.css.
+// You can use Sass (SCSS) here: http://sass-lang.com/
+.radio-group input[type=radio] {
+  position: absolute;
+  visibility: hidden;
+  display: none;
+}
+
+.radio-group label {
+  color: #3B5998;
+  display: inline-block;
+  cursor: pointer;
+  font-weight: bold;
+  padding: 5px 20px;
+  margin-bottom: 0;
+}
+
+.radio-group input[type=radio]:checked + label{
+  color: lighten(#3B5998, 60%);
+  background: lighten(#3B5998,20%);;
+}
+
+.radio-group  label + input[type=radio] + label {
+  //border-left: solid 3px lighten(#3B5998,20%);;
+}
+.radio-group {
+  border: solid 3px lighten(#3B5998,20%);;
+  display: inline-block;
+  margin: 20px;
+  //border-radius: 10px;
+  overflow: hidden;
+}
+
+.fade.in {
+  opacity: 1 !important;
+}
+
+.cmp-profile{
+  .job-table{
+    .element-wrapper{
+      padding-bottom: 1em;
+      .element-header{}
+      .element-box{
+        padding:0;
+        table.table-lightborder{
+          tr{
+            background: none;
+            td{
+              font-size: 12px;
+            }
+          }
+        }
+      }
+    }
+  }
+  .profile-tile{
+    .profile-tile-meta{
+      ul{
+        text-transform: inherit;
+      }
+    }
+  }
+}
+
+#company_profile_pic:hover #company_info{
+  display: block !important;
+  opacity: 0.7 !important;
+}
+.scrole{
+  height: 195px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.document-display{
+  background-color: lightgray;
+  padding-top: 14px;
+  margin-top: 7px;
+  border-radius: 4px;
+
+
+}
+.cmpny-btn{
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: 0 !important;
+  margin-top: 5px !important;
+}
+.show_file_icon{
+  font-size: 20px;
+}

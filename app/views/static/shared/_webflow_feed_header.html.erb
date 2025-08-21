@@ -1,0 +1,313 @@
+<style>
+  .carousel .carousel-item {
+    height: 250px;
+  }
+
+  .carousel .carousel-caption{
+    margin-left: 2%;
+    position: sticky;
+    text-align: inherit;
+  }
+
+  .carousel .carousel-item img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      min-height: 250px;
+  }
+  .carousel-footer {
+    position: absolute;
+    bottom: 10px;
+    left: 5px;
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0)
+  }
+  .carousel-buttons {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 1;
+  }
+  .carousel-buttons a {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  }
+</style>
+<div class="m-3">
+  <div class="d-md-flex row">
+    <div class="col-12">
+      <% if current_company&.show_slider and current_company&.slider %>
+        <div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel">
+          <ol class="carousel-indicators">
+            <li data-target="#carouselExampleIndicators" data-slide-to="0" class="active"></li>
+            <li data-target="#carouselExampleIndicators" data-slide-to="1"></li>
+            <li data-target="#carouselExampleIndicators" data-slide-to="2"></li>
+          </ol>
+          <div class="carousel-inner">
+            <div class="carousel-item active">
+              <img class="d-block w-100" src="<%=current_company.slider.image_1%>" alt="First slide">
+              <div class="carousel-caption d-md-block d-flex flex-column">
+                <div class="feed-banner-title" style="color: <%=current_company.slider.text_1_color%>;">
+                    <%= current_company.slider.title_1%>
+                </div>
+                <div class="feed-banner-text" style="color: <%=current_company.slider.text_1_color%>;">
+                  <%= current_company.slider.text_1%>
+                </div>
+              </div>
+            </div>
+            <div class="carousel-item">
+              <img class="d-block w-100" src="<%=current_company.slider.image_2%>" alt="First slide">
+              <div class="carousel-caption d-md-block d-flex flex-column">
+                <div class="feed-banner-title" style="color: <%=current_company.slider.text_2_color%>;">
+                  <%= current_company.slider.title_2%>
+                </div>
+                <div class="feed-banner-text" style="color: <%=current_company.slider.text_2_color%>;">
+                  <%= current_company.slider.text_2%>
+                </div>
+              </div>
+            </div>
+            <div class="carousel-item">
+              <img class="d-block w-100" src="<%=current_company.slider.image_3%>" alt="First slide">
+              <div class="carousel-caption d-md-block d-flex flex-column">
+                <div class="feed-banner-title" style="color: <%=current_company.slider.text_3_color%>;">
+                  <%= current_company.slider.title_3%>
+                </div>
+                <div class="feed-banner-text" style="color: <%=current_company.slider.text_3_color%>;">
+                  <%= current_company.slider.text_3%>
+                </div>
+              </div>
+            </div>
+          </div>
+          <% if current_company&.banner_btn_label.present? && current_company&.banner_two_btn_label.present? %>
+            <div class="carousel-footer">
+              <div class="carousel-buttons">
+                <a href="<%= current_company&.banner_btn_url %>" class="feed-banner-button"><%= current_company&.banner_btn_label %></a>
+                <a href="<%= current_company&.banner_two_btn_url %>" class="feed-banner-button"><%= current_company&.banner_two_btn_label %></a>
+              </div>
+            </div>
+          <%end%>
+        </div>
+      <% else %>
+        <div class="feed-banner d-flex flex-column justify-content-between p-4"
+           style="background: linear-gradient(<%= current_company&.banner_color || "#3E2ABD" %>, #FFFFFF <%= current_company&.apply_gradient ? "110%" : "1000%" %>);">
+          <div>
+            <div class="feed-banner-title">
+                <%= current_company&.banner_title %>
+            </div>
+            <div class="feed-banner-text">
+                <%= current_company&.banner_text %>
+            </div>
+          </div>
+          <div>
+            <% if current_company&.banner_btn_label %>
+              <a href="<%= current_company&.banner_btn_url %>" class="feed-banner-button"><%= current_company&.banner_btn_label %></a>
+            <% end %>
+            <% if current_company&.banner_two_btn_label %>
+              <a href="<%= current_company&.banner_two_btn_url %>" class="feed-banner-button"><%= current_company&.banner_two_btn_label %></a>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div> 
+  <div class="col-12 px-0 mt-3 d-flex justify-content-between">
+  <% unless params[:controller] == "static/jobs" && (params[:action] == "index" || (params[:action] == "show" && params[:type] == 'job'))%>
+  <!--    <select id="selectFilter" name="selectFilter" class="select-filter">-->
+        <div class="d-flex filterdiv">
+          <button class="btn filterBtn filter1" onclick="btnClick1()" value="all">All</button>
+          <a class="btn filterBtn filter1" href="<%= static_people_path %>" value="Bench">Bench</a>
+          <button class="btn filterBtn filter2" onclick="btnClick2()" value="Blog">Blogs</button>
+          <a class="btn filterBtn filter1" href="<%= static_jobs_path %>" value="Jobs">Jobs</a>
+          <button class="btn filterBtn filter3" onclick="btnClick3()" value="Product">Products</button>
+          <button class="btn filterBtn filter4" onclick="btnClick4()" value="Question">Questions</button>
+          <button class="btn filterBtn filter5" onclick="btnClick5()" value="Service">Services</button>
+          <button class="btn filterBtn filter6" onclick="btnClick6()" value="Training">Trainings</button>
+        </div>
+  <%end%>
+    <div class="pt-1 d-none" id="banner-links">
+      <%= link_to 'Talent pool', "#talent-pool" %>
+      <%= link_to 'Open Jobs', "#open-jobs" %>
+    </div>
+    <div class="d-flex"  style="margin-left: auto;">
+      <!--<div class="dropdown dropdown-container d-flex justify-content-end">
+        <button class="dropdown-toggle dropdown-sort" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+          <i class="fa fa-plus" aria-hidden="true"></i>
+        </button>
+        <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
+          <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostModal">
+            Question
+          </button>
+          <button class="btn btn-ask-a-question" data-toggle="modal" data-target="#feedPostJobModal">
+            Job
+          </button>
+        </ul>
+      </div> -->
+      <div class="dropdown dropdown-container d-flex justify-content-end">
+        <button class="dropdown-toggle dropdown-sort" id="dropdownMenuSort" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true">
+          <i class="fa fa-sort-alpha-asc" aria-hidden="true"></i>
+        </button>
+        <ul class="list-unstyled dropdown-menu dropdown-content-right" id="main_feed_sort" aria-labelledby="dropdownMenuSort">
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="created_desc" checked>Created: Descending
+            <span class="radio">
+            </span>
+          </label>
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="created_asc">Created: Ascending
+            <span class="radio">
+            </span>
+          </label>
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="trending_desc">Trending: Descending
+            <span class="radio">
+            </span>
+          </label>
+          <label class="check-main mr-2">
+            <input type="radio" class="selected_feed_sort" name='sort' value="trending_asc">Trending: Ascending
+            <span class="radio">
+            </span>
+          </label>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Script to filter the categories -->
+<script>
+  let selectedFilter = '';
+  function btnClick1(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter1').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick2(){
+        const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter2').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick3(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter3').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick4(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filter4').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick5(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filterBtn.filter5').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick6(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filterBtn.filter6').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick1J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filterBtn.filter1').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick2J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filterBtn.filter2').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick3J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filterBtn.filter3').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick4J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filterBtn.filter4').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick5J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filterBtn.filter5').val());
+      urlParams.set('input_search', $('#search_query').val());
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  function btnClick6J(){
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+      urlParams.set('selected_categories', $('.filterBtn.filter6').val());
+      urlParams.set('input_search', $('#search_query').val() );
+      goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+  }
+  $(function() {
+    const paramsSelectedFilter = '<%= params[:selected_categories] %>';
+
+    if ( paramsSelectedFilter != '' ) {
+      $('#selectFilter').find(`option[value=${paramsSelectedFilter}]`).attr("selected","selected");
+    }
+    $("#search_query").change(function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+         urlParams.set('input_search', $('#search_query').val() );
+         if (window.location.href.includes('jobs')){
+             goto_url = '<%= static_jobs_path %>' + '?' + urlParams.toString();
+         }
+         else{
+             goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+         }
+        window.location = goto_url;
+    });
+  });
+</script>
+
+<!-- Script to sort the elements in the feed -->
+<script>
+  $(function() {
+    const paramsSort = '<%= params[:sort] %>';
+
+    if ( paramsSort != '' ) {
+      $('#main_feed_sort').find(`input[value=${paramsSort}]`).attr("checked","checked");
+    }
+
+    $('#main_feed_sort input[name="sort"]').change(function () {
+      const urlParams = new URLSearchParams(window.location.search);
+      let goto_url = ''
+
+      urlParams.set('sort', this.value)
+      goto_url = '<%= root_static_feeds_path %>' + '?' + urlParams.toString();
+      window.location = goto_url;
+    });
+  });
+</script>

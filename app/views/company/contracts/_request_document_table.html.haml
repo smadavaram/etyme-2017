@@ -1,0 +1,6 @@
+- @document_signs.each do |docusign|
+  %tr
+    %td= docusign.documentable.title
+    %td= docusign.created_at.strftime("%Y-%m-%d")
+    %td= docusign.signed_file.present? ? "Pending" : "Document Not Submitted"
+    %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.signed_file.present?

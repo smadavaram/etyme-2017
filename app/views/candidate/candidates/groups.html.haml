@@ -1,0 +1,31 @@
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-12
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: "candidate_groups_datatable-search"}
+            .table-responsive
+              %table.table.table-striped.table-bordered.table-hover.table-lg{id: "candidate_groups_datatable"}
+                %thead
+                  %tr
+                    %th NAME
+                    %th TYPE
+                    %th MEMBERS
+                    %th CREATED AT
+                %tbody
+                  -@groups.each do |group|
+                    %tr
+                      %td= group.group_name
+                      %td= group.member_type
+                      %td= group.groupables.count
+                      %td= colorfull_text(group.created_at.try(:strftime, '%d of %B, %Y'),'#1AAE9F')
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      default_active_nav('.ln-1');
+    });

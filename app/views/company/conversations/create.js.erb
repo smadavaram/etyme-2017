@@ -1,0 +1,76 @@
+<% user = @conversation.chatable_type == "Group" ? @conversation.chatable :  (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) %>
+<% if (@conversation.job_application) %>
+$("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box', job_application: @conversation.job_application, conversation: @conversation,nested_colap:true %>");
+$("#modals").html("<%= j render 'shared/prescreen_modal', job_application: @conversation.job_application, conversation: @conversation %>");
+$("#modals").append("<%= j render 'shared/rate_confirmation_modal', job_application: @conversation.job_application, conversation: @conversation %>");
+$("#modals").append("<%= j render 'shared/interview_modal', job_application: @conversation.job_application, conversation: @conversation %>");
+$("#modals").append("<%= j render 'shared/chat_document_templates', conversation: @conversation %>");
+$('#candidate-name').remove();
+$('.collapsible').css('padding', '6px 18px');
+$('#collapsible_job_application').removeClass('ml-2 mr-2')
+$('#collapsible_job_application').removeClass('mt-4')
+$('#collapsible_job_application').addClass('mt-2')
+<% else %>
+$("#conversation-section").html("<%= j render 'company/conversations/job_conversation_box', conversation: @conversation %>");
+$("#modals").html("<%= j render 'shared/chat_document_templates', conversation: @conversation %>");
+$("#conversation-r-section").html("<%= j render 'company/conversations/conversation_right_side' %>");
+<% end %>
+
+set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+
+$(".chat-content-scroll").data('ajaxready', true);
+$.ajax({
+    url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
+    type: "GET",
+    dataType: "script",
+    success: function (data) {
+        $("#conversation_<%=@conversation.id||0 %>").parent().scrollTop($("#conversation_<%=@conversation.id||0 %>").parent()[0].scrollHeight);
+    }
+});
+listenForScrollEvent($(".chat-content-scroll"));
+$("#unread-msg-<%= current_user.id %>").html("<%= @unread_message_count.to_i > 0 ? @unread_message_count : '' %>");
+if ($("#conversation_<%= @conversation.id %>")[0]) {
+    $("#conversation_<%= @conversation.id %>").scrollTop($("#conversation_<%= @conversation.id %>")[0].scrollHeight);
+}
+
+<% opt_usr = @conversation.opt_participant(current_user) %>
+<% colors = %w[#fcba03 #fc0f33 #0ffc52] %>
+<% if opt_usr.group_name.include? "SC" %>
+<% color = colors[2] %>
+<% elsif opt_usr.group_name.include? "BC" %>
+<% color = colors[1] %>
+<% else %>
+<% color = colors[0] %>
+<% end %>
+$('.etyme_conversations').removeClass('active-div-color')
+
+<% if @conversation.sub_chats == false %>
+    $('.conversation_user_<%=  @conversation.id  %>').addClass('active-div-color')
+<% end %>
+var coll = document.getElementsByClassName("collapsible-click");
+var i;
+for (i = 0; i < coll.length; i++) {
+    coll[i].addEventListener("click", function () {
+        $(this).parent()[0].classList.toggle("active");
+        var content = $(this).parent()[0].nextElementSibling;
+        if (content.style.display === "block") {
+            content.style.display = "none";
+        } else {
+            content.style.display = "block";
+        }
+    });
+}
+
+$('.p_date').datepicker({
+    changeMonth: true,
+    changeYear: true,
+    yearRange: "c-60:c",
+    dateFormat: "mm-dd-yy"
+});
+$('.p_time').timepicker({template: false, showInputs: false, minuteStep: 5});
+
+addeventatc.refresh();
+
+function $d(e) {
+    return document.getElementById(e)
+}

@@ -1,0 +1,23 @@
+= form_for @salary  ,html:{ class:'form-horizontal', remote: ((defined? for_remote) ? true :false)} do |f|
+  %fieldset
+    .form-group
+      .row
+        .col-md-4.h5
+          Total amount
+        .col-md-4.h5
+          = params[:amount]
+      .row
+        .col-md-4.h5
+          Amount to be paid
+        .col-md-4
+          = f.number_field :billing_amount, class: 'form-control'
+          = f.hidden_field :total_amount, value: params[:amount]
+      .row
+        .col-md-4.h5
+          Salary Clear
+          
+  .form-actions
+    .row
+      .col-md-12
+        = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
+        = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")} , class: 'btn btn-primary' ,id:'form_id'

@@ -1,0 +1,118 @@
+<!--<div class="chat_box" data-conversation-id="<%#= @conversation.id if @conversation.present?%>" id="conversation-chat-box">-->
+  <!--<div class="key_mgs_box">-->
+    <!--<div class="keys_head">-->
+      <!--<h5><%#= @conversation.senderable == current_user ? @conversation.recipientable.full_name : @conversation.senderable.full_name if @conversation.present? %></h5>-->
+    <!--</div>-->
+  <!--</div>-->
+  <!--<div class="tab-content">-->
+    <!--<div class="tab-pane active chatboxcontent-page " id="conversation_<%#= @conversation.id if @conversation.present? %>" role="tabpanel" >-->
+      <!--<div class="keystroke_msgs_box" >-->
+        <!--<%# @messages.each do |msg| %>-->
+          <!--<div class="<%#= msg.userable == current_user ? 'send_message' : 'receive_message' %>">-->
+            <!--<span><%#= msg.body %></span>-->
+          <!--</div>-->
+        <!--<%# end if @messages.present? %>-->
+      <!--</div>-->
+    <!--</div>-->
+  <!--</div>-->
+  <!--<div class="panel-footer">-->
+    <!--<%#= form_tag company_conversation_conversation_messages_path(@conversation||=0), remote: true ,method: :post do %>-->
+      <!--<div class="input-group">-->
+        <%#= text_field_tag 'conversation_message[body]', nil, class: 'form-control input-sm chat_input ',autocomplete: "off",
+                           placeholder: 'Type your message here...', required: true, id: "conversation_#{@conversation.id}_#{current_user.class.to_s}_#{current_user.id}" %>
+        <!--<span class="input-group-btn">-->
+          <!--<%#= submit_tag "Send", class: 'btn btn-primary btn-sm', id: "btn-chat" %>-->
+        <!--</span>-->
+      <!--</div>-->
+    <!--<%# end if @conversation.present?  %>-->
+  <!--</div>-->
+<!--</div>-->
+<div class="chat_box" data-conversation-id="<%= @conversation.id if @conversation.present?%>" id="conversation-chat-box">
+  <div class="chat-head">
+    <div class="user-info">
+      <% opt_obj = @conversation.chatable_type == "Group" ? @conversation.chatable : (@conversation.senderable == current_user ? @conversation.recipientable : @conversation.senderable) if @conversation.present? %>
+      <span>To:</span><a href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
+      <small class="d-block"><span>Job : </span><span> I need ROR developer </span></small>
+      <small class="d-block"><span>Application : </span><span> I need ROR developer </span></small>
+    </div>
+    <% if @conversation.present? %>
+      <div class="user-actions">
+        <a title="View" href="#"><i class="icon-feather-maximize-2"></i></a>
+        <a title="Email Id" href="#"><i class="os-icon os-icon-email-2-at2"></i></a>
+        <a title="Phone Number" href="#"><i class="os-icon os-icon-phone "></i></a>
+        <a title="Add meeting" href="#"><i class="os-icon os-icon-calendar"></i></a>
+      </div>
+    <% end %>
+  </div>
+  <div class="chat-content-w chat-content-scroll">
+    <div class="chat-content" id="conversation_<%= @conversation.id if @conversation.present? %>">
+      <!--<%# prev_date = nil %>-->
+      <!--<%# @messages.each do |msg| %>-->
+          <!--<%# if prev_date != msg.created_at.strftime('%d %b, %Y') %>-->
+              <!--<%# prev_date = msg.created_at.strftime('%d %b, %Y') %>-->
+              <!--<div class="chat-date-separator">-->
+            <!--<span>-->
+              <!--<%# if Date.parse(prev_date) == Date.today %>-->
+                <!--Today-->
+              <!--<%# elsif Date.parse(prev_date) == Date.yesterday %>-->
+                <!--Yesterday-->
+              <!--<%# else %>-->
+                <!--<%#= prev_date %>-->
+              <!--<%# end %>-->
+            <!--</span>-->
+              <!--</div>-->
+          <!--<%# end %>-->
+
+          <!--<%# if msg.userable == current_user %>-->
+            <!--<div class="chat-message self">-->
+              <!--<div class="chat-message-content-w">-->
+                <!--<div class="chat-message-content">-->
+                  <!--<%#= msg.body %>-->
+                <!--</div>-->
+              <!--</div>-->
+              <!--<div class="chat-message-date">-->
+                <!--<%#= msg.created_at.strftime("%l:%M%P") %>-->
+              <!--</div>-->
+              <!--<div class="chat-message-avatar">-->
+                <!--<%#= image_tag msg.userable.photo %>-->
+              <!--</div>-->
+            <!--</div>-->
+          <!--<%# else %>-->
+            <!--<div class="chat-message">-->
+              <!--<div class="chat-message-content-w">-->
+                <!--<div class="chat-message-content">-->
+                  <!--<%#= msg.body %>-->
+                <!--</div>-->
+              <!--</div>-->
+              <!--<div class="chat-message-avatar">-->
+                <!--<%#= image_tag msg.userable.photo %>-->
+              <!--</div>-->
+              <!--<div class="chat-message-date">-->
+                <!--<%#= msg.created_at.strftime("%l:%M%P") %>-->
+              <!--</div>-->
+            <!--</div>-->
+          <!--<%# end %>-->
+      <!--<%# end if @messages.present? %>-->
+
+      <div id="all-infinite-scrolling-msg" style="display:none"></div>
+      <%= hidden_field_tag "prev_date", nil %>
+
+    </div>
+  </div>
+  <div class="chat-controls">
+    <%= form_for([@conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{@conversation.id}"}) do |f| %>
+        <div class="chat-input1 chat-input">
+          <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => @conversation.id, id: "con-text-#{@conversation.id}-#{@current_user.class}-#{@current_user.id}" %>
+        </div>
+        <div class="chat-input-extra">
+          <div class="chat-extra-actions">
+          <a href="#"><i class="icon-paper-clip"></i></a>
+          </div>
+          <div class="chat-btn">
+            <%= f.submit "Send", class: "btn btn-primary btn-sm float-right", id: "send-chat-message" %>
+            <!--<a class="btn btn-primary btn-sm" href="#">Reply</a>-->
+          </div>
+        </div>
+    <% end if @conversation.present?  %>
+  </div>
+</div>

@@ -1,0 +1,17 @@
+= form_for :invited_company , url:company_company_assign_groups_path,method: :post ,html:{ class:'form-horizontal',id: 'group-val'} do |f|
+  %br/
+  .form-group
+    %label.col-md-3.control-label
+      Select Groups
+      %sup.text-danger *
+    .col-md-8
+      = f.select :group_ids, current_company.groups.company_groups.map { |c| [c.group_name,c.id] },{},class: 'form-control select2' ,:multiple => true
+  .modal-footer
+    = f.button "Update Group".html_safe , class: 'btn btn-primary' , data: {disable_with: ("Updating...")} ,id: 'form_id'
+    %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+      Cancel
+:css
+  .select2{
+    width: 389px;
+    }
+

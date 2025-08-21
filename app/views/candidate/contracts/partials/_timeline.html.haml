@@ -1,0 +1,114 @@
+.col-md-4
+  .timeline-blockwrap.overdue-blockwrap
+    %h3.timeline-title
+      Overdue 
+    
+    - @contract_cycles.pending_with_submit.todo_not.not_approved_and_completed.overdue.order(start_date: :desc).each do |cc|
+      / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
+      .timeline-block
+        %span.badge.status-badge.red-badge
+          - if ['TimesheetSubmit'].include? cc.cycle_type
+            = link_to "Submit Timesheet", submit_timesheet_candidate_contracts_path(timesheet_id: cc.cyclable.id), remote: :true,:style=>'color:#FFFFFF;'
+          - else
+
+            = cc.cycle_type.tableize.split("_").join(" ").gsub("approves", "approve").capitalize
+        %span.due-txt
+          #{cc&.doc_date&.strftime("%d %B %Y")}
+        %br
+        %br
+        %br
+        Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
+        %p.mb-0.submitted-name
+          %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc&.contract&.sell_contract.company&.full_name}
+          %b
+            = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
+        %p Company: #{cc&.contract&.company&.full_name}
+        %p #{cc.start_date.utc.strftime("%d %B %Y")} - #{cc.end_date.utc.strftime("%d %B %Y")}
+        %p Tax type: #{cc.contract.buy_contract.contract_type}
+        - if cc.note == 'Timesheet submit'
+          .row.border-top.pt-2
+            .col-sm-2.text-center Plan
+            .col-sm-7.text-center Cycle
+            .col-sm-2.text-center Actual
+          .row
+            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+            .col-sm-7.text-center #{cc.id}
+            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
+            
+
+.col-md-4
+  .timeline-blockwrap
+    %h3.timeline-title
+      To Do 
+    %p.small-text (Next 10 Days)
+
+    - @contract_cycles.includes(:company).pending_with_submit.todo_with_completed.approved_not.order(start_date: :asc).each do |cc|
+      / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id)
+      .timeline-block
+        = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
+        %br
+        %span.badge.status-badge.yellow-badge
+          - if ['Salary clear', 'Salary process', 'Salary calculation'].include? cc.cycle_type
+            = link_to cc.note, final_salary_salaries_path(cycle_id: cc.id, note: cc.note)
+          - else
+            = cc.cycle_type.tableize.split("_").join(" ").gsub("approves", "approve").capitalize
+        %span.due-txt
+          #{cc&.doc_date&.strftime("%d %B %Y")}
+        %br
+        %br
+        Contract ID - #{cc.contract.id} - #{cc.contract&.project_name}
+        %p.mb-0.submitted-name
+          %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
+          %b
+            = link_to 'Approve', timesheets_path, class: 'btn' if cc.note == 'Timesheet Approve'
+        %p Company: #{cc&.contract&.company&.full_name}
+        %p Tax type: #{cc.contract.buy_contract.contract_type}
+        - if cc.note == 'Timesheet submit'
+          .row.border-top.pt-2
+            .col-sm-2.text-center Plan
+            .col-sm-7.text-center Cycle
+            .col-sm-2.text-center Actual
+          .row
+            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+            .col-sm-7.text-center #{cc.id}
+            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
+
+            / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
+            / .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}
+
+
+      
+.col-md-4
+  .timeline-blockwrap
+    %h3.timeline-title
+      Completed 
+    %p.small-text (Past 10 Days including today)
+    
+    - @contract_cycles.includes(:company).approved_and_completed.order(id: :asc).each do |cc|
+      / - cy = ContractCycle.find_by(contract_id: cc.contract_id, end_date: cc.end_date, candidate_id: cc.candidate_id, status: 'completed')
+
+      .timeline-block
+        = cc&.start_date&.utc&.strftime("%d %B %Y").to_s+' - '+cc&.end_date&.utc&.strftime("%d %B %Y").to_s
+        %span.badge.status-badge.skyblue-badge
+          = cc.cyclable&.status == "approved" ? "Timesheet Approved" : cc.cycle_type.tableize.singularize.split("_").join(" ").capitalize
+        %span.due-txt
+          #{cc.end_date.utc.strftime("%d %B %Y")}
+        %br
+        %br
+        %br
+        Contract ID - #{cc.contract.id} - Cycle ID #{cc.id}
+        %p.mb-0.submitted-name
+          %b Name: #{cc.candidate.present? ? cc.candidate.full_name : cc.company.full_name}
+        %p Company: #{cc&.contract&.company&.full_name}
+        %p Tax type: #{cc.contract.buy_contract.contract_type}
+        - if cc.note == 'Timesheet submit'
+          .row.border-top.pt2
+            .col-sm-2.text-center Plan
+            .col-sm-7.text-center Cycle
+            .col-sm-2.text-center Actual
+          .row
+            .col-sm-2.text-center #{cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs.nil? ? '-' : cc.cycle_of.get_rate(cc.cyclable.start_date)&.working_hrs * frequency_to_num(cc.cycle_frequency)}
+            .col-sm-7.text-center #{cc.id}
+            .col-sm-2.text-center #{cc.cyclable.calculate_total_time}
+            / #{cc.start_date.strftime("%d/%m/%Y").to_s+' - '+cc.end_date.utc.strftime("%d/%m/%Y")}
+            / .col-sm-2.text-center #{cc.ts_submitteds&.first&.total_time}

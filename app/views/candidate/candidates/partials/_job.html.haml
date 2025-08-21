@@ -1,0 +1,20 @@
+.support-ticket-content-w
+  .support-ticket-content
+    .support-ticket-content-header.space_between
+      %h3.ticket-header.pr-5
+        =do_ellipsis(job.title,15)
+      = link_to  "Apply",apply_candidate_job_path(job), method: :post , remote: true ,  class: " btn text-right btn-default btn-primary btn-md  #{current_candidate.already_applied?(job.id)  ? "disabled" : ""} "
+    .ticket-thread
+      .ticket-reply
+        .ticket-reply-info
+          %a.author.no-decoration{:href => "#"}
+            =user_image(job.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{job.created_by&.full_name}" )
+            %span= job.created_by&.full_name
+          %span.info-data.pull-right
+            %span.value
+              = job.created_at.strftime("Created on %m/%d/%Y")
+              = job.created_at.strftime("at %I:%M%p")
+
+        .ticket-reply-content
+          = job.description.html_safe
+

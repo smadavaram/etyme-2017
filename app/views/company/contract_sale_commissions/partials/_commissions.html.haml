@@ -1,0 +1,15 @@
+
+.table-responsive
+  %table.table.table-striped.table-bordered.table-v2.table-lg
+    %thead
+      %tr
+        %th Name
+        %th Rate
+        %th Frequency
+        %th Limit
+      -commissions.each do |csc|
+        %tr
+          %td= csc.csc_accounts.map{ |a|  a.accountable.full_name}.join(', ')
+          %td= csc.rate
+          %td= csc.frequency
+          %td= csc.limit

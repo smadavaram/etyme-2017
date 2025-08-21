@@ -1,0 +1,203 @@
+#content
+  %section
+    .row
+      = form_for @expense, url: candidate_expenses_path , html:{class: 'form-horizontal w-100'}  do |f|
+        %article.col-sm-12.col-md-12.col-lg-12
+          #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+            %header
+              %span.widget-icon
+                %i.fa.fa-check
+              %h2 Adding New Expense
+            %div
+              .jarviswidget-editbox
+              .widget-body
+                .row
+                  .col-sm-6
+                    .form-group
+                      %label.col-sm-4.control-label Bill Type
+                      .col-md-12
+                        = f.select :bill_type, Expense.bill_types.take(2).map { |key, value| [key.titleize, key] } , {class: "form-control"}
+
+                  .col-sm-6
+                    .form-group
+                      %label.col-sm-4.control-label Contract
+                      .col-md-12
+                        = f.select :contract_id, options_for_select(Contract.in_progress.map{|c| [c.title,c.id] }),{required: true, prompt: 'Select Contract' }
+                .row
+                  .col-sm-6
+                    .form-group
+                      %label.col-sm-4.control-label Consultant
+                      .col-md-12
+                        = f.hidden_field :account_id
+                        = text_field_tag :account_name, '', class: 'expense_account_name', readonly: true
+                  .col-sm-6
+                    .form-group
+                      %label.col-sm-4.control-label Salary Cycle
+                      .col-md-12#salary_cycle
+                        = select_tag "expense[salary_ids]", options_for_select(@salary_cycles&.collect{|p| [p.start_date.to_s+' - '+p.end_date.to_s, p.id]}, selected: params[:salary_cycles]), class: "form-control select2", id: 'salary_ids', multiple: true
+
+                .row.mt-4.mb-2
+                  .col-md-4
+                    %label
+                      %b Bill details:
+                .row
+                  .col-sm-6.pr-0
+                    .col-sm-5.d-inline-block.p-0
+                      .col-md-12.p-0
+                        %label{:for => "terms"} Terms:
+                        = f.select :terms, options_for_select((0..10).to_a.map{ |e| 'Net '+e.to_s}), {required: true }
+                      .col-md-12.p-0
+                        %label{:for => 'bill_date'} Bill Date:
+                        = f.date_field :bill_date, class: 'form-control'
+                    .col-sm-6.d-inline-block.p-0
+                      .col-md-12.pr-0
+                        %label{:for => 'bill_no'} Bill no.
+                        = f.text_field :bill_no, class: 'form-control'
+                      .col-md-12.pr-0
+                        %label{:for => 'due_date'} Due Date:
+                        = f.date_field :due_date , class: 'form-control'
+
+                  .col-sm-6
+                    .col-md-13.form-group
+                      %label{:for => "mailing_address"} Mailing Address:
+                      = f.text_area :mailing_address, class: 'form-control'
+                .row.mt-4.mb-2
+                  .col-md-4
+                    %label
+                      %b Account details:
+
+                = f.nested_fields_for :expense_accounts do |ff|
+                  = ff.object.expense_type
+                  .row.mt-2
+                    .col-sm-6
+                      .col-md-12.d-flex
+                        %div.w-50.mr-1.height-45
+                          %label.control-label Expense Type:
+                          = ff.select :expense_type_id, ExpenseType.all.map{ |e| [e.name, e.id] }, class: "form-control"
+                        %div.w-50
+                          %label.control-label Status:
+                          = ff.select :status, ExpenseAccount.statuses.map { |key, value| [key.titleize, key] } , {class: "form-control w-100" , required: true}
+                      .col-md-12.d-flex.align-item-center
+                        %div.w-100
+                          %label.control-label Amount:
+                          = ff.number_field :amount, class: 'form-control expense_amount'
+                        %div
+                          = ff.remove_nested_fields_link 'Remove', class: 'btn btn-danger account_destroy_btn'
+                    .col-sm-6
+                      .col-md-12
+                        %label.control-label Description:
+                        = ff.text_area :description, class: 'form-control', cols: "3", rows: "2"
+
+                = f.add_nested_fields_link :expense_accounts, 'Add Account Section', class: 'btn btn-primary add_row pull-right'
+
+                %br
+                .row
+                  .col-sm-6
+                    %label.d-block Attachment
+                    .file_selector{style: "display: flex;"}
+                      .form-group.d-inline-block
+                        = render "shared/file_attachement", f:f,attr_name: :attachment,multiple: false,name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
+                      %p.d-inline-block.uploaded_file_name  No File Selected
+
+                  .col-md-6.total-amount
+                    %label{:for => 'total_amount'} Total amount:
+                    = f.text_field :total_amount, readonly: true
+                  .col-sm-12
+                    = f.submit 'Submit', class: 'btn btn-primary'
+
+.remote_container_contract
+= render "company/expenses/new_expense_type", for_remote: true
+
+- content_for :scripts do
+  :javascript 
+
+    $(document).ready(function() {
+      $(document).ready(function() {
+          $('#salary_ids').select2();
+      });
+      $('.add_row').click();
+      var count = 0;
+      // set_expense_type_select('#expense_expense_accounts_attributes_0_expense_type_id', "select expense type ");
+      var expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
+      var due_date = "";
+      $('#expense_terms').on('change', function() {
+        expense_terms = $( "#expense_terms option:selected" ).val().split("Net")[1];
+        var date = new Date($( "#expense_bill_date" ).val()),
+        days = parseInt(expense_terms, 10);
+        if(!isNaN(date.getTime())){
+            dd = new Date(date.setDate(date.getDate() + days));
+            due_date =  dd.getFullYear() + "-" + ("0" + (dd.getMonth() + 1)).slice(-2)+ "-" + ("0" + dd.getDate()).slice(-2)
+
+            $("#expense_due_date").val(due_date);
+        }
+      });
+
+      $('#expense_bill_date').on('change', function() {
+
+        var date = new Date($( "#expense_bill_date" ).val()),
+        days = parseInt(expense_terms, 10);
+        if(!isNaN(date.getTime())){
+            dd = new Date(date.setDate(date.getDate() + days));
+            due_date =  dd.getFullYear() + "-" + ("0" + (dd.getMonth() + 1)).slice(-2)+ "-" + ("0" + dd.getDate()).slice(-2)
+
+            $("#expense_due_date").val(due_date);
+        }
+
+      });
+
+      $('.add_row').on('click', function(){
+        count = count + 1;
+        select_id = "#expense_expense_accounts_attributes_"+count+"_expense_type_id"
+        setTimeout(
+            function() {
+              set_expense_type_select(select_id, "Please select");  
+            },
+            500);
+      })
+
+      $('.remove_nested_fields_link').on('click', function(){
+        count = count -1;
+      })
+     
+      $(document).on("change",".expense_amount", function() {
+        var sum = 0;
+        $('.expense_amount').each(function(){
+            sum += parseFloat(this.value);
+        });
+        $('#expense_total_amount').val(sum)
+      });
+
+      $(document).on("change","#expense_contract_id", function() {
+        $.ajax({
+          url: "/api/select_searches/find_contract_candidate",
+          type: 'GET',
+          data: {contract_id: $('#expense_contract_id option:selected').val()},
+          dataType: 'JSON'
+        }).done(function(data){
+          if (data.contract_type == 'C2C'){
+            $('.contract_type').text('Vendor Company');
+            $('#expense_account_id').val(data.company_id);
+            $('.expense_account_name').val(data.company_name);
+          }
+          else{
+            $('#expense_account_id').val(data.candidate_id);
+            $('.expense_account_name').val(data.candidate_name);
+            $('.contract_type').text('Consultant');
+          }
+        });
+
+        $.ajax({
+          url: "/api/select_searches/find_contract_salary_cycles",
+          type: 'GET',
+          data: {contract_id: $('#expense_contract_id option:selected').val()},
+          dataType: 'JSON'
+        }).done(function(data){
+          $("#salary_cycle select").html();
+          for(var i=0; i< data.length; i++){
+            $("#salary_cycle select").append('<option value="' + data[i][2] + '">' + "#"+(data[i][2])+ "     " +data[i][0] + "  -  "+ data[i][1] + '</option>');
+          }        
+
+        })
+
+      });
+    }); 

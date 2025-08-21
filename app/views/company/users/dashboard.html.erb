@@ -1,0 +1,384 @@
+<div class="with-side-panel">
+  <div class="content-i">
+    <div class="content-box">
+      <% #<span class="skype-button rounded" data-contact-id="live:vinusdeveloperstech"></span> %>
+      <div class="row">
+        <div class="element-wrapper col-md-9">
+          <h6 class="element-header">
+            Dashboard
+          </h6>
+          <div class="row mb-4" style="justify-content: flex-end;">
+            <ul class="nav nav-tabs smaller float-right" style="border-bottom: none;">
+              <li class="nav-item">
+                <a class="nav-link active fd year" data-remote="true" data-toggle="tab" href="<%= filter_cards_data_path("year") %>">year</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link fd quarter " data-remote="true" data-toggle="tab" href="<%= filter_cards_data_path("quarter") %>">Quarter</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link fd month" data-remote="true" data-toggle="tab" href="<%= filter_cards_data_path("month") %>">Month</a>
+              </li>
+              <% #%li.nav-item %>
+              <% #  %a{class: "nav-link fd period", "data-toggle" => "tab", href: "#"} Custom Range %>
+              <li class="nav-item">
+                <input class="pull-right nav-link" data-date-format="DD/MM/YYYY" id="custom_range" plceholder="Custom Rage Search"></input>
+              </li>
+            </ul>
+          </div>
+          <div class="element-content" id="dashboard_cards">
+            <%= render 'company/users/partials/dashboard_cards', cards: @cards %>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="element-wrapper">
+            <h6 class="element-header">
+              Jobs
+            </h6>
+            <div class="row mb-4" style="margin-bottom: 78px !important;"></div>
+            <div class="element-box less-padding">
+              <div class="el-chart-w">
+                <canvas height="120" id="jobs_types" width="120"></canvas>
+                <div class="inside-donut-chart-label">
+                  <strong>
+                    <%= @jobs_count %>
+                  </strong>
+                  <span>Jobs</span>
+                </div>
+              </div>
+              <div class="el-legend condensed">
+                <div class="row">
+                  <% {Training: "#5797fc", Job: "#7e6fff", Blog: "#4ecc48", Product: "#ffcc29", Service: "#f37070"}.each do |key,value| %>
+                    <div class="col-auto col-xxxxl-6 ml-sm-auto mr-sm-auto w-100">
+                      <div class="legend-value-w">
+                        <div class="legend-pin legend-pin-squared mt-2" style="background-color: <%= value %>;"></div>
+                        <div class="legend-value">
+                          <span>
+                            <%= pluralize(@job_types[key.to_s],key.to_s) %>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  <% end %>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div> 
+      </div>
+      <!-- <div class="row">
+        <div class="row m-4">
+          <div class="col-sm-12">
+            <div class="element-wrapper">
+              <h6 class="element-header">
+                Vendor Activity
+              </h6>
+              <div class="timed-activities compact">
+                <% contract_activity_hash(@activities).each do |key,value| %>
+                  <div class="timed-activity">
+                    <div class="ta-date">
+                      <span>
+                        <%= key %>
+                      </span>
+                    </div>
+                    <div class="ta-record-w">
+                      <% value.each do |activity| %>
+                        <%= render_activity activity %>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+            <div class="timesheet_pagination_wrap">
+              <div class="pagination_label">
+                <%= page_entries_info @activities %>
+              </div>
+              <%= will_paginate(@activities, {previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'activities_pagination_links'}) %>
+            </div>
+          </div>
+        </div>
+      </div> -->
+      <div class="row">
+        <% if company_activities_hash.present? %>
+          <div class="col-sm-12">
+            <div class="element-wrapper">
+              <h6 class="element-header">
+                User Activity
+              </h6>
+              <div class="timed-activities compact">
+                <% company_activities_hash.each do |key,value| %>
+                  <div class="timed-activity">
+                    <div class="ta-date">
+                      <span>
+                        <%= key %>
+                      </span>
+                    </div>
+                    <div class="ta-record-w">
+                      <% value.each do |activity| %>
+                        <%= render_activity activity if activity.trackable.present? %>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+    <div class="content-panel">
+      <div class="content-panel-close">
+        <i class="os-icon os-icon-close"></i>
+      </div>
+      <div class="element-wrapper">
+        <h6 class="element-header">
+          Quick Links
+        </h6>
+        <div class="element-box-tp">
+          <div class="el-buttons-list full-width">
+            <a class="btn btn-white btn-sm" href="<%= new_job_path %>">
+              <i class="os-icon os-icon-delivery-box-2"></i>
+              <span>Add Job</span>
+            </a>
+            <a class="btn btn-white btn-sm" href="<%= create_contract_contracts_path %>">
+              <i class="os-icon os-icon-window-content"></i>
+              <span>Add Contract</span>
+            </a>
+            <a class="btn btn-white btn-sm" href="/company/companies/new">
+              <i class="os-icon os-icon-wallet-loaded"></i>
+              <span>Setup Company</span>
+            </a>
+            <a class="btn btn-primary btn-sm" href="<%= company_console_jobs_path%>">
+              <i class="os-icon os-icon-wallet-loaded"></i>
+              <span>Go to Console</span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <% if @directory.present? %>
+        <div class="element-wrapper">
+          <h6 class="element-header">
+            Team Members
+          </h6>
+          <div class="element-box-tp">
+            <div class="input-search-w">
+              <input class="form-control directory-search rounded bright" placeholder="Search team members..." type="search"></input>
+            </div>
+            <div class="users-list-w" style="max-height: 624px;overflow-y: scroll;">
+              <% @directory&.each do |user| %>
+                <% cache user do %>
+                  <div class="user-w toggleable pb-0 pt-1">
+                    <div class="user-avatar-w">
+                      <div class="avatar-w">
+                        <%= user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image',title: "#{user.full_name}" ) %>
+                      </div>
+                    </div>
+                    <div class="user m-0 p-0">
+                      <h6 class="user-title no-wrap">
+                        <%= do_ellipsis(user.full_name,17) %>
+                      </h6>
+                      <div class="user-role">
+                        <%= user.class.to_s %>
+                      </div>
+                      <a class="user-action" href="users_profile_small.html"></a>
+                      <%= contact_widget(user.email,user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important') %>
+                    </div>
+                  </div>
+                <% end %>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+      <div class="element-wrapper">
+        <div class="col-sm-12 col-md-12">
+          <div class="element-box el-tablo centered">
+            <div class="panel-body">
+              <div class="clearfix">
+                <h6 class="element-header text-left">Company Candidates (<%= @current_company.candidates.count %>)</h6>
+              </div>
+              <% if @candidates.present? %>
+                <div class="col-sm-12">
+                  <ul class="list-inline friends-list dashboard-list">
+                    <% @candidates.each do |candidate| %>
+                      <% cache candidate do %>
+                        <li>
+                          <%= user_image(candidate, style: 'outline: 0px !important; width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{candidate.full_name}" ) %>
+                        </li>
+                      <% end %>
+                    <% end %>
+                  </ul>
+                </div>
+              <% else %>
+                <div class="text">
+                  <div class="font-md text-center">
+                    No Candidate in  Company Right now.
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+          <div class="element-box el-tablo centered">
+            <div class="panel-body">
+              <div class="clearfix">
+                <h6 class="element-header text-left">Company Contacts (<%= @current_company.invited_companies_contacts.count %>)</h6>
+              </div>
+              <% if @invited_companies_contacts.present? %>
+                <div class="col-sm-12">
+                  <ul class="list-inline friends-list dashboard-list">
+                    <br/>
+                    <% @invited_companies_contacts.each do |contact| %>
+                      <% cache contact do %>
+                        <li>
+                          <%= user_image(contact, style: 'outline: 0px !important; width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{contact.full_name}" ) %>
+                        </li>
+                      <% end %>
+                    <% end %>
+                  </ul>
+                </div>
+              <% else %>
+                <div class="text">
+                  <div class="font-md text-center">
+                    No Contact in Company Right now.
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+          <div class="element-box el-tablo centered">
+            <div class="panel-body">
+              <div class="clearfix">
+                <h6 class="element-header text-left">Company Consultants (<%= @current_company.consultants.count %>)</h6>
+              </div>
+              <% if @current_company.consultants.present? %>
+                <div class="col-sm-12">
+                  <ul class="list-inline friends-list dashboard-list">
+                    <br/>
+                    <% @consultants.each do |consultant| %>
+                      <% cache consultant do %>
+                        <li>
+                          <%= link_to user_image( consultant ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/m_sunny_big.png') ), company_user_profile_path(consultant),target: "_blank" , title: consultant.full_name,"data-content" => "Email: #{consultant.email}", "data-placement" => "top","data-img"=>"#{consultant.photo}" ,:rel => "hover" %>
+                        </li>
+                      <% end %>
+                    <% end %>
+                  </ul>
+                </div>
+              <% else %>
+                <div class="text">
+                  <div class="font-md text-center">
+                    No Consultant in Company Right now.
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+          <div class="element-box el-tablo centered">
+            <div class="panel-body">
+              <div class="clearfix">
+                <h6 class="element-header text-left">My Vendors (<%= @current_company.send_or_received_network.count %>)</h6>
+              </div>
+              <% if @send_or_received_network.present? %>
+                <div class="col-sm-12">
+                  <ul class="list-inline friends-list dashboard-list">
+                    <br/>
+                    <% @send_or_received_network.take(30).uniq.each do |vendor| %>
+                      <% cache vendor do %>
+                        <li>
+                          <%= link_to image_tag( vendor.prefer_vendor.logo ,class:"margin-bottom-5 margin-top-5",alt: ' LOGO ' ), profile_company_path(vendor.prefer_vendor),target: "_blank" , title: vendor.prefer_vendor.name,"data-content" => "Email : #{vendor.try(:prefer_vendor).try(:email)}", "data-placement" => "top",:rel => "hover" %>
+                          <% #= image_tag 'https://cdn1.iconfinder.com/data/icons/business-237/65/icons-08-128.png' ,class:"margin-bottom-5 margin-top-5",alt: image_path('avatars/male.png') %>
+                        </li>
+                      <% end %>
+                    <% end %>
+                  </ul>
+                </div>
+              <% else %>
+                <div class="text">
+                  <div class="font-md text-center">
+                    No Vendor Right now.
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+          <div class="element-box el-tablo centered">
+            <div class="panel-body">
+              <div class="clearfix">
+                <h6 class="element-header text-left">Companies 3rd Party (<%= @current_company.invited_companies.count %>)</h6>
+              </div>
+              <% if @invited_companies.present? %>
+                <div class="col-sm-12">
+                  <ul class="list-inline friends-list dashboard-list">
+                    <br/>
+                    <% @invited_companies.each do |company| %>
+                      <% cache company do %>
+                        <li>
+                          <%= link_to image_tag( company.invited_company.logo ,class:"margin-bottom-5 margin-top-5",alt: 'Logo' ), profile_company_path(company.invited_company),target: "_blank", title:company.invited_company.name,"data-content" => "Email : #{company.invited_company.email}", "data-placement" => "top",:rel => "hover" %>
+                        </li>
+                      <% end %>
+                    <% end %>
+                  </ul>
+                </div>
+              <% else %>
+                <div class="text">
+                  <div class="font-md text-center">
+                    No Company Right now.
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<% if current_user.is_consultant? %>
+  <%= render 'company/users/partials/consultant_dashboard' %>
+<% end %>
+<% content_for :scripts do %>
+  <script>
+    
+
+    $(document).ready(function() {
+      pageSetUp();
+      $('a[rel=hover]').popover({
+      html: true,
+      trigger: 'hover',
+      placement: 'top',
+      content: function(){return '<img src="'+$(this).data('img') + '" />';}
+    });
+    $('[data-toggle="tooltip"]').tooltip()
+
+    if($("#jobs_types").length){
+      var donutChart1 = $("#jobs_types");
+
+      var data1 = {
+        labels: ["Training", "Job", "Blog", "Product", "Service"],
+        datasets: [
+            {
+                data: ["<%= @job_types["Training"]%>", "<%= @job_types["Job"] %>", "<%= @job_types["Blog"]%>", "<%= @job_types["Product"]%>", "<%= @job_types["Service"]%>"],
+                backgroundColor: [ "#5797fc", "#7e6fff", "#4ecc48", "#ffcc29", "#f37070" ],
+                hoverBackgroundColor: [ "#5797fc", "#7e6fff", "#4ecc48", "#ffcc29", "#f37070" ],
+                borderWidth: 6,
+                hoverBorderColor: 'transparent'
+            }]
+      };
+      new Chart(donutChart1, {
+        type: 'doughnut',
+        data: data1,
+        options: {
+          legend: {display: false},
+          animation:{animateScale:true},
+          cutoutPercentage: 80
+        }
+      });
+
+    }
+
+    });
+
+  </script>
+<% end %>
+<style>
+    #side-bar { display: none !important; }
+</style>

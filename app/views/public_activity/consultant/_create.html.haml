@@ -1,0 +1,33 @@
+.ta-record.bg_white.pt-2.pl-2
+  .ta-timestamp
+    %strong #{a.try(:created_at).strftime('%I:%M %P')}
+  .ta-activity
+    #{a.owner.name.titleize} created consultant
+    = link_to a.trackable.try(:full_name).try(:titleize), company_user_profile_path( a.trackable), class: 'font-md'
+
+-#- if params[:index]
+-#  %li.well.margin-bottom-10
+-#    .smart-timeline-icon
+-#      - if a.owner.logo.present?
+-#        = image_tag a.owner.logo,class:'',alt: "Company"
+-#      -else
+-#        = image_tag 'can.png',class:'',alt: "Company"
+-#    .smart-timeline-time
+-#      %small
+-#      =  time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+-#    .smart-timeline-content
+-#      %p.font-md
+-#        = a.owner.name.titleize + " created consultant"
+-#        = link_to a.trackable.try(:full_name).try(:titleize), company_user_profile_path( a.trackable), class: 'font-md'
+-#-else
+-#  %span.name.font-sm.well.margin-bottom-10
+-#    %span.text-muted
+-#      = link_to a.owner.try(:name).try(:titleize) , class: 'font-md'
+-#    %b
+-#      %span.pull-right.font-xs.text-muted
+-#        %i= time_ago_in_words(a.try(:created_at).try(:localtime))+" ago"
+-#      %span.name.font-sm
+-#        %b
+-#    Created Consultant
+-#    = link_to a.trackable.try(:full_name).try(:titleize), company_user_profile_path( a.trackable), class: 'font-md'
+-#

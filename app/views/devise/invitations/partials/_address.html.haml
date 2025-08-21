@@ -1,0 +1,36 @@
+.row
+  .col-sm-12
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-mobile.fa-lg.fa-fw
+        = a.text_field :address_1 , class: 'form-control input-lg' , placeholder: "Address"
+
+.row
+  .col-sm-6
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-user.fa-lg.fa-fw
+        = a.text_field :country , class: 'form-control input-lg' , placeholder: "Country"
+  -#%input#wphone.form-control.input-lg{"data-mask" => "+99 (999) 999-9999", "data-mask-placeholder" => "X", :name => "wphone", :placeholder => "+1", :type => "text"}/
+
+  .col-sm-6
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-user.fa-lg.fa-fw
+        = a.text_field :state , class: 'form-control input-lg' , placeholder: "State"
+.row
+  .col-sm-6
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-mobile.fa-lg.fa-fw
+        = a.text_field :city , class: 'form-control input-lg' , placeholder: "City"
+  .col-sm-6
+    .form-group
+      .input-group
+        %span.input-group-addon
+          %i.fa.fa-mobile.fa-lg.fa-fw
+        = a.text_field :zip_code , class: 'form-control input-lg' , placeholder: "Zip code"

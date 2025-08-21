@@ -1,0 +1,179 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Pay Bill
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              - unless @banks.blank?
+                .row
+                  .col-md-3
+                    %label Treasury Account
+                    = select_tag "bank_names",options_for_select(@banks.collect{|u| [u.bank_name.titleize, u.id]}),{class: 'form-control select2 bank_names'}
+
+                  .col-md-3
+                    %br
+                    %div
+                      %b Balance:
+                      %div.bank-balance $ 0
+                      = link_to 'Bank Reconciliation', bank_reconciliation_bank_details_path
+                  .col-md-3
+                    %label  Payment Date
+                    = date_field_tag 'pay_date', Date.today, class: 'form-control'
+              - else
+                .div.w-75.margin-auto
+                  %p.contract_warning_text{style: 'margin: 0px !important;'}
+                    = "There is no Bank associated with your company. Please #{link_to "ADD BANK ",add_bank_details_path(current_company.id)} To pay bill ".html_safe
+  
+
+              %br
+              .content-i
+                .content-box
+                  .row
+                    .col-sm-12
+                      .element-wrapper
+                        .element-box-tp
+                          .controls-above-table
+                            .row.mr-1.ml-1
+                              .col-sm-6
+                                %label Account details
+                              .col-sm-6
+                                .form-inline.justify-content-sm-end
+                                  %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'account-detail-datatable-search'}
+                          .table-responsive
+                            %table#account-detail-datatable.table.table-bordered.account_detail
+                              %thead
+                                %tr
+                                  %th Contract
+                                  %th Bill no/ Item description
+                                  %th Status
+                                  %th Attachment
+                                  %th Due date
+                                  %th Expense Type
+                                  %th Bill Type
+                                  %th Open Balance
+                                  %th Remaining Balance
+                                  %th Payment
+                                  %th Due
+                                  %th Action
+                              %tbody
+                                - @expense_accounts.each do |ex|
+                                  %tr
+                                    %td
+                                      = ex.expense.contract_id
+                                    %td
+                                      = ex.expense.bill_no + '-' + ex.description
+                                    %td
+                                      = ex.status
+                                    %td
+                                      =link_to 'Bill', ex.expense.attachment, target: "_blank", class: 'text-break'
+                                    %td
+                                      = ex.expense.due_date
+                                    %td
+                                      = ex.expense_type.name
+                                    %td
+                                      = ex.expense.bill_type.titleize
+                                    %td
+                                      =  ex.amount
+                                    %td.remaining_balance
+                                      =  ex.amount.to_i - ex.payment.to_i
+                                    = form_for ex, url: submit_bill_expenses_path(pay_bill_id: ex.id), method: :post do |f|
+                                      = hidden_field_tag :bank_id, '' , class: 'bank_id'
+                                      %td
+                                        = f.number_field :payment, value: '', class: 'payment input-50'
+                                      %td.balance_due
+                                        = f.number_field :balance_due, value: '', class: 'balance_due input-50'
+                                      %td.d-flex
+                                        -unless ex.cancelled? || ex.cleared? || ex.expense.salaried?
+                                          = f.submit "Pay" , name: 'pay_type',value: 'pay', class: "btn btn-primary btn-sm mr-1"
+                                          = f.submit "Reject" , name: 'pay_type',value: 'reject', class: "btn btn-danger btn-sm"
+
+              %br
+              .content-i
+                .content-box
+                  .row
+                    .col-sm-12
+                      .element-wrapper
+                        .element-box-tp
+                          .controls-above-table
+                            .row.mr-1.ml-1
+                              .col-sm-6
+                                %label Client Expense Invoices
+                              .col-sm-6
+                                .form-inline.justify-content-sm-end
+                                  %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'client-expense-invoice-datatable-search'}
+                          .table-responsive
+                            %table#client-expense-invoice-datatable.table.table-bordered.account_detail
+                              %thead
+                                %tr
+                                  %th Contract
+                                  %th Bill no/ Item description
+                                  %th Status
+                                  %th Due date
+                                  %th Bill Type
+                                  %th Open Balance
+                                  %th Action
+                              %tbody
+                                - @client_expenses_invoice.each do |ex|
+                                  %tr
+                                    %td
+                                      = ex.contract_id
+                                    %td
+                                      = ex.bill_no
+                                    %td
+                                      = ex.status.titleize
+                                    %td
+                                      = ex.due_date
+                                    %td
+                                      = ex.bill_type.titleize
+                                    %td
+                                      =  ex.total_amount
+                                    %td
+                                      = form_for ex, url: invoice_payment_expenses_path(ex_id: ex.id), method: :post do |f|
+                                        = render "shared/file_attachement", f:f,attr_name: :attachment, button_name: "<i class='fa fa-file-pdf-o'> </i>".html_safe,multiple: false, required_field: false
+                                        -#= f.filepicker_field :attachment, :button_text => "<i class='fa fa-file-pdf-o'> </i>".html_safe, disable: true , class: 'file-pick timesheet-filepicker-attachment'
+                                        = f.submit 'Invoice Payment'
+
+- content_for :scripts do
+  :javascript
+
+    $(document).on('input', '#expense_account_payment', function () {
+      var total_balance = $(this).parent().parent().find('td.remaining_balance').text()
+      var payment = $(this).val()
+      var remaining_payment = total_balance - payment
+      $(this).parents("tr").find(".balance_due").val(remaining_payment)
+
+    })
+
+    $(document).ready(function() {
+      default_active_nav('.ln-9');
+      get_bank_bal()
+    });
+
+    $('.bank_names').on('change', function(){
+      get_bank_bal()    
+
+    })
+
+    $(document).on('change', '.payment', function () {
+      $(this).closest('td').next('.balance_due').val(5);
+    })
+
+    function get_bank_bal(){
+      var bank_id = $('.bank_names option:selected').val();
+      $('.bank_id').val(bank_id)
+      $.ajax({
+        url: "#{get_bank_balance_expenses_path}",
+        type: 'GET',
+        data: {bank_id: bank_id},
+        dataType: 'JSON'
+      }).done(function(data){
+        $('.bank-balance').text('$'+data.bank_bal.balance);
+      });
+    }

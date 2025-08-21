@@ -1,0 +1,111 @@
+!!!
+%html{:id => "#{yield :html_id}", class: "#{yield :html_class}"}
+  %head
+    #load
+    %meta{:charset => "utf-8"}/
+    %title Etyme
+    = csrf_meta_tags
+    %meta{:content => "", :name => "description"}/
+    %meta{:content => "", :name => "author"}/
+    %meta{:content => "#{user_signed_in? ? current_user.id : ''}", :name => "user-id"}
+    %meta{:content => "#{user_signed_in? ? current_user.class.to_s == "Candidate" ? "Candidate" : "User" : ''}", :name => "user-type"}
+    %meta{:content => "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no", :name => "viewport"}/
+
+    = stylesheet_link_tag 'company', media: 'screen'
+    / FAVICONS
+    = action_cable_meta_tag
+    = favicon_link_tag '/favicon.ico'
+    = favicon_link_tag '/favicon.ico', rel: 'icon'
+    = javascript_include_tag "https://www.skypeassets.com/i/scom/js/skype-uri.js"
+    = stylesheet_link_tag "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/css/intlTelInput.css"
+    = javascript_include_tag "https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.8/js/intlTelInput.min.js"
+    %script{async: "async", src: 'https://platform-api.sharethis.com/js/sharethis.js#property=5f48045b584ea10012677add&product=inline-share-buttons', type: "text/javascript"}
+    :javascript
+      (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
+
+      function dateFormat(inputDate, format) {
+        //parse the input date
+        const date = new Date(inputDate);
+
+        //extract the parts of the date
+        const day = date.getDate();
+        const month = date.getMonth() + 1;
+        const year = date.getFullYear();    
+
+        //replace the month
+        format = format.replace("MM", month.toString().padStart(2,"0"));        
+
+        //replace the year
+        if (format.indexOf("yyyy") > -1) {
+            format = format.replace("yyyy", year.toString());
+        } else if (format.indexOf("yy") > -1) {
+            format = format.replace("yy", year.toString().substr(2,2));
+        }
+
+        //replace the day
+        format = format.replace("dd", day.toString().padStart(2,"0"));
+
+        return format;
+      };
+    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'} :cdata
+    / GOOGLE FONT
+    = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Open+Sans:400italic,700italic,300,400,700'
+    = stylesheet_link_tag 'https://fonts.googleapis.com/css?family=Rubik:300,400,500'
+    = stylesheet_link_tag "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0"
+    / PACE LOADER - turn this on if you want ajax loading to show (caution: uses lots of memory on iDevices)
+    -#= javascript_include_tag 'plugin/pace/pace.min', 'data-pace-options' => '{ "restartOnRequestAfter": true }'
+    /
+    -#= favicon_link_tag 'splash/sptouch-icon-iphone.png', type: 'image/png', rel: 'apple-touch-icon'
+    -#= favicon_link_tag 'splash/touch-icon-ipad.png', type: 'image/png', sizes: '76x76', rel: 'apple-touch-icon'
+    -#= favicon_link_tag 'splash/touch-icon-iphone-retina.png', type: 'image/png', sizes: '120x120', rel: 'apple-touch-icon'
+    -#= favicon_link_tag 'splash/touch-icon-ipad-retina.png', type: 'image/png', sizes: '152x152', rel: 'apple-touch-icon'
+    / iOS web-app metas : hides Safari UI Components and Changes Status Bar Appearance
+    %meta{:content => "yes", :name => "apple-mobile-web-app-capable"}/
+    %meta{:content => "black", :name => "apple-mobile-web-app-status-bar-style"}/
+    / Startup image for web apps
+    -#= favicon_link_tag 'splash/ipad-landscape.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:landscape)'
+    -#= favicon_link_tag 'splash/ipad-portrait.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (min-device-width: 481px) and (max-device-width: 1024px) and (orientation:portrait)'
+    -#= favicon_link_tag 'splash/iphone.png', type: 'image/png', rel: 'apple-touch-startup-image', media: 'screen and (max-device-width: 320px)'
+    = yield :head
+    = yield :google_address_search_api if block_given?
+
+  %body.smart-style-6{class: "#{yield :body_class} menu-position-side menu-side-left full-screen"}
+    - @current_user = current_user
+    - @current_company = current_company
+    .all-wrapper
+      %ul.dropdown-menu.lpm#links_block
+        =render('company/shared/links_block')
+
+      .layout-w
+        = render partial: 'company/shared/left_panel'
+        .content-w.cont-comany
+          = render partial: 'company/shared/header'
+          -unless params[:controller].include?"conversation"
+            #ribbon
+              %ul.breadcrumb
+                = render_breadcrumbs tag: :li, separator: " / "
+          #main{:role => "main" ,style: ""}
+            = yield
+          -#.remote_container
+          #modals
+            =yield :modals
+          .remote_container
+          = render partial: 'company/shared/footer'
+          = render partial: 'company/shared/tiles'
+          = render partial: 'shared/add_to_chat_modal'
+    = javascript_include_tag 'company'
+    %script{ type: 'text/javascript', src: 'https://www.uploader.win/js/latest/app.js' }
+  /[if IE 8]
+  = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+  = render 'shared/flash_messages'
+:css
+  a:hover {
+    text-decoration: none;
+  }
+  #load{
+    width:100%;
+    height:100%;
+    position:fixed;
+    z-index:9999;
+    background:url('https://cdn.filepicker.io/api/file/TwNQBxhZRuLGU1iD2uaA') no-repeat center center rgba(0,0,0,0.25)
+  }

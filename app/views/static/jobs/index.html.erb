@@ -1,0 +1,80 @@
+<style>
+body{
+  padding:0px !important;
+}
+</style>
+
+<section class="content-wrapper">
+  <div class="container-fluid">
+    <div class="row">
+      <%= render 'static/shared/webflow_header' %>
+      <div class="col-12 content-main">
+        <div class="tab-content">
+          <!-- FEED -->
+          <div class="tab-pane fade show active" >
+            <div class="row">
+              <div class="col-12 col-xl-9 feed-main">
+                <div class="search-bar-mobile m-2">
+                  <input type="text" placeholder="<%="Search #{@current_company.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
+                  <div class="btn-search">
+                    <button class="btn border-0">
+                      <%= image_tag(image_path('search.png'), class: "img-fluid") %>
+                    </button>
+                  </div>
+                </div>
+                <!-- .webflow_feed_header -->
+                <%= render '/static/shared/webflow_feed_header' %>
+                <!-- /.webflow_feed_header -->
+
+                <div id="static_feeds" class="static-feeds">
+                  <%= render partial: 'load_jobs' %>
+                </div>
+              </div>
+              <%= render 'static/shared/webflow_sidebar_right' %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%= javascript_include_tag 'shared/hide_show_toggler'%>
+<script>
+      $(".openbtn").click(function () {
+          $(".side-wrapper").toggleClass("side-active")
+      });
+</script>
+<style type="text/css">
+  .media .img-icon-size {
+    border-radius: 50%;
+  }
+
+  .feed_image {
+    border-top-left-radius: 25px;
+    border-bottom-left-radius: 25px;
+  }
+
+  .common-blue-btn a {
+    color: #fff !important;
+  }
+
+  .inactive-feed a {
+    color: #AEB4C9 !important;
+  }
+
+  .txt-black a {
+    color: #2A2C34 !important;
+  }
+
+  .txt-blue a {
+    color: #5555A5 !important;
+  }
+
+  img.align-self-center {
+    border-radius: 50%;
+    height: 40px;
+    width: 40px;
+  }
+
+</style>

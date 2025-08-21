@@ -1,0 +1,21 @@
+.modal{id:"change-application-table-layout-modal"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h4.modal-title
+          %strong= "Application Table Layout"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body
+        = form_with url: company_user_application_table_layouts_update_path(current_user) do |f|
+          = f.hidden_field 'job_type', value: @job.status
+          - @application_table_layout.all_columns(@job.status).each do |header|
+            %fieldset
+              .form-group
+                = f.check_box "application_table_layout[#{header[:key]}]", class: "form-control", checked: header[:display]
+                %label.col-md-6.control-label=header[:name]
+
+          .modal-footer
+            = f.button "Save".html_safe , class: 'btn btn-primary', onclick: 'hide_modal()', id: 'save_job_candidate',data: {disable_with: disable_spinning('Saving...')}
+            %button.btn.btn-default{ "data-dismiss" => "modal", :type => "button" }
+              Cancel

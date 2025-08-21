@@ -1,0 +1,30 @@
+<div class="support-ticket-content">
+  <div class="support-ticket-content-header"><h3 class="ticket-header"><%= notification&.title.capitalize %></h3>
+    <a class="back-to-index" href="#"><i class="os-icon os-icon-arrow-left5"></i><span>Back</span></a>
+    <a class="show-ticket-info" href="#"><span>Show Details</span><i class="os-icon os-icon-documents-03"></i></a>
+  </div>
+  <div class="ticket-thread">
+    <div class="ticket-reply <%= notification.unread? ? 'highlight' : '' %>">
+      <div class="ticket-reply-info">
+        <a class="author with-avatar" href="#">
+          <%= user_image(notification.createable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{notification.createable.full_name}" )
+          %>
+          <span><%= notification.createable&.full_name.capitalize %></span></a><span class="info-data"><span class="label">Created on</span><span class="value"><%= notification&.created_at.to_formatted_s(:long) %></span></span>
+        <div class="actions" href="#"><i class="os-icon os-icon-ui-46"></i>
+          <div class="actions-list">
+            <% if notification.unread? %>
+              <%= link_to(content_tag(:i, nil, class: "os-icon os-icon-ui-49") + "Mark as Read", read_candidate_notification_path(current_candidate, notification), remote: true) %>
+            <% end %>
+            <%= link_to(content_tag(:i, nil, class: "os-icon os-icon-ui-15") + "Delete", candidate_notification_path(current_candidate, notification), method: :delete, class: 'danger text-danger') %>
+          </div>
+        </div>
+      </div>
+      <div class="ticket-reply-content">
+        <%= notification&.message.html_safe %>
+      </div>
+      <!--      <div class="ticket-attachments">-->
+      <!--        <a class="attachment" href="#"><i class="os-icon os-icon-ui-51"></i><span>Bug Report.xml</span></a><a class="attachment" href="#"><i class="os-icon os-icon-documents-07"></i><span>Sytem Information.txt</span></a>-->
+      <!--      </div>-->
+    </div>
+  </div>
+</div>

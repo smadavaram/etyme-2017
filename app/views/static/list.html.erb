@@ -1,0 +1,104 @@
+<% provide(:body_class, 'full-screen') %>
+<section>
+  <div  style="background-color: #047bf8 !important; color: #FFF !important;" class="bg-dark bg-blue">
+    <div class="call-to-action" style="text-align: left; margin-left: 100px;">
+      <h3 class="m-b-none" style="color: white">
+        Open Vacancies - <%=current_company.name%>
+      </h3>
+      <h6 style="color: #FFF !important;" class="text-muted"> <%= current_company.description %></h6>
+    </div>
+  </div>
+  <div class="os-container">
+    <div class="jobslist">
+      <div style="margin-top: 20px;" class="row m-b-xl">
+        <% @jobs.each do |job| %>
+          <div class="col-sm-12 animated fadeInLeftBig" id="<%= job.id %>">
+            <section style="background-color: #FFFFFF ; margin-bottom: 20px; border: 1px solid ; border-color:  #e4e4e4" class="panel panel-default img-rounded ">
+              <div class="job">
+                <div class="row top-sec">
+                  <div style="padding-left: 50px;" class="col-lg-2 col-xs-12">
+                    <a href="#">
+                      <% unless job.created_by&.photo.blank? %>
+                        <%= image_tag job.created_by&.photo, class: "img-responsive" %>
+                      <% else %>
+                        <%= image_tag 'default_logo.png', class: "img-responsive" %>
+                      <% end %>
+                    </a>
+                  </div>
+                  <div class="col-lg-6 col-xs-8">
+                    <h4>
+                      <%= link_to truncate(job.title, length: 50), static_job_path(job)%>
+                    </h4>
+                    <h5>
+                      <%= job.company.name.humanize %>
+                      <small>
+                        <%= job.company.email %>
+                      </small>
+                    </h5>
+                  </div>
+                  <div class="col-lg-4 col-xs-4" style="text-align: right;float: right;">
+                    <h4 style="padding-right: 10px">
+                      <a href="<%= register_path %>" class="btn btn-primary size" style="background:#047bf8; color:white ; border-color:#047bf8 ">Apply</a>
+                    </h4>
+
+                  </div>
+                </div>
+                <div class="row mid-sec">
+                  <div class="col-lg-12">
+                    <hr class="small"/>
+                    <p style = "padding-left: 10px; font-size: 16px">
+                      <%= truncate(strip_tags(job.description), length: 250) %>
+                    </p>
+
+                    <% job.tags.each do |tag| %>
+                        <span class="label label-success">
+                          <%= tag.name %>
+                        </span>
+                    <% end %>
+                  </div>
+                </div>
+              </div>
+              <div  class="hidden row bottom-sec ">
+                <div class="col-lg-2">
+                  <h5 style = "padding-left: 10px" >Posted</h5>
+                  <p style = "padding-left: 10px"><%=time_ago_in_words(job.created_at)%> ago</p>
+                </div>
+
+                <% if job.location %>
+                  <div class="col-lg-3" style="text-align:left;font-size: 13px;">
+                    <h5>Location</h5>
+                    <p>
+                      <i class="fa fa-map-marker"></i>
+                      <%= job.location %>
+                    </p>
+                  </div>
+
+                <% end %>
+
+                <% if job.job_category %>
+                  <div class="col-lg-3 col-md-3 mb10" style="text-align:left;font-size: 13px;">
+                    <span style="font-size: 13px;display: block" class="text-muted ">Category</span>
+                    <%= job.job_category %>
+                  </div>
+                <% end %>
+
+                <% if job.end_date %>
+                  <div class="col-lg-3 col-md-3 mb10" style="text-align:left;font-size: 13px;">
+                    <span style="font-size: 13px;display: block" class="text-muted ">Last Date</span>
+                    <%= job.end_date %>
+                  </div>
+                <% end %>
+              </div>
+            </section>
+          </div>
+        <% end %>
+        <div class="mt-3">
+          <%= will_paginate @jobs %>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<%= javascript_include_tag 'shared/hide_show_toggler' %>
+

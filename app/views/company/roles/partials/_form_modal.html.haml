@@ -1,0 +1,11 @@
+/ Modal
+.modal{id: @role.new_record? ? 'new-role' : "role-edit-#{@role.id}" ,:role => "dialog", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h4.modal-title
+          = @role.new_record? ? "New Role" : "Edit #{@role.name}"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body.no-padding
+        = render 'company/roles/partials/form' ,role: @role

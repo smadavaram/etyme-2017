@@ -1,0 +1,30 @@
+.col-sm-12.col-lg-12
+  / your contents here
+  .panel.panel-default
+    .panel-body.status
+      -#.who.clearfix
+      -#  %img.online{:alt => "img", :src => "img/avatars/5.png"}/
+      -#  %span.name
+      -#    %b Karrigan Mean
+      -#    shared a photo
+      -#  %span.from
+      -#    %b 1 days ago
+      -#    via Mobile, Sydney, Australia
+      -#.image
+      -#  %img{:alt => "img", :src => "img/realestate/6.png"}/
+      %ul.links
+      %ul.comments
+        - application.comments.each do |comment|
+          = render 'company/comments/partials/comment_li' , comment: comment
+        %li.message
+          = user_image(current_user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2 online',title: "#{current_user.full_name}" )
+          %span.message-text
+            = form_for Comment.new do |c|
+              .col-md-10
+                = c.text_field :body , class: 'form-control' , placeholder: "Post your comment..."
+                = c.hidden_field :commentable_type , value: 'JobApplication'
+                = c.hidden_field :commentable_id , value: application.id
+              .col-md-2
+                = c.button "Comment".html_safe, data: {disable_with: disable_spinning("Comment...")} , class: 'btn btn-primary btn-sm'
+              %br/
+              %br/

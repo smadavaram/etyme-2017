@@ -1,0 +1,60 @@
+.contract-top.clearfix.row
+  %div.col-sm-6
+    %b
+      %span Contract ID:
+      =contract.number
+    %h4
+      =contract.title
+    %h7
+      =contract.project_name
+  %div.col-sm-6.text-right
+    %h5{:class => "#{contract.status=='is_ended' || contract.status == 'pending' || contract.status == 'cancelled' ? 'text-danger' : 'text-success'}"}
+      = contract.status == "is_ended" ? "Ended" : contract.status == 'pending'  ? 'Pending Activation'  :  contract.status == 'accepted'  ? 'Active' : contract.status&.titleize
+    %h6
+      %span Contract Date:
+      %small= contract.created_at.strftime("%d/%m/%Y")
+    %h6
+      %span Contract type:
+      %small= contract&.buy_contract&.contract_type
+
+.form-desc
+
+.row
+  - if current_company == @contract.company
+    %div.job-header.clearfix.col-sm-6
+      %h6
+        %span Client
+        %small= contract.client&.name
+      %h6
+        %span Candidate
+        %small= contract.candidate.try(:full_name)
+      %h6
+        %span Work Location
+        %small= contract.work_location
+  -else
+    %div.job-header.clearfix.col-sm-6
+      %h6
+        %span Candidate
+        %small= contract.candidate.try(:full_name)
+      %h6
+        %span Work Location
+        %small= contract.work_location
+
+  %div.col-sm-6.col-md-6.col-lg-6
+    .d-flex.justify-content-between.mt-3
+      %h6
+        %span Start Date
+        %small= contract.start_date.strftime('%d/%m/%Y')
+      %h6
+        %span End Date
+        %small= contract.end_date.strftime('%d/%m/%Y')
+    .os-progress-bar.primary
+      .bar-labels
+        .bar-label-left
+          %span Progress
+          %span.positive= "#{contract.contract_progress.to_f.round}%"
+        .bar-label-right
+          %span.info= "#{contract.contract_progress.to_f.round}/100"
+      .bar-level-1{:style => "width: 100%"}
+        .bar-level-2{:style => "100%"}
+          .bar-level-3{:style => "width: #{contract.contract_progress.to_f.round}%"}

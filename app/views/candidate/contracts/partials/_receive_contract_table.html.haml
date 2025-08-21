@@ -1,0 +1,33 @@
+.table-responsive
+  %table#resultTable.table.table-striped.table-bordered.table-hover
+    %thead
+      %tr
+        %th{style: "width:30px"} Pic
+        %th Sender
+        %th Company
+        %th Job
+        %th Email / Username
+        %th Created By
+        %th Phone
+        %th Expiry
+        %th Status
+    %tbody
+      - data.each do |d|
+        %tr{class: "#{set_background_status_color(d.status)}"}
+          %td =user_image(d.created_by, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{d.created_by.full_name}" )
+          %td= link_to d.created_by.full_name , '#'
+          %td= link_to d.created_by.company.name , '#' if d.created_by.company.present?
+          %td= link_to d.job.title , '#'
+          %td
+            = d.created_by.email
+            %a.pull-right{:href => "javascript:void(0);"}
+              %i.fa.fa-key
+          %td= link_to d.created_by.full_name , '#'
+          %td= #invitation.recipient.phone
+          %td= #invitation.expiry
+          %td
+            - if d.pending?
+              = link_to 'Accept' , open_contract_candidate_job_contract_path(d.job , d , status: 'accept') , method: :post , remote: true , class: 'btn btn-xs btn-default'
+              = link_to 'Reject' , open_contract_candidate_job_contract_path(d.job , d , status: 'reject') , method: :post , remote: true ,  class: 'btn btn-xs btn-default'
+            -else
+              %span.label.label-success= d.status

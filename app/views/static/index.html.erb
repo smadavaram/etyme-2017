@@ -1,0 +1,174 @@
+<% provide(:body_class, 'full-screen') %>
+
+<% @title = t('application.tagline') %>
+
+<style>
+  @media (max-width: 576px) {
+    .mobile_content {
+      display: none !important;
+    }
+  }
+  @media (min-width: 576px) {
+    .desktop_content {
+      display: none !important;
+    }
+  }
+
+</style>
+
+<div class="intro-w layout-v1" id="sectionIntro">
+  <div class="os-container">
+    <div class="fade2">
+    </div>
+    <div style="margin-top: 2px;" class="intro-i">
+      <div class="intro-description">
+        <h1 class="intro-heading font-2_rem">
+          Onboard
+          <span data-scrolling-text="Consultants,Contractors,Freelancers,Remote Employees">Consultants</span>
+          in 24hrs or less
+        </h1>
+
+        <div class="intro-text">eTyme handles all workflow marketing, sales, hiring, managing and paying temp/contract staff. Your work will flow more quickly and smoothly.</div>
+        <br><br>
+
+        <div class="mobile_content row intro-text" style="padding: 4%;">
+          <h5 class="" style="font-size: 10pt">Get started for free (no coding, no credit card).</h5>
+          <br><br>
+          <div class="col-md-6" style="padding-left: 5%">
+            <img style="padding-left: 5%" width="14%" src="<%= image_path("static/img/business-icon.png") %>" alt=""><b style="color: black; padding-left: 5%"><a href="<%= register_path %>">Business Teams</a></b>
+            <br><br>
+            <div class="mobile_content" style="font-size: 16px;" class="intro-text">For Hiring Managers, Recruiters, Account  Managers, Timesheet Admins, Accountants, Trainers in Staffing.</div>
+          </div>
+          <div class="col-md-6" style="border-left: #a7a8a9 1px solid; padding-left: 5%">
+            <img width="14%" style="padding-left: 5%" src="<%= image_path("static/img/candidate-icon.png") %>" alt=""><b style="color: black; padding-left: 5%"><a href="<%= new_candidate_registration_path %>">Candidates</a></b>
+            <br><br>
+            <div class="mobile_content" style="font-size: 16px;" class="intro-text">Find work, manage, get paid, Build resume along, get reviews and feedback</div>
+            <br>
+          </div>
+        </div>
+
+        <div class="row intro-text desktop_content">
+          <img width="20px" height="19px" src="<%= image_path("static/img/business-icon.png") %>">
+          <b style="color: black; padding-left: 1%"><a href="<%= register_path %>">Business Teams</a></b>&nbsp;
+          |&nbsp;&nbsp;
+          <img width="20px" height="19px" src="<%= image_path("static/img/candidate-icon.png") %>">
+          <b style="color: black; padding-left: 1%"><a href="<%= new_candidate_registration_path %>">Candidates</a></b>
+        </div>
+
+      </div>
+      <div class="intro-media">
+        <div class="shot shot1">
+          <div class="shot-i" style="background-image: url('<%= image_path('homepage/pricing-small.png') %>')">
+          </div>
+        </div>
+        <div class="shot shot2">
+          <div class="shot-i" style="background-image: url('<%= image_path('homepage/sign-up-small.png') %>')">
+          </div>
+        </div>
+        <div class="shot shot3">
+          <div class="shot-i" style="background-image: url('<%= image_path('clean_admin/front/intro_dash.jpg') %>')">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="call-to-action">
+  <h3 class="cta-header font-180_rem">Using a complete, single workflow, manage all the HR for your contract staff.</h3>
+  <div class="cta-desc">eTyme was designed for contract/temp agencies that need to be able to handle the paperwork for dozens to hundreds of employees. It delivers a completely automated HR workflow that includes background checks, reference checks, work authorization, I-9, W-4, e-Verify, and more. Manage schedules, invoice clients, pay contractors, and much more <i>all through a single platform!</i></div>
+
+  <p class="call-to-action-btn-wrapper">
+    <a class="btn btn-primary" href="/register">Yes! I need one powerful platform!</a>
+  </p>
+</div>
+
+<% try_it_now = {icon: 'ti-desktop', label: 'Try It Now', url: '/users/sign_in'} %>
+<% features = [
+  {
+    title: 'Organized from Day one',
+    border_classes: 'b-l',
+    icon: 'ti-bolt',
+    description: "From the moment you get someone’s application, you’re able to manage every aspect of their HR lifecycle. Onboarding to invoicing payroll - one amazing platform."
+  },
+  {
+    title: 'HR Paperwork',
+    border_classes: 'b-l b-t',
+    icon: 'icon-diamond',
+    description: "Keep a full bench of contractors in electronic files, including all required paperwork, background & reference checks, and payroll information."
+  },
+  {
+    title: 'Automated Payment Platform',
+    border_classes: 'b-r b-l b-t',
+    icon: 'icon-credit-card',
+    description: "From invoicing customers to paying contractors, your entire payment system is managed through eTyme. With a single dashboard, you manage your entire payment lifecycle."
+  },
+  {
+    title: 'Total Collaboration',
+    border_classes: 'b-r b-t',
+    icon: 'icon-mailbox',
+    description: "Instant messaging, call automation, bulk notifications, and collaboration platforms, all contained in a single space - eTyme. No need for multiple programs to manage your team."
+  },
+  {
+    title: 'Easy Integrations',
+    border_classes: 'b-r',
+    icon: 'icon-directions',
+    description: "eTyme plays perfectly with all your existing programs and apps, including Quickbooks, Salesforce, and more. Add everything you need with ease."
+  },
+  {
+    title: 'Total Customer Support',
+    border_classes: 'b-l',
+    icon: 'icon-telephone',
+    description: "Our team is available 24 hours a day to answer questions and guide you through all of the thousands of features that eTyme provides."
+  },
+] %>
+
+<div class="section-header-w" id="sectionFeatures">
+  <div class="fade3">
+  </div>
+  <div class="os-container">
+    <div class="section-header">
+      <h5 class="section-sub-title">Moving at the speed of business</h5>
+      <h2 class="section-title font-2_rem">Automated HR Path for Contract Employees</h2>
+      <div class="section-desc"></div>
+    </div>
+  </div>
+</div>
+<div class="features-table">
+  <div class="os-container">
+    <div class="row no-gutters">
+
+      <% features.each do |feature| %>
+      <div class="col-xl-4 col-sm-6 <%= feature[:border_classes] %> feature-cell">
+        <div class="feature-icon">
+          <i class="<%= feature[:icon] %>">
+          </i></div>
+        <h6 class="feature-title"><%= feature[:title] %></h6>
+        <% if feature[:coming] %>
+          <span class="badge badge-primary" style="background-color: #868686; margin-bottom: 10px; text-transform: uppercase;">Coming Soon</span>
+        <% end %>
+        <div class="feature-text"><%= feature[:description] %></div>
+        <% if cta = feature[:cta] %>
+          <div class="bottom-aligned-link">
+          <%= link_to cta[:url], class: 'btn btn-primary', style: 'margin-top: 20px;', target: ('_blank' if cta[:offsite]) do %>
+            <i class="<%= cta[:icon] %>"></i>
+            <span><%= cta[:label] %></span>
+          <% end %>
+          </div>
+        <% end %>
+      </div>
+      <% end %>
+
+    </div>
+  </div>
+</div>
+
+<div style="margin-top: 60px;">
+</div>
+
+<p class="features-btn-wrapper">
+  <a class="btn btn-primary" href="/register">Let's Get Your Business Growing!</a>
+</p>
+
+<div class="display-type">
+</div>

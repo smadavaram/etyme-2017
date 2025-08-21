@@ -1,0 +1,284 @@
+<style>
+.displayprop2{
+    display: block !important;
+}
+.ulmargin{
+    text-align: center;
+}
+</style>
+<div class="top-bar color-scheme-light top-bar-mbl">
+    <div class="top-menu-controls w-100" style="display: flex; justify-content: flex-end;">
+      <div class="new-add-class" id="remove-logo-ham-id">
+        <div class="logged-user-i media-logo-class chat-logo-class" style="" id="click-id">
+            <div style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">
+            <%= link_to image_tag(@current_company.logo, alt: 'me', class: 'img-icon-size'), company_profile_page_companies_path %>
+            </div>
+            <div class="logged-user-info-w">
+            <div class="logged-user-name">
+                <%= link_to content_tag(:span, @current_company&.full_name, class: "lead"), company_profile_page_companies_path, class: "side-bar_links" %>
+            </div>
+            </div>
+        </div>
+        <!--    bread start
+            -->
+        <div class="bread-style bread-styles" style="margin-left:10px !important;" onclick="toglleMenu()">
+            <div class="os-icon os-icon-hamburger-menu-1 bread-style1"></div>
+        </div>
+        <!--    bread end-->
+      </div>
+        <!--    search start-->
+        <div class="element-search autosuggest-search-activator os-dropdown-position-left">
+            <input id="searchmar" class="search-div-style" placeholder="Search In Etyme Marketplace" type="text" style="width:500px; font-size: inherit;">
+        </div>
+        <!--    search end-->
+
+        <!--    add start-->
+
+        <div class="top-icon btn-header transparent pull-right open" id="quick-add" style="margin-bottom: 2px;">
+            <!--        <div  style="width: 51px; height: 51px; position: absolute; left: 8.2%; right: 8.2%; top: 8.2%; bottom: 8.2%; background: #047BF8; box-shadow: 0px 4px 15px rgba(180, 180, 180, 0.25); border-radius: 50px" >-->
+            <i class="ti-plus"></i>
+            <ul class="dropdown-menu project-dropdown " id="links_block" style=" background-color:#047bf8 ; color: white; right: 120px !important; left: initial;">
+                <%=render('company/shared/links_block') %>
+            </ul>
+        </div>
+        <!--    add end-->
+
+        <!--    notification start -->    
+        <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
+            <a href="<%= notify_notifications_company_users_path(status: "unread", notification_type: "all_notifications") %>"><i class="ti-bell notification-icon" style="font-weight: bold;"></i></a>
+            <% if @current_user.notifications.unread.count > 0 %>
+                <div class="new-messages-count"><%= @current_user.notifications.unread.count %></div>
+            <% end %>
+        </div>
+        <!--    notification end -->
+
+        <!--    chat start-->
+            <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left">
+                <a href="<%= company_conversations_path %>" target="_blank"><i class="os-icon chat-icon os-icon-mail-14 " style=""></i></a>
+            </div>
+        <!--    chat end-->
+
+        <!--    add apps-->
+            <div class="top-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+                <span class="material-symbols-outlined" style="margin-top: 14px; font-size: 26px;">
+                    apps
+                </span>
+                <div class="os-dropdown">
+                  
+                  <ul>
+                    <li>
+                    <%= link_to 'Settings', company_path(@current_company), class: 'dropdown-item'%>
+                    </li>
+                    <li>
+                        <%= link_to 'Dashboard', "/dashboard", class: 'dropdown-item'%>
+                    </li>
+                    <li>
+                        <%= link_to '<span>My Site</span>'.html_safe, root_path, target: '_blank'%>
+                    </li>
+                    <li>
+                        <%= link_to '<span>Marketplace</span>'.html_safe, root_url(subdomain: 'app'), target: '_blank'%>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+        <!--    add apps-->
+        
+        <!--------------------END - Features Link in secondary top menu-------------------->
+        <!--------------------START - User Link in secondary top menu-------------------->
+        <div class="top-icon mobile-user-icon top-settings os-dropdown-trigger os-dropdown-position-left">
+            <div class="logged-user-w" style="padding: 0px !important;">
+                <div class="logged-user-i">
+                    <div class="div-style-8">
+                        <%= user_image(@current_user, style: '')%>
+                    </div>
+                    <div class=" os-dropdown">
+                        <div class="icon-w">
+                            <i class=""></i>
+                        </div>
+                        <ul>
+                            <li>
+                                <a href="<%= company_user_profile_page_companies_path %>">
+                                    <i class="icon-user"></i>
+                                    <span>My Profile</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="<%= company_phone_page_companies_path(:company_id => @current_company.id) %>">
+                                    <i class="icon-screen-smartphone"></i>
+                                    <span>Verify Number</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="<%= company_path(@current_company) %>">
+                                    <i class="picons-thin-icon-thin-0398_presentation_powerpoint_keynote_meeting"></i>
+                                    <span>Company Setting</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="<%= company_path(@current_company,onboarding: true) %>">
+                                    <i class="picons-thin-icon-thin-0398_presentation_powerpoint_keynote_meeting"></i>
+                                    <span>Company Onboarding</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="<%= company_user_path(@current_user) %>">
+                                    <i class="icon-user-female"></i>
+                                    <span>Profile Setting</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="<%= company_import_job_path %>">
+                                    <i class="dripicons-list"></i>
+                                    <span>Import Data</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="<%= contacts_path %>">
+                                    <i class="dripicons-list"></i>
+                                    <span>Import Contacts</span>
+                                </a>
+                            </li>
+                            <li>
+                                <a href="<%= feed_feeds_path %>">
+                                    <i class="icon-directions"></i>
+                                    <span>Integrations</span>
+                                </a>
+                            </li>  
+                            <li>
+                                <a href="<%= new_charge_path %>">
+                                    <i class="os-icon os-icon-grid-10"></i>
+                                    <span>Billing Info</span>
+                                </a>
+                            </li>
+                            <li>
+                             <div>
+                                <a href="#" class="onlinebutton" id="clickbuttonli">
+                                    <i class=" fa fa-signal"></i>
+                                    <span id="removetextuser"><%= @current_user.online_user_status %></span>
+                                </a>
+                                <div class="" id="subdrop" style="display: none;">
+                                    <ul class="ulmargin" >
+                                        <li class="onoffline">in_a_meeting</li>
+                                        <li class="onoffline">online</li>
+                                        <li class="onoffline">onway</li>
+                                        <li class="onoffline">offline</li>
+                                    </ul>
+                                </div>
+                             </div>
+                            </li>
+                            <li>
+                                <%= link_to "", destroy_user_session_path, method: :delete, class: 'hidden', id: 'logout-hidden' %>
+                                <%= link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do %>
+                                <i class="os-icon os-icon-signs-11"></i>
+                                <span>Logout</span>
+                                <% end %>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!--------------------END - User Link in secondary top menu-------------------->
+    </div>
+    <!--------------------END - Top Menu Controls-------------------->
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script type="text/javascript">
+  $("#searchmar").on("keyup",function(){
+    search_qu = event.target.value
+    mydomainurl = window.location.hostname
+    var keycode = (event.keyCode ? event.keyCode : event.which);
+    if(keycode == '13'){
+       location.href = `/marketplace?utf8=%E2%9C%93&search_by%5Bterm%5D=${search_qu}&company=on`
+    }
+});
+$(document).ready(function(){
+
+  $('#clickbuttonli').on("click", function(){
+    $("#subdrop").toggleClass('displayprop2');
+  });
+});
+
+//  function searcmarket(event){
+//     mydomainurl = window.location.hostname
+//     search_qu = event.target.value
+//     var keycode = (event.keyCode ? event.keyCode : event.which);
+//     if(keycode == '13'){
+//         alert('You pressed a "enter" key in textbox');  
+//     }
+//     if(search_qu != 'undefined' && search_qu != ''){
+//       location.href = `/marketplace?utf8=%E2%9C%93&search_by%5Bterm%5D=${search_qu}&company=on`
+//     }
+// };
+
+// $("#searchmar").on("keyup",function(){
+//     debugger
+//     search_qu = event.target.value
+//     mydomainurl = window.location.hostname
+//     var keycode = (event.keyCode ? event.keyCode : event.which);
+//     if(keycode == '13'){
+//        location.href = `/marketplace?utf8=%E2%9C%93&search_by%5Bterm%5D=${search_qu}&company=on`
+//     }
+// });
+
+
+
+</script>
+<style type="text/css">
+  .ti-plus{
+    font-weight: 900;
+  }
+  .div-style-1, .div-style-3, .div-style-5{
+    width: 38px;
+    height: 38px;
+  }
+  .div-style-2, .div-style-4{
+    left: 15.2%;
+    right: 8.2%;
+    top: 14.2%;
+    bottom: 8.2%;
+    width: 27px;
+    height: 27px;
+  }
+  /* .top-bar .top-menu-controls{
+    margin-top: 21px;
+  } */
+  .top-bar-mbl{
+    /* height: 7vh; */
+    z-index: 100
+  }
+  /* @media screen and (max-width: 767px) {
+    .top-bar-mbl{
+        height: 9vh;
+    }
+  } */
+  #quick-add{
+    margin-top: 2px;
+  }
+  .search-div-style{
+    height: 34px;
+  }
+  .circle{
+    margin-top: 17px;
+    width: 32px !important;
+    height: 32px !important;
+  }
+  <% if params["controller"] == "company/conversations"%>
+    .company-div-style-7 {
+      width: 38px !important;
+      height: 38px !important;
+      margin-top: 13px;
+    }
+  <%else%>
+    .company-div-style-7 {
+      width: 38px !important;
+      height: 38px !important;
+    }
+  <%end%>
+  .avatar_circle, .circle{
+    margin-top: 0px;
+    width: 24px !important;
+    height: 24px !important;
+  }
+</style>

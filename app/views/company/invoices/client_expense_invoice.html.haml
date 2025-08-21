@@ -1,0 +1,29 @@
+= render 'company/invoices/partials/invoice_header', invoice: @invoice
+- if [:pending_invoice, :open].include?(@invoice.status.to_sym)
+  = form_for @invoice,url: update_expense_invoice_invoice_path, method: :post do |f|
+    .table-responsive.p-4
+      %b.mb-1 Add Expense(s)
+      %table.table.table-striped.table-bordered.table-v2.table-lg
+        %thead
+          %tr
+            %th= "<input type='checkbox' name='select_all' id='ts_select_all'>".html_safe
+            %th Exp ID
+            %th Exp Type
+            %th Contract ID & Title - Client
+            %th Customer
+            %th Status
+            %th From & To Date
+            %th Total Price
+        %tbody
+          - @client_expenses.each do |ce|
+            %tr
+              %td= "<input type='checkbox' id='ts_ids' name='ids[]' value='#{ce.id}'>".html_safe
+              %td= ce.id
+              %td= ce.expense_items.pluck(:expense_type).join(",")
+              %td= ce.contract.title
+              %td= user_image(ce.company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{ce.company.full_name}" )
+              %td= snake_to_words(ce.status)
+              %td= "#{ce.start_date} - #{ce.end_date}"
+              %td= ce.amount
+      = f.submit 'Add Expense', class: 'btn btn-primary pull-right'
+

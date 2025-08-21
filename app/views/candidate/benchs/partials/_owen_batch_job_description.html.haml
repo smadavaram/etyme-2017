@@ -1,0 +1,38 @@
+%h2
+  job details
+.job-info
+  .job-title
+    %div.job-header.clearfix
+      = user_image(@job.company,  style:"width:50px;height:50px", fit: 'clip')
+      %p.job_title
+        = @job.title
+      %p.job_title
+        %i.fa.fa-usd
+        =@job.price
+    .job-location
+      %span
+        %i.fa.fa-map-marker
+        = @job.location
+      %span
+        %i.fa.fa-user
+        =@job.created_by&.full_name
+  .job-description
+    .job-info
+      %strong
+        Description
+      %span
+        = @job.description.html_safe
+    .job-info
+      %strong
+        Skill
+      %span
+        %ul
+          -@job.tag_list.each do |tl|
+            %li=tl
+    .job-info
+      %strong
+        Educatio
+      %span
+        %ul
+          -@job.education_list.each do |el|
+            %li=el

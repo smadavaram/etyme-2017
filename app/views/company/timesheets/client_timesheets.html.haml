@@ -1,0 +1,82 @@
+.row.mb-4.w-100
+  %ul.nav.nav-tabs.w-100.mt-3{style: "border-bottom: none;"}
+    %li.nav-item.ml-3
+      %a{class: "nav-link fd upcomming_timesheets #{ "active" if @tab.eql?("upcomming_timesheets") }", href:'#', onclick: "time_line_filter('upcomming_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} Upcomming
+    %li.nav-item
+      %a{class: "nav-link fd submitted_timesheets #{ "active" if @tab.eql?("submitted_timesheets") } ",href:'#', onclick: "time_line_filter('submitted_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} Submitted
+    %li.nav-item
+      %a{class: "nav-link fd approved_timesheets #{ "active" if @tab.eql?("approved_timesheets") } ", href:'#', onclick: "time_line_filter('approved_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} Approved
+    %li.nav-item
+      %a{class: "nav-link fd open_timesheets #{ "active" if @tab.eql?("open_timesheets") } ", href:'#', onclick: "time_line_filter('open_timesheets','.select-time-cycle','.select-contract')","data-toggle" => "tab"} All
+    %li.nav-item.mt-2{style: "margin-left: auto;"}
+      %select.select-contract
+        %option{value: 'all'} Select Contract
+        -@contracts.each do |t|
+          %option{value: t.id}= t.project_name
+      %select.select-time-cycle{disabled:"disabled"}
+        %option{value: 'all'} Select Cycle
+
+      -#%select.cycle-type
+      -#  %option{value: false} Select Cycle Type
+      -#  %option{value: 'weekly'} Weekly
+      -#  %option{value: 'daily'} Daily
+      -#  %option{value: 'monthly'} Monthly
+      -#  %option{value: 'twice a month'} Twice A Month
+      -#  %option{value: 'biweekly'} Twice A Week
+
+.row
+  .col-sm-12.submit_ts_hidden.hidden
+    .col-sm-5.float-right
+      .file_selector{style: "display: flex;"}
+        .form-group.d-inline-block
+          = link_to 'Submit TimeSheet','#',class:'btn btn-primary submit_link', style: "border-radius: 0; height:38px; padding:10px 8px;"
+        %p.d-inline-block.uploaded_file_name= "dd/mm/yyyy - dd/mm/yyyy"
+
+.row
+  .timesheet_table.margin-auto
+
+#timesheet_calendar.p-4
+
+
+-events = []
+-@timesheets.each{|ts|  ts.transactions.each{|tt| events << {allDay: true,status: ts.status ,description: 'timesheet transaction',title: "Transaction-#{tt.id}",id: tt.id, total_time: tt.total_time, timesheet_id:tt.timesheet_id, start: tt.start_time.strftime("%Y-%m-%d")} }}
+
+- content_for :scripts do
+  :javascript
+
+    $(document).ready(function() {
+      pageSetUp();
+      default_active_nav('.ln-8');
+      var e=JSON.parse("#{ escape_javascript(render(inline: events.to_json))}");
+      let startCelandar = "#{ j render(inline: (@timesheets.first.present? ? @timesheets.first&.start_date.to_s : DateTime.now.beginning_of_month.strftime('%Y-%m-%d'))) }";
+      let endCelandar = "#{ j render(inline: (@timesheets.last.present? ? @timesheets.last&.end_date.to_s : DateTime.now.end_of_month.strftime('%Y-%m-%d'))) }";
+      $('#timesheet_calendar').fullCalendar({
+        dayNamesShort: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+        selectable: false,
+        height: "auto",
+        header: {center: 'dayGridMonth,timeGridWeek'}, // buttons for switching between views
+        views: {
+          dayGridMonth: { // name of view
+            titleFormat: {year: 'numeric', month: '2-digit'}
+                  // other view-specific options here
+          }
+        },
+        events: e,
+        eventRender: function (info, event, el, view) {
+          event[0].removeChild(event[0].firstChild);
+          let inputDisabled = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}'  onchange="handle_input(this,'company')" value='${info.total_time}' disabled='disabled' style='width: -moz-available;width: -webkit-fill-available;' />`
+          let input = `<input name='${info.title}' data-transaction='${info.id}'  data-timesheet='${info.timesheet_id}' onchange="handle_input(this,'company')" value='${info.total_time}' style='width: -moz-available;width: -webkit-fill-available;' />`
+          let today = moment();
+          let transactionDay = moment(info.start);
+          if(today < transactionDay || [ "submitted", "approved", "partially_approved", "rejected", "invoiced"].includes(info.status)){
+            event.append(inputDisabled)
+          }else{
+            event.append(input)
+          }
+        },
+        selectConstraint: {
+          start: $.fullCalendar.moment(startCelandar),
+          end: $.fullCalendar.moment(endCelandar)
+        }
+      });
+    });

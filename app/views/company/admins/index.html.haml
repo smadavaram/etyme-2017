@@ -1,0 +1,85 @@
+.content-box
+  .element-wrapper
+    .element-box
+      = render partial: 'company/companies/sub_menu_company'
+      .content-i
+        .content-box
+          .row
+            .col-sm-12
+              .element-wrapper
+                .element-box-tp
+                  .controls-above-table
+                    .row.mr-1.ml-1
+                      .col-sm-6
+                        =link_to 'Add User' , new_company_company_path , local: true , class: 'btn btn-primary', target: '_blank'
+                      .col-sm-6
+                        .form-inline.justify-content-sm-end
+                          %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'company_admin_search'}
+                  .table-responsive
+                    %table#company_admin.table.table-striped.table-bordered.dataTable
+                      %thead
+                        %tr{:role => "row"}
+                          %th{"data-hide" => "phone"} Name
+                          %th Phone Number
+                          %th Email
+                          %th Roles
+                          %th{"data-hide" => "phone,tablet"}
+                            Actions
+                      %tbody
+                        - @admins.each_with_index do |admin , index|
+                          %tr
+                            %td= link_to admin.full_name , company_user_profile_path(admin)  , target: '_blank'
+                            %td= admin.phone
+                            %td= link_to admin.email, company_user_profile_path(admin)  , target: '_blank'
+                            %td= admin.roles.map(&:name).join(", ").gsub("_"," ").upcase
+                            %td.no-wrap
+                              = link_to raw("<i class='fa fa-bell-o '></i>"),company_company_add_reminder_path(admin)  ,class: 'data-table-icons', remote: :true,title: "Remind Me",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-edit '></i>") , edit_admin_path(admin) , class: 'data-table-icons' ,remote: true,title: "Edit #{admin.full_name}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-users '></i>"), company_user_assign_groups_path(admin) , remote:true,class: 'data-table-icons',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              / = link_to raw("<i class='fa fa-trash '></i>"), company_user_path(admin) ,class: 'data-table-icons',title: "Manage Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top", :method=>:delete
+                              -if admin.roles.where(name: "Manager").present?
+                                = link_to raw("<i class='os-icon os-icon-users'></i>"), admin_add_member_path(admin) ,class: 'data-table-icons',title: "Add Team Member",'data-toggle'=>"tooltip" ,'data-placement'=>"top", remote: true
+                              -#= link_to raw("<i class='fa fa-times '></i>") , admin_path(admin) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' ,title: "Delete #{admin.full_name}" ,data: {confirm: 'Are you sure?', verify: 'Confirm', verify_text: 'Type "Confirm" to confirm'}
+                    - if @admins.count >15
+                      .dt-toolbar-footer
+                        =  digg_pagination(@admins)
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+  .digg_pagination
+  {
+    background-color: #fafafa !important;
+  }
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+     pageSetUp();
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
+            }
+
+        });
+
+      // Apply the filter
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+            .column( $(this).parent().index()+':visible' )
+            .search( this.value )
+            .draw();
+
+      } );
+
+    });
+

@@ -1,0 +1,31 @@
+#content
+  #wid-id-5.no-border.jarviswidget
+    %div
+      .widget-body
+        %ul#myTab1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
+          %li.nav-item.cumstom_nav-tab.active
+            %a{"data-toggle" => "tab", :href => "#tab-r1",class: "nav-link cumstom_nav-tab display-flex"}
+              %span.badge.bg-color-blue.txt-color-white
+              Sent Invitation(s)
+              %span.badge.bg-color-blue.txt-color-white= @vendors.count
+          %li.nav-item.cumstom_nav-tab
+            %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
+              %span.badge.bg-color-blueDark.txt-color-white
+              Received Invitation(s)
+              %span.badge.bg-color-blueDark.txt-color-white= @recived_vendors.count
+        .col-md-12
+          .tab-content
+            #tab-r1.tab-pane.padding-top-15.active.in
+              = render 'company/prefer_vendors/partials/send_request' , data: @vendors
+            #tab-r2.tab-pane.padding-top-15
+              = render 'company/prefer_vendors/partials/received_request' , data: @recived_vendors
+
+- content_for :modals do
+  #job_invitation
+  = render 'company/prefer_vendors/partials/new_vendor'
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function(){
+      default_active_nav('.ln-4');
+    })

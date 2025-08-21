@@ -1,0 +1,38 @@
+= form_for [job,job.job_invitations.new] , url: create_multiple_job_job_invitations_path(job),html:{ class:'form-horizontal',id: 'vendor-val'} do |f|
+  = f.hidden_field :job_id , value: job.id
+  -#= f.hidden_field :recipient_type , value: 'User'
+  -#= f.hidden_field :invitation_type , value: 'vendor'
+  %br
+  .form-group.pb-4
+    %label.col-md-2.control-label
+      Select Vendor
+      %sup.text-danger *
+    .col-md-10
+      = select_tag 'vendor_company', options_for_select(companies.collect { |company|[company.name.titleize, company.id] }) ,class: 'form-control' , required: true, multiple: true
+  .form-group.pb-4
+    %label.row-lg-4.pl-2.control-label
+      Select Groups
+    .col-md-10
+      = select_tag 'vendor_groups', options_for_select(groups.uniq.collect { |group| [group.group_name,group.id] }), prompt: "Select Group", class: 'form-control', multiple: true
+  -#.row
+  -#  .col-md-12
+  -#    .form-group
+  -#      = f.select :recipient_id,{} ,{include_blank: 'Select a Employee'},id: 'user_select' , class: "form-control" , required: 'required', placeholder: "Select something"
+  .form-group.pb-2
+    %label.col-md-2.control-label
+      Expiry Date
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date"
+
+  .form-group
+    %label.col-md-2.control-label
+      Message
+      %sup.text-danger
+    .col-md-10
+      = f.text_area :message ,class: "form-control" ,row: '3' , placeholder: "Enter Description"
+  .modal-footer
+    -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+    %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+      Cancel
+    = f.button "Send".html_safe, data: {disable_with: disable_spinning("Sending...")} , class: 'btn btn-primary btn-sm'

@@ -1,0 +1,58 @@
+#content
+  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+    %div
+      .jarviswidget-editbox
+      .widget-body
+        .tab-content
+          #tab-r2.tab-pane.active
+            #hb22.tab-pane.active
+            %ul#internal-tab-2.nav.nav-tabs.smaller
+              %li.nav-item.cumstom_nav-tab
+                %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-6", class: "nav-link cumstom_nav-tab display-flex"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Hired
+              %li.nav-item.cumstom_nav-tab
+                %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-5", class: "nav-link cumstom_nav-tab display-flex"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Interviewing
+              %li.nav-item.cumstom_nav-tab
+                %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-4", class: "nav-link cumstom_nav-tab display-flex"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Rejected
+              %li.nav-item.cumstom_nav-tab
+                %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-3", class: "nav-link cumstom_nav-tab display-flex"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Short Listed
+              %li.nav-item.cumstom_nav-tab
+                %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is-2", class: "nav-link cumstom_nav-tab display-flex"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  Pending
+              %li.active.nav-item.cumstom_nav-tab
+                %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is-1", class: "nav-link cumstom_nav-tab display-flex"}
+                  %span.badge.bg-color-blue.txt-color-white
+                  All
+            .tab-content.padding-10
+              #is-6.tab-pane
+                = render  'candidate/job_applications/partials/application_table' ,data: @job_applications.hired,id: 1
+              #is-5.tab-pane
+                = render 'candidate/job_applications/partials/application_table' ,data: @job_applications.interviewing,id: 2
+              #is-4.tab-pane
+                = render  'candidate/job_applications/partials/application_table' ,data: @job_applications.rejected,id: 3
+              #is-3.tab-pane
+                = render 'candidate/job_applications/partials/application_table' ,data: @job_applications.short_listed,id: 4
+              #is-2.tab-pane.fade
+                = render 'candidate/job_applications/partials/application_table' , data: @job_applications.pending_review,id: 5
+              #is-1.tab-pane.fade.active.in
+                = render 'candidate/job_applications/partials/application_table' , data: @job_applications,id: 6
+- content_for :modals do
+  #job_invitation
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+    $(document).ready(function() {
+    $('.sub-tab a[href="' + localStorage.getItem('subActiveTab') + '"]').tab('show');
+    });
+    $('.sub-tab').on('show.bs.tab', function(e) {
+      localStorage.setItem('subActiveTab', $(e.target).attr('href'));
+    });

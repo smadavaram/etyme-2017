@@ -1,0 +1,17 @@
+%h4.auth-header Forget Password
+= form_for(resource, as: resource_name, url: password_path(resource_name), html: {id: 'forgot-password-form', class: '',method: :post }) do |f|
+  = devise_error_messages!
+  - flash.each do |key, value|
+    %div{class: " #{flash_class(key.to_sym) }"}
+      = value
+  .form-group.field-group
+    %label{:for => "user_email"} Email
+    = f.email_field :email, autofocus: true,class:'form-control field',placeholder:"Enter Email",required: true
+    .help-block.form-text.with-errors.form-control-feedback
+    .pre-icon.os-icon.os-icon-email-2-at2
+  = recaptcha_tags
+  = f.submit 'Reset Password',class:'form-btn btn btn-primary mt-2'
+
+-content_for :scripts do
+  :javascript
+    $('#forgot-password-form').validate();

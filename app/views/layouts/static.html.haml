@@ -1,0 +1,84 @@
+!!!
+%html{:id => "#{yield :html_id}"}
+  %head
+    %meta{:content=> "width=device-width, initial-scale=1", :name=>"viewport" }/
+    %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %meta{:content => "#{user_signed_in? ? current_user.id : ''}", :name => "user-id"}
+    %meta{:content => "#{user_signed_in? ? current_user.class.to_s == "Candidate" ? "Candidate" : "User" : ''}", :name => "user-type"}
+
+    -#%meta{content: "Etyme", property: "og:title"}/
+    -#%meta{content: "#{request.original_url}", property: "og:url"}/
+    -#%meta{content: "website", property: "og:type"}/
+    -#%meta{content: "cloudepa.etyme.com", property: "og:site_name"}/
+    -#%meta{content: "Etymw", property: "og:description"}/
+
+    %meta{content: "#{meta_title}", property: "og:title", name:"twitter:title"}/
+    %meta{content: "#{meta_url}", property: "og:url"}/
+    %meta{content: "website", property: "og:type"}/
+    %meta{content: "Etyme", property: "og:site_name"}/
+    %meta{content: "#{meta_description}", property: "og:description"}/
+    %meta{content: "#{meta_image}", property: "og:image"}/
+    %meta{content: "summary", property: "twitter:card"}/
+    :javascript
+      (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
+    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'} :cdata
+    %title Etyme
+    = stylesheet_link_tag    'static'
+    = action_cable_meta_tag
+    = javascript_include_tag 'https://platform-api.sharethis.com/js/sharethis.js#property=5899b27937570f0011ac3636&product=inline-share-buttons'
+    = javascript_include_tag 'application'
+
+    = csrf_meta_tags
+    = yield :head
+
+  %body.p-0{class: "#{yield :body_class}"}
+
+    .all-wrapper
+      = render 'static/shared/header'
+      .modals
+      #modals
+      = yield
+      = render 'static/shared/footer'
+    = javascript_include_tag 'static'
+    %script{ type: 'text/javascript', src: 'https://www.uploader.win/js/latest/app.js' }
+    -#= tinymce_assets
+    = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+  = render 'shared/flash_messages'
+
+:css
+  .error{
+    color: red;
+    float: left;
+  }
+  .alert-error{
+    color: #1D2026;
+    background-color: #F76523;
+    border-color: #bce8f1;
+  }
+  .modal-dialog {
+  width: 40% !important;
+  height: 50%;
+  margin: 0;
+  padding: 0;
+  float: left;
+  position: relative;
+  left: 30%;
+  }
+  .modal-header
+  {
+    padding: 7px !important;
+  }
+
+  .modal-content {
+    height: auto;
+    min-height: 100%;
+    border-radius: 0;
+    padding: 5px !important;
+  }
+
+:javascript
+  $(document).ready(function(){
+    $(window).scrollTop(0);
+  });
+
+

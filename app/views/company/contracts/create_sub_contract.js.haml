@@ -1,0 +1,5 @@
+-if flash[:errors].present?
+  - flash[:errors].each do |e|
+    flash_error("#{e}");
+- else
+  $('#sub_contract_toggle').html("#{ j render 'company/contracts/partials/create_form' ,  contract: @sub_contract , job: @job , job_application: []})");

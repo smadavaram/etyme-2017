@@ -1,0 +1,36 @@
+%h4.auth-header Sign In
+= form_for(resource, as: resource_name, url: session_path(resource_name), html: {id: 'login-form', class: '',role:'form'}) do |f|
+  - flash.each do |key, value|
+    = flash_message(key,value)
+  .form-group.field-group
+    %label{:for => "user_email"} Email
+    = f.email_field :email, autofocus: true,class:'form-control field',placeholder:"Enter Email" ,required: true
+    .help-block.form-text.with-errors.form-control-feedback
+      %a{:href => "#{new_candidate_registration_path}"} Don't have an account?
+    .pre-icon.os-icon.os-icon-email-2-at2
+  .form-group.field-group
+    %label{:for => "user_password"} Password
+    = f.password_field :password, autocomplete: "off",class:'form-control field',placeholder:"Enter password" , required: true
+    .help-block.form-text.with-errors.form-control-feedback
+      = link_to 'Forgot password?', new_candidate_password_path ,class: "more-link"
+    .help-block.form-text.with-errors.form-control-feedback
+      = link_to 'Sign in as business user?', signin_path, class: "more-link"
+    .pre-icon.os-icon.os-icon-fingerprint
+  .field-group
+    = recaptcha_tags
+    %input.btn.btn-primary.float{"data-disable-with" => "Sign In", :name => "commit", :type => "submit", :value => "Sign In", :class => "mt-2"}/
+    .form-check-inline
+      %label.form-check-label
+    .buttons-w.mt-4
+    -# = link_to '/auth/google_oauth2?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    -#   %i.ti-google
+    -#   Sign in with Google
+    -# = link_to '/auth/facebook?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    -#   %i.ti-facebook
+    -#   Sign in with Facebook
+    -# = link_to '/auth/linkedin?kind=candidate', method: :post, id: 'sign_in_with_facebook', class: 'minumum-width btn btn-primary mt-2' do
+    -#   %i.ti-linkedin
+    -#   Sign in with Linkedin
+
+- content_for :scripts do
+  :javascript

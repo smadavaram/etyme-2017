@@ -1,0 +1,231 @@
+<label class="toggle" for="toggle"></label>
+<div class="mx-2 mb-md-0 login-btns text-right d-flex justify-content-around" style="font-size: 24px;">
+  <% if current_candidate.present? %>
+    <%  cc = current_candidate.candidate_company(current_company&.id) %>
+
+    <% if request.subdomain!='app'%>
+      <div class="dropdown dropdown-container d-flex justify-content-end">
+        <% if cc.nil? || cc&.unsubscribed? %>
+          <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="alert('Subscribe to this space first')">
+            <i class="fa fa-plus-circle" aria-hidden="true"></i>
+          </button>
+        <% else  %>
+          <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true" style="margin-bottom: 5px;">
+            <i class="fa fa-plus-circle" aria-hidden="true"></i>
+          </button>
+        <% end  %>
+
+        <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
+          <button class="btn btn-ask-a-question text-left" data-toggle="modal" data-target="#feedPostModal" style="margin-left: 12px;">
+            Add Post
+          </button>
+          <button class="btn btn-ask-a-question text-left" data-toggle="modal" data-target="#feedPostJobModal" style="margin-left: 12px;">
+            Add Job
+          </button>
+
+          <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/candidates/new" %>" target="_blank">Add Candidate</a>
+          <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/companies/new"%>" target="_blank">Invite Business</a>
+        </ul>
+      </div>
+      <!--  subscribe-->
+      <div>
+
+        <% if cc %>
+          <% if cc.unsubscribed? %>
+          <a href="<%= candidate_subscribe_path(company_id:current_company&.id) %>"
+            class="btn orange_btn filter6" data-method="post" >Subscribe</a>
+          <% end %>
+          <% else %>
+          <a href="<%= candidate_subscribe_path(company_id:current_company&.id) %>"
+            class="btn orange_btn filter6" data-method="post" >Subscribe</a>
+        <% end %>
+      </div>
+    <% end %>
+    <div class="dropdown">
+      <button class="dropdown-login dropdown-toggle" style="width: 45px" type="button" data-toggle="dropdown">  
+        <span class="material-symbols-outlined" style="margin-right: 10px; font-size: 28px; margin-top: 5px;">
+          apps
+        </span>
+      </button>
+      <div class="dropdown-menu">
+        <%= link_to 'Dashboard', candidate_candidate_dashboard_url(subdomain: 'app'), class: 'dropdown-item'%>
+        <%= link_to 'Onboarding', onboarding_profile_url(subdomain: 'app'), class: 'dropdown-item'%>
+        <%= link_to 'Marketplace', root_url(subdomain: 'app'), class: 'dropdown-item'%>
+      </div>
+    </div>
+    <div class="d-inline-block mx-1 dropdown">
+
+      <div class="avatar-header" data-toggle="dropdown">
+        <div class="webflow-avatar-32-32">
+          <%= user_avatar(current_candidate) %>
+        </div>
+
+        <div class="avatar-button">
+          <%= image_tag(image_path('avatar-arrow-down.svg')) %>
+        </div>
+      </div>
+      <div class="dropdown-menu">
+        <%= link_to 'Profile', my_profile_url, class: 'dropdown-item' %>
+        <% if current_candidate.candidate_company(current_company&.id) %>
+          <% if cc.subscribed?%>
+            <%= link_to 'unsubscribe',
+                        candidate_unsubscribe_path(company_id:current_company&.id),
+                        class: 'dropdown-item' , method: :post %>
+            <% end %>
+          <% end %>
+        <%= link_to "Logout", destroy_candidate_session_path, method: :delete, class: 'dropdown-item' %>
+      </div>
+    </div>
+
+  <% elsif current_user.present? %>
+    <%  company_contact = current_user.user_company(current_company&.id) %>
+
+    <% if request.subdomain!='app'%>
+      <!--    subscribed-->
+      <div>
+        <%# unless current_user.company.domain == "support" %>
+          <% if company_contact %>
+            <% if company_contact.unsubscribed? %>
+              <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
+                class="btn orange_btn filter6" data-method="post" >Subscribe</a>
+            <% end %>
+          <% else %>
+            <a href="<%= users_subscribe_path(company_id:current_company&.id) %>"
+              class="btn orange_btn filter6" data-method="post" >Subscribe</a>
+          <% end %>
+        <%# end %>
+
+      </div>
+      <div class="dropdown dropdown-container d-flex justify-content-end">
+        <!--      TOOD: if company_contact is nill or unsubscribed user must subscribe-->
+          <% if company_contact.nil? || company_contact&.unsubscribed? %>
+              <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" onclick="alert('Subscribe to this space first')">
+                <span style="color: #585858; font-size: 40px" aria-hidden="true">+</span>
+              </button>
+
+          <% else  %>
+            <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true" style="margin-bottom: 5px;">
+              <span style="color: #585858; font-size: 40px" aria-hidden="true">+</span>
+            </button>
+          <% end  %>
+
+          <ul class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
+            <button class="btn btn-ask-a-question text-left" data-toggle="modal" data-target="#feedPostModal" style="margin-left: 12px;">
+              Add Post
+            </button>
+            <button class="btn btn-ask-a-question text-left" data-toggle="modal" data-target="#feedPostJobModal" style="margin-left: 12px;">
+              Add Job
+            </button>
+
+            <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/candidates/new" %>" target="_blank">Add Candidate</a>
+            <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/companies/new" %>" target="_blank">Invite Business</a>
+          </ul>
+      </div>
+    <% else %>
+      <button class="dropdown-toggle dropdown-sort job-feed-plus-icon" id="dropdownMenuPost" data-toggle="dropdown" aria-haspopup="true" aria-expanded="true" style="margin-bottom: 7px;">
+        <span style="color: #585858; font-size: 40px" aria-hidden="true">+</span>
+      </button>
+
+      <div class="list-unstyled dropdown-menu dropdown-content-right px-0 py-2" id="main_feed_id" aria-labelledby="dropdownMenuPost">
+        <button class="btn btn-ask-a-question text-left" data-toggle="modal" data-target="#feedPostJobModal" style="margin-left: 12px;">
+          Add Job
+        </button>
+
+        <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/candidates/new" %>" target="_blank">Add Candidate</a>
+        <a class="dropdown-item text-left" href="<%= root_url(subdomain: (current_user&.company&.domain)) + "company/companies/new" %>" target="_blank">Invite Business</a>
+      </div>
+    <% end %>
+    <div class="messages-notifications os-dropdown-trigger os-dropdown-position-left d-inline-block mx-1">
+        <a href="<%= notify_notifications_company_users_url(status: "unread", notification_type: "all_notifications", subdomain: (current_user&.company&.domain)) %>" style="padding-right:10px; color: #585858; text-decoration: none; background-color: transparent;"><i class="ti-bell notification-icon" style="font-weight: bold;"></i></a>
+        <% if current_user.notifications.unread.count > 0 %>
+            <div class="new-messages-count" style="background-color: #e65252; color: #fff; border-radius: 6px; font-weight: 500; position: absolute; top: -5px; right: 5px; padding: 4px 4px; vertical-align: middle; font-size: 0.72rem; line-height: 1;">
+              <%= current_user.notifications.unread.count %>
+            </div>
+        <% end %>
+    </div>
+    <div>
+      <div class="os-dropdown-position-left d-inline-block mx-1">
+        <a href="<%= company_conversations_url(subdomain: (current_user&.company&.domain)) %>" target="_blank" style="color: #585858; text-decoration: none; background-color: transparent;"><i class="os-icon chat-icon os-icon-mail-14 " style=""></i></a>
+      </div>
+    </div>
+    <div class="dropdown">
+      <button class="dropdown-login dropdown-toggle" style="width: 45px" type="button" data-toggle="dropdown">  
+        <span class="material-symbols-outlined" style="margin-right: 10px; font-size: 28px; margin-top: 5px;">
+          apps
+        </span>
+      </button>
+      <div class="dropdown-menu">
+        <%# <%= link_to '<i class="fa fa-user mx-3"></i>'.html_safe, white_labled_company_user_url(current_user, current_company, request), title: 'Profile', style: "color:#5555A5"%>
+        <%= link_to 'Settings', company_path(current_user.company.id, subdomain: (current_user&.company&.domain)), class: 'dropdown-item'%>
+        <%= link_to 'Dashboard', white_labled_dashboard_url(current_user, current_company, request), class: 'dropdown-item'%>
+        <%= link_to 'My Site', root_url(subdomain: (current_user&.company&.domain or 'app')), class: 'dropdown-item'%>
+        <%= link_to 'Marketplace', root_url(subdomain: 'app'), class: 'dropdown-item'%>
+      </div>
+    </div>
+    <div class="d-inline-block mx-1 dropdown">
+      <div class="avatar-header" data-toggle="dropdown">
+        <div class="webflow-avatar-32-32">
+          <%= user_avatar(current_user) %>
+        </div>
+        <div class="avatar-button">
+          <%= image_tag(image_path('avatar-arrow-down.svg')) %>
+        </div>
+      </div>
+      <div class="dropdown-menu">
+        <%= link_to 'Profile', white_labled_company_user_url(current_user, current_company, request), class: 'dropdown-item' %>
+        <%# unless current_user.company.domain == "support" %>
+        <% if company_contact&.subscribed?%>
+          <%= link_to 'unsubscribe',
+                      users_unsubscribe_path(company_id:current_company&.id),
+                      class: 'dropdown-item' , method: :post %>
+        <% end %>
+        <%# end %>
+
+        <%= link_to "Logout", destroy_user_session_path, method: :delete, class: 'dropdown-item' %>
+      </div>
+    </div>
+  <% else %>
+    <div class="d-none d-md-flex">
+      <div class="mx-1 dropdown">
+        <button class="btn btn-login f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
+          Login
+        </button>
+        <div class="dropdown-menu">
+          <%= link_to 'Company', (request.subdomain.present? and request.subdomain !='app') ? new_user_session_path : signin_path , class: 'dropdown-item' %>
+          <% if current_candidate.present? %>
+            <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path, class: 'dropdown-item' %>
+          <% else %>
+            <%= link_to 'Candidate', new_candidate_session_path , class: 'dropdown-item' %>
+          <% end %>
+        </div>
+      </div>
+      <div class="d-inline-block mx-1 dropdown">
+        <button class="btn btn-signup text-white f-16 f-mon-sembol dropdown-toggle" type="button" data-toggle="dropdown">
+          Sign Up
+        </button>
+        <div class="dropdown-menu">
+          <%= link_to 'Company', register_path , class: 'dropdown-item' %>
+          <%= link_to 'Candidate', new_candidate_registration_path , class: 'dropdown-item' %>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex d-md-none">
+      <div class="dropdown">
+        <button class="dropdown-login dropdown-toggle" type="button" data-toggle="dropdown">
+          <i class="fa fa-sign-in" aria-hidden="true"></i>
+        </button>
+        <div class="dropdown-menu">
+          <%= link_to 'Login as Company', request.subdomain.present? ? new_user_session_path : signin_path , class: 'dropdown-item' %>
+          <% if current_candidate.present? %>
+            <%= link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path, class: 'dropdown-item' %>
+          <% else %>
+            <%= link_to 'Login as Candidate', new_candidate_session_path , class: 'dropdown-item' %>
+          <% end %>
+          <%= link_to 'Sign Up as Company', register_path , class: 'dropdown-item' %>
+          <%= link_to 'Sign Up as Candidate', new_candidate_registration_path , class: 'dropdown-item' %>
+        </div>
+      </div>
+    </div>
+  <% end %>
+</div>

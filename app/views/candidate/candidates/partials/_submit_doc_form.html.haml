@@ -1,0 +1,151 @@
+.form-group
+  .multi-field-wrapper
+    .multi-fields
+      = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "submit_doc"),method: :put, remote: true do |f|
+        %br
+        .row
+          .col-md-12
+            %h4.element-header
+              Visa Document
+            .form-group.candidate-association
+              = f.fields_for :visas, f.object.visas do |b|
+                -#= render 'candidate/candidates/visas_fields', f: b
+              %strong
+                .links.pull-right
+                  = link_to_add_association '+ Add Visa', f, :visas, class: 'btn btn-primary', partial: 'candidate/candidates/visas_fields'
+        .row
+          .col-md-12{style: "margin-top: 17px;"}
+            - if current_candidate.visas &&  current_candidate.visas.count != 0
+              %table.table.table-bordered
+                %tr
+                  %th Title
+                  %th Visa Number
+                  %th Alien Number
+                  %th Start Date
+                  %th Expiry Date
+                  %th Attachments
+                - current_candidate.visas.each do |doc|
+                  %tr
+                    %td= doc.title
+                    %td= doc.visa_number
+                    %td= doc.status
+                    %td= doc.start_date
+                    %td= doc.exp_date
+                    %td
+                      %a.delete_icon
+                        %i.fa.fa-paperclip
+        %br
+        %br
+        .row
+          .col-md-12
+            %h4.element-header
+              Legal Document
+            .form-group.candidate-association
+              = f.fields_for :legal_documents, f.object.legal_documents do |b|
+                -#= render 'candidate/candidates/legal_document_fields', f: b
+              %strong
+                .links.pull-right
+                  = link_to_add_association '+ Add Legal Documents', f, :legal_documents, class: 'btn btn-primary', partial: 'candidate/candidates/legal_document_fields'
+        .row
+          .col-md-12
+            - if current_candidate.legal_documents &&  current_candidate.legal_documents.count != 0
+              .content-i
+                .content-box
+                  .row
+                    .col-sm-12
+                      .element-wrapper
+                        .element-box-tp
+                          .controls-above-table
+                            .row.mr-1.ml-1
+                              .col-sm-6
+                              .col-sm-6
+                                .form-inline.justify-content-sm-end
+                                  %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'candidate_onboard_legal_doc_datatable_search'}
+                          .table-responsive
+                            %table#candidate_onboard_legal_doc_datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped
+                              %thead
+
+                                %tr
+                                  %th Title
+                                  %th Document Number
+                                  %th Start Date
+                                  %th Expiry Date
+                                  %th Attachments
+                              %tbody
+                                - current_candidate.legal_documents.each do |doc|
+                                  %tr
+                                    %td= doc.title
+                                    %td= doc.document_number
+                                    %td= doc.start_date
+                                    %td= doc.exp_date
+                                    %td
+                                      %a.delete_icon
+                                        %i.fa.fa-paperclip
+
+
+        %br
+        %br
+        .row
+          .col-md-12
+            %h4.element-header
+              Address/Background Check
+            .form-group.candidate-association
+              = f.fields_for :criminal_check, f.object.criminal_check do |b|
+                = render 'candidate/candidates/criminal_check_fields', f: b
+              %strong
+                .links.pull-right
+                  = link_to_add_association '+ Address/Background Check', f, :criminal_check, class: 'btn btn-primary', partial: 'candidate/candidates/criminal_check_fields'
+            -#.row
+            -#.col-lg-12
+            -#  %button.btn.btn-primary.pull-right{:type => "submit"}
+            -#    Saved
+
+-#-content_for :scripts do
+-#  :javascript
+-#
+-#    if("#{@user.ever_worked_with_company}" == "Yes")
+-#    {
+-#      $(".client_information_main_div").show();
+-#    }else{
+-#      $(".client_information_main_div").hide();
+-#    }
+-#
+-#    $("#candidate_ever_worked_with_company_yes").on("click", function(){
+-#      $(".client_information_main_div").show();
+-#    })
+-#    $("#candidate_ever_worked_with_company_no").on("click", function(){
+-#      $(".client_information_main_div").hide();
+-#    })
+-#
+-#    $(document).ready(function () {
+-#      addressLookup();
+-#    });
+-#
+-#    function addressLookup() {
+-#      var address = document.getElementsByClassName('p-location');
+-#
+-#      for(var i=0; i< address.length; i++){
+-#        new google.maps.places.Autocomplete(address[i]);
+-#
+-#        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+-#          if (event.keyCode === 13) {
+-#            event.preventDefault();
+-#          }
+-#        });
+-#      }
+-#    }
+-#
+-#
+-#    // For file Picker
+-#    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+-#      addressLookup();
+-#
+-#      $(".education_doc_expiry_date, .visa_exp_date, .legal_doc_exp_date, .creminal_check_start_year, .creminal_check_end_year").datepicker({
+-#        dateFormat : 'yy-mm-dd'
+-#      });
+-#    });
+   
+
+    
+    
+

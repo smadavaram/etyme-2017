@@ -1,0 +1,107 @@
+<style>
+@media (min-width: 1025px) {
+.cont-comany {
+margin-left: 0px;
+}
+.border-no {
+  border: none;
+}
+}
+#main{
+  min-height: none !important;
+  padding-bottom: 0px !important;
+}
+@media (max-width: 768px) {
+.chat-margin {
+margin-top: 15px;
+}
+}
+/* $(".cont_c").css("mr"
+,"0") */
+
+</style>
+<script src="https://cdn.tailwindcss.com"></script>
+<div class="row">
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3 chat-margin" style="z-index: 100;"  >
+
+    <div class="left-chat-bar company-left-chat-bar">
+      <div class="full-chat-left1">
+        <div class="os-tabs-w">
+          <ul class="nav nav-tabs upper centered">
+          </ul>
+        </div>
+        <div class="chat-search d-flex margin-top-10 left-side-header-style">
+          <div class=" col-sm-3 col-md-3 col-lg-3 left-side-select-style">
+
+            <div class="chat-search d-flex left-side-header-style">
+                <div class="element-actions w-100">
+                  <select class="form-control border-no pl-2 height-45" id="chat_topic">
+                  <option value="All">All</option>
+                  <option value="Job">Job/Offer</option>
+                  <option value="JobApplication">Application</option>
+                  <option value="SellContract">SellContract</option>
+                  <option value="BuyContract">BuyContract</option>
+                  <option value="GroupChat">Group</option>
+                  <option value="PorposalChat">Porposal</option>
+                  </select>
+                </div>
+            </div>
+          </div>
+          <div class="col-sm-8 col-md-8 col-lg-8">
+            <input type="text" class="form-control input-search-style" placeholder="Search Conversation" id="conversation-users-search">
+          </div>
+          <div class="col-sm-1 col-md-1 col-lg-1 left-side-plus-icon" >
+          </div>
+        </div>
+        
+        <div class="row  margin-top-21  ">
+                  <ul class="chat-user-list_heights company-conversation-scorll" role="tablist" id="company-conversation-list">
+                    <%= render 'conversations_list', conversations: @conversations %>
+                    <div id="all-infinite-scrolling-con" style="display: none">
+                      <% if @conversation.present?%>
+                        <%#= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
+                      <% end %>
+                    </div>
+                  </ul>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="col-sm-12 col-12 col-md-6 col-lg-6 job-conversation-box-style" id="conversation-section">
+    <%= render "company/conversations/job_conversation_box", conversation: @conversation, nested_colap: true %>
+  </div>
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3 " >
+    <div class=" " id="conversation-r-section">
+      <%= render "company/conversations/conversation_right_side" %>
+    </div>
+  </div>
+</div>
+
+
+
+<style>
+    .fixed-height{
+        overflow-y: unset;
+    }
+
+
+    .full-chat-w .full-chat-left {
+        padding: 0px 0px;
+    }
+</style>
+<script>
+    function myFunction(){
+        $("#conversation-section").hide();
+        $(".right-sidebar").show();
+    }
+    function myFunction1(){
+        $("#conversation-section").hide();
+        $(".left-chat-bar").show();
+    }
+    function backtochat(){
+        $(".right-sidebar").hide();
+        $("#conversation-section").show();
+    }
+</script>

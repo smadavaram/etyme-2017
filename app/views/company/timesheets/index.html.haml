@@ -1,0 +1,97 @@
+.element-wrapper.m-2
+  .element-box
+    = form_with(url: timesheets_path, method: :get, id: 'timesheets') do |f|
+      .ts_header.mt-2
+        .d-flex.pt-2
+          %label.radio-container.m-1
+            Weekly
+            %input{:name => "ts_type",:type => "radio", :value => 'weekly', checked: @cycle_type == 'weekly'}/
+            %span.radio-checkmark
+          %label.radio-container.m-1
+            Monthly
+            %input{:name => "ts_type",:type => "radio", :value => "monthly", checked: @cycle_type == 'monthly'}/
+            %span.radio-checkmark
+        .form-group.w-50.d-flex
+          %i.fa.fa-chevron-circle-left.mt-2
+          = f.text_field :start_date, class: 'p_date form-control m-1',placeholder: 'Select Start Data', value: @start_date
+          = f.text_field :end_date, class: 'p_date form-control m-1',placeholder: 'Select End Date', value: @end_date
+          %i.fa.fa-chevron-circle-right.mt-2
+          = f.hidden_field :tab, id: 'ts_tag', value: "All"
+      .d-flex{style: "flex-wrap: wrap;justify-content: space-between;"}
+        %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
+          %li.nav-item.ml-3
+            %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
+          %li.nav-item
+            %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Submitted
+          %li.nav-item
+            %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("Approved") }", href:'#'} Approved
+          %li.nav-item
+            %a{class: "nav-link ts fd rejected_timesheets border_btn #{ "active" if @tab.eql?("Rejected") }", href:'#'} Rejected
+          %li.nav-item
+            %a{class: "nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
+        .d-flex.pt-2
+          %label.radio-container.m-1
+            Candidate Timesheet(s)
+            %input.ts_for{:name => "ts_for",:type => "radio", :value => 'candidate', checked: @ts_for == 'candidate'}/
+            %span.radio-checkmark
+          %label.radio-container.m-1
+            Company Timesheet(s)
+            %input.ts_for{:name => "ts_for",:type => "radio", :value => "company", checked: @ts_for == 'company'}/
+            %span.radio-checkmark
+    .table_divider.mt-3
+    .row.mr-1.ml-1.mt-2
+      .col-sm-6
+      .col-sm-6
+        .form-inline.justify-content-sm-end
+          %input.form-control.form-control-sm.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
+          %button.btn.btn-sm.btn-secondary{type: "button", id: 'my_bench_datatable-search-btn'} Search
+    .mt-3
+      - unless @timesheets.present?
+        .div.w-75.margin-auto
+          %p.contract_warning_text= "No Timesheet has been submitted for the approval"
+      - else
+        - if @tab.eql?('Upcomming')
+          = render 'company/timesheets/partials/upcomming_timeline'
+        - else
+          .table-responsive
+            %table.table.table-striped.table-bordered.table-v2.table-lg
+              %thead
+                %tr
+                  %th Ts ID
+                  %th Ts Type
+                  %th Contract ID & Title - Client
+                  %th Client
+                  %th From & To Date
+                  %th Plan. Hr
+                  %th Act. Hr
+                  %th Comments
+                  %th Attachment
+                  %th Actions
+              %tbody
+                - @timesheets.each do |ts|
+                  %tr
+                    - company = ts.candidate.present? ? ts.candidate : ts.user.company
+                    %td= ts.id
+                    %td= ts.contract_cycle.cycle_frequency.capitalize
+                    %td= ts.contract.title
+                    %td= user_image(company, class: 'data-table-image mr-2', title: company.full_name)
+                    %td= "#{ts.start_date} - #{ts.end_date}"
+                    %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs.nil? ? '-' : ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs * frequency_to_num(ts.contract_cycle.cycle_frequency)
+                    %td= ts.calculate_total_time
+                    %td= ts&.transactions.first&.memo
+                    %td= link_to 'View', ts.transactions.first.file, target: "_blank" unless ts.transactions.first.file.nil?
+                    %td
+                      - if ts.submitted?
+                        = link_to "<i class='fa fa-check '></i>".html_safe,timesheet_approve_path(ts),class:'c_green',title: 'Approve Timesheet', :data => {:confirm => 'Are you sure?'}
+                        = link_to "<i class='fa fa-times-circle'></i>".html_safe,timesheet_reject_path(ts),class:'c_red',title: 'Reject Timesheet', :data => {:confirm => 'Are you sure?'}
+
+        .timesheet_pagination_wrap.mt-2
+          .pagination_label
+            = page_entries_info @timesheets
+          = will_paginate(@timesheets, {params: params.merge(tab: @tab,cycle_type:@cycle_type),previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'timesheets_pagination_links'})
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      default_active_nav('.ln-8');
+    });

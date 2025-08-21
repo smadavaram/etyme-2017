@@ -1,0 +1,138 @@
+.col-sm-12.animated.fadeInRightBig
+  %section.panel.mt-20s
+    %header.panel-heading
+      -#%a.pull-right.btn.btn-primary.right.mt-12{href:"#",}  Apply Now
+      .pull-right
+        - if current_company.id == @job.company_id
+          = link_to "Edit" , edit_job_path(@job) , class: 'btn btn-md btn-default btn-primary'
+        = link_to "Company Candidates", job_create_multiple_for_candidate_path(@job),remote: true ,method: :get ,class: "btn btn-md btn-default btn-primary #{@job.is_active? ? "" : "disabled" }"
+        - if(@job.is_active?)
+          -if has_permission?("send_job_invitations")
+            = link_to 'Send Invitation' ,send_invitation_job_path(@job) , method: :post ,remote: true,  class: 'btn btn-md btn-default btn-primary'
+      %br
+      .panel-body.status.profile-margin
+        .text
+          %div.profile-hover
+            %p.imgDescription.col-sm-offset-4 Upload Media
+            %div.pictureContainer
+              = filepicker_field_tag "" ,class: "hidden video-file", onchange:"videoUpload(event)","data-fp-crop-ratio" => "2/2"
+              -if(@job.comp_video.present?)
+                -if @job.media_type == "video/mp4"
+                  %video{:controls => "", :width => "200", :height=> "200"}
+                    %source{src: "#{@job.comp_video}",type:"video/mp4"}
+                -else
+                  = image_tag image_path(@job.comp_video),  style: "width:200px;height:200px", fit: 'clip',:class =>"video-pic"
+
+              -else
+                = image_tag image_path("#{current_company.logo || 'default_user.png'}"),  style: "width:100px;height:100px;margin-left: 47px;", fit: 'clip',:class =>"video-pic"
+              = button_tag "Upload Media", fit: 'clip',:class =>"video-pic img1 btn btn-md btn-primary"
+      = render partial: 'partials/job_show',locals: {job: @job}
+      = render partial: 'partials/job_application_view',locals: {job_applications: @job_applications}
+      = render partial: 'company/jobs/partials/conversation_list',locals: {conversations: @conversations}
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+         $('a[data-toggle="tab"]').on('show.bs.tab', function(e) {
+          // localStorage.setItem('activeTab', $(e.target).attr('href'));
+          var id = $(e.target).attr("href").substr(1);
+          window.location.hash = id;
+        });
+        var hash = window.location.hash;
+        $('#myTab a[href="' + hash + '"]').tab('show');
+
+      $( ".profile-pic,.domain" ).click(function()
+      {
+        $( ".file" ).trigger( "click" );
+        $('.fp__overlay').css({'z-index':'99999'});
+      });
+      $(".domain").click(function(){
+       $( ".domain_file" ).trigger( "click" );
+        $('.fp__overlay').css({'z-index':'99999'});
+      })
+      $( ".video-pic" ).click(function()
+      {
+        $( ".video-file" ).trigger( "click" );
+      });
+      $(".best_in_place").best_in_place();
+      $(".best_in_place").on('change', function(event) {
+          flash_success('Change Saved!');
+      });
+      $('input:radio[name="same_billing_addr"]').change(function() {
+        if ($(this).val() == "true") {
+           $(".billing_info").hide();
+          }
+        else {
+           $(".billing_info").show();
+          }
+      });
+      $('input:radio[name="is_owner"]').change(function() {
+        if ($(this).val() == "false") {
+           $(".owner_doc").hide();
+           $(".not_owner").show();
+          }
+        else {
+           $(".owner_doc").show();
+           $(".not_owner").hide();
+          }
+      });
+      $('#myModal').on('shown.bs.modal', function() {
+          if ($('input:radio[name="is_owner"]').val() == "true") {
+             $(".owner_doc").hide();
+             $(".not_owner").show();
+            }
+          else {
+             $(".owner_doc").show();
+             $(".not_owner").hide();
+            }
+      });
+    });
+    function companyLogoUpload(event){
+      photo_url = event.fpfile.url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{update_logo_companies_path}",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.text img').attr("src",photo_url);
+         location.reload();
+       }
+     });
+    }
+    function uploadDomainfile(event){
+      file_url = event.fpfile.url
+      $('.domain_file').html('');
+      $.ajax({
+       type: 'POST',
+       url: "#{update_file_companies_path}",
+       data: { file: file_url,authenticity_token: window._token },
+       success: function (data) {
+        $("#myModal").modal("hide");
+       }
+     });
+    }
+    function videoUpload(event){
+      media_url = event.fpfile.url
+      media_type=event.fpfile.mimetype
+      $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       contentType: 'application/json; charset=utf-8', //dataType: 'json',
+       url: "#{update_media_jobs_path}",
+       data: JSON.stringify({ job_id: "#{@job.id}", media: media_url,authenticity_token: window._token, media_type: media_type }),
+       success: function (data) {
+          console.log("reload!")
+         window.location.reload(true);
+       },
+       done: function (data) {
+          console.log("done!");
+          window.location.reload(true);
+       }
+     });
+    }
+    $(".edit_in_line").css("display","none");
+    $('td').on('mouseover mouseout',function(){
+    $(this).find('.editprofile-pic_in_line').toggle();
+    });

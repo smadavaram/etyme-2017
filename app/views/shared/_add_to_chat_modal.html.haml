@@ -1,0 +1,154 @@
+#addToChatModal.modal{:role => "dialog"}
+  .modal-dialog
+    .modal-content
+      .modal-body
+        .card
+          .card-body
+            .card-subtitle
+              Add To Collaborator
+            .p-4
+              = form_tag add_to_chat_company_conversations_path do
+                = select_tag :directoryid, options_for_select(current_company.users.order(:first_name).map{|u| ["#{u.full_name} <#{u.email}>", u.id]}), {include_blank: "Select From Directory", id: 'sel-dir-to-chat', class: 'form-control'}
+                = label_tag "", "OR", class: "my-2 d-block text-center"
+                = select_tag :candidateid, {}, placeholder: "Select From Candidates"
+                = label_tag "", "OR", class: "my-2 d-block text-center"
+                -# = select_tag :contactid, options_for_select(current_company.company_contacts.order(:first_name).map{|u| [u.full_name, u.id]}), {include_blank: "Select From Contacts", id: 'sel-con-to-chat', class: 'form-control' }
+                = select_tag :contactid, {}, placeholder: "Select From Contacts"
+                = hidden_field_tag "chatcid"
+                = hidden_field_tag "chatctype"
+                = hidden_field_tag "chatconversation"
+                .w-100.text-center.mt-3
+                  = submit_tag "Add", class: "btn btn-primary"
+            .card-subtitle.mt-4
+
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      var REGEX_EMAIL = "^[^@\s]+@[^@\s\.]+\.[^@\.\s]+$"
+      let contacts = null
+      let candidates = null
+      $.ajax({
+        url: `#{company_conversation_chat_members_path}`,
+        type: "GET",
+        dataType: "json",
+        success: function (data) {
+          contacts = data.data;
+          $('#contactid').selectize({
+            persist: false,
+            maxItems: 5,
+            valueField: 'id',
+            labelField: 'name',
+            searchField: ['name', 'email'],
+            options: contacts,
+            render: {
+              item: function(item, escape) {
+                return '<div>' +
+                  (item.name ? '<span class="name">' + escape(item.name) + '</span> &nbsp;' : '') +
+                  (item.email ? '<span class="email">' + '&lt' + escape(item.email) + '&gt' + '</span>' : '') +
+                '</div>';
+              },
+              option: function(item, escape) {
+                var label = item.name || item.email;
+                var caption = item.name ? item.email : null;
+                return '<div>' +
+                  '<span class="label">' + escape(label) + '</span> &nbsp;' +
+                  (caption ? '<span class="caption">' + '&lt' +  escape(caption) + '&gt' + '</span>' : '') +
+                '</div>';
+              }
+            },
+            createFilter: function(input) {
+              var match, regex;
+
+                  // email@address.com
+              regex = new RegExp('^' + REGEX_EMAIL + '$', 'i');
+              match = input.match(regex);
+              if (match) return !this.options.hasOwnProperty(match[0]);
+
+                  // name <email@address.com>
+              regex = new RegExp('^([^<]*)\<' + REGEX_EMAIL + '\>$', 'i');
+              match = input.match(regex);
+              if (match) return !this.options.hasOwnProperty(match[2]);
+
+              return false;
+            },
+            create: function(input) {
+              if ((new RegExp('^' + REGEX_EMAIL + '$', 'i')).test(input)) {
+                return {email: input, id: input};
+              }
+              var match = input.match(new RegExp('^([^<]*)\<' + REGEX_EMAIL + '\>$', 'i'));
+              if (match) {
+                return {
+                  email : match[2],
+                  name  : $.trim(match[1])
+                };
+              }
+              alert('Invalid email address.');
+              return false;
+            }
+          });
+        }
+      });
+      $.ajax({
+        url: `#{company_conversation_chat_candidates_path}`,
+        type: "GET",
+        dataType: "json",
+        success: function (data) {
+          candidates = data.data;
+          $('#candidateid').selectize({
+            persist: false,
+            maxItems: 5,
+            valueField: 'id',
+            labelField: 'name',
+            searchField: ['name', 'email'],
+            options: candidates,
+            render: {
+              item: function(item, escape) {
+                return '<div>' +
+                  (item.name ? '<span class="name">' + escape(item.name) + '</span> &nbsp;' : '') +
+                  (item.email ? '<span class="email">' + '&lt' + escape(item.email) + '&gt' + '</span>' : '') +
+                '</div>';
+              },
+              option: function(item, escape) {
+                var label = item.name || item.email;
+                var caption = item.name ? item.email : null;
+                return '<div>' +
+                  '<span class="label">' + escape(label) + '</span> &nbsp;' +
+                  (caption ? '<span class="caption">' + '&lt' +  escape(caption) + '&gt' + '</span>' : '') +
+                '</div>';
+              }
+            },
+            createFilter: function(input) {
+              var match, regex;
+                  // email@address.com
+              regex = new RegExp('^' + REGEX_EMAIL + '$', 'i');
+              match = input.match(regex);
+              if (match) return !this.options.hasOwnProperty(match[0]);
+
+                  // name <email@address.com>
+              regex = new RegExp('^([^<]*)\<' + REGEX_EMAIL + '\>$', 'i');
+              match = input.match(regex);
+              if (match) return !this.options.hasOwnProperty(match[2]);
+
+              return false;
+            },
+            create: function(input) {
+              if ((new RegExp('^' + REGEX_EMAIL + '$', 'i')).test(input)) {
+                return {id: input, email: input};
+              }
+              var match = input.match(new RegExp('^([^<]*)\<' + REGEX_EMAIL + '\>$', 'i'));
+              if (match) {
+                return {
+                  email : match[2],
+                  name  : $.trim(match[1])
+                };
+              }
+              alert('Invalid email address.');
+              return false;
+            }
+          });
+        }
+      });
+    });
+

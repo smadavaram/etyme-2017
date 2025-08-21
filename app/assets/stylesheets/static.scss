@@ -1,0 +1,162 @@
+/*
+ * Basic Styles
+ * require static/css/bootstrap.min.css
+ *= require static/css/font-awesome.css.scss
+ * Home Page
+ *= require smartadmin-production-plugins
+ *= require smartadmin-production
+
+ *= require static/css/animate.min
+ *= require static/css/popuo-box
+ *= require static/css/base
+ * require static/css/style
+ *= require static/css/vegas
+ *= require static/css/vegas.min
+ *= require style
+ *= require bullettrain-global
+ *= require bullettrain-public
+ *= require theme8
+ *= require smartadmin-production
+ *= require jobs_small_chat
+ *= require trix
+*/
+
+.set-checkbox {
+  position: relative !important;
+  right: 0 !important;
+}
+
+.gray-background {
+  background: #f2f4f8;
+}
+
+.twitter-btn {
+  width: 80px;
+  margin-bottom: 20px;
+}
+
+.facebook-btn {
+  width: 80px;
+  margin-bottom: 20px;
+}
+
+.whatsapp-btn {
+  width: 80px;
+  margin-bottom: 20px;
+}
+
+.linkedin-btn {
+  width: 80px;
+  margin-bottom: 20px;
+}
+
+.margin-auto {
+  margin: auto;
+}
+
+.mb-10 {
+  margin-bottom: 10px;
+}
+
+.disable_header.element-header:after {
+  width: 0 !important;
+}
+
+.without-registration_modal {
+  //width: 70% !important;
+  margin: 50px auto !important;
+  position: relative;
+  width: auto;
+  margin: 0.5rem;
+  pointer-events: none;
+  width: 70%;
+  height: 50%;
+  padding: 0;
+  position: relative;
+}
+
+.uploaded_file_name {
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  height: 38px;
+  padding: 5px;
+  border: 1px solid #0362c6;
+  width: -moz-available;
+  width: -webkit-fill-available;
+}
+
+.privacy_policy_container {
+  width: 70%;
+  margin: auto auto;
+  text-align: justify;
+  padding-top: 80px;
+}
+
+.terms_of_use_container {
+  width: 70%;
+  margin: auto auto;
+  text-align: justify;
+  padding-top: 80px;
+  color: #494949 !important;
+}
+
+.contact_us_container {
+  width: 70%;
+  margin: auto auto;
+  text-align: justify;
+  padding-top: 80px;
+  color: #494949 !important;
+}
+
+.terms_of_use_container > ul {
+  list-style: unset;
+}
+
+.privacy_policy_container > ul {
+  list-style: unset;
+}
+
+li > ul {
+  list-style: unset;
+}
+
+ul > li > p > span {
+  display: block !important;
+}
+
+.pagination {
+  justify-content: center;
+}
+
+.digg_pagination {
+  background: transparent;
+}
+
+.oval {
+  a.highlight {
+    //background-color: #05cb95 !important;
+  }
+
+  a.highlight:hover {
+    color: white !important;
+    margin-right: 0px !important;
+    //background-color: #0de5ab !important;
+  }
+}
+
+.call-to-action-btn-wrapper {
+  margin-top: 40px;
+
+  .btn-primary:hover {
+    color: #fff !important;
+  }
+}
+
+.features-btn-wrapper {
+  text-align: center;
+
+  .btn-primary:hover {
+    color: #fff !important;
+  }
+}

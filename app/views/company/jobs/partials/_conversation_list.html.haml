@@ -1,0 +1,9 @@
+%h1 Conversation
+- conversations.each do |con|
+  %span.h4.badge.btn-primary
+    = link_to interlocutor(con).full_name, "#", class: "margin-bottom-5 start-conversation", title: "Chat", style: "color: #fff;",
+      "data-chattopic" => "Job",
+      "data-cid" => con.chatable_id,
+      "data-ctype" => con.chatable_type,
+      "data-rid" => interlocutor(con).id,
+      "data-rtype" => interlocutor(con).class.to_s

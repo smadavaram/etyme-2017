@@ -1,0 +1,34 @@
+%body
+  %section#widget-grid
+    .row
+      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+        .col-sm-6.col-xs-12.hidden-xs
+        .toolbar
+          .text-right
+            -#= link_to 'NEW',new_contract_path ,class: 'btn btn-success btn-md pull-right header-btn '
+        .table-responsive
+          %table#company-contracts-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped
+            %thead
+              %tr
+                %th Id
+                %th Title
+                %th Status
+                %th Last Updated
+                %th Modified By
+                %th Modification
+            %tbody
+              - data.each do |activty|
+                - owner = User.find(activty.owner_id)
+                %tr
+                  %td=link_to "#{activty.trackable.try(:number)} Contract" ,contract_path(activty.trackable)
+                  %td=activty.trackable.try(:title)
+                  %td{style: "color: #EFA544"}=activty.trackable.try(:status).camelcase
+                  %td{style: "color: #1AAE9F"}= "#{time_ago_in_words(activty.trackable.try(:updated_at))} ago"
+                  %td.no-wrap
+                    =user_image(owner, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{owner.full_name}" )
+                    = link_to do_ellipsis(owner.full_name.capitalize,15).html_safe,company_user_profile_path(owner.id)
+                  %td Updated terms & conditions for contract
+.timesheet_pagination_wrap.pt-3
+  .pagination_label
+    = page_entries_info data
+  = will_paginate(data, {params: params.merge(tab: 'activity'),previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'activity_pagination_links'}.merge(link_options: {'data-remote': true}))

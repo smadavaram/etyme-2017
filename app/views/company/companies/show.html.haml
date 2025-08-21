@@ -1,0 +1,349 @@
+%div{class: "#{@slick_pop_up} popup-backgroud"}
+%div{class: "#{@slick_pop_up} popup-container"}
+  #slideshow.sliders.mt-4
+    .active-slide.slide
+      .slick_header.container.d-flex
+        %h5 Invite Your Team
+        %span.os-icon.os-icon-close.close_slick
+      .slider-data-text.mt-2
+        .container
+          %h5.text-justify
+            %small.text-muted You are Rockstar! Colloborate better by Inviting your team and welcome them to Doing less and getting more.
+        .container.mt-4
+          .help-block.form-text.text-muted.form-control-feedback (Copy their emails with comma separation)
+        .container
+          =form_tag import_company_users_path, method: :get, id: "",remote: 'true' do
+            = text_area_tag 'emails',nil ,class: 'emails form-control radius_10'
+          .data_on_slick_customer.scrole
+    .slide
+      .slick_header.container.d-flex
+        %h5 Business Owner &nbsp; &nbsp;
+        %span.os-icon.os-icon-close.close_slick
+      .slider-data-text.mt-2
+        .container
+          %h5.text-justify
+            %small.text-muted Designate your Business owner/Enterprise Administrator
+        .container
+          =form_tag change_owner_company_users_path, method: :post, id: "",remote: 'true' do
+            .row.mt-3
+              .col-sm-6
+                %label.text-muted First Name
+                = text_field_tag :first_name, nil,class: 'form-control', placeholder: 'Jhon'
+              .col-sm-6
+                %label.text-muted Last Name
+                = text_field_tag :last_name, nil, class: 'form-control', placeholder: 'Doe'
+            .row
+              .col-sm-12.mt-1
+                %label.text-muted Phone
+                = email_field_tag :phone, nil, class: 'form-control', placeholder: '555-555-555'
+              .col-sm-12.mt-1
+                %label.text-muted Email
+                = email_field_tag :email, nil, class: 'emails form-control', placeholder: 'example@domain.com', id: 'emails'
+            -#= button_tag "submit" , class: ' btn btn-primary'
+          .data_on_slick_customer.scrole
+    .slide
+      .slick_header.container.d-flex
+        %h5 Invite Candidates &nbsp;
+        %span.os-icon.os-icon-close.close_slick
+      .slider-data-text.mt-2
+        .container
+          %h5.text-justify
+            %small.text-muted Invite your candidate to work with you in real time. They will share the information with you real time.
+        .container.mt-4
+          .help-block.form-text.text-muted.form-control-feedback (Copy their emails with comma separation)
+        .container
+          =form_tag add_candidates_company_users_path, method: :post, id: "",remote: 'true' do
+            = text_area_tag 'emails',nil ,class: 'emails form-control radius_10'
+          .data_on_slick_customer.scrole
+    .slide
+      .slick_header.container.d-flex
+        %h5 Invite Contacts &nbsp; &nbsp;
+        %span.os-icon.os-icon-close.close_slick
+      .slider-data-text.mt-2
+        .container
+          %h5.text-justify
+            %small.text-muted Invite your Contacts to work with you in real time. They will share the information with you real time.
+        .container.mt-4
+          .help-block.form-text.text-muted.form-control-feedback (Copy their emails with comma separation)
+        .container
+          =form_tag add_contacts_company_users_path, method: :post, id: "",remote: 'true' do
+            = text_area_tag 'emails',nil ,class: ' emails form-control radius_10'
+            -#= button_tag "submit" , class: ' btn btn-primary'
+          .data_on_slick_customer.scrole
+    .slide
+      .slick_header.container.d-flex
+        %h5 Company Settings
+        %span.os-icon.os-icon-close.close_slick
+      .slider-data-text.mt-2
+        .container
+          %h5.text-justify
+            %small.text-muted 2 more minutes.....setup your profile, phone, social, skype, watsapp, locations and get started.
+        .container.text-center
+          %h3 Settings
+          .data_on_slick_customer.scrole
+          = link_to "Lets setup your company for Success!!" , dashboard_path, class: 'col-lg-8 btn btn-md btn-primary mr-bottom-10 cmpny-btn'
+.content-box
+  .element-wrapper
+    .element-box
+      = render partial: 'company/companies/sub_menu_company'
+      #content
+        .row
+          .col-sm-12.col-md-12.col-lg-3
+            .panel{style: 'background: #FFF!important;border: 1px solid #ccc;display: flex;align-items: center;flex-direction: column;'}
+              -if(current_company.logo.present?)
+                = image_tag current_company.logo,  style:"width:100px;height:100px;border-radius: 50%;", fit: 'clip',:class =>"profile-pic   "
+              -else
+                = image_tag image_path('default-lcom-ogo.png'),  style: "width:100px;height:100px;border-radius: 50%;", fit: 'clip',:class =>"profile-pic circle_img"
+
+              .d-inline
+                %i.fa.fa-user.fa-2x.text-muted{style: 'font-size:20px;'}
+                  5
+                %i.fa.fa-file-pdf-o.fa-2x.text-muted{style: 'font-size:20px;'}
+                  5
+                %i.fa.fa-user.fa-2x.text-muted{style: 'font-size:20px;'}
+                  5
+
+            %br
+            .panel-body.status.profile-margin
+            %br
+            .panel.pl-2.pt-2{style: 'background: #FFF!important;border: 1px solid #ccc;'}
+              %h6.text-center Company Videos
+              - current_company.company_videos.each do |data|
+                - if data&.video_type&.include?('video')
+                  %video.mr-left-20{:controls => "", :width => "50", :height=> "50"}
+                    %source{src: "#{data.video}",type:"#{current_company.company_videos.first.video_type}"}
+            = button_tag "Upload Media", fit: 'clip',:class =>"mb-4 video-pic img1 btn btn-xl btn-primary",style: 'width:100%;'
+
+            %br
+            .panel.pl-2.pt-2{style: 'background: #FFF!important;border: 1px solid #ccc;'}
+              %h6.text-center Company Images
+              - current_company.company_videos.each do |data|
+                -if data&.video_type&.include?('image')
+                  = image_tag image_path(data.video),  style: "", fit: 'clip',:class =>" circle_img"
+            = button_tag "Upload Media", fit: 'clip',:class =>"mb-4 video-pic img1 btn btn-xl btn-primary",style: 'width:100%;'
+
+            %br
+
+          .col-sm-12.col-md-12.col-lg-9
+            #wid-id-7.jarviswidget{"data-widget-attstyle" => "jarviswidget-color-teal", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false", :role => "widget", :style => ""}
+              %div{:role => "content",style: 'border:2px solid #dde2ec !important;'}
+                .jarviswidget-editbox
+                .widget-body
+                  .tab-content
+                    #hr1.tab-pane.active
+                      .tabbable.tabs-below
+                      = render partial: 'company/companies/partials/company_form_html'
+
+    #embedModal.modal{:role => "dialog"}
+      .modal-dialog
+        .modal-content
+          .modal-body
+            .card
+              .card-body
+                .card-subtitle
+                  Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+                .p-4.border
+                  %code
+                    &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                    &lt;script src="https://demoetyme.com/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+                .card-subtitle.mt-4
+                  Copy and paste the following code snippets where you want to display the job board:
+                .p-4.border
+                  %code
+                    &lt;div id="job-board"&gt;&lt;/div&gt;
+                    %br
+                    &lt;script type="text/javascript"&gt;
+                    %br
+                    &nbsp;$(function() {
+                    %br
+                    &nbsp;&nbsp;etyme("job-board",#{current_company.id});
+                    %br
+                    &nbsp;})
+                    %br
+                    &lt;/script&gt;
+
+
+#myModal.modal{:role => "dialog"}
+  .modal-dialog
+    / Modal content
+    .modal-content
+      .modal-body
+        %button.close{"data-dismiss" => "modal", :type => "button"} ×
+        .row
+        .col-md-8
+          %p
+            %b Are You business Owner or Application Admin?
+        .col-md-2
+          .form-group
+            %label.radio-container
+              Yes
+              = radio_button_tag :is_owner, "true"
+              %span.radio-checkmark
+        .col-md-2
+          .form-group
+            %label.radio-container
+              No
+              = radio_button_tag :is_owner, "false", checked:true
+              %span.radio-checkmark
+        .not_owner
+          = form_for @admin,as: "admin",method: :post, remote: true do |f|
+            .row
+              .col-md-12
+                .form-group
+                  = f.text_field :first_name,:placeholder => "First Name",class: "form-control"
+            .row
+              .col-md-12
+                .form-group
+                  = f.text_field :last_name,:placeholder => "Last Name",class: "form-control"
+            .row
+              .col-md-12
+                .form-group
+                  = f.email_field :email,:placeholder => "Email",class: "form-control"
+            .row
+              .col-md-12
+                .form-group
+                  = f.text_field :phone,:placeholder => "Phone Number",class: "form-control"
+            .row
+              .col-lg-12
+                %button.btn.btn-primary{:type => "submit"}
+                  Saved
+        .row.owner_doc
+          .col-lg-12
+            %p Steps To verify your Domain
+            %p 1) Please click Download button.
+            .col-lg-12.mr-bottom-10
+              = link_to "Download File" , company_company_download_template_path(:company_id=>current_company.id), class: 'col-lg-3 btn btn-md btn-primary mr-bottom-10'
+            %p.mr-top-10 2) Put the downloded file to your hosted site public folder.
+            = form_for current_company,url: "/company/companies/#{current_company.id}/verify_website",method: :post do |f|
+              %p 3) Add your site name in input box.
+              .row
+                .col-md-12.mr-bottom-10
+                  .form-group
+                    = text_field_tag :url, current_company.website , :placeholder => "https://www.etyme.com",class: "form-control mr-top-10"
+              %p 4) Press Verify button.
+              -if current_company.owner_verified == false
+                .row
+                  .col-lg-12
+                    %button.btn.btn-primary{:type => "submit"}
+                      Verify Your Domain
+              - else
+                .row
+                  .col-lg-12
+                    .btn.btn-primary{:type => "submit"}
+                      Your Domain is already verified
+
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+         $('a[data-toggle="tab"]').on('show.bs.tab', function(e) {
+          // localStorage.setItem('activeTab', $(e.target).attr('href'));
+          var id = $(e.target).attr("href").substr(1);
+          window.location.hash = id;
+        });
+        var hash = window.location.hash;
+        $('#myTab a[href="' + hash + '"]').tab('show');
+
+      $( ".profile-pic,.domain" ).click(function()
+      {
+              upload_file_ajax(companyLogoUpload);
+        // $( ".file" ).trigger( "click" );
+        // $('.fp__overlay').css({'z-index':'99999'});
+      });
+      $(".domain").click(function(){
+       $( ".domain_file" ).trigger( "click" );
+        $('.fp__overlay').css({'z-index':'99999'});
+      })
+      $( ".video-pic" ).click(function()
+      {
+              upload_file_ajax(videoUpload);
+
+        // $( ".video-file" ).trigger( "click" );
+      });
+      $(".best_in_place").best_in_place();
+      $(".best_in_place").on('change', function(event) {
+          flash_success('Change Saved!');
+      });
+      $('input:radio[name="same_billing_addr"]').change(function() {
+        if ($(this).val() == "true") {
+           $(".billing_info").hide();
+           $(".b_address").val($(".a_address").val());
+           $(".b_city").val($(".a_city").val());
+           $(".b_country").val($(".a_country").val());
+           $(".b_zip").val($(".a_zip").val());
+          }
+        else {
+           $(".billing_info").show();
+           $(".b_address").val('');
+           $(".b_city").val('');
+           $(".b_country").val('');
+           $(".b_zip").val('');
+          }
+      });
+      $('input:radio[name="is_owner"]').change(function() {
+        if ($(this).val() == "false") {
+           $(".owner_doc").hide();
+           $(".not_owner").show();
+          }
+        else {
+           $(".owner_doc").show();
+           $(".not_owner").hide();
+          }
+      });
+      $('#myModal').on('shown.bs.modal', function() {
+          if ($('input:radio[name="is_owner"]').val() == "true") {
+             $(".owner_doc").hide();
+             $(".not_owner").show();
+            }
+          else {
+             $(".owner_doc").show();
+             $(".not_owner").hide();
+            }
+      });
+    });
+
+    function companyLogoUpload(url,type){
+      photo_url = url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{update_logo_companies_path}",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.text img').attr("src",photo_url);
+         location.reload();
+       }
+     });
+    }
+    function uploadDomainfile(event){
+      file_url = event.fpfile.url
+      $('.domain_file').html('');
+      $.ajax({
+       type: 'POST',
+       url: "#{update_file_companies_path}",
+       data: { file: file_url,authenticity_token: window._token },
+       success: function (data) {
+        $("#myModal").modal("hide");
+       }
+     });
+    }
+    function videoUpload(url,type){
+      video_url = url
+      video_type= type
+      $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{update_video_companies_path}",
+       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
+       success: function (data) {
+         location.reload();
+       }
+     });
+    }
+    $(".edit_in_line").css("display","none");
+    $('td').on('mouseover mouseout',function(){
+    $(this).find('.editprofile-pic_in_line').toggle();
+    });

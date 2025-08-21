@@ -1,0 +1,21 @@
+$('#modals').html("")
+  $('#modals').append("<%= j render 'company/conversations/mini_chat',conversation: @conversation, candidate: @candidate %>")
+  $('#modals').append("<%= j render('shared/chat_document_templates', conversation: @conversation) if @conversation.present? %>")
+  $('#modals').append("<%= j render('company/conversations/buttons_model', conversation: @conversation, job_application: @conversation.job_application) if @conversation.job_application.present? %>")
+
+  $('.ChatBtn').hide();
+  function onCompanyFileUpload(event) {
+    $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
+  }
+
+  $(document).ready(function () {
+    $.ajax({
+      url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
+      type: "GET",
+      dataType: "script",
+      success: function (data) {
+        $("#conversation_<%=@conversation&.id%>").parent().scrollTop($("#conversation_<%=@conversation&.id %>").parent()[0].scrollHeight);
+      }
+    });
+  });
+  $("#select_sell_company_contacts").select2();

@@ -1,0 +1,100 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Pay Bill
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              .row
+                .col-md-3
+                  %label Treasury Account
+                  = select_tag "bank_names",options_for_select((BankDetail.where(company_id: current_company.id).collect{|u| [u.bank_name.titleize, u.id]})),{class: 'form-control select2 bank_names'}
+
+                .col-md-3
+                  %br
+                  %div
+                    %b Balance:
+                    %div.bank-balance $ 0
+                    %br
+                    = link_to 'Bank Reconciliation', bank_reconciliation_bank_details_path 
+                .col-md-3
+                  %label  Payment Date
+                  = date_field_tag 'pay_date', Date.today, class: 'form-control' 
+
+  
+
+              %br
+              .row
+                .col-md-2
+                  %label Account details
+
+              %br
+              .row
+                .col-md-12 
+                  %table.table.table-bordered.account_detail
+                    %thead
+                      %tr
+                        %th Contract
+                        %th Bill no/ Item description
+                        %th Status
+                        %th Due date
+                        %th Expense Type
+                        %th Open Balance
+                        %th Payment
+                        %th Balance due
+                        %th Check/Transaction no.
+                        %th Action
+                    %tbody
+                      - ExpenseAccount.includes(expense: :contract).all.each do |ex|
+                        %tr
+                          %td
+                            = ex.expense.contract.id
+                          %td
+                            = ex.expense.bill_no + '-' + ex.description
+                          %td
+                            = Expense.statuses.key(ex.status)
+                          %td
+                            = ex.expense.due_date
+                          %td
+                            = ex.expense_type.name
+                          %td
+                            = ex.amount
+                          %td
+                          = form_for @pay_bill, url: submit_bill_expenses_path do |f|
+                            %td
+                              = f.number_field :payment
+                            %td
+                              = f.number_field :balance_due
+                            %td
+
+
+- content_for :scripts do
+  :javascript
+
+    $(document).ready(function() {
+      get_bank_bal()
+    });
+
+    $('.bank_names').on('change', function(){
+      get_bank_bal()      
+    })
+
+    function get_bank_bal(){
+      var bank_id = $('.bank_names option:selected').val();
+      $.ajax({
+        url: "#{get_bank_balance_expenses_path}",
+        type: 'GET',
+        data: {bank_id: bank_id},
+        dataType: 'JSON'
+      }).done(function(data){
+        $('.bank-balance').text('$'+data.bank_bal.balance);
+      });
+    }
+
+

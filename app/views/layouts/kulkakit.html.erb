@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html class="no-js" lang="en">
+  <head>
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="user-id" content='<%= "#{user_signed_in? ? current_user.id : ''}" %>'/>
+    <meta name="user-type" content='<%= "#{user_signed_in? ? current_user.class.to_s == 'Candidate' ? 'Candidate' : 'User' : ''}" %>'/>
+
+<!--    <meta content="Etyme" property="og:title">-->
+<!--    <meta content="<%#= request.original_url %>" property="og:url"/>-->
+<!--    <meta content="website" property="og:type"/>-->
+<!--    <meta content="cloudepa.etyme.com" property="og:site_name"/>-->
+<!--    <meta content="Etymw" property="og:description"/>-->
+
+    <meta  content="<%= meta_title %>" property="og:title">
+
+    <meta  content="<%= meta_description %>" property="og:description">
+    <meta  content="Etyme" property="og:site_name">
+    <% if params[:preview]%>
+      <% preview = ShareLinkPreview.find_by(key: params[:preview])%>
+      <% if preview.present?%>
+        <meta property="og:image" content=<%= preview.preview%> >
+      <% else %>
+        <meta property="og:image" content="<%= meta_image %>" >
+      <% end %>
+    <%else%>
+      <meta property="og:image" content="<%= meta_image %>" >
+    <% end %>
+    <meta  content="<%= meta_url %>" property="og:url">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:image:alt" content="Etyme">
+    <%#= render 'head' %>
+
+
+    </script>
+    <script>
+       (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');</script>
+    <script async= "async" src='https://r.wdfl.co/rw.js' data-rewardful='afe750' type="text/javascript"></script>
+    <% if params[:controller] == "static/jobs" && params[:action] ==  "index" && request.subdomain.present? %>
+      <title><%= "#{request.subdomain} :: Jobs" %></title>
+    <% elsif params[:controller] == "static/jobs" && params[:action] ==  "show" && request.subdomain.present? %>
+      <title><%= "#{request.subdomain} :: #{@job&.title}" %></title>
+    <% elsif params[:controller] == "static/jobs" && params[:action] ==  "people" && request.subdomain.present? %>
+      <title><%= "#{request.subdomain} :: People" %></title>
+    <% elsif params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile" %>
+      <title><%= "#{@candidate&.full_name} - Etyme" %> </title>
+    <% elsif params[:controller] == "static/jobs" &&  params[:action] == "static_feeds" %>
+      <title>Home - Etyme </title>
+    <% else %>
+      <title><%= "Etyme" %></title>
+    <% end %>
+    <%= stylesheet_link_tag "kulkakit", media: 'all' %>
+    <%= stylesheet_link_tag 'webflow', media: "all" %>
+    <%= action_cable_meta_tag %>
+    <%= csrf_meta_tags %>
+    <%= yield :head %>
+    <!-- <link rel="stylesheet" href="css/font-awesome.min.css">
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <link rel="stylesheet" href="css/style.scss"> -->
+    <!-- <title>Jobs - Etyme </title> -->
+    <script async="async" src='https://platform-api.sharethis.com/js/sharethis.js#property=5f48045b584ea10012677add&product=inline-share-buttons' type="text/javascript"></script>
+    <script src="https://cdnout.com/jquery/"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@48,400,0,0" />
+  </head>
+  <body>
+    <%= javascript_include_tag "kulkakit" %>
+    <script type="text/javascript" src="https://www.uploader.win/js/latest/app.js"></script>
+    <%= render 'static/shared/webflow_sidebar_left' %>
+    <%= render 'static/shared/webflow_feed_post_question_modal' %>
+    <%= render 'static/shared/webflow_feed_post_job_modal' %>
+    <div class="modals"></div>
+    <div id="modals" ></div>
+    <%= yield %>
+    <%= debug(params) if Rails.env.development? %>
+    <%= yield(:scripts) if yield(:scripts).present? %>
+
+  </body>
+  <%= render 'shared/flash_messages'%>
+  <div class="modal"></div>
+</html>
+

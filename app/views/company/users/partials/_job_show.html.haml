@@ -1,0 +1,19 @@
+.panel.panel-default
+  .panel-body.status
+    .who.clearfix
+      %div.pull-right.font-xs.text-muted
+        .pt-avatar-w.d-flex{style: 'flex-direction: column;align-items: center;'}
+          =image_tag data.company.logo,class:'circle_img',alt: "job",style: "width: 40px !important; height: 40px !important;"
+          .d-flex
+            .logged-user-role.d-block= contact_widget(data.company.email, data.company.phone,data.company,chat_link: chat_link(data.company),color: '#3E4B5B; !important')
+
+      = image_tag data.files.blank? ? 'jobs.png' : data.files,class:'circle_img',alt: "job",style: "width: 40px !important; height: 40px !important;"
+      .title.d-flex
+        - if current_company == data.company && data.chat.present?
+          = link_to raw("<i class='fa fa-share-alt ' style='color: #636c71'></i>") ,send_invitation_job_path(data) , method: :post ,remote: true,  class: '',title: "Send invitation" ,'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+        %h6.pl-2 Title- #{do_ellipsis(data.title.humanize,15)}
+      .name.font-sm.text-mutedd
+        %i.picons-social-icon-periscope{style: 'color: #636c71;'}  #{data.location&.humanize}
+      .data_description.mt-5
+        = data.description.html_safe
+

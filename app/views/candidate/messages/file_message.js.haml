@@ -1,0 +1,7 @@
+- if flash[:errors].present?
+  - flash[:errors].each do |e|
+    flash_error("#{e}");
+    $('#upload_document').modal('hide') ;
+- if flash[:success].present?
+  flash_success("#{flash[:success]}");
+  $('#upload_document').modal('hide') ;

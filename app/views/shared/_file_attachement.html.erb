@@ -1,0 +1,20 @@
+<% @id = SecureRandom.hex(5) %>
+<%= f.hidden_field attr_name, id: @id, class: 'filepicker-attach-doc resume_field',  "data-required" => "#{required_field.to_s}" %>
+<% is_multi = false %>
+<% unless local_assigns.has_key? :cstm_style %>
+  <% cstm_style = '' %>
+<% end %>
+<% unless local_assigns.has_key? :cstm_class %>
+  <% cstm_class = 'btn-primary' %>
+<% end %>
+<% multiple = false unless local_assigns.has_key? :multiple %>
+<% if local_assigns.has_key? :button_name %>
+  <% name = button_name %>
+<% else %>
+  <% name = attr_name.to_s.split('_').collect(&:capitalize).join(' ') %>
+<% end %>
+<% if local_assigns.has_key? :name_selector %>
+  <%= button_tag name, type: 'button', style: cstm_style, class: "btn #{cstm_class} uploader", onclick: "upload_file('##{@id}','.uploaded_file_#{@id}',#{multiple})" %>
+<% else %>
+  <%= button_tag name, type: 'button', style: cstm_style, class: "btn #{cstm_class} uploader", onclick: "upload_file('##{@id}',false,#{multiple})" %>
+<% end %>

@@ -1,0 +1,31 @@
+
+$(".user-fav").removeClass('active-conversation')
+$(".usr_Group_<%= @conversation&.chatable&.id %>").addClass('active-conversation')
+<% @messages = @messag if @messag.present?%>
+<% if @messages.present? %>
+$("#prev_date").val("<%= @messages.last&.created_at&.strftime('%d %b, %Y') %>");
+$("#conversation_<%= @conversation.id %>").scrollTop(50);
+$("#conversation_<%= @conversation.id %>").html("");
+$("#conversation_<%= @conversation.id %>").parent().scrollTop(50);
+$("#conversation_message_file_url").val('');
+  <% @messages.each_with_index do |msg, i| %>
+    <% if current_candidate %>
+      <% unless(msg.rate_confirmation? and (current_candidate.not_freelancer?)) %>
+        $("#conversation_<%= @conversation.id %>").prepend("<%= j render 'conversation_messages', msg: msg, i: i %>");
+      <% end %>
+    <% else %>
+    $("#conversation_<%= @conversation.id %>").prepend("<%= j render 'conversation_messages', msg: msg, i: i %>");
+  <% end %>
+
+<% end if @messages.present? %>
+  $("#all-infinite-scrolling-msg").html("<%= j will_paginate @messages %>");
+  $(".chat-content-scroll").data('ajaxready', true);
+<% end %>
+
+$('.p_date').datepicker({
+  changeMonth: true,
+  changeYear: true,
+  yearRange: "c-60:c",
+  dateFormat: "mm-dd-yy"
+});
+$('.p_time').timepicker({template: false, showInputs: false, minuteStep: 5});

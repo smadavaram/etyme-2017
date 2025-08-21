@@ -1,0 +1,44 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Paid Invoice list
+
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              %br
+              .row
+                .col-md-2
+                  %label Client Expense Bill
+              %br
+              %div.table-responsive
+                %table.table.table-bordered.account_detail
+                  %thead
+                    %tr
+                      %th Contract
+                      %th Bill no/ Item description
+                      %th Status
+                      %th Bill Type
+                      %th Amount Paid
+                      %th Attachment
+                  %tbody
+                    - @client_expense_invoices.each do |ex|
+                      %tr
+                        %td
+                          = ex.contract_id
+                        %td
+                          = ex.bill_no
+                        %td
+                          = ex.status.titleize
+                        %td
+                          = ex.bill_type.titleize
+                        %td
+                          = ex.total_amount
+                        %td
+                          =link_to ' Invoice',ex.attachment, target: "_blank", class: 'text-break'

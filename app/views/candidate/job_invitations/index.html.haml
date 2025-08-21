@@ -1,0 +1,38 @@
+#content
+  #wid-id-5.no-border.jarviswidget{"data-widget-colorbutton" => "false", "data-widget-custombutton" => "false", "data-widget-editbutton" => "false", "data-widget-fullscreenbutton" => "false", "data-widget-sortable" => "false"}
+    %div
+      .jarviswidget-editbox
+      .widget-body
+        %ul#internal-tab-1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
+          %li.nav-item.cumstom_nav-tab
+            %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is4", class: "nav-link cumstom_nav-tab display-flex"}
+              %span.badge.bg-color-blue.txt-color-white
+              Rejected
+          %li.nav-item.cumstom_nav-tab
+            %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is1", class: "nav-link cumstom_nav-tab display-flex"}
+              %span.badge.bg-color-blue.txt-color-white
+              Accepted
+          %li.nav-item.cumstom_nav-tab
+            %a{"aria-expanded" => "false", "data-toggle" => "tab", :href => "#is2", class: "nav-link cumstom_nav-tab display-flex"}
+              %span.badge.bg-color-blue.txt-color-white
+              Pending
+          %li.nav-item.active.cumstom_nav-tab
+            %a{"aria-expanded" => "true", "data-toggle" => "tab", :href => "#is3", class: "nav-link cumstom_nav-tab display-flex"}
+              %span.badge.bg-color-blue.txt-color-white
+              All
+        .tab-content.padding-top-15
+          #is4.tab-pane
+            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.rejected,id: 1}
+          #is1.tab-pane
+            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.accepted,id: 2}
+          #is2.tab-pane.fade
+            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations.pending,id: 3}
+          #is3.tab-pane.fade.active.in
+            = render partial: 'candidate/job_invitations/partials/invitations_table' , locals: {data: @job_invitations,id: 4}
+
+#job_invitation
+- content_for :scripts do
+  :javascript
+    $(document).ready(function () {
+      default_active_nav('.ln-3');
+    });

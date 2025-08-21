@@ -1,0 +1,159 @@
+.profile_container {
+	background: #fff;
+  padding: 20px 40px;
+	
+	.heading {
+		font-size: 28px;
+    font-weight: bold;
+	}
+	.intro_section {
+		border: 3px solid black;
+    height: 120px;
+    margin-bottom: 25px;
+
+    .profile_image {
+
+	    img {
+	    	border-radius: 100%;
+				width: 125px;
+				height: 125px;
+				margin-top: -5px;
+				margin-left: -3px;
+	    }
+    }
+    .name_block {
+    	display: inline-block;
+    	width: 80%;
+	    float: right;
+	    text-align: center;
+	    padding-top: 6px;
+
+    	.name {
+    		font-size: 40px;
+    		font-weight: bold;
+    	}
+    	.department {
+    		font-size: 16px;
+    		font-weight: bold;
+    	}
+    }
+  	.action_block {
+  		padding: 18px 6px;
+    	text-align: center;
+
+  		.action_button {
+  			border-radius: 100%;
+		    background: #e9e9e9;
+		    height: 52px;
+		    padding: 8px;
+
+  			img {
+  				width: 35px;
+  				height: 35px;
+  				border-radius: 100%;
+  			}
+  		}
+  	}
+	}
+	.about_section {
+		margin-bottom: 60px;
+	}
+	.block_pointer {
+		border-bottom: 3px solid #202020;
+		border-radius: 100%;
+		background: #202020;
+		width: 20px;
+    height: 20px;
+    margin-left: 22%;
+    margin-bottom: -34px;
+    margin-top: 15px;		
+	}
+	.education_section {
+		margin-bottom: 60px;
+		border-bottom: 3px solid #202020;
+
+		.education_timeline_block {
+			display: inline-block;
+			padding: 22px 0;
+			width: 48%;
+
+			.user_school {
+				font-size: 18px;
+    		font-weight: bold;
+			}
+			.user_class {
+				font-size: 14px;
+    		font-weight: bold;
+			}
+		}
+	}
+	.experience_section {
+		margin-bottom: 60px;
+		border-bottom: 3px solid #202020;
+
+		.experience_timeline_block {
+			display: inline-block;
+			padding: 22px 0;
+			width: 23%;
+
+			.company_name {
+				font-size: 18px;
+    		font-weight: bold;
+			}
+			.technology {
+				font-size: 14px;
+    		font-weight: bold;
+			}
+			.time_limit {
+				font-size: 12px;
+			}
+		}
+	}
+	.skills_section {
+		margin-bottom: 60px;
+
+		.skills_set {
+			padding-top: 8px;
+
+			.skill_block {
+				display: inline-block;
+		    margin-right: 10px;
+		    border: 3px solid #202020;
+
+				img {
+					width: 60px;
+    			height: 60px;
+				}
+			}
+		}
+	}
+	.projects_section {
+		margin-bottom: 60px;
+
+		.project_title {
+			font-size: 20px;
+	    font-weight: bold;
+	    padding-top: 20px;
+		}
+		.technology {
+			font-size: 14px;
+    	font-weight: bold;
+		}
+		.description {
+			font-size: 12px;
+			width: 80%;
+		}
+	}
+	.social_links_section {
+		padding-bottom: 16px;
+		img {
+			width: 40px;
+	    height: 40px;
+	    border: 2px solid #202020;
+		}
+		.link {
+			display: inline-block;
+    	margin-left: 5px;
+		}
+	}
+}

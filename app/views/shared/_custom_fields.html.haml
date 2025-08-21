@@ -1,0 +1,7 @@
+.nested-fields
+  .form-group
+    %label.control-label
+      Field Name
+      %sup.text-danger *
+    = f.text_area :name , class: 'form-control' , placeholder: 'Enter Field Name' , required: true
+    = link_to_remove_association "Remove", f, class: "btn btn-danger pull-right"

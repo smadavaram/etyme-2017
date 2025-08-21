@@ -1,0 +1,15 @@
+.form-group
+  .multi-field-wrapper
+    .row
+      .col-md-9.col-xs-9
+        .multi-fields
+          %h6.element-header{style: "margin-bottom: 10px;"}
+            Portfolio
+      .col-md-3.col-xs-3      
+        .links.pull-right{style: "margin-top: 10px;"}
+          = link_to_add_association '+ Add Image', f, :portfolios, :class => 'btn btn-primary add_fields add_image', :partial => 'candidate/candidates/partials/gallery_fields', data: {"association-insertion-node" =>  ".gallery-wrapper-#{local_assigns[:reference]}-#{f.object.id}", "association-insertion-method" => 'append'}
+    .wrapper{style:"display: inline-flex;width: -moz-available;max-width: 890px;overflow: scroll;"}
+      .d-flex{style:"width: initial;", class: "gallery-wrapper-#{local_assigns[:reference]}-#{f.object.id}" }
+      .form-group.d-flex
+        = f.fields_for :portfolios do |b|
+          = render 'candidate/candidates/partials/gallery_fields', f: b

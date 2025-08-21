@@ -1,0 +1,36 @@
+/*
+
+ *= require style
+ *= require chat_box
+ *= require theme8
+
+
+ *= require conversation/chat
+
+ *= require my-buttel-train
+ *= require jobs_small_chat
+
+
+ *= require custom
+ *= require company_chat_custom
+ *= require candidate/profile
+
+ */
+ 
+.icon-text {
+  font-size: 12px;
+  line-height: normal;
+  display: block;
+  color: #047bf8;
+}
+.new-messages-count {
+  top: -2px !important;
+  right: 0px !important;
+}
+body {
+  padding: 0px;
+}
+.new-class-margin {
+  margin-right: 5px;
+  color: black;
+}

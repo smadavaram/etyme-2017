@@ -1,0 +1,103 @@
+= form_for admin ,html:{ class:'form-horizontal', id:'companyform', remote: true} do |f|
+  %fieldset
+    .form-group
+      %label.col-md-2.control-label
+        First Name
+        %sup.text-danger *
+      .col-md-10
+        = f.text_field :first_name , class: 'form-control' , placeholder: 'Enter First Name' , required: true ,id:'fname'
+    .form-group
+      %label.col-md-2.control-label
+        Last Name
+        %sup.text-danger *
+      .col-md-10
+        = f.text_field :last_name , class: 'form-control' , placeholder: 'Enter Last Name' , required: true,id:'lname'
+    .form-group
+      %label.col-md-2.control-label
+        Phone Number
+        %sup.text-danger *
+      .col-md-10
+        = f.number_field :phone , class: 'form-control' , placeholder: 'Enter Phone Number' , required: true ,id: 'phone'
+    .form-group
+      %label.col-md-2.control-label
+        Email
+        %sup.text-danger *
+      .col-md-10
+        = f.email_field :email , class: 'form-control' , placeholder: 'Enter Email Address' , required: true ,id: 'email'
+    -#.form-group
+    -#  %label.col-md-2.control-label
+    -#    Job Location
+    -#    %sup.text-danger *
+    -#  .col-md-10
+    -#    = f.select :primary_address_id, current_company.locations.collect { |location|[location.id,location.name] }  , {},class: 'form-control'  , required: true
+    .form-group
+      %label.col-md-2.control-label
+        Roles
+        %sup.text-danger *
+      .col-md-10
+        = f.select :role_ids, current_company.roles.collect {|role|[ role.name,role.id]}, {}, {:class=>"form-control input-lg multi-select2-role",:multiple => true,required: true}
+  .form-actions
+    .row
+      .col-md-12
+        = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss": "modal"
+        =# f.submit "Submit", class: 'btn btn-primary' , id:'form_id'
+        = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")} , class: 'btn btn-primary' ,id:'form_id'
+
+- content_for :scripts do
+  :javascript
+    var $validator = $("#companyform").validate({
+
+          rules: {
+            email: {
+              required: true,
+              email: "Your email address must be in the format of name@domain.com"
+            },
+            fname: {
+              required: true
+            },
+            lname: {
+              required: true
+            },
+            phone: {
+              required: true
+            },
+            company: {
+              required: true
+            }
+          },
+
+          messages: {
+            fname: "Please specify your First name",
+            lname: "Please specify your Last name",
+            phone: "Please specify your Phone Number",
+            email: {
+              required: "We need your email address to contact you",
+              email: "Your email address must be in the format of name@domain.com"
+            }
+          },
+
+          highlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-success').addClass('has-error');
+          },
+          unhighlight: function (element) {
+            $(element).closest('.form-group').removeClass('has-error').addClass('has-success');
+          },
+          errorElement: 'span',
+          errorClass: 'help-block',
+          errorPlacement: function (error, element) {
+            if (element.parent('.input-group').length) {
+              error.insertAfter(element.parent());
+            } else {
+              error.insertAfter(element);
+            }
+          }
+        });
+
+
+         $('.form_id').click(function(){
+            if ($("#companyform").valid()) {
+              $('#companyform').submit();
+
+            }
+            return false;
+        });

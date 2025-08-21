@@ -1,0 +1,49 @@
+<div class="header" style="border-bottom: 1px solid lightgray; font-family: 'Whitney SF', 'Open Sans', sans-serif;">
+  <div class="col-12">
+    <div class="header-items">
+      <div class="d-flex align-items-center">
+        <div class="header-left d-flex">
+          <div class="header-left-mobile">
+            <span class="sidebar-left-btn txt-dark">
+              <i class="fa fa-bars f-20 purple-100" aria-hidden="true"></i>
+            </span>
+          </div>
+          <% if ( @current_company.present? and ['both', 'company_logo'].include?(@current_company.show_name_logo))%>
+            <div class="webflow-logo-50 webflow-logo-xs-40">
+              <%= link_to root_path do %>
+                <% if @current_company.present? && @current_company.logo.present? %>
+                  <%= image_tag @current_company.logo %>
+                <% else %>
+                  <%= image_tag(image_path('etyme-logo-dark.png')) %>
+                <% end %>
+              <%end%>
+            </div>
+          <%end%>
+          <% if ( @current_company.present? and ['both', 'company_name'].include?(@current_company.show_name_logo))%>
+            <div class="d-none d-lg-block header-logo-label m-3">
+              <%= @current_company&.name %>
+            </div>
+          <% end %>
+        </div>
+        <div class="header-right d-flex">
+          <div class="d-none d-md-flex flex-fill mb-2 mb-md-0 col-xl-9">
+            <div class="search-main position-relative d-flex flex-fill align-items-center justify-content-between">
+              <div class="d-inline-block position-relative w-100">
+                <input id="search_query" type="text" value="<%= params[:input_search] %>" placeholder="<%="Search #{@current_company&.name}..."%>" class="search-style f-14 f-mon-med txt-dark w-100">
+                <div class="btn-search">
+                  <button class="btn border-0">
+                      <%= image_tag(image_path('search.png'), class: "img-fluid") %>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <%= render 'kulkakit/shared/header' %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JS Event Handler for the Left and Right Sidebar Togglers -->
+<%= javascript_include_tag 'webflow'%>

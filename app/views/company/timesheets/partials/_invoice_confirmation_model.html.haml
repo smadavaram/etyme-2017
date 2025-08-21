@@ -1,0 +1,10 @@
+- if @errors
+  %div There is invalid Invoice.
+- else
+  %div
+    your invoice date is #{}, so you want to generate invoice now ?
+  %div
+    you have approve timesheet  #{@invoice.start_date} TO #{@invoice.end_date}.
+    .modal-footer
+      %button.btn.cancel.btn-default{"aria-hidden" => "true", "data-dismiss" => "modal"} Cancel
+      = link_to raw("Confirm") ,timesheet_generate_invoice_path(@invoice) , class: 'btn commit btn-danger',title:'Generate Invoice','rel'=>"tooltip" ,'data-placement'=>"top"

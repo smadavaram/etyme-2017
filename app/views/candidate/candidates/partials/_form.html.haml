@@ -1,0 +1,49 @@
+= form_for [job,job.job_invitations.new] ,remote: true , method: :post ,html:{ class:'form-horizontal',id: 'form-val'} do |f|
+  -#= f.hidden_field :job_id , value: params[:job_id]
+  = f.hidden_field :invitation_type , value: "by_email"
+  .form-group
+    %label.col-md-2.control-label
+      First Name
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :first_name , class: 'form-control' , placeholder: 'Enter First Name' , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Last Name
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :last_name , class: 'form-control' , placeholder: 'Enter Last Name' , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Email
+      %sup.text-danger *
+    .col-md-10
+      = f.email_field :email , class: 'form-control' , placeholder: 'Enter Email Address' , required: true
+      = f.hidden_field :invited_by_id,  value: current_user.id
+      = f.hidden_field :invited_by_type, value: current_user.class.name
+      = f.hidden_field :job_id,value: job.id
+  .form-group
+    %label.col-md-2.control-label
+      Expiry
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Invitation Expire Date" ,id:"direct_email_canidate"
+  .form-group
+    %label.col-md-2.control-label
+      Message
+      %sup.text-danger
+    .col-md-10
+      = f.text_area :message ,class: "form-control" ,row: '3' , required: 'required', placeholder: "Enter Description"
+  .modal-footer
+    -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+    %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+      Cancel
+    = f.button "Send".html_safe, data: {disable_with: disable_spinning("Sending...")} , class: 'btn btn-primary btn-sm'
+
+- content_for :scripts do
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+    $(document).ready(function() {
+      // Job End Date
+
+    });

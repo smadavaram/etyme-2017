@@ -1,0 +1,29 @@
+%aside#left-panel
+  / User info
+  .login-info
+    %span
+      / User image size is adjusted inside CSS, it should stay as it
+      %a{:href => my_profile_path}
+       =user_image(current_candidate, style: 'width: 35px; height: 35px;', class: 'online data-table-image mr-2',title: "#{current_candidate.full_name}" )
+        %span
+          = current_candidate.full_name
+        %i.fa.fa-angle-down
+      
+      / %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+      /   = image_tag((current_candidate.photo.present? ? current_candidate.photo : 'default_user.png'), alt: 'me', class: 'online')
+      /   %span
+      /     = current_candidate.full_name
+      /   %i.fa.fa-angle-down
+  / end user info
+  / NAVIGATION : This navigation is also responsive
+  %nav
+    /
+      NOTE: Notice the gaps after each icon usage <i></i>..
+      Please note that these links work a bit different than
+      traditional href="" links. See documentation for details.
+    %ul
+      = candidate_left_menu
+  %span.minifyme{"data-action" => "minifyMenu"}
+    %i.fa.fa-arrow-circle-left.hit
+
+

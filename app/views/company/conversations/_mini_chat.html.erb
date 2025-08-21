@@ -1,0 +1,140 @@
+<style>
+.more_class{
+/*margin-left: auto;*/
+}
+.min_chat_more {
+  background-color: #047bf8;
+  display: inline-block;
+  padding: 0px 4px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 12px;
+  margin: 3px;
+}
+ .modal-header .close{
+    margin: -4rem -1rem -1rem auto;
+  }
+  @media only screen and (max-width: 600px){
+    #PageTitle{
+      width: 90%;
+    }
+    .modal-header .close{
+      margin: -3rem -1rem -1rem auto;
+    }
+    form {
+      margin-top: 0%;
+    }
+    h2, .h2 {
+      font-size: 21px;
+    }
+    .w-75 {
+      width: 90% !important;
+    }
+    span{
+      margin-top: 0;
+      width: 25px !important;
+      height: 25px !important;
+    }
+  }
+</style>
+
+<div class="floated-chat-w active zero-bottom">
+    <div class="floated-chat-i">
+        <div class="chat-close display-flex">
+            <a class="align-self-center rotate-45 no-hover new-class-margin" style="font-size: 15px;" href=<%= company_conversations_path(conversation: conversation.id) %> target="_blank">
+                <i class="data-table-icons ti-arrows-horizontal"> </i>
+            </a>
+            <i class="minus_mini_chat os-icon os-icon-close align-self-center" style="margin-left: 10px;"></i>
+        </div>
+        <div class="chat-head">
+            <div class="flex-row w-100 chat-heat_justify">
+                <div class=" d-flex w-100 align-items-center">
+                    <% if conversation.chatable.groupables.any?  %>
+                    <% conversation.chatable.groupables.sample(4).each do |groupable| %>
+                    <div class=" my_avatar">
+
+                        <%= user_image_mini_chat(groupable&.groupable.nil? ? candidate : groupable.groupable , style: 'width: 25px; height: 25px; border-radius: 50%; ', class: '', title: "#{groupable.groupable&.full_name}") %>
+
+                    </div>
+                    <% end %>
+                    <% else %>
+                    <div class=" my_avatar">
+                      <p>None</p>
+                    </div>
+                    <% end  %>
+                    <% if conversation.chatable.groupables.count > 4 %>
+                    <div class="min_chat_more"><%= "+ #{(conversation.chatable.groupables.count - 4).abs}" %>More</div>
+                    <% end %>
+                    <div class="min_chat_more more_class"><%= (mini_chat_title(conversation)) %></div>
+                </div>
+            </div>
+        </div>
+        <%# if conversation.chatable.groupables.count > 1 %>
+        <div class="chat-messages ps ps--theme_default" style="width:100%" data-ps-id="2f3100d8-938b-8535-97e8-f6f574450d91">
+            <div class="chat-content-small chat-content-scroll chat-content_height scrool" style="overflow-x: hidden">
+                <div class=" small-chat-heig" style="width:100%;     overflow-x: hidden;" id="conversation_<%= conversation.id %>">
+                    <div id="all-infinite-scrolling-msg" style="display:none"></div>
+                    <%= hidden_field_tag "prev_date", nil %>
+                </div>
+            </div>
+        </div>
+        <div class="chat-controls">
+            <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{conversation.id}"}) do |f| %>
+            <div class="chat-input1 chat-input" style=" border-top: 1px solid rgba(0, 0, 0, 0.2);">
+                <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
+            </div>
+            <div id="file-name_uploaded">
+
+            </div>
+            <div class="chat-input-extra d-flex pl-1 pr-1 justify-content-between">
+                <div class="chat-extra-actions">
+                    <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show'); $('.minus_mini_chat').click();load_data_table();" do %>
+                    <%#= image_tag("/assets/docusign.png", size: "25x25") %>
+                    <img src="https://e7.pngegg.com/pngimages/660/678/png-clipart-docusign-electronic-signature-information-windows-phone-document-sci-tech-information-blue-text-thumbnail.png" width="25" height="25" alt="">
+
+                    <% end %>
+                    <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;width:30px;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 20px !important; padding:8px !important; color:grey !important;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
+                    <%= mini_chat_contact_widget(conversation.chatable.group_emails, nil, nil, chat_link: chat_link(nil, conversation.id)) %>
+
+
+                </div>
+
+                <div class="chat-btn">
+
+                    <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;",id:"send-message", onclick: "send_message(#{@conversation.id})") do %>
+                    <i class="os-icon os-icon-mail-18" style=' font-size: 20px; margin-right: 4px; color: grey'></i>
+                    <% end %>
+
+                </div>
+
+
+            </div>
+            <% end if conversation.present? %>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript" charset="utf-8">
+    function load_data_table(){
+      $("#company-template-datatable").dataTable();
+      $("#company-template-datatable-search").keyup(function () {
+        $("#company-template-datatable").DataTable().search($(this).val()).draw();
+      });
+    };
+    function send_message(id) {
+        setTimeout(() => {
+            $('.chat_input').val("");
+            $(`#conversation_${id}`).empty();
+            $.ajax({
+                url: "<%= messages_conversation_conversation_messages_path(@conversation) %>",
+                type: "GET",
+                dataType: "script",
+                success: function(data) {
+                    $("#conversation_<%=conversation&.id||0 %>").parent().scrollTop($("#conversation_<%=conversation&.id||0 %>").parent()[0].scrollHeight);
+
+                }
+            });
+        }, 500);
+    }
+    $('#logo-group').hide()
+</script>

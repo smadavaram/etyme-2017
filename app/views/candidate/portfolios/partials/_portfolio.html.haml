@@ -1,0 +1,23 @@
+
+.tab-content.padding-10
+  %table.table.table-striped
+    %thead
+      %tr
+        %th{style:'width:20%'}
+          Title
+        %th{style:'width:20%'}
+          Description
+        -#%th{style:'width:20%'}
+        -#  Zipcode
+    - user.portfolios.each do |pf|
+      - next if pf.new_record?
+      %tbody
+        %tr
+          %td
+            = best_in_place pf, :name, :as => :input, :place_holder => "Click me to add content!",url:portfolio_path(pf)
+          %td
+            = best_in_place pf,:description, :as => :textarea ,url:portfolio_path(pf), :place_holder => "Click me to add content!"
+
+
+
+

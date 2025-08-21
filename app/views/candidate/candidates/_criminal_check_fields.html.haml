@@ -1,0 +1,35 @@
+.multi-field-container.nested-fields6
+  .row
+    .col-sm-4
+      .form-group
+        %label State
+        = f.text_field :state, placeholder: "State",class: 'form-control input'
+
+    .col-sm-3
+      .form-group
+        %label Address
+        = f.text_field :address,placeholder: "Address",class: 'form-control education_start_year p-location input'
+
+    .col-sm-2
+      .form-group
+        %label Start Date
+        = f.text_field :start_date,placeholder: "DD-MM-YYYY",class: 'form-control p_date creminal_check_start_year input'
+
+    .col-sm-2
+      .form-group
+        %label End Date
+        = f.text_field :end_date,placeholder: "DD-MM-YYYY",class: 'form-control visa_exp_date input'
+    .col-md-1
+      .form-group
+        %label Delete
+        = link_to_remove_association f , wrapper_class: "nested-fields6", class: "bttn btn-add delete_icon" do
+          %i.fa.fa-trash
+
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    $(document).ready(function() {
+-#      $('.creminal_check_start_year, .creminal_check_end_year').datepicker({
+-#       dateFormat: "yy-mm-dd"
+-#      });
+-#    });

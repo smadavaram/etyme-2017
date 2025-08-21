@@ -1,0 +1,14 @@
+.modal-body
+  = form_for dept,html:{ class:'form-horizontal',id: 'location'} do |location|
+    = location.fields_for :department do |dept|
+      .form-group
+        %label.col-md-2.control-label.no-wrap
+          Department Name
+          %sup.text-danger *
+        .col-md-10
+          = dept.text_field :name,:placeholder => "Name",class: "form-control",:required => 'required' ,id:'loc'
+    .modal-footer
+      %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+        Cancel
+      %button.btn.btn-primary{:type => "submit" ,id:'form_id'}
+        Submit

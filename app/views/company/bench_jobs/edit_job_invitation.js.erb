@@ -1,0 +1,38 @@
+$('#candidate_bench_job_invitation').html("<%= j render "company/bench_jobs/edit_job_invitation", job_invitation: @job_invitation %>");
+
+$('#edit_job_invitation').modal('show');
+
+$('.end_date_edit').datepicker({dateFormat : 'dd/mm/yy'});
+
+$.validator.addMethod("editGreaterThan",
+function (value, element, param) {
+  var $min = $(param);
+  if (this.settings.onfocusout) {
+    $min.off(".validate-greaterThan").on("blur.validate-greaterThan", function () {
+      $(element).valid();
+    });
+  }
+  return parseInt(value) > parseInt($min.val());
+}, "Must be greater than to Min Hourly Rate");
+
+$.validator.addMethod("editLessThan",
+function (value, element, param) {
+  var $min = $(param);
+  if (this.settings.onfocusout) {
+    $min.off(".validate-greaterThan").on("blur.validate-greaterThan", function () {
+      $(element).valid();
+    });
+  }
+  return parseInt(value) < parseInt($min.val());
+}, "Must be less than to Max Hourly Rate");
+
+$('#edit-candidate-val').validate({
+  rules: {
+    "job_invitation[max_hourly_rate]": {
+      editGreaterThan: '#edit_min_hourly_rate'
+    },
+    "job_invitation[min_hourly_rate]": {
+      editLessThan: '#edit_max_hourly_rate'
+    }
+  }
+});

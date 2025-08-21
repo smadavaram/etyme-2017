@@ -1,0 +1,197 @@
+
+require:
+  - rubocop-performance
+
+
+AllCops:
+  TargetRubyVersion: 2.6.0
+  DisplayCopNames: true
+  DisplayStyleGuide: true
+  Exclude:
+    - 'db/schema.rb'
+    - 'db/migrate/*'
+
+Bundler/OrderedGems:
+  Enabled: false
+
+Style/MixinUsage:
+  Exclude:
+    - 'bin/setup'
+    - 'bin/update'
+
+Style/IdenticalConditionalBranches:
+  Enabled: false
+
+Style/GuardClause:
+  Enabled: false
+
+Style/NestedTernaryOperator:
+  Enabled: false
+
+Style/FormatStringToken:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  EnforcedStyle: compact
+  SupportedStyles:
+    - nested
+    - compact
+  Exclude:
+    - 'lib/zoom.rb'
+    - 'lib/docusign.rb'
+    - 'config/application.rb'
+    - 'app/models/contracts/cycle.rb'
+    - 'app/channels/application_cable/connection.rb'
+    - 'app/channels/application_cable/channel.rb'
+
+Style/StringLiterals:
+  Exclude:
+    - 'db/schema.rb'
+
+Style/Semicolon:
+  Exclude:
+    - 'app/controllers/company/jobs_controller.rb'
+    - 'app/controllers/company/admins_controller.rb'
+    - 'app/controllers/company/expenses_controller.rb'
+    - 'app/controllers/company/company_contacts_controller.rb'
+
+Style/OptionalArguments:
+  Enabled: false
+
+Style/MultilineTernaryOperator:
+  Enabled: false
+
+Style/IfInsideElse:
+  Enabled: false
+
+Style/StructInheritance:
+  Enabled: false
+
+Style/WordArray:
+  Exclude:
+    - 'db/schema.rb'
+
+Style/EmptyElse:
+  Exclude:
+    - 'app/controllers/company/jobs_controller.rb'
+
+Style/NumericPredicate:
+  Enabled: false
+
+Naming/AccessorMethodName:
+  Enabled: false
+
+Naming/VariableName:
+  Enabled: false
+
+Naming/PredicateName:
+  Enabled: false
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/ClassLength:
+  Enabled: false
+
+Metrics/CyclomaticComplexity:
+  Enabled: false
+
+Layout/LineLength:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false
+
+Metrics/ParameterLists:
+  Enabled: false
+
+Metrics/PerceivedComplexity:
+  Enabled: false
+
+Metrics/ModuleLength:
+  Enabled: false
+
+Metrics/BlockLength:
+  Enabled: false
+
+Metrics/BlockNesting:
+  Enabled: false
+
+Lint/Void:
+  Enabled: false
+
+Lint/Loop:
+  Enabled: false
+
+Lint/SuppressedException:
+  Enabled: false
+
+Lint/UselessAssignment:
+  Enabled: false
+
+Lint/SafeNavigationChain:
+  Enabled: false
+
+Lint/BooleanSymbol:
+  Enabled: false
+
+Lint/DuplicateMethods:
+  Exclude:
+    - 'app/models/buy_contract.rb'
+
+Lint/DuplicateHashKey:
+  Exclude:
+    # NOTE: Need to verify the use case
+    - 'app/controllers/company/salaries_controller.rb'
+
+Naming/VariableNumber:
+  Enabled: false
+
+Performance/InefficientHashSearch:
+  Exclude:
+
+Layout/HashAlignment:
+  Exclude:
+    - 'app/controllers/api/company/companies_controller.rb'
+
+Performance/RangeInclude:
+  Exclude:
+
+Performance/RedundantMatch:
+  Exclude:
+
+Performance/RedundantMerge:
+  Exclude:
+
+
+Performance/RegexpMatch:
+  Exclude:
+
+Performance/ReverseEach:
+  Exclude:
+
+Performance/StringReplacement:
+  Exclude:
+
+Performance/TimesMap:
+  Exclude:
+
+Security/YAMLLoad:
+  Exclude:
+
+Security/Open:
+  Exclude:
+    - 'app/services/resume_parser.rb'
+    - 'app/services/docusign_envelope.rb'
+    - 'app/controllers/company/companies_controller.rb'
+    - 'app/controllers/api/company/companies_controller.rb'
+
+Security/Eval:
+  Exclude:
+    - 'app/controllers/company/salaries_controller.rb'
+    - 'app/controllers/company/contracts_controller.rb'
+    - 'app/controllers/company/conversations_controller.rb'
+    - 'app/controllers/company/job_applications_controller.rb'

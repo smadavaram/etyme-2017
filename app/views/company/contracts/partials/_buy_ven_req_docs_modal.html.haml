@@ -1,0 +1,69 @@
+.modal#buy_ven_req_docs_modal
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %h2#myModalLabel.modal-title
+          %strong Vendor Create Document
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body
+        =link_to 'Add Document',attachments_path, target: "_blank",class: 'btn btn-primary right-flux'
+        %br
+        =form_tag('/contracts/buy_document_create', remote: true, method: :post) do
+          %input{name: "buy_contract_id", type:"hidden", value: @contract.buy_contract.id}
+          .table-responsive
+            %table#company-template-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped
+              %thead
+                %tr{:role => "row"}
+                  %th Select
+                  %th.expand.sorting_asc Title
+                  %th Type
+                  %th Document For
+                  %th Expiry Date
+                  %th Is Require
+                  %th Attachments
+                %tbody
+                  - @signature_templates_vendor.each do |doc|
+                    %tr.even{:role => "row"}
+                      %td
+                        = check_box_tag "ids[]", doc.id
+                      %td= doc.title
+                      %td= doc.title_type
+                      %td= doc.document_for
+                      %td= doc.exp_date
+                      %td= doc.is_require
+                      %td
+                        -if !doc.file.blank?
+                          -index = 1
+                          - doc.file.split(",").each do |file_path|
+                            %br
+                            %a{:download => "", :href => file_path, :target=>"_blank"}
+                              = "#{index}: #{file_path.split('/').last}"
+                              - index = index +1
+          %br
+          #toggle_signers{class: current_company.candidate_job_templates.present? ? '': 'd-none'}
+            = select_tag 'signers[]', nil, id: "select_vendor_company_signers", class: "form-control select2 select2-hidden-accessible mb-2"
+          = button_tag 'submit', class: 'btn btn-sm btn-secondary pull-right mt-2'
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+      $( ".file-pick" ).on('click',function() {
+      $('.fp__overlay').css({'z-index':'99999'})});
+    });
+
+:javascript
+    $(document).ready(function() {
+        pageSetUp();
+        $(".filepicker-attach-doc").on("change", function(e){
+          var name = e["originalEvent"]["fpfile"]["filename"];
+          var size = e["originalEvent"]["fpfile"]["size"];
+          var type = e["originalEvent"]["fpfile"]["mimetype"];
+          $(this).siblings(".doc-file-name" ).val(name);
+          $(this).siblings( ".doc-file-size" ).val(size);
+          $(this).siblings( ".doc-file-type" ).val(type);
+        });
+      });
+    $(".exp_date_ven_buy").datepicker({dateFormat : 'dd/mm/yy'});

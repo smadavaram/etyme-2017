@@ -1,0 +1,44 @@
+
+%nav.navbar.navbar-default.navbar-fixed-top
+  .container
+    %a.navbar-brand{style: 'margin-top: -5px;'}
+      = image_tag image_path('etyme-logo.png'),  style:"width:125px ;height:60px"
+    %input#toggle{:type => "checkbox"}/
+    %label.toggle{:for => "toggle"}
+    %ul.menu.static-menu
+      %li
+        %a{ :href => static_index_path}
+          Home
+      %li
+        %a{:href => static_jobs_path}
+          Jobs
+      %li.dropdown
+        %a.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
+          Login
+          %b.caret
+        %ul.dropdown-menu
+          %li
+            = link_to 'Company', request.subdomain.present? ? new_user_session_path : signin_path , class: ''
+          -if candidate_signed_in?
+            %li
+              = link_to  current_candidate.full_name.present?  ? current_candidate.full_name : 'Dashboard',candidate_candidate_dashboard_path
+          -else
+            %li
+              %a{:href => new_candidate_session_path} Candidate
+      %li.dropdown
+        %a.dropdown-toggle{"data-toggle" => "dropdown", :href => "#"}
+          Register
+          %b.caret
+        %ul.dropdown-menu
+          %li
+            %a{:href => register_path} Company
+          %li
+            %a{:href => new_candidate_registration_path} Candidate
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $(".static-menu li.dropdown").click( function(){
+        $(this).toggleClass("open");
+      });
+    });

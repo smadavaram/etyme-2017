@@ -1,0 +1,31 @@
+.modal{ id: "upload_document","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Upload Document
+      .modal-body
+
+        = form_for [:comapny,Message.new] ,url: file_message_company_chat_messages_path(chat), method: :post,  html:{ class:'form-horizontal',id: 'group-val'} do |f|
+          .form-group
+            %label.col-md-3.control-label
+              Select Company Document
+              %sup.text-danger *
+            .col-md-8
+              = select_tag "company_doc_id", options_from_collection_for_select(current_company.company_docs, "id", "name"), class: 'form-control select2 file_select', prompt: "",required: :true
+              .col-md-3.col-md-offset-3.text-align-center
+                %h2.text-center OR
+                %a.btn.btn-primary.pull-left.fileUpload{:href => "javascript:void(0);"} Upload
+          .modal-footer
+            = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Submitting...")} ,id: 'form_id'
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+:css
+  .select2{
+    width: 389px;
+    }
+-content_for :scripts do
+  :javascript
+    ''

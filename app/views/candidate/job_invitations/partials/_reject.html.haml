@@ -1,0 +1,21 @@
+.modal{ id: "job-invite-#{job_invitation.id}"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header.w-100
+        %h2
+          %strong= job.present? ? "Job Application - #{job.title}" : "Bench Invitation"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body
+        = form_for job_invitation, url: candidate_job_invitation_reject_path(job_invitation), html: {class: 'form-horizontal'} ,remote: true, method: :post do |f|
+          = f.hidden_field :status , value: :rejected
+          %fieldset
+            .form-group
+              %label.col-md-2.control-label Message (optional)
+              .col-md-10
+                = f.text_area :response_message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.submit 'Save' , class: 'btn btn-primary'
+

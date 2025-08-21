@@ -1,0 +1,52 @@
+{
+  email support@etyme.com
+  on_demand_tls {
+    # on-demand
+    ask http://localhost:3000/v1/company/companies/present.json
+  }
+}
+
+app.etyme.com {
+  encode gzip
+  root * /home/deploy/apps/etyme/current/public
+  
+  tls {
+    issuer acme
+  }
+
+  file_server
+
+  @notStatic {
+    not file
+  }
+
+  @websockets {
+    header Connection *Upgrade*
+    header Upgrade websocket
+  }
+
+  reverse_proxy @notStatic @websockets localhost:3000
+}
+
+:443 {
+  encode gzip
+  root * /home/deploy/apps/etyme/current/public
+
+  tls {
+    issuer acme
+    on_demand
+  }
+
+  file_server
+
+  @notStatic {
+    not file
+  }
+
+  @websockets {
+    header Connection *Upgrade*
+    header Upgrade websocket
+  }
+
+  reverse_proxy @notStatic @websockets localhost:3000
+}

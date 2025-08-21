@@ -1,0 +1,271 @@
+.with-side-panel.cmp-profile
+  .content-i
+    .content-box
+      .row
+        .col-sm-5
+          .user-profile.compact
+            .up-head-w#company_profile_pic{:style => "background-image:url(#{current_company.logo })"}
+              .up-main-info.profile-wrapper#company_info
+                %h2.up-header
+                %i.icon-feather-camera
+                %h2.up-header
+                =current_company.full_name
+                %h6.up-sub-header
+            .up-controls
+            .row
+              .col-sm-12{style: "display: flex;justify-content: space-evenly;"}
+                =contact_widget_user(current_company.owner) if current_company.owner.present?
+
+            .up-contents
+              .m-b
+                .row.m-b
+                  .col-sm-6.b-r.b-b
+                    = link_to jobs_path do
+                      .el-tablo.centered.padded-v
+                        .value
+                          = current_company.jobs.not_system_generated.count
+                        .label
+                          Jobs
+                  .col-sm-6.b-b
+                    = link_to company_contacts_company_companies_path do
+                      .el-tablo.centered.padded-v
+                        .value
+                          = current_company.company_contacts.count
+                        .label
+                          contacts
+
+                .padded
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Name
+                      .bar-label-right
+                        %span=current_company.name
+                        -#%span.text-success #{ current_user.confirmed_at.present? ? "verified" : "Unverified"}
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Domain
+                      .bar-label-right
+                        %span=current_company.domain
+                        -#%span.text-success #{ @company.is_number_verify ? "verified" : "Unverified"}
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Phone
+                      .bar-label-right
+                        %span=colorfull_text(current_company.phone,current_company.is_number_verify ? 'green' : 'red')
+                  .os-progress-bar.primary
+                    .bar-labels
+                      .bar-label-left
+                        %span Owner
+                      .bar-label-right
+                        =colorfull_text(current_company.owner.full_name,current_company.owner_verified ? 'green' : 'red')
+                        -#%span.text-success #{ @company.owner_verified ? "verified" : "Unverified"}
+          .element-wrapper
+            .element-box
+              -if @activities.present?
+                .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                  %h6 Company Activity
+                  =link_to "View All", jobs_path, class: "link-muted font-xs"
+                .timed-activities.compact
+                  .timed-activity
+                    .ta-date
+                      %span Recent Activities
+                    .ta-record-w
+                      - @activities.each do |activity|
+                        = render_activity activity, index: params[:index]
+              -else
+                %h6.element-header Company Activity
+                .timed-activities.compact
+                  There is no activities.
+
+        .col-sm-7.job-table
+          .element-wrapper
+            -if @jobs.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Jobs
+                -# =link_to "View All", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", jobs_path(type='Job'), class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th
+                          Title
+                        %th
+                          Location
+                        %th.text-center
+                          Posted By
+                    %tbody
+                      - @jobs.each do |j|
+                        %tr
+                          %td.nowrap=link_to do_ellipsis(j.title), job_path(j)
+                          %td=j.location
+                          %td.text-right=j.created_by.try(:full_name)
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Job(s)
+                =link_to "Create New", jobs_path(type='Job'), class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Job Right now.
+          .element-wrapper
+            -if @benches.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Bench
+                -# =link_to "View All", company_bench_jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", company_bench_jobs_path, class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th Title
+                        %th Name
+                        %th.text-center Location
+                    %tbody
+                      -@benches.each do |b|
+                        %tr
+                          %td.nowrap= b.candidate.candidate_title
+                          %td= b.candidate.try(:full_name)
+                          %td.text-right= b.candidate.try(:location)
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Bench
+                =link_to "Create New", company_bench_jobs_path, class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Bench Right now.
+          .element-wrapper
+            -if @training.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Training
+                -# =link_to "View All", jobs_path, class: "link-muted font-xs"\
+                =link_to "Create New", jobs_path(type: "Training"), class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th Title
+                        %th Location
+                        %th.text-center Posted By
+                    %tbody
+                      - @training.each do |t|
+                        %tr
+                          %td.nowrap= link_to do_ellipsis(t.title), job_path(t)
+                          %td= t.location
+                          %td.text-right= t.created_by&.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Trainings
+                =link_to "Create New", jobs_path(type: "Training"), class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Training Right now.
+          .element-wrapper
+            -if @products.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Products
+                -# =link_to "View All", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", jobs_path(type: "Product"), class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th Title
+                        %th Location
+                        %th.text-center Posted By
+                    %tbody
+                      - @products.each do |p|
+                        %tr
+                          %td.nowrap=do_ellipsis(p.title)
+                          %td=p.location
+                          %td.text-right=p.created_by.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Products
+                =link_to "Create New", jobs_path(type: "Product"), class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Products Right now.
+          .element-wrapper
+            - if @services.present?
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Services
+                -# =link_to "View All", jobs_path, class: "link-muted font-xs"
+                =link_to "Create New", jobs_path(type: "Service"), class: "link-muted font-xs"
+              .element-box
+                .table-responsive
+                  %table.table.table-lightborder
+                    %thead
+                      %tr
+                        %th Title
+                        %th Location
+                        %th.text-center Posted By
+                    %tbody
+                      - @services.each do |s|
+                        %tr
+                          %td.nowrap= do_ellipsis(s.title)
+                          %td= s.location
+                          %td.text-right= s.created_by.full_name
+            - else
+              .d-flex.justify-content-between.align-items-center.mb-3.element-header
+                %h6.mb-0 Services
+                =link_to "Create New", jobs_path(type: "Service"), class: "link-muted font-xs"
+              .element-box.p-3.text-center
+                %h6.mb-0 There is no Services Right now.
+
+    .content-panel
+      .content-panel-close
+        %i.os-icon.os-icon-close
+      .element-wrapper
+        - if @directories.present?
+          .d-flex.justify-content-between.align-items-center.mb-3.element-header
+            %h6.mb-0 Office Directory
+            = link_to "View All", directories_path, class: "link-muted font-xs"
+          .element-box-tp
+            - @directories.each do |d|
+              .profile-tile
+                %a.profile-tile-box{:href => company_user_profile_path(d)}
+                  .pt-avatar-w
+                    .pt-user-name= user_image(d, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{d.full_name}" )
+                  .pt-user-name= d.full_name
+                .profile-tile-meta= contact_widget(d.email, d.phone, d, color: '#3E4B5B; !important', chat_link: chat_link(d))
+        - else
+        .d-flex.justify-content-between.align-items-center.mb-3.element-header
+          %h6.mb-0 Office Directory
+          .element-box-tp
+            There is no directory.
+
+      .element-wrapper
+        - if @clients.present?
+          .d-flex.justify-content-between.align-items-center.mb-3.element-header
+            %h6 Clients
+            = link_to "View All", network_path, class: "link-muted font-xs"
+          .element-box-tp
+            .users-list-w
+              - @clients.each do |c|
+                - company = c.prefer_vendor
+                .user-w.with-status.status-green
+                  .user-avatar-w
+                    .user-avatar= image_tag show_recipient_picture(company.try(:logo))
+                  .user-name
+                    %h6.user-title= company.full_name rescue ""
+                    .data-table-icons= contact_widget(company.owner.email, company.owner.phone, company.owner, chat_link: chat_link(company.owner),color: '#3E4B5B; !important')
+
+        - else
+          %h6.mb-0 Clients
+          .element-box-tp
+            There is no client.
+  :css
+    #company_profile_pic:hover #company_info{
+      opacity: 0.7 !important;
+      transform: scaleY(1);
+      transition: all .4s;
+      transform-origin: bottom;
+    }
+    .profile-wrapper{
+      transform: scaleY(0);
+      transition: all .4s;
+      transform-origin: bottom;
+    }

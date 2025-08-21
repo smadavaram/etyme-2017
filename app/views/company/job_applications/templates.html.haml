@@ -1,0 +1,88 @@
+.content-box
+  .element-wrapper
+    .element-box
+      .element-header Documents Templates
+      %div
+        = link_to 'Add Document', '/attachments', class: 'btn btn-primary pull-right mr-3', target: '_blank'
+      =form_tag(controller: 'company/job_applications', action: 'send_templates') do
+        = hidden_field_tag 'id', @job_application.id
+        .controls-above-table
+          .row.mr-1.ml-1
+            .col-sm-12
+              .form-inline.justify-content-sm-end
+                %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: "templates_documents_datatable-search"}
+        .table-responsive
+          %table.table.table-striped.table-bordered.table-hover.table-lg{id: "templates_documents_datatable"}
+            %thead
+              %tr{:role => "row"}
+                %th Select
+                %th.expand.sorting_asc Title
+                %th Type
+                %th Document For
+                %th Expiry Date
+                %th Is Require
+                %th Attachments
+              %tbody
+                - current_company.company_candidate_docs.jobs_docs.each do |doc|
+                  %tr.even{:role => "row"}
+                    %td
+                      = check_box_tag "ids[]", doc.id
+                    %td= do_ellipsis(doc.title.capitalize,15)
+                    %td= doc.title_type
+                    %td= doc.document_for
+                    %td= doc.exp_date
+                    %td= doc.is_require
+                    %td
+                      -if !doc.file.blank?
+                        -index = 1
+                        - doc.file.split(",").each do |file_path|
+                          %br
+                          %a{:download => "", :href => file_path, :target=>"_blank"}
+                            = "#{index}: #{file_path.split('/').last}"
+                            - index = index +1
+        %br
+        #toggle_signers{class: current_company.candidate_job_templates.present? ? '': 'd-none'}
+          = select_tag 'signers[]', nil, id: "select_sell_company_contacts", class: "form-control select2 select2-hidden-accessible mb-2"
+        = button_tag 'submit', class: 'btn btn-sm btn-secondary pull-right mt-2'
+        %br
+    .element-wrapper
+      .element-box
+        .element-header Documents collection
+        .table-responsive
+          %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
+            %thead
+              %tr{:role => "row"}
+                %th Document Title
+                %th Sent Date
+                %th Status
+                %th Signers
+                %th Envelope No
+                %th Signed Document
+                %th Action
+            %tbody
+              - @document_signs.each do |docusign|
+                %tr{id: "document_collection_#{docusign.id}"}
+                  %td= do_ellipsis(docusign.documentable.title.capitalize,15)
+                  %td{style: "color: #1AAE9F"}= do_ellipsis(docusign.created_at.strftime("%B %e, %Y at %I:%M %p"),15)
+                  %td{style: "color: #EFA544"}= docusign.is_sign_done ? "Completed" : "Pending"
+                  %td.d-flex
+                    =show_users(docusign)
+                  %td= do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",25) if docusign.is_signable?
+                  %td
+                    - if docusign.documentable.is_require == "Website"
+                      = link_to content_tag(:i,'',class:'fa fa-users').html_safe, docusign.signed_file if docusign.is_sign_done
+                    -else
+                      = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+                  %td
+                    = link_to('Delete',delete_templates_job_application_path(@job_application, docu_id: docusign.id),class: "btn btn-outline-danger btn-xs", remote: true,method: :delete, data: {confirm: "Are you sure?"})
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+    })
+:css
+  .select2-search{
+    z-index: 0;
+  }

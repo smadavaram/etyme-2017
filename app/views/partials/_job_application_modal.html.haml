@@ -1,0 +1,78 @@
+.modal{ id: "job-apply-#{job.id}"}
+  .modal-lg.job_application_model.without-registration_modal
+    .modal-content
+      .modal-header
+        %h2#myModalLabel.modal-title
+          %strong Job Application - #{truncate(job.title,length: 30)}
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body
+        = form_for [:static , job,job_application], html: {class: 'form-horizontal'} do |f|
+          = hidden_field_tag 'candidate_id', candidate_id if local_assigns[:candidate_id].present?
+          = hidden_field_tag 'is_candidate', is_candidate if local_assigns[:is_candidate].present?
+
+
+          %fieldset.mt-0
+            - pr = current_candidate.candidates_resumes.primary_resume.present?
+            .row{style: "padding: 14px;"}
+              - if pr
+                .col-sm-5.margin-auto.pt-4
+                  %label.radio-container
+                    Use Primary Resume
+                    %input{onchange: "$('#resume_field').addClass('d-none')", :name => "primary_resume", :type => "radio", :value => "yes"}/
+                    %span.radio-checkmark
+              %div{class: "col-sm-#{pr ? '7': '12'}"}
+                #resume_field
+                  %label.d-block Resume
+                  .file_selector{style: "display: flex;"}
+                    .form-group.d-inline-block
+                      = render 'shared/file_attachement',f:f,attr_name: :applicant_resume,button_name: "Attach Resume", name_selector: ".uploaded_file_#{@id}",cstm_style: "border-radius: 0; height:38px;", required_field: false
+                      -#= f.filepicker_field :applicant_resume , class: 'btn btn-primary file-pick file-pick_height', id: 'accept-filepiker' ,onchange: 'display_file_name(event)',"data-fp-extensions" => ".pdf,.doc,.docx,.txt"
+                    %p{style: "margin-left: 5px;", :class => "d-inline-block uploaded_file_#{@id}"}  No File Selected
+
+            .form-group
+              %label.col-md-2.control-label Cover Letter
+              .col-md-12
+                = f.trix_editor :cover_letter, required: true, autofocus: true,class: "trix-content"
+                -#=  f.text_area :cover_letter , class: "form-control tinymce", rows: 8, cols: 25, placeholder: 'Cover Letter'
+                =  tinymce :default
+            .form-group
+              %label.col-md-4.control-label Message (optional)
+              .col-md-12
+                = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write your message'
+            .nested-fields
+              - job.job_requirements.each do |r|
+                = f.fields_for :job_applicant_reqs do |ja|
+                  = ja.hidden_field :job_requirement_id,value: r.id
+                  .form-group
+                    %label.col-md-12.control-label #{r.questions}
+                    .col-md-12
+                      - if r.ans_type == "Free Text"
+                        = ja.text_field  :applicant_ans,class: "form-control",required: r.ans_mandatroy
+                      - elsif r.ans_type == "Multiple Answer"
+                        - s=r.multiple_option
+                        - s.gsub!('mytext=', ' ').gsub!('&','')
+                        - opt_array = s.split(" ")
+                        - if r.multiple_ans
+                          -opt_array.each do |a|
+                            = ja.check_box :app_multi_ans, {:multiple => true, required: r.ans_mandatroy, class: 'set-checkbox d-inline-block'},"#{CGI.unescape(a)}"
+                            = ja.label :app_multi_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
+                        - else
+                          -opt_array.each do |a|
+                            = ja.radio_button :applicant_ans, "#{CGI.unescape(a)}",{required: r.ans_mandatroy, class: 'set-checkbox d-inline-block'}
+                            = ja.label :applicant_ans, :value => "#{CGI.unescape(a)}", class: "d-inline-block mr-3"
+                      - else
+                        = render 'shared/file_attachement',f:ja,attr_name: :applicant_ans, name_selector: ".uploaded_file_#{@id}",cstm_style: "border-radius: 0; height:38px;", required_field: r.ans_mandatroy
+                        -#= ja.filepicker_field :applicant_ans , class: 'btn btn-primary req-file-pick',required: r.ans_mandatroy, id: 'req-accept-filepiker'
+                        %p{:class => "d-inline-block uploaded_file_#{@id}"}  No File Selected
+            .nested-fields
+              = f.fields_for :custom_fields do |custom|
+                .form-group
+                  %label.col-md-2.control-label #{custom.object.name}
+                  .col-md-10
+                    = custom.hidden_field  :name , value: custom.object.name
+                    = custom.text_field  :value, class: "form-control", placeholder: custom.object.name, required: custom.object.required
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.button "Submit".html_safe , class: 'btn btn-primary', id: "candidate_save" , data: {disable_with: disable_spinning('Saving...')}

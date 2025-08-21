@@ -1,0 +1,6 @@
+-if flash[:errors].present?
+  - flash[:errors].each do |e|
+    flash_error("#{e}");
+- else
+  $('#ajax-modal').html("#{ j render(partial: 'company/contracts/partials/contract_modal' , locals: {job: @job_application.job , contract: @contract ,  job_application: @job_application})}");
+  $("#contract-#{@job_application.job.id}").modal('show');

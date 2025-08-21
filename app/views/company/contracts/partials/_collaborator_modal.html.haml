@@ -1,0 +1,24 @@
+.modal#collaborator_modal
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %h2#myModalLabel.modal-title
+          %strong Add Collaborator
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+        ×
+      .modal-body
+        .element-box
+          =form_for(Approval.new, url: {controller: 'company/contracts', action: 'add_approval'}, remote: true) do |f|
+            .form-row
+              .col-12
+                .form-group
+                  = f.hidden_field :approvable_type
+                  = f.hidden_field :contractable_type, value: contractable_type
+                  = f.hidden_field :contractable_id, value: contractable_id
+                  = f.select :user_id, current_company&.company_contacts.map{|contact| contact.user.present? ? [contact.user.email, contact.user.id] : nil}.compact, {}, {class: '', multiple: true, id: 'collaborator_selectize'}
+
+            .form-row
+              .col-12
+                %button.btn.btn-default{"data-dismiss" => "modal", id: 'close_modal', :type => "button"}
+                  Cancel
+                = f.submit 'submit', onclick: 'hide_modal()', class: 'btn btn-sm btn-secondary pull-right'

@@ -1,0 +1,38 @@
+.modal{ id: "candidate-interview-#{job_application.applicationable_id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h2#PageTitle.modal-title
+          %strong Schedule Time
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+
+      - if job_application.interviews.last
+        - @interview = job_application.interviews.last.is_accepted? ? Interview.new : job_application.interviews.last
+      - else
+        - @interview = Interview.new
+      = form_for @interview, url: interview_job_application_path(job_application, conversation_id: conversation.id),method: :post, html: {class: 'form-horizontal'} do |f|
+        .modal-body#rate-confirmation-modal-body
+          .row
+            .form-group
+              =f.hidden_field :id, class: "form-control p_date", placeholder: 'Year-Month-Day'
+            .col-md-6
+              %label Interview Date
+              .form-group
+                =f.text_field :date, class: "form-control p_date", placeholder: 'Year-Month-Day'
+            .col-md-6
+              %label Interview Time
+              .form-group
+                =f.text_field :time, class: "form-control p_time"
+            .col-md-6
+              %label Location
+              .form-group
+                =f.text_field :location, class: "form-control", placeholder: 'Interview Location', id: 'google_search_location'
+            .col-md-6
+              %label Source
+              .form-group
+                =f.text_field :source, class: "form-control", placeholder: 'Skype/zoom/self-apperance'
+
+        .modal-footer
+          = f.button "Save".html_safe , class: 'btn btn-primary mt-12 margin-right-5' , data: {disable_with: disable_spinning('Saving...')}
+          %button.btn.mt-12.margin-right-5.btn-primary{"data-dismiss"=>"modal", "type"=>"button"} Cancel

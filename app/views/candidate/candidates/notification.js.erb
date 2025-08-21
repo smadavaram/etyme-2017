@@ -1,0 +1,7 @@
+$('.support-ticket-content-w').html("<%= j render 'candidate/candidates/partials/notification_content', notification: @notification %>");
+$('.back-to-index').on('click', function () {
+    $('.support-index').removeClass('show-ticket-content');
+});
+$('.support-ticket').removeClass('active');
+$("#<%= @notification.id %>").addClass('active');
+$('.new-messages-count').html(<%=@unread_notifications%>);

@@ -1,0 +1,10 @@
+.modal{ id: @admin.new_record? ? "new-admin" : "admin-edit-#{@admin.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %h2.modal-title
+          %strong New Admin
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body
+        = render 'company/admins/partials/form',admin: @admin

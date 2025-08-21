@@ -1,0 +1,43 @@
+%fieldset
+  .form-group
+    %label.col-md-12.control-label
+      Designation
+      %sup.text-danger *
+    .col-md-12
+      = p.text_field :designation , class: 'form-control' , placeholder: "Enter Designation" , required: true
+  .form-group
+    %label.col-md-12.control-label
+      Joining Date
+      %sup.text-danger *
+    .col-md-12
+      = p.text_field :joining_date , class: 'form-control ' , placeholder: "Enter Joining Date" , required: true
+  .form-group
+    %label.col-md-12.control-label
+      Employement Type
+      %sup.text-danger *
+    .col-md-12
+      = p.select :employment_type, [['Full Time (30 hours or more)','full_time'],['Part Time (30 hours or less)','part_time'],['Temp or Intern','temp_intern']], {}, {:class=>"form-control "}
+  .form-group
+    %label.col-md-12.control-label
+      Working Hours
+      %sup.text-danger *
+    .col-md-12
+      = e.number_field :temp_working_hours ,value: e.object.max_working_hours/3600.0, class: 'form-control ' , placeholder: "Enter Max Daily Working Hours" , required: true
+  .form-group
+    %label.col-md-12.control-label
+      Employee Type
+      %sup.text-danger *
+    .col-md-12
+      = p.select :salary_type, [['Salaried','salaried'],['Hourly','hourly']], {}, {:class=>"form-control"}
+  .form-group
+    %label.col-md-12.control-label
+      Salary $
+      %sup.text-danger *
+    .col-md-12
+      = p.number_field :salary , class: 'form-control ' , placeholder: "Enter Salary" , required: true
+  .form-group
+    %label.col-md-12.control-label
+      Visa Status
+      %sup.text-danger *
+    .col-md-12
+      = e.select :visa_status, Consultant.visa_statuses.keys, {include_blank:"Select Visa Type"}, :class=>"form-control"

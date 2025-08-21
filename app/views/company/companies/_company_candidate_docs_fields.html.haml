@@ -1,0 +1,84 @@
+.row.multi-field-container{style: "padding: 0px 15px 15px 15px;"}
+
+  .row.w-100
+    .col-md-4.col-12
+      .form-group.mr-top-30
+        %label.radio-container
+          E-Signature(s)
+          = f.radio_button :is_require, "E-Signature", checked:true, class: "template_type"
+          %span.radio-checkmark
+    .col-md-4.col-12
+      .form-group.mr-top-30
+        %label.radio-container
+          Document(s)
+          = f.radio_button :is_require, "Document",class: "template_type"
+          %span.radio-checkmark
+    -#.col-12
+    -#  .form-group.mr-top-30.pull-right
+    -#    %label.radio-container
+    -#      Website terms and conditions
+    -#      = f.radio_button :is_require, "signature", checked:true,class: "template_type"
+    -#      %span.radio-checkmark
+  .row.mt-3{style: 'padding: 3%; box-shadow: 0px 5px 40px rgba(41,111,226,0.3);'}
+    .col-md-6
+      .form-group
+        %p Title*
+        = f.text_field :title, placeholder: "Title", required: true, class: 'form-control  input'
+       
+    .col-md-6
+      .form-group
+        %p Doc Type*
+        / = f.text_field :title_type, placeholder: "Title",class: 'form-control  input' 
+        = f.select :title_type , [["Job", 'Job'], ["Training", 'Training'],["Product", 'Product'],["Service", 'Service'],["Contract", 'Contract'],["USACS", 'USACS']],{},required: true ,:class => 'form-control company_type'  
+    .col-md-6
+      .form-group
+        %p Document For*
+        / = f.text_field :title_type, placeholder: "Title",class: 'form-control  input' 
+        = f.select :document_for , [["Candidate", 'Candidate'], ["Customer", 'Customer'],["Vendor", 'Vendor'],["Employee", 'Employee']],{} , required: true, :class => 'form-control company_type'     
+    / .col-md-3
+    /   .form-group
+    /     %p Input
+    /     = f.text_field :custome_name, placeholder: "Custome Details",class: 'form-control  input'
+           
+    .col-md-6
+      .form-group
+        %p Expiry Date*
+        = f.text_field :exp_date, placeholder: "MM-DD-YYYY", required: true, class: 'form-control input candidate_doc_exp_date',:autocomplete => :off
+    / .col-md-3    
+    /   .form-group.mr-top-20
+    /     %label.checkbox.col-md-8.control-label Is Required Signature
+    /     .col-md-4.mr-top-10
+    /       =f.check_box :is_required_signature
+
+    .col-md-6.mt-3
+      #upload_doc
+        .d-flex
+          = render "shared/file_attachement", f:f,attr_name: :file, button_name: "Upload",name_selector: ".uploaded_file_#{@id}",cstm_style: "border-radius: 0; height:38px;", required_field: false
+          %p{:class => "d-inline-block uploaded_file_name uploaded_file_#{@id}"} No Document Selected
+    .col-md-6.mt-3
+      %button#submit_btn.btn.btn-primary.pull-left{:type => "submit", :style=>"height: 38px;"}
+        %i.ti-save
+
+
+- content_for :scripts do
+  :javascript  
+
+    function select_visa_file(prev){
+      prev.trigger("click");
+    }  
+
+    function uploadVisaDoc(event, file_el){
+      document_url = event.fpfile.url
+      $("#"+file_el.attr("id")).val(document_url)
+    } 
+
+    $('.candidate_doc_exp_date').datepicker({
+      changeMonth: true,
+      changeYear: true,
+      yearRange: "c-60:c+60",
+      dateFormat: 'dd/mm/yy'
+
+    });     
+
+    
+         

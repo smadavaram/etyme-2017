@@ -1,0 +1,30 @@
+%body
+  %header.header-login
+    .container
+      .content
+        .row
+          %h1.revealOnScroll{"data-animation" => "fadeInDown"}
+            %i.fa.fa-coffee
+            Sign Up
+          %p First, tell us what you're looking for.
+  %section.signup
+    .container
+      .row
+        .col-lg-5.col-md-5.col-sm-6.col-xs-12
+          .item.text-center.revealOnScroll{"data-animation" => "slideInLeft", "data-timeout" => "200"}
+            %span.fa-stack.fa-4x
+              %i.fa.fa-circle.fa-stack-2x
+              %i.fa.fa.fa-user.fa-stack-1x.text-mint
+            %h4 I want to hire a Freelancer
+            %p Find, collaborate with, and pay an expert.
+            = link_to 'Hire', register_path ,class: "kafe-btn kafe-btn-mint"
+        .col-lg-2.col-lg-2.col-sm-6.col-xs-12.divider.text-center
+          %span.or OR
+        .col-lg-5.col-md-5.col-sm-6.col-xs-12
+          .item.text-center.revealOnScroll{"data-animation" => "slideInRight", "data-timeout" => "200"}
+            %span.fa-stack.fa-4x
+              %i.fa.fa-circle.fa-stack-2x
+              %i.fa.fa.fa-user-md.fa-stack-1x.text-mint
+            %h4 I am looking for online work.
+            %p Find freelance projects and grow your business.
+            = link_to 'Work', new_candidate_registration_path ,class: "kafe-btn kafe-btn-mint"

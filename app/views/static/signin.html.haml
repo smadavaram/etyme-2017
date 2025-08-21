@@ -1,0 +1,16 @@
+%h4.auth-header Sign In
+= form_tag signin_path,id: 'new_user',class: 'new_user', method: :post do
+  .form-group.field-group
+    %label{:for => "user_email"} Email
+    = email_field_tag :email,nil ,placeholder: 'Enter Work Email', required: true,class: 'form-control',id: 'user_email'
+    .help-block.form-text.with-errors.form-control-feedback
+      = link_to 'Forgot password?', new_user_password_path, class: "more-link"
+    .help-block.form-text.with-errors.form-control-feedback
+      = link_to "Don't have an account?", register_path, class: "more-link"
+    .help-block.form-text.with-errors.form-control-feedback
+      = link_to 'Sign in as candidate?', new_candidate_session_path, class: "more-link"
+    .pre-icon.os-icon.os-icon-email-2-at2
+  = recaptcha_tags
+  = submit_tag :continue, class: "float btn btn-primary form-btn mt-2"
+
+:css

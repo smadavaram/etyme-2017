@@ -1,0 +1,591 @@
+%script{:src => "https://sdk.accountkit.com/en_US/sdk.js"}
+%script{:src => "https://sdk.accountkit.com/en_EN/sdk.js"}
+%script{:src => "https://maps.google.com/maps/api/js?key=AIzaSyDplyJQu2eS1qNVdoBsGL4FGmJwMWFDDUQ&sensor=false&libraries=places"}
+-#%script{:src => "https://maps.googleapis.com/maps/api/js?key=AIzaSyD_faX-g1fbUqz_ecgZ0nXuw_Z6T1rBuSU"}
+
+.content-i.my-profile
+  .content-box
+    .element-wrapper
+      .element-box
+        %div#wizard-1{:novalidate => "novalidate"}
+          #bootstrap-wizard-1.col-sm-12
+            .form-bootstrapWizard.mb-5
+              %ul.bootstrapWizard.form-wizard{style: "display: flex; justify-content: space-evenly;"}
+                %li{"data-target" => "#step1" , :id=>"wiz_tab1", class: @tab.blank? ? "active w-100" : "w-100"}
+                  %a{"data-toggle" => "tab", :href => "#tab1"}
+                    %span.step 1
+                    %span.title Verify Contact
+                -#%li{"data-target" => "#step3" , :id=>"wiz_tab3", class: @tab == "basic_info" ? "active" : ""}
+                -#  %a{"data-toggle" => "tab", :href => "#tab3"}
+                -#    %span.step 3
+                -#    %span.title Social Media
+                %li{"data-target" => "#step2", :id=>"wiz_tab2", class: @tab == "verify-phone" ? "active w-100" : "w-100"}
+                  %a{"data-toggle" => "tab", :href => "#tab2"}
+                    %span.step 2
+                    %span.title Personal information
+                %li{"data-target" => "#step4" , :id=>"wiz_tab4", class: @tab == "social" ? "active w-100" : "w-100"}
+                  %a{"data-toggle" => "tab", :href => "#tab4"}
+                    %span.step 3
+                    %span.title Update Education
+                %li{"data-target" => "#step5" , :id=>"wiz_tab5", class: @tab == "skill" ? "active w-100" : "w-100"}
+                  %a{"data-toggle" => "tab", :href => "#tab5"}
+                    %span.step 4
+                    %span.title Work Information
+                -#%li{"data-target" => "#step6" , :id=>"wiz_tab6", class: @tab == "skill" ? "active" : ""}
+                -#  %a{"data-toggle" => "tab", :href => "#tab6"}
+                -#    %span.step 6
+                -#    %span.title Client Information
+                -#%li{"data-target" => "#step7" , :id=>"wiz_tab7", class: @tab == "designate" ? "active w-100" : "w-100"}
+                -#  %a{"data-toggle" => "tab", :href => "#tab7"}
+                -#    %span.step 5
+                -#    %span.title Employer Information
+                -#%li{"data-target" => "#step8" , :id=>"wiz_tab8", class: @tab == "designate" ? "active" : ""}
+                -#  %a{"data-toggle" => "tab", :href => "#tab8"}
+                -#    %span.step 6
+                -#    %span.title Background Check
+                %li{"data-target" => "#step9" , :id=>"wiz_tab9", class: @tab == "submit_doc" ? "active w-100" : "w-100"}
+                  %a{"data-toggle" => "tab", :href => "#tab9"}
+                    %span.step 5
+                    %span.title Save Form
+              .clearfix
+            .tab-content
+              #tab1.tab-pane{class: @tab.blank? ? "active" : "" }
+                = render partial: 'candidate/candidates/partials/social_form'
+              #tab2.tab-pane{class: @tab == "verify-phone" ? "active" : "" }
+                %br/
+                %h4.element-header
+                  Personal Information
+                .row
+                  .col-4.col-sm-3.col-xxl-2
+                    .profile-tile.profile-tile-inlined
+                      -#= filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                      .profile-tile-box.faded
+                        = image_tag current_candidate.photo, style: 'width: 200px !important; height: 102px !important;' unless current_candidate&.photo.blank?
+                        .pt-new-icon.img_pic_r.candi-profile-pic
+                          %i.os-icon.os-icon-plus
+                        .pt-user-name.img_pic_r
+                          Profile Picture
+                  .col-4.col-sm-3.col-xxl-2
+                    .profile-tile.profile-tile-inlined
+                      / = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                      .profile-tile-box.faded.video-pic
+                        -if(current_candidate.video.present?)
+
+                          %video{:controls => "", :width => "150", :height=> "95"}
+                            %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
+                          .pt-new-icon
+                            %i.os-icon.os-icon-plus
+                          .pt-user-name.can_vid_r
+                            Profile Video
+                        -else
+                          %video{:controls => "", :width => "150", :height=> "95", :class => "can_vid hidden" }
+                            %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}", :class => "can_vid_src"}
+                          .pt-new-icon.can_vid_r
+                            %i.os-icon.os-icon-plus
+                          .pt-user-name.can_vid_r
+                            Profile Video
+                .row
+                  -#.col-sm-12.col-md-12.col-lg-2
+                  -#  .panel-body.status.profile-margin
+                  -#    .text
+                  -#      %div.profile-hover
+                  -#        %div.pictureContainer
+                  -#          = filepicker_field_tag "" ,class: "hidden candi-logo", onchange:"candidateLogoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "image/*"
+                  -#          -if(current_candidate.photo.present?)
+                  -#            = image_tag current_candidate.photo,  style:"width:100px;height:100px", fit: 'clip',:class =>"candi-profile-pic img_pic"
+                  -#          -else
+                  -#            = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip', class: "img_pic"
+                  -#.col-sm-12.col-md-12.col-lg-10
+                  -#  .panel-body.status.profile-margin
+                  -#    .text
+                  -#      %div.profile-hover
+                  -#        %div.pictureContainer.col-md-offset-2
+                  -#          = filepicker_field_tag "" ,class: "hidden file", onchange:"employeevideoUpload(event)","data-fp-crop-ratio" => "2/2",mimetypes: "video/*"
+                  -#          -if(current_candidate.video.present?)
+                  -#            %video{:controls => "", :width => "100", :height=> "100"}
+                  -#              %source{:src => current_candidate.video, :type => "#{current_candidate.video_type}"}
+                  -#          -else
+                  -#            = image_tag image_path('avatars/m_sunny_big.png'),  style: "width:100px;height:100px", fit: 'clip',:class =>"video-pic"
+                .row{style: "padding: 15px;"}
+                #basic-info-form
+                  =render partial: 'candidate/candidates/partials/basic_info_form' #,locals: {candidate: current_candidate}
+                .row
+                  .col-sm-12.col-md-12.col-lg-12#submit-doc-form
+                    = render partial: 'candidate/candidates/partials/portfolio_form'
+                .row
+                  .col-sm-12.col-md-12.col-lg-12#submit-doc-form
+                    = render partial: 'candidate/candidates/partials/submit_doc_form'
+              #tab3.tab-pane{class: @tab == "basic_info" ? "active" : "" }
+                %br/
+                %h5.element-header
+                  Social Media
+                .row
+                  -#.col-sm-12.col-md-12.col-lg-12#social-form
+                  -#  =render partial: 'candidate/candidates/partials/social_form'
+
+              #tab4.tab-pane{class: @tab == "social" ? "active" : "" }
+                %br/
+                %h5.element-header
+                  Education Details
+                .row
+                  .col-sm-12.col-md-12.col-lg-12#education-form
+                    =render partial: 'candidate/candidates/partials/education_form'
+
+              #tab5.tab-pane{class: @tab == "skill" ? "active" : "" }
+                = render partial: 'candidate/candidates/partials/skill_form'
+
+
+              -##tab6.tab-pane{class: @tab == "skill" ? "active" : "" }
+              -#  %br/
+              -#  %h4.element-header
+              -#    Client Information
+              -#  .row
+              -#    .col-sm-12.col-md-12.col-lg-12#client-form
+              -#      = render partial: 'candidate/candidates/partials/client_form'
+
+
+              -##tab7.tab-pane{class: @tab == "designate" ? "active" : "" }
+              -#  %br/
+              -#  %h4.element-header
+              -#    Employer Information
+              -#  .row
+              -#    .col-sm-12.col-md-12.col-lg-12#designate-form
+              -#      = render partial: 'candidate/candidates/partials/designate_form'
+
+              -##tab8.tab-pane{class: @tab == "designate" ? "active" : "" }
+              -#  %br/
+                -#.row
+                -#  .col-sm-12.col-md-12.col-lg-12#submit-doc-form
+                -#    = render partial: 'candidate/candidates/partials/submit_doc_form'
+
+              #tab9.tab-pane{class: @tab == "submit_doc" ? "active" : "" }
+                %br/
+                %h4.element-header
+                  Save Form
+                %br/
+                = form_for current_candidate, url: candidate_candidate_path(current_candidate.id),method: :put do |f|
+                  .row
+                    .col-sm-12
+                      .form-group
+                        %label Skills
+                        = f.text_field :skill_list, placeholder: "Add Skills Comma seperated",class: 'form-control p-location input', 'data-role'=>'tagsinput',value: current_candidate.skill_list.join(", ")
+                  .row
+                    .col-sm-6
+                      .form-group
+                        %label Category
+                        =f.select :category, WORK_CATEGORIES.keys,{include_blank: "Select Category"},{class: "form-control input", required: true }
+                    .col-sm-6
+                      .form-
+                        %label Sub Category
+                        =f.select :subcategory, '', {include_blank: "Select Category"},{class: "form-control input", required: true }
+                  .row
+                    .col-sm-6
+                      .form-group
+                        %label Department
+                        = f.select :dept_name, department_list, {include_blank: "Select Department"},{class: "form-control input", required: true}
+                    .col-sm-6
+                      .form-group
+                        %label Industry
+                        = f.select :industry_name, industry_list, {include_blank: "Select Industry"},{class: "form-control input", required: true}
+              -#%h1.text-center.text-success
+              -#  %strong
+              -#    %i.fa.fa-check.fa-lg
+              -#    Complete
+              -#%h4.text-center Click next to finish
+              %br/
+              %br/
+              .form-actions.wizard-action
+                .row
+                  .col-sm-12
+                    %ul.pager.wizard.no-margin.clearfix.p-0
+                      %li.previous.disabled.pull-left
+                        %a{:href => "javascript:void(0);"} Previous
+                      %li.next.pull-right
+                        %a.next_submit_link{:href => "javascript:void(0);"} Next
+
+- content_for :scripts do
+  :javascript
+    // Facebook Account Kit
+    $(document).ready(function() {
+      // initialize Account Kit with CSRF protection
+      AccountKit_OnInteractive = function(){
+        AccountKit.init(
+          {
+            appId:"1209424855859249",
+            state:"fgh521fgh",
+            version:"v1.1",
+            fbAppEventsEnabled:true
+            //redirect:"/"
+          }
+        );
+      };
+
+      $(document).on("change","#country_code, #phone_no", function(){
+        phone_no = $("#phone_no").val();
+        country_code = $("#country_code").val();
+        $.ajax({
+          type: 'PATCH',
+          dataType: 'script',
+          url: " #{ validate_phone_number_candidates_path } ",
+          data: { phone_number: country_code + phone_no, authenticity_token: window._token },
+          success: function (data) {  }
+        });
+      });
+
+      $('#bootstrap-wizard-1').bootstrapWizard({
+        'tabClass': 'form-wizard',
+        'onNext': function (tab, navigation, index) {
+          // $('#bootstrap-wizard-1').find('.tab-pane.active .next-bttn').click();
+          $('#bootstrap-wizard-1').find('.tab-pane.active form').submit();
+          $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).addClass(
+            'complete');
+          $('#bootstrap-wizard-1').find('.form-wizard').children('li').eq(index - 1).find('.step')
+          .html('<i class="fa fa-check"></i>');
+          if(tab[0].id == "wiz_tab5"){
+            $('.next_submit_link').html("<strong><i class='fa fa-check fa-lg'></i> Complete</strong>");
+          }
+        },
+        'onPrevious': function (tab, navigation, index) {
+          // $('#bootstrap-wizard-1').find('.tab-pane.active .prev-bttn').click();
+          $('#bootstrap-wizard-1').find('.tab-pane.active form').submit();
+        }
+      });
+
+
+      // fuelux wizard
+      // $(document).on("click", "ul.wizard li.previous", function() {
+      //   $(this).closest('.tab-content').find('.tab-pane.active form').submit();
+      // });
+      //
+      // $(document).on("click", "ul.wizard li.next", function() {
+      //   $(this).closest('.tab-content').find('.tab-pane.active form').submit();
+      // });
+
+      var wizard = $('.wizard').wizard();
+
+      wizard.on('finished', function (e, data) {
+        //$("#fuelux-wizard").submit();
+        $.smallBox({
+          title: "Congratulations! Your form was submitted",
+          content: "<i class='fa fa-clock-o'></i> <i>1 seconds ago...</i>",
+          color: "#5F895F",
+          iconSmall: "fa fa-check bounce animated",
+          timeout: 4000
+        });
+      });
+
+      $(".select2").select2({placeholder: "Select a User(s)"});
+      $(".file_select").select2({placeholder: "Select Company Document"});
+      $('.fileUpload').on("click",function(){
+        $(".file").trigger("click");
+        $('.fp__overlay').css({'z-index':'99999'});
+      });
+      var chatBody = $('#chat-body') ;
+      chatBody.scrollTop(5000000000);
+
+      var hash = window.location.hash;
+      $('#myTab a[href="' + hash + '"]').tab('show');
+
+      $('.p_date').datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c",
+        dateFormat: 'dd/mm/yy'
+
+      });
+
+      $(".visa_exp_date").datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c+60",
+        dateFormat: 'dd/mm/yy'
+
+      });
+
+      addressLookup();
+    });
+
+    $(document).on("click", ".resume", function(){
+      console.log('upload resume..');
+      upload_file_ajax(uploadResume);
+    });
+
+    $( document ).on("click", ".video-pic", function() {
+      upload_file_ajax(employeevideoUpload);
+    });
+
+    $(document).on("click", ".candi-profile-pic", function(){
+      upload_file_ajax(candidateLogoUpload);
+    });
+
+    $(document).on("click", ".js-portfolio-upload-btn", function(el){
+      upload_file_ajax(portfolioPictureUpload, el.target.id);
+    });
+
+    $(document).on("click", '#myTab a', function(e) {
+      e.preventDefault();
+      $(this).tab('show');
+    });
+
+    $(document).on("shown.bs.tab", "ul.nav-tabs > li > a", function(e) {
+      var id = $(e.target).attr("href").substr(1);
+      window.location.hash = id;
+    });
+
+    function loginCallback(response) {
+      if (response.status === "PARTIALLY_AUTHENTICATED") {
+        var code = response.code;
+        var csrf = response.state;
+        //Click on next after Authenticate
+        var phoneNumber = document.getElementById("phone_no").value;
+
+        $.ajax({
+         url: '/candidate/update_mobile_number',
+         type: "POST",
+         contentType:"application/json",
+         data: JSON.stringify({phone_number:phoneNumber, id:"#{current_candidate.id}"}),
+         success:function(data){
+            $(".next a").click();
+         }
+        });
+
+      }
+      else if (response.status === "NOT_AUTHENTICATED") {
+      }
+      else if (response.status === "BAD_PARAMS") {
+      }
+    }
+
+    function smsLogin() {
+      var countryCode = document.getElementById("country_code").value;
+      var phoneNumber = document.getElementById("phone_no").value;
+      AccountKit.login(
+        'PHONE',
+        {countryCode: countryCode, phoneNumber: phoneNumber}, // will use default values if not specified
+        loginCallback
+      );
+    }
+
+    function uploadResume(url){
+      console.log('url = ', url);
+      resume_url = url
+      $.ajax({
+       type: 'POST',
+       dataType: 'script',
+       url: " #{ upload_resume_candidates_path } ",
+       data: { resume: resume_url, authenticity_token: window._token },
+       success: function (data) {  }
+     });
+    }
+
+    function candidateLogoUpload(url, type){
+      photo_url = url
+      $('.profile-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{ candidate_update_photo_path }",
+       data: { photo: photo_url,authenticity_token: window._token },
+       success: function (data) {
+        $('.img_pic').removeClass('hidden').attr("src",photo_url);
+        $('.img_pic_r').remove();
+        location.reload();
+       }
+     });
+    }
+
+    function employeevideoUpload(url, type){
+      video_url = url
+      video_type=type
+      // $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{ update_video_candidates_path }",
+       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
+       success: function (data) {
+        // $('.text img1').attr("src",video_url);
+        $('.can_vid').removeClass('hidden');
+        $('.can_vid_src').attr("src", video_url);
+        $('.can_vid_r').remove();
+        // location.reload();
+       }
+     });
+    }
+
+    function portfolioPictureUpload(photo_url, type, id){
+      uploadBtn = $("#"+id).parent();
+
+      cover_input = uploadBtn.siblings('input')[0];
+      $(cover_input).val(photo_url);
+      image_tag = '<img src="' + photo_url + '" style="width: 200px !important; height: 102px !important;" />';
+      uploadBtn.replaceWith(image_tag);
+    }
+
+    function addressLookup() {
+      var address = document.getElementsByClassName('p-location');
+
+      for(var i=0; i< address.length; i++){
+        new google.maps.places.Autocomplete(address[i]);
+
+        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+          if (event.keyCode === 13) {
+            event.preventDefault();
+          }
+        });
+      }
+    }
+
+    $(document).on('cocoon:after-insert', '.candidate-association', function(e, insertedItem) {
+      addressLookup();
+      console.log("hello", insertedItem)
+      let rand = 1000 + Math.floor(Math.random() * 900000);
+      insertedItem.find('.file_selector').find('input').attr("id",rand);
+      insertedItem.find('.uploaded_file_name').addClass("tag"+rand);
+      insertedItem.find('.uploader').attr("onclick","upload_file('#"+rand+"','.tag"+rand+"',false)");
+
+      $(".p_date").datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c",
+        dateFormat: 'dd/mm/yy'
+      });
+
+      $(".visa_exp_date").datepicker({
+        changeMonth: true,
+        changeYear: true,
+        yearRange: "c-60:c+60",
+        dateFormat: 'dd/mm/yy'
+      });
+
+      insertedItem.find('.filepicker-attach').each(function(i,e){
+        $(".filepicker-attach").on('click',function() {
+          $('.fp__overlay').css({'z-index':'99999'})
+        });
+        $('.filepicker-attach').on('click',function() {
+          //$(this).hide();
+         });
+      });
+
+    });
+
+    setcategories($("#candidate_category").val());
+    $(document).on("change","#candidate_category", function(){
+      setcategories($(this).val());
+    });
+
+    function setcategories(cat){
+      $.ajax({
+        type: 'POST',
+        dataType: "json",
+        data: {category: cat},
+        url: "#{get_sub_category_candidates_path}",
+        success: function(data){
+          $('#candidate_subcategory').empty();
+          $.each(data, function(i, value) {
+
+            if(value == "#{current_candidate.subcategory}"){
+              $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
+            }else{
+              $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
+            }
+          });
+        }
+      });
+    }
+
+    if("#{current_candidate.ever_worked_with_company}" == "Yes"){
+      $(".client_information_main_div").show();
+      $(".employer-information-body").hide();
+    }else{
+      $(".client_information_main_div").hide();
+      $(".employer-information-body").show();
+    }
+
+    $(document).on("click", "#candidate_ever_worked_with_company_yes", function(){
+      $(".client_information_main_div").show();
+      $(".employer-information-body").hide();
+    })
+    $(document).on("click", "#candidate_ever_worked_with_company_no", function(){
+      $(".client_information_main_div").hide();
+      $(".employer-information-body").show();
+    })
+
+    if("#{current_candidate.ever_worked_with_company}" == "Yes")
+    {
+      $(".client_information_main_div").show();
+      $(".employer-information-body").hide();
+    }else{
+      $(".client_information_main_div").hide();
+      $(".employer-information-body").show();
+    }
+
+    $("#candidate_ever_worked_with_company_yes").on("click", function(){
+      $(".client_information_main_div").show();
+      $(".employer-information-body").hide();
+    })
+    $("#candidate_ever_worked_with_company_no").on("click", function(){
+      $(".client_information_main_div").hide();
+      $(".employer-information-body").show();
+    })
+
+    $(document).on("click", '.delete_icon', function(e) {
+      if($(".delete_icon:visible").length == 1 ){
+        $(".experience-btn").hide();
+      }
+    });
+
+    $(document).ready(function () {
+      addressLookup();
+      $("#candidate_ever_worked_with_company_yes").click();
+      $(".is_client_employer_Yes").click();
+    });
+
+    function addressLookup() {
+      var address = document.getElementsByClassName('p-location');
+
+      for(var i=0; i< address.length; i++){
+        new google.maps.places.Autocomplete(address[i]);
+
+        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+          if (event.keyCode === 13) {
+            event.preventDefault();
+          }
+        });
+      }
+    }
+
+    function select_file(prev){
+      prev.trigger("click");
+    }
+
+    function uploadFileDoc(event, file_el){
+      document_url = event.fpfile.url
+      $("#"+file_el.attr("id")).val(document_url)
+    }
+
+    $('.p_date').datepicker({
+      changeMonth: true,
+      changeYear: true,
+      yearRange: "c-60:c",
+      dateFormat: 'dd/mm/yy'
+
+    });
+
+    // function select_visa_file(prev){
+    //   prev.trigger("click");
+    // }
+    //
+    // function uploadVisaDoc(event, file_el){
+    //   document_url = event.fpfile.url
+    //   $("#"+file_el.attr("id")).val(document_url)
+    // }
+    //
+    // function select_legal_file(prev){
+    //   prev.trigger("click");
+    // }
+    //
+    // function uploadLegalDoc(event, file_el){
+    //   document_url = event.fpfile.url
+    //   $("#"+file_el.attr("id")).val(document_url)
+    // }

@@ -1,0 +1,15 @@
+%ul.notification-body
+  - contract_cycles.each do |cc|
+    -case cc.cycle_type
+    -when 'TimesheetSubmit'
+      %li
+        %span
+          %a
+            %span.from.icon-paperclip
+              = cc.contract.try(:job).try(:title)
+            %time
+              = time_ago_in_words(cc.created_at)+' ago'
+            %span.msg-body
+              Need to Submit timesheet.
+    -when 2
+      new type

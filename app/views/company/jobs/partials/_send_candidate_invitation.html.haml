@@ -1,0 +1,33 @@
+= form_for [job,job.job_invitations.new] , url: create_multiple_job_job_invitations_path(job), html:{ class:'form-horizontal',id: 'candidate-val'} do |f|
+  = f.hidden_field :job_id , value: job.id
+  = f.hidden_field :recipient_type , value: 'Candidate'
+  %br
+
+  .form-group.pb-4
+    %label.row-lg-4.pl-2.control-label
+      Select Candidate
+      %sup.text-danger *
+    .col-md-10
+      = select_tag 'temp_candidates', options_for_select(candidates.uniq.collect { |c| [c.full_name,c.id] }),prompt: "Select Candidate" ,class: 'form-control' , required: true, multiple: true
+  .form-group.pb-4
+    %label.row-lg-4.pl-2.control-label
+      Select Groups
+    .col-md-10
+      = select_tag 'temp_groups', options_for_select(groups.uniq.collect { |group| [group.group_name,group.id] }),prompt: "Select Group" ,class: 'form-control', multiple: true
+  .form-group.pb-2
+    %label.col-md-2.control-label
+      Expiry Date
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :expiry ,class: "form-control" , required: 'required', placeholder: "Expire Date" ,id:'direct_email'
+  .form-group
+    %label.col-md-2.control-label
+      Message
+      %sup.text-danger
+    .col-md-10
+      = f.text_area :message ,class: "form-control" ,row: '3' , placeholder: "Enter Description"
+  .modal-footer
+    -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+    %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+      Cancel
+    = f.button "Send".html_safe, data: {disable_with: disable_spinning("Sending...")} , class: 'btn btn-primary btn-sm'

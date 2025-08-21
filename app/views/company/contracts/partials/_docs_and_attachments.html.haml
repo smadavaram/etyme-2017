@@ -1,0 +1,601 @@
+= form_for  @contract , remote: true, method: :put, html: {id: 'wizard-1' , class: 'form-horizontal new_contract', style: "width: 100%;", novalidate: "novalidate" } do |f|
+  =f.hidden_field :contractable_type , value: "Company"
+  =f.hidden_field :status, value: "pending"
+  =hidden_field_tag :tab, "4"
+  - @sc = @contract&.sell_contract
+  - if params.has_key?('id')
+    =f.hidden_field :parent_contract_id , value: params[:id]
+  - if @contract.buy_contract&.persisted?
+    %fieldset
+      =f.fields_for :buy_contract do |bc|
+        = bc.hidden_field :id
+        .contract-fields_wrapper.mt-4.contract-border
+          - if @contract.buy_contract.company.present?
+            .row
+              .col-md-12
+                .form-group
+                  %h3.control-label.text-muted
+                    = @contract.buy_contract.number
+          .row
+            .col-md-6
+              .form-group
+                - if @contract.buy_contract.company.present?
+                  %label.control-label Employer
+                  .contract-fild
+                    = text_field_tag :employeer_name, @contract.buy_contract.company.name.capitalize, disabled: "disabled"
+                - else
+                  %h3.control-label.text-muted
+                    = @contract.buy_contract.number
+                    - if @contract&.buy_contract&.conversation.present?
+                      .floated-chat-btn
+                        %i.os-icon.os-icon-mail-07
+                        %span
+                        = link_to 'Conversation', mini_chat_company_conversations_path(conversation_id: @contract.buy_contract.conversation.id) ,class: 'ChatBtn',id: 'ChatBtn', remote: true
+            .col-md-6
+              .form-group
+                %label.control-label=  "Consultant/#{@contract.buy_contract.fetch_contract_type_label}"
+                .contract-fild
+                  = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
+
+        %label.control-label.font-weight-bold.mt-2 Accounting
+        .contract-fields_wrapper.mt-2.contract-border
+          %div
+            .widget-body
+              %ul#myTab1.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
+                %li.nav-item.active.cumstom_nav-tab{id: 'costing_tab'}
+                  %a{"data-toggle" => "tab", :href => "#tab-buy-ct", class: "nav-link cumstom_nav-tab"}
+                    %span.badge.bg-color-blue.txt-color-white
+                    Costing
+                %li.nav-item.cumstom_nav-tab
+                  %a{"data-toggle" => "tab", :href => "#tab-buy-ts", class: "nav-link cumstom_nav-tab"}
+                    %span.badge.bg-color-blue.txt-color-white
+                    Timesheet Submit
+                %li.nav-item.cumstom_nav-tab
+                  %a{"data-toggle" => "tab", :href => "#tab-buy-ta", class: "nav-link cumstom_nav-tab"}
+                    %span.badge.bg-color-blue.txt-color-white
+                    Timesheet Approve
+                %li.nav-item.cumstom_nav-tab.salary-calculation
+                  %a{"data-toggle" => "tab", :href => "#tab-buy-sc", class: "nav-link cumstom_nav-tab"}
+                    %span.badge.bg-color-blueDark.txt-color-white
+                    %span.corp-corp Salary Calculation
+                %li.nav-item.cumstom_nav-tab
+                  %a{"data-toggle" => "tab", :href => "#tab-buy-cc", class: "nav-link cumstom_nav-tab"}
+                    %span.badge.bg-color-blue.txt-color-white
+                    Commission Calculation
+                %li.nav-item.cumstom_nav-tab
+                  %a{"data-toggle" => "tab", :href => "#tab-buy-integration", class: "nav-link cumstom_nav-tab"}
+                    %span.badge.bg-color-blue.txt-color-white
+                    Integration
+              .col-md-12.pl-0
+                .tab-content.p-4{style: 'border: 1px solid #f0f2f3;'}
+                  #tab-buy-ct.tab-pane.padding-top-15.active.in
+                    .row
+                      = bc.fields_for :change_rates, bc.object.change_rates.build do |cr|
+                        .col-md-12.display-flex
+                          =cr.hidden_field :rateable_type, value: bc.object.class.to_s
+                          =cr.hidden_field :rateable_id, value: bc.object.id
+                          =render 'company/contracts/partials/rate_fields', f: cr, usics: true
+                    - if bc.object.change_rates.present?
+                      .row
+                        .table-responsive
+                          %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font
+                            %thead
+                              %tr{:role => "row"}
+                                %th Rate
+                                %th Overtime Rate
+                                %th Expected Hrs
+                                %th Rate Type
+                                %th USCIS
+                                %th From
+                                %th To
+                                - if bc&.object&.contract&.status == "draft" || bc&.object&.contract&.status == "pending"
+                                  %th Action
+
+                            %tbody
+                              - bc.object.change_rates.each do |change_rate|
+                                -if change_rate.persisted?
+                                  %tr{:id => "change_rate_row#{change_rate.id}"}
+                                    %td= change_rate.rate
+                                    %td= change_rate.overtime_rate
+                                    %td= change_rate.working_hrs
+                                    %td= change_rate.rate_type
+                                    %td= change_rate.uscis
+                                    %td= change_rate.from_date&.strftime('%m/%d/%Y')
+                                    %td= change_rate.to_date&.strftime('%m/%d/%Y')
+                                    - if bc&.object&.contract&.status == "draft" || bc&.object&.contract&.status == "pending"
+                                      %td= link_to "Delete", "",  onclick: "delete_change_rate(`#{change_rate.id}`)", remote: true
+
+                  #tab-buy-ts.tab-pane.padding-top-15
+                    .row
+                      .col-md-12
+                        .form-group
+                          .row
+                            .col-md-6
+                              %label.control-label
+                                Time sheet
+                              .plain-select
+                                = bc.select :time_sheet, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: @sc&.time_sheet},{ class: "form-control disabled sell-time-sheet height-45 #{'field_disable' unless @sc&.time_sheet.blank?}" }
+                            .col-md-6
+                              .s-ts-set
+                                -bc.object.time_sheet=@sc&.time_sheet
+                                - bc.object.time_sheet = bc.object.time_sheet || 'daily'
+                                %div{:class => "form-group daily #{bc.object.time_sheet != 'daily' ? 'hidden' : ''}"}
+                                  %label.control-label.w-100
+                                    Select Time
+                                    = bc.text_field :ts_day_time, class: "form-contro con-time time-input ts_day_time_picker #{'field_disable' unless @sc&.time_sheet.blank?}", value: @sc&.ts_day_time, disabled: @sc&.time_sheet.present?
+                                %div{:class => "form-group week #{bc.object.time_sheet != 'weekly' && bc.object.time_sheet != 'biweekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select day of week for submission
+                                  .select
+                                    .plain-select
+                                      = bc.select :ts_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: @sc&.ts_day_of_week},{class: "form-contro #{'field_disable' unless @sc&.time_sheet.blank?}" }
+                                -#%div{:class => "form-group biweek #{bc.object.time_sheet != 'biweekly' ? 'hidden' : ''}"}
+                                -#  %label.control-label
+                                -#    Select Second day of week for submission
+                                -#  .select
+                                -#    .plain-select
+                                -#      = bc.select :ts_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: @sc&.ts_2day_of_week},{class: "form-contro" }
+                                -#
+                                %div{:class => "form-group month #{'field_disable' unless @sc&.time_sheet.blank?} #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"}
+                                  %label.control-label
+                                    Select date
+                                  .select
+                                    = bc.text_field :ts_date_1, class: "date_1 #{'field_disable' unless @sc&.time_sheet.blank?}", placeholder: "MM/DD/YYYY", value: @sc&.ts_date_1&.strftime('%m/%d/%Y')
+                                  %label.control-label.bottom-padding
+                                    End of month?
+                                    - if @sc.ts_end_of_month
+                                      = bc.check_box :ts_end_of_month, checked: 'checked'
+                                    - else
+                                      = bc.check_box :ts_end_of_month
+                                  %br
+                                %div{:class => "form-group twice-month #{bc.object.time_sheet != 'twice a month' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select second date
+                                  .select
+                                    = bc.text_field :ts_date_2, class: "date_1 #{'field_disable' unless @sc&.time_sheet.blank?}", placeholder: "MM/DD/YYYY", value: @sc&.ts_date_2&.strftime('%m/%d/%Y')
+                                %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.time_sheet) ? '' : 'hidden'}"}
+                            -#.col-md-4
+                              -#%label.control-label
+                              -#  Collaborators
+                          .row
+                            .col-md-12.d-flex
+                              -##buy_collaborators
+                              -#  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet')
+                              -#%a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet', style: 'color: #fff !important;'}
+                              -#  Add CC
+                  #tab-buy-ta.tab-pane.padding-top-15
+                    .row
+                      .col-md-12
+                        .form-group
+                          .row
+                            .col-md-6
+                              %label.control-label
+                                Timesheet Approve
+                              .select
+                                .plain-select
+                                  = bc.select :ts_approve, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: @sc&.ts_approve},{class: "form-control sell-time-sheet-approve height-45 #{'field_disable' unless @sc&.ts_approve.blank?}" }
+                            .col-md-6
+                              .b-ts-apv-set
+                                -bc.object.ts_approve=@sc&.ts_approve
+                                - bc.object.ts_approve = bc.object.ts_approve || 'daily'
+                                %div{:class => "form-group daily #{bc.object.ts_approve != 'daily' ? 'hidden' : ''}"}
+                                  %label.control-label.w-100
+                                    Select Time
+                                    = bc.text_field :ta_day_time, class: "form-contro con-time time-input ta_day_time_picker #{'field_disable' unless @sc&.ts_approve.blank?}" , value: @sc&.ta_day_time, disabled: @sc&.time_sheet.present?
+                                %div{:class => "form-group week #{bc.object.ts_approve != 'weekly' && bc.object.ts_approve != 'biweekly' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select day of week
+                                  .select
+                                    .plain-select
+                                      = bc.select :ta_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: @sc&.ta_day_of_week},{class: "form-contro #{'field_disable' unless @sc&.ts_approve.blank?}" }
+                                      -#=bc.hidden_field :ta_day_of_week, value: bc.object.contract.sell_contract.ta_day_of_week
+                                -#%div{:class => "form-group biweek #{bc.object.ts_approve != 'biweekly' ? 'hidden' : ''}"}
+                                -#  %label.control-label
+                                -#    Select Second day of week
+                                -#  .select
+                                -#    .plain-select
+                                -#      = bc.select :ta_2day_of_week,[["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],["Every Thursday", "thu"],["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],{selected: @sc&.ta_2day_of_week}, {class: "form-control #{'field_disable' unless @sc&.ts_approve.blank?}"}
+                                -#
+                                      -#= bc.hidden_field :ta_2day_of_week, value: bc.object.contract.sell_contract.ta_2day_of_week
+
+                                %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"}
+                                  %label.control-label
+                                    Select date
+                                  .select
+                                    = bc.text_field :ta_date_1, class: "form-control #{'field_disable' unless @sc&.ts_approve.blank?}" , value: @sc&.ta_date_1&.strftime('%m/%d/%Y')
+                                    -#= bc.hidden_field :ta_date_1, value: bc.object.contract.sell_contract.ta_date_1
+                                  %label.control-label.bottom-padding
+                                    End of month?
+                                  - if @sc.ta_end_of_month
+                                    = bc.check_box :ta_end_of_month, checked: 'checked'
+                                  - else
+                                    = bc.check_box :ta_end_of_month
+                                %div{:class => "form-group twice-month #{bc.object.ts_approve != 'twice a month' ? 'hidden' : ''}"}
+                                  %label.control-label
+                                    Select second date
+                                  .select
+                                    = bc.text_field :ta_date_2, class: "form-control #{'field_disable' unless @sc&.ts_approve.blank?}" ,value: @sc&.ta_date_2&.strftime('%m/%d/%Y')
+                                    -#= bc.hidden_field :ta_date_2, value: bc.object.contract.sell_contract.ta_date_2
+                                %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.ts_approve) ? '' : 'hidden'}"}
+                            -#.col-md-4
+                            -#  %label.control-label
+                            -#    Collaborators
+                          .row
+                            .col-md-12.d-flex
+                              #buy_ts_approver
+                                = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'timesheet_approve')
+                              %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'timesheet_approve', style: 'color: #fff !important;'}
+                                Add CC
+                  #tab-buy-sc.tab-pane.padding-top-15
+                    .row
+                      .col-sm-12
+                        .form-group
+                          %label.control-label PayRoll Info
+                          =link_to "Add Payroll Info", new_payroll_term_info_path, class: 'btn btn-sm btn-primary pull-right mb-2', target: "_blank"
+                          .select
+                            .plain-select
+                              = bc.select :payroll_info_id, current_company.payroll_infos.map{|payroll| [payroll.title, payroll.id]}, {selected: bc.object.payroll_info.present? ? bc.object.payroll_info.id : current_company.payroll_infos.first&.id },{class: "form-control"}
+                    .div
+                      .row
+                        .col-md-12
+                          .form-group
+                            .row
+                              .col-md-4
+                                %label.control-label.corp-corp-frequency
+                                  Salary Frequency
+                                .select
+                                  .plain-select
+                                    = bc.select :salary_calculation, Contract.time_sheet_frequencies.map { |key, value| [key.humanize, key] }, {selected: current_company&.payroll_infos&.first&.payroll_type},{class: "form-control buy-sal-cal" }
+                            %br
+                            %br
+                            .row
+                              .col-md-4
+                                %label.control-label.corp-corp-bill
+                                  Salary Calculation
+                              .col-md-4
+                                .b-sal-cal
+                                  %div{:class => "form-group daily"}
+                                    %label.control-label.w-100
+                                      Select Time
+                                      = bc.text_field :sc_day_time, class: "form-contro con-time time-input"
+                                  %div{:class => "form-group week"}
+                                    %label.control-label
+                                      Select day of week
+                                    .select
+                                      .plain-select
+                                        = bc.select :sc_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {selected: current_company&.payroll_infos&.first&.sc_day_of_week},{class: "form-contro" }
+                                  -#%div{:class => "form-group biweek"}
+                                  -#  %label.control-label
+                                  -#    Select Second day of week
+                                  -#  .select
+                                  -#    .plain-select
+                                  -#      = bc.select :sc_2day_of_week,
+                                  -#        [["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],
+                                  -#        ["Every Thursday", "thu"],
+                                  -#        ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
+                                  -#        {}, {class: "form-control height-45"}
+                                  -#
+                                  %div{:class => "form-group month"}
+                                    %label.control-label
+                                      Select date
+                                    .select
+                                      = bc.text_field :sc_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sc_date_1&.strftime('%m/%d/%Y')
+                                    %label.control-label.bottom-padding
+                                      End of month?
+                                      = bc.check_box :sc_end_of_month
+                                    %br
+                                  %div{:class => "form-group twice-month"}
+                                    %label.control-label
+                                      Select second date
+                                    .select
+                                      = bc.text_field :sc_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sc_date_2&.strftime('%m/%d/%Y')
+                                  %span{:class => "form-group month"}
+                              .col-md-4
+                                %label.control-label
+                                  Collaborators
+                                .row
+                                  .col-md-12.d-flex
+                                    -##buy_s_c
+                                    -#  = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_calculation')
+                                    -#%a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_calculation', style: "color: #fff !important;"}
+                                    -#  Add CC
+                      .row
+                        .col-md-12
+                          .form-group
+                            .row
+                              .col-md-4
+                                %label.control-label.corp-corp-payment
+                                  Salary Process
+                                = bc.hidden_field :salary_process, value: bc.object.salary_calculation
+                              .col-md-4
+                                .b-sal-cal
+                                  %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
+                                    %label.control-label.w-100
+                                      Select Time
+                                      = bc.text_field :sp_day_time, class: "form-contro con-time time-input"
+                                  %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' && bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
+                                    %label.control-label
+                                      Select day of week
+                                    .select
+                                      .plain-select
+                                        = bc.select :sp_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro" }
+                                  -#%div{:class => "form-group biweek #{bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
+                                  -#  %label.control-label
+                                  -#    Select Second day of week
+                                  -#  .select
+                                  -#    .plain-select
+                                  -#      = bc.select :sp_2day_of_week,
+                                  -#        [["Every Monday", "mon"],["Every Tuesday", "tue"],["Every Wednesday", "wed"],
+                                  -#        ["Every Thursday", "thu"],
+                                  -#        ["Every Friday", "fri"],["Every Saturday", "sat"],["Every Sunday", "sun"]],
+                                  -#        {}, {class: "form-control height-45"}
+                                  -#
+                                  %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
+                                    %label.control-label
+                                      Select date
+                                    .select
+                                      = bc.text_field :sp_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sp_date_1&.strftime('%m/%d/%Y')
+                                    %label.control-label.bottom-padding
+                                      End of month?
+                                      = bc.check_box :sp_end_of_month
+                                    %br
+                                  %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
+                                    %label.control-label
+                                      Select second date
+                                    .select
+                                      = bc.text_field :sp_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sp_date_2&.strftime('%m/%d/%Y')
+                                  %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
+                              .col-md-4
+                                -#%label.control-label
+                                -#  Collaborators
+                                -#.row
+                                -#  .col-md-12.d-flex
+                                -#    #buy_s_p
+                                -#      = render 'company/contracts/partials/approval', approvals: @contract.buy_contract.approvals.where(approvable_type: 'slaray_process')
+                                -#    %a.btn.btn-primary.fa-3x.pull-right.add_contacts{"data-toggle": "modal", "data-target":"#buy_approval", id: 'slaray_process', style: "color: #fff !important;"}
+                                -#      Add CC
+
+                      .row
+                        .col-md-12
+                          .form-group
+                            .row
+                              .col-md-4
+                                %label.control-label.corp-corp-clear
+                                  Salary Clear
+                                = bc.hidden_field :salary_process, value: bc.object.salary_calculation
+                              .col-md-3
+                                .b-sal-cal
+                                  %div{:class => "form-group daily #{bc.object.salary_calculation != 'daily' ? 'hidden' : ''}"}
+                                    %label.control-label.w-100
+                                      Select Time
+                                      = bc.text_field :sclr_day_time, class: "form-contro con-time time-input"
+                                  %div{:class => "form-group week #{bc.object.salary_calculation != 'weekly' && bc.object.salary_calculation != 'weekly' ? 'hidden' : ''}"}
+                                    %label.control-label
+                                      Select day of week
+                                    .select
+                                      .plain-select
+                                        = bc.select :sclr_day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
+                                  -#%div{:class => "form-group biweek #{bc.object.salary_calculation != 'biweekly' ? 'hidden' : ''}"}
+                                  -#  %label.control-label
+                                  -#    Select Second day of week
+                                  -#  .select
+                                  -#    .plain-select
+                                  -#      = bc.select :sclr_2day_of_week, [["Every Monday", "mon"], ["Every Tuesday", "tue"], ["Every Wednesday", "wed"], ["Every Thursday", "thu"], ["Every Friday", "fri"], ["Every Saturday", "sat"], ["Every Sunday", "sun"]], {},{class: "form-contro height-45" }
+                                  -#
+                                  %div{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
+                                    %label.control-label
+                                      Select date
+                                    .select
+                                      = bc.text_field :sclr_date_1, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sclr_date_1&.strftime('%m/%d/%Y')
+                                    %label.control-label.bottom-padding
+                                      End of month?
+                                      = bc.check_box :sclr_end_of_month
+                                    %br
+                                  %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
+                                    %label.control-label
+                                      Select second date
+                                    .select
+                                      = bc.text_field :sclr_date_2, class: "date_1", placeholder: "MM/DD/YYYY", value: current_company&.payroll_infos&.first&.sclr_date_2&.strftime('%m/%d/%Y')
+                                  %span{:class => "form-group month #{['twice a month', 'monthly'].include?(bc.object.salary_calculation) ? '' : 'hidden'}"}
+                              .col-md-2
+                                .term-no
+                                  %div{:class => "form-group month"}
+                                  %label.control-label
+                                    Select Term
+                                  .select
+                                    = bc.select :term_no, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no), {}, {class: 'form-control height-45'}
+                                  .b-sal-cal
+                                    %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
+                                      %label.control-label
+                                        Select Term 2
+                                      .select
+                                        = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control height-45'}
+
+                              .col-md-3
+                                .b-sal-cal1
+                                  %div{:class => "form-group week"}
+                                  %div{:class => "form-group month"}
+                                  %label.control-label
+                                    Select Payroll
+                                  .select.payroll
+                                    .plain-select.payroll-term
+                                      - #TODO: change the below select
+                                      = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control height-45'}
+                                .b-sal-cal
+                                  %div{:class => "form-group twice-month #{bc.object.salary_calculation != 'twice a month' ? 'hidden' : ''}"}
+                                    %label.control-label
+                                      Select Payroll 2
+                                    .select.payrol-2
+                                      .plain-select.payroll-term-2
+                                        - #TODO: change the below select
+                                        = bc.select :term_no_2, options_for_select( (1..30).to_a+['End of month'],current_company&.payroll_infos&.first&.term_no_2), {}, {class: 'form-control height-45'}
+                  #tab-buy-cc.tab-pane.padding-top-15
+                    .contract-fields_wrapper.mt-4.contract-border
+                      %div
+                        .widget-body
+                          .col-md-4
+                            .form-group
+                              %label.control-label
+                                Payroll Date
+                                %sup.text-danger *
+                              .select
+                                .row
+                                  = bc.text_field :payroll_date, value: current_company&.payroll_infos&.first&.payroll_date, class: "date_1"
+                    .row.mt-2
+                      .col-md-12
+                        .form-group
+                          = link_to "+ Commission", new_company_buy_contract_contract_sale_commission_path(@contract.buy_contract), remote: true
+                      .col-md-12.commissions_table
+                        = render "company/contract_sale_commissions/partials/commissions", commissions: @contract.buy_contract.contract_sale_commisions
+                  #tab-buy-integration.tab-pane.padding-top-15
+                    .row.integration
+                      .col-md-6
+                        %label.control-label.w-100
+                          Integration
+                          = bc.text_field :integration, class: 'form-control'
+                  #doc-action{style: "padding: 15px 0;"}  
+                    %i{class: "btn btn-primary pull-left previous-btn", style:"display: none", onClick:"previousDoc('buy_contract')"}
+                      Back
+                    %i{class: "btn btn-primary pull-right next-btn", onClick:"nextDoc('buy_contract')"}
+                      Next        
+        - if false 
+          %label.control-label.font-weight-bold.mt-2 Employee/Vendor Documents
+          .contract-fields_wrapper.mt-2.contract-border
+            .row
+              .col-md-12.contract-attachment
+                %ul#myTab2.nav.nav-tabs.smaller{style: "border-bottom: 0px;"}
+                  %li.nav-item.active.primary-nav.mr-0
+                    %a{"data-toggle" => "tab", :href => "#buy_emp_req_docs", class: "nav-link cumstom_nav-tab"}
+                      %span.badge.bg-color-blue.txt-color-white
+                      Request Documents
+                  %li.nav-item.primary-nav.mr-0
+                    %a{"data-toggle" => "tab", :href => "#buy_send_documents", class: "nav-link cumstom_nav-tab"}
+                      %span.badge.bg-color-blue.txt-color-white
+                      Request E-Signature
+                  - if @contract.buy_contract.company.present?
+                    %li.nav-item.primary-nav.mr-0
+                      %a{"data-toggle" => "tab", :href => "#buy_ven_req_docs", class: "nav-link cumstom_nav-tab"}
+                        %span.badge.bg-color-blue.txt-color-white
+                        Vendor Request Documents
+                .col-md-12.pl-0
+                  .tab-content
+                    #buy_send_documents.tab-pane.padding-top-15
+                      .row
+                        .col-md-12
+                          .form-group
+                            .table-responsive
+                              %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_send_documents_modal", style: "color: #fff;"} Create Checklist
+                              %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
+                                %thead
+                                  %tr{:role => "row"}
+                                    %th Document Title
+                                    %th Sent Date
+                                    %th Status
+                                    %th Signers
+                                    %th Envelope No
+                                    %th Signed Document
+                                %tbody#buy_send_documents_table
+                                  - @candidate_signature_documents.each do |docusign|
+                                    %tr
+                                      %td= docusign.documentable.title
+                                      %td= docusign.created_at.strftime("%Y-%m-%d")
+                                      %td= docusign.is_sign_done ? "Signed" : "Pending"
+                                      %td.no-wrap
+                                        =show_users(docusign)
+                                      %td
+                                        = do_ellipsis(docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted",10)
+                                      %td
+                                        = link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+                    #buy_emp_req_docs.tab-pane.padding-top-15.active.in
+                      .row
+                        .col-md-12
+                          .form-group
+                            .table-responsive
+                              %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_emp_req_docs_modal", style: "color: #fff;"} Create Checklist
+                              %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
+                                %thead
+                                  %tr{:role => "row"}
+                                    %th Document Title
+                                    %th Sent Date
+                                    %th Status
+                                    %th Submitted Document
+                                %tbody#buy_emp_req_docs_table
+                                  - @candidate_request_documents.each do |docusign|
+                                    %tr
+                                      %td= docusign.documentable.title
+                                      %td= docusign.created_at.strftime("%Y-%m-%d")
+                                      %td= docusign.envelope_id.present? ? "Submitted" : "Document Not Submitted"
+                                      %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign_file(docusign), title: "Download Document" if docusign.is_sign_done
+                    #buy_ven_req_docs.tab-pane.padding-top-15
+                      .row
+                        .col-md-12
+                          .form-group
+                            .table-responsive.p-4
+                              %a.btn.btn-sm.btn-primary.float-right.margin-bottom-10{"data-toggle": "modal", "data-target":"#buy_ven_req_docs_modal", style: "color: #fff;"} Create Checklist
+                              %table.table.text-center.table-bordered.table-lg.table-v2.table-striped
+                                %thead
+                                  %tr{:role => "row"}
+                                    %th Document Title
+                                    %th Sent Date
+                                    %th Status
+                                    %th Signers
+                                    %th Envelope No
+                                    %th Signed Document
+                                %tbody#buy_ven_req_docs_table
+                                  - @vendor_signature_documents.each do |docusign|
+                                    %tr
+                                      %td= docusign.documentable.title
+                                      %td= docusign.created_at.strftime("%Y-%m-%d")
+                                      %td= docusign.is_sign_done ? "Signed" : "Pending"
+                                      %td.d-flex
+                                        = show_users(docusign)
+                                      %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+                                      %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done
+  - else
+    .div.w-75.margin-auto
+      %p.contract_warning_text= "You haven't onboarded the consultant/vendor to this contract. You can always #{link_to "GoBack",new_contract_path(contract_id: @contract.id)} to onboard a consultant/vendor. Incase it's entended, Please click 'Save and Continue'  to proceed as it is.".html_safe
+
+- if @contract and @contract&.buy_contract&.persisted?
+  = render 'company/contracts/buy_send_documents_modal', contract: @contract
+  = render 'company/contracts/buy_emp_req_docs_modal', contract: @contract
+  = render 'company/contracts/partials/buy_ven_req_docs_modal', contract: @contract
+  = render 'company/contracts/partials/buy_approval_modal',contract: @contract, contractable_type: @contract.buy_contract.class.name, contractable_id: @contract.buy_contract.id
+
+:javascript
+  $("#timesheet_approve").prop('disabled', true);
+  $('.ts_day_time_picker').timepicker('setTime',new Date($(".ts_day_time_picker").val()).toLocaleTimeString('en-US'));
+  $('.ta_day_time_picker').timepicker('setTime',new Date($(".ta_day_time_picker").val()).toLocaleTimeString('en-US'));
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+       $(".exp_date").datepicker({
+          dateFormat : 'mm/dd/yy'
+       });
+       $(".exp_date_buy").datepicker({
+          dateFormat : 'mm/dd/yy'
+       });
+       $(".exp_date_emp_buy").datepicker({
+          dateFormat : 'mm/dd/yy'
+       });
+       $(".exp_date_ven_buy").datepicker({
+          dateFormat : 'mm/dd/yy'
+       });
+    });
+    $('#bc_timesheet').val($('#contract_buy_contracts_attributes_0_time_sheet').val());
+    $('.add-commission').on('cocoon:after-insert', function(e, insertedItem) {
+      set_commission_user_select(".commission-user:not([class*='added']", "Select Commssion User");
+      $(".commission-user:not([class*='added']").addClass('added');
+    });
+    set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+    if($('#contract_buy_contracts_attributes_0_salary_calculation').val() == 'weekly'){
+      $('.plain-select.payroll-term').html("<select class='form-control' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='1'>1 Day</option> <option value='2'>1 Days</option> <option value='3'>3 Days</option> <option value='4'>4 Days</option> <option value='5'>5 Days</option> <option value='6'>6 Days</option> <option value='7'>7 Days</option> <option value='14'>14 Days</option></select>")
+    } else if($('#contract_buy_contracts_attributes_0_salary_calculation').val() == 'monthly'){
+      $('.plain-select.payroll-term').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+    }else if($('#contract_buy_contracts_attributes_0_salary_calculation').val() == 'twice a month'){
+      $('.plain-select.payroll-term').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term]' id='contract_buy_contracts_attributes_0_payment_term'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+      $('.plain-select.payroll-term-2').html("<select class='form-control month-term' name='contract[buy_contracts_attributes][0][payment_term_2]' id='contract_buy_contracts_attributes_0_payment_term_2'><option value='0'>Current month</option> <option value='1'>1 previous month</option> <option value='2'>2 previous month</option></select>")
+    }
+    $('#contract_buy_contracts_attributes_0_payment_term').val(#{current_company&.payroll_infos&.first&.payroll_term})
+    $('#contract_buy_contracts_attributes_0_payment_term_2').val(#{current_company&.payroll_infos&.first&.payroll_term_2})
+

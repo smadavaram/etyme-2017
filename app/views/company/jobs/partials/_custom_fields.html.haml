@@ -1,0 +1,15 @@
+.nested-fields
+  .form-group
+    %label.col-md-2.control-label
+      Field Name
+      %sup.text-danger *
+    .col-md-5
+      = f.text_field :name , class: 'form-control' , placeholder: 'Enter Field Name' , required: true
+    .col-md-3
+      %label.fency Required ?
+      = f.check_box :required , {}, true, false
+
+
+      -#= f.check_box :required , class: 'form-control'
+    .col-md-1
+      = link_to_remove_association "Remove", f, class: "btn btn-danger pull-right"

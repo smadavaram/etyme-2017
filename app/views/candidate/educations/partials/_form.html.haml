@@ -1,0 +1,35 @@
+
+#education.modal{"aria-hidden" => "true", "aria-labelledby" => "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4#education.modal-title Add New Education
+      .modal-body
+        = form_for :education,url: candidate_educations_path do |edu|
+          .row
+            .col-md-12
+              .form-group
+                = edu.text_field :degree_title,placeholder: "Degree Title",class: 'form-control'
+          .row
+            .col-md-12
+              .form-group
+                = edu.text_field :institute,placeholder: "Institute Name",class: 'form-control'
+          .row
+            .col-md-6
+              .form-group
+                = edu.text_field :start_year,placeholder: "Start Year",class: 'form-control education_start_year'
+            .col-md-6
+              .form-group
+                = edu.text_field :completion_year,placeholder:"Completion Year",class: 'form-control education_completion_year'
+          .row
+            .col-md-12
+              .form-group
+                = edu.text_area :description,placeholder: "Description",class: 'form-control'
+
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            %button.btn.btn-primary{:type => "submit"}
+              Create

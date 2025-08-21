@@ -1,0 +1,73 @@
+<!-- Main Blog Post -->
+<div class="webflow-content-inner webflow-blog col-12">
+  <div class="webflow-blog-banner">
+    <% if @job.files.present? %>
+      <%= image_tag @job.files.split(',').first %>
+    <% else %>
+      <%= image_tag 'demo/s1.jpg' %>
+    <% end %>
+  </div>
+  <div class="webflow-blog-article pt-3 pb-3">
+    <div class="webflow-blog-header pb-3">
+      <h1 class="title"><%= @job&.title %></h1>  
+      <span class="author">by <%= @job&.created_by&.full_name %> </span>
+      <a href="#" class="share">Share this <i class="fa fa-share-alt ml-1" aria-hidden="true"></i></a>
+    </div>
+    <div class="webflow-blog-content pb-3">
+      <%= @job&.description&.html_safe %>
+    </div>
+    <div class="webflow-blog-footer">
+      <% if @job.tag_list.present? %>
+      <h1>Tags</h1> 
+      <ul>
+        <% @job.tag_list.each do |tag| %>
+          <li><%= tag %></li>
+        <% end %>
+      </ul>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<!-- Related Content -->
+<% if @related.present? %>
+  <div class="webflow-content-inner webflow-related col-12">
+    <h1 class="webflow-related-title">Related</h1>
+    <div class="row">
+      <% @related.each do |blg| %>
+        <div class="webflow-related-card col-12 col-md-6 mb-4 mb-sm-0 d-flex">
+          <div class="webflow-related-card-image">
+            <% if blg&.files.present? %>
+              <%= image_tag(blg.files) %>
+            <% elsif blg.tags.present? %>
+              <div class="text-image text-image-font">
+                <%= blg.tags.first %>
+              </div>
+            <% elsif blg.company&.logo.present? %>
+              <%= image_tag(blg.company.logo) %>
+            <% elsif blg.company&.name.present? %>
+              <div class="text-image text-image-font">
+                <%= blg.company.name.split.first %>
+              </div>
+            <% else %>
+              <%= image_tag 'static-job.png' %>
+            <% end %>
+          </div>
+          <div class="pl-3">
+            <div class="webflow-related-card-title">
+              <%= link_to truncate(blg.title,length: 50), static_job_path(blg, type: 'feed'), style: "color: black;"%>
+            </div>
+            <div class="webflow-related-card-summary">
+              <%= truncate(strip_tags(blg&.description), :length => 100, :omission => '..').html_safe%>
+            </div>
+            <div class="webflow-related-card-author">
+              <%= "By " + blg.created_by.first_name %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+<% end %>
+
+<%= render 'webflow_job_comments' %>

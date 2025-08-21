@@ -1,0 +1,36 @@
+.content-box
+  .support-index
+    .support-tickets
+      .support-tickets-header
+        .tickets-control
+          %h5
+            Jobs
+          .element-search
+            %input{:placeholder => "Filter by job's title", :type => "text", id: "jobs_search"}/
+      - @jobs.each_with_index do |job,index|
+        -# if !(Time.parse(job.created_at.to_s) <= Time.parse(Time.now.to_s) && job.job_applications.blank?)
+        = link_to fetch_job_candidate_candidates_path(job),remote: :true,id: job.id, class:"job_ticket #{'active' if index == 0}" do
+          .st-body
+            .avatar
+              = image_tag job.company.logo
+            .ticket-content
+              %h6.ticket-title
+                = truncate(job.title,length: 50)
+              .ticket-description
+                - job.tags.sample(5).each do |tag|
+                  %span.label.label-success.badge.jb-bg-colr
+                    = tag.name
+          .st-foot
+            %span.label Agent:
+            %span.value.with-avatar{:href => "#"}
+              %span
+                =job.created_by&.full_name
+            %span.label Updated:
+            %span.value
+              =job.created_at.strftime("%d/%m/%Y")
+      .timesheet_pagination_wrap
+        .pagination_label
+          = page_entries_info jobs
+        = will_paginate(jobs, {previous_label: "Previous",next_label: "Next",inner_window: 1,class: 'jobs_pagination_links',link_options: {'data-remote': true}})
+    .job_description.w-100
+      = render "candidate/candidates/partials/job", job: jobs.first unless jobs.blank?

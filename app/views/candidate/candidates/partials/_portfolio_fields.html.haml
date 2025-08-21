@@ -1,0 +1,27 @@
+.multi-field-container.nested-fields5
+  .row
+    .col-md-6.col-sm-12
+      .form-group
+        %label Name
+        = f.text_field :name, placeholder: "Project Name", class: 'form-control input'
+      .form-group
+        %label Description
+        = f.text_area :description, placeholder: "Project Description", class: 'form-control input'
+    .col-md-6.col-sm-12
+      -# = f.text_area :cover_photo, placeholder: "Cover URL", class: 'form-control input'
+      .form-group
+        %br/
+        .profile-tile.profile-tile-inlined
+          .profile-tile-box.faded
+            = f.hidden_field :cover_photo
+            - if f.object.cover_photo.present?
+              %img{ src: f.object.cover_photo, style: 'width: 200px !important; height: 102px !important;' }
+            - else
+              .pt-new-icon.img_pic_r.js-portfolio-upload-btn
+                %i.os-icon.os-icon-plus{ id: f.object.id ? "cover_#{f.object.id}" : "temp_#{rand(9999)}" }
+            .pt-user-name.img_pic_r
+              Cover Picture
+  .row
+    .col-md-12
+      = link_to_remove_association f, wrapper_class: "nested-fields5", class: "bttn btn-add pull-right delete_icon" do
+        %i.fa.fa-trash

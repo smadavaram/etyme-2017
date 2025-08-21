@@ -1,0 +1,3 @@
+$('.remote_container').html("#{ j render 'company/candidates/partials/modal_manage_groups' , assignee: @manage_candidate ,url:candidate_manage_groups_path }");
+$('#candidate-#{@manage_candidate.id}').modal('toggle');
+$(".select2").select2({placeholder: "Select Group(s)"});

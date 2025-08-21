@@ -1,0 +1,497 @@
+.padded-lg
+  = render 'shared/plugins_index'
+  .element-box
+    .margin-top-10.main_accordion
+      %a.sidebar_collapsible.side-bar_tab.active
+        %div.header-accordion CMS
+      .w-100.text-justify.nav-sidebar-collaps{style: 'display:block'}
+        %div.bg-color-white
+          .row.align-item-center
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedModal", "data-toggle" => "modal", href: '#embedModal'}
+                  .icon-part
+                    .fa.fa-briefcase
+                  .link-part Job Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedRssModal", "data-toggle" => "modal", href: '#embedModal'}
+                  .icon-part
+                    .fa.fa-briefcase
+                  .link-part Job Rss Feed
+
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedJobModal", "data-toggle" => "modal", href: '#embedJobModal'}
+                  .icon-part
+                    .fa.fa-briefcase
+                  .link-part Company Job Feed
+
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedJobRssModal", "data-toggle" => "modal", href: '#embedJobModal'}
+                  .icon-part
+                    .fa.fa-briefcase
+                  .link-part Company Job Rss Feed
+
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedProductModal", "data-toggle" => "modal", href: '#embedProductModal'}
+                  .icon-part
+                    .fa.fa-product-hunt
+                  .link-part Product Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedProductRssModal", "data-toggle" => "modal", href: '#embedProductModal'}
+                  .icon-part
+                    .fa.fa-product-hunt
+                  .link-part Product Rss Feed
+
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedServiceModal", "data-toggle" => "modal", href: '#embedServiceModal'}
+                  .icon-part
+                    .fa.fa-street-view
+                  .link-part Service Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedServiceRssModal", "data-toggle" => "modal", href: '#embedServiceModal'}
+                  .icon-part
+                    .fa.fa-street-view
+                  .link-part Service Rss Feed
+
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedBlogModal", "data-toggle" => "modal", href: '#embedBlogModal'}
+                  .icon-part
+                    .fa.fa-rss
+                  .link-part Blog Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedBlogRssModal", "data-toggle" => "modal", href: '#embedBlogModal'}
+                  .icon-part
+                    .fa.fa-rss
+                  .link-part Blog Rss Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedBenchModal", "data-toggle" => "modal", href: '#embedBlogModal'}
+                  .icon-part
+                    .fa.fa-user
+                  .link-part Bench Feed
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedBenchRssModal", "data-toggle" => "modal", href: '#embedBlogModal'}
+                  .icon-part
+                    .fa.fa-user
+                  .link-part Bench Rss Feed
+
+
+    .margin-top-10.main_accordion
+      %a.sidebar_collapsible.side-bar_tab.active
+        %div.header-accordion Collaboration
+      .w-100.text-justify.nav-sidebar-collaps{style: 'display:block'}
+        %div.bg-color-white
+          .row.align-item-center
+            -Plugin.plugin_types.keys.each do |plugin_type|
+              -unless current_company.plugins.send(plugin_type).present?
+                - if plugin_type == "skype"
+                  .col-md-3.col-6
+                    .feed
+                      %a.modal-opener.display-flex{"data-target" => "#skype_integration_modal", "data-toggle" => "modal", href: '#skype_integration_modal'}
+                        .icon-part
+                          .fa.fa-skype
+                        .link-part Integrate #{plugin_type}
+                - if plugin_type == "zoom"
+                  .col-md-3.col-6
+                    .feed
+                      %a.modal-opener.display-flex{:href => plugin_company_company_path(current_company,plugin_type: plugin_type)}
+                        .icon-part
+                          .fa.fa-video-camera
+                        .link-part Integrate #{plugin_type}
+
+    .margin-top-10.main_accordion
+      %a.sidebar_collapsible.side-bar_tab.active
+        %div.header-accordion Workflows
+      .w-100.text-justify.nav-sidebar-collaps{style: 'display:block'}
+        %div.bg-color-white
+          .row.align-item-center
+            -Plugin.plugin_types.keys.each do |plugin_type|
+              -unless current_company.plugins.send(plugin_type).present?
+                -if plugin_type == "docusign"
+                  .col-md-4.col-6
+                    .feed
+                      %a.modal-opener.display-flex{:href => plugin_company_company_path(current_company,plugin_type: plugin_type)}
+                        .icon-part
+                          = image_tag('/docusign.png', width: '35', height: '35')
+                        .link-part Integrate #{plugin_type}
+
+            .col-md-4.col-6
+              .feed
+                %a.modal-opener.display-flex{"data-target" => "#embedProductModal", "data-toggle" => "modal", href: '#embedProductModal'}
+                  .icon-part
+                    = image_tag('qb.png', width: '30', height: '30')
+                  .link-part QickBooks
+
+
+    .margin-top-10.main_accordion
+      %a.sidebar_collapsible.side-bar_tab.active
+        %div.header-accordion Alerts
+      .w-100.text-justify.nav-sidebar-collaps{style: 'display:block'}
+        %div.bg-color-white
+          .row.align-item-center
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{href: '#'}
+                  .icon-part
+                    .fa.fa-code-fork
+                  .link-part Firebase
+
+    .margin-top-10.main_accordion
+      %a.sidebar_collapsible.side-bar_tab.active
+        %div.header-accordion Reporting
+      .w-100.text-justify.nav-sidebar-collaps{style: 'display:block'}
+        %div.bg-color-white
+          .row.align-item-center
+            .col-md-3.col-6
+              .feed
+                %a.modal-opener.display-flex{href: '#'}
+                  .icon-part
+                    .fa.fa-signal
+                  .link-part PowerBI
+
+
+  -#%body.bg_white
+  -#  .container-fluid.bg_white
+  -#    .row{style: "padding: 0px 15px 15px 15px;"}
+  -#      .form-group
+  -#        .multi-field-wrapper
+  -#          .multi-fields
+  -#            %br
+  -#            .row
+  -#              .col-md-12
+  -#                %h4
+  -#                  %b Job Feeds
+  -#                .form-group.candidate-association
+  -#                .col-md-12{:style=>"margin-top: 25px;"}
+  -#                  .form-group
+  -#                    .col-md-2
+  -#                      %p Click to get a code snippet for the job feed
+  -#                    .col-md-2
+  -#                      %button.btn.btn-primary{"data-target" => "#embedModal", "data-toggle" => "modal", :type => "button"} Job Feed
+  -#
+  -#              .col-md-12
+  -#                %h4
+  -#                  %b Product Feeds
+  -#                .form-group.candidate-association
+  -#                .col-md-12{:style=>"margin-top: 25px;"}
+  -#                  .form-group
+  -#                    .col-md-2
+  -#                      %p Click to get a code snippet for the Product feed
+  -#                    .col-md-2
+  -#                      / = link_to "Product Feed", feed_product_feed_path(:format => :rss), class: "btn btn-primary"
+  -#                      %button.btn.btn-primary{"data-target" => "#embedProductModal", "data-toggle" => "modal", :type => "button"} Product Feed
+  -#
+  -#              .col-md-12
+  -#                %h4
+  -#                  %b Service Feeds
+  -#                .form-group.candidate-association
+  -#                .col-md-12{:style=>"margin-top: 25px;"}
+  -#                  .form-group
+  -#                    .col-md-2
+  -#                      %p Click to get a code snippet for the Service feed
+  -#                    .col-md-2
+  -#                      / = link_to "Service Feed", feed_service_feed_path(:format => :rss), class: "btn btn-primary"
+  -#                      %button.btn.btn-primary{"data-target" => "#embedServiceModal", "data-toggle" => "modal", :type => "button"} Service Feed
+  -#
+  -#              .col-md-12
+  -#                %h4
+  -#                  %b Training Feeds
+  -#                .form-group.candidate-association
+  -#                .col-md-12{:style=>"margin-top: 25px;"}
+  -#                  .form-group
+  -#                    .col-md-2
+  -#                      %p Click to get a code snippet for the Training feed
+  -#                    .col-md-2
+  -#                      / = link_to "Training Feed", feed_training_feed_path(:format => :rss), class: "btn btn-primary"
+  -#                      %button.btn.btn-primary{"data-target" => "#embedTrainingModal", "data-toggle" => "modal", :type => "button"} Training Feed
+  -#
+  -#              .col-md-12
+  -#                %h4
+  -#                  %b Blog Feeds
+  -#                .form-group.candidate-association
+  -#                .col-md-12{:style=>"margin-top: 25px;"}
+  -#                  .form-group
+  -#                    .col-md-2
+  -#                      %p Click to get a code snippet for the Blog feed
+  -#                    .col-md-2
+  -#                      %button.btn.btn-primary{"data-target" => "#embedBlogModal", "data-toggle" => "modal", :type => "button"} Blog Feed
+
+
+  #embedModal.modal{:role => "dialog"}
+    .modal-dialog
+      / Modal content
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+              .p-4.border
+                %code
+                  &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                  &lt;script src="https://etymeclub.herokuapp.com/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+              .card-subtitle.mt-4
+                Copy and paste the following code snippets where you want to display the job board, here true can be replaced with "slider" for alternative display in slider.
+              .p-4.border
+                %code
+                  &lt;div id="job-board"&gt;&lt;/div&gt;
+                  %br
+                  &lt;script type="text/javascript"&gt;
+                  %br
+                  &nbsp;$(function() {
+                  %br
+                  &nbsp;&nbsp;etyme("job-board",#{current_company.id},"job",true);
+                  %br
+                  &nbsp;})
+                  %br
+                  &lt;/script&gt;
+  #embedRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_job_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/job_feed" target="_blank"&gt;&lt;/a&gt;
+
+  #embedJobRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_job_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/company_job_feed" target="_blank"&gt;&lt;/a&gt;
+
+
+  #embedJobModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;iframe paste below code &gt;&lt;/iframe&gt;</code> of your page where you want to see company jobs.".html_safe
+              .p-4.border
+                %code
+                  src="https://#{current_company.etyme_url}/sites_jobs_preview" width="98%" height="600"
+
+
+  #embedTrainingModal.modal{:role => "dialog"}
+    .modal-dialog
+      / Modal content
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+              .p-4.border
+                %code
+                  &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                  &lt;script src="https://etymeclub.herokuapp.com/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+              .card-subtitle.mt-4
+                Copy and paste the following code snippets where you want to display the training board, here true can be replaced with "slider" for alternative display in slider.
+              .p-4.border
+                %code
+                  &lt;div id="training-board"&gt;&lt;/div&gt;
+                  %br
+                  &lt;script type="text/javascript"&gt;
+                  %br
+                  &nbsp;$(function() {
+                  %br
+                  &nbsp;&nbsp;etyme("training-board",#{current_company.id},"training",true);
+                  %br
+                  &nbsp;})
+                  %br
+                  &lt;/script&gt;
+  #embedTrainingRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_training_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/training_feed" target="_blank"&gt;&lt;/a&gt;
+
+  #embedServiceModal.modal{:role => "dialog"}
+    .modal-dialog
+      / Modal content
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+              .p-4.border
+                %code
+                  &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                  &lt;script src="https://etymeclub.herokuapp.com/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+              .card-subtitle.mt-4
+                Copy and paste the following code snippets where you want to display the service board, here true can be replaced with "slider" for alternative display in slider.
+              .p-4.border
+                %code
+                  &lt;div id="service-board"&gt;&lt;/div&gt;
+                  %br
+                  &lt;script type="text/javascript"&gt;
+                  %br
+                  &nbsp;$(function() {
+                  %br
+                  &nbsp;&nbsp;etyme("service-board",#{current_company.id},"service",true);
+                  %br
+                  &nbsp;})
+                  %br
+                  &lt;/script&gt;
+  #embedServiceRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_service_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/service_feed" target="_blank"&gt;&lt;/a&gt;
+
+  #embedProductModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+              .p-4.border
+                %code
+                  &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                  &lt;script src="https://etymeclub.herokuapp.com/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+              .card-subtitle.mt-4
+                Copy and paste the following code snippets where you want to display the product board, here true can be replaced with "slider" for alternative display in slider.
+              .p-4.border
+                %code
+                  &lt;div id="product-board"&gt;&lt;/div&gt;
+                  %br
+                  &lt;script type="text/javascript"&gt;
+                  %br
+                  &nbsp;$(function() {
+                  %br
+                  &nbsp;&nbsp;etyme("product-board",#{current_company.id},"product",true);
+                  %br
+                  &nbsp;})
+                  %br
+                  &lt;/script&gt;
+
+  #embedProductRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_product_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/product_feed" target="_blank"&gt;&lt;/a&gt;
+
+  #embedBlogModal.modal{:role => "dialog"}
+    .modal-dialog
+      / Modal content
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+              .p-4.border
+                %code
+                  &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                  &lt;script src="https://etymeclub.herokuapp.com/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+              .card-subtitle.mt-4
+                Copy and paste the following code snippets where you want to display the blog board, here true can be replaced with "slider" for alternative display in slider.
+              .p-4.border
+                %code
+                  &lt;div id="blog-board"&gt;&lt;/div&gt;
+                  %br
+                  &lt;script type="text/javascript"&gt;
+                  %br
+                  &nbsp;$(function() {
+                  %br
+                  &nbsp;&nbsp;etyme("blog-board",#{current_company.id},"blog",true);
+                  %br
+                  &nbsp;})
+                  %br
+                  &lt;/script&gt;
+  #embedBlogRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_blog_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/blog_feed" target="_blank"&gt;&lt;/a&gt;
+
+  #embedBenchModal.modal{:role => "dialog"}
+    .modal-dialog
+      / Modal content
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                Copy and paste the following code snippets inside the <code>&lt;head&gt;&lt;/head&gt;</code> at the bottom:
+              .p-4.border
+                %code
+                  &lt;script src="https://cdnjs.cloudflare.com/ajax/libs/iframe-resizer/4.0.4/iframeResizer.min.js" crossorigin="anonymous"&gt;&lt;/script&gt;
+                  &lt;script src="https://etymeclub.herokuapp.com/static/js/etyme.embeddable.min.js" type="text/javascript"&gt;&lt;/script&gt;
+              .card-subtitle.mt-4
+                Copy and paste the following code snippets where you want to display the blog board:
+              .p-4.border
+                %code
+                  &lt;div id="bench-board"&gt;&lt;/div&gt;
+                  %br
+                  &lt;script type="text/javascript"&gt;
+                  %br
+                  &nbsp;$(function() {
+                  %br
+                  &nbsp;&nbsp;etyme("bench-board",#{current_company.id},"bench",true);
+                  %br
+                  &nbsp;})
+                  %br
+                  &lt;/script&gt;
+
+  #embedBenchRssModal.modal{:role => "dialog"}
+    .modal-dialog
+      .modal-content
+        .modal-body
+          .card
+            .card-body
+              .card-subtitle
+                ="Copy and paste the following link inside the <code>&lt;body&gt;&lt;/body&gt;</code> or #{link_to "click me", feed_bench_feed_path,target: '_blank'} to open the rss feed".html_safe
+              .p-4.border
+                %code
+                  &lt;a href="https://#{current_company.etyme_url}/feed/bench_feed" target="_blank"&gt;&lt;/a&gt;
+
+= render 'shared/skype_cred'

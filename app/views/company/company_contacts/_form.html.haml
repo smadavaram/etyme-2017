@@ -1,0 +1,41 @@
+= form_for [:company, current_company.company_contacts.new] , html:{ class:'form-horizontal', remote: ((defined? for_remote) ? true :false)} do |f|
+  .form-group
+    .row
+      .col-md-6
+        %label.col-md-5.control-label
+          First Name
+          %sup.text-danger *
+        .col-md-12
+          = f.text_field :first_name ,class: "form-control" , required: 'required', placeholder: "First Name"
+      .col-md-6
+        %label.col-md-5.control-label
+          Last Name
+          %sup.text-danger *
+        .col-md-12
+          = f.text_field :last_name ,class: "form-control" , required: 'required', placeholder: "Last Name"
+  .form-group
+    %label.col-md-2.control-label
+      Email
+      %sup.text-danger *
+    .col-md-12
+      = f.email_field :email , class: 'form-control' , placeholder: 'Email' , required: true
+  .form-group
+    %label.col-md-2.control-label
+      Title
+    .col-md-12
+      = f.text_field :title , class: 'form-control' , placeholder: 'Title '
+  .form-group
+    %label.col-md-2.control-label
+      Department
+    .col-md-12
+      = f.text_field :department , class: 'form-control' , placeholder: 'Department '
+  .form-group
+    %label.col-md-2.control-label
+      Mobile
+    .col-md-12
+      = f.number_field :phone , class: 'form-control' , placeholder: 'Phone Number '
+  .form-actions
+    .row
+      .col-md-12
+        = button_tag 'Cancel' , class: 'btn btn-default' , "data-dismiss"=> "modal"
+        = f.button "Submit".html_safe, data: {disable_with: disable_spinning("Saving...")} , class: 'btn btn-primary'

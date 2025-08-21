@@ -1,0 +1,3 @@
+/ $('.timeline-wrap').html("#{ j render 'company/contracts/timeline', todo_contract_cycles: @todo_contract_cycles, completed_contract_cycles: @completed_contract_cycles, overdue_contract_cycles: @overdue_contract_cycles}");
+$('.timeline-wrap').html("#{ j render 'company/contracts/timeline', contract_cycles: @contract_cycles}");
+$('#load').css('visibility','hidden');

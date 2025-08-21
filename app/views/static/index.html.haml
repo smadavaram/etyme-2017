@@ -1,0 +1,113 @@
+%link{:href => "img/favicons/favicon.ico", :rel => "shortcut icon"}/
+%link{:href => "img/favicons/apple-touch-icon.png", :rel => "apple-touch-icon"}/
+%link{:href => "img/favicons/apple-touch-icon-72x72.png", :rel => "apple-touch-icon", :sizes => "72x72"}/
+%link{:href => "img/favicons/apple-touch-icon-114x114.png", :rel => "apple-touch-icon", :sizes => "114x114"}/
+
+%header.header-one
+  .container
+    .content
+      .row
+        %h1.name.revealOnScroll{"data-animation" => "fadeInDown"}
+          %div.animated_img-wrap
+            %div.d-inline-block
+              %div
+                =image_tag('etyme_logo_with_round.png',:class => "first_hand", height: 70, style: '')
+                %div.second_hand
+                  %div
+            %span
+        %p.temp find, hire, contract, Doc mgmt, Timesheets and payments made easy even when you have no HR and CRM background.
+        %h2.hire.revealOnScroll{"data-animation" => "fadeInUp", "data-timeout" => "400"} Re-imagine Contracting with AI & Automation.
+        .form-row
+          .radio.radio-left
+            %a{:href => signin_path} HIRE
+          .radio.radio-right
+            %a{:href => new_candidate_session_path} WORK
+
+%section#resources.resources
+  .container.text-center
+    .row
+      .col-lg-12
+        %h2.section_title
+          Find relevant
+          %span
+            Onsite Resources
+          today.
+    .row.flex-row
+      .col-lg-4.col-md-4
+        %a{:href => ''}
+          .single_resource
+            %div.img-wrap
+              =image_tag('shield.png')
+            / /span
+            %h4 Track compliance
+            %p.item-desc immigration to insurance, background check in transaction.
+      .col-lg-4.col-md-4
+        %a{:href => ''}
+          .single_resource
+            %div.img-wrap
+              =image_tag('support.png')
+            / /span
+            %h4 Easy communication
+            %p.item-desc chat,call, email Integrated path from hiring to contract and doc mgmt to payments.Get/give review.
+      .col-lg-4.col-md-4
+        %a{:href => ''}
+          .single_resource
+            %div.img-wrap
+              =image_tag('handshake.png')
+            / /span
+            %h4 Businesses support
+            %p.item-desc Enterprise IT Departments, Consulting and Staffing Agencies, Coachings.
+
+
+%section.banner-comment
+  .container
+    %h1 Best Platform to Manage Jobs, Contracts, Timesheets and Candidates
+
+%section#stats.stats
+  .container.text-center
+    .row
+      .col-lg-3.col-sm-6.pro
+        %h5 Clients
+        %h1
+          %span.number-animator{"data-animation-duration" => "800", "data-value" => "505"} 0
+        .progress.transparent.progress-small.no-radius
+          .progress-bar.progress-bar-black.animated-progress-bar{"data-percentage" => "45%"}
+      .col-lg-3.col-sm-6.pro
+        %h5 Candidates
+        %h1
+          %span.number-animator{"data-animation-duration" => "800", "data-value" => "4500"} 0
+        .progress.transparent.progress-small.no-radius
+          .progress-bar.progress-bar-black.animated-progress-bar{"data-percentage" => "79%"}
+      .col-lg-3.col-sm-6.pro
+        %h5 Jobs Completed
+        %h1
+          %span.number-animator{"data-animation-duration" => "800", "data-value" => "14000"} 0
+        .progress.transparent.progress-small.no-radius
+          .progress-bar.progress-bar-black.animated-progress-bar{"data-percentage" => "85%"}
+      .col-lg-3.col-sm-6.pro
+        %h5 Payed To Candidates
+        %h1
+          %i.fa.fa-usd
+          %span.number-animator{"data-animation-duration" => "800", "data-value" => "500K"} 0
+        .progress.transparent.progress-small.no-radius
+          .progress-bar.progress-bar-black.animated-progress-bar{"data-percentage" => "85%"}
+
+#testimonials
+  .container
+    .row
+      %h3 Testimonials
+      %hr.mint/
+      .testimonials-slider
+        %ul.slides
+          %li
+            %p
+              The etyme is best plateform for manage jobs ,contracts and timesheets
+              %span John Doe
+          %li
+            %p
+              I m wondering why I never contacted these guys sooner! Seriously, they all have commendable talent in their respective field and knocked my concept out of the ballpark. Thanks for an amazing experience!
+              %span Segero, NoranicMeds
+          %li
+            %p
+              I m wondering why I never contacted these guys sooner! Seriously, they all have commendable talent in their respective field and knocked my concept out of the ballpark. Thanks for an amazing experience!
+              %span Jane Doe

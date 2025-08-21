@@ -1,0 +1,277 @@
+-#%link{:href => image_url("images/ico/favicon.png"), :rel => "shortcut icon"}/
+-#%link{:href => image_url("images/ico/apple-touch-icon-144-precomposed.png"), :rel => "apple-touch-icon-precomposed", :sizes => "144x144"}/
+-#%link{:href => image_url("images/ico/apple-touch-icon-114-precomposed.png"), :rel => "apple-touch-icon-precomposed", :sizes => "114x114"}/
+-#%link{:href => image_url("images/ico/apple-touch-icon-72-precomposed.png"), :rel => "apple-touch-icon-precomposed", :sizes => "72x72"}/
+-#%link{:href => image_url("images/ico/apple-touch-icon-57-precomposed.png"), :rel => "apple-touch-icon-precomposed"}/
+
+
+#tt-preloader
+  #pre-status
+    .preload-placeholder
+
+%section#about.about-section.section-padding
+  .container
+    %h2.section-title.wow.fadeInUp= @candidate.full_name.titleize
+    .row
+      .col-md-4.col-md-push-8
+        .biography
+          .myphoto
+            = image_tag @candidate.photo if @candidate.photo
+          %ul
+            %li
+              %strong Name:
+              #{@candidate.full_name}
+            %li
+              %strong Date of birth:
+              #{@candidate.dob}
+            %li
+              %strong Address:
+              #{@candidate.try(:addresses).first.try(:zip_code)} #{@candidate.try(:addresses).first.try(:city)},#{@candidate.try(:addresses).first.try(:country)}
+            %li
+              %strong Visa:
+              #{@candidate.try(:visa).try(:humanize)}
+            - if params.has_key?(:company_id)
+              %li
+                %strong Company Phone:
+                #{@candidate.invited_by.try(:company).try(:phone)}
+              %li
+                %strong Company Email:
+                #{@candidate.invited_by.try(:company).try(:email)}
+            -else
+              %li
+                %strong Phone:
+                #{@candidate.try(:phone)}
+              %li
+                %strong Email:
+              #{@candidate.try(:email)}
+      / col-md-4
+      .col-md-8.col-md-pull-4
+        .short-info.wow.fadeInUp
+          %h3 Objective
+          %p= @candidate.description
+        .download-button
+          %a.btn.btn-info.btn-lg{:href => "#contact"}
+            %i.fa.fa-paper-plane>
+            Send me message
+          %a.btn.btn-primary.btn-lg{:download => "",:href => @candidate.resume}
+            %i.fa.fa-download>
+            My CV
+- if @candidate.educations.present? || @candidate.experiences.present?
+  %section#resume.resume-section.section-padding
+    .container
+      %h2.section-title.wow.fadeInUp Resume
+      - if @candidate.educations.present?
+        .row
+          .col-md-12
+            .resume-title
+              %h3 Education
+            .resume
+              %ul.timeline
+                - @candidate.educations.each_with_index do |edu,index|
+                  %li{class: index%2==1 ? "timeline-inverted" : ""}
+                    .posted-date
+                      %span.month #{edu.start_year.strftime("%Y")}-#{edu.completion_year.strftime("%Y")}
+                    .timeline-panel.wow.fadeInUp
+                      .timeline-content
+                        .timeline-heading
+                          %h3= edu.degree_title.titleize
+                          %span= edu.institute.humanize
+                        .timeline-body
+                          %p= edu.description
+      -if  @candidate.experiences.present?
+        .row
+          .col-md-12
+            .resume-title
+              %h3 Experience
+            .resume
+              %ul.timeline
+                - @candidate.experiences.each_with_index do |exp,index|
+                  %li{class: index%2==1 ? "timeline-inverted" : ""}
+                    .posted-date
+                      %span.month #{exp.start_date.strftime("%Y")}-#{exp.end_date.strftime("%Y")}
+                    .timeline-panel.wow.fadeInUp
+                      .timeline-content
+                        .timeline-heading
+                          %h3= exp.experience_title.titleize
+                          %span= exp.institute.humanize
+                        .timeline-body
+                          %p= exp.description
+
+%section#skills.skills-section.section-padding
+  .container
+    %h2.section-title.wow.fadeInUp Skills
+    .row
+      .col-md-6
+        .skill-progress
+          .skill-title
+            %h3 UX Design
+          .progress
+            .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "95", :role => "progressbar"}
+              %span 95%
+        .skill-progress
+          .skill-title
+            %h3 Visual Design
+          .progress
+            .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "80", :role => "progressbar"}
+              %span 80%
+        .skill-progress
+          .skill-title
+            %h3 Business Design
+          .progress
+            .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "75", :role => "progressbar"}
+              %span 75%
+      .col-md-6
+        .skill-progress
+          .skill-title
+            %h3 Branding Design
+          .progress
+            .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "95", :role => "progressbar"}
+              %span 95%
+        .skill-progress
+          .skill-title
+            %h3 Motion Graphic
+          .progress
+            .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "80", :role => "progressbar"}
+              %span 80%
+        .skill-progress
+          .skill-title
+            %h3 Flyers Designing
+          .progress
+            .progress-bar.six-sec-ease-in-out{"aria-valuemax" => "100", "aria-valuemin" => "0", "aria-valuenow" => "75", :role => "progressbar"}
+              %span 75%
+
+    .skill-chart.text-center
+      %h3 More skills
+    .row.more-skill.text-center
+      .col-xs-12.col-sm-4.col-md-2
+        .chart{"data-color" => "e74c3c", "data-percent" => "91"}
+          %span.percent
+          .chart-text
+            %span leadership
+      .col-xs-12.col-sm-4.col-md-2
+        .chart{"data-color" => "2ecc71", "data-percent" => "23"}
+          %span.percent
+          .chart-text
+            %span Creativity
+      .col-xs-12.col-sm-4.col-md-2
+        .chart{"data-color" => "3498db", "data-percent" => "68"}
+          %span.percent
+          .chart-text
+            %span Management
+      .col-xs-12.col-sm-4.col-md-2
+        .chart{"data-color" => "3498db", "data-percent" => "68"}
+          %span.percent
+          .chart-text
+            %span Branding
+      .col-xs-12.col-sm-4.col-md-2
+        .chart{"data-color" => "3498db", "data-percent" => "68"}
+          %span.percent
+          .chart-text
+            %span Marketing
+      .col-xs-12.col-sm-4.col-md-2
+        .chart{"data-color" => "3498db", "data-percent" => "68"}
+          %span.percent
+          .chart-text
+            %span Motivation
+- if @candidate.portfolios.present?
+  %section#portfolio#blog.latest-blog-section.section-padding
+    .container
+      %h2.section-title.wow.fadeInUp Portfolio
+      .row
+        - @candidate.portfolios.each do |work|
+          .col-sm-4
+            %article.blog-post-wrapper
+              .figure
+                .post-thumbnail
+                  %a{:href => "#"}
+                    %img.img-responsive{:alt => "", :src => work.cover_photo }/
+                %i.fa.fa-file-photo-o
+              / /.figure
+              %header.entry-header
+                .post-meta
+                  %span.the-category
+                    = truncate(strip_tags(work.description),length: 75)
+
+                    -#%a{:href => "#"} Print Design,
+                    -#%a{:href => "#"} Photoshop
+                %h2.entry-title
+                  %a{:href => "#", :rel => ""}= work.name.titleize
+                %hr/
+                -#.entry-meta
+                  %ul.list-inline
+                    %li
+                      %span.the-author
+                        %a{:href => "#"} Admin
+                    %li
+                      %span.the-time
+                        %a{:href => "#"} 06 Jan 2015
+                    %li
+                      %span.the-share
+                        %a{:href => "#", :title => "share"} 30
+                    %li
+                      %span.the-comments
+                        %a{:href => "#", :title => ""} 05
+      .blog-more.text-center
+        %a.btn.btn-primary{:href => "#"} View More
+
+/ Hire Section
+%section.hire-section.text-center{"data-stellar-background-ratio" => "0.2", "data-stellar-vertical-offset" => "50"}
+  .hire-section-bg
+    .container
+      .row
+        .col-md-12
+          %h2 I'm available for freelance project
+          %a.btn.btn-default{:href => "#"} Get Hired
+%section#contact.contact-section.section-padding
+  .container
+    %h2.section-title.wow.fadeInUp Get in touch
+    .row
+      .col-md-6
+        .contact-form
+          %strong Send me a message
+          = form_for @candidate ,url: static_candidate_send_message_path(@candidate, company_id: params[:company_id]),method: :post, id:"contactForm" do |f|
+            .form-group
+              %label{:for => "name"} Name
+              = text_field_tag "name",nil,class: "form-control",id:"name",required: :true
+            .form-group
+              %label{:for => "email"} Email
+              = email_field_tag "email",nil,class: "form-control",id:"email",required: :true
+            .form-group
+              %label{:for => "subject"} Subject
+              = text_field_tag "subject",nil,class: "form-control",id:"subject",required: :true
+            .form-group
+              %label{:for => "message"} Message
+              = text_area_tag "message",nil,class: "form-control",id:"message",required: :true
+            = f.submit "Send Message" , class:"btn btn-primary"
+      .col-md-6
+        .row.center-xs
+          .col-sm-6
+            %i.fa.fa-map-marker
+            %address
+              %strong #{@candidate.try(:addresses).first.try(:address_1)}
+              #{@candidate.try(:addresses).first.try(:zip_code)}
+              %br
+              #{@candidate.try(:addresses).first.try(:city)}  #{@candidate.try(:addresses).first.try(:country)}
+              %br/
+          .col-sm-6
+            %i.fa.fa-mobile
+            .contact-number
+              %strong Phone Number
+              = params.has_key?(:company_id) ? "#{@candidate.invited_by.company.try(:phone)}": "#{@candidate.phone}"
+        .row
+          .col-sm-12
+            .location-map
+              #mapCanvas.map-canvas
+
+.scroll-up
+  %a{:href => "#about"}
+    %i.fa.fa-angle-up
+
+-content_for :scripts do
+  :javascript
+    ''
+
+
+
+-content_for :head do
+  %link{:href => "https://fonts.googleapis.com/css?family=Rokkitt:400,700|Lato:400,300", :rel => "stylesheet", :type => "text/css"}/

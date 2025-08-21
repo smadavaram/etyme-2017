@@ -1,0 +1,34 @@
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-12
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: "candidate_job_applications_datatable-search_#{id}"}
+            .table-responsive
+              %table.table.table-striped.table-bordered.table-hover.table-lg{id: "candidate_job_applications_datatable_#{id}"}
+                %thead
+                  %tr
+                    %th Name
+                    %th Job
+                    %th Email / Username
+                    %th Status
+                    %th Action
+                %tbody
+                  - data.each do |application|
+                    %tr{class: "#{set_background_status_color(application.status)}"}
+                      %td
+                        =user_image(application.user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{application.user.full_name}" )
+                        = link_to application.user.full_name , '#',title: application.user.full_name
+                      %td= link_to do_ellipsis(application.job.title,10) , candidate_job_path(application.job)
+                      %td
+                        = application.user.email
+                        %a.pull-right{:href => "javascript:void(0);"}
+                      %td
+                        %span.label.label-success= colorfull_text(application.status.capitalize,'orange')
+                      %td
+                        = link_to "View Detail",candidate_job_application_path(application), class: 'btn btn-xs btn-default'

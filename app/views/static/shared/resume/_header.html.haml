@@ -1,0 +1,28 @@
+
+%header.header
+  %nav.navbar.navbar-custom{:role => "navigation"}
+    .container
+      .navbar-header
+        %button.navbar-toggle{"data-target" => "#custom-collapse", "data-toggle" => "collapse", :type => "button"}
+          %span.sr-only Toggle navigation
+          %span.icon-bar
+          %span.icon-bar
+          %span.icon-bar
+        %a.navbar-brand{:href => "#"}
+          = image_tag image_url("etyme-logo-dark.png") ,style: "width: 23% !important;"
+      #custom-collapse.collapse.navbar-collapse
+        %ul.nav.navbar-nav.navbar-right
+          %li
+            %a{:href => "#home"} Home
+          %li
+            %a{:href => "#about"} About
+          - if @candidate.educations.present? || @candidate.experiences.present?
+            %li
+              %a{:href => "#resume"} Resume
+          %li
+            %a{:href => "#skills"} Skills
+          - if @candidate.portfolios.present?
+            %li
+              %a{:href => "#portfolio"} Portfolio
+          %li
+            %a{:href => "#contact"} Contact

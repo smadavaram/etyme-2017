@@ -1,0 +1,99 @@
+#content
+  #wid-id-2.jarviswidget.jarviswidget-sortable{"data-widget-colorbutton" => "false", "data-widget-editbutton" => "false", :role => "widget"}
+    %header{:role => "heading"}
+      %h2 Edit #{@candidate.full_name}
+      %span.jarviswidget-loader
+        %i.fa.fa-refresh.fa-spin
+    %div{:role => "content"}
+      .widget-body
+        = render 'company/candidates/partials/form'
+
+
+  - content_for :scripts do
+    :javascript
+      // DO NOT REMOVE : GLOBAL FUNCTIONS!
+
+      $(document).ready(function() {
+      $('.datepicker').datepicker();
+          $('.new_consultant').on('cocoon:after-insert', function(e, insertedItem) {
+            $('.education_start_year').datepicker({
+            dateFormat : 'dd/mm/yy'
+              });
+              $('.education_completion_year').datepicker({
+              dateFormat : 'dd/mm/yy'
+              });
+              insertedItem.find('.cover-photo').each(function(i,e){
+              });
+        });
+
+        $('.education_start_year').datepicker({
+            dateFormat : 'dd/mm/yy'
+        });
+        $('.education_completion_year').datepicker({
+            dateFormat : 'dd/mm/yy'
+        });
+
+      pageSetUp();
+
+
+        // Joining Date
+          $('#consultant_consultant_profile_attributes_joining_date').datepicker({
+            dateFormat : 'dd.mm.yy',
+            prevText : '<i class="fa fa-chevron-left"></i>',
+            nextText : '<i class="fa fa-chevron-right"></i>',
+            onSelect : function(selectedDate) {
+              $('#consultant_consultant_profile_attributes_joining_date').datepicker('option', 'minDate', selectedDate);
+            }
+          });
+
+
+        //Bootstrap Wizard Validations
+
+        var $validator = $("#wizard-1").validate({
+          rules: {
+            email: {
+              required: true,
+              email: "Your email address must be in the format of name@domain.com"
+            },
+            fname: {
+              required: true
+            },
+            lname: {
+              required: true
+            },
+            country: {
+              required: true
+            },
+            city: {
+              required: true
+            },
+            postal: {
+              required: true,
+              minlength: 4
+            },
+            wphone: {
+              required: true,
+              minlength: 10
+            },
+            hphone: {
+              required: true,
+              minlength: 10
+            },
+            roles: {
+            required: true
+            }
+          },
+
+          messages: {
+            fname: "Please specify your First name",
+            lname: "Please specify your Last name",
+            email: {
+              required: "We need your email address to contact you",
+              email: "Your email address must be in the format of name@domain.com"
+            }
+          },
+
+        });
+
+
+      });

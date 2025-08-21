@@ -1,0 +1,42 @@
+<!-- Comments -->
+<div class="webflow-content-inner webflow-comments col-12 pt-3 pb-3 mb-3">
+  <%= form_with url: static_post_comment_path, method: :post do |form| %>
+    <div class="webflow-comments-form d-flex pb-4">
+      <%= form.text_field 'comment[body]', placeholder: 'Post a public comment...', class: 'flex-grow-1' %>
+      <%= form.hidden_field 'comment[commentable_id]', value: "#{ @job&.id }"%>
+      <%= form.hidden_field 'comment[commentable_type]', value: "Job" %>
+      <%= form.submit "Post" %>
+    </div>
+  <% end %>
+  <div class="webflow-comments-header d-flex justify-content-between mb-3">
+    <div class="webflow-comments-title mb-3">Comments <span>(<%= @job.comments.length %>)</span></div>
+    <%# <div class="webflow-comments-sort">Most Recent <i class="fa fa-angle-down" aria-hidden="true"></i></div> %>
+  </div>
+  <div>
+    <% @job&.comments.each do |comment| %>
+    <div class="webflow-comments-card d-flex">
+      <div class="webflow-avatar-32-32">
+        <%= user_avatar(comment&.created_by_candidate || comment&.created_by) %>
+      </div>
+      <div class="pl-3">
+        <div class="webflow-comments-card-author">
+          <%= comment&.created_by&.full_name || comment&.created_by_candidate&.full_name%>
+        </div>
+        <div class="webflow-comments-card-company">
+          <%= comment&.created_by&.company&.name || comment&.created_by_candidate&.associated_company&.name%>
+        </div>
+        <div class="webflow-comments-card-text">
+          <%= comment.body %>
+        </div>
+        <div class="webflow-comments-card-footer">
+          <%# <span class="webflow-comments-card-upvote"><i class="fa fa-caret-up" aria-hidden="true"></i> Upvote</span> %>
+          <span class="webflow-comments-card-time">posted <%= time_ago_in_words(comment.created_at)%> ago</span>
+        </div>
+      </div>
+    </div>
+    <% end %>
+  </div>
+  <%# <div class="webflow-comments-load-more d-flex justify-content-center"> %>
+  <%#   <a href="#">Load more</a> %>
+  <%# </div> %>
+</div>

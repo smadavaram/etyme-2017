@@ -1,0 +1,39 @@
+-#%legend.h2 Documents  Verification
+-#%h4
+-#  - if @employee.employee_docs.blank?
+-#    Your company did not upload any forms for you to review and sign. You can skip this step.
+-#  - else
+-#    Your company requires you to download and review the documents below, in some cases signing is required. Please sign and upload the documents marked in red before hitting Next.
+-#%br/
+.nested-fields
+  = f.fields_for :attachable_docs do |ed|
+    %div{class: "employee-doc-#{ed.object.id}"}
+      .col-sm-8
+        %h4
+          %i.fa.fa-icon.fa-check-square-o.text-success.fa-2x.hidden{:style => "margin-top: -7px;"}
+          = ed.object.company_doc.name.titleize
+          - if ed.object.company_doc.is_required_signature?
+            %span.text-danger{:style => "font-size: 12px;"} (Signature Required Document)
+      .col-sm-4
+        = link_to raw("<i class='fa fa-download'></i>"),ed.object.orignal_file,target:'_blank', class: 'btn btn-info pull-right download-doc-button',download: true
+        - if ed.object.company_doc.is_required_signature?
+          = ed.filepicker_field :file,  class: 'btn btn-info btn-custom-file pull-right'
+          = ed.hidden_field :id
+
+  = f.fields_for :attachments do |ed|
+    %div{class: "employee-doc-#{ed.object.id}"}
+      .col-sm-8
+        %h4
+          %i.fa.fa-icon.fa-check-square-o.text-success.fa-2x.hidden{:style => "margin-top: -7px;"}
+          = ed.object.file_name.titleize
+          -#- if ed.object.company_doc.is_required_signature?
+          -#  %span.text-danger{:style => "font-size: 12px;"} (Signature Required Document)
+      .col-sm-4
+        = link_to raw("<i class='fa fa-download'></i>"),ed.object.file,target:'_blank', class: 'btn btn-info pull-right download-doc-button',download: true
+        -#- if ed.object.company_doc.is_required_signature?
+        -#  = ed.filepicker_field :file,  class: 'btn btn-info btn-custom-file pull-right'
+        -#  = ed.hidden_field :id
+
+    %br/
+    %br/
+%legend

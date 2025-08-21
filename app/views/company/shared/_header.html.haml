@@ -1,0 +1,220 @@
+%header#header
+  #logo-group
+  = yield :top_right
+  / %input{"data-off-text" => "Off", "data-on-text" => "On", :name => "company-status-toggle", :type => "checkbox", :checked => current_user.chat_status == 'available' ? true : false}
+
+  %form.header-search.pull-left{:action => "#ajax/search.html"}
+    %input#search-fld{:name => "param", :placeholder => "Find reports and more", :type => "text"}/
+    %button{:type => "submit"}
+      %i.fa.fa-search
+    %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
+      %i.fa.fa-times
+  / projects dropdown
+
+  / pulled right: nav area
+  .pull-right.col-md-6
+    #logout.btn-header.transparent.pull-right
+      %span
+        = link_to "",destroy_user_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
+        = link_to(destroy_user_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
+          %i.fa.fa-sign-out
+    / logout button
+    #hide-menu.btn-header.pull-right
+      %span
+        %a{"data-action" => "toggleMenu", :href => "javascript:void(0);", :title => "Collapse Menu"}
+          %i.fa.fa-reorder
+    #top-menu-toggle.btn-header.transparent.pull-right
+      %span#activity1.activity-dropdown
+        / User image size is adjusted inside CSS, it should stay as it
+        %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+          %i.fa.fa-cog
+
+    #quick-add.btn-header.transparent.pull-right
+      %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
+        %a.fa.fa-plus-square
+      %ul.dropdown-menu.project-dropdown{"style" => "left: -250px;"}
+        %li
+          .sub-title
+            Master
+          %ul
+            %li
+              %a{:href => new_company_candidate_path } Add Candidates
+            %li
+              %a{:href => new_company_company_path } Add Companies
+            %li
+              %a{:href => new_company_company_path } Add Contacts
+            %li
+              %a{:href => new_group_path } Add Groups
+
+        %li
+          .sub-title
+            Offerings
+          %ul
+            %li
+              %a{:href => new_job_path } Jobs
+            %li
+              %a{:href => '#' } Products
+            %li
+              %a{:href => '#' } Services
+            %li
+              %a{:href => '#' } Trainings
+            %li
+              %a{:href => '#' } Blogs
+            %li
+              %a{:href => '#' } Book An Event
+            %li
+              %a{:href => '#' } Survey
+
+        %li
+          .sub-title
+            Orders
+          %ul
+            %li
+              %a{:href => new_contract_path } Add Contracts
+            %li
+              %a{:href => candidate_timesheets_path } Submit Timesheets
+            %li
+              %a{:href => timesheets_path } Approve Timesheets
+        %li
+          .sub-title
+            Payments
+          %ul
+            %li
+              %a{:href => '#' } Vendor Bills
+            %li
+              %a{:href => '#' } Pay Vendor
+            %li
+              %a{:href => "#" } Salary Settlement
+            %li
+              %a{:href => "#" } Salary Processing
+            %li
+              %a{:href => "#" } Salary Clearing
+        %li
+          .sub-title
+            Recievables
+          %ul
+            %li
+              %a{:href => invoices_path } Invoices
+            %li
+              %a{:href => "#" } Received Payments
+            %li
+              %a{:href => client_expense_invoices_expenses_path} Client Expense Invoices
+        %li
+          .sub-title
+            Expenses
+          %ul
+
+            %li
+              %a{:href => bank_reconciliation_bank_details_path } Bank Reconcilliation
+            %li
+              %a{:href => new_expense_path } Request Expenses
+            %li
+              Pay Expense
+              %ul
+                %li
+                  %a{:href => pay_expense_expenses_path } Salary Advance
+                %li
+                  %a{:href => pay_expense_expenses_path } Company expense
+            %li
+              %a{:href => candidate_client_expenses_path } Submit Client expenses
+            %li
+              %a{:href => client_expenses_path } Approve client expenses
+            %li
+              %a{:href => client_expense_bill_expenses_path } Create Bill - Client Expenses
+            %li
+              %a{:href => pay_expense_expenses_path } Pay Client expense
+
+    #logo-group.pull-right
+      %span#activity.activity-dropdown
+        %i.fa.fa-user
+        %b.badge
+          = current_user.try(:notifications).try(:count)
+      / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
+      .ajax-dropdown
+        / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
+        .btn-group.btn-group-justified{"data-toggle" => "buttons"}
+          -#%label.btn.btn-default
+          -#  %input{:id => ajax_notify_mail_path, :name => "activity", :type => "radio"}/
+          -#  = 'Msgs'
+          -#  (14)
+          %label.btn.btn-default
+            %input{:id => notify_notifications_company_users_path, :name => "activity", :type => "radio"}/
+            ='notify'
+            = current_user.try(:notifications).try(:count)
+        -#%label.btn.btn-default
+        -#  %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
+        -#  = 'Tasks'
+        -#  (4)
+        / notification content
+        .ajax-notifications.custom-scroll
+          .alert.alert-transparent
+            %h4 Click a button to show messages here
+            This blank page message helps protect your privacy, or you can show the first message here automatically.
+          %i.fa.fa-lock.fa-4x.fa-border
+        / footer: refresh area
+        %span
+          Last updated on
+          = Time.now.strftime("%D %T")
+          %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
+            %i.fa.fa-refresh
+
+    / collapse menu button
+    / #MOBILE
+    / Top menu profile link : this shows only when top menu is active
+    %ul#mobile-profile-img.header-dropdown-list.hidden-xs.padding-5
+      %li
+        -#%a.dropdown-toggle.no-margin.userdropdown{"data-toggle" => "dropdown", :href => "#"}
+        -#  = image_tag 'avatars/sunny.png', alt: 'John Doe', class: 'online'
+        %ul.dropdown-menu.pull-right
+          %li
+            %a.padding-10.padding-top-0.padding-bottom-0{:href => "javascript:void(0);"}
+              %i.fa.fa-cog
+              Setting
+          %li.divider
+          %li
+            = link_to company_path(current_company) , class: 'padding-10 padding-top-0 padding-bottom-0' do
+              %i.fa.fa-user
+              = succeed "rofile" do
+                %u P
+          %li.divider
+          %li
+            %a.padding-10.padding-top-0.padding-bottom-0{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+              %i.fa.fa-arrow-down
+              = succeed "hortcut" do
+                %u S
+          %li.divider
+          %li
+            %a.padding-10.padding-top-0.padding-bottom-0{"data-action" => "launchFullscreen", :href => "javascript:void(0);"}
+              %i.fa.fa-arrows-alt
+              Full
+              = succeed "creen" do
+                %u S
+          %li.divider
+          %li
+            %a.padding-10.padding-top-5.padding-bottom-5{"data-action" => "userLogout", :href => "login.html"}
+              %i.fa.fa-sign-out.fa-lg
+              %strong
+                %u> Logout
+    #active_chat_button.pull-right
+      %label.switch
+        %input#myonoffswitch{:type => "checkbox", :checked=>current_user.chat_status == 'available' ? true : false, :name=>""}/
+        %span.slider1.round
+
+
+- content_for :scripts do
+  :javascript
+
+    $(document).ready(function() {
+      $(".switch span").on("click", function(){
+        $.ajax({
+          url: '/company/users/chat_status_update',
+          type: "GET",
+          contentType:"application/json",
+          data: JSON.stringify(),
+          success:function(data){
+
+          }
+        });
+      });
+    });
+

@@ -1,0 +1,59 @@
+<div class="chat_box with_border " data-conversation-id="<%= conversation.id if conversation.present? %>" id="conversation-chat-box">
+  <div class="chat-head p-2" style="flex-direction: column; align-items: stretch; border-bottom: 1px solid rgba(0, 0, 0, 0.2);">
+    <div class="flex-row w-100 chat-heat_justify">
+      <% opt_obj = conversation.chatable_type == "Group" ? conversation.chatable : (conversation.senderable == current_user ? conversation.recipientable : conversation.senderable) if conversation.present? %>
+      <div>
+        <span>To:</span>
+        <a class="d-inline" href="#"><%= opt_obj.full_name if opt_obj.present? %></a>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-controls">
+    <%= form_for([conversation, ConversationMessage.new], :remote => true, :html => {id: "conversation_form_#{conversation.id}"}) do |f| %>
+      <div class="chat-input1 chat-input" style=" border-top: 1px solid rgba(0, 0, 0, 0.2);">
+        <%= f.text_field :body, class: 'form-control input-sm chat_input ', autocomplete: "off", placeholder: 'Type your message here...', required: true, "data-cid" => conversation.id, id: "con-text-#{conversation.id}-#{current_user.class}-#{current_user.id}" %>
+      </div>
+      <div id="file-name_uploaded">
+
+      </div>
+      <div class="chat-input-extra d-flex pl-1 pr-1 justify-content-between">
+        <div class="chat-extra-actions">
+          <%= button_tag type: "button", class: "btn p-0", style: "background: transparent;box-shadow: none;", onclick: "$('##{"chat-templates-#{conversation.id}"}').modal('show')" do %>
+            <%= image_tag("/docusign.png", size: "25x25") %>
+          <% end %>
+          <%= render 'shared/file_attachement', f: f, attr_name: :file_url, name_selector: ".uploaded_file_name", cstm_class: "p-0", cstm_style: "background: transparent;box-shadow: none;", button_name: "<i class='os-icon os-icon-ui-51' style='font-size: 26px;'></i>".html_safe, name_selector: '#file-name_uploaded', required_field: false %>
+        </div>
+        <div class="chat-btn">
+          <%= button_tag(type: "submit", class: "btn p-0", style: "background: transparent;box-shadow: none;", id:"send-message") do %>
+            <i class="os-icon os-icon-mail-18" style='font-size: 26px; margin: 0px;'></i>
+          <% end %>
+        </div>
+      </div>
+    <% end if conversation.present? %>
+  </div>
+</div>
+
+<% content_for :modals do %>
+  <%= render('shared/chat_document_templates', conversation: @conversation) if @conversation.present? %>
+<% end %>
+
+<% content_for :scripts do %>
+  <script>
+      function onCompanyFileUpload(event) {
+          $('#file-name_uploaded').html("<span>" + event.fpfile.filename + "</span><hr/>");
+      }
+
+      $(document).ready(function () {
+          set_company_users_select('#select_sell_company_contacts', "Please Select Signers", "#sell_contract_company");
+          $.ajax({
+              url: "<%= messages_conversation_conversation_messages_path(conversation||0) %>",
+              type: "GET",
+              dataType: "script",
+              success: function (data) {
+                  $("#conversation_<%=conversation&.id||0 %>").parent().scrollTop($("#conversation_<%=conversation&.id||0 %>").parent()[0].scrollHeight);
+              }
+          });
+      });
+  </script>
+<% end %>

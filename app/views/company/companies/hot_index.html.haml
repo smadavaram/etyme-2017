@@ -1,0 +1,176 @@
+#content
+  %body
+    %section#widget-grid
+      .row
+        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+            %header{:role => "heading"}
+              %span.widget-icon
+                %i.fa.fa-table
+              %h2 Hot Candidates
+              %span.jarviswidget-loader
+                %i.fa.fa-refresh.fa-spin
+            / widget div
+            %div{:role => "content"}
+              .jarviswidget-editbox
+              .widget-body.no-padding
+                #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                  %table#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                    %thead
+                      %tr{:role => "row"}
+                        %th.hasinput{ :style => "width:2%"}
+                          / %input.form-control{type: "checkbox", :type => ""}/
+                          = check_box_tag "select_all[]", ""
+                        %th.hasinput{ :style => "width:17%"}
+                          %input.form-control{:placeholder => "Name", :type => "text"}/
+                        %th.hasinput{ :style => "width:18%"}
+                          %input.form-control{:placeholder => "Skills", :type => "text"}/
+                        %th.hasinput{ :style => "width:16%"}
+                          %input.form-control{:placeholder => "Location ", :type => "text"}/
+                        %th.hasinput{ :style => "width:17%"}
+                          %input.form-control{:placeholder => "Groups ", :type => "text"}/
+                        %th.hasinput{ :style => "width:16%"}
+                          %input.form-control{:placeholder => "Actions", :type => "text"}/
+                      %tr{:role => "row"}
+                        %th Select
+                        -#%th Pic
+                        %th Name
+                        -#%th Email
+                        -#%th Phone
+                        -#%th Role  candidate availability (system generated - active, fishing, looking for better opportunity)
+                        %th Skills
+                        %th Location
+                        %th Groups
+                        %th Actions
+                    %tbody
+                      - @candidates.each_with_index do |c , index|
+                        %tr
+                          %td
+                            = check_box_tag "ids[]", c.candidate.id
+                          %td
+                            = link_to c.candidate.try(:full_name).try(:titleize),"#","data-content" => "<p class= 'text-center' ><image style='border-radius:50%;' src=#{image_url(c.candidate.photo)}/></br><div class='well well-sm'>#{c.candidate.full_name}</br>Email : #{c.candidate.email} </div></p>", "data-placement" => "top",:rel => "hover"
+
+                            -#%td= image_tag candidate.photo, alt: '', width: '20'
+                          -#%td= c.candidate.try(:email)
+                          -#%td= c.candidate.try(:phone)
+                          -#%td
+                            - candidate.try(:roles).each do |role|
+                              %span
+                                .label-info.badge
+                                  = role.try(:name)
+                          -#%td= candidate.try(:status).try(:titleize)
+                          %td
+                            - c.candidate.skills.each do |skill|
+                              %span
+                                .label-info.badge.margin-bottom-5
+                                  = skill.name
+                          %td
+                            -# if c.candidate.address.nil?
+                              =# c.candidate.try(:address).try(:city) + ' , '+ c.candidate.try(:address).try(:state) + ' , '+ c.candidate.try(:address).try(:country)
+                            = c.candidate.try(:location)  
+                          %td
+                            - c.candidate.groups.each do |group|
+                              %span.badge.bg-color-blue.margin-bottom-5
+                                = group.try(:group_name).try(:titleize)
+                          %td
+                            -#= link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary margin-bottom-5',title: "Assign Groups"
+                            = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: 'btn btn-xs btn-default  margin-bottom-5',title: "#{c.candidate.full_name} Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-eye'></i>") , static_candidate_resume_path(c.candidate) , class: 'btn btn-xs btn-default margin-bottom-5',title: "Detail Show" ,target: "_blank",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate) , remote:true,class: 'btn btn-xs btn-default  margin-bottom-5',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: 'btn btn-xs btn-default  margin-bottom-5',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            -#= link_to raw("<i class='fa fa-pencil '></i>") , edit_company_candidate_path(c.candidate) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{candidate.full_name}"
+                    - if @candidates.count >30
+                      .dt-toolbar-footer
+                        = digg_pagination(@candidates)
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+
+- content_for :modals do
+  = render 'company/candidates/partials/add_to_my_network'
+  = render 'company/candidates/partials/share_hot_candidates'
+
+- content_for :scripts do
+  :javascript
+    if ("#{flash[:already_exist]}"){
+        $('#add-network').modal('toggle');
+    }
+
+    $('#share-candidates').on('shown.bs.modal', function() {
+      $(".select2").select2({
+        placeholder: "Groups/Contact/Email",
+        tags: true
+      }); 
+    });
+
+    $(document).ready(function() {
+     pageSetUp();
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var table = $('#example').DataTable();
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
+            }
+
+        });
+
+    $("div.toolbar").html("<div class='text-right'><a href='#' class= 'btn btn-success share btn-md pull-right header-btn margin-top-5'><i class='fa fa-share-alt'></i> Share</a></div>");
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+          .column( $(this).parent().index()+':visible' )
+          .search( this.value )
+          .draw();
+    } );
+
+
+    // share hide and show on base of checked checkboxes
+    // $('.share').hide();
+    $( "input[type=checkbox]" ).on( "click", function() {
+        //if($( "input:checked" ).length> 0)
+        //{
+        //  $('.share').show();
+        //}else
+        //{
+         // $('.share').hide();
+        //}
+     });
+
+     // for share of checked rows
+    var checkedRows = new Array();
+      $(".share" ).on( "click", function() {
+        $("input[name='ids[]']:checked").each(function(){
+        checkedRows.push($(this).val());
+        });
+        if(checkedRows.length>0)
+        {
+          $('#candidates_ids').val(checkedRows);
+          $('#share-candidates').modal('toggle');
+        }
+        else{
+          alert("Please select atleast one candidate to proceed before.");
+        }
+      });
+
+      $("#select_all_" ).on( "click", function() {
+        $("input[name='ids[]']").prop('checked', this.checked); 
+      });
+
+      // for popover on link
+      $('a[rel=hover]').popover({
+        html: true,
+        trigger: 'hover',
+        placement: 'top',
+
+      });
+
+    });
+

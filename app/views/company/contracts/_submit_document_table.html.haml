@@ -1,0 +1,8 @@
+- @document_signs.each do |docusign|
+  %tr
+    %td= docusign.documentable.title
+    %td= docusign.created_at.strftime("%Y-%m-%d")
+    %td= docusign.is_sign_done ? "Signed" : "Pending"
+    %td.d-flex= show_users(docusign)
+    %td= docusign.envelope_id.present? ? docusign.envelope_id : "Document Not Submitted"
+    %td= link_to content_tag(:i,'',class:'fa fa-paperclip fa-lg').html_safe, docusign.signed_file if docusign.is_sign_done

@@ -1,0 +1,13 @@
+.dashboard_jobs
+  =render 'candidate/candidates/partials/jobs',jobs: @jobs
+- content_for :modals do
+  #job_application
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      default_active_nav('.ln-3');
+      $("#jobs_search").on('change',function(){
+        url = "/candidate?q="+$(this).val()
+        $.get(url);
+      });
+    });

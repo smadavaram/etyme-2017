@@ -1,0 +1,93 @@
+<%= stylesheet_link_tag 'console'%>
+<div class="content-body">
+  <div class="tab-content" id="pills-tabContent">
+    <div class="tab-pane active" id="pills-candidates" role="tabpanel" aria-labelledby="pills-candidates-tab" tabindex="0">
+      <!-- toolbar start -->
+      <div class="toolbar">
+        <div class="search-input-light toolbar-search-input input-group flex-nowrap col-lg-6 col-md-6 col-12">
+          <span class="input-group-text" id="addon-wrapping"><i class="fa fa-search"></i></span>
+          <input type="text" class="form-control" placeholder="Search" id="search" aria-label="Search" aria-describedby="addon-wrapping" value=<%=@search_key%>>
+          <a href="javascript:void(0)" class="font-12 btn btn-primary" onclick="search_and_render();">Search</a>
+        </div>
+        <div class="toolbar-right">
+          <div class="search-input-light toolbar-search-input input-group flex-nowrap">
+            <span class="input-group-text" id="addon-wrapping"><i class="fa fa-map-marker"></i></span>
+            <input type="text" class="form-control" placeholder="Location" aria-label="Location" aria-describedby="addon-wrapping">
+          </div>
+        </div>
+      </div>
+      <input type="text" class="form-control" placeholder="job id" id="job_id" value=<%=@job.id%> hidden>
+      <!-- toolbar end -->
+      <div class="content-listing">
+        <div class="row">
+          <% if @candidates.empty? %>
+            (No Matches Found)
+          <% end %>
+          <% @candidates.each do |c|%>
+            <% already_applied_application = c.job_applications.find_by_job_id(@job.id)%>
+            <div class="col-lg-6 col-md-6 col-12">
+              <div class="theme-card mb-3">
+                <div class="align-items-center gap-3">
+                  <strong class="font-11 text-theme-light"><%= c.candidate_title%></strong>
+                  <% if already_applied_application.present? %>
+                    <div class="font-11 applied-badge float-right">applied</div>
+                  <% end %>
+                </div>
+                <div class="theme-card-header">
+                  <div class="job-header clearfix" style='margin-right: 10px;'>
+                    <%= user_mini_avatar(c)%>
+                  </div>
+                  <div class="info">
+                    <%= link_to(do_ellipsis(c.try(:full_name),12), public_profile_static_candidates_path(c), class: "theme-card-heading mb-1 font-16", target: "_blank")%>
+                    <div class="location d-flex align-items-center gap-2">
+                      <i class="font-11 fa fa-map-marker"></i>
+                      <p class="mb-0 font-12"><%= c.try(:location)%></p>
+                    </div>
+                    <div class="location d-flex align-items-center gap-2">
+                      <i class="font-11 fa fa-user"></i>
+                      <p class="mb-0 font-12"><%= c&.recruiter&.first_name%> / <%= c&.recruiter&.company&.name%></p>
+                    </div>
+                  </div>
+                </div>
+                <div class="theme-card-content">
+                  <!-- tags -->
+                  <div class="tags mb-2">
+                    <% c.skills.each do |skill| %>
+                      <span class="tag"><%= skill.name %></span>
+                    <% end %>
+                  </div>
+                  <hr class="dashed">
+                  <div class="align-items-center gap-3">
+                    <% if already_applied_application.present? %>
+                      <%= link_to "Chat with Hr Partner", job_application_path(already_applied_application), class: "font-12 btn btn-primary", target: '_blank'%>
+                    <% else %>
+                      <a href="javascript:void(0)" class="font-12 btn btn-primary" id="chat_with_hr", onclick='apply(this);' data-candidate-id=<%=c.id%>>Chat with Hr Partner</a>
+                    <% end %>
+                    <%job_invitation = JobInvitation.find_by(recipient_id: c.id, company_id: c&.recruiter&.company&.id)%>
+                      <%if job_invitation%>
+                        <h5 class="theme-card-heading mb-1 font-14 float-right">
+                          <%= "$" + job_invitation&.min_hourly_rate.to_s + "-" + job_invitation&.max_hourly_rate.to_s + "/hr"%>
+                        </h5>
+                      <%end%>
+                      
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+<style>
+  .applied-badge{
+    border-radius: 25px;
+    border-style: solid;
+    color: green;
+    width: 60px;
+    text-align: center;
+  }
+</style>

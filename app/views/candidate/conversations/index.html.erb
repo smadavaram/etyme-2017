@@ -1,0 +1,126 @@
+
+<!--new htmml -->
+<style scoped>
+    .icon-side-bar{
+        /* display: block !important; */
+    }
+    @media only screen and (max-width: 668px) {
+        .mobile-icon-side-bar-can {
+            display: none !important;
+        }
+    }
+    #main{
+      min-height: none !important;
+      padding-bottom: 0px !important;
+    }
+    @media (min-width: 1025px) {
+    .cont-comany {
+    margin-left: 0px;
+    }
+    .border-no {
+      border: none;
+    }
+    }
+    #main{
+      min-height: none !important;
+      padding-bottom: 0px !important;
+    }
+    @media (max-width: 768px) {
+    .chat-margin {
+    margin-top: 15px;
+    }
+    }
+</style>
+<div class="row">
+
+  <!--  left side start-->
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3 chat-margin" style="" >
+    <div class="row left-chat-bar row candidate-left-chat-bar" style="">
+      <div class="full-chat-left1" style="width: 100%;border-radius: 25px;" >
+        <div class="os-tabs-w">
+          <ul class="nav nav-tabs upper centered">
+
+          </ul>
+        </div>
+        <div class="row chat-search d-flex margin-top-10  left-side-header-style">
+          <div class="col-sm-5 col-md-5 col-lg-5 left-side-select-style">
+
+            <div class="form-control rounded select-style" style="padding: 6px 0 0 6px;">
+              <label>
+                <select style="border: none; background-color: white" id="chat_topic">
+                  <option value="All">All</option>
+                  <option value="JobApplication">Application</option>
+                  <option value="BuyContract">Contract</option>
+                  <option value="GroupChat">Group</option>
+                  <option value="PorposalChat">Porposal</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="col-sm-7 col-md-7 col-lg-7">
+            <input type="text" class="form-control input-search-style" placeholder="Search Conversation" id="conversation-users-search">
+          </div>
+          <div class="col-sm-1 col-md-1 col-lg-1 left-side-plus-icon" >
+          </div>
+        </div>
+        <div class="row  margin-top-21 "  >
+
+          <ul class="chat-listing chat-user-list_height company-conversation-scorll" role="tablist" id="company-conversation-list" >
+            <%= render 'conversations_list', conversations: @conversations %>
+            <div id="all-infinite-scrolling-con" style="display: none">
+              <% if @conversation.present? %>
+                <%= will_paginate @conversations, {params: params.merge(keyword: @query, topic: @topic)} %>
+              <% end %>
+            </div>
+          </ul>
+
+        </div>
+      </div>
+    </div>
+  </div>
+  <!--  left side end-->
+
+  <!--  middle screen start-->
+  <div class="col-sm-12 col-12 col-md-6 col-lg-6 job-conversation-box-style candidate-conversation"  id="conversation-section">
+    <%= render "candidate/conversations/conversation" %>
+  </div>
+  <!--  middle screen end-->
+
+  <!--  right side start-->
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3 " >
+    <div class=" " id="conversation-r-section">
+      <%= render "candidate/conversations/conversation_right_side" %>
+    </div>
+  </div>
+  <!--  right side end-->
+
+
+</div>
+
+<% content_for :scripts do %>
+  <script>
+
+      $(document).ready(function () {
+          $.ajax({
+              url: "<%= messages_conversation_conversation_messages_path(@conversation||0) %>",
+              type: "GET",
+              dataType: "script",
+              success: function (data) {
+              }
+          });
+      });
+      function myFunction(){
+          $("#conversation-section").hide();
+          $(".right-sidebar").show();
+      }
+      function myFunction1(){
+          $("#conversation-section").hide();
+          $(".left-chat-bar").show();
+      }
+      function backtochat(){
+          $(".right-sidebar").hide();
+          $("#conversation-section").show();
+      }
+      $('.icon-side-bar').show()
+  </script>
+<% end %>

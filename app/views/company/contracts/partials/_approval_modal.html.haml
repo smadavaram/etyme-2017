@@ -1,0 +1,11 @@
+.modal#timesheet_approve_approver
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %h2#myModalLabel.modal-title
+          %strong Add Collaborator
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+        ×
+      .modal-body
+        .element-box
+          = render 'company/contracts/partials/approver_form',contract: contract, contractable_type: contractable_type, contractable_id: contractable_id, approvable_type: approvable_type

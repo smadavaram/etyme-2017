@@ -1,0 +1,37 @@
+.content-box
+  .element-wrapper
+    .element-box
+      = render partial: 'company/companies/sub_menu_company'
+
+      = form_for InvoiceInfo.new,url: invoice_term_infos_path,method: :post do |f|
+        %fieldset
+          .form-group
+            .col-md-1
+            %label.col-md-1.control-label Name
+            .col-md-6
+              -options = ['Immediate', 'Depending on customer payment', '1 Day'] + (2..180).map{|s| "#{s} Days"}
+              - new_options = []
+              - options.each do |data|
+                -new_options << [data, data]
+              / = new_options
+              = f.select :invoice_term, options_for_select(new_options, :selected => @invoice.last&.invoice_term), {}, { :class => 'form-control input-lg multi-select2-role' }
+            .col-md-2
+
+        .form-actions
+          .row
+            .col-md-12
+              = f.button "submit".html_safe , class: 'btn btn-primary btn-sm' , data: {disable_with: ("Saving...")} ,id: 'form_id'
+
+      .row.mr-top-20
+        .col-md-6
+          - if @invoice
+            %h4 Terms
+            %br
+            %table.table.table-bordered
+              %tr
+                %th Name
+                %th Created Date
+              - @invoice.each do |invoice|
+                %tr
+                  %td= invoice.invoice_term
+                  %td= invoice.created_at.strftime("%m/%d/%Y")

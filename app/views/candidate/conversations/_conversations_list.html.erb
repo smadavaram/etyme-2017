@@ -1,0 +1,19 @@
+<% count = 0 %>
+<% conversations.each do |con| %>
+  <% opt_usr = con.opt_participant(current_user) %>
+  <% unread_messages = con.conversation_messages.where.not(userable_id: current_candidate).where(is_read: false).count || 0  %>
+  <div class="row chat-list-container user-fav user-list-item-style-candidate  conversation_user_<%=  con.id  %>   <%= unread_messages.present? && unread_messages > 0 ? "unread-div-color" : "" %> <%= count.present? && count == 0 ? "active-div-color" : "" %>"  data-conversation="<%= con.id %>">
+    <%= render 'candidate/conversations/conversation_list', con: con, usr: opt_usr, is_favourite: false %>
+  </div>
+  <% count += 1 %>
+<% end if conversations.present?  %>
+<script>
+    # $(".user-list-item-style-candidate").on("click", function () {
+    #     $(".user-list-item-style-candidate").removeClass('active-div-color')
+    # })
+</script>
+<style type="text/css">
+  .px-22{
+    margin-top: 10px;
+  }
+</style>

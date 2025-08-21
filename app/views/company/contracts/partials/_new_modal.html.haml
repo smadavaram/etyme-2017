@@ -1,0 +1,31 @@
+.modal{ id:  "new-commission-user","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2.modal-title
+          %strong New Commission User
+      .modal-body
+        .row
+          .col-md-4
+            Select type of User
+          .col-md-4
+            = label :commission_user, 'Admin'
+            = radio_button_tag 'commission_user', 'Admin', false, class: 'commission-user'
+
+          .col-md-4
+            = label :commission_user, 'Candidate'
+            = radio_button_tag 'commission_user', 'Candidate', false, class: 'commission-user'
+        %br
+        .row
+          .col-md-4
+            Select User
+          .col-md-4
+            = select_tag "commission_user", options_from_collection_for_select(Candidate.where(id: current_company.contracts.where("end_date < ?", Date.today).pluck(:candidate_id)), 'id', 'full_name'), class: 'form-control select_candidate_user commission_user', prompt: "Please select"
+            = select_tag "commission_user", options_from_collection_for_select(current_company.admins, 'id', 'full_name'), class: 'form-control select_admin_user commission_user', prompt: "Please select"
+
+        %br
+        .row
+          .col-md-4
+            %button.btn.btn-primary{"data-dismiss" => "modal", :type => "button"} Done

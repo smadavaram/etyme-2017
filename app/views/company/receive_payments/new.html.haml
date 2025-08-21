@@ -1,0 +1,57 @@
+.w-75.margin-auto
+  = form_for @receive_payment, url: invoice_receive_payments_path(@invoice), multipart: true do |f|
+    %fieldset.form-group.mt-4
+      .row
+        .col-sm-6
+          .form-group
+            %label{:for => ""} Payment Data
+            = f.text_field :payment_date, class: "date form-control"
+        .col-sm-6
+          .form-group
+            %label{:for => ""} Payment Method
+            = f.text_field :payment_method, class: "form-control"
+      .row
+        .col-sm-6
+          .form-group
+            %label{:for => ""} Reference No
+            = f.text_field :reference_no, class: "form-control"
+        .col-sm-6
+          .form-group
+            %label{:for => ""} Deposit To
+            = f.text_field :deposit_to, class: "form-control"
+      .row
+        .col-sm-6
+          .form-group
+            %label Payment
+            = f.number_field :amount_received, class: "form-control"
+            %small= "Amount of #{@invoice.billing_amount} is already paid from #{@invoice.total_amount}"
+        .col-sm-6
+          .form-group.mt-2
+            %label Discount Payment
+            %br
+            = f.check_box :posted_as_discount, class: "form-control mt-1"
+            Payment With Discount
+      .row
+        .col-sm-12
+          .form-group
+            %label Memo
+            =f.text_area :memo, class: "form-control"
+      .row
+        .col-sm-12
+          %label.d-block Resume
+          .file_selector{style: "display: flex;"}
+            .form-group.d-inline-block
+              = render 'shared/file_attachement',f:f,attr_name: :attachment,button_name: "Attach Document", name_selector: ".uploaded_file_name",cstm_style: "border-radius: 0; height:38px;", required_field: false
+            %p.d-inline-block.uploaded_file_name No File Selected
+      .row.pull-right
+        = f.submit "Make Payment", class: 'btn btn-primary'
+
+- content_for :scripts do
+  :javascript
+     $( document ).ready(function() {
+        $('#receive_payment_payment_date').datepicker({
+          dateFormat : 'dd/mm/yy',
+          prevText : '<i class="fa fa-chevron-left"></i>',
+          nextText : '<i class="fa fa-chevron-right"></i>'
+        });
+     });

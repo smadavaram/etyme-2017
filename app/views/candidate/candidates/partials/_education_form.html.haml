@@ -1,0 +1,57 @@
+- education = current_candidate.educations
+- current_candidate.educations.build unless current_candidate.educations.present?
+- current_candidate.certificates.build unless current_candidate.certificates.present?
+.col-sm-12.col-md-12.col-lg-12
+  = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "education"),method: :put, remote: true do |f|
+    .form-group.candidate-association
+      = f.fields_for :educations, f.object.educations do |b|
+        = render 'candidate/candidates/education_fields', f: b
+      .links.education_links.pull-right
+        = link_to_remove_association f , wrapper_class: "nested-fields8", class: "bttn btn-add delete_icon" do
+          %i.fa.fa-trash
+        = link_to_add_association '+ Add Education', f, :educations, class: 'btn btn-primary', partial: 'candidate/candidates/education_fields'
+      %br
+      %h5.element-header
+        Certificate Details
+      %br 
+      .form-group.candidate-association
+        = f.fields_for :certificates, f.object.certificates do |b|
+          = render 'candidate/candidates/certificate_fields', f: b
+        .links.education_links.pull-right  
+          = link_to_remove_association f , wrapper_class: "nested-fields4", class: "bttn btn-add delete_icon" do
+            %i.fa.fa-trash
+          = link_to_add_association '+ Add Certificates', f, :certificates, class: 'btn btn-primary', partial: 'candidate/candidates/certificate_fields'
+    %br
+    %hr
+    -#.row
+    -#  .col-md-12
+    -#    %h4
+    -#      %b Education Document
+    -#    %br
+    -#    .form-group.candidate-association
+    -#      = f.fields_for :documents, f.object.documents do |b|
+    -#        / = render 'candidate/candidates/document_fields', f: b
+    -#      %strong
+    -#        .links.pull-right
+    -#          = link_to_add_association '+ Add Document', f, :documents, class: 'btn btn-success add_education_btn', partial: 'candidate/candidates/document_fields'
+    -#.row
+    -#  .col-md-6
+    -#    - if current_candidate.documents
+    -#      %table.table.table-bordered
+    -#        %tr
+    -#          %th Title
+    -#          %th Expiry Date
+    -#          %th Attachments
+    -#        - current_candidate.documents.each do |doc|
+    -#          %tr
+    -#            %td= doc.title
+    -#            %td= doc.exp_date
+    -#            %td
+    -#              %a.delete_icon
+    -#                %i.fa.fa-paperclip
+
+    -#.row
+    -#  .col-lg-12
+    -#    %button.btn.btn-primary.pull-right{:type => "submit"}
+    -#      Saved
+      

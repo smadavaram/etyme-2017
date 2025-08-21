@@ -1,0 +1,42 @@
+!!!
+%html{:id => "#{yield :html_id}"}
+  %head
+    %meta{:content=> "width=device-width, initial-scale=1", :name=>"viewport" }/
+    %meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %meta{:content => "#{user_signed_in? ? current_user.id : ''}", :name => "user-id"}
+    %meta{:content => "#{user_signed_in? ? current_user.class.to_s == "Candidate" ? "Candidate" : "User" : ''}", :name => "user-type"}
+    %title Etyme
+    = stylesheet_link_tag    'company_account'
+    = action_cable_meta_tag
+    = javascript_include_tag 'https://platform-api.sharethis.com/js/sharethis.js#property=5899b27937570f0011ac3636&product=inline-share-buttons'
+    = javascript_include_tag 'application'
+    :javascript
+      (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
+    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'} :cdata
+    = csrf_meta_tags
+    = yield :head
+
+  %body.p-0.body-background{class: "#{yield :body_class}"}
+
+    .all-wrapper
+      .modals
+      #modals
+      .page-padding
+  .all-wrapper.menu-side.with-pattern
+    .auth-box-w.box
+      .logo-w
+        %a{:href => "/"}
+          %img{:alt => "", :height => "54", :src => "#{image_path('etyme-logo-dark.png')}", :width => "image_width_for_height('logo/logo-big.png', 54)"}/
+      = yield
+    = javascript_include_tag 'static'
+    -#= tinymce_assets
+  = render 'shared/flash_messages'
+
+:css
+
+:javascript
+  $(document).ready(function(){
+    $(window).scrollTop(0);
+  });
+
+

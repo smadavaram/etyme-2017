@@ -1,0 +1,38 @@
+.tabbable.tabs-below
+  %table.table.table-striped
+    %thead
+      %tr
+        %th{style:'width:20%'}
+          Name
+        %th{style:'width:20%'}
+          Email
+        %th{style:'width:20%'}
+          Phone
+        %th{style:'width:20%'}
+          Type
+        %th{style:'width:20%'}
+          Actions
+    %tbody
+      %tr
+        %td
+          = owner_data.full_name
+        %td
+          = owner_data.email
+        %td
+          = owner_data.phone
+        %td
+          owner
+        %td
+      -admins.each do |admin|
+        - if !admin.is_owner?
+          %tr
+            %td
+              = admin.full_name
+            %td
+              = admin.email
+            %td
+              = admin.phone
+            %td
+              = admin.type
+            %td
+              = link_to 'Make Owner' ,change_owner_companies_path(admin_id: admin.id) , method: :post ,remote: true,  class: 'btn btn-xs btn-default btn-success', data: {confirm: "Are you sure you want to make #{admin.full_name} the owner of your company. Once done, You will not be able to undo this. And #{admin.full_name} will only have the owner privileges.", verify: "confirm", verify_text: "Type 'confirm' to confirm"}

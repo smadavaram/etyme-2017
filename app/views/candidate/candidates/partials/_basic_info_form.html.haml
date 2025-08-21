@@ -1,0 +1,218 @@
+- current_candidate.addresses.build unless current_candidate.addresses.present?
+= form_for current_candidate, url: candidate_candidate_path(current_candidate.id, tab: "basic_info"),method: :put, remote: true do |f|
+  .row
+    .col-sm-6
+      %label First Name
+      .form-group
+        = f.text_field :first_name  ,:placeholder => "Enter First Name",class:'form-control input'
+    .col-sm-6
+      %label Last Name
+      .form-group
+        = f.text_field :last_name  ,:placeholder => "Enter last Name",class:'form-control input'
+    .col-sm-6
+      %label Display Name As
+      .form-group
+        = f.text_field :display_name  ,:placeholder => "Enter Display Name ",class:'form-control input'
+    .col-sm-6
+      %label Date Of birth
+      .form-group
+        = f.text_field :dob  ,:placeholder => "Date Of Birth",class:'form-control input p_date'
+    .col-sm-6
+      %label SSN
+      .mb-0.form-group
+        = f.text_field :ssn  ,:placeholder => "SSN Number",class:'form-control input'
+        .help-block.form-text.text-muted.form-control-feedback We will not share without permission
+    .col-sm-6
+      %label Preferred Work Type
+      .form-group
+        = f.select :work_type, Candidate.work_types.keys.map { |w| [w.humanize, w] }, {}, class:'form-control input'
+    .col-sm-12
+      %label Professinoal Summary(Max 1000 characters)
+      .form-group.break-text
+        = f.trix_editor :about_summary ,:placeholder => "Enter Professional Summary",class:'form-control input',:id => "div_editor1"
+    -#.col-sm-6
+    -#  %label Passport Number
+    -#  .form-group
+    -#    = f.text_field :passport_number  ,:placeholder => "Enter Passport Number",class:'form-control input'
+    -#.col-sm-6
+    -#  %label SSN Number
+    -#  .form-group
+    -#    = f.text_field :ssn  ,:placeholder => "Enter SSN Name",class:'form-control input'
+    -#.col-sm-6
+    -#  %label Visa Type
+    -#  .form-group
+    -#    = f.text_field :visa_type, :placeholder => "First Us Visa Type", class: 'form-control input'
+    .col-sm-12.h-100{style: "margin: auto auto;"}
+      .form-group.mb-0
+        %b Are you willing to relocate?
+        %label.radio-container
+          Yes
+          = f.radio_button :relocation, true
+          %span.radio-checkmark
+        %label.radio-container
+          No
+          = f.radio_button :relocation, false
+          %span.radio-checkmark
+
+
+    -#.col-sm-12
+    -#  %label Address
+    -#  .form-group
+    -#    = f.text_field :address, :placeholder => "Enter Address", class:'form-control p-location input'
+    -#
+    -#.col-sm-12
+    -#  - if current_candidate.versions.present?
+    -#    %label Previous Address
+    -#    .timed-activities.pl-3
+    -#      .timed-activity.d-block
+    -#        -current_candidate.versions&.reverse_each do |version|
+    -#          - if version.reify.address.present?
+    -#            .ta-record
+    -#              %label.mr-3.text-muted.pl-2
+    -#                =version.created_at.strftime("%Y-%m-%d")
+    -#              .small.text-muted
+    -#                =version.reify.address
+
+
+
+
+
+  -#.candidate-association
+  -#  =f.fields_for :addresses do |custom_field|
+  -#    = render 'candidate/candidates/partials/address_fields', f: custom_field
+  -#  .links.col-md-12.text-right
+  -#    = link_to_add_association  f, :addresses, class: 'btn btn-gray', partial: 'candidate/candidates/partials/address_fields' do
+  -#      %i.os-icon.os-icon-ui-22
+  -#      %span Add Account
+  -#    %br/
+
+  .row
+    .col-sm-12.col-md-12.col-lg-2
+      %div.profile-hover
+        %div.pictureContainer
+          = button_tag "Upload resume" , class: 'm-0 resume btn btn-primary btn-rounded btn-lg', onclick: ""
+          -#= link_to "Upload CV" ,"#",class: 'm-0 resume btn btn-primary btn-rounded btn-lg', style: "margin-bottom: 10px"
+  #uploaded-resumes
+    = render 'candidate/candidates/partials/resumes'
+
+  -#.row.hidden
+  -#  =f.submit "", class: "prev-bttn"
+  -#  =f.submit "basic_info", class: "next-bttn"
+  -#
+
+  -#.row
+  -#  .col-lg-12
+  -#    %button.btn.btn-primary.pull-right{:type => "submit"}
+  -#      Saved
+
+
+-#%script{:src => "https://maps.google.com/maps/api/js?key=AIzaSyDplyJQu2eS1qNVdoBsGL4FGmJwMWFDDUQ&sensor=false&libraries=places"}
+-#- content_for :scripts do
+-#  :javascript
+-#
+-#    $(document).ready(function() {
+-#      $(".select2").select2({placeholder: "Select a User(s)"});
+-#      $(".file_select").select2({placeholder: "Select Company Document"});
+-#      $('.fileUpload').on("click",function(){
+-#        $(".file").trigger("click");
+-#        $('.fp__overlay').css({'z-index':'99999'});
+-#      });
+-#      var chatBody = $('#chat-body') ;
+-#      chatBody.scrollTop(5000000000);
+-#
+-#      $('.resume').on("click",function(){
+-#          $(".resume_file").trigger("click");
+-#      });
+-#
+-#      $( ".video-pic" ).click(function() {
+-#        $( ".file" ).trigger( "click" );
+-#      });
+-#
+-#      $( ".candi-profile-pic" ).click(function()
+-#      {
+-#        $( ".candi-logo" ).trigger( "click" );
+-#      });
+-#
+-#      $('#myTab a').click(function(e) {
+-#        e.preventDefault();
+-#        $(this).tab('show');
+-#      });
+-#      $("ul.nav-tabs > li > a").on("shown.bs.tab", function(e) {
+-#        var id = $(e.target).attr("href").substr(1);
+-#        window.location.hash = id;
+-#      });
+-#
+-#      var hash = window.location.hash;
+-#      $('#myTab a[href="' + hash + '"]').tab('show');
+-#
+-#    });
+-#
+-#    function uploadResume(event){
+-#      resume_url = event.fpfile.url
+-#      $.ajax({
+-#       type: 'POST',
+-#       dataType: 'script',
+-#       url: " #{ upload_resume_candidates_path } ",
+-#       data: { resume: resume_url,authenticity_token: window._token },
+-#       success: function (data) {  }
+-#     });
+-#    }
+-#    function candidateLogoUpload(event){
+-#      photo_url = event.fpfile.url
+-#      $('.profile-pic').html('');
+-#      $.ajax({
+-#       type: 'POST',
+-#       dataType: 'json',
+-#       url: "#{ candidate_update_photo_path }",
+-#       data: { photo: photo_url,authenticity_token: window._token },
+-#       success: function (data) {
+-#        $('.img_pic').removeClass('hidden').attr("src",photo_url);
+-#        $('.img_pic_r').remove();
+-#        // location.reload();
+-#       }
+-#     });
+-#    }
+-#    function employeevideoUpload(event){
+-#      video_url = event.fpfile.url
+-#      video_type=event.fpfile.mimetype
+-#      // $('.video-pic').html('');
+-#      $.ajax({
+-#       type: 'POST',
+-#       dataType: 'json',
+-#       url: "#{ update_video_candidates_path }",
+-#       data: { video: video_url,authenticity_token: window._token, video_type: video_type },
+-#       success: function (data) {
+-#        // $('.text img1').attr("src",video_url);
+-#        $('.can_vid').removeClass('hidden');
+-#        $('.can_vid_src').attr("src", video_url);
+-#        $('.can_vid_r').remove();
+-#        // location.reload();
+-#       }
+-#     });
+-#    }
+-#
+-#    $(document).ready(function () {
+-#      addressLookup();
+-#    });
+-#
+-#    function addressLookup() {
+-#      var address = document.getElementsByClassName('p-location');
+-#
+-#      for(var i=0; i< address.length; i++){
+-#        new google.maps.places.Autocomplete(address[i]);
+-#
+-#        google.maps.event.addDomListener(address[i], 'keydown', function(event) {
+-#          if (event.keyCode === 13) {
+-#            event.preventDefault();
+-#          }
+-#        });
+-#      }
+-#    }
+-#
+-#    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+-#      addressLookup();
+-#
+-#     $(".ba_info_start_date, .ba_info_end_date").datepicker({
+-#        dateFormat : 'yy-mm-dd'
+-#      });
+-#    });

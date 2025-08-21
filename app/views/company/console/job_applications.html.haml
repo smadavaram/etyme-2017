@@ -1,0 +1,37 @@
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .widget-body
+              %ul#myTab1.nav.nav-tabs.smaller
+                %li.nav-item.cumstom_nav-tab.active
+                  %a{"data-toggle" => "tab", :href => "#tab-r1",class: "nav-link cumstom_nav-tab display-flex"}
+                    %span.badge.bg-color-blueDark.txt-color-white
+                    Received Applications
+                    %span.badge.bg-color-blueDark.txt-color-white= @received_job_applications.count
+                %li.nav-item.cumstom_nav-tab
+                  %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
+                    %span.badge.bg-color-blue.txt-color-white
+                    Sent Applications
+                    %span.badge.bg-color-blue.txt-color-white= @sent_job_applications.count
+                  
+                .col-md-12
+                  .tab-content
+                    #tab-r1.tab-pane.active
+                      .tab-content.padding-10
+                        #isall.tab-pane.fade.active.in
+                          = render 'company/console/partials/receive_job_applications_table' , data: @received_job_applications
+                    #tab-r2.tab-pane
+                      .tab-content.padding-10
+                        #is-all.tab-pane.fade.active.in
+                          = render 'company/console/partials/sent_job_applications_table' , data: @sent_job_applications
+                      
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      pageSetUp();
+      default_active_nav('.ln-2');
+    });

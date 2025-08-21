@@ -1,0 +1,94 @@
+#content
+  .row
+    .center.text-center
+      %legend.h1
+        #{@timesheet.contract.title}
+      %p
+        = '('+@timesheet.start_date.to_s+'  -  '++@timesheet.end_date.to_s+')'
+    %b.text-muted{style: 'margin-left: 20px;'}
+      = "Total Time: #{time_format(@timesheet.total_time)}"
+    %br
+    %b.text-success{style: 'margin-left: 20px;'}
+      = "Approved Time: #{time_format(@timesheet.approved_total_time)}"
+    %br
+    %b.text-danger{style: 'margin-left: 20px;'}
+      = "Due: #{(@timesheet.end_date + 2.day).strftime("%A, %d %b %Y")}"
+  - if @timesheet.contract.next_invoice_date.present?  && @timesheet.contract.next_invoice_date > (@timesheet.end_date)
+    .row
+      .col-md-3{style: 'margin-left: 3px;'}
+        %b.text-muted{style: 'margin-left: 3px;'}
+          = "Next Invoice Date: #{(@timesheet.contract.next_invoice_date).strftime("%d %b %Y")}"
+    .row
+      .col-md-3{style: 'margin-left: 5px;'}
+        = link_to "Change Invoice Date",'#',class:"btn btn-primary",id:"#change_invoice","data-target" => "#change_invoice", "data-toggle" => "modal", :type => "button"
+        = render partial:  'company/contracts/partials/change_invoice_date',locals: {contract: @timesheet.contract}
+
+  .row
+    .text-center.center
+      = link_to raw("<i class='fa fa-chevron-left'></i>") , @prev.present? ? timesheet_timesheet_log_path(@timesheet, @prev) : '#' , disabled: !@prev.present?, id: 'btn-prev' , class: 'btn btn-default btn-lg'
+      %span.h2{style: 'margin-right: 15px;margin-left: 15px;'}= @timesheet_log.transaction_day.strftime("%A, %d %b %Y")
+      = link_to raw("<i class='fa fa-chevron-right'></i>") , @next.present? ? timesheet_timesheet_log_path(@timesheet, @next) : '#' , disabled: !@next.present?, id: 'btn-prev' , class: 'btn btn-default btn-lg'
+    .text-center.center
+      %br
+      %b.text-muted{style: 'margin-left: 20px;'}
+        = "Total Time: #{time_format(@timesheet_log.total_time)}"
+      %br
+      %b.text-success{style: 'margin-left: 20px;'}
+        = "Approved Time: #{time_format(@timesheet_log.accepted_total_time)}"
+      %br
+
+  - if @timesheet.open?
+    .row
+      .pull-right{style: 'margin-right: 20px;'}
+        %btn.btn-lg.btn-primary.pull-right.header-btn.hidden-mobile{"data-target" => "#myModal", "data-toggle" => "modal"} Log Hours
+        -if @timesheet_log.pending? && has_permission?('manage_timesheets')
+          = link_to  ' Approve',timesheet_timesheet_log_approve_path(@timesheet ,@timesheet_log ) ,style: 'margin-right: 5px;' ,class: 'btn-lg btn-success pull-right header-btn hidden-mobile', data: {confirm: "Are you sure to approve all #{time_format(@timesheet_log.accepted_total_time)} hours logged on #{@timesheet_log.transaction_day.strftime('%A, %d %b %Y')}?", verify: 'Approve', verify_text: "Type 'Approve' to confirm"}
+        =render 'company/timesheet_logs/partials/add_transaction_modal'
+  %section{style: 'margin-top: 10px;'}
+    .row
+      %article.col-xs-12.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget
+          %header
+            %span.widget-icon
+              %i.fa.fa-table
+            %h2 Time Logs
+          %div
+            .jarviswidget-editbox
+            .widget-body.no-padding
+              %table#dt_basic.table.table-striped.table-bordered.table-hover{:width => "100%"}
+                %thead
+                  %tr
+                    %th{"data-class" => "expand"}
+                      %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                      Start Time
+                    %th{"data-class" => "expand"}
+                      %i.fa.fa-fw.fa-calendar.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                      End Time
+                    %th{"data-class" => "expand"}
+                      %i.fa.fa-fw.fa-clock-o.txt-color-blue.hidden-md.hidden-sm.hidden-xs
+                      Hours
+                    %th{"data-hide" => "phone"} Memo
+                    %th{"data-hide" => "phone,tablet"}
+                %tbody
+                  - @timesheet_log.transactions.each_with_index do |t , index|
+                    %tr
+                      %td= t.start_time.localtime.strftime("%I:%M%p") if t.start_time.present?
+                      %td= t.end_time.localtime.strftime("%I:%M%p") if t.start_time.present?
+                      %td= time_format(t.total_time)
+                      %td= t.memo
+                      %td
+                        - if @timesheet.open?
+                          - if t.pending?
+                            = link_to 'Accept' , timesheet_timesheet_log_transaction_accept_path(@timesheet , @timesheet_log , t ) , method: :post , class: 'btn btn-xs btn-default '
+                            = link_to 'Reject' , timesheet_timesheet_log_transaction_reject_path(@timesheet , @timesheet_log , t ) , method: :post , class: 'btn btn-xs btn-default '
+                          - else
+                            = t.status.humanize
+                        - else
+                          = link_to t.status.humanize ,'#', disabled: true , class: 'btn btn-xs btn-default'
+- content_for :scripts do
+  :javascript
+    $('#contract_next_invoice_date').datepicker(
+      {
+        dateFormat : 'dd/mm/yy'
+      }
+    );

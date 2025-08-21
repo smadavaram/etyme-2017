@@ -1,0 +1,18 @@
+.row.mt-4
+  .col-sm-6
+    .form-group
+      %label{:for => ""} Quantity
+      = f.number_field :quantity, class: 'form-control'
+  .col-sm-6
+    .form-group
+      %label{:for => ""} Unit Price
+      = f.number_field :unit_price, class: 'form-control'
+  .col-sm-12
+    .form-group
+      %label{:for => ""} Expense Type
+      = f.select :expense_type, ExpenseItem.expense_types.keys, {} ,class: 'form-control'
+  .col-sm-12
+    .form-group
+      %label Description
+      %br
+      = f.text_area :description, class: 'form-control'

@@ -1,0 +1,185 @@
+#content
+  %body
+    %section#widget-grid
+      .row
+        %article.col-xs-12.col-sm-12.col-md-12.col-lg-12.sortable-grid.ui-sortable
+          #wid-id-1.jarviswidget.jarviswidget-color-blueDark.jarviswidget-sortable{"data-widget-editbutton" => "false", :role => "widget"}
+            %header{:role => "heading"}
+              %span.widget-icon
+                %i.fa.fa-table
+              %h2.text-white Jobs
+              %span.jarviswidget-loader
+                %i.fa.fa-refresh.fa-spin
+            / widget div
+            %div{:role => "content"}
+              .jarviswidget-editbox
+              .widget-body.no-padding
+                #datatable_fixed_column_wrapper.dataTables_wrapper.form-inline.dt-bootstrap.no-footer
+                  %table#example#datatable_fixed_column.table.table-striped.table-bordered.dataTable.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                    %thead
+                      %tr{:role => "row"}
+                        %th.hasinput{ :style => "width:2%"}
+                          = check_box_tag "select_all[]", ""
+                        %th.hasinput{ :style => "width:13%"}
+                          %input.form-control{:placeholder => "Filter Type", :type => "text"}/
+                        %th.hasinput{ :style => "width:17%"}
+                          %input.form-control{:placeholder => "Filter Title", :type => "text"}/
+                        %th.hasinput{ :style => "width:18%"}
+                          %input.form-control{:placeholder => "Filter Category", :type => "text"}/
+                        %th.hasinput{ :style => "width:16%"}
+                          %input.form-control{:placeholder => "Filter Last date", :type => ""}/
+                        %th.hasinput{ :style => "width:17%"}
+                          %input.form-control{:placeholder => "Filter Location", :type => "text"}/
+                        %th.hasinput
+                          %input.form-control{:placeholder => "Filter Posted By", :type => "text"}/
+                        %th.hasinput{ :style => "width:16%"}
+                          %input.form-control{:placeholder => "Filter Status", :type => "text"}/
+                      %tr{:role => "row"}
+                        %th Select
+                        %th Type
+                        %th Title
+                        %th Category
+                        %th Last date
+                        %th Location
+                        %th Posted by
+                        %th Status
+                        %th Actions
+                    %tbody
+                      - @company_jobs.each_with_index do |job , index|
+                        %tr.even{:role => "row"}
+                          %td= check_box_tag "ids[]", job.id
+                          %td= job.listing_type
+                          %td= link_to_if(has_permission?("manage_job"), truncate(job.title,length: 50) , job_path(job) , target: '_blank')
+                          %td= job.job_category
+                          %td= job.end_date
+                          %td= job.location
+                          %td= job.created_by.full_name  rescue "  --"
+                          %td= job.is_active? ? job.status : "Job expired"
+                          %td{"style" => "min-width: 80px;"}
+                            - if job.try(:chat).present? && job.try(:chat).chat_user?(current_user)
+                              = link_to raw("<i class='fa fa-comment '></i>") , company_chat_path(job.try(:chat) ) ,target: '_blank' , class: '',title: "Chat of  #{truncate(job.title.titleize,length:50)}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                            - if has_permission?("manage_job")
+                              = link_to raw("<i class='fa fa-edit '></i>") , edit_job_path(job) , class: '',title: "Edit  #{job.title.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw("<i class='fa fa-times '></i>") , job_path(job) , method: :delete ,  class: '',title: "Delete  #{job.title.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                              = link_to raw(" <i class='fa fa-users '></i>"), job_create_multiple_for_candidate_path(job),remote: true ,method: :get ,class: "  #{job.is_active? ? "" : "disabled" }",title: "Job Application for Company Candidates",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+
+                            - if(job.is_active?)
+                              -if has_permission?("send_job_invitations")
+                                = link_to raw(" <i class='fa fa-share-alt '></i>") ,send_invitation_job_path(job) , method: :post ,remote: true,  class: '',title: "Send Invitation for #{job.title.titleize}",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                  -#- if @company_jobs.count >15
+                  -#  .dt-toolbar-footer
+                  -#    = digg_pagination(@company_jobs)
+= render 'company/jobs/partials/share_jobs'
+
+:css
+  .form-control
+  {
+    background-color: white !important;
+  }
+  .digg_pagination
+  {
+    background-color: #fafafa !important;
+  }
+- content_for :modals do
+  #job_invitation
+  = render 'company/jobs/partials/new_modal'
+-content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+     pageSetUp();
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'fl><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
+            },
+            "lengthMenu": [[20,30, 50, 100, 500, 1000, -1], [20,30, 50, 100, 500, 1000]]
+
+        });
+
+      $('#datatable_fixed_column').on( 'length.dt', function ( e, settings, len ) {
+        //window.location.href = window.location.href.split('?')[0]+"?page=1&per_page="+len;
+      });
+
+      $("div.toolbar").html('<div class="text-right">#{ button_tag 'NEW' ,class: 'btn btn-success btn-md pull-right header-btn margin-top-5 mr-left-10' , "data-toggle": "modal" , "data-target":"#new-job",'rel'=>"tooltip" ,'data-placement'=>"top"}<a href="#" class= "btn btn-success share btn-md pull-right header-btn margin-top-5"><i class="fa fa-share-alt"></i> Share</a></div>');
+
+      // Apply the filter
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+            .column( $(this).parent().index()+':visible' )
+            .search( this.value )
+            .draw();
+
+      } );
+      $("#select_all_" ).on( "click", function() {
+        $("input[name='ids[]']").prop('checked', this.checked);
+      });
+      /* COLUMN SHOW - HIDE */
+        $('#datatable_col_reorder').dataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6'flp><'col-sm-6 col-xs-6 hidden-xs'C>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-sm-6 col-xs-12'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
+            },
+            "preDrawCallback" : function() {
+                // Initialize the responsive datatables helper once.
+                if (!responsiveHelper_datatable_col_reorder) {
+                    responsiveHelper_datatable_col_reorder = new ResponsiveDatatablesHelper($('#datatable_col_reorder'), breakpointDefinition);
+                }
+            },
+            "rowCallback" : function(nRow) {
+                responsiveHelper_datatable_col_reorder.createExpandIcon(nRow);
+            },
+            "drawCallback" : function(oSettings) {
+                responsiveHelper_datatable_col_reorder.respond();
+            }
+        });
+
+        var checkedRows = new Array();
+        $(".share" ).on( "click", function() {
+          $("input[name='ids[]']:checked").each(function(){
+            checkedRows.push($(this).val());
+          });
+          if(checkedRows.length>0)
+          {
+            $('#jobs_ids').val(checkedRows);
+            $('#share-jobs').modal('toggle');
+          }
+          else{
+            alert("Please select atleast one job to proceed before.");
+          }
+        });
+
+        $('#share-jobs').on('shown.bs.modal', function() {
+          $(".select2").select2({
+            placeholder: "Groups/Contact/Email",
+            tags: true
+          });
+        });
+    });
+    $(document).on('ready page:load', function () {
+      if (typeof tinyMCE != 'undefined') {
+        tinyMCE.init({
+          selector: "textarea.tinymce",
+          toolbar: "styleselect | bold italic | undo redo | table",
+          plugins: "link,table"
+        });
+      } else {
+        setTimeout(arguments.callee, 50);
+      }
+    });
+
+    $('#emailbody').summernote({
+        height: 250,
+        focus: false,
+        tabsize: 2
+    });
+

@@ -1,0 +1,51 @@
+#content{style:"overflow-y: hidden;"}
+  .col-sm-12.animated.fadeInRightBig
+    %section.panel
+      %header.panel-heading
+        - if @job_invitation.present? && @job_invitation.pending? && !@job_invitation.is_sent?(current_company) && @job_invitation.is_active?
+          -if has_permission?("manage_job_invitations")
+            = button_tag 'Reject' ,  class: 'btn btn-default pull-right mt-12 margin-right-5' , "data-toggle": "modal" , "data-target":"#reject-job-invite-#{@job_invitation.id}"
+            = button_tag 'Accept' ,  class: 'btn btn-primary pull-right mt-12 margin-right-5' , "data-toggle": "modal" , "data-target":"#job-invite-#{@job_invitation.id}"
+        %h2.name
+          = @company_job.title
+          %br/
+          %small
+            Created by
+            = link_to @company_job.created_by.full_name , '#'
+            %span.badge.bg-color-blue= @job_invitation.is_active? ? @job_invitation.status.humanize : 'Expired'
+          %br/
+          - @company_job.tags.each do |tag|
+            %span.h4.badge
+              =tag.name
+      %ul.ul-s
+        %li.list-group-item.list-p-15
+          %span.text-muted Detail
+          =raw(@company_job.description)
+        %br
+        %li
+          %span.text-muted Message
+          %br
+          = raw(@job_invitation.message)
+        %hr
+          .row
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Location
+              %b
+                = @company_job.location.titleize if @company_job.location.present?
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Category
+              %b
+                = @company_job.job_category
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Expiry
+              %b
+                = @job_invitation.expiry.to_s
+            .col-lg-3.col-md-3
+              %span.text-muted.fs-13 Company
+              %b
+                = link_to @company_job.company.name , '#'
+
+- if @job_invitation.present? && @job_invitation.pending? && !@job_invitation.is_sent?(current_company) && @job_invitation.is_active?
+  = render('company/job_invitations/partials/accept_job_invitation_modal' , job: @company_job , accept_state: true , job_invitation: @job_invitation)
+  = render('company/job_invitations/partials/reject_job_invitation_modal' , job: @company_job , job_invitation: @job_invitation)
+

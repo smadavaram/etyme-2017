@@ -1,0 +1,67 @@
+.float{
+    /*float: right;*/
+}
+.box{
+    /*min-height: 635px;*/
+    margin-top: 25px !important;
+    margin-bottom: 20px !important;
+}
+.body-background{
+    background-image: linear-gradient(to bottom right, #D7BBEA, #65A8F1);
+}
+.error{
+    color: red;
+    float: left;
+}
+.alert-error{
+    color: #1D2026;
+    background-color: #F76523;
+    border-color: #bce8f1;
+}
+.icon_color{
+    color: #334152 !important;
+}
+.minumum-width{
+    min-width: 200px;
+}
+.field-group{
+    width: 122%;
+}
+.field-group input{
+    border-radius: 4px !important;
+}
+
+.body-companies-new {
+  .auth-box-w {
+    max-width: 800px;
+
+    .logo-w {
+      padding: 20px;
+    }
+  }
+
+  .companies-new--header,
+  .companies-new--subheader {
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+  }
+
+  #user_email {
+    max-width: 300px;
+  }
+
+  .companies-new--row {
+    display: flex;
+
+    @media (max-width: 600px) {
+      flex-direction: column;
+    }
+  }
+
+  .companies-new--column {
+    padding: 20px;
+    flex: 50%;
+  }
+}

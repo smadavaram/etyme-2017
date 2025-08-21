@@ -1,0 +1,98 @@
+.element-wrapper.m-2
+  .element-box
+    = form_with(url: client_expenses_path, method: :get, id: 'timesheets') do |f|
+      .ts_header.mt-2
+        .d-flex.pt-2
+          %label.radio-container.m-1
+            Weekly
+            %input{:name => "ts_type",:type => "radio", :value => 'weekly', checked: @cycle_type == 'weekly'}/
+            %span.radio-checkmark
+          %label.radio-container.m-1
+            Monthly
+            %input{:name => "ts_type",:type => "radio", :value => "monthly", checked: @cycle_type == 'monthly'}/
+            %span.radio-checkmark
+        .form-group.w-50.d-flex
+          %i.fa.fa-chevron-circle-left.mt-2
+          = f.text_field :start_date, class: 'p_date form-control m-1',placeholder: 'Select Start Data', value: @start_date
+          = f.text_field :end_date, class: 'p_date form-control m-1',placeholder: 'Select End Date', value: @end_date
+          %i.fa.fa-chevron-circle-right.mt-2
+          = f.hidden_field :tab, id: 'ts_tag', value: "All"
+      .d-flex{style: "flex-wrap: wrap;justify-content: space-between;"}
+        %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
+          %li.nav-item.ml-3
+            %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Upcomming
+          %li.nav-item
+            %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Submitted
+          %li.nav-item
+            %a{class: "nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("Approved") }", href:'#'} Approved
+          %li.nav-item
+            %a{class: "nav-link ts fd rejected_timesheets border_btn #{ "active" if @tab.eql?("Rejected") }", href:'#'} Rejected
+          %li.nav-item
+            %a{class: "nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("All") }", href: timesheets_path} All
+        .d-flex.pt-2
+          %label.radio-container.m-1
+            Sent Client Expense(s)
+            %input.ts_for{:name => "ts_for",:type => "radio", :value => 'sent_client_expenses', checked: @ts_for == 'sent_client_expenses'}/
+            %span.radio-checkmark
+          %label.radio-container.m-1
+            Received Client Expense(s)
+            %input.ts_for{:name => "ts_for",:type => "radio", :value => "received_client_expenses", checked: @ts_for == 'received_client_expenses'}/
+            %span.radio-checkmark
+    .table_divider.mt-3
+    .row.mr-1.ml-1.mt-2
+      .col-sm-6
+        %a.btn.btn-primary.btn_style.mt-3 New 
+      .col-sm-6  
+        .form-inline.justify-content-sm-end
+          %input.form-control.form-control-sm.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
+          %button.btn.btn-sm.btn-secondary{type: "button", id: 'my_bench_datatable-search-btn'} Search
+    .mt-3
+      - unless @client_expenses.present?
+        .div.w-75.margin-auto
+          %p.contract_warning_text= "No Expense has been created to process, please goto #{link_to 'Timeline', timeline_contracts_path, target: '_blank'} to add expense".html_safe
+      - else
+        - if @tab.eql?('Upcomming')
+          = render 'company/client_expenses/partials/upcomming_timeline'
+        - else
+          .table-responsive
+            %table.table.table-striped.table-bordered.table-v2.table-lg
+              %thead
+                %tr
+                  %th Exp ID
+                  %th Exp Type
+                  %th Contract ID & Title - Client
+                  %th Customer
+                  %th Status
+                  %th From & To Date
+                  %th Total Price
+                  %th Actions
+              %tbody
+                - @client_expenses.each do |ce|
+                  %tr
+                    %td= ce.id
+                    %td= ce.class != ClientExpense ? ce.bill_type.titleize : ce.contract_cycle.cycle_frequency.titleize
+                    %td= ce.contract.title
+                    %td= user_image(current_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{current_company.full_name}" )
+                    %td= snake_to_words(ce.status)
+                    %td= ce.class != ClientExpense ? "#{ce.bill_date} - #{ce.due_date}" : "#{ce.start_date} - #{ce.end_date}"
+                    %td= ce.class != ClientExpense ? ce.total_amount : ce.amount
+                    %td
+                      -# - if ce.not_submitted? and ce.company != current_company
+                      -#   = link_to "<i class='fa fa-check '></i>".html_safe,client_expense_submit_path(ce),class:'c_green',title: 'Submit Client Expense', :data => {:confirm => 'Are you sure?'}
+                      -#   = link_to "<i class='fa fa-edit '></i>".html_safe,edit_client_expense_path(ce),class:'',title: 'Edit Client Expense'
+                      -# - elsif ce.submitted? and ce.company == current_company
+                      -#   = link_to "<i class='fa fa-check '></i>".html_safe,client_expense_approve_path(ce),class:'c_green',title: 'Accept Client Expense', :data => {:confirm => 'Are you sure?'}
+                      -#   = link_to "<i class='fa fa-times '></i>".html_safe,client_expense_reject_path(ce),class:'c_red',title: 'Reject Client Expense', :data => {:confirm => 'Are you sure?'}
+                      -#
+
+
+        .timesheet_pagination_wrap.mt-2
+          .pagination_label
+            = page_entries_info @client_expenses
+          = will_paginate(@client_expenses, {params: params.merge(tab: @tab,cycle_type:@cycle_type),previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'client_expenses_pagination_links'})
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      default_active_nav('.ln-8');
+    });

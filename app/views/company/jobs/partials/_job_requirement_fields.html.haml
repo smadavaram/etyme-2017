@@ -1,0 +1,70 @@
+.nested-fields
+  .custome-filed-list.question-req.row{style: "display:none"}
+    .col-md-12
+      .custome-filed-item.filed-option
+        .clearfix
+          %p.pull-left Need full details of your project
+          .fild-action.pull-right
+            %a.filed-edit
+              %i.fa.fa-pencil
+            =link_to_remove_association f do
+              %i.fa.fa-trash
+        .clearfix
+          .free-text
+            %input{:type => "text"}/
+          .Attach-file
+            .Attach-btn
+              %input{:type => "file"}/
+          .multiple-fiels-box
+  .form-group.req_form
+    .col-md-12
+      %label Requirement
+      =f.hidden_field :multiple_option, class: 'multi-option-text'
+      =f.text_field :questions , class: 'form-control question', :rows => 6, :cols => 60, :maxlength => 140, placeholder: "Structure your Applicant Instructions as free text, a multiple choice question or file upload.", require: true
+    .col-md-12.select-filed
+      .col-md-3.pl-0
+        %label Answer Type
+        .plain-select.ml-0
+          =f.select :ans_type, ["Free Text", "Multiple Answer", "Attached file"],{include_blank: false},{class: "form-control que-ans-type plain-select" }
+      .col-md-3.pl-0
+        = f.label :ans_mandatroy, class:"fancy" do
+          = f.check_box :ans_mandatroy, class: 'set-checkbox'
+          Answer is mandatory
+    - if f.object.ans_type == "Multiple Answer"
+      - s=f.object.multiple_option
+      - s = s.gsub('mytext=', ' ').gsub('&','')
+      - opt_array = s.split(" ")
+      .multi-ans-div{style: "display:block"}
+        .col-md-12.input_fields_wrap
+          .checkbox-option
+            - opt_array.each do |a|
+              %div{:style => "margin-top: 10px;"}
+                %input{:placeholder => "Option Answer", :type => "text", :name=>"mytext", :value=>"#{CGI.unescape(a)}"}/
+        .col-md-12.add_field_button
+          %a.filed-Add
+            %i.fa.fa-plus>
+            Add Optional Answer
+        .col-md-12
+          = f.label :multiple_ans do
+            = f.check_box :multiple_ans, class: 'set-checkbox allow-multi-ans'
+            Allow more than one answer to this question
+    - else
+      .multi-ans-div{style: "display:none"}
+        .col-md-12.input_fields_wrap
+          .checkbox-option
+            %div{:style => "margin-top: 10px;"}
+              %input{:placeholder => "Option Answer", :type => "text", :name=>"mytext"}/
+            %div{:style => "margin-top: 10px;"}
+              %input{:placeholder => "Option Answer", :type => "text", :name=>"mytext"}/
+        .col-md-12.add_field_button
+          %a.filed-Add
+            %i.fa.fa-plus>
+            Add Optional Answer
+        .col-md-12
+          = f.label :multiple_ans do
+            = f.check_box :multiple_ans, class: 'set-checkbox allow-multi-ans'
+            Allow more than one answer to this question
+    .col-md-12
+      .custome-filed-botton.clearfix
+        =link_to_remove_association "Remove", f, class: "btn btn-danger pull-right"
+        %input.btn.pull-right.btn-success.save-req{:type => "Button", :value => "Save"}/

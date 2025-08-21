@@ -1,0 +1,90 @@
+.content-i
+  .content-box
+    .row{:style=>"max-width: 1400px;"}
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-6
+                .col-sm-6
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'job_application-datatable-search'}
+                    %button.btn.btn-sm.btn-secondary{type: "button", id: 'job_application-datatable-search-btn'} Search
+            .table-responsive
+              %table#job_application_dataTable.table.text-center.table-bordered.table-lg.table-v2.table-striped
+                %thead
+                  %tr
+                    %th
+                      %input{ type:"checkbox", name:"select_all", id:"example-select-all"}
+                      %th NO/Job Title
+                      %th Applicant Name
+                      %th Bench/Recruiter
+                      %th Status
+                      %th Source
+                      - if params[:type]=='Bench'
+                        %th End Client Job Title
+                        %th Client
+                        %th Client Job Location
+                        %th Client Partner
+                        %th Work Type
+                      %th Visa
+                      %th Exp.
+                      %th Applied At
+                      %th Skill Set.
+                      %th Actions
+                %tbody
+                  - @received_job_applications.each do |application|
+                    - if application.user.present? 
+                      %tr{"data-id" => "#{application.id}"}
+                        - candidate = application.applicationable
+                        %td= check_box_tag "ids[]", application.id
+                        %td
+                          %span.value{ :style => "margin-left: 15px;" }
+                            = link_to "#{application.id}", job_application_path(application)
+                            %br/
+                          %span.value
+                            =link_to do_ellipsis(application.job.title.capitalize, 15),job_path(application.job.id),class: 'data-table-font'
+                        %td.no-wrap.pr-5
+                          = user_image(application.applicationable, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.applicationable.full_name}" )
+                          = link_to(do_ellipsis(application.applicationable.full_name,15), public_profile_static_candidates_path(application.applicationable), class: 'data-table-font')
+                          %hr{style: "margin-top:-23px; visibility:hidden;"}
+                          %span{ :style => "margin-left:33px; font-size: 0.80em;" }
+                            = contact_widget(candidate.email, candidate.phone, candidate, chat_link: chat_link(candidate,application&.conversation&.id),color: '#3E4B5B; !important')
+                        %td
+                          %span
+                            -#uncomment for production = image_tag(application.applicationable.associated_company.logo,class: 'data-table-image', title: application.applicationable.associated_company.name)
+                            =do_ellipsis(candidate&.recruiter&.company&.email || candidate&.associated_company&.email || candidate&.associated_company&.full_name || candidate&.companies&.first&.email || candidate&.companies&.first&.full_name || "info@freelancer.com")
+                        %td.no-wrap= colorfull_text( snake_to_words(application.status),application.status=='applied' ? 'orange' : 'green')
+                        %td= application.job_invitation_id ? "Invited/#{application.application_type}" : "Direct/#{snake_to_words(application.application_type)}"
+                        -if params[:type]=='Bench'
+                          %td= application.end_client_job_title
+                          %td= application.client_name
+                          %td= application.client_job_location
+                          %td
+                            -if application.company_contact_id 
+                              = user_image(application.client_partner, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{application.client_partner.try(:full_name)}" ) 
+                              = link_to(do_ellipsis(application.client_partner.try(:full_name),9), company_user_profile_path(application.client_partner), class: 'data-table-font candidate-name') 
+                              %span{:style=>"font-size: 0.80em; float: left;"}
+                                = contact_widget(application.client_partner.email, application.client_partner.phone, application.client_partner, chat_link: chat_link(application.client_partner,application&.conversation&.id),color: '#3E4B5B; !important')
+                          %td= application.work_type
+                        %td= application.applicationable&.candidate_visa
+                        %td= application.applicationable.experiences.first
+                        %td= application.created_at.strftime("%d, %b %Y %H:%M")
+                        %td= do_ellipsis(application.applicationable.skill_list.join(', '))
+                        %td.no-wrap
+                          = link_to(content_tag(:i, nil, class: 'fa fa-eye').html_safe, job_application_path(application), title: 'View Detail', class: 'data-table-icons')
+                          = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, candidate_add_reminder_path(application.applicationable_id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+                          = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0122_download_file_computer_drive').html_safe, application&.applicant_resume || candidate.candidates_resumes.first&.resume, target: "_blank", download: true, title: "Download Resume", class: 'data-table-icons')
+                          = link_to(content_tag(:i, nil, class: 'icon-feather-user-plus').html_safe, make_company_candidate_path(application.applicationable), method: :post, title: 'Add to candidates', class: 'data-table-icons')
+                          - if application.job_applicant_reqs.present?
+                            = link_to(content_tag(:i, nil, class: 'icon-book-open').html_safe, job_applicant_reqs_preview_job_application_path(application), remote: true, title: 'Additional Requirements', class: 'data-table-icons')
+                          -else
+                            = link_to(content_tag(:i, nil, class: 'icon-book-open').html_safe, '#', title: 'No Additional Requirements', class: 'data-table-icons')
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function(){
+      default_active_nav('.ln-2');
+    })
+

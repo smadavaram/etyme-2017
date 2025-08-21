@@ -1,0 +1,41 @@
+%fieldset
+  .row
+    .col-sm-6
+      %label.col-md-12.control-label
+        First Name
+        %sup.text-danger *
+      .col-md-12
+        = e.text_field :first_name , class: 'form-control ' , id: 'fname' , placeholder: "First Name" , required: true
+    .col-sm-6
+      %label.col-md-12.control-label
+        Last Name
+        %sup.text-danger *
+      .col-md-12
+        = e.text_field :last_name , class: 'form-control ' , id: 'lname' , placeholder: "Last Name" , required: true
+  .row
+    .col-sm-12
+      %label.col-md-12.control-label
+        Email
+        %sup.text-danger *
+      .col-md-12
+        = e.email_field :email , class: 'form-control ' , id: 'email' , placeholder: "email@address.com" , required: true
+  .row
+    .col-sm-12
+      %label.col-md-12.control-label
+        Roles
+        %sup.text-danger *
+      .col-md-12
+        = e.collection_select :role_ids, current_company.roles, :id, :name, {}, {:class=>"form-control input-lg",placeholder: 'Select role(s)' ,:multiple => true, required: true,id:'roles'}
+  .row
+    .col-sm-12
+      %label.col-md-12.control-label
+        Skills
+      .col-md-12
+        = e.text_field :skill_list,placeholder: "Add Skills Comma seperated",class: 'form-control', 'data-role'=>'tagsinput',value: e.object.try(:skill_list).join(", ")
+        %p.note
+          %strong Note:
+          Tags are separated with comma
+        .form-group
+          %label.control-label
+            = e.check_box :resend_invitation , {}, true, false
+            Consultant Invitation

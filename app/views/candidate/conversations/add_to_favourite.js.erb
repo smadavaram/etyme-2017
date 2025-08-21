@@ -1,0 +1,2 @@
+$("#company-conversation-list .usr_<%= @favourite.favourabled_type.to_s+'_'+@favourite.favourabled_id.to_s %>").html("<%= j render 'conversation_user', usr: @favourite.favourabled, is_favourite: false %>")
+$("#favourite-conversation-list").append("<div class='user-fav usr_<%= @favourite.favourabled_type.to_s %>_<%= @favourite.favourabled_id.to_s %>'> <%= j render 'conversation_user', usr: @favourite.favourabled, is_favourite: true %> </div>")

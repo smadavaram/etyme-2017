@@ -1,0 +1,29 @@
+.modal{ id: "reject-job-invite-#{job_invitation.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Job Invitation - #{job.title}
+      .modal-body
+        = form_for [job,job_invitation] ,url: reject_job_job_invitation_path(job, job_invitation) , html: {class: 'form-horizontal'} , remote: true , method: :post do |f|
+          = f.hidden_field :status , value: :rejected
+          %fieldset
+            .form-group
+              %label.col-md-2.control-label Message (optional)
+              .col-md-10
+                = f.text_area :message, class: "form-control", rows: "2" ,placeholder: 'Write tour message'
+          .modal-footer
+            -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.submit 'Save' , class: 'btn btn-primary'
+  :javascript
+    // DO NOT REMOVE : GLOBAL FUNCTIONS!
+    $(document).ready(function() {
+      $('#job_invitation_expiry').datepicker({
+        dateFormat : 'dd/mm/yy'
+
+      });
+    });

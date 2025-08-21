@@ -1,0 +1,48 @@
+.modal{ id: "contract-#{status}-#{contract.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h1
+
+          %span.semi-bold Contract -
+          %i.ultra-light #{contract.contractable.try(:name)}
+          - if contract.job_application.present?
+            - job_application = contract.job_application
+            - if job_application.job_invitation.present?
+              (#{link_to job_application.job_invitation.try(:recipient).full_name ,  '#' , target: '_blank'})
+            -#%sup.badge.bg-color-red.bounceIn.animated v 2.0
+          %br/
+          %small.text-danger.slideInRight.fast.animated
+            %strong Job - #{contract.job.title}
+      .modal-body
+        %fieldset
+          - if status == 'accept'
+            .form-group
+              %label.col-md-2.control-label Do you want to create Sub Contract?
+              .col-md-10
+                = select :contract_toggle_modal, :contract_toggle_modal , options_for_select([["-- Please Select --", ""], ["Yes", true], ["No", false]])
+                = hidden_field_tag :toggle_contract_parent_job_id , contract.job.id
+                = hidden_field_tag :toggle_contract_parent_contract_id , contract.id
+            .clearfix
+            %hr
+          #contract-assign
+            = render 'company/contracts/partials/assign_contract_form' , contract: contract , status: status
+          #sub_contract_toggle
+
+
+- if status == 'accept'
+  - content_for :scripts do
+    :javascript
+      $(document).ready(function(){
+        $('.sigPad').signaturePad({drawOnly:true});
+        toggleFields();
+        $(".multi-select2-company-docs").select2({placeholder: "Select a Doc(s)"});
+        $('#contract_start_date').datepicker({
+          dateFormat : 'dd/mm/yy'
+        });
+        $('#contract_end_date').datepicker({
+          dateFormat : 'dd/mm/yy'
+        });
+      });

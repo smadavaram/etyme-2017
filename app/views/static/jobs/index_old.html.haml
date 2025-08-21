@@ -1,0 +1,85 @@
+- provide(:body_class, 'full-screen')
+
+#sectionIntro.intro-w.layout-v1
+  .os-container
+    .fade2
+    .call-to-action
+      .h3.cta-header
+        Jobs
+    -#.col-lg-4.col-md-4.col-sm-6.col-xs-12
+      %a.kafe-btn.kafe-btn-mint.full-width.revealOnScroll{"data-animation" => "bounceIn", "data-timeout" => "400", :href => "/signin"}
+        %i.fa.fa-tags
+        Post a Job, It’s Free!
+  %section.jobslist
+    .container
+      .row
+        .col-lg-4
+          .list.element-box.gray-background
+            .list-group
+              .list-group-item.active.cat-top
+                %em.fa.fa-fw.fa-coffee.text-white>
+                   Categories
+                %span.badge= @job_all.count
+              - @job_categories.each do |category,jobs|
+                %a.list-group-item.cat-list{:href => static_jobs_path(category: category)}
+                  %em.fa.fa-fw.fa-code.text-muted
+                   #{truncate(category,length: 20)}
+                  %span.badge.badge-success.text-red-bg= jobs.count
+                %br
+        .col-lg-8.element-box.gray-background
+          = search_form_for @search , url: search_static_jobs_path , method: :get,class:"list-search revealOnScroll " ,"data-animation" => "fadeInDown", "data-timeout" => "200" do |f|
+            %button
+              %i.fa.fa-search
+            = f.text_field :title_or_job_category_cont, class: "form-control", placeholder: "Search Jobs..."
+            .clearfix
+          -#%h6 We found 100 jobs matching: Web Development &amp; IT
+          - @job_all.each do |job|
+            .job
+              .row.top-sec
+                .col-lg-2.col-xs-12
+                  %a{:href => "#"}
+                    - unless job.created_by&.photo.blank?
+                      = image_tag job.created_by&.photo ,class: "img-responsive"
+                    - else
+                      = image_tag 'https://etymeclub.herokuapp.com/static/js/jobs.png' ,class: "img-responsive"
+
+                .col-lg-10.col-xs-12
+                  %h4
+                    = link_to truncate(job.title,length: 50) ,static_job_path(job)
+                  %h5
+                    = job.company.name.humanize
+                    %small= job.company.email
+              .row.mid-sec
+                .col-lg-12
+                  %hr.small-hr/
+                  %p= truncate(strip_tags(job.description),length: 250)
+                  - job.tags.each do |tag|
+                    %span.label.label-success= tag.name
+              .row.bottom-sec
+                .col-lg-12
+                  %hr.small-hr/
+                .col-lg-2
+                  %h5 Posted
+                  %p #{time_ago_in_words(job.created_at)} ago
+                .col-lg-2
+                  %h5 Location
+                  %p
+                    %i.fa.fa-map-marker
+                    = job.location
+                .col-lg-2
+                  %h5 Category
+                  %p= job.job_category
+                -#.col-lg-2
+                  %h5 Applicants
+                  %p 15
+                .col-lg-4
+                  = link_to raw("<i class= 'fa fa-align-left'> Apply</i>") ,static_job_apply_path(job,status: candidate_signed_in?)   , method: :post , remote: true ,  class: " kafe-btn kafe-btn-mint-small   #{current_candidate.present? ? (current_candidate.already_applied?(job.id) ? "disabled " : "" ) : "" } ", data: { trigger_modal: true }
+
+          .mt-3
+            = digg_pagination(@posts,class: "pagination ")
+
+-content_for :scripts do
+  :javascript
+    ''
+
+= javascript_include_tag 'shared/hide_show_toggler'

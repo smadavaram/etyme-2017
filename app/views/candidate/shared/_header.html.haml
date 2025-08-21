@@ -1,0 +1,185 @@
+%header#header
+  #logo-group
+  = yield :top_right
+  / %input{"data-off-text" => "Unavailable", "data-on-text" => "Available", :name => "candidate-status-toggle", :type => "checkbox", :checked => current_candidate.chat_status == 'available' ? true : false}
+  
+  / %label.switch
+  /   %input#myonoffswitch{:type => "checkbox", :checked=>current_candidate.chat_status == 'available' ? true : false, :name=>""}/
+  /   %span.slider.round
+
+  %form.header-search.pull-left{:action => "#ajax/search.html"}
+    %input#search-fld{:name => "param", :placeholder => "Find reports and more", :type => "text"}/
+    %button{:type => "submit"}
+      %i.fa.fa-search
+    %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
+      %i.fa.fa-times
+
+  / projects dropdown
+  -#.project-context.hidden-xs
+    %span.label Jobs:
+    %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
+      = 'Most Recent'
+      %i.fa.fa-angle-down
+    %ul.dropdown-menu
+      %li
+        %a{:href => "javascript:void(0);"} Online e-merchant management system - attaching integration with the iOS
+      %li
+        %a{:href => "javascript:void(0);"} Notes on pipeline upgradee
+      %li
+        %a{:href => "javascript:void(0);"} Assesment Report for merchant account
+      %li.divider
+      %li
+        %a{:href => "javascript:void(0);"}
+          %i.fa.fa-power-off
+          Clear
+  / pulled right: nav area
+  .pull-right
+    /logout
+    #logout.btn-header.transparent.pull-right
+      %spa
+        = link_to "",destroy_candidate_session_path, method: :delete , class: 'hidden' , id: 'logout-hidden'
+        = link_to(destroy_candidate_session_path, title: 'Sign Out', data: {action: 'userLogout', 'logout-msg' => 'You can improve your security further after logging out by closing this opened browser'}) do
+          %i.fa.fa-sign-out
+    / collapse menu button
+    #hide-menu.btn-header.pull-right
+      %span
+        %a{"data-action" => "toggleMenu", :href => "javascript:void(0);", :title => "Collapse Menu"}
+          %i.fa.fa-reorder
+    / #MOBILE
+    / Top menu profile link : this shows only when top menu is active
+    %ul#mobile-profile-img.header-dropdown-list.hidden-xs.padding-5
+      %li
+        -#%a.dropdown-toggle.no-margin.userdropdown{"data-toggle" => "dropdown", :href => "#"}
+        -#  = image_tag 'avatars/sunny.png', alt: 'John Doe', class: 'online'
+        %ul.dropdown-menu.pull-right
+          %li
+            %a.padding-10.padding-top-0.padding-bottom-0{:href => "javascript:void(0);"}
+              %i.fa.fa-cog
+              Setting
+          %li.divider
+          %li
+            = link_to profile_path(current_candidate) , class: 'padding-10 padding-top-0 padding-bottom-0' do
+              %i.fa.fa-user
+              = succeed "rofile" do
+                %u P
+          %li.divider
+          %li
+            %a.padding-10.padding-top-0.padding-bottom-0{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+              %i.fa.fa-arrow-down
+              = succeed "hortcut" do
+                %u S
+          %li.divider
+          %li
+            %a.padding-10.padding-top-0.padding-bottom-0{"data-action" => "launchFullscreen", :href => "javascript:void(0);"}
+              %i.fa.fa-arrows-alt
+              Full
+              = succeed "creen" do
+                %u S
+          %li.divider
+          %li
+            %a.padding-10.padding-top-5.padding-bottom-5{"data-action" => "userLogout", :href => "login.html"}
+              %i.fa.fa-sign-out.fa-lg
+              %strong
+                %u> Logout
+    #top-menu-toggle.btn-header.transparent.pull-right
+      %span#activity1.activity-dropdown
+        / User image size is adjusted inside CSS, it should stay as it
+        / %a#show-shortcut{"data-action" => "toggleShortcut", :href => "javascript:void(0);"}
+        %a{:href => onboarding_profile_path, :style=>"cursor:pointer"}
+          %i.fa.fa-cog{:style=>"cursor:pointer"}
+    #quick-add.btn-header.transparent.pull-right
+      %span.project-selector.dropdown-toggle{"data-toggle" => "dropdown"}
+        %a.fa.fa-plus-square
+      %ul.dropdown-menu
+        %li
+          %a{:href => new_company_company_path } Add Company(s)
+        %li
+          %a{:href => new_company_company_contact_path } Add Contact(s)
+        %li
+          %a{:href => new_group_path } Add Group(s)
+        %li.divider
+        %li
+          %a{:href => "#" } Received Payment(s)
+        %li
+          %a.link-disabled{:href => "#" } Send Payment(s)
+        %li
+          %a{:href => "#" } Add Timesheet(s)
+        %li
+          %a{:href => candidate_client_expenses_path} Submit Client Expense
+
+    #logo-group.pull-right
+      %span#activity.activity-dropdown.pull-right
+        %i.fa.fa-user
+        %b.badge
+          = current_candidate.notifications.count || 0
+      / AJAX-DROPDOWN : control this dropdown height, look and feel from the LESS variable file
+      .ajax-dropdown
+        / the ID links are fetched via AJAX to the ajax container "ajax-notifications"
+        .btn-group.btn-group-justified{"data-toggle" => "buttons"}
+          -#%label.btn.btn-default
+          -#  %input{:id => ajax_notify_mail_path, :name => "activity", :type => "radio"}/
+          -#  = 'Msgs'
+          -#  (14)
+          %label.btn.btn-default
+            %input{:id => notify_notifications_candidates_path, :name => "activity", :type => "radio"}/
+            ='notify'
+            -#= notifications_count
+            = current_candidate.notifications.count
+        -#%label.btn.btn-default
+        -#  %input{:id => ajax_notify_tasks_path, :name => "activity", :type => "radio"}/
+        -#  = 'Tasks'
+        -#  (4)
+        / notification content
+        .ajax-notifications.custom-scroll
+          .alert.alert-transparent
+            %h4 Click a button to show messages here
+            This blank page message helps protect your privacy, or you can show the first message here automatically.
+          %i.fa.fa-lock.fa-4x.fa-border
+        / footer: refresh area
+        %span
+          Last updated on
+          = Time.now.strftime("%D %T")
+          %button.btn.btn-xs.btn-default.pull-right{"data-loading-text" => "<i class='fa fa-refresh fa-spin'></i> Loading...", :type => "button"}
+            %i.fa.fa-refresh
+    / logout button
+    / search mobile button (this is hidden till mobile view port)
+    -##search-mobile.btn-header.transparent.pull-right
+      %span
+        %a{:href => "javascript:void(0)", :title => "Search"}
+          %i.fa.fa-search
+    / input: search field
+    -#%form.header-search.pull-right{:action => root_path}
+      %input#search-fld{"data-autocomplete" => "[\n            \"ActionScript\",\n            \"AppleScript\",\n            \"Asp\",\n            \"BASIC\",\n            \"C\",\n            \"C++\",\n            \"Clojure\",\n            \"COBOL\",\n            \"ColdFusion\",\n            \"Erlang\",\n            \"Fortran\",\n            \"Groovy\",\n            \"Haskell\",\n            \"Java\",\n            \"JavaScript\",\n            \"Lisp\",\n            \"Perl\",\n            \"PHP\",\n            \"Python\",\n            \"Ruby\",\n            \"Scala\",\n            \"Scheme\"]", :name => "param", :placeholder => "#{'Find reports and more'}", :type => "text"}/
+      %button{:type => "submit"}
+        %i.fa.fa-search
+      %a#cancel-search-js{:href => "javascript:void(0);", :title => "Cancel Search"}
+        %i.fa.fa-times
+    / fullscreen button
+    -##fullscreen.btn-header.transparent.pull-right
+      %span
+        %a{"data-action" => "launchFullscreen", :href => "javascript:void(0);", :title => "Full Screen"}
+          %i.fa.fa-arrows-alt
+
+    #active_chat_button.pull-right
+      %label.switch
+        %input#myonoffswitch{:type => "checkbox", :checked=>current_candidate.chat_status == 'available' ? true : false, :name=>""}/
+        %span.slider1.round        
+
+
+- content_for :scripts do
+  :javascript
+
+    $(document).ready(function() {
+      $(".switch span").on("click", function(){
+        $.ajax({
+          url: '/candidate/candidates/chat_status_update',
+          type: "GET",
+          contentType:"application/json",
+          data: JSON.stringify(),
+          success:function(data){
+
+          }
+        });
+      });
+    });
+    

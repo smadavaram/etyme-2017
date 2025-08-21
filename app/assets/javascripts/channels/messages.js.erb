@@ -1,0 +1,157 @@
+App.messages = App.cable.subscriptions.create('MessagesChannel', {
+    connected: function () {
+       console.log("message")
+    },
+    disconnected: function () {
+    },
+
+    received: function (data) {
+        set_conversation(data);
+        browserNotify({ title: data.sender_name, body: data.msg })
+//        htmlNotify({ title: data.title, body: data.message })
+
+        return ""
+    },
+
+    notify: function (message) {
+        return alert(message);
+    },
+
+    speak: function (massage) {
+        return this.perform('speak', {
+            massage: massage
+        });
+    }
+});
+
+function set_conversation(data) {
+    $("#con-text-" + data.con_id + "-" + data.usr_typ + "-" + data.usr).val('');
+    $("#con-atta-" + data.con_id + "-" + data.usr_typ + "-" + data.usr).val('');
+    $("#con-filename-" + data.con_id + "-" + data.usr_typ + "-" + data.usr).val('');
+    $("#con-filesize-" + data.con_id + "-" + data.usr_typ + "-" + data.usr).val('');
+    $("#con-filetype-" + data.con_id + "-" + data.usr_typ + "-" + data.usr).val('');
+
+
+    current_user_id = $('meta[name=user-id]').attr("content");
+    current_user_type = $('meta[name=user-type]').attr("content");
+
+    if (current_user_id == data.recpt_id && current_user_type == (data.recpt_type == 'Candidate' ? "Candidate" : "User")) {
+        if ($("#conversation-chat-box").data("conversation-id") == data.con_id) {
+            mark_as_read(data.con_id, data.msg_id, current_user_id, current_user_type, data.chat_typ, data.group_id)
+        } else {
+            $("#unread-msg-" + current_user_id).html(data.unread_msg_cnt)
+        }
+    }
+
+    $("#conversation_message_file_url").val('');
+    $(".filepicker-attach-doc").val('');
+    $("#file-name_uploaded").html('');
+    if ($(data.dom).hasClass("popup-chat")) {
+        if (current_user_id == data.usr && current_user_type == (data.usr_typ == 'Candidate' ? "Candidate" : "User")) {
+            $(data.dom).append("<div class='message self'>" +
+                "<div class='message-content'>" +
+                data.msg +
+                "</div>" +
+                "</div>");
+        } else {
+            $(data.dom).append("<div class='message'>" +
+                "<div class='message-content'>" +
+                data.msg +
+                "</div>" +
+                "</div>");
+        }
+    } else {
+        file_url = data.file_url ? "<hr/><a href='" + data.file_url + "' target='_blank'>Attachment</a>" : ''
+        if (current_user_id == data.usr && current_user_type == (data.usr_typ == 'Candidate' ? "Candidate" : "User")) {
+            $(data.dom).append("<div class='chat-message self'>" +
+                "<div class='row' style='justify-content: flex-end; margin-left: 1px; width: 100%; '>"+
+                "<div class='col-sm-5 col-md-5 col-lg-5 chat-messagediv-style' >" +
+                "<div class='chat-message-content-w'>" +
+                "<div class='chat-message-content'>" +
+                data.msg +
+                file_url +
+                "</div>" +
+                "</div>" +
+//                "<div class=chat-message-date>" +
+//                data.msg_time +
+//                "</div>" +
+                "</div>"+
+                "<div class='col-sm-1 col-md-1 col-lg-1 avatar-style' >"+
+                "<div class='chat-message-avatar'>" +
+                "<img src='" + data.msg_url + "' alt='"+ data.img_alt +"' class='image-35-imp'>" +
+                "</div>" +
+                "</div>" +
+                "</div>" +
+                "</div>");
+        } else {
+            flash_success(`${data.sender_name} has send you a message`, 4000);
+            if (document.hidden) {
+                $('title').text(`${data.sender_name} has send you a message`)
+            }
+            if (!$(`.usr_Group_${data.grp_id}`).hasClass('active-conversation')) {
+                if ($(`.usr_Group_${data.grp_id}`)[0]) {
+                    $(`.usr_Group_${data.grp_id}`)[0].style.backgroundColor = "#cfd1de"
+                    $(`.usr_Group_${data.grp_id}`).find('.last-message').html('<div class="status-pill green" title="New Message"></div>' + data.msg.slice(0, 25) + '...')
+                }
+            }
+            $(data.dom).append(
+                '<div class="col-md-8 p-3 rounded-lg">'+
+                    '<div class="flex flex-row items-center">'+
+                        '<div class="flex items-center justify-center h-10 w-10 rounded-full bg-blue-300 flex-shrink-0" >'+
+                          "<img src='" + data.msg_url + "' alt='"+ data.img_alt +"' class='image-35-imp new-class-avatar'>" +
+                        '</div>'+
+                      '<div class="relative ml-3 text-sm bg-white py-2 px-4 shadow rounded-xl">'+
+                        data.msg + file_url +
+                      '</div>'+
+                    '</div>'+
+                '</div>'
+            );
+        }
+    }
+
+
+    if ($("#conversation_" + data.con_id)[0]) {
+        $("#conversation_" + data.con_id).scrollTop($("#conversation_" + data.con_id)[0].scrollHeight);
+        $("#conversation_" + data.con_id).parent().scrollTop($("#conversation_" + data.con_id).parent()[0].scrollHeight);
+    }
+}
+
+function mark_as_read(conversation_id, message_id, cnt_user_id, cnt_user_type, chat_type, group_id) {
+    $.ajax({
+        url: "/conversations/" + conversation_id + "/conversation_messages/" + message_id + "/mark_as_read",
+        type: "GET",
+        data: {cnt_user_id: cnt_user_id, cnt_user_type: cnt_user_type, chat_type: chat_type, group_id: group_id},
+        dataType: "json"
+    });
+}
+
+// takes a props = {title: value, body: value}
+const browserNotify = (props) => {
+    if (!('Notification' in window)) {
+        // console.log("This browser does not support desktop notification")
+    } else if (Notification.permission === 'granted') {
+        var notif2 = new Notification(props.title, { body: props.body })
+    } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+                var notif2 = new Notification(props.title, { body: props.body })
+            }
+        })
+    }
+}
+
+const htmlNotify = (props) => {
+    var notif = document.querySelector('#notifications')
+    notif.innerHTML = `<div>${props.body}</div>  <button id="notif_delete" class="delete"></button>  `
+    notif.classList.remove('notif-hide')
+
+    const notif_delete = document.getElementById('notif_delete')
+    notif_delete.onclick = () => {
+        notif.classList.add('notif-hide')
+    }
+    setTimeout(() => { notif.classList.add('notif-hide') }, 5000)
+}
+
+//Breaking point 
+
+// export { browserNotify, htmlNotify }

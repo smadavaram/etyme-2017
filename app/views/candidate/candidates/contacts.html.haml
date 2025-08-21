@@ -1,0 +1,33 @@
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-12
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: "candidate_contacts_datatable-search"}
+            .table-responsive
+              %table.table.table-striped.table-bordered.table-hover.table-lg{id: "candidate_contacts_datatable"}
+                %thead
+                  %tr
+                    %th NAME
+                    %th NUMBER OF USERS
+                    %th ACTIONS
+                %tbody
+                  -@companies.each do |company|
+                    %tr
+                      %td
+                        =image_tag(company.logo, class: 'data-table-image mr-2', title: "#{company.name}").html_safe
+                        =link_to(do_ellipsis(company.name), profile_company_path(company))
+                      %td= company.users.count
+                      %td
+                        -#= contact_widget(company.owner&.email, company.owner&.phone, company.owner, chat_link: company.owner.present? ? chat_link(company.owner) : '#')
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      default_active_nav('.ln-1');
+    });

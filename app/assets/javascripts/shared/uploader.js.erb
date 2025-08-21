@@ -1,0 +1,94 @@
+var uploader = "<%= Rails.env.development? ? 'localhost-test' : ENV['uploader'] %>";
+//console.log('uploader = ', uploader);
+
+function upload_file(selector, name_selector = false, multiple = false) {
+    new UploaderWindow(uploader).open().then(urls => {
+        if (urls !== false) {
+            let files_path;
+            if (multiple) {
+                files_path = urls.map(function (url) {
+                    return url.url
+                }).join(',')
+              if (name_selector) {
+                $(name_selector).html("<span>" + urls.map(function (url) {return url.name}).join(',') + "</span><hr/>");
+              }
+            } else {
+                let upload = urls[0];
+                if (name_selector) {
+                    $(name_selector).html("<span>" + upload.name + "</span><hr/>");
+                }
+                files_path = upload.url
+            }
+            $(selector).val(files_path).trigger('change');
+            if($(selector).hasClass("resume_field"))
+            {
+                $('.uploaded_resume').show();
+            }
+        }
+    });
+    $(".powered-by-holder").remove();
+    $('.tingle-modal__closeIcon').text('x');
+}
+
+function trix_upload(){
+    let trix = document.querySelector("trix-editor")
+    new UploaderWindow(uploader).open().then(urls => {
+        if( urls !== false ) {
+          let upload = urls[0];
+          if(trix){
+              console.log(upload)
+              if(upload.type.includes('image')){
+                  var attachment = new Trix.Attachment({size:`${upload.size}` ,contentType: `${upload.type}`,caption: `${upload.name}`,content: `<img style='width: 100%;height: 100%;' src=${upload.url}>` })
+                  trix.editor.insertAttachment(attachment)
+              }else if(upload.type.includes('video')){
+                  var attachment = new Trix.Attachment({size:`${upload.size}` ,contentType: `${upload.type}`,caption: `${upload.name}`,content: `<video width="100%" height="100%" controls><source src=${upload.url} type=${upload.type}></video>` })
+                  trix.editor.insertAttachment(attachment)
+              } else{
+                  trix.editor.insertHTML(`<a href=${upload.url} target='_blank'>${upload.name}</a>`)
+              }
+          }
+        }
+    });
+    $(".powered-by-holder").remove();
+    $('.tingle-modal__closeIcon').text('x');
+}
+
+function upload_file_ajax(callback_function, id=false) {
+    new UploaderWindow(uploader).open().then(urls => {
+        console.log('url = ', urls);
+        if (urls !== false) {
+            let upload = urls[0];
+            if (id) {
+                callback_function(upload.url, upload.type, id);
+            } else {
+                callback_function(upload.url, upload.type);
+            }
+            $("#resume_on_slick").html('<img class= "progress_img" src="<%= asset_path 'progress.gif' %>"  style="" alt="Image result for progress bar circle gif">')
+        }
+    });
+    $(".powered-by-holder").remove();
+    $('.tingle-modal__closeIcon').text('x');
+}
+
+function upload_multi_file_ajax(callback_function, id=false,multiple=false) {
+    new UploaderWindow(uploader).open().then(urls => {
+        if (urls !== false) {
+            let files_path;
+            if (multiple) {
+              files_path = urls.map(function (url) {
+                return url.url
+              }).join(',')
+            } else {
+              let upload = urls[0];
+              files_path = upload.url
+            }
+            if (id) {
+                callback_function(files_path,id);
+            } else {
+                callback_function(files_path);
+            }
+        }
+    });
+    $(".powered-by-holder").remove();
+    $('.tingle-modal__closeIcon').text('x');
+}

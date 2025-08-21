@@ -1,0 +1,187 @@
+// Place all the styles related to the candidate/jobs controller here.
+// They will automatically be included in application.css.
+// You can use Sass (SCSS) here: http://sass-lang.com/
+.job-panel {
+  display: table;
+  width: 100%;
+  text-align: left;
+  border-bottom: 1px solid #e4e4e4;
+}
+.cjob-span {
+  vertical-align: middle;
+  text-align: left;
+  font-weight: 300;
+}
+.cjob-list-li {
+  text-align: justify;
+  font-size: 14px;
+}
+.p-bt {
+  font-size: 16px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.mt-20 {
+  margin-top: -20px;
+}
+
+.fs-13 {
+  font-size: 13px;
+  display: block;
+}
+
+.list-p-15 {
+  padding: 15px;
+}
+.ul-s {
+  list-style: none outside none;
+  text-align: justify;
+  padding: 20px;
+  overflow: auto;
+}
+.mt-12 {
+  margin-top: 12px;
+}
+.mt-20s {
+  margin-top: 20px;
+  border: border-light;
+}
+.c-color {
+  background-color: aliceblue;
+}
+.mr-5 {
+  margin-right: 5px;
+}
+#header {
+  background-color: #ff5a5f;
+}
+.bg-color-blueDark {
+  background-color: #ff5a5f !important;
+}
+
+.layout-w {
+  min-height: 100vh;
+}
+
+.wizard-action {
+  background: no-repeat;
+  margin: 0;
+  border: none;
+  ul.wizard {
+    li {
+      list-style: none;
+      a {
+        border: none;
+        background-color: transparent;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #046fdf;
+        cursor: pointer;
+        letter-spacing: 1px;
+        position: relative;
+        text-decoration: none;
+        &:after {
+          font-family: "osfont" !important;
+          speak: none;
+          font-style: normal;
+          font-weight: normal;
+          font-variant: normal;
+          text-transform: none;
+          line-height: 1;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          font-size: 15px;
+          color: #047bf8;
+          position: absolute;
+          top: 50%;
+          -webkit-transform: translateY(-50%);
+          transform: translateY(-50%);
+        }
+        &:hover {
+          color: #334152;
+        }
+      }
+      &.previous {
+        a {
+          &:after {
+            content: "\e987";
+            left: -20px;
+          }
+        }
+      }
+      &.next {
+        a {
+          &:after {
+            content: "\e986";
+            right: -20px;
+          }
+        }
+      }
+    }
+  }
+}
+
+.form-group {
+  label {
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    color: #3e4b5b;
+    margin-bottom: 5px;
+  }
+  .radio-container {
+    display: inline-block !important;
+    line-height: 30px;
+    margin-left: 20px;
+  }
+}
+.profile-tile {
+  margin-left: 1rem;
+  border-bottom: none !important;
+  .profile-tile-box {
+    height: 200px;
+    width: 200px !important;
+    &.small {
+      height: 100px;
+    }
+    img {
+      width: auto !important;
+      height: auto !important;
+      padding: 0 10px 10px;
+      max-width: 100%;
+      max-height: 100%;
+    }
+  }
+}
+.fade.in {
+  opacity: 1 !important;
+}
+
+.document-display {
+  background: #e9ecf3;
+  padding: 10px;
+  border-radius: 5px;
+  margin-top: 10px;
+  p {
+    margin: 0;
+  }
+  .float-right {
+    .make_primary_doc {
+      margin: 0 !important;
+    }
+    .delete_primary_doc {
+      margin: 0 !important;
+    }
+    a {
+      margin: 0;
+    }
+    i {
+      margin: 0;
+    }
+    .primary_doc {
+      i {
+        font-size: 20px;
+      }
+    }
+  }
+}

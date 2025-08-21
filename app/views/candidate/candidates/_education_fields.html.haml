@@ -1,0 +1,40 @@
+.nested-fields8
+  .row
+    .col-sm-4
+      .form-group
+        %label Degree level
+        = f.text_field :degree_level, placeholder: "Degree level", class: 'form-control input'
+
+    .col-sm-4
+      .form-group
+        %label Institute
+        -#= f.select :institute, industry_list,{},{class: 'form-control input',style: "width:100% !important"}
+        = f.text_field :institute, class: 'form-control input'
+    .col-sm-4
+      .form-group
+        %label Degree Title
+        = f.text_field :degree_title, placeholder: "Degree Title",class: 'form-control input'
+  .row
+    .col-sm-4
+      .form-group
+        %label CGPA
+        = f.text_field :grade, placeholder: "CGPA", class: 'form-control input'
+    .col-md-4
+      .form-group
+        %label Start Year
+        = f.text_field :start_year, placeholder: "DD-MM-YYYY", class: 'form-control p_date'
+
+    .col-md-4
+      .form-group
+        %label End Year
+        = f.text_field :completion_year, placeholder:"DD-MM-YYYY", class: 'form-control visa_exp_date input'
+
+
+  .form-group
+    = f.fields_for :candidate_education_documents do |b|
+      = render 'candidate/candidates/candidate_education_document_fields', f: b
+    .links.education_links
+      = link_to_add_association '+ Add Document', f, :candidate_education_documents, class: 'btn btn-primary add_education_btn pull-right', partial: 'candidate/candidates/candidate_education_document_fields'
+      %br
+
+          

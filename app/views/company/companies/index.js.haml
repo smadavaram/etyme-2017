@@ -1,0 +1,8 @@
+$('#companies').empty();
+$('#noData').empty();
+- if @data.present?
+  - @data.each do |d|
+    - if d!=current_company
+      $('#companies').append("#{ j render(partial: "company/prefer_vendors/partials/show" , locals: {data: d})}");
+-else
+  $('#noData').append("#{ j render(partial: "company/companies/partials/no_search_result" , locals: {data: "No Result Found For #{params[:search_by]}"})}");

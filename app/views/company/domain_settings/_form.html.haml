@@ -1,0 +1,178 @@
+.row{style: "padding: 15px;"}
+  = form_for @company,as: "company",url: company_company_path(@company.id),method: :put do |f|
+    .row.form-group
+      .col-lg-12.multi-field-wrapper
+        %p
+          %b Custom Domain
+        .row
+          .col-md-12
+            .form-group
+              = f.text_field :custom_domain, placeholder: "Custom Domain", class: 'form-control'
+        .row
+          .col-md-12
+            %p
+              Further Steps:  
+            %p
+              1. Please add a CNAME record with host
+              %span.text-light.bg-info
+                www
+              &nbsp;pointing to
+              %span.text-light.bg-info
+                business.etyme.com
+            %p
+              2. Add a DNS redirect from your main domain to
+              %span.text-light.bg-info
+                www
+              &nbsp;subdomain
+    .row.form-group
+      .col-lg-12.multi-field-wrapper
+        %p
+          %b Show Company Name and Logo
+        .row
+          .col-md-12
+            .form-group
+              = f.collection_radio_buttons(:show_name_logo, Company.show_name_logos.keys, :to_s, :titlecase, html_options: { class: 'form-check-input' }) do |b|
+                .col-md-4
+                  = b.label { b.radio_button + " " + b.text }
+    .row.form-group
+      .col-lg-12.multi-field-wrapper
+        %p
+          %b Show Slider?
+          = f.check_box :show_slider, class: 'form-check-input', style: 'margin-left: 10px', id: 'show_slider'
+        .row#slider_div
+          .col-md-12
+            = f.fields_for :slider do |sl|
+              .form-group
+                = label_tag "", "Image Size Should be 1050x250px. Image will be auto-Adjusted otherwise.", style: "color: red;"
+              .form-group
+                = render 'shared/file_attachement',f:sl,attr_name: :image_1, name_selector: ".uploaded_file_name", required_field: true, button_name: 'Slider Image 1'
+                = sl.label :image_1, (@company.slider&.image_1&.split('/')&.last or "No File Selected"), class:"d-inline-block uploaded_file_#{@id}"
+              .form-group
+                = sl.text_field :title_1, placeholder: "Slider 1 Title", class: 'form-control'
+              .form-group
+                = sl.text_field :text_1, placeholder: "Slider 1 Text", class: 'form-control'
+              .form-group
+                = label_tag :text_1_color, "Text 1 Color:"
+                = sl.color_field :text_1_color
+              .form-group
+                = render 'shared/file_attachement',f:sl,attr_name: :image_2, name_selector: ".uploaded_file_name", required_field: true, button_name: 'Slider Image 2'
+                = sl.label :image_1, (@company.slider&.image_2&.split('/')&.last or "No File Selected"), class:"d-inline-block uploaded_file_#{@id}"
+              .form-group
+                = sl.text_field :title_2, placeholder: "Slider 2 Title", class: 'form-control'
+              .form-group
+                = sl.text_field :text_2, placeholder: "Slider 2 Text", class: 'form-control'
+              .form-group
+                = label_tag :text_2_color, "Text 2 Color:"
+                = sl.color_field :text_2_color
+
+              .form-group
+                = render 'shared/file_attachement',f:sl,attr_name: :image_3, name_selector: ".uploaded_file_name", required_field: true, button_name: 'Slider Image 3'
+                = sl.label :image_1, (@company.slider&.image_3&.split('/')&.last or "No File Selected"), class:"d-inline-block uploaded_file_#{@id}"
+              .form-group
+                = sl.text_field :title_3, placeholder: "Slider 3 Title", class: 'form-control'
+              .form-group
+                = sl.text_field :text_3, placeholder: "Slider 3 Text", class: 'form-control'
+              .form-group
+                = label_tag :text_3_color, "Text 3 Color:"
+                = sl.color_field :text_3_color
+        %div#banner_div
+          %p
+            %b Apply Gradient To Banner?
+            = f.check_box :apply_gradient, class: 'form-check-input', style: 'margin-left: 10px'
+          %p
+            %b Banner
+          .row
+            .col-md-12
+              .form-group
+                = f.text_field :banner_title, placeholder: "Banner Title", class: 'form-control'
+              .form-group
+                = f.text_field :banner_text, placeholder: "Banner Text", class: 'form-control'
+              .form-group
+                = label_tag :banner_color, "Background Color:"
+                = f.color_field :banner_color
+        %p
+          %b Button 1
+        .row
+          .col-md-12
+            .form-group
+              = f.text_field :banner_btn_label, placeholder: "Call to Action Label", class: 'form-control'
+            .form-group
+              = f.text_field :banner_btn_url, placeholder: "Call to Action URL", class: 'form-control'
+        %p
+          %b Button 2
+        .row
+          .col-md-12
+            .form-group
+              = f.text_field :banner_two_btn_label, placeholder: "Call to Action Label", class: 'form-control'
+            .form-group
+              = f.text_field :banner_two_btn_url, placeholder: "Call to Action URL", class: 'form-control'
+        
+        .form-group
+          %p{style: "color: red;"}
+            = link_to "Create New", new_job_path(type: "Blog"), style:"text-decoration: underline; color: red;"
+            or Select Existing Published Blogs for following options.
+        %p
+          %b About Us
+        .row
+          .col-md-12
+            .form-group
+              = select_tag 'about_us_blog', options_for_select(current_company.blogs.collect{ |c| [c.id.to_s+" - "+c.title,c.id]}.compact, current_company.about_us_blog&.id), include_blank: true, class: 'form-control job_select2'
+        %p
+          %b Contact
+        .row
+          .col-md-12
+            .form-group
+              = select_tag 'contact_blog', options_for_select(current_company.blogs.collect{ |c| [c.id.to_s+" - "+c.title,c.id]}.compact, current_company.contact_blog&.id), include_blank: true, class: 'form-control job_select2'
+        %p
+          %b Terms and Conditions
+        .row
+          .col-md-12
+            .form-group
+              = select_tag 'terms_blog', options_for_select(current_company.blogs.collect{ |c| [c.id.to_s+" - "+c.title,c.id]}.compact, current_company.terms_blog&.id), include_blank: true, class: 'form-control job_select2'
+        %p
+          %b Privacy Policies
+        .row
+          .col-md-12
+            .form-group
+              = select_tag 'privacy_blog', options_for_select(current_company.blogs.collect{ |c| [c.id.to_s+" - "+c.title,c.id]}.compact, current_company.privacy_blog&.id), include_blank: true, class: 'form-control job_select2'
+    .row
+      .col-lg-12
+        %button.btn.btn-primary.pull-right{:type => "submit"}
+          Save
+
+:css
+  .form-check {
+    margin-right: 10px;
+  }
+
+  .form-check-input {
+    margin-right: 5px;
+  }
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      if ($("#show_slider").is(':checked')) {
+        $("#slider_div").fadeIn();
+        $("#banner_div").hide();
+      }else{
+        $("#banner_div").fadeIn();
+        $("#slider_div").hide();
+      }
+      $('#show_slider').change(function() {
+        if ($(this).is(':checked')) {
+          $("#slider_div").fadeIn();
+          $("#banner_div").hide();
+        } else {
+          $("#banner_div").fadeIn();
+          $("#slider_div").hide();
+        }
+      });
+    });
+
+    function changes_selected(obj){
+      var all_links = document.querySelectorAll('a[id="public_job_link"]');
+      for(var i=0; i<all_links.length; i++){
+        all_links[i].classList.remove('selected');
+      }
+      $(obj).addClass("selected");
+    }

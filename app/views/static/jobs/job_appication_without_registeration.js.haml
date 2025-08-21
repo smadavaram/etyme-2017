@@ -1,0 +1,32 @@
+$('#new-candidate').modal('hide');
+$('.modals').empty().append(("#{ j render('partials/job_application_without_registration_modal' , job: @job , job_application: @job_application )}"));
+$('#job-apply-#{@job.id }').modal('toggle');
+ 
+var element = $('#accept-filepiker');
+
+$( ".file-pick" ).on('click',function() {
+
+$('.fp__overlay').css({'z-index':'99999'});
+});
+var reqelement = $('#req-accept-filepiker');
+$( ".req-file-pick" ).on('click',function() {
+$(".fp__overlay").css({'z-index':'99999'});
+});
+
+$("#without_registration_save").click(function() {
+var applicant_ans  = $("#" + "#{j @id.to_s}")
+
+if(!applicant_ans.val() && applicant_ans.attr('data-required') == "true") {
+alert("You must need to add applicant ans attachment.");
+return false;
+}
+var requiredCheckboxes = $(':checkbox[required]');
+requiredCheckboxes.change(function(){
+if(requiredCheckboxes.is(':checked')) {
+requiredCheckboxes.removeAttr('required');
+} else {
+requiredCheckboxes.attr('required', 'required');
+}
+});
+});
+

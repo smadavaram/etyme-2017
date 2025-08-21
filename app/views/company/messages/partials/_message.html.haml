@@ -1,0 +1,22 @@
+
+- if m.messageable == current_user || m.messageable == current_candidate
+  %li.other.who
+    .avatar
+      = image_tag m.messageable.photo , alt: asset_path('can.png')
+    .messages{style: "width:100% !important ;"}
+      %a.username{:href => "#"}= m.try(:messageable).try(:full_name).try(:humanize)
+      %p #{raw(m.try(:body))} #{ raw("<button class= 'btn btn-xs btn-success ' onClick='replyUpload(#{m.id})'>Upload Signed</button>") if m.try(:company_doc).try(:is_required_signature?) && m.pending? }
+
+      %time.timeago #{time_ago_in_words(m.try(:created_at)) } ago
+      = link_to raw("<i class='fa fa-share '></i>") , company_chat_message_share_message_path(m.chat,m) ,class: "btn btn-xs btn-primary pull-right", remote: :true
+
+
+-else
+  %li.self.who
+    .avatar
+      = image_tag m.messageable.photo , alt: asset_path('can.png'), style: "width:40px !important"
+    .messages{style: "width:100% !important ;"}
+      %a.username{:href => "#" , style: "color: aliceblue ;"}= m.try(:messageable).try(:full_name).try(:humanize)
+      %p  #{raw(m.try(:body))} #{ raw("<button class= 'btn btn-xs btn-success ' onClick='replyUpload(#{m.id})'>Upload Signed</button>") if m.try(:company_doc).try(:is_required_signature?) && m.pending? }
+      %time.timeago #{time_ago_in_words(m.try(:created_at)) } ago
+      = link_to raw("<i class='fa fa-share '></i>") ,company_chat_message_share_message_path(m.chat,m) ,class: "btn btn-xs btn-success pull-right", remote: :true

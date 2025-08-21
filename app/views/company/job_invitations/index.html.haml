@@ -1,0 +1,36 @@
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .widget-body
+              %ul#myTab1.nav.nav-tabs.smaller
+                %li.nav-item.cumstom_nav-tab.active
+                  %a{"data-toggle" => "tab", :href => "#tab-r1",class: "nav-link cumstom_nav-tab display-flex"}
+                    %span.badge.bg-color-blue.txt-color-white
+                    Sent Invitations
+                    %span.badge.bg-color-blue.txt-color-white= @sent_job_invitations.count
+
+                %li.nav-item.cumstom_nav-tab
+                  %a{"data-toggle" => "tab", :href => "#tab-r2",class: "nav-link cumstom_nav-tab display-flex"}
+                    %span.badge.bg-color-blueDark.txt-color-white
+                    Received Invitations
+                    %span.badge.bg-color-blueDark.txt-color-white= @received_job_invitations.count
+                .col-md-12
+                  .tab-content
+                    #tab-r1.tab-pane.active
+                      .tab-content.padding-10
+                        #is-all.tab-pane.fade.active.in
+                          = render 'company/job_invitations/partials/invitation_table' , data: @sent_job_invitations
+                    #tab-r2.tab-pane
+                      .tab-content.padding-10
+                        #isall.tab-pane.fade.active.in
+                          = render 'company/job_invitations/partials/receive_invitation_table' , data: @received_job_invitations
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      pageSetUp();
+      default_active_nav('.ln-6');
+    });

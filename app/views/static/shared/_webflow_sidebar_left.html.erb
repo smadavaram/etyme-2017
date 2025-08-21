@@ -1,0 +1,87 @@
+<!-- Side Wrapper Start -->
+<section class="side-wrapper" id="side-wrapper">
+  <div class="left-navbar pl-3 pr-2">
+    <div>
+      <div class="sidenav-items p-0">
+        <div class="nav flex-column nav-pills">
+          <%unless request.subdomain == "app"%>
+            <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" && params[:selected_categories] != "Training" &&  (params[:action] == "static_feeds" || (params[:action] == "show" && params[:type] == 'feed'))) ? "active" : ""  %>" href="<%= root_static_feeds_path %>" href="#">
+              <span class="material-symbols-outlined left-side-icon" >
+                home
+              </span>
+              Home
+            </a>
+          <%end%>
+          <a class="nav-link sidebar-link <%= params[:controller] == "static/jobs" &&  (params[:action] == "index" || (params[:action] == "show" && params[:type] == 'job')) ? "active" : ""  %>" href="<%= static_jobs_path %>">
+            <span class="material-symbols-outlined left-side-icon">
+              work
+            </span>
+            Jobs
+          </a>
+          <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  params[:action] == "people") || (params[:controller] == "static/candidates" &&  params[:action] == "candidate_profile") ? "active" : ""  %>" href="<%= static_people_path %>">
+            <span class="material-symbols-outlined left-side-icon">
+              star
+            </span>
+            Bench
+          </a>
+          <%unless request.subdomain == "app"%>
+            <a class="nav-link sidebar-link <%= (params[:controller] == "static/jobs" &&  (params[:action] == "static_feeds") && params[:selected_categories] == "Training") ? "active" : ""  %>" href="<%= root_static_feeds_path %>?selected_categories=Training&input_search=">
+              <span class="material-symbols-outlined left-side-icon">
+                model_training
+              </span>
+              Trainings
+            </a>
+          <%end%>
+        </div>
+      
+      </div>
+    </div>
+    <div class="static_links">
+      <hr style="margin-bottom: 0px; border-top: 1px solid rgb(0 0 0 / 0%);">
+      <div class="footer text-center">
+        <%= link_to 'About', '/static/'%>
+        <%= link_to 'Terms', '/terms_of_use/'%>
+        <%= link_to 'Privacy', '/privacy_policy/'%></br>
+        <%= link_to 'Contact', '/contact_us/'%>
+        <%= link_to 'Help', '/privacy_policy/'%>
+      </div>
+      <hr style="margin-bottom: 0px; border-top: 1px solid rgb(0 0 0 / 0%);">
+    </div>
+  </div>
+</section>
+<!-- Side Wrapper End -->
+<style type="text/css">
+  .left-navbar {
+    display: flex;
+    flex-direction: column;
+    height: -webkit-fill-available;
+  }
+  .left-navbar .start {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  .left-navbar .footer a{
+    font-size: small;
+    color: #9F9F9F;
+  }
+
+  .nav-pills .nav-link.active, .nav-pills .show > .nav-link{
+    color: black !important;
+    background-color: white;
+  }
+  .nav-pills .nav-link.active, .nav-pills .show > .nav-link {
+    color: #fff;
+    background-color: white!important;
+  }
+  .left-side-icon{
+    margin-right: 5px;
+    font-size: 28px !important; 
+  }
+</style>
+<script type="text/javascript">
+  <% if params[:controller] == "static/jobs" &&  (params[:action] == "index" || (params[:action] == "show" && params[:type] == 'job')) || (params[:controller] == "static/jobs" &&  (params[:action] == "static_feeds") && params[:selected_categories] == "Training") %>
+    $("#candidate_menu").click();
+  <%end%>
+</script>

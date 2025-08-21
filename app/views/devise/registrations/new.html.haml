@@ -1,0 +1,31 @@
+.page-padding
+  .all-wrapper.menu-side.with-pattern
+    .auth-box-w
+      .logo-w
+        %a{:href => "/"}
+          %img{:alt => "", :height => "54", :src => "#{image_path('etyme-logo-dark')}", :width => "image_width_for_height('logo/logo-big.png', 54)"}/
+      %h4.auth-header Sign Up
+      = form_for(resource, as: resource_name, url: registration_path(resource_name)) do |f|
+        = devise_error_messages!
+        .form-group
+          %label{:for => "user_email"} Email
+          = f.email_field :email, autofocus: true, class: ' form-control'
+          .help-block.form-text.with-errors.form-control-feedback
+            %a{:href => "#{new_session_path(resource_name)}"} have an account?
+          .pre-icon.icon_color.os-icon.os-icon-email-2-at2
+        .form-group
+          %label{:for => "user_password"} Password
+          - if @minimum_password_length
+            %em
+              (#{@minimum_password_length} characters minimum)
+          = f.password_field :password, autocomplete: "off",class: 'form-control'
+          .help-block.form-text.with-errors.form-control-feedback
+          .pre-icon.os-icon.os-icon-fingerprint
+
+        .form-group
+          %label{:for => "user_password"} Password Confirm
+          = f.password_field :password_confirmation, autocomplete: "off",class: 'form-control'
+          .help-block.form-text.with-errors.form-control-feedback
+          .pre-icon.os-icon.os-icon-fingerprint
+        = f.submit "Sign up",class: 'btn btn-primary'
+

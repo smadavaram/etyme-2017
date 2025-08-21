@@ -1,0 +1,235 @@
+<style>
+@media (min-width: 1025px) {
+.cont-comany {
+margin-left: 0px;
+}
+.border-no {
+  border: none;
+}
+}
+#main{
+  min-height: none !important;
+  padding-bottom: 0px !important;
+}
+@media (max-width: 768px) {
+.chat-margin {
+margin-top: 15px;
+}
+}
+/* $(".cont_c").css("mr"
+,"0") */
+
+</style>
+<script src="https://cdn.tailwindcss.com"></script>
+<!--Contaniner -->
+<div class="row conversation-container">
+<!--  Left Bar-->
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3" style="z-index: 100;background-color: #eaf3fc;"  >
+
+    <div class="left-chat-bar company-left-chat-bar">
+      <div class="full-chat-left1">
+        <div class="os-tabs-w">
+          <ul class="nav upper centered">
+          </ul>
+        </div>
+        <div class="chat-search d-flex margin-top-10 left-side-header-style" style="border-bottom: 2px solid #e5e7eb;height: 7vh;">
+          <div class=" col-sm-4 col-md-4 col-lg-4 left-side-select-style">
+
+            <div class="chat-search d-flex left-side-header-style">
+                <div class="element-actions w-100">
+                  <select class="form-control border-no pl-2 height-36" id="chat_topic">
+                  <option value="All">All</option>
+                  <option value="Job">Job/Offer</option>
+                  <option value="JobApplication">Application</option>
+                  <option value="SellContract">SellContract</option>
+                  <option value="BuyContract">BuyContract</option>
+                  <option value="GroupChat">Group</option>
+                  <option value="PorposalChat">Porposal</option>
+                  </select>
+                </div>
+            </div>
+
+
+          </div>
+          <div class="col-sm-8 col-md-8 col-lg-8">
+            <input type="text" class="form-control input-search-style" placeholder="Search Conversation" id="conversation-users-search">
+          </div>
+          <div class="col-sm-1 col-md-1 col-lg-1 left-side-plus-icon" >
+          </div>
+        </div>
+        
+        <div class="px-22" style="padding-top: 9px;">
+          <ul class="chat-listing chat-user-list_heights company-conversation-scorll" role="tablist" id="company-conversation-list">
+            <%= render 'conversations_list', conversations: @conversations %>
+          </ul>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+
+<!--  Center-->
+
+  <div class="col-sm-12 col-12 col-md-9 col-lg-9 job-conversation-box-style" id="conversation-section">
+    <%= render "company/conversations/job_conversation_box_2", conversation: @conversation, nested_colap: true %>
+  </div>
+
+<!--  Right-->
+  <div class="col-sm-12 col-12 col-md-3 col-lg-3 hidden" >
+    <div class=" " id="conversation-r-section">
+      <%= render "company/conversations/conversation_right_side_2" %>
+    </div>
+  </div>
+
+
+  <%#= render 'company/conversations/chat_container', conversations: @conversations %>
+
+</div>
+<!--end of container-->
+
+
+<!--<br>-->
+<!--<br>-->
+<!--<br>-->
+<!--<br>-->
+<!--<br>-->
+
+
+
+
+
+
+
+
+
+
+
+
+<style>
+    .fixed-height{
+        overflow-y: unset;
+    }
+    .full-chat-w .full-chat-left {
+        padding: 0px 0px;
+    }
+    .input-search-style{
+      border-radius: 4px !important;
+    }
+    .active-div-color{
+      border-radius: 0px;
+      background-color: #bad7f7b3;
+    }
+    .chat-user-list_heights{
+      margin-left: 0;
+    }
+    .user-list-item-style {
+      width: initial;
+    }
+    .convo_box{
+      background-color: #f8f8f8;
+    }
+    .full-width-style:hover{
+      background-color: #047bf8;
+    }
+    .full-width-style a:hover, a:active, a:visited, a:focus {
+        text-decoration:none;
+    }
+    .conversation_image {
+      height: 35px;
+    }
+    .div-usermessage-styles{
+      margin-top: 9px;
+    }
+    @media only screen and (max-width: 600px){
+      .option-mobile-style {
+        margin-top: 0px;
+      }
+      .div-usermessage-styles{
+        margin-top: 0px;
+      }
+      .chat-messagediv-style {
+        width: auto;
+        margin-right: 68px;
+        margin-bottom: -43px;
+      }
+      .mobile-user-icon{
+        display: block;
+        margin-bottom: -15px !important;
+      }
+      .company-div-style-7 {
+        margin-top: 0px;
+      }
+      .send-icons{
+        display: none;
+      }
+      .send-icons2{
+        display: block ruby;
+      }
+      .conversation_image {
+          height: 42px;
+        }
+      .mobile_chat_subtitle{
+        width: 56%;
+      }
+      .d-inline{
+        margin-left: 13px;
+      }
+
+      #search-specfic-text{
+        display: none;
+      }
+      .left-chat-bar {
+        margin-top: 0% !important;
+        border-radius: 0;
+      }
+      .element-search{
+        display: none;
+      }
+      .left-side-header-style {
+        margin-top: 0px !important;
+      }
+      .left-side-select-style {
+        width: 100%;
+      }
+      #conversation-users-search{
+        margin-top: 15px;
+      }
+      #chat_topic{
+        margin-top: 14px;        
+      }
+      .chat-margin {
+        margin-top: 6%;
+      }
+      .full-chat-left1{
+        margin-top: 6%;
+      }
+    }
+    @media only screen and (max-width: 767px){
+      .chat-margin {
+        margin-top: 6%;
+      }
+    }
+</style>
+<script>
+    function load_data_table(){
+      $("#company-template-datatable").dataTable();
+      $("#company-template-datatable-search").keyup(function () {
+        $("#company-template-datatable").DataTable().search($(this).val()).draw();
+      });
+    }
+    function myFunction(){
+        $("#conversation-section").hide();
+        $(".right-sidebar").show();
+    }
+    function myFunction1(){
+        $("#conversation-section").hide();
+        $(".left-chat-bar").show();
+    }
+    function backtochat(){
+        $(".right-sidebar").hide();
+        $("#conversation-section").show();
+    }
+</script>

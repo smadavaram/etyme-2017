@@ -1,0 +1,279 @@
+<style>
+@media (min-width: 1025px) {
+
+  .fixed-side{
+    position: fixed;
+    width: 224px;
+  }
+
+  .margin_class{
+    margin-left: 224px !important;
+  }
+}
+  .cont-comany2{
+    margin-left: 0px !important;
+  }
+  .icon-side-bar{
+        /* display: block !important; */
+    }
+  .togglebtncontainerinbox1
+  {
+
+    position: absolute;
+    cursor: pointer;
+    z-index: 999999;
+    height: 50px;
+    width: 50px;
+    color: #ffffff;
+    border-radius: 6px;
+    justify-content: center;
+    align-items: center;
+  }
+  .chat-togle-css{
+    display: none !important;
+  }
+  .dis-no{
+    display:none !important;
+  }
+  .icon-button-style1{
+
+    height: 45px;
+    width: 45px;
+    background-color: #047BF8;
+    border-radius: 50px;
+    margin: 5px;
+  }
+
+    .hamburger-icon{
+      display: block !important;
+      padding-top: 15px;
+      padding-left: 13px;
+    }
+.newindex-class{
+  z-index: 100;
+}
+
+@media screen and (max-width: 768px) {
+    .header-title{
+        font-size: 11px!important;
+
+    }
+}
+
+</style>
+<%#
+=begin%>
+<!-- <div  id="side-bar" class="mobile-icon-side-bar-can icon-side-bar " style="display: none !important; position:absolute; height: 12vh; padding-left: 10px;">-->
+<!--  <div style="display: flex !important; margin-bottom: 10px !important;">-->
+<!--    <div class="col-sm-10 col-md-10 col-lg-10 logged-user-i" style="display: inline-flex !important; align-items:center; padding-left: 0.7rem; margin-top: 10px;">-->
+<!--      <div class="avatar-w" style="padding: 4px; border-radius: 50% !important; overflow: hidden; display: inline-block;">-->
+          <%#= user_image(current_candidate&.associated_company, class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
+<!--        </div>-->
+<!--      <div class="logged-user-info-w" style="padding-left: 15px;">-->
+<!--          <div class="logged-user-name">-->
+            <%# if current_candidate.associated_company %>
+              <%#= link_to current_candidate.associated_company.name.capitalize, '#', class: "text-muted" %>
+              <%#= link_to "<i class='os-icon os-icon-ui-49'></i>".html_safe, "#candidate-bench_req", :class => "", "data-toggle" => "modal" %>
+
+            <%# else %>
+<!--              <a href="#" class="text-muted"> freelancer</a>-->
+            <%# end %>
+<!--          </div>-->
+<!--         div class="logged-user-role">My Team</div-->
+<!--        </div>-->
+<!--    </div>-->
+<!--    <div id='toggle1' class="col-sm-2 col-md-2 col-lg-2 toggleshow" style="margin-top: 9px !important; padding-left: 14px;">-->
+<!--      <div class="icon-button-style " style="display: flex !important; ">-->
+<!--        <div id="togglebutton" onclick="toglleMenu()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">-->
+<!--          <div class="os-icon os-icon-hamburger-menu-1"></div>-->
+<!--        </div>-->
+<!--      </div>-->
+<!--    </div>-->
+<!--    <div id='toggle2' class="col-sm-2 col-md-2 col-lg-2 togglehide" style="margin-top: 9px !important; padding-left: 14px;">-->
+<!--      <div class="icon-button-style" style="display: flex !important; ">-->
+<!--        <div id="togglebutton" onclick="toglleMenu1()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox' : 'togglebtncontainer' %>">-->
+<!--          <div class="os-icon os-icon-hamburger-menu-1"></div>-->
+<!--        </div>-->
+<!--      </div>-->
+<!--    </div>-->
+<!--  </div>-->
+<!--</div>-->
+<%#
+=end%>
+
+
+<script>
+
+
+    function toglleMenu() {
+       $("#remove-logo-ham-id").css("display", "none");
+        var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
+        document.querySelector('#togglebutton').classList.toggle('rightChanged');
+        $("#toggle1").removeClass('toggleshow');
+        $("#toggle1").addClass('togglehide');
+        $("#toggle2").removeClass('togglehide');
+        $(".cont-comany").addClass('margin_class');
+        $(".cont-comany").removeClass('cont-comany2');
+    }
+    function toglleMenu1() {
+      debugger;
+        $("#remove-logo-ham-id").css("display", "flex");
+        $("#remove-logo-ham-id").css("flex", "auto");
+        $("#remove-logo-ham-id").css("margin-left", "10px")
+        var menu = document.querySelector('#toggledmenubar').classList.toggle("displayblock");
+        document.querySelector('#togglebutton').classList.toggle('rightChanged');
+        $("#toggle1").removeClass('togglehide');
+        $("#toggle1").addClass('toggleshow');
+        $("#toggle2").addClass('togglehide');
+        $(".cont-comany").addClass('cont-comany2');
+        $(".cont-comany").removeClass('margin_class');
+    }
+</script>
+
+
+
+
+
+<div id="toggledmenubar" style="<%= "display: none;" if is_inbox_path %>" class="fixed-side menu-w color-scheme-light fixed-height color-style-default menu-position-side menu-side-left menu-layout-compact sub-menu-style-flyout sub-menu-color-light selected-menu-color-light menu-activated-on-hover menu-has-selected-link newindex-class">
+
+  <div class="logged-user-w avatar-inline m-1 " style="height: 5vh; margin-top: 18px !important; margin-left: -12px !important; border: none !important;">
+    <div class="logged-user-i">
+      <div class="avatar-w">
+<!--        <img src="<%#= image_path('og.jpeg') %>" style= 'width: 35px; height: 35px;' alt="">-->
+        <%= user_image(current_candidate&.associated_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2', title: "#{current_candidate&.associated_company&.full_name}") %>
+      </div>
+      <div class="logged-user-info-w">
+        <div class="logged-user-name d-flex ">
+          <% if current_candidate.associated_company %>
+            <%= link_to current_candidate.associated_company.name.capitalize, '#', class: "text-muted header-title" %>
+            <%= link_to "<i class='os-icon os-icon-ui-49'></i>".html_safe, "#candidate-bench_req", :class => "pl-1", "data-toggle" => "modal" %>
+
+          <% else %>
+            <a href="#" class="text-muted"> freelancer</a>
+          <% end %>
+        </div>
+        <!--div class="logged-user-role">My Team</div-->
+      </div>
+        <div class="bread-style bread-styles" style="margin-left:30px !important; background: none !important;" onclick="toglleMenu1()">
+            <div class="os-icon os-icon-hamburger-menu-1 bread-style1" style="background: none !important;" ></div>
+       </div>
+<!--      <div class="icon-button-style1 chat-togle-css" >-->
+<!--        <div id="togglebutton" onclick="toglleMenu1()" class="<%#= is_inbox_path ? 'togglebtncontainerinbox1' : 'togglebtncontainer' %>">-->
+<!--          <div class="os-icon os-icon-hamburger-menu-1 hamburger-icon"></div>-->
+<!--        </div>-->
+<!--      </div>-->
+    </div>
+  </div>
+
+<!--  End of header image-->
+  <div class="candidate_nav logged-user-w avatar-inline pl-4 pt-4 pr-0 border-t-2">
+    <div class="side-bar_nav w-100 pr-2" style="height: calc(100vh - 175px);overflow-y: auto;">
+      <a href="/candidate" class="side-bar_tab side-bar_links">
+        <div class="icon-w">
+          <i class="ti-home"></i>
+        </div>
+        <span>Dashboard</span>
+      </a>
+      <!--      <a href="<%#= candidate_conversations_path %>" class="side-bar_tab side-bar_links" target="_blank">-->
+      <!--        <div class="icon-w">-->
+      <!--          <i class="os-icon os-icon-mail-14"></i>-->
+      <!--        </div>-->
+      <!--        <span>Inbox</span>-->
+      <!--      </a>-->
+      <!--      <a class="ln-1 sidebar_collapsible side-bar_tab">-->
+      <!--        <div class="icon-w">-->
+      <!--          <i class="ti-world"></i>-->
+      <!--        </div>-->
+      <!--        <span>Network</span>-->
+      <!--      </a>-->
+      <!--      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">-->
+      <!--        <a href="<%#= companies_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Companies</a>-->
+      <!--        <a href="<%#= contacts_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Contacts</a>-->
+      <!--        <a href="<%#= groups_candidates_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Groups</a>-->
+      <!--      </div>-->
+
+      <a class="ln-2 sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="icon-graduation"></i>
+        </div>
+        <span>Talent pool</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <%= link_to 'Bench', candidate_invitations_bench_path, class: "l2 side-bar_links nested_tab boarder_bottom" %>
+        <%= link_to 'Subscriptions', candidate_subscriptions_path, class: 'l2 side-bar_links nested_tab boarder_bottom' %>
+      </div>
+      <a class="ln-3 sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="icon-people"></i>
+        </div>
+        <span>Job(s)</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a href="<%= candidate_job_invitations_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Invited Jobs</a>
+        <a href="<%= candidate_jobs_path %>" class="l2 side-bar_links nested_tab boarder_bottom">Public Jobs</a>
+      </div>
+      <a class="side-bar_tab side-bar_links" href="<%= candidate_job_applications_path %>">
+        <div class="icon-w">
+          <i class="fa fa-id-card-o"></i>
+        </div>
+        <span>Applications</span>
+      </a>
+      <a class="ln-5 sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="os-icon os-icon-hierarchy-structure-2"></i>
+        </div>
+        <span>HR</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= candidate_contracts_path %>">Contracts</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= timeline_candidate_contracts_path %>">Timeline</a>
+        <a class="l2 side-bar_links nested_tab boarder_bottom" href="<%= candidate_document_signs_path %>">Document Requests</a>
+        <a href="<%= candidate_legal_docs_path %>" class="l2 side-bar_links nested_tab boarder_bottom">My Documents</a>
+      </div>
+      <a class="ln-6 sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="ti-timer"></i>
+        </div>
+        <span>Timer(s)</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a href="<%= candidate_timesheets_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Timesheets</a>
+        <a href="<%= expenses_candidates_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Expenses</a>
+        <a href="<%= new_candidate_expense_path(cycle_type: "timesheet") %>" class=" l2 side-bar_links nested_tab boarder_bottom">Add Expenses</a>
+      </div>
+      <a class="ln-7 sidebar_collapsible side-bar_tab">
+        <div class="icon-w">
+          <i class="picons-thin-icon-thin-0417_calculator"></i>
+        </div>
+        <span>Accounting</span>
+      </a>
+      <div class="pl-4 w-100 text-justify nav-sidebar-collaps">
+        <a href="<%= salaries_candidates_path %>" class=" l2 side-bar_links nested_tab boarder_bottom">Salaries</a>
+      </div>
+
+    </div>
+<!--    <div class="side-bar_icons">-->
+<!--      <a class="">-->
+<!--        <div class="icon-w">-->
+<!--          <i class="os-icon os-icon-search"></i>-->
+<!--        </div>-->
+<!--      </a>-->
+<!--      <a class="">-->
+<!--        <div class="icon-w">-->
+<!--          <i class="fa fa-users"></i>-->
+<!--        </div>-->
+<!--      </a>-->
+<!--      <a class="">-->
+<!--        <div class="icon-w">-->
+<!--          <i class="ti-settings"></i>-->
+<!--        </div>-->
+<!--      </a>-->
+<!--    </div>-->
+    <div style="color: lightgrey">
+      <p><i>Powered by  <%= image_tag 'etyme-logo-dark.png', class: "img-responsive", width: "76", height: "30" %></i>
+      </p>
+    </div>
+  </div>
+</div>
+<%= render 'shared/candidate_bench_req_form' %>
+

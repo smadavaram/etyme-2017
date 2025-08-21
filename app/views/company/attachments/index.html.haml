@@ -1,0 +1,193 @@
+.content-box
+  .element-wrapper
+    .element-box
+      = render partial: 'company/companies/sub_menu_company'
+      = form_for current_company,url: "/company_candidate_docs",method: :post do |f|
+        %br
+        .row
+          .col-md-12
+            %h4
+              %b Create Template
+            %br
+            .form-group.candidate-association
+              = fields_for :company_candidate_docs, @company_candidate_docs do |b|
+                = render 'company/companies/company_candidate_docs_fields', f: b
+
+        .row
+          .col-md-12
+            .content-i
+              .content-box
+                .row
+                  .h3.b
+                    Checklist
+                  .col-sm-12
+                    .element-wrapper
+                      .element-box-tp
+                        .controls-above-table
+                          .row.mr-1.ml-1
+                            .col-sm-6
+                            .col-sm-6
+                              .form-inline.justify-content-sm-end
+                                %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "search", id: 'company_attachments_search'}
+                        .table-responsive
+                          %table#company_attachments.table.table-striped.table-bordered.dataTable
+                            %thead
+                              %tr{:role => "row"}
+                                %th Select
+                                %th.expand.sorting_asc Title
+                                %th Type
+                                %th Document For
+                                %th Expiry Date
+                                %th Is Require
+                                %th Attachments
+                                %th.sorting{} Actions
+                            %tbody
+                              - current_company.company_candidate_docs.each do |doc|
+                                %tr.even{:role => "row"}
+                                  %td
+                                    = check_box_tag "ids[]", doc.id
+                                  %td= doc.title
+                                  %td= doc.title_type
+                                  %td= doc.document_for
+                                  %td= doc.exp_date
+                                  %td= doc.is_require
+                                  %td
+                                    -if !doc.file.blank?
+                                      -index = 1
+                                      - doc.file.split(",").each do |file_path|
+                                        %br
+                                        %a{:download => "", :href => file_path, :target=>"_blank"}
+                                          = "modal-dialog#{index}: #{file_path.split('/').last}"
+                                          - index = index +1
+                                  %td.candidate-file-upload-btn
+                                    = link_to "", delete_company_candidate_docs_path(:id=>doc.id), :title=>"Delete", class: "fa fa-trash-o fa-lg fa-fw delete_primary_doc", method: :delete, data: { confirm: 'Are you sure?' }
+                                    -#%a{class: "video-file", onclick:"fileUploadEvent(#{doc.id})", title: "Upload Video"}
+                                    -#  %i.fa.fa-paperclip.fa-lg
+
+- content_for :scripts do
+  = javascript_include_tag 'shared/domain_checker'
+  :javascript
+    $(document).ready(function() {
+      $(".template_type").change(function() {
+        if (["Website","Document"].includes($(this).val())){
+          $('#upload_doc').hide();
+        }else{
+          $('#upload_doc').show();
+        }
+      })
+      // DO NOT REMOVE : GLOBAL FUNCTIONS!
+      pageSetUp();
+
+      // $( ".this_is" ).click(function() {
+      //   var v = $(this).text();
+      //   alert(v);
+      // });
+      // PAGE RELATED SCRIPTS
+
+      /*
+       * Fixed table height
+       */
+
+      //tableHeightSize()
+
+      //$(window).resize(function() {
+      //	tableHeightSize()
+      //})
+
+      function tableHeightSize() {
+
+        if ($('body').hasClass('menu-on-top')) {
+          var menuHeight = 68;
+          // nav height
+
+          var tableHeight = ($(window).height() - 224) - menuHeight;
+          if (tableHeight < (320 - menuHeight)) {
+            $('.table-wrap').css('height', (320 - menuHeight) + 'px');
+          } else {
+            $('.table-wrap').css('height', tableHeight + 'px');
+          }
+
+        } else {
+          var tableHeight = $(window).height() - 224;
+          if (tableHeight < 320) {
+            $('.table-wrap').css('height', 320 + 'px');
+          } else {
+            $('.table-wrap').css('height', tableHeight + 'px');
+          }
+
+        }
+
+      }
+
+      /*
+       * LOAD INBOX MESSAGES
+       */
+
+      $(".candidate_doc_exp_date").datepicker({
+        dateFormat : 'mm-dd-yy'
+      });
+
+
+
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
+            }
+
+        });
+
+      // Apply the filter
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+            .column( $(this).parent().index()+':visible' )
+            .search( this.value )
+            .draw();
+
+      } );
+
+
+      
+
+    });
+
+    $('.candidate-association').on('cocoon:after-insert', function(e, insertedItem) {
+      $(".candidate_doc_exp_date").datepicker({
+        dateFormat : 'mm-dd-yy'
+      });
+
+      insertedItem.find('.filepicker-attach').each(function(i,e){
+        $(".filepicker-attach").on('click',function() {
+          $('.fp__overlay').css({'z-index':'99999'})
+        });
+        $('.filepicker-attach').on('click',function() {
+          //$(this).hide();
+         });
+      });
+    });
+
+    function fileUploadEvent(id) {
+        upload_file_ajax(fileUpload,id);
+     }
+
+    function fileUpload(url,type,doc_id){
+      file_url = url
+      file_type=type
+      $('.video-pic').html('');
+      $.ajax({
+       type: 'POST',
+       dataType: 'json',
+       url: "#{update_candidate_docs_companies_path}",
+       data: { file: file_url,authenticity_token: window._token, file_type: file_type, doc_id:doc_id },
+       success: function (data) {
+         location.reload();
+       }
+     });
+    }

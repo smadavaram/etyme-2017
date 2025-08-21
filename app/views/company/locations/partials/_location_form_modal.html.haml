@@ -1,0 +1,9 @@
+.modal{id: location.new_record? ? "new_location" : "location-#{location.id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4#myModalLabel.modal-title
+          %strong= location.new_record? ? "Add New Location" : "Edit #{location.name}"
+      = render 'company/locations/partials/form',location: location

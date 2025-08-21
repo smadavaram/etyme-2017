@@ -1,0 +1,38 @@
+# frozen_string_literal: true
+
+class Api::Company::CandidatesController < ApplicationController
+  respond_to :json
+
+  def show
+    @candidate = Candidate.find_by(id: params[:id])
+
+    ((render json: {message: "Candidate Not Found."}, status: :not_found); return) unless @candidate
+    render json: {candidate: @candidate, recruiter_name: @candidate.recruiter.email}
+  end
+
+  def get_resumes
+    candidate = Candidate.find(params[:id])
+
+    if candidate
+      @resumes = candidate.candidates_resumes.paginate(page: params[:page], per_page: params[:per_page])
+    else
+      render json: { error: 'Cannot find candidate with this id' }, status: :not_found
+    end
+  end
+
+  def get_candidates
+    candidates = if params[:q].present?
+                   current_company.candidates.where("LOWER(first_name) LIKE ?", "%#{params[:q].downcase}%")
+                 else
+                   current_company.candidates
+                 end
+  
+    candidates = candidates.paginate(page: params[:page] || 1, per_page: 20)
+    candidates_json = candidates.map do |candidate|
+      { id: candidate.id, text: candidate.full_name }
+    end
+    more = candidates.next_page.present?
+
+    render json: { results: candidates_json, pagination: { more: more } }
+  end  
+end

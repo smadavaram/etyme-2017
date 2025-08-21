@@ -1,0 +1,13 @@
+<% if flash[:errors].present? %>
+<% flash[:errors].each do |e| %>
+flash_error("<%= e %>");
+<% end %>
+<% end %>
+<% if flash[:success].present? %>
+flash_success("<%= flash[:success] %>");
+<% end %>
+$('#submit_doc').html("<%= j render 'company/contracts/submit_document_table' , document_signs: @document_signs%>");
+$('#submit_document').modal('hide')
+$(".exp_date").datepicker({
+  dateFormat : 'dd/mm/yy'
+});

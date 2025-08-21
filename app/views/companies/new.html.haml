@@ -1,0 +1,78 @@
+- provide(:body_class, "body-companies-new")
+
+%h4.companies-new--header eTyme is the most complete and seamless platform for managing your contract employees.
+
+%p.companies-new--subheader From hiring to scheduling, contracts to payment, eTyme is the most efficient way to operate your contract employee service.
+
+.companies-new--row
+  .companies-new--column
+    %h4.auth-header Sign Up
+
+    - if notice.present?
+      %p.text-danger= notice
+
+    = form_for @company , html: {id: 'new_user smart-form-register' , class: 'new_user', data:{rewardful: true } }  do |f|
+      - if params[:register].present?
+        = hidden_field_tag 'register_company', true
+
+      = f.fields_for :owner, @user do |u|
+        - if params[:show_selector].present?
+          .form-group.field-group.hide
+            %label Name
+            = f.text_field :name, placeholder: 'Company Name', required: true,minlength: "3", class: 'form-control field'
+            .help-block.form-text.with-errors.form-control-feedback
+            .pre-icon.fa.fa-building
+          .form-group.field-group
+            %label Company Type
+            = f.select :company_type , [["Staffing/Training/Vendors", 'vendor'], ["Client/Implementation Partner", 'hiring_manager']],{include_blank: '-- Select Type --'} ,:class => 'form-control field company_type', required: true ,onchange: "showNote();"
+            .note#company_type{style: "float:left !important ;color: #334152"}
+            .help-block.form-text.with-errors.form-control-feedback
+            .pre-icon.fa.fa-file
+          %br
+        .form-group.field-group
+          %label{:for => "user_email"} Email
+          = u.email_field :email, :placeholder => "Your Email", required: true, id: 'user_email', email: true, class: ' user_email form-control field', value: params[:email]
+          .help-block.form-text.with-errors.form-control-feedback
+            = link_to 'Forgot password?', new_user_password_path, class: "more-link"
+          .help-block.form-text.with-errors.form-control-feedback
+            = link_to "Already have Account?",signin_path ,class: " more-link"
+            .pre-icon.os-icon.os-icon-email-2-at2
+
+        - if params[:show_input].present?
+          .form-group.field-group
+            %label{:for => "user_fistname"} First Name
+            = u.text_field :first_name, :placeholder => "Firstname", required: true,class: 'form-control field'
+            .help-block.form-text.with-errors.form-control-feedback
+            .pre-icon.fa.fa-user
+          .form-group.field-group
+            %label{:for => "user_last_name"} Last Name
+            = u.text_field :last_name, :placeholder => "Lastname", required: true,class: 'form-control field'
+            .help-block.form-text.with-errors.form-control-feedback
+            .pre-icon.fa.fa-user
+
+          .form-group.field-group
+            %label Domain
+            = f.text_field :domain  ,:placeholder => "Domain", required: true,minlength: "3",class:'form-control field', id: "domain-field", value: handle_signup_domain, readonly: true
+            .note.text-muted.errors.text-danger
+            .help-block.form-text.with-errors.form-control-feedback
+            .pre-icon.fa.fa-globe
+        = recaptcha_tags
+
+        %input.btn.btn-primary.float{"data-disable-with" => "Register", :name => "commit", :type => "submit", :value => "Register", :class => "mt-2"}/
+
+  .companies-new--column
+    %p Through eTyme, you’re able to manage everything:
+
+    %ul
+      %li Job boards
+      %li Bench candidates
+      %li Applications
+      %li Background checks
+      %li Reference checks
+      %li Contracts
+      %li Timesheets
+      %li Invoicing
+      %li Payments
+      %li Back office operations
+
+    %p Unlock the power of a complete contractor software!

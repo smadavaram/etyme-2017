@@ -1,0 +1,38 @@
+#content
+  %section.margin-top-10.padding-10
+    .row
+      #wid-id-5.no-border
+        %div
+          .widget-body
+            .col-md-12
+              %br/
+              %br/
+              .table{:style => "width:100"}
+                %table#resultTable.table.table-striped.table-bordered.table-hover
+                  %thead
+                    %tr
+                      -#%th Pic
+                      %th Name
+                      %th Email
+                      %th Title
+                      %th Phone
+                      -#%th Phone
+                      -#%th{style: "width:20%"}
+                        Actions
+                  %tbody
+                    - @company_contacts.each_with_index do |contact , index|
+                      %tr
+                        -#%td= image_tag consultant.photo, alt: '', width: '20'
+                        %td= link_to contact.try(:full_name) , "#"
+                        %td= contact.try(:email)
+                        %td= contact.try(:title)
+                        %td= contact.try(:phone)
+                        -#%td= contact.try(:phone)
+                        -#%td
+                        -#  = link_to 'Activity'     ,company_activities_index_path(index: true), class: 'btn btn-xs btn-primary'
+                        -#  = link_to raw("<i class='fa fa-pencil '></i>") , edit_consultant_path(consultant,edit: true) , class: 'btn btn-xs btn-default btn-primary', title: "Edit #{consultant.full_name}"
+                        -#  = link_to raw("Assign Groups"), company_user_assign_groups_path(consultant) , remote:true,class: 'btn btn-xs btn-success'
+          -#= link_to raw("<i class='fa fa-times '></i>") , consultant_path(consultant) , method: :delete ,  class: 'btn btn-xs btn-default btn-danger' , title: "Delete #{consultant.full_name}",data: {confirm: "Are you sure you want to Delete this Consultants ?", verify: 'Confirm', verify_text: "Type 'Confirm' to Continue"}
+          = digg_pagination(@company_contacts)
+
+

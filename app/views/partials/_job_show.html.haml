@@ -1,0 +1,29 @@
+%div(itemscope itemtype="http://schema.org/JobPosting")
+  %h1(itemprop="title")= truncate(job.try(:title),length: 100)
+  - job.tags.each do |tag|
+    %span.h4.badge.btn-primary
+      =tag.name
+  %div.sharethis-inline-share-buttons
+  %ul.ul-s
+    %li.list-group-item.list-p-15
+      %span.text-muted Detail
+      %span(itemprop="description")= raw(job.description)
+      .row
+        .col-lg-3.col-md-3
+          %span.text-muted.fs-13 Location
+          %span(itemprop="jobLocation" itemscope itemtype="http://schema.org/Place")
+            %span(itemprop="address")= job.try(:location).try(:titleize)
+        .col-lg-3.col-md-3
+          %span.text-muted.fs-13 Category
+          - job.tags.each do |tag|
+            %span.h4.badge.btn-primary
+              =tag.name
+        .col-lg-3.col-md-3
+          %span.text-muted.fs-13 Date
+          %span(itemprop="datePosted")= job.start_date.to_s
+          %span= " - "
+          %span(itemprop="validThrough")= job.end_date.to_s
+        .col-lg-3.col-md-3
+          %span.text-muted.fs-13 Company
+          %span(itemprop="hiringOrganization" itemscope itemtype="http://schema.org/Organization")
+            %span(itemprop="name")= job.company.name.titleize

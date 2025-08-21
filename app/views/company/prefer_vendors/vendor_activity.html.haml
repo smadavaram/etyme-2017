@@ -1,0 +1,24 @@
+.row.m-4
+  .col-sm-12
+    .element-wrapper
+      %h6.element-header
+        Vendor Activity
+      .timed-activities.compact
+        -contract_activity_hash(@activities).each do |key,value|
+          .timed-activity
+            .ta-date
+              %span
+                = key
+            .ta-record-w
+              - value.each do |activity|
+                = render_activity activity
+    .timesheet_pagination_wrap
+      .pagination_label
+        = page_entries_info @activities
+      = will_paginate(@activities, {previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'activities_pagination_links'})
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function(){
+      default_active_nav('.ln-4');
+    })

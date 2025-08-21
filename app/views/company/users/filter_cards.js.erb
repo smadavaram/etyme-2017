@@ -1,0 +1,3 @@
+$('#dashboard_cards').html("<%= j render 'company/users/partials/dashboard_cards', cards: @cards %>");
+$('.fd').removeClass('active')
+$(".<%= @cards["ACTIVE"] %>").addClass('active');

@@ -1,0 +1,96 @@
+%article.col-sm-12.col-md-12.col-lg-12
+  / Widget ID (each widget will need unique ID)
+  #wid-id-2.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+    %header
+      %h2 #{resource.class.name.titleize} Onboarding
+    %div
+      .jarviswidget-editbox
+      .widget-body.fuelux
+        .wizard
+          %ul.steps
+            %li.active{"data-target" => "#step1"}
+              %span.badge.badge-info> 1
+              Step 1
+              %span.chevron
+            %li{"data-target" => "#step2"}
+              %span.badge> 2
+              Step 2
+              %span.chevron
+            %li{"data-target" => "#step3"}
+              %span.badge> 3
+              Step 3
+              %span.chevron
+            %li{"data-target" => "#step4"}
+              %span.badge> 4
+              Step 4
+              %span.chevron
+            %li{"data-target" => "#step5"}
+              %span.badge> 5
+              Step 5
+              %span.chevron
+            %li{"data-target" => "#step6"}
+              %span.badge> 6
+              Step 6
+              %span.chevron
+            %li{"data-target" => "#step7"}
+              %span.badge> 7
+              Step 7
+              %span.chevron
+          .actions
+            %button.btn.btn-sm.btn-primary.btn-prev{:type => "button"}
+              %i.fa.fa-arrow-left>
+              Prev
+            %button.btn.btn-sm.btn-success.btn-next{"data-last" => "Finish", :type => "button"}
+              Next
+              %i.fa.fa-arrow-right
+        .step-content
+          = simple_form_for resource, as: resource_name, url: invitation_path(resource_name), html: { method: :put , class: 'form-horizontal' , id: 'wizard-1 fuelux-wizard' ,novalidate: "novalidate"} do |e|
+            = e.hidden_field :invitation_token
+            = e.simple_fields_for :consultant_profile do |p|
+              #step1.step-pane.active
+                %h3
+                  %strong Step 1
+                  \- Set New Password
+                / wizard form starts here
+                = render partial: 'company/invitations/partials/set_password' , locals: {e: e}
+              #step2.step-pane
+                %h3
+                  %strong Step 2
+                  \- Basic Information
+                = render partial: 'company/invitations/partials/basic_information' , locals: {e: e}
+              #step3.step-pane
+                %h3
+                  %strong Step 3
+                  \- Address
+                = e.fields_for :address do |a|
+                  = render partial: 'company/invitations/partials/address' , locals: {a: a}
+              #step4.step-pane
+                %h3
+                  %strong Step 4
+                  \- Company Documents
+                = render partial: 'company/invitations/partials/docs' , locals: {f: e}
+              #step5.step-pane
+                %h3
+                  %strong Step 5
+                  \- Custom Fields
+                = render partial: 'company/invitations/partials/custom_fields' , locals: {f: e}
+              #step6.step-pane
+                %h3
+                  %strong Step 6
+                  \- Signature
+                = render partial: 'company/invitations/partials/signature_pad' , locals: {f: e}
+              #step7.step-pane
+                %h3
+                  %strong Step 7
+                  \- Finished!
+                %br/
+                %br/
+                %h1.text-center.text-success
+                  %i.fa.fa-check
+                  Congratulations!
+                  %br/
+                  %small Click finish to end wizard
+                %br/
+                %br/
+                %br/
+                %br/

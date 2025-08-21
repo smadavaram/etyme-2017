@@ -1,0 +1,326 @@
+.content-i
+  .content-box
+    .row
+      .col-sm-12
+        .element-wrapper
+          .element-box-tp
+            .controls-above-table
+              .row.mr-1.ml-1
+                .col-sm-6
+                  = link_to "Email", '#', class: 'btn share btn-sm btn-secondary ml-2', id: "share_bench_button"
+                  = link_to "Share", '#', class: 'btn share btn-sm btn-secondary ml-2', id: "share_via_bench_button"
+                  -# = link_to "New", "#candidate-bench_invite", :class => "btn btn-sm btn-secondary", "data-toggle" => "modal"
+                  = link_to "Public View", request.base_url + "/static/people", class: 'btn btn-sm btn-secondary ml-2', target: "_blank"
+                .col-sm-6
+                  .form-inline.justify-content-sm-end
+                    %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: 'my_bench_datatable-search'}
+                    %button.btn.btn-sm.btn-secondary{type: "button", id: 'my_bench_datatable-search-btn'} Search
+            .table-responsive
+              %table#my_bench_datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped.no-footer{"aria-describedby" => "datatable_fixed_column_info", :role => "grid", :style => "width: 100%;", :width => "100%"}
+                %thead
+                  %tr
+                    %th= "<input type='checkbox' onclick='selectAll(this);' name='select_all_bench' id='select_all'>".html_safe
+                    %th Name
+                    %th Role/Title
+                    %th Skills
+                    %th Min
+                    %th Max
+                    %th Location
+                    %th Visa
+                    %th Recruiter Name
+                    %th Actions
+                %tbody{:style => "font-size: 12px;"}
+                  - company = current_company
+                  - company_users = current_company.users
+                  - @candidates.each do |c|
+                    - c_bench_job = c.candidate.job_invitations.find_by(company_id: c&.company_id)
+                    - recruiter_name = User.find_by(id: c_bench_job&.sender_id).try(:full_name)
+                    %tr
+                      %td
+                        = check_box_tag "ids[]", c.candidate.id, false, class: 'check'
+                      %td.no-wrap
+                        %p{:hidden=>true}=c.candidate.try(:full_name)
+                        =link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),public_profile_static_candidates_path(c.candidate)
+                        = link_to  do_ellipsis(c.candidate.try(:full_name).try(:titleize),10),public_profile_static_candidates_path(c.candidate),class: "pr-5"
+                        -# =link_to user_image(c.candidate, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{c.candidate.full_name}" ),profile_company_candidate_path(c.candidate)
+                        -# = link_to  do_ellipsis(c.candidate.try(:full_name).try(:titleize),10),profile_company_candidate_path(c.candidate),class: "pr-5"
+                      = form_for "job_invitation" , url: update_bench_job_company_bench_jobs_path, html:{ class:'form-horizontal',id: "edit-candidate-val-#{c.candidate.id}"} do |f|
+                        %input{:type => "hidden", :name => "candidate_id", :value => c.candidate.id}
+                        %input{:type => "hidden", :name => "company_id", :value => c.company_id}
+                        %td
+                          - if c.candidate.try(:roles).present?
+                            - c.candidate.try(:roles).each do |role|
+                              %span{:id => "role_#{c.candidate.id}"}
+                                .label-info.badge
+                                  = role.try(:name)
+                          %span{:id => "title_#{c.candidate.id}"}
+                            = c.candidate.candidate_title
+                          %span{:id => "input_title_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "text", :name => "job_invitation[candidate_title]", :placeholder => "Role/Title", style: "width: 70px !important;" ,:class => "mb-2", value: c.candidate.candidate_title}/
+                          %span{:id => "input_role_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "text", :name => "Title", :placeholder => "title", :class => "wi-100", value: c.candidate.candidate_title}/
+                        %td
+                          %span{:id => "skills_#{c.candidate.id}"}
+                            %ol{:class => "sortable", "data-update-url" => sort_skills_company_candidate_path(c.candidate.id) }
+                              - c.candidate.skill_taggings.order(:position).each do |skill|
+                                %li.label-info.badge.margin-bottom-5.badge-info.m-1{:id => dom_id(skill)}
+                                  = skill.tag.name
+                          %span{:id => "input_skills_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "text", :name => "job_invitation[skill_list]", :placeholder => "Add Skills Comma seperated", :class => "wi-100", 'data-role'=>'tagsinput',value: c.candidate.skills.pluck(:name).join(", ")}
+                        %td
+                          %span{:id => "input_min_rate_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "number", :name => "job_invitation[min_hourly_rate]", :placeholder => "Min Hourly Rate", :id => "job_invitation_min_hourly_rate_index", style: "width: 55px !important;", :class => "", value: (c_bench_job.present? ? c_bench_job&.min_hourly_rate : "")}/
+                          %span{:id => "min_rate_#{c.candidate.id}"}
+                            = c_bench_job.present? ? "$#{c_bench_job&.min_hourly_rate}" : ""
+                        %td
+                          %span{:id => "input_max_rate_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "number", :name => "job_invitation[max_hourly_rate]", :placeholder => "Max Hourly Rate", :id => "job_invitation_max_hourly_rate_index", style: "width: 55px !important;", :class => "", value: (c_bench_job.present? ? c_bench_job&.max_hourly_rate : "")}/
+                          %span{:id => "max_rate_#{c.candidate.id}"}
+                            = c_bench_job.present? ? "$#{c_bench_job&.max_hourly_rate}" : ""
+                        %td
+                          %span{:id => "location_#{c.candidate.id}"}
+                            = c.candidate.try(:location)
+                          %span{:id => "input_location_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "text", :name => "job_invitation[location]", :placeholder => "eg.1806 Beechwood Drive, Pittsburgh", :id => "input_field_location_#{c.candidate.id}", style: "width: 132px !important;", :class => "location", value: c.candidate.try(:location), :candidate_id => c.candidate.id}/
+                        %td
+                          %p{:hidden=>true}=recruiter_name
+                          %span{:id => "visa_#{c.candidate.id}"}
+                            = c.candidate.candidate_visa
+                          %span{:id => "input_visa_#{c.candidate.id}", :class => "d-none"}
+                            %input{:type => "text", :name => "job_invitation[candidate_visa]", :placeholder => "Visa", :id => "", style: "width: 55px !important;", :class => "", value: c.candidate.candidate_visa}/
+                        %td
+                          %span
+                            -if recruiter_name
+                              %span{:id => "recuiter_#{c.candidate.id}"}
+                                .label-info.badge.margin-bottom-5.badge-info
+                                  = recruiter_name
+                            %span{:id => "select_recuiter_#{c.candidate.id}", :class => "d-none"}
+                              = select_tag "job_invitation[sender_id]", options_from_collection_for_select(company_users, :id, :full_name, c_bench_job&.sender_id)
+                      %td
+                        %span{:id => "bench_action_#{c.candidate.id}"}
+                          = link_to(content_tag(:i, nil, class: 'fa fa-comment').html_safe,  chat_link(c.candidate), title: 'chat', class: 'start-conversation',remote: true)
+                          = link_to raw("<i class='fa fa-file-text'></i>") , c.candidate.resume ,download: true , class: '',title: "#{c.candidate.full_name} Resume",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-eye'></i>") , impersonate_company_candidate_path(c.candidate) , class: '',title: "Detail Show" ,target: "_blank",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-users'></i>"), candidate_manage_groups_path(c.candidate), remote:true,class: '',title: "Assign Groups",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-fire'></i>"), candidate_make_normal_path(c.candidate) , remote:true,method: :post,class: '',title: "Make Normal", data: {confirm: " Do you want to make #{c.candidate.full_name} Normal?", commit: 'Continue', cancell: 'Cancell'},'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          -# = link_to raw("<i class='fa fa-times '></i>") , candidate_remove_from_comapny_path(c.candidate) ,remote:true, method: :post ,  class: '',title: "Delete  ",'data-toggle'=>"tooltip" ,'data-placement'=>"top"
+                          = link_to raw("<i class='fa fa-pencil '></i>"), "#", title: "Edit #{c.candidate.full_name}", class: "edit_bench", candidate_id: c.candidate.id, company_id: c.company_id
+                          =# link_to raw("<i class='fa fa-pencil '></i>"), edit_job_invitation_company_bench_jobs_path(candidate_id: c.candidate.id, company_id: c.company_id), :remote => true, title: "Edit #{c.candidate.full_name}"
+                        %span{:id => "bench_action_edit_#{c.candidate.id}", :class => "d-none"}
+                          = link_to "save", "#", title: "Edit #{c.candidate.full_name}", :style => "color: white;", :class => "btn btn-primary save_bench_job", candidate_id: c.candidate.id, company_id: c.company_id
+            .timesheet_pagination_wrap.pt-3.m-3
+              .pagination_label
+                = page_entries_info @candidates
+              .digg_pagination
+                = will_paginate(@candidates, {previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'public_job_des_pagination_links'}.merge(link_options: {'data-remote': true}))
+:css
+  .digg_pagination {
+    background: white;
+    cursor: default;}
+  .digg_pagination a, .digg_pagination span, .digg_pagination em {
+    padding: 0.2em 0.5em;
+    display: block;
+    float: left;
+    margin-right: 1px; }
+  .digg_pagination .disabled {
+    color: #999999;
+    border: 1px solid #dddddd; }
+  .digg_pagination .current {
+    font-style: normal;
+    font-weight: bold;
+    background: #2e6ab1;
+    color: white;
+    border: 1px solid #2e6ab1; }
+  .digg_pagination a {
+    text-decoration: none;
+    color: #105cb6;
+    border: 1px solid #9aafe5; }
+    .digg_pagination a:hover, .digg_pagination a:focus {
+      color: #000033;
+      border-color: #000033; }
+  .digg_pagination .page_info {
+    background: #2e6ab1;
+    color: white;
+    padding: 0.4em 0.6em;
+    width: 22em;
+    margin-bottom: 0.3em;
+    text-align: center; }
+    .digg_pagination .page_info b {
+      color: #000033;
+      background: #6aa6ed;
+      padding: 0.1em 0.25em; }
+  .digg_pagination:after {
+    content: ".";
+    display: block;
+    height: 0;
+    clear: both;
+    visibility: hidden; }
+  * html .digg_pagination {
+    height: 1%; }
+  *:first-child + html .digg_pagination {
+    overflow: hidden; 
+  }
+  .dataTables_info {
+    display: none;
+  }
+  .dataTables_paginate{
+    display: none;
+  }
+  .dataTables_length{
+    display: none !important;
+  }
+  ol {
+    padding-inline-start: 0px;
+  }
+
+  .form-control
+  {
+    background-color: white !important;
+  }
+
+- content_for :modals do
+  = render 'company/candidates/partials/add_to_my_network'
+  = render 'company/candidates/partials/share_hot_candidates'
+  = render 'company/candidates/partials/share_hot_candidates_with_link_preview'
+  -# = render 'company/bench_jobs/candidate_bench_invite_modal'
+  -# #candidate_bench_job_invitation
+
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function(){
+      $(function() {
+        $('.sortable').sortable(
+          {
+            axis: "x, y",
+            update: function() {
+              $.post($(this).data('update-url'), $(this).sortable('serialize'));
+            }
+          }
+        );
+      });
+      default_active_nav('.ln-5');
+    });
+
+    if ("#{flash[:already_exist]}"){
+      $('#add-network').modal('toggle');
+    }
+
+    $('.end_date').datepicker({dateFormat : 'dd/mm/yy'});
+
+    $.validator.addMethod("greaterThan",
+    function (value, element, param) {
+      var $min = $(param);
+      if (this.settings.onfocusout) {
+        $min.off(".validate-greaterThan").on("blur.validate-greaterThan", function () {
+          $(element).valid();
+        });
+      }
+      return parseInt(value) > parseInt($min.val());
+    }, "Must be greater than to Min Hourly Rate");
+
+    $.validator.addMethod("lessThan",
+    function (value, element, param) {
+      var $min = $(param);
+      if (this.settings.onfocusout) {
+        $min.off(".validate-greaterThan").on("blur.validate-greaterThan", function () {
+          $(element).valid();
+        });
+      }
+      return parseInt(value) < parseInt($min.val());
+    }, "Must be less than to Max Hourly Rate");
+
+    $('form#candidate-val').validate({
+      rules: {
+        "job_invitation[max_hourly_rate]": {
+          greaterThan: '#job_invitation_min_hourly_rate'
+        },
+        "job_invitation[min_hourly_rate]": {
+          lessThan: '#job_invitation_max_hourly_rate'
+        }
+      }
+    });
+    tinymce.init({
+      selector: '.tinymce',
+      menubar: false ,
+      plugins: 'image table link paste contextmenu textpattern autolink',
+      insert_toolbar: 'quicktable',
+      selection_toolbar: 'bold italic | quicklink h2 h3 blockquote'
+    });
+
+    $('#emailbody').summernote({
+        height: 250,
+        focus: false,
+        tabsize: 2
+    });
+
+    $(document).ready(function() {
+     pageSetUp();
+      var responsiveHelper_dt_basic = undefined;
+      var responsiveHelper_datatable_fixed_column = undefined;
+      var responsiveHelper_datatable_col_reorder = undefined;
+      var responsiveHelper_datatable_tabletools = undefined;
+      var table = $('#example').DataTable();
+      var otable = $('#datatable_fixed_column').DataTable({
+            "sDom": "<'dt-toolbar'<'col-xs-12 col-sm-6 hidden-xs'f><'col-sm-6 col-xs-12 hidden-xs'<'toolbar'>>r>"+
+                    "t"+
+                    "<'dt-toolbar-footer'<'col-sm-6 col-xs-12 hidden-xs'i><'col-xs-12 col-sm-6'p>>",
+            "autoWidth" : true,
+            "oLanguage": {
+                "sSearch": '<span class="input-group-addon"><i class="icon-feather-search"></i></span>'
+            }
+
+        });
+
+    $("div.toolbar").html("<div class='text-right'><a href=#{company_new_candidate_to_bench_path} class = 'btn btn-success btn-md pull-right header-btn margin-top-5 mr-left-10' rel='tooltip' data-placement='top' title='New Candidate'><i class='fa fa-user-plus'></i> New </a><a href='#' class= 'btn btn-success share btn-md pull-right header-btn margin-top-5'><i class='fa fa-share-alt'></i> Share</a></div>");
+      $("#datatable_fixed_column thead th input[type=text]").on( 'keyup change', function () {
+        otable
+          .column( $(this).parent().index()+':visible' )
+          .search( this.value )
+          .draw();
+    } );
+    });
+
+%script{:src => "https://maps.google.com/maps/api/js?key=AIzaSyDplyJQu2eS1qNVdoBsGL4FGmJwMWFDDUQ&sensor=false&libraries=places"}
+- content_for :scripts do
+  :javascript
+    $(document).on("keyup", ".location", function(){
+      var candidate_id = $(this).attr("candidate_id");
+      var places = new google.maps.places.Autocomplete(document.getElementById('input_field_location_' + candidate_id));
+      google.maps.event.addListener(places, 'place_changed', function () {
+        var place = places.getPlace();
+        $("#post_ad_latitude").val(place.geometry.location.lat());
+        $("#post_ad_longitude").val(place.geometry.location.lng());
+      });
+
+      var input = document.getElementById('input_field_location_' + candidate_id);
+      google.maps.event.addDomListener(input, 'keydown', function(event) {
+        if (event.keyCode === 13) {
+          event.preventDefault();
+        }
+      });
+    });
+
+    function selectAll(obj) {
+      var table = $('#my_bench_datatable').dataTable();
+      var checkBox = table.$('.check');
+      for (i = 0; i < checkBox.length; ++i) {
+        checkBox[i].checked = obj.checked;
+      }
+    };
+    document.addEventListener('trix-change', function(event) {
+      const maxChars = 100;
+      const editor = event.target;
+      let editorContent = editor.editor.getDocument().toString();
+
+      if (editorContent.length > maxChars) {
+        // If content exceeds maxChars, trim it and update the editor
+        const trimmedContent = editorContent.substring(0, maxChars);
+        editor.editor.loadJSON({document: editor.editor.getDocument().copyUsing((piece) => {
+          if (piece.toString().length > maxChars) {
+            return piece.copyWithString(trimmedContent);
+          }
+          return piece;
+        })});
+      }
+    });

@@ -1,0 +1,17 @@
+.modal{ id: "contract-#{job.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h1
+          %span.semi-bold Creating #{job.is_child? ? 'Sub' : 'New' } Contract
+          -#%i.ultra-light #{job_application.company.try(:name)}
+          %br/
+          %small.text-muted
+            -if job_application.present?
+              %strong #{link_to job_application.try(:user).full_name ,  '#' , target: '_blank'} - #{job.title}
+            -else
+              %strong #{link_to job.title , job_path(job), target: '_blank'}
+      .modal-body
+        = render 'company/contracts/partials/create_form' , job: job , contract: contract , job_application: job_application

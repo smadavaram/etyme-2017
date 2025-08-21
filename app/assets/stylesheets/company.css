@@ -1,0 +1,87 @@
+/*
+ * This is a manifest file that'll be compiled into application.css, which will include all the files
+ * listed below.
+ *
+ * Any CSS and SCSS file within this directory, lib/assets/stylesheets, vendor/assets/stylesheets,
+ * or any plugin's vendor/assets/stylesheets directory can be referenced here using a relative path.
+ *
+ * You're free to add application-wide styles to this file and they'll appear at the bottom of the
+ * compiled file so the styles you add here take precedence over styles defined in any other CSS/SCSS
+ * files in this directory. Styles in this file should be added after the last require_* statement.
+ * It is generally better to create a new file per style scope.
+ *
+ * Basic Styles
+ * require bootstrap
+ *= require company/salaries
+ *= require trix
+ *= require shared/bootstrap-year-calendar
+ *= require bootstarp-year-calendar
+ *= require font-awesome
+ *= require selectize
+ *= require selectize.default
+ *
+ * SmartAdmin Styles : Caution! DO NOT change the order
+ *= require smartadmin-production-plugins
+ *= require smartadmin-production
+ * We recommend you use "your_style.scss" to override SmartAdmin
+ * specific styles this will also ensure you retrain your customization with
+ * each SmartAdmin update.
+ *= require your_style
+ *
+ * Demo purpose only:  *= require trixgoes with demo.js, you can delete this css when designing
+ * your own WebApp
+ *= require demo
+ *= require_self
+ *
+ * Invoice related styles
+ *= require invoice
+ *
+ * Lock screen related styles
+ *= require lockscreen
+
+ *= require amaran.min
+ *= require Job
+ *= require company_override
+ *= require global
+ *= require style
+ *= require chat_box
+ *= require theme8
+ *= require select2
+ *= require select2-bootstrap
+ *= require conversation/chat
+ *= require style
+ *= require tooltip
+ *= require bootstrap-switch
+ *= require company/companies
+ *= require bullettrain-public
+ *= require bullettrain-global
+ *= require shared/datatable
+ *= require company/job_applications
+ *= require company/contracts
+ *= require navigation
+ *= require top_navigation
+ *= require jobs_small_chat
+ *= require calendar_custom
+
+ *= require company/prefer_vendors
+ *= require slick-carousel/slick/slick
+ *= require candidate/dashboard
+ *= require candidate/profile
+ *= require company/payroll
+ *= require custom
+ *= require company_chat_custom
+ *= require candidate/profile
+ *= require chat-custom-style
+
+ */
+
+.icon-text{
+	font-size: 12px;
+    line-height: normal;
+    display: block;
+    color: #047bf8;
+}
+.new-messages-count{
+	top: -2px !important;
+    right: 0px !important;
+}

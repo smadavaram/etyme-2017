@@ -1,0 +1,87 @@
+%li
+  .sub-title
+    Master
+  %ul
+    %li
+      %a{:href => "/company/candidates/new"} Add Candidates
+    %li
+      %a{:href => "/groups/new"} Add Groups
+    %li
+      %a{:href => "/company/companies/new"} Invite Business
+    
+%li
+  .sub-title
+    Offerings
+  %ul
+    %li
+      %a{:href => "/jobs/new", :target =>"_blank"} Jobs
+    %li
+      %a{:href => "/jobs/new?type=Product"} Products
+    %li
+      %a{:href => "/jobs/new?type=Service"} Services
+    %li
+      %a{:href => "/jobs/new?type=Training"} Trainings
+    %li
+      %a{:href => "/jobs/new?type=Blog"} Blogs
+    %li
+      / <a href="#">Book An Event</a>
+    %li
+      / <a href="#">Survey</a>
+%li.active
+  .sub-title
+    Orders
+  %ul
+    %li
+      %a{:href => "/contracts/new"} Add Contracts
+    %li
+      %a{:href => "/timesheets"} Approve Timesheets
+
+-#%li
+-#  .sub-title
+-#    Payments
+-#  %ul
+    -#%li
+      / <a href="#">Vendor Bill(s)</a>
+    -#%li
+      / <a href="#">Pay Vendor</a>
+    -#%li
+      / <a href="#">Salary Settlement</a>
+    -#%li
+      / <a href="#">Salary Processing</a>
+    -#%li
+      / <a href="#">Salary Clearing</a>
+
+%li
+  .sub-title
+    Recievables
+  %ul
+    %li
+      %a{:href => "/invoices"} Invoices
+    %li
+      -#%a{:href => "#{recieved_payment_company_accountings_path}"} Received Payments
+      %a{:href => "#"} Received Payments
+
+    %li
+      %a{:href => "/expenses/client_expense_invoices"} Client Expense Invoices
+%li
+  .sub-title
+    Payables
+  %ul
+    %li
+      %a{:href => "/bank_details/bank_reconciliation"} Bank Reconciliation
+    %li
+      %a{:href => "/expenses/new"} Request Expenses
+    %li
+      %label{style: "font-size: 12px; border-bottom: 1px solid"}
+        Pay Expense
+      %ul
+        %li{style: "padding-left: 10%"}
+          %a{:href => "/expenses/pay_expense"} Salary Advance
+        %li{style: "padding-left: 10%"}
+          %a{:href => "/expenses/pay_expense"} Company expenses
+    %li
+      %a{:href => "/client_expenses"} Approve client expenses
+    %li
+      %a{:href => "/expenses/client_expense_bill"} Create Bill - Client Expenses
+    %li
+      %a{:href => "/expenses/pay_expense"} Pay Client expenses

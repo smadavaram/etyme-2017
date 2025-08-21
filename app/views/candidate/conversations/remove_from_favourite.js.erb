@@ -1,0 +1,2 @@
+$("#company-conversation-list .usr_<%= @user.class.to_s+'_'+@user.id.to_s %>").html("<%= j render 'conversation_user', usr: @user, is_favourite: false %>")
+$("#favourite-conversation-list .usr_<%= params[:favourabled_type].to_s+'_'+params[:favourabled_id].to_s %>").remove();

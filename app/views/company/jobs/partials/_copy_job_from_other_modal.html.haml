@@ -1,0 +1,35 @@
+.modal{id:"copy-job-modal"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h4.modal-title
+          %strong= "Copy From"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body.no-padding
+        %label.col-md-3.control-label
+          Select 
+          = "#{params[:type] || 'Job'}"
+          %sup.text-danger *
+        .col-md-8.mr-bottom-20.popup_select
+          = select_tag :group_ids, options_for_select(current_company.jobs.not_system_generated.where(listing_type: params[:type] || 'Job').collect{ |c| [c.status+", "+c.title, c.id]}.compact), class: 'form-control select2', id: 'select_job'
+      .modal-footer
+        %button.btn.btn-primary{ "disable_with" => "Redirecting...", "id" => 'go_button'}
+          Go
+        %button.btn.btn-default{ "data-dismiss" => "modal", :type => "button" }
+          Cancel
+
+:css
+  .select2{
+    width: 389px;
+    }
+
+-content_for :scripts do
+  :javascript
+    $(document).on('click','#go_button',function(){
+      var selected_job = $("#select_job").val();
+      var type = `#{params[:type] || 'Job'}`;
+      if(selected_job != null){
+        window.location.href = `/jobs/new?type=${type}&copy_id=${selected_job}`;
+      }
+    });

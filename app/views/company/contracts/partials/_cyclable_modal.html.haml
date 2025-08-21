@@ -1,0 +1,9 @@
+.modal{ id: "cyclable_modals_#{@cyclable.id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h5#PageTitle.modal-title
+          ="Timesheet( #{@cyclable.start_date.strftime("%Y-%m-%d")} - #{@cyclable.end_date.strftime("%Y-%m-%d")} )"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      = render "company/contracts/partials/#{@cyclable.class.to_s.tableize.singularize}_cyclable", cyclable: @cyclable

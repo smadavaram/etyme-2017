@@ -1,0 +1,73 @@
+.chat-listing{
+    background-color: #F2F4F8;
+}
+.chat-list-container{
+    padding-right: 5px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-bottom: 0.1px solid lightblue !important;
+}
+.chat-user-list_height {
+    height: 100vh;
+    overflow-y: scroll;
+    margin-left: -10px;
+    width: 100%;
+}
+
+.user-list-item-style {
+    width: 100%;
+    border-bottom: 1px solid #bad7f7b3;
+  }
+.active-div-color {
+background-color: #bad7f7b3;
+.chat-user-name-style {
+    color: black;
+}
+.chat-user-date-style {
+    color: black;
+}
+.chat-user-client-name-style {
+    color: black;
+    //margin-bottom: 10%;
+}
+.chat-user-message-style {
+    color: black;
+    //margin-bottom: 10%;
+}
+.svg-image-style path {
+    fill: white;
+}
+}
+.conversation-container{
+    margin-top: 20px;
+}
+.last-message-date{
+    background-color: gray;
+    border-radius: 50px;
+    padding-left: 19px;
+}
+.last-message-date div{
+color: #ffffff !important;
+}
+.chat-date-separator{
+    text-align: center;
+    position: relative;
+    background-color: #ffffff;
+}
+.chat-date-separator span{
+display: inline-block;
+background: white;
+position: relative;
+padding: 0 10px;
+color: rgba(0, 0, 0, 0.3);
+}
+.chat-date-separator::before{
+content: "";
+background-color: rgba(0, 0, 0, 0.1);
+height: 1px;
+width: 100%;
+position: absolute;
+top: 10px;
+left: 0px;
+right: 0px;
+}

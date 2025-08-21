@@ -1,0 +1,4 @@
+
+= form_for [:company,@candidate ], html: {id: 'wizard-1',class:"form-horizontal new_consultant", remote: (defined? for_remote)} do |f|
+  = hidden_field_tag "is_add_to_bench", true	
+  = render  'company/candidates/partials/basic_information' , f: f

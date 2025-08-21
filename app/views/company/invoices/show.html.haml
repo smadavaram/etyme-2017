@@ -1,0 +1,76 @@
+- invoice = @invoice
+.contract-fields_wrapper.m-4
+  %div{style: "display: inline-block;"}
+    = image_tag(asset_url('etyme-logo-dark.png'),style: "width: 60px;height: 60px;")
+  %div{style: "display: inline-block; float: right; padding-top: 10px;"}
+    %b Sent Date
+    %span{style: 'color: #1AAE9F;'}= invoice.contract.start_date.strftime('%d/%m/%Y')
+    %br
+    %b Due Date
+    %span{style: 'color: #1AAE9F;'}= invoice.due_date
+  %div{style: "margin-top: 20px;"}
+    %div
+      %div{style: "text-align: center;font-size: 20px;"}
+        %p= invoice.contract.title.capitalize
+
+    .col-sm-6{style: "justify-content: space-between;"}
+      %div{style: "width: 100%;display: inline-block;" }
+        %div{style: "display: inline-block;"}
+          %b Sender Company
+          %p=invoice.sender_company.name
+        %div{style: "display: inline-block;float: right;"}
+          %b Receiver Company
+          %p=invoice.receiver_company.name
+
+  .row
+    .table-responsive.p-4
+      - if invoice.timesheet_invoice?
+        %b.mb-1 Added Timesheet(s)
+        %table.table.table-striped.table-bordered.table-v2.table-lg
+          %thead
+            %tr
+              %th Ts Id
+              %th Ts Type
+              %th Contract ID & Title - Client
+              %th From & To Date
+              %th Total Hr
+          %tbody
+            - invoice.invoice_items.each do |ii|
+              %tr
+                - ts = ii.itemable
+                - user = ts.contract_cycle.cycle_of.company
+                %td= ts.id
+                %td= ts.contract_cycle.cycle_frequency.capitalize
+                %td= ts.contract.title
+                %td= "#{ts.start_date} - #{ts.end_date}"
+                %td= ts.calculate_total_time
+      -else
+        %b.mb-1 Added Expense(s)
+        %table.table.table-striped.table-bordered.table-v2.table-lg
+          %thead
+            %tr
+              %th Exp ID
+              %th Exp Type
+              %th Contract ID & Title - Client
+              %th Customer
+              %th Status
+              %th From & To Date
+              %th Total Price
+          %tbody
+            - invoice.invoice_items.each do |ii|
+              - ce = ii.itemable
+              %tr
+                %td= ce.id
+                %td= ce.contract_cycle.cycle_frequency.capitalize
+                %td= ce.contract.title
+                %td=user_image(ce.company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{ce.company.full_name}" )
+
+                %td= snake_to_words(ce.status)
+                %td= "#{ce.start_date} - #{ce.end_date}"
+                %td= ce.amount
+
+
+  .row
+    .col-sm-12.pr-4.text-right{style: "font-weight: bold;"}
+      ="Total payable: #{invoice.total_amount}"
+

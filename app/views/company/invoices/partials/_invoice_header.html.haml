@@ -1,0 +1,117 @@
+.contract-fields_wrapper.m-4
+  .row
+    .col-sm-6
+      .col-sm-12
+        %b Contract
+        %p= invoice&.contract&.title
+
+        %b Consultant
+        %p= invoice&.contract&.candidate&.full_name
+      .col-sm-12
+        %b Sent Date - Due Date
+        %p{style: 'color: #1AAE9F;'}= "#{invoice&.contract&.start_date&.strftime('%d/%m/%Y')} - #{invoice.due_date}"
+
+    .col-sm-6
+      .col-sm-12.ts_header
+        .col-sm-6
+          %b Sender Company
+          %p
+            =user_image(invoice.sender_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invoice&.sender_company&.full_name}" )
+            =link_to(do_ellipsis(invoice.sender_company.name), profile_company_path(invoice.sender_company))
+        .col-sm-6
+          %b Receiver Company
+          %p
+            =user_image(invoice.receiver_company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-2',title: "#{invoice&.receiver_company&.full_name}" )
+
+            =link_to(do_ellipsis(invoice.receiver_company.name), profile_company_path(invoice.sender_company))
+      .col-sm-12.ts_header
+        .col-sm-6
+          %b Invoice Type
+          %br
+          %span.badge.badge-success= snake_to_words(invoice.invoice_type)
+        .col-sm-6
+          %b Invoice Status
+          %br
+          %span.badge.badge-success= snake_to_words(invoice.status)
+
+  .row
+    .table-responsive.p-4
+      - if invoice.timesheet_invoice?
+        %b.mb-1 Added Timesheet(s)
+        %table.table.table-striped.table-bordered.table-v2.table-lg
+          %thead
+            %tr
+              %th Ts Id
+              %th Ts Type
+              %th Contract ID & Title - Client
+              %th Client
+              %th From & To Date
+              -#%th Plan. Hr
+              %th Act. Hr
+          %tbody
+            - invoice.invoice_items.each do |ii|
+              %tr
+                - ts = ii.itemable
+                - user = ts.contract_cycle.cycle_of.company
+                %td= ts.id
+                %td -
+                %td= ts.contract.title
+                %td -
+                -#%td= user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+
+                %td= "#{ts.start_date} - #{ts.end_date}"
+                -#%td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
+                %td= ts.calculate_total_time
+              %tr
+                %td{colspan: 6}
+                  %table.table.table-striped.table-bordered.table-v2.table-lg
+                    %thead
+                      %tr
+                        %th Transaction Id
+                        %th Day
+                        %th Plan Hours
+                        %th Hours Logged
+                        %th Rate
+                        %th Cost
+                    %tbody
+                      - ts.transactions.each do |trans|
+                        %tr
+                          %td= trans.id
+                          %td= trans.start_time&.strftime("%A")
+                          %td= ts.contract_cycle.cycle_of.get_rate(ts.start_date)&.working_hrs
+                          %td= trans.total_time
+                          %td= number_to_currency(ts.contract.sell_contract.today_rate.try(:rate)||0)
+                          %td= (trans.total_time * (ts.contract.sell_contract.today_rate.try(:rate)||0))
+
+      -else
+        %b.mb-1 Added Expense(s)
+        %table.table.table-striped.table-bordered.table-v2.table-lg
+          %thead
+            %tr
+              %th Exp ID
+              %th Exp Type
+              %th Contract ID & Title - Client
+              %th Customer
+              %th Status
+              %th From & To Date
+              %th Total Price
+          %tbody
+            - invoice.invoice_items.each do |ii|
+              - ce = ii.itemable
+              %tr
+                %td= ce.id
+                %td -
+                %td= ce.contract.title
+                %td= user_image(ce.company, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{ce&.company&.full_name}" )
+
+                %td= snake_to_words(ce.status)
+                %td= "#{ce.start_date} - #{ce.end_date}"
+                %td= ce.amount
+
+
+
+  .row
+    .col-sm-12.pr-4.text-right
+      ="#{content_tag(:strong, 'Total Approve Time:', nil)} #{invoice.total_approve_time}".html_safe
+      %br
+      ="#{content_tag(:strong, 'Total Recievables:', nil)} #{invoice.total_amount}".html_safe

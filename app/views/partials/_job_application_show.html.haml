@@ -1,0 +1,67 @@
+.containers
+  .col-sm-12.animated.fadeInRightBig
+    %section.panel.mt-20s
+      %header.panel-heading
+        .row{style: 'justify-content: space-between;'}
+          #candidate-name
+            %h4.ml-2
+              = do_ellipsis(job_application.user.full_name.titleize)
+          #links-yeild
+            = yield( :links)
+        -#.row
+          -#.col-lg-12.col-sm-12
+            -#= render 'company/job_applications/partials/job_status_links', app: job_application,conversation: job_application.conversation, btn_size_class: 'btn btn-primary mt-12 '
+        -#.row.mt-4
+        -#  .col-sm-5
+        -#    %h3
+        -#      = link_to job_application.job.title,job_path(job_application.job)
+          -#.col-sm-7
+          -#  - if @job_application.share_key
+          -#    = button_tag 'Client Submission' ,class: 'btn btn-primary pull-right' , "data-toggle": "modal" , "data-target":"#share_application_#{@job_application.id}"
+    .row.mt-4{style: 'justify-content: space-between;'}
+      .pl-3
+        %span.text-muted.fs-13 Job Category
+        %b
+          = job_application.job.job_category || 'Not Mentioned'
+        %span.text-muted.fs-13 Date
+        %b
+          = job_application.created_at.to_date
+      .mr-3.pl-3
+        %span.text-muted.fs-13 Current Status
+        %b
+          = job_application.status.titleize
+        %span.text-muted.fs-13 Vendor Company
+        %b
+          = job_application.user.class.name == 'Candidate' ? 'Candidate' : job_application.user.company.name.titleize
+    %div
+      %ul.ul-s.margin-top-10
+        %li
+          %span.text-muted Cover Letter
+          %br
+          = raw(job_application.cover_letter)
+        %hr
+        %li
+          %span.text-muted Message
+          %br
+          = raw(job_application.message)
+        -job_application.job_applicant_reqs.each do |j|
+          %hr
+          %li
+            %span.text-muted
+              = j.job_requirement.questions
+            %p 
+              - if j.app_multi_ans.present? && j.job_requirement.multiple_ans
+                =j.app_multi_ans.reject { |c| c.empty? || c == "0"}.join(",")
+              - elsif j.applicant_ans.split("https://").count > 1
+                = link_to "#{j.applicant_ans}", class: 'btn btn-primary mt-1 pull-right', download: true do
+                  %i.os-icon.os-icon-arrow-down6
+                  Applicant_ans
+              -else
+                = j.applicant_ans
+        - job_application.custom_fields.each do |cf|
+          %hr
+          %li
+            %span.text-muted
+              = cf.name
+            %br
+            = cf.value

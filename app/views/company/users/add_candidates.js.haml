@@ -1,0 +1,6 @@
+-if flash[:errors].present?
+  - flash[:errors].each do |e|
+    flash_error("#{e}");
+-else
+  flash_success("#{flash[:success]}");
+  $(".emails").val("");

@@ -1,0 +1,61 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Receive Payment
+          %div
+            .jarviswidget-editbox
+            .widget-body
+              .row
+                .col-md-3
+                  = select_tag "customer",options_for_select(Candidate.all.map { |e| [e.full_name, e.id] }),{class: 'form-control select2',required: true, prompt: 'Choose a customer' }
+                .col-md-3
+                  = text_field_tag 'invoice_no', '', class: 'form-control', placeholder: 'Find by invoice no.'
+                .col-md-3.float-right
+                  %label Amount Balance
+                  %br
+                  $0.00
+              %br
+              .row
+                .col-md-3
+                  = text_field_tag 'contract', '', class: 'form-control', placeholder: 'Contract'
+              %br
+              .row
+                .col-md-3
+                  %label Payment date
+                  = date_field_tag 'payment_date', Date.today, class: 'form-control'
+              
+              %br
+              .row
+                .col-md-3
+                  %label Payment method
+                  = select_tag 'payment_type', options_for_select(['Type one', 'Type two']), {class: 'form-control', prompt: 'Choose payment method'}
+                .col-md-3
+                  %label Reference no.
+                  = text_field_tag 'reference_no', '', class: 'form-control'
+                .col-md-3
+                  %label Deposit to
+                  = select_tag 'deposit_to', options_for_select(['Bank of America', 'Bank of Texas']), {class: 'form-control', prompt: 'Select a Bank'}
+                .col-md-3
+                  %label Amount received
+                  = text_field_tag 'amount_received', '', class: 'form-control', placeholder: '0.00'
+
+              %br
+              .row
+                .col-md-3.form-group
+                  %label{:for => "memo"} Memo:
+                  %textarea#comment.form-control{:rows => "5"}
+
+              %br
+              .row
+                .col-md-3
+                  %label Attachments
+                  %input{:name => "attachments", :type => "file"}/
+
+              %br
+              %button.btn-secondary Received

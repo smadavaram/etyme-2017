@@ -1,0 +1,45 @@
+- content_for :scripts do
+  :javascript
+        $( document ).ready(function() {
+        if($('#'+ #{contract.id}).length > 0)
+        {
+            $('#'+#{contract.id}).highcharts({
+                colors: ['#53C986','#334A5E','#ffc333','#fb6b5b'],
+                chart: {
+                    type: 'column'
+                },
+                title: {
+                    text: 'Timesheet'
+                },
+                tooltip: {
+                    pointFormat: '<span>{series.name}</span>: <b>{point.y}</b><br/>'
+                },
+                subtitle: {
+                    text: 'Approved Hours / Day'
+                },
+                xAxis: {
+                    categories: #{timesheet_logs_dates}
+                },
+                plotOptions: {
+                    series: {
+                        minPointLength: 0,
+                        dataLabels: {
+                            enabled: true,
+
+                        },
+                    }
+                },
+                yAxis: {
+                    title: {
+                        text: 'Total Time'
+                    }
+
+                },
+                series: [{
+                    name: 'Total Hours ',
+                    data: #{timesheet_logs_total_time_array},
+                    color: '0000'
+                }]
+            })
+        }
+     });

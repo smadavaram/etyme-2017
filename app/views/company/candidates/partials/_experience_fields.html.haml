@@ -1,0 +1,45 @@
+.nested-fields
+  .form-group
+    %label.col-md-2.control-label
+      Experience Title
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :experience_title,placeholder: "Experience Title",class: 'form-control'
+  .form-group
+    %label.col-md-2.control-label
+      Company Name
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :institute,placeholder: "Company Name",class: 'form-control'
+  .form-group
+    %label.col-md-2.control-label
+      Industry
+      %sup.text-danger *
+    .col-md-4
+      =f.select :industry, industry_list, {include_blank: true},{class: "form-control", required: true }
+    %label.col-md-2.control-label
+      Department
+      %sup.text-danger *
+    .col-md-4
+      =f.select :department, department_list, {include_blank: true},{class: "form-control", required: true }
+  .form-group
+    %label.col-md-2.control-label
+      Start Date
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :start_date,placeholder: "Start Date",class: 'form-control education_start_year'
+  .form-group
+    %label.col-md-2.control-label
+      End Date
+      %sup.text-danger *
+    .col-md-10
+      = f.text_field :end_date,placeholder:"End Date",class: 'form-control education_completion_year '
+  .form-group
+    %label.col-md-2.control-label
+      Description
+      %sup.text-danger *
+    .col-md-10
+      = f.text_area :description,placeholder: "Description",class: 'form-control', row: '5'
+  .form-group
+    .col-md-12
+      = link_to_remove_association "Remove", f , class: 'btn btn-danger pull-right'

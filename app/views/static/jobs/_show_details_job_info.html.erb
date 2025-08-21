@@ -1,0 +1,86 @@
+<div class="">
+  <div class="form-desc no-border"></div>
+  <div class="form-desc no-border">
+    <div class="row">
+      <div class="col-lg-6">
+        <% if @job&.job_category.present? %>
+          <div class="">
+            <%= is_job ? "Job Category" : "Category" %>
+          </div>
+          <div class="h6">
+            <%= @job.job_category %>
+          </div>
+        <% end %>
+        <div class="">
+          Date
+        </div>
+        <div class="h6">
+          <%= @job.start_date&.strftime("%B %d, %Y") %>
+          <% if @job.end_date %>
+            to <%= @job.end_date.strftime("%B %d, %Y") %>
+          <% end %>
+        </div>
+        <% if @job&.location.present? %>
+          <div class="">
+            Location
+          </div>
+          <div class="h6">
+            <%= @job.location %>
+          </div>
+        <% end %>
+        <div class="">
+            Work Type
+          </div>
+          <div class="h6">
+            <%= @job.work_type.humanize %>
+          </div>
+      </div>
+      <div class="col-lg-6">
+        <% if @job&.industry.present? %>
+          <div class="">
+            Industry
+          </div>
+          <div class="h6">
+            <%= @job.industry %>
+          </div>
+        <% end %>
+        <% if @job&.status.present? %>
+          <div class="">
+            Status
+          </div>
+          <div class="h6">
+            <%= @job.status %>
+          </div>
+        <% end %>
+        <% if @job.price.present? %>
+          <div class="">
+            Rate
+          </div>
+          <div class="h6">
+            <%= sprintf("$%0.2f", @job.price) %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+  <div class="form-desc no-border mb-1">
+    <% if @job&.education.present? %>
+      <div class="">
+        Educations
+        <% @job.education.each do |ed| %>
+          <span class="badge badge-warning font-500 ml-2"><%= ed.name %></span>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+  <div class="form-desc no-border">
+    <% if @job&.tags.present? %>
+      <div class="">
+        Skills
+        <% @job.tags.each do |tag| %>
+          <span class="badge badge-warning font-500 ml-2"><%= tag.name %></span>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>

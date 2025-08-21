@@ -1,0 +1,71 @@
+.modal#share-candidates
+  .modal-dialog.modal-md
+    .modal-content
+      .modal-header{:style => "padding: 1rem 1rem 0rem 1rem;"}
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h5#myModalLabel.modal-title
+          %strong Share Hot Candidates
+          %hr
+          %p.muted Share your hot candidates with external users and you can also attach a custom message along with.
+
+
+      .modal-body{:style => "display: flex; flex-direction: column; padding: 0rem 1rem 1rem 1rem;"}
+        .share_url
+          Share
+          %br/
+          %a#candidate_share_url{:target => "_blank"}
+        = form_for Candidate.new, url: share_hot_candidates_candidates_path, html: {class: 'form-horizontal'},method: :get do |f|
+          = hidden_field_tag 'candidates_ids',value ='',{class: "candidates_ids"}
+          %fieldset
+            .form-group
+              %label.col-md-12.control-label
+                To
+                %sup.text-danger
+              .col-md-12
+                =# text_field_tag "emails" ,nil ,class: "tagsinput form-control" ,"data-role" => "tagsinput", placeholder: "Groups/Customers/Emails" , required: true ,"data-role" => "tagsinput"
+                = select_tag "emails",options_for_select(@groups),{class: 'form-control select2', required: true, :multiple => true}
+            .form-group
+              %label.col-md-12.control-label
+                BCC
+                %sup.text-danger
+              .col-md-12
+                = select_tag "emails_bcc",options_for_select(@groups),{class: 'form-control select2', :multiple => true}
+            .form-group
+              %label.col-md-12.control-label
+                Subject
+                %sup.text-danger
+              .col-md-12
+                = text_field_tag "subject" ,nil ,class: "form-control ", :id=>"emailsubject" , placeholder: "Email Subject "
+            .form-group
+              %label.col-md-12.control-label
+                Message
+                %sup.text-danger
+              .col-md-12
+                = text_area_tag "message" ,nil ,class: "form-control ", :id=>"emailbody" , placeholder: "Message "
+
+          .modal-footer
+            %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.button "Send".html_safe , class: 'btn btn-primary' , data: {disable_with: disable_spinning('Sending...')}
+
+:css
+  .select2{
+    width: 470px;
+    }
+  .share_url{
+    margin-bottom: 10px;
+    margin-left: 12px
+  }  
+  #st-1 .st-btn {
+    display: inline-block !important
+  }
+  @media only screen and (max-device-width: 480px) {
+    #share-candidates .modal-dialog{
+      width: 93%;
+    }
+    .share_url{
+      margin-bottom: 44px;
+      margin-left: 12px;
+    }
+  }

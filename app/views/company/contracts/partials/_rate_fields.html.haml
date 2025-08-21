@@ -1,0 +1,67 @@
+.row
+  .col-md-2
+    .form-group
+      %label.control-label
+        - if usics
+          Consultant Rate
+        - else
+          Customer Rate
+      .col-sm-12.pl-0
+        = f.number_field :rate,class: "form-control",placeholder: "i.e 2.5 or 3"
+  .col-md-2
+    .form-group
+      %label.control-label
+        Overtime Rate
+      .col-sm-12.pl-0
+        = f.number_field :overtime_rate,class: "form-control",placeholder: "i.e 2.5 or 3"
+  .col-md-2
+    .form-group
+      %label.control-label
+        Expected Hrs
+      .col-sm-12.pl-0
+        = f.number_field :working_hrs, id: 'expected_hrs', class: "form-control",placeholder: "i.e 1 - 24", max: "24", min: "1", pattern: "[1-24]"
+  - if usics
+    .col-md-2
+      .form-group
+        %label.control-label
+          USCIS Rate
+        .col-sm-12.pl-0
+          = f.number_field :uscis,class: "form-control", placeholder: "i.e 2.5 or 3"
+  .col-md-2
+    .form-group
+      %label.control-label
+        Rate Type
+      .col-sm-12.pl-0
+        = f.select :rate_type, ["hourly", "daily", "weekly", "monthly"],{}, class: "form-control"
+  .col-md-2
+    .form-group
+      %label.control-label
+        From Date
+      .col-sm-12.pl-0
+        = f.text_field :from_date, class: "form-control contract_rate_start_date",id: usics ? 'customer_from_date' : 'consultant_from_date', placeholder: "Pick From Date"
+  .col-md-2
+    .form-group
+      %label.control-label
+        To Date
+      .col-sm-12.pl-0
+        = f.text_field :to_date, class: "form-control contract_rate_end_date",id: usics ? 'customer_to_date' : 'consultant_to_date', placeholder: "Pick To Date"
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      $('.' +
+        'contract_rate_start_date').datepicker({
+        dateFormat : 'mm/dd/yy',
+        defaultDate: "<%= @contract.start_date&.strftime('%m/%d/%Y')%>",
+        prevText : '<i class="fa fa-chevron-left"></i>',
+        nextText : '<i class="fa fa-chevron-right"></i>'
+       }).datepicker("setDate", "<%= @contract.start_date&.strftime('%m/%d/%Y')%>");
+      $('.contract_rate_end_date').datepicker({
+          dateFormat : 'mm/dd/yy',
+          defaultDate: "<%= @contract.end_date&.strftime('%m/%d/%Y')%>",
+          prevText : '<i class="fa fa-chevron-left"></i>',
+          nextText : '<i class="fa fa-chevron-right"></i>'
+      }).datepicker("setDate", "<%= @contract.end_date&.strftime('%m/%d/%Y')%>");
+    });
+

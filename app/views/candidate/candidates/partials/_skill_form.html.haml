@@ -1,0 +1,17 @@
+#tab5_container{style: "padding: 0 14px;"}
+  = form_for current_candidate,url: candidate_candidate_path(current_candidate.id, tab: "skill"),method: :put, remote: true do |f|
+    %br/
+    .employer-body
+      .row
+        .col-sm-12.col-md-12.col-lg-12#designate-form
+          .row
+            .col-md-6
+              %h4.element-header{style: "padding-bottom: 1rem;margin-bottom: 1rem;"}
+                Add Experience
+          %div
+            = f.fields_for :designations, f.object.designations.with_no_client do |b|
+              = render 'candidate/candidates/designations_fields', f: b
+
+            .links.pull-right
+              = link_to_add_association '+ Add Experience', f, :designations, class: "btn btn-primary", partial: 'candidate/candidates/designations_fields'
+

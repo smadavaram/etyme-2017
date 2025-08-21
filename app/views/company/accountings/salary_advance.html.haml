@@ -1,0 +1,35 @@
+#content
+  .row
+  %section
+    .row
+      %article.col-sm-12.col-md-12.col-lg-12
+        #wid-id-0.jarviswidget{"data-widget-deletebutton" => "false", "data-widget-editbutton" => "false"}
+          %header
+            %span.widget-icon
+              %i.fa.fa-check
+            %h2 Salary Clear Cycles 
+          %div.table-responsive
+            %table.table.table-bordered.account_detail
+              %thead
+                %tr
+                  %th Contract
+                  %th Status
+                  %th Start Date
+                  %th End date
+                  %th Doc date
+                  %th Post Date
+              %tbody
+                - ContractCycle.where(cycle_type: 'SalaryClear').order(id: :asc).each do |ex|
+                  %tr
+                    %td
+                      = ex.contract_id
+                    %td
+                      = ex.status.titleize
+                    %td
+                      = ex.start_date.to_date
+                    %td
+                      = ex.end_date.to_date
+                    %td
+                      = ex.doc_date
+                    %td
+                      =  ex.post_date

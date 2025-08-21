@@ -1,0 +1,50 @@
+App.messages = App.cable.subscriptions.create('DocsChannel', {
+    connected: function () {
+    },
+    disconnected: function () {
+    },
+
+    received: function (data) {
+        update_doc_table(data)
+        return ""
+    },
+
+    notify: function (message) {
+        return alert(message);
+    },
+
+    speak: function (massage) {
+        return this.perform('speak', {
+            massage: massage
+        });
+    }
+});
+
+function update_doc_table(data) {
+  data.is_require == 'signature' ? append_signature_row(data) : append_document_row(data)
+}
+
+function append_signature_row(data){
+    var target = $(`tbody[data-for='${data.document_for}'][data-type='${data.title_type}'][data-require='${data.is_require}']`)
+    target.append($('<tr>').attr('role', 'row').attr('class','even')
+        .append($('<td>').append($('<input>').attr('type', 'checkbox').attr('name', 'ids[]').attr('id', 'ids_').attr('value', data.id)))
+        .append($('<td>').text(data.title))
+        .append($('<td>').text(data.title_type))
+        .append($('<td>').text(data.document_for))
+        .append($('<td>').text(data.expires_at))
+        .append($('<td>').text(data.is_require))
+        .append($('<a>').attr('href',data.file).attr('target','_blank').text(data.file_name))
+    );
+}
+
+function append_document_row(data){
+    var target = $(`tbody[data-for='${data.document_for}'][data-type='${data.title_type}'][data-require='${data.is_require}']`)
+    target.append($('<tr>').attr('role', 'row').attr('class','even')
+        .append($('<td>').append($('<input>').attr('type', 'checkbox').attr('name', 'ids[]').attr('id', 'ids_').attr('value', data.id)))
+        .append($('<td>').text(data.title))
+        .append($('<td>').text(data.title_type))
+        .append($('<td>').text(data.document_for))
+        .append($('<td>').text(data.expires_at))
+        .append($('<td>').text(data.is_require))
+    );
+}

@@ -1,0 +1,28 @@
+.col-sm-12
+  .element-wrapper
+    .element-box-tp
+      .controls-above-table
+        .row.mr-1.ml-1
+          .col-sm-6
+          .col-sm-6
+            .form-inline.justify-content-sm-end
+              %input.form-control.form-control-sm.rounded.bright{placeholder: "Search", type: "text", type: 'search', id: 'payroll-cycles-datatable-search'}
+      .table-responsive
+        %table#payroll-cycles-datatable.table.text-center.table-bordered.table-lg.table-v2.table-striped
+          %thead
+            %tr
+              %th Title
+              %th Frequency
+              %th Cycle type
+              %th Start Date
+              %th End Date
+              %th Post Date
+          %tbody
+            - payroll.contract_cycles.each do |cc|
+              %tr
+                %td= payroll.title
+                %td= payroll.payroll_type
+                %td{style: "color: #{cc.color}"}= cc.note
+                %td.no-wrap= cc.start_date.strftime("%m-%d-%Y")
+                %td.no-wrap= cc.end_date&.strftime("%m-%d-%Y")
+                %td.no-wrap= cc.post_date

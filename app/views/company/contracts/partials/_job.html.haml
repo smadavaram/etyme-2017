@@ -1,0 +1,348 @@
+= form_for  @contract,:remote => true, method: @contract.new_record?  ? :post : :put ,html: {id: 'wizard-1' , class: 'form-horizontal new_contract', style: "width: 100%;", novalidate: "novalidate" } do |f|
+  =f.hidden_field :contractable_type , value: "Company"
+  =f.hidden_field :status, value: "draft"
+  =hidden_field_tag :tab, "2"
+  - if params.has_key?('id')
+    =contract.hidden_field :parent_contract_id , value: params[:id]
+
+  .contract-fields_wrapper.contract-border
+    .row
+      .col-md-6
+        .form-group
+          %h6.control-label
+            Project Name
+            %sup.text-danger
+          .contract-fild
+            = f.text_field :project_name ,class: "form-control" , required: 'true',value: @contract&.project_name || "#{SecureRandom.hex(5)} - #{current_company.name} - Auto generated", placeholder: "#{SecureRandom.hex(5)} - #{current_company.name} - Auto generated"
+            -#%h5.mb-4.d-inline-block #{SecureRandom.hex(5)} - #{current_company.name}
+      .col-md-3
+        .form-group
+          %label.control-label
+            Start Date
+            %sup.text-danger *
+          .contract-fild
+            = f.text_field :start_date ,class: "form-control" , required: 'true' #, placeholder: "Contract Start Date"
+      .col-md-3
+        .form-group
+          %label.control-label
+            End Date
+            %sup.text-danger *
+          .contract-fild
+            = f.text_field :end_date ,class: "form-control" , required: 'true' #, placeholder: "Contract End Date"
+    -#.mt-4
+    -#  .row
+    -#    .col-md-12
+    -#      .form-group
+            -#%h5.mb-4.d-inline-block Contract Admin Team
+            -#%h5.mb-4.d-inline-block.pull-right
+            -#  %button.btn.btn-primary.btn-sm{"data-target" => "#contract-admin-team", "data-toggle" => "modal", :type => "button"} Add Admin
+            -#  - headers =  %w(domain name contact role(s) reminder action(s))
+
+
+    %hr
+
+    .row
+      .col-md-12
+        .form-group
+          %h5.mb-4.d-inline-block Contract Admin Team
+          %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
+          .form-group
+            %label.control-label Hr Admins
+            .contract-fild
+              .plain-select
+                = select_tag "user_ids[]", [] ,class:"form-control contract_admins", id: 'admin-user'
+                -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins(event)'} Save
+
+
+    %br/
+    .row.profile-section
+      - @contract.contract_admins.each do |admin|
+        -user = admin.user
+        .col{style: 'padding-left: 4%; max-width: 160px;'}
+          .profile-tile{style: 'border-bottom: unset'}
+            .profile-tile-box{style: 'background-color: #f2f4f8'}
+              .pt-avatar-w
+                =image_tag 'avatars/male.png'
+              .pt-user-name
+                = do_ellipsis(user.full_name,10)
+                %br/
+                %br/
+                - if ["User","Admin"].include?(admin.class.to_s)
+                  %input{id: user.id,:name => "contract[hr_admins_ids][]", :value => user.id,hidden: "hidden"}/
+                = contact_widget(user.email,user.phone,user,chat_link: chat_link(user))
+                = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+
+
+      -#.table-responsive.p-4
+      -#  %table.table.text-center.table-bordered.table-lg.table-v2.table-striped.data-table-font#contract_admins_table
+      -#    %thead
+      -#      %tr
+      -#      - headers.each do |header|
+      -#        %th= header.capitalize
+      -#    %tbody.hr_admins_table_body
+      -#      - @contract.contract_admins.each do |admin|
+      -#        - admin.user.inspect
+      -#        - user = admin.user
+      -#        %tr
+      -#          %td= user.company.domain
+      -#          %td.no-wrap
+      -#            =user_image(user, style: 'width: 35px; height: 35px;', class: 'data-table-image mr-1',title: "#{user.full_name}" )
+      -#            = do_ellipsis(user.full_name,7)
+      -#          %td.no-wrap.d-flex
+      -#            = contact_widget(user.email,user.phone,user,chat_link: chat_link(user),color: '#3E4B5B; !important')
+      -#          %td= do_ellipsis(user.roles.pluck(:name).join(', '),40)
+      -#          %td= content_tag(:span, do_ellipsis(current_user.reminders.where(reminderable_id: user.id, reminderable_type: 'Admin')&.last&.title), class: 'bg-info badge mr-1').html_safe
+      -#          %td
+      -#            = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0014_notebook_paper_todo').html_safe, add_reminder_company_users_path(user_id: user.id), remote: :true, title: "Remind Me", class: 'data-table-icons')
+      -#            = link_to(content_tag(:i, nil, class: 'os-icon os-icon-ui-15').html_safe, delete_hr_admin_contracts_path(contract_id: @contract.id,contract_admin_id: admin.id), method: :delete,remote: :true, title: "Delete #{user.full_name}", class: 'data-table-icons')
+      -#            - unless @contract_have_admin
+      -#              %strong{:id => "response_#{admin.id}"}
+      -#              = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male').html_safe, change_admin_status_contracts_path(contract_id: @contract.id,contract_admin:admin.id,status:'admin',tab:1), remote: :true, title: "Make Admin", class: 'data-table-icons remove_admin_link')
+      -#            - else
+      -#              - if admin.admin?
+      -#                = link_to(content_tag(:i, nil, class: 'picons-thin-icon-thin-0699_user_profile_avatar_man_male').html_safe, change_admin_status_contracts_path(contract_id:@contract.id,contract_admin: admin.id,status:'member',tab:1), remote: :true, title: "Remove Admin", class: 'data-table-icons',style: "color:red")
+      -#              -else
+      -#                %i.picons-thin-icon-thin-0710_business_tie_user_profile_avatar_man_male{:title => "Member"}
+
+
+    .row
+      .col-md-12
+        .form-group
+          %label.control-label Jobs
+          %label.control-label.pull-right
+            = link_to 'Add New', new_job_path,target:'_blank', class: 'btn btn-sm btn-primary'
+          .contract-fild
+            - if @contract.new_record?
+              .plain-select
+                = f.select :job_id, '', {}, id: 'select_jobs', class: 'form-control',required: 'true'
+            - else
+              = f.select :job_id, '', {}, id: 'select_jobs',value:  @contract.job&.id, class: 'form-control'
+              = hidden_field_tag 'job_id', 	 @contract.job&.id, id: "job_id"
+  - if true #@contract.new_record? or @contract.buy_contract&.persisted?
+    .contract-fields_wrapper.mt-4.contract-border
+      .row
+        .col-md-12
+          %h5.pt-1
+            %b Do you want to onboard consultant?
+            %label.ml-3.radio-container.d-inline-block
+              Yes
+              %input{:checked => "checked" ,onchange: "toogle_consultant(this,'.consultant_toggle')",name: "toogle_consultant_contract", :type => "radio", :value => "yes"}/
+              %span.radio-checkmark
+            %label.radio-container.d-inline-block
+              No
+              %input{onchange: "toogle_consultant(this,'.consultant_toggle')", :type => "radio",name: "toogle_consultant_contract", :value => "no"}/
+              %span.radio-checkmark
+      .row.consultant_toggle
+        .col-md-5
+          .form-group
+            %label.control-label Consultant
+            %label.control-label.pull-right
+              %button{onclick: "set_job_application(#{@contract.job&.id})",type: 'button', class: 'btn btn-sm btn-primary'} Add New
+            .contract-fild
+              - if @contract.new_record? or @contract.candidate_id.nil?
+                .plain-select
+                  = f.select :candidate_id, '', {}, {id: 'select_candidates', required: true}
+              - else
+                .plain-select
+                = f.select :candidate_id, '', {}, {id: 'select_candidates'}
+                -# = text_field_tag :consultant_name, @contract.candidate.full_name.capitalize, disabled: "disabled"
+        =f.fields_for :buy_contract, @contract.buy_contract || @contract.build_buy_contract do |bc|
+          .col-md-7
+            .form-group
+              %label.control-label Contract Type
+              .contract-fild{style: "margin-top: 20px;"}
+                %span.contract-type-radio
+                  = bc.radio_button :contract_type, "W2",required: 'true'
+                  %label.control-label W2 (Fulltime)
+                  = bc.radio_button :contract_type, "1099",required: 'true'
+                  %label.control-label 1099 (Freelancers)
+                  = bc.radio_button :contract_type, "C2C",required: 'true'
+                  %label.control-label Corp-Corp (Third Party)
+          .col-md-12.vendor_company{class: bc.object.contract_type == "C2C" ? '' : 'hidden'}
+            .row
+              .col-md-5
+                .form-group
+                  %br
+                  %label.control-label Vendor(Pay To)
+                  %label.control-label.pull-right
+                    %button{class: 'btn btn-sm btn-primary',type: 'button', onclick: "$('#new-contract-company').modal('show')"} Add New
+                  .contract-fild
+                    -# if @contract.new_record? or @contract.company_id.nil?
+                    .plain-select
+                      = bc.select :company_id, {}, {}, class: '', id: "buy_contract_company"
+                    -# else
+                      -# text_field_tag :vendor_name, @contract.buy_contract.company.present? ? @contract.buy_contract.company.full_name.capitalize : '', disabled: "disabled"
+              .col-md-6
+                .form-group
+                  -#%h5.mb-4.d-inline-block Customer Contacts
+                  %input{name: "vendor_contract", id: 'vendor_contract', value: "",hidden: "hidden"}
+                  .form-group
+                    %br
+                    %label.control-label Vendor Contacts
+                    .contract-fild
+                      .plain-select
+                        = select_tag "vendor_contacts_ids[]", [], {multiple: true  , class:"w-100", id: 'selectize_sell_company_vendors_contacts'}
+                        -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
+
+
+  - if true #@contract.new_record? or @contract.sell_contract&.persisted?
+    .a
+      
+    
+      .contract-fields_wrapper.mt-2.contract-border
+        .col-md-12
+        %h5.pt-1
+          %b Do you want to onboard customer?
+          %label.ml-3.radio-container.d-inline-block
+            Yes
+            %input{:checked => "checked",onchange: "toogle_seller(this,'.toggle_sell_contract')",name: "toogle_seller_contract", :type => "radio", :value => "yes"}/
+            %span.radio-checkmark
+          %label.radio-container.d-inline-block
+            No
+            %input{onchange: "toogle_seller(this,'.toggle_sell_contract')", :type => "radio",name: "toogle_seller_contract", :value => "no"}/
+            %span.radio-checkmark
+        =f.fields_for :sell_contract, @contract.sell_contract || @contract.build_sell_contract do |sc|
+          .row.toggle_sell_contract
+            .col-md-6
+              .form-group
+                %label.control-label Customer(Bill To)
+                %label.control-label.pull-right
+                  %button{class: 'btn btn-sm btn-primary',type: 'button', onclick: "$('#new-contract-company').modal('show')"} Add New
+                .contract-fild
+                  - if @contract.new_record? or sc.object.id.nil?
+                    .plain-select
+                      = sc.select :company_id, {}, {}, class: '', id: "sell_contract_company", required: true
+                  - else
+                    = sc.select :company_id, {}, {}, class: '', id: "sell_contract_company"
+                    -# = text_field_tag :customer_name, @contract.sell_contract.company.name.capitalize, disabled: "disabled"
+                    = hidden_field_tag :sell_contract_company, @contract.sell_contract.company.id
+            .col-md-6
+              .form-group
+                %label.control-label Work location
+                .contract-fild{style: "margin-top: 8px;"}
+                  = f.text_field :work_location, class: "form-control", placeholder: "Contract Work location"
+          .row
+            .col-md-12
+              .form-group
+                -#%h5.mb-4.d-inline-block Customer Contacts
+                %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
+                .form-group
+                  %br
+                  %label.control-label Customer Contacts
+                  .contract-fild
+                    .plain-select
+                      = select_tag "company_contacts_ids[]", [], {multiple: true  , class:"w-100", id: 'selectize_sell_company_contacts'}
+                      -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
+
+
+        %br
+        .row.hr_reporting_admins_table_body
+          = render 'company/contracts/partials/add_manager', business_detail_objs: @contract.sell_contract&.contract_sell_business_details
+      
+      .contract-fields_wrapper.mt-4.toggle_sell_contract.contract-border
+        -#%h5.mb-4.d-inline-block End Client(s)/Reporting Manager(s)
+        -#%h5.mb-4.d-inline-block.pull-right
+        -#%button.btn.btn-primary.btn-sm.manager_team{type: "button"} Add Manager
+        -# - headers =  %w(domain name contact role(s) reminder action(s))
+            .row
+        .row.toggle_sell_contract
+          .col-md-6
+            .form-group.mb-3.mt-3
+              %label.control-label.mr-4
+                %b Do you want to Onboard Client?
+              %span.is_client_customer_radio
+                =f.radio_button  :is_client_customer, true, checked: f.object.is_client_customer == true,class: 'end_client'
+                %label.control-label.mr-4 Yes
+                =f.radio_button  :is_client_customer, false, checked: f.object.is_client_customer == false || f.object.is_client_customer.nil?,class: 'end_client'
+                %labe.control-label No
+          .col-md-6
+            .form-group.contract_client{style: "display: none;"}
+              %label.control-label Client Company
+              %label.control-label.pull-right
+                %button{class: 'btn btn-sm btn-primary',type: 'button', "data-toggle": "modal", "data-target": "#new-contract-company"} Add New
+              .contract-fild
+                .plain-select
+                  = f.select :client_id, [[f.object.client&.full_name,f.object.client_id]], {}, id: 'select_clients'
+        .col-md-12
+          .form-group.contract_client
+            -#%h8.mb-4.d-inline-block Client Contacts
+            %input{name: "contract_id", id: 'contract_id', value: @contract.id,hidden: "hidden"}
+            .form-group
+              %label.control-label Client Contacts
+              .contract-fild
+                .plain-select
+                  = select_tag "company_contacts_ids[]", [] ,class:"w-100", id: 'selectize_sell_client_contacts'
+                  -#%button.btn.btn-secondary.btn-sm{type: "submit", class: 'add_admin', onclick: 'save_hr_admins_manager(event)'} Save
+
+
+
+
+
+
+- content_for :modals do
+  .hr_admins
+    =render 'company/contracts/partials/admin_team_modal',contract: @contract || nil
+    =render 'company/contracts/partials/admin_team_modal_sell_company',contract: @contract || nil
+    =render 'company/contracts/partials/manager_modal',contract: @contract || nil
+
+
+- content_for :scripts do
+  :javascript 
+    function save_hr_admins(e){
+      // e.preventDefault();
+      let contract_id = $('#contract_id').val();
+      let user_ids = $('#admin-user').val();
+      let url = `/contracts/get_hr_admins`;
+      $.post(url, {contract_id: contract_id, user_ids: user_ids}).done(function (data) {
+          flash_success("HR Admin updated successfully!")
+      }).fail(function (data) {
+          flash_error(data.status)
+      });
+    }
+    function hide_modal(){
+      setTimeout( ()=> {
+        $("#collaborator_selectize")[0].selectize.clear();
+        $('#close_modal').trigger('click');
+      }, 2000)
+    }
+    $('#admin-user').change( function() {
+      save_hr_admins(null);
+    });
+    $('#selectize_sell_company_contacts').change( function() {
+      save_hr_admins_manager(null);
+    });
+    $('#selectize_sell_client_contacts').change( function() {
+      save_client_admins_manager(null);
+    });
+    if($(".is_client_customer_radio input[type='radio']").val() == "true")
+    {
+        $('.contract_client').show();
+    }
+    $('.contract_client').hide();
+    function save_hr_admins_manager(e){
+      // e.preventDefault();
+      let contract_id = $('#contract_id').val();
+      let user_ids = $('#selectize_sell_company_contacts').val();
+      let url = `/contracts/get_reporting_managers`;
+      $.post(url, {contract_id: contract_id, company_contacts_ids: user_ids}).done(function (data) {
+          flash_success("End Client Reporting Manager updated Successfully!")
+      }).fail(function (data) {
+          flash_error(data.status)
+      });
+    }
+
+    function save_client_admins_manager(e){
+      // e.preventDefault();
+      let contract_id = $('#contract_id').val();
+      let user_ids = [];
+      user_ids.push($('#selectize_sell_client_contacts').val());
+      user_ids.push($('#selectize_sell_company_contacts').val());
+      let url = `/contracts//get_reporting_managers`;
+      $.post(url, {contract_id: contract_id, company_contacts_ids: user_ids}).done(function (data) {
+          flash_success("End Client Reporting Manager updated Successfully!")
+      }).fail(function (data) {
+          flash_error(data.status)
+      });
+    }
+
+

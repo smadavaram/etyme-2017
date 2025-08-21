@@ -1,0 +1,48 @@
+= form_tag purchase_invoices_path, method: :get, id: "sale_invoices_form" do
+  = hidden_field_tag "tab", 'all'
+  .mt-2
+    .d-flex{style: 'justify-content: flex-end'}
+      .form-group.d-flex
+        %i.fa.fa-chevron-circle-left.mt-2
+        = text_field_tag :start_date, params[:start_date], autofocus: false,class: "p_date form-control m-1",placeholder: 'To Date'
+        
+        = text_field_tag :end_date, params[:start_date], autofocus: false,class: "p_date form-control m-1",placeholder: 'To Date'
+
+
+        %i.fa.fa-chevron-circle-right.mt-2
+
+  .table_divider.mt-3
+  .row
+    .col-md-8
+      .d-flex{style: ""}
+        %ul.nav.nav-pills.smaller.mt-3{style: "border-bottom: none;"}
+          %li.nav-item
+            %a{id: "submitted", class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("submitted") }","data-tab"=> 'submitted', href: '#' } Submitted
+         
+          %li.nav-item
+            %a{id: "partially_paid", class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("partially_paid") }","data-tab"=> 'partially_paid', href:  '#'} Partially Paid 
+          
+          %li.nav-item
+            %a{id: "paid", class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("paid") }","data-tab"=> 'paid', href: '#' } Paid
+          
+ 
+          %li.nav-item
+            %a{id: "cancelled", class: "invoice_table_filter nav-link ts fd approved_timesheets border_btn #{ "active" if @tab.eql?("cancelled") }","data-tab"=> 'cancelled', href: '#'} Cancel
+          
+
+          %li.nav-item
+            %a{id: "all", class: "invoice_table_filter nav-link fd open_timesheets border_btn #{ "active" if @tab.nil? || @tab.eql?("all_invoices") }","data-tab"=> 'all_invoices', href: '#'} All
+      
+    .col-md-4
+      / style: "border-bottom: none;float:right;margin-right:30px !important;"
+      %ul.nav.nav-pills.smaller.mt-3.d-flex{style: 'justify-content: flex-end'}
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd upcomming_timesheets border_btn #{ "active" if @tab.eql?("Upcomming") }", href:'#'} Export
+        %li.nav-item.ml-3
+          %a{class: "nav-link ts fd submitted_timesheets border_btn #{ "active" if @tab.eql?("Submitted") }",href:'#'} Print
+  %br      
+  .row.ml-2
+    .col-sm-6{style: 'justify-content: flex-start'}
+    .col-sm-6{style: 'justify-content: flex-end'}  
+      .form-inline.justify-content-sm-end
+        = text_field_tag :search, params[:search], placeholder: "Search", type: 'search', class: "form-control form-control-sm bright" , id: 'my_bench_datatable-search'

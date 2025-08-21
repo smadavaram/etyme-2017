@@ -1,0 +1,10 @@
+.modal{id:"user-#{assignee.id}"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h4.modal-title
+          %strong= "Manage Groups"
+      .modal-body.no-padding
+        = render 'company/users/partials/assign_groups_form' , assignee: assignee

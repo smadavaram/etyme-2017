@@ -1,0 +1,42 @@
+.w-100.p-4.bg_white
+  .contract-fields_wrapper.mb-4.bg-shade
+    =render 'company/contracts/partials/contract_header',contract: @contract
+  .row
+    .col-sm-12.col-md-12.col-lg-12
+      = render 'company/contracts/partials/sell_side'
+- if @contract.pending? && !@contract.is_sent?(current_company)
+  - content_for :modals do
+    #ajax-modal
+    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'accept'
+    = render 'company/contracts/partials/accept_contract_modal' , contract: @contract , status: 'reject'
+
+  - content_for :scripts do
+    :javascript
+      function openAccept(){
+        $("#contract-accept-#{@contract.id}").modal('show');
+      }
+      $(".upload-doc-button").click(function(){
+        file = '.'+$(this).attr('id');
+        filepicker.setKey("#{ENV['filepicker_api_key']}");
+        filepicker.pick({},function(blob){
+          $(file).val(blob.url);
+          $(file).parent().submit();
+        });
+      });
+- content_for :scripts do
+  :javascript
+
+    $('.contract_progress').attr('data-content','0%');
+    $('.contract_progress').css('left', '#{(((@contract.contract_progress.to_f*54)/100).to_f+21).round}%');
+    $('.contract_progress').attr('data-content','#{@contract.contract_progress.to_f.round}%');
+
+    $(document).on('click', '.buy-change-rate', function(){
+      $('#buy-change-rate').toggleClass('hidden');
+    });
+
+    $(document).on('click', '.sell-change-rate', function(){
+      $('#sell-change-rate').toggleClass('hidden');
+    });
+
+
+

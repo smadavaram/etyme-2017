@@ -1,0 +1,43 @@
+!!!
+%html{:id => "#{yield :html_id}"}
+  %head
+    -#%meta{:content => "text/html; charset=UTF-8", "http-equiv" => "Content-Type"}/
+    %title Etyme
+    :javascript
+      (function(w,r){w._rwq=r;w[r]=w[r]||function(){(w[r].q=w[r].q||[]).push(arguments)}})(window,'rewardful');
+    %script{async: "async", src:'https://r.wdfl.co/rw.js', "data-rewardful":'afe750'} :cdata
+    -#%meta{content: "#{meta_title}", property: "og:title", name:"twitter:title"}/
+    -#%meta{content: "#{meta_url}", property: "og:url"}/
+    -#-#%meta{content: "website", property: "og:type"}/
+    -#-#%meta{content: "cloudepa.etyme.com", property: "og:site_name"}/
+    -#%meta{content: "#{meta_description}", property: "og:description"}/
+    -#%meta{content: "#{meta_image}", property: "og:image"}/
+    = render 'head'
+    = action_cable_meta_tag
+    = favicon_link_tag '/favicon.ico'
+    = stylesheet_link_tag    'application'
+    = csrf_meta_tags
+    %script{async: "async", src: "https://platform-api.sharethis.com/js/sharethis.js#property=5ea26f459ad3eb0012e163d3&product=inline-share-buttons", type: "text/javascript"}
+    = yield :head
+  %body{:class => "#{yield :body_class}"}
+    = render partial: 'shared/header'
+    #main{:role => "main"}
+      = yield :ribbon
+      - if notice
+        .alert.alert-success.fade.in
+          %button.close{"data-dismiss" => "alert"}
+            ×
+          %i.fa-fw.fa.fa-check
+          = notice
+      - if alert
+        .alert.alert-warning.fade.in
+          %button.close{"data-dismiss" => "alert"}
+            ×
+          %i.fa-fw.fa.fa-warning
+          = alert
+      = yield
+    = javascript_include_tag 'application'
+    = filepicker_js_include_tag
+    = tinymce_assets
+    = yield(:scripts).present? ? yield(:scripts) : render(partial: 'shared/scripts')
+    .modals

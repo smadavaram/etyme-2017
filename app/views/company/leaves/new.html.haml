@@ -1,0 +1,12 @@
+.modal{ id: "newLeave","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-lg
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong New Leave
+      .modal-body
+        = render 'form'
+
+-#= link_to 'Back', consultant_leaves_path

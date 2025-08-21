@@ -1,0 +1,126 @@
+-content_for :google_address_search_api do
+  %script{:src => "https://maps.googleapis.com/maps/api/js?key=#{ENV['google_search_location_api_key']}&libraries=places", :type => "text/javascript"}
+.marketplacebody
+  = form_tag marketplace_path, :method => :get , id: "market_place_form" do
+    .container
+      .row
+        .col-md-5.offset-md-3.pt-4.col-8
+          .search-with-icon.os-icon.os-icon-ui-37
+            = text_field_tag 'search_by[term]', params[:search_by][:term],placeholder: "search in Companies, Candidates & Jobs ...", autofocus: false,class: " market_place_field ", style: 'background-color: #E9EDF4;'
+
+
+        .col-md-4.pt-4.end-flex.mt-3.col-4
+          .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
+            %i.picons-social-icon-periscope.mr-3{style: "font-size: 30px; color: #636c71;"}
+            .os-dropdown.light.message-list.mb-3.search_by_address.custom-os-dropdown{style: 'width: 285px;'}
+              %label{style: 'color:gray;'} Search By Address
+              = text_field_tag :address, params[:address],placeholder: "search Address ...", autofocus: false, id: 'google_search_location' ,class: " market_place_field form-control form-control-sm bright p-3"
+
+
+
+
+          .messages-notifications.os-dropdown-trigger.os-dropdown-position-left{style: "font-size: 30px; color: #636c71;"}
+            %i.icon-equalizer
+            .os-dropdown.light.message-list.mb-3.custom-os-dropdown{style: 'width: 270px;'}
+              - if params[:search_by][:search_scop].eql?('on')
+                .form-group.mb-0
+                  %label.radio-container
+                    %span{style: 'color:#636c71;'}Search in Prefer Vendor
+                    %input.form-check-input{:checked => "checked", :name => "search_by[search_scop]", :type => "radio", :value => "on"}>/
+                    %span.radio-checkmark
+                  %label.radio-container
+                    %span{style: 'color:#636c71;'}Search In Etyme
+                    %input.form-check-input{:name => "search_by[search_scop]", :type => "radio", :value => ""}>/
+                    %span.radio-checkmark
+              - else
+                .form-group.mb-0
+                  %label.radio-container
+                    %span{style: 'color:#636c71;'}Search in Prefer Vendor
+                    %input.form-check-input{:name => "search_by[search_scop]", :type => "radio", :value => "on"}>/
+                    %span.radio-checkmark
+                  %label.radio-container
+                    %span{style: 'color:#636c71;'}Search In Etyme
+                    %input.form-check-input{:checked => "checked",:name => "search_by[search_scop]", :type => "radio", :value => ""}>/
+                    %span.radio-checkmark
+
+
+              = select_tag 'job_departments', options_for_select(department_list,:selected=>params[:job_departments]), class: 'form-control', id: 'job_departments',include_blank: "Select Department"
+              = select_tag 'job_industry', options_for_select(industry_list,:selected=>params[:job_industry]),class: 'form-control',include_blank: "Select Job Industry"
+              = select_tag 'job_category', options_for_select(WORK_CATEGORIES.keys,:selected=>params[:job_category]),class: 'form-control',id: 'candidate_category',include_blank: "Select Job category"
+              = select_tag 'job_sub_category', options_for_select([],:selected=>params[:job_sub_category]),class: 'form-control',id: 'candidate_subcategory',include_blank: "Select Sub Category"
+              = select_tag 'skills', options_for_select(@skills,:selected=>params[:skills]),class: 'form-control',include_blank: "Select Skills",style: 'max_height:10px;'
+
+
+      .row.pl-3.pt-2
+        .col-md-2
+          - if params[:company].blank?
+            %input{:type => "checkbox", :name => "company",class: "market_place_field" } Agency/Vendor
+          - else
+            %input{:type => "checkbox", :name => "company",class: "market_place_field",checked: true } Agency/Vendor
+        .col-md-2
+          - if params[:Candidates].blank?
+            %input{:type => "checkbox", :name => "Candidates",class: "market_place_field"} Candidates(S)
+          - else
+            %input{:type => "checkbox", :name => "Candidates",class: "market_place_field",checked: true} Candidates(S)
+        .col-md-1
+          - if params[:Jobs].blank?
+            %input{:type => "checkbox", :name => "Jobs",class: "market_place_field"} Jobs
+          - else
+            %input{:type => "checkbox", :name => "Jobs",class: "market_place_field",checked: true} Jobs
+        .col-md-2
+          - if params[:product].blank?
+            %input{:type => "checkbox", :name => "product",class: "market_place_field", value: 'Product'} Products
+          - else
+            %input{:type => "checkbox", :name => "product",class: "market_place_field",checked: true, value: 'Product'} Products
+        .col-md-2
+          -if params[:service].blank?
+            %input{:type => "checkbox", :name => "service",class: "market_place_field", value: 'Service'} Services
+          - else
+            %input{:type => "checkbox", :name => "service",class: "market_place_field",checked: true, value: 'Service'} Services
+        .col-md-2
+          - if params[:training].blank?
+            %input{:type => "checkbox", :name => "training",class: "market_place_field",value: 'Training'} Trainings
+          - else
+            %input{:type => "checkbox", :name => "training",class: "market_place_field",checked: true, value: 'Training'} Trainings
+
+
+    .container
+      .row
+        .col-sm-12
+          .element-wrapper
+            - if current_company.vendor? && @data.present?
+              .row
+                - @data.each do |d|
+                  .col-md-6#dynamic-content{style: "width: 100%;"}
+                    = render "company/users/partials/#{d.class.name.downcase}_show", data: d, cached: true
+
+
+-content_for :scripts do
+  :javascript
+    $(document).ready(function(){
+    setcategories($("#candidate_category").val());
+    $(document).on("change","#candidate_category", function(){
+      setcategories($(this).val());
+    });
+
+    function setcategories(cat){
+      $.ajax({
+        type: 'POST',
+        dataType: "json",
+        data: {category: cat},
+        url: "#{get_sub_category_candidates_path}",
+        success: function(data){
+          $('#candidate_subcategory').empty();
+          $.each(data, function(i, value) {
+
+            if(value == "#{current_company&.candidates&.first&.subcategory}"){
+              $('#candidate_subcategory').append($('<option selected="selected">').text(value).attr('value', value));
+            }else{
+              $('#candidate_subcategory').append($('<option>').text(value).attr('value', value));
+            }
+          });
+        }
+      });
+    }
+      default_active_nav('.ln-4');
+    })

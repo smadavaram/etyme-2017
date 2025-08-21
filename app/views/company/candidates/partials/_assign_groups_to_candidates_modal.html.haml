@@ -1,0 +1,10 @@
+.modal{id:"candidates-groups-modal"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %h4.modal-title
+          %strong= "Manage Groups"
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      .modal-body.no-padding
+        = render 'company/candidates/partials/assign_groups_to_candidates_form'

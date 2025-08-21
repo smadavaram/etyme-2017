@@ -1,0 +1,40 @@
+<!-- Comments -->
+  <div class="webflow-comments-header d-flex justify-content-between">
+    <div class="webflow-comments-title">Reviews <span>(<%= candidate_company.rating&.total %>)</span></div>
+    <%# <div class="webflow-comments-sort">Most Recent <i class="fa fa-angle-down" aria-hidden="true"></i></div> %>
+  </div>
+  <br/>
+  <br/>
+  <div>
+    <% if !candidate_company.rating&.total %>
+      No Comments
+    <% end %>
+    <% candidate_company.rates.each do |rate| %>
+      <div class="webflow-comments-card d-flex">
+        <%= rating_starts(candidate_company.rating&.average || 0, 'mr-5') %>
+        <div class="webflow-comments-card-image">
+          <%= user_avatar(rate_author(rate)) %>
+        </div>
+        <div class="pl-3">
+          <div class="webflow-comments-card-author">
+            <%= rate_author(rate).full_name %>
+          </div>
+          <div class="webflow-comments-card-company">
+            <%= rate_author(rate).company&.name %>
+          </div>
+          <div class="webflow-comments-card-text">
+            <%= rate.description %>
+          </div>
+          <div class="webflow-comments-card-footer">
+            <%# <span class="webflow-comments-card-upvote"><i class="fa fa-caret-up" aria-hidden="true"></i> Upvote</span> %>
+            <span class="webflow-comments-card-time">posted <%= time_ago_in_words(rate.created_at)%> ago</span>
+          </div>
+        </div>
+      </div>
+      <br/>
+      <br/>
+    <% end %>
+  </div>
+  <%# <div class="webflow-comments-load-more d-flex justify-content-center"> %>
+  <%#   <a href="#">Load more</a> %>
+  <%# </div> %>

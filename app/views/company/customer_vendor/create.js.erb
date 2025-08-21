@@ -1,0 +1,10 @@
+<% if flash[:errors].present? %>
+<% flash[:errors].each do |e| %>
+flash_error("<%= e %>");
+<% end %>
+<% end %>
+<% if flash[:success].present? %>
+flash_success("<%= flash[:success] %>");
+<% end %>
+
+$('.data_on_slick_<%=params[:file_type]%>').html("<%=j render 'company/customer_vendor/partials/import_list',customer_list:@list %>");

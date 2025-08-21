@@ -1,0 +1,9 @@
+-if flash[:errors].present?
+  - flash[:errors].each do |e|
+    flash_error("#{e}");
+-else
+  flash_success("#{flash[:success]}")
+  $("#uploaded-resumes").html("#{j render 'candidate/candidates/partials/resumes'}");
+  $("#resume_on_slick").html("#{j render 'candidate/candidates/partials/resumes_on_slick'}");
+
+

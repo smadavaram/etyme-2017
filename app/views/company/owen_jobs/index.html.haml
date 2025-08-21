@@ -1,0 +1,47 @@
+#content.newsfeed
+  %body
+    %section#widget-grid.clearfix
+      .newsfeed-left
+        %ul
+          - @jobs.each do |job|
+            -# if !(Time.parse(job.created_at.to_s) <= Time.parse(Time.now.to_s) && job.job_applications.blank?)
+            %li
+              = link_to batch_job_company_owen_job_path(job), remote: true, id: 'public_job_link' do
+                %div.public-job-list.clearfix
+                  %span.pull-left
+                    =job.id
+                  %span.pull-right
+                    %i.fa.fa-calendar-o
+                    =job.created_at.strftime("%d/%m/%Y")
+                %div.job-header.clearfix
+                  = image_tag job.company.logo,  style:"width:50px;height:50px", fit: 'clip'
+                  %p.job_title
+                    = truncate(job.title,length: 50)
+                  %p.job_title
+                    %i.fa.fa-usd
+                    =job.price
+                %div.public-job-other-info
+                  %span
+                    %i.fa.fa-map-marker
+                    =job.location
+                  %span
+                    %i.fa.fa-user
+                    =job.created_by&.full_name
+      .newsfeed-right
+        %div#public-job-description
+  .timesheet_pagination_wrap.pt-3.m-3
+    .pagination_label
+      = page_entries_info @jobs
+    = will_paginate(@jobs, {previous_label: "Previous",next_label: "Next",inner_window: 2,class: 'public_job_des_pagination_links'}.merge(link_options: {'data-remote': true}))
+
+
+-content_for :body_class, 'greybg'
+- content_for :modals do
+  #job_application
+
+
+- content_for :scripts do
+  :javascript
+    $(document).ready(function() {
+      default_active_nav('.ln-5');
+    });

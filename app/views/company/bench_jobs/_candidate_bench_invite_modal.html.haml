@@ -1,0 +1,54 @@
+.modal{ id: "candidate-bench_invite","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog.modal-lg
+    .modal-content.some{:style => "margin-left:120px; width: 73%;"}
+      .modal-header.some{:style=>  "padding-top: 1rem;padding-left: 1rem; padding-right: 1rem; padding-bottom:0px"}
+        %h1 Add Candidate To Bench
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+      = form_for JobInvitation.new , url: bench_candidate_invitation_job_invitations_path, html:{ class:'form-horizontal',id: 'candidate-val'} do |f|
+        .modal-body.some{:style=>  "padding-top: 0px; padding-bottom:0px"}
+          = f.hidden_field :recipient_type , value: 'Candidate'
+          = f.hidden_field :invitation_type , value: 'candidate'
+          = f.hidden_field :invitation_purpose , value: 'bench'
+          %br
+          .form-group
+            %label.col-md-3.control-label
+              Select Candidate
+              %sup.text-danger *
+            .col-md-12
+              = f.select :recipient_id, options_for_select(current_company.candidates.uniq.map {|p| [ p.full_name, p.id ] }), { include_blank: true }, {style: "height:37px;", :required => true}
+          .form-group
+            .row
+              .col-md-6
+                %label.col-md-12.control-label
+                  Min Hourly Rate
+                  %sup.text-danger *
+                .col-md-12
+                  = f.text_field :min_hourly_rate, type: "number", min: "0",class: "form-control min_hourly_rate" , required: 'required',style: "height:37px;", placeholder: "Min Hourly Rate"
+              .col-md-6
+                %label.col-md-12.control-label
+                  Max Hourly Rate
+                  %sup.text-danger *
+                .col-md-12
+                  = f.text_field :max_hourly_rate, type: "number", min: "0", class: "form-control max_hourly_rate" , required: 'required',style: "height:37px;", placeholder: "Max Hourly Rate"
+          .form-group
+            %label.col-md-3.control-label
+              Expiry Date
+              %sup.text-danger *
+            .col-md-12
+              = f.text_field :expiry ,class: "form-control end_date" , required: 'required',style: "height:37px;", placeholder: "Expire Date"
+          .form-group
+            %label.col-md-3.control-label
+              Message
+              %sup.text-danger
+            .col-md-12
+              = f.text_area :message ,class: "form-control" ,row: '3' , placeholder: "Enter Description"
+          .modal-footer.some{:style => "padding-top:0px;padding-bottom: 1rem;"}
+            -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+            %button.btn.btn-primary{"data-dismiss" => "modal", :type => "button"}
+              Cancel
+            = f.button "Send".html_safe, data: {disable_with: disable_spinning("Sending...")} , class: 'btn btn-primary'
+
+
+-content_for :scripts do
+  :javascript

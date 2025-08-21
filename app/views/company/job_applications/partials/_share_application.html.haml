@@ -1,0 +1,34 @@
+.modal{ id: "share_application_#{job_application.id}","aria-hidden": "true", "aria-labelledby": "myModalLabel", :role => "dialog", :style => "display: none;", :tabindex => "-1"}
+  .modal-dialog
+    .modal-content
+      .modal-header
+        %button.close{"aria-hidden" => "true", "data-dismiss" => "modal", :type => "button"}
+          ×
+        %h2#myModalLabel.modal-title
+          %strong Share Application - #{job_application.job.title}
+      .modal-body
+        %header{:role => "heading"}
+          .widget-body
+            = form_for :share_application , url: share_application_with_companies_job_application_path(job_application) ,html:{ class:'form-horizontal'} do |f|
+              .form-group
+                %label.col-md-3.control-label
+                  Select Companies
+                  %sup.text-danger *
+                .col-md-9
+                  = select_tag 'vendor_company', options_for_select(current_company.invited_companies.collect { |company|[company.invited_company.name.titleize, company.invited_company.id] if company!= job_application.company }) ,class: 'form-control' , required: true ,:multiple => true ,id:'vendor'
+              %br/
+              .modal-footer
+                -#= button_tag 'Cancel' , class: 'btn btn-default' , data: {"dismiss": "modal"}
+                %button.btn.btn-default{"data-dismiss" => "modal", :type => "button"}
+                  Cancel
+                = f.button "Send".html_safe, data: {disable_with: disable_spinning("Sending...")} , class: 'btn btn-primary btn-sm'
+:css
+  .select2 {
+  width: 100%!important;
+  }
+
+- content_for :scripts do
+  :javascript
+       $("#vendor").select2({
+           placeholder: "Select Companies"
+        });

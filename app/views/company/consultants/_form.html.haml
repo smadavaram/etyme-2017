@@ -1,0 +1,78 @@
+= form_for @consultant , url: params[:edit].present? ? consultant_path : params.has_key?(:job_application_id) ? job_application_consultants_path(@job_application) : consultants_path ,html: {id: 'wizard-1',class:"form-horizontal new_consultant w-100"} do |e|
+  = e.fields_for :consultant_profile do |p|
+    #bootstrap-wizard-1.col-sm-12
+      .form-bootstrapWizard
+        %ul.bootstrapWizard.form-wizard.space-evenly.d-flex
+          %li.active.w-100{"data-target" => "#step1"}
+            %a{"data-toggle" => "tab", :href => "#tab1"}
+              %span.step 1
+              %span.title Basic information
+          %li.w-100{"data-target" => "#step2"}
+            %a{"data-toggle" => "tab", :href => "#tab2"}
+              %span.step 2
+              %span.title Employment Detail
+          %li.w-100{"data-target" => "#step3"}
+            %a{"data-toggle" => "tab", :href => "#tab3"}
+              %span.step 3
+              %span.title Documents & Verification
+          %li.w-100{"data-target" => "#step4"}
+            %a{"data-toggle" => "tab", :href => "#tab4"}
+              %span.step 4
+              %span.title Save Form
+        .clearfix
+      .tab-content
+        #tab1.tab-pane.active
+          %br/
+          = render  'company/consultants/partials/basic_information' , e: e
+        #tab2.tab-pane
+          %br/
+          = render 'company/consultants/partials/employment_details' , p: p , e: e
+        #tab3.tab-pane
+          %br/
+          = render  'company/consultants/partials/documents_and_verifications' ,  e: e
+        -##tab4.tab-pane
+        -#  %br/
+        -#  %h3
+        -#    %strong Step 4
+        -#    \- Save Form
+        -#  %br/
+        -#  %h1.text-center.text-success
+        -#    %strong
+        -#      %i.fa.fa-check.fa-lg
+        -#      Complete
+        -#  %h4.text-center Click next to finish
+        -#  %br/
+        -#  %br/
+        #tab4.tab-pane
+          %br/
+          %h3
+            %strong Step 4
+            \- Custom Fields
+          .row
+            .col-sm-12
+              .form-group
+                #custom_fields
+                  .col-sm-12
+                    = e.fields_for :custom_fields do |lt|
+                      = render 'shared/custom_fields', f: lt
+                %strong
+                  .links.col-sm-12
+                    = link_to_add_association '+ Add Custom Field', e, :custom_fields, class: 'text-info pull-right', partial: 'shared/custom_fields'
+                    %br/
+        .form-actions.wizard-action
+          .row
+            .col-sm-12
+              %ul.pager.wizard.no-margin.d-flex.space_between.p-0
+                %li.previous.disabled
+                  %a{:href => "javascript:void(0);"} Previous
+                %li.next
+                  %a{:href => "javascript:void(0);"} Next
+                %li.pull-right.finish{:style=>"di"}
+                  %a{:href => "javascript:;"} Finish
+
+- content_for :scripts do
+  :javascript
+    $( document ).ready(function() {
+      $("#roles").select2();
+      $("#docs").select2();
+    });
