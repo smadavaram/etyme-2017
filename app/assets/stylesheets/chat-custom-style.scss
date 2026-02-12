@@ -1,5 +1,6 @@
 .chat-listing{
     background-color: #F2F4F8;
+    padding: 10px;
 }
 .chat-list-container{
     padding-right: 5px;
@@ -9,8 +10,6 @@
 }
 .chat-user-list_height {
     height: 100vh;
-    overflow-y: scroll;
-    margin-left: -10px;
     width: 100%;
 }
 
