@@ -233,7 +233,6 @@ class Company::ContractsController < Company::BaseController
         if params[:vendor_contacts_ids].present?
           @contract.buy_contract.update(vendor_contacts_ids: params[:vendor_contacts_ids])
         end
-        create_custom_activity(@contract, 'contracts.update', contract_params, @contract)
         format.html do
           flash[:success] = "#{@contract.title.titleize} updated successfully"
           redirect_back fallback_location: root_path
