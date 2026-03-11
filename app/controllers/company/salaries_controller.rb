@@ -52,27 +52,7 @@ class Company::SalariesController < Company::BaseController
                                     # .order('created_at')
 
 
-    @contract_cycles.each do |cc|
-      next unless %i[pending open].include?(cc.cyclable.status.to_sym)
-
-      # timesheets = Timesheet.approved.joins(:contract_cycle).where("contract_cycles.contract_id": cc.contract_id, "contract_cycles.cycle_of_type": 'BuyContract', candidate: cc.contract.candidate).where('timesheets.end_date <= ? ', cc.end_date.to_date)
-      timesheets = Timesheet.approved.joins(:contract_cycle).where("contract_cycles.contract_id": cc.contract_id)
-
-      timesheets.each do |ts|
-        cc.cyclable.salary_items.build(salaryable: ts).save
-      end
-      # expenses = cc.contract.expenses.where(bill_type: %i[salary_advanced company_expense]).where.not(status: :salaried)
-      expenses = cc.contract.expenses.where(bill_type: %i[salary_advanced company_expense])
-      cc.cyclable.salary_items.each { |s| puts s.inspect }
-
-      cc.cyclable.contract_expenses = cc.contract.expenses.where(bill_type: "company_expense").map{|e|  e.total_amount if e.salary_ids.include? ( (cc.id.to_s) )  }.compact.sum
-      cc.cyclable.salary_advance = cc.contract.expenses.where(bill_type: "salary_advanced").map{|e|  e.total_amount if e.salary_ids.include? ( (cc.id.to_s) )  }.compact.sum
-      cc.cyclable.total_amount = (cc.cyclable.approved_amount || 0) + cc.cyclable.contract_expenses  +  cc.cyclable.salary_advance + (cc.cyclable.pending_amount || 0) + (cc.cyclable&.commission_amount)
-      cc.cyclable.save
-      expenses.each do |expense|
-        cc.cyclable.salary_items.build(salaryable: expense).save if expense.salary_ids.include? ( (cc.id.to_s) )
-      end
-    end
+    SalaryCalculationService.new(current_company).process_salary_cycles(@contract_cycles)
   end
 
   def show
@@ -141,46 +121,13 @@ class Company::SalariesController < Company::BaseController
   end
 
   def calculate_salary
-    # binding.pry
-    params[:sclr_cycle_ids].each do |key, value|
-      salary = Salary.find_by(sclr_cycle_id: key)
-      next unless salary
-
-      salary.approved_amount = value[:approved_amount].to_i
-      salary.pending_amount = value[:pending_amount].to_i
-      salary.salary_advance = value[:salary_advance].to_i
-      salary.total_amount = value[:approved_amount].to_i + value[:pending_amount].to_i - value[:salary_advance].to_i
-      salary.status = 'calculated'
-      salary.save
-      cc = ContractCycle.find_by(id: salary.sc_cycle_id)
-      cc.update(status: 'completed')
-    end
+    salary_service.calculate(params[:sclr_cycle_ids])
     flash[:notice] = 'Salary Calculated'
     render js: "window.location = '#{request.headers['HTTP_REFERER']}'"
   end
 
   def process_salary
-    params[:sclr_cycle_ids].each do |key, value|
-      salary = Salary.find_by(sclr_cycle_id: key)
-      salary.balance = (salary.total_amount.to_i + CscAccount.where(accountable_id: salary.candidate_id, accountable_type: 'Candidate').sum(:total_amount).to_i) - value[:salary_calculated].to_i
-      next_salary = Salary.where(end_date: salary.end_date + 1.month, contract_id: salary.contract_id).first
-      next_salary&.update(pending_amount: salary.balance)
-      salary.total_amount = value[:salary_calculated].to_i
-      # current_company.etyme_transactions.create!(amount: salary.total_amount * -1, transaction_type: 'Salary', salary_id: salary.id, contract_id: salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: salary.candidate_id)
-      salary.status = 'processed'
-      salary.save
-      cc = ContractCycle.find_by(id: salary.sp_cycle_id)
-      cc.update(status: 'completed')
-    end
-    # params[:comm_ids].each do |key, value|
-    #   # binding.pry
-    #   csca = CscAccount.find_by(id: key.to_i)
-    #   if csca.total_amount.to_i + value[:commission].to_i <= csca.contract_sale_commision.limit.to_i
-    #     csca.update(total_amount: value[:commission].to_i + csca.total_amount)
-    #   else
-    #     csca.update(total_amount: csca.contract_sale_commision.limit.to_i)
-    #   end
-    # end
+    salary_service.process(params[:sclr_cycle_ids])
     flash[:notice] = 'Salary Processed'
     render js: "window.location = '#{request.headers['HTTP_REFERER']}'"
   end
@@ -196,18 +143,7 @@ class Company::SalariesController < Company::BaseController
   end
 
   def clear_salary
-    params[:sclr_cycle_ids].each do |cycle_id|
-      ce_amount = ContractExpense.where(cycle_id: cycle_id).sum(:amount)
-      salary = Salary.find_by(sclr_cycle_id: cycle_id)
-      commission_amount = CscAccount.where(contract_id: salary.contract_id).sum(:total_amount).to_i
-      company_expense = Expense.where(bill_type: 'company_expense').select { |m| m.salary_ids.include? salary.sclr_cycle_id.to_s }.map { |x| x.total_amount.to_i / x.salary_ids.length }.sum(&:to_i)
-      # binding.pry
-      salary.total_amount = salary.total_amount.to_i - (ce_amount.to_i + commission_amount + company_expense.to_i)
-      salary.save
-      salary.update(status: 'cleared')
-      cc = ContractCycle.find_by(id: salary.sclr_cycle_id)
-      cc.update(status: 'completed')
-    end
+    salary_service.clear(params[:sclr_cycle_ids])
     flash[:notice] = 'Salary cleared'
     render js: "window.location = '#{request.headers['HTTP_REFERER']}'"
   end
@@ -216,37 +152,18 @@ class Company::SalariesController < Company::BaseController
 
   def add_payment
     respond_to do |format|
-      if params[:payment].to_f + @salary.billing_amount <= @salary.total_amount
-        if @salary.update(billing_amount: params[:payment].to_f + @salary.billing_amount)
-          current_company.etyme_transactions.create!(amount: (params[:payment].to_f ) * -1, transaction_type: 'Salary', salary_id: @salary.id, contract_id: @salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: @salary.candidate_id, is_processed: true)
-          flash.now[:success] = 'Payment is added to salary'
-          format.js {}
-        else
-          flash.now[:errors] = @salary.errors.full_messages
-          format.js {}
-        end
+      result = salary_service.add_payment(@salary, params[:payment])
+      if result[:success]
+        flash.now[:success] = result[:message]
       else
-        flash.now[:errors] = ['Cannot pay more then total salary amount']
-        format.js {}
+        flash.now[:errors] = result[:errors]
       end
+      format.js {}
     end
   end
 
   def calculate_commission
-    # binding.pry
-    if params[:comm_ids].present?
-      params[:comm_ids].each do |key, _value|
-        csca = CscAccount.find_by(id: key.to_i)
-        csca.set_commission_calculate_on_seq
-      end
-    end
-    if params[:sclr_cycle_ids].present?
-      params[:sclr_cycle_ids].each do |cycle_id|
-        salary = Salary.find_by(sclr_cycle_id: cycle_id.to_i)
-        salary&.update(status: 'commission_calculated')
-        # salary.set_commission_calculate_on_seq
-      end
-    end
+    salary_service.calculate_commission_accounts(params[:comm_ids], params[:sclr_cycle_ids])
     flash[:notice] = 'Commission calculated'
     render js: "window.location = '#{request.headers['HTTP_REFERER']}'"
   end
@@ -270,29 +187,12 @@ class Company::SalariesController < Company::BaseController
   end
 
   def process_salary_expenses
-    @salaries = Salary.calculated.where(id: params[:ids])
-    @salaries.each do |salary|
-      book_entry = salary.contract.contract_books.salary.buy_contract.build(bookable: salary, beneficiary: salary.candidate, total: salary.total_amount, paid: salary.billing_amount)
-      if book_entry.save
-        previous = book_entry.is_first? ? 0.0 : book_entry.previous
-        salary.update(status: :processed, previous_balance: previous, total_amount: salary.total_amount + previous)
-      end
-    end
+    salary_service.process_salary_expenses(params[:ids])
     redirect_to salaries_path(tab: 'pay')
   end
 
   def calculate_salary_commission
-    Salary.where(id: params[:ids]).each do |salary|
-      unless salary.commission_calculated
-        salary.commission_amount = get_commission(salary)
-        send_commission(salary, salary.contract.buy_contract) unless salary.commission_calculated
-        salary.total_amount = salary.total_amount + salary.commission_amount
-        # current_company.etyme_transactions.create!(amount: (salary.commission_amount * -1), transaction_type: "commission", salary_id: salary.id, contract_id: salary.contract_id, transaction_user_type: 'candidate', transaction_user_id: salary.candidate_id, is_processed: false)
-        salary.save
-      end
-    end
-
-
+    salary_service.calculate_commission_for_salaries(params[:ids])
     flash[:success] = 'Commissions has been calculated and added for further processing'
     redirect_to salaries_path(tab: 'calculate')
   end
@@ -309,27 +209,15 @@ class Company::SalariesController < Company::BaseController
   end
 
   def add_contract_addable_expense_amount
-    @salaries = Salary.processed.where(id: params[:ids])
-    @salaries.each do |salary|
-      salary.update_attributes(contract_expenses: salary.calculate_expense)
-    end
+    salary_service.add_contract_addable_expense_amounts(params[:ids])
     flash[:success] = 'Contract expenses are calculated'
     redirect_to salaries_path(tab: 'clearing')
   end
 
   def add_contract_expense_amount
-    @salaries = Salary.where(id: params[:ids], status: %i[open pending])
-    @salaries.each do |salary|
-      advance = salary.calculate_advance
-      salary.update_attributes(total_amount: salary.approved_amount.to_f + advance + salary.commission_amount.to_f, salary_advance: advance)
-    end
-    if @salaries.update_all(status: 'calculated')
-      flash[:success] = 'Salary calculated successfully'
-      redirect_to salaries_path(tab: 'process')
-    else
-      flash[:errors] = @salaries.errors.full_messages
-      redirect_to salaries_path(tab: 'calculate')
-    end
+    salary_service.add_contract_expense_amounts(params[:ids])
+    flash[:success] = 'Salary calculated successfully'
+    redirect_to salaries_path(tab: 'process')
   end
 
   private
@@ -347,42 +235,17 @@ class Company::SalariesController < Company::BaseController
   end
 
   def salary_status_index(tab)
-    # .where("salaries.status IN (?)", salary_status_index(@tab))
     case tab
-    when 'commission'
-      [Salary.statuses[:pending], Salary.statuses[:open]]
-    when 'calculate'
+    when 'commission', 'calculate'
       [Salary.statuses[:pending], Salary.statuses[:open]]
     when 'process'
       [Salary.statuses[:calculated]]
-    when 'pay'
-      [Salary.statuses[:processed]]
-    when 'clearing'
+    when 'pay', 'clearing'
       [Salary.statuses[:processed]]
     end
   end
 
-  def get_commission(salary)
-    comm = ContractSaleCommision.find_by(buy_contract_id: salary.contract_id)
-    return 0 if comm == nil
-
-    amount = comm.frequency == 'perhour' ? (salary.approved_amount * comm.rate) / 100.0 : comm.limit
-    # amount = 0
-    # salary.earned_commissions.each do |commission|
-    #   if commission.salaried!
-    #     amount += commission.total_amount
-    #     salary.commission_ids << commission.id
-    #   end
-    # end
-
-    amount
-  end
-
-  def send_commission(salary, buy_contract)
-    buy_contract.contract_sale_commisions.each do |commission|
-      amount = commission.frequency == 'perhour' ? (salary.approved_amount * commission.rate) / 100.0 : commission.limit
-      buy_contract.commission_queues.pending.create(salary: salary, contract_sale_commision: commission, total_amount: amount)
-      salary.commission_calculated = true
-    end
+  def salary_service
+    @salary_service ||= SalaryCalculationService.new(current_company)
   end
 end

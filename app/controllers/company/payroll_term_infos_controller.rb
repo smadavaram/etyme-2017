@@ -32,9 +32,9 @@ class Company::PayrollTermInfosController < Company::BaseController
 
   def update
     if @payroll.update(payroll_params)
-      filters_date_parameters
+      payroll_cycle_service.filter_date_parameters(payroll_params)
       flash[:success] = 'Payroll has been updated'
-      create_update_payroll
+      payroll_cycle_service.generate
       redirect_to edit_payroll_term_info_path(@payroll), success: 'Cycles has been generated'
     else
       redirect_to edit_payroll_term_info_path(@payroll), errors: @payroll.errors.full_messages
@@ -44,9 +44,9 @@ class Company::PayrollTermInfosController < Company::BaseController
   def create
     @payroll = current_company.payroll_infos.build(payroll_params)
     if @payroll.save
-      filters_date_parameters
+      payroll_cycle_service.filter_date_parameters(payroll_params)
       flash[:success] = 'Payroll has been created'
-      create_update_payroll
+      payroll_cycle_service.generate
       redirect_to edit_payroll_term_info_path(@payroll), success: 'Cycles has been generated'
     else
       flash[:errors] = @payroll.errors.full_messages
@@ -55,39 +55,11 @@ class Company::PayrollTermInfosController < Company::BaseController
   end
 
   def get_date_groups(buy_or_sell, resource_initial, cycle_frequency_field)
-    sd = Date.today.beginning_of_year
-    ed = Date.today.end_of_year
-    utils = Cycle::Utils::DateUtils
-    case buy_or_sell.send(cycle_frequency_field)
-    when 'daily'
-      utils.group_by_daily(sd, ed)
-    when 'weekly'
-      utils.group_by_weekly(buy_or_sell.send("#{resource_initial}_day_of_week"), sd, ed)
-    when 'biweekly'
-      utils.group_by_biweekly(buy_or_sell.send("#{resource_initial}_day_of_week"), sd, ed)
-    when 'monthly'
-      utils.group_by_monthly(buy_or_sell.send("#{resource_initial}_date_1").try(:day), sd, ed)
-    when 'twice a month'
-      utils.group_by_twice_a_month(buy_or_sell.send("#{resource_initial}_date_1").try(:day), buy_or_sell.send("#{resource_initial}_date_2").try(:day), sd, ed)
-    end
-  end
-
-  def create_update_payroll
-    if @payroll.contract_cycles.present?
-      if @payroll.contract_cycles.destroy_all
-        create_sp
-        create_sc
-        create_sclr
-      end
-    else
-      create_sp
-      create_sc
-      create_sclr
-    end
+    PayrollCycleGeneratorService.new(buy_or_sell, current_company).get_date_groups(resource_initial, cycle_frequency_field)
   end
 
   def generate_payroll_dates
-    if create_update_payroll
+    if payroll_cycle_service.generate
       redirect_to payroll_term_infos_path, success: 'Cycles Generated'
     else
       redirect_to payroll_term_infos_path, errors: ['Something went wrong while generating the cycles']
@@ -95,83 +67,6 @@ class Company::PayrollTermInfosController < Company::BaseController
   end
 
   def get_cycles; end
-
-  def create_sp
-    sp_date_groups = get_date_groups(@payroll, 'sp', 'payroll_type')
-    sp_date_groups.each do |date|
-      ContractCycle.create(
-        cycle_type: 'SalaryProcess',
-        start_date: date.first,
-        end_date: date.last,
-        post_date: check_for_shift(ContractCycle.get_post_date(get_selected_field('sp'), @payroll.payroll_type, date.first, date.last) || date.first),
-        cycle_of: @payroll,
-        cycle_frequency: @payroll.payroll_type,
-        note: 'Salary Process'
-      )
-    end
-  end
-
-  def create_sc
-    sc_date_groups = get_date_groups(@payroll, 'sc', 'payroll_type')
-    sc_date_groups.each do |date|
-      ContractCycle.create(
-        cycle_type: 'SalaryCalculation',
-        start_date: date.first,
-        end_date: date.last,
-        post_date: check_for_shift(ContractCycle.get_post_date(get_selected_field('sc'), @payroll.payroll_type, date.first, date.last) || date.first),
-        cycle_of: @payroll,
-        cycle_frequency: @payroll.payroll_type,
-        note: 'Salary Calculation'
-      )
-    end
-  end
-
-  def create_sclr
-    sclr_date_groups = get_date_groups(@payroll, 'sclr', 'payroll_type')
-    sclr_date_groups.each do |date|
-      ContractCycle.create(
-        cycle_type: 'SalaryClear',
-        start_date: date.first,
-        end_date: date.last,
-        post_date: check_for_shift(ContractCycle.get_post_date(get_selected_field('sclr'), @payroll.payroll_type, date.first, date.last) || date.first),
-        cycle_of: @payroll,
-        cycle_frequency: @payroll.payroll_type,
-        note: 'Salary Clear'
-      )
-    end
-  end
-
-  def get_selected_field(resource_initial)
-    case @payroll.payroll_type
-    when 'daily'
-      Date.today.to_s
-    when 'weekly'
-      @payroll.send("#{resource_initial}_day_of_week")
-    when 'biweekly'
-      [@payroll.send("#{resource_initial}_day_of_week"), @payroll.send("#{resource_initial}_2day_of_week")]
-    when 'monthly'
-      @payroll.send("#{resource_initial}_date_1")
-    when 'twice a month'
-      [@payroll.send("#{resource_initial}_date_1"), @payroll.send("#{resource_initial}_date_2")]
-    end
-  end
-
-  def check_for_shift(date)
-    return nil if date.nil?
-
-    date = shift_day(date) while date.sunday? || date.saturday? || current_company.holidays.where("Date(date) = '#{date}'").present?
-    date
-  end
-
-  def shift_day(date)
-    if date.sunday?
-      @payroll.send("weekend_sch_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 2.days : date + 1.day
-    elsif date.saturday?
-      @payroll.send("weekend_sch_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 1.days : date + 2.day
-    elsif current_company.holidays.where("Date(date) = '#{date}'").present?
-      @payroll.send("weekend_sch_#{@payroll.payroll_type.split(' ').join('_')}").present? ? date - 1.days : date + 1.day
-    end
-  end
 
   def month_cycle
     12.times do |i|
@@ -301,63 +196,7 @@ class Company::PayrollTermInfosController < Company::BaseController
                                          tax_infos_attributes: %i[id tax_term _destroy])
   end
 
-  def filters_date_parameters
-    begin  
-      if payroll_params[:sclr_date_1].present?
-        date = Date.strptime(payroll_params[:sclr_date_1], '%m-%d-%Y')
-        @payroll.update(sclr_date_1: date.strftime('%Y/%m/%d'))
-      end
-    rescue
-      @payroll.update(sclr_date_1: payroll_params[:sclr_date_1])
-    end
-    begin
-      if payroll_params[:sc_date_1].present?
-        date = Date.strptime(payroll_params[:sc_date_1], '%m-%d-%Y')
-        @payroll.update(sc_date_1: date.strftime('%Y/%m/%d'))
-      end
-    rescue
-      @payroll.update(sc_date_1: payroll_params[:sc_date_1])
-    end
-
-    begin  
-      if payroll_params[:sclr_date_2].present?
-        date = Date.strptime(payroll_params[:sclr_date_2], '%m-%d-%Y')
-        @payroll.update(sclr_date_2: date.strftime('%Y/%m/%d'))
-      end
-    rescue
-      @payroll.update(sclr_date_2: payroll_params[:sclr_date_2])
-    end
-    begin
-      if payroll_params[:sc_date_2].present?
-        date = Date.strptime(payroll_params[:sc_date_2], '%m-%d-%Y')
-        @payroll.update(sc_date_2: date.strftime('%Y/%m/%d'))
-      end
-    rescue
-      @payroll.update(sc_date_2: payroll_params[:sc_date_2])
-    end
-    begin
-      if payroll_params[:sp_date_2].present?
-        date = Date.strptime(payroll_params[:sp_date_2], '%m-%d-%Y')
-        @payroll.update(sp_date_2: date.strftime('%Y/%m/%d'))
-      end
-    rescue
-      @payroll.update(sp_date_2: payroll_params[:sp_date_2])
-    end
-    begin
-      if payroll_params[:sp_date_1].present?
-        date = Date.strptime(payroll_params[:sp_date_1], '%m-%d-%Y')
-        @payroll.update(sp_date_1: date.strftime('%Y/%m/%d'))
-      end
-    rescue
-      @payroll.update(sp_date_1: payroll_params[:sp_date_1])
-    end
-    begin
-      if payroll_params[:pay_period_twice_a_monthly].present?
-        date = Date.strptime(payroll_params[:pay_period_twice_a_monthly], '%m-%d-%Y')
-        @payroll.update(pay_period_twice_a_monthly: date.strftime('%Y/%m/%d'))
-      end
-    rescue
-      @payroll.update(pay_period_twice_a_monthly: payroll_params[:pay_period_twice_a_monthly])
-    end
+  def payroll_cycle_service
+    @payroll_cycle_service ||= PayrollCycleGeneratorService.new(@payroll, current_company)
   end
 end

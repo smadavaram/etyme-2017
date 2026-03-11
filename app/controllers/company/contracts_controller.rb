@@ -121,90 +121,50 @@ class Company::ContractsController < Company::BaseController
   end
 
   def buy_document_create
-    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
-    @plugin = current_company.plugins.first
-    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 2 ? true : RefreshToken.new(@plugin).refresh_docusign_token
-    if response.present?
-      @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false, part_of: @buy_contract, signers_ids: params[:signers].to_s.tr('[', '{').tr(']', '}'))
-        result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
-        if !result.is_a?(Hash) && (result.status == 'sent')
-          @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
-          flash.now[:success] = 'Document is submitted to the candidate for signature'
-        else
-          error = eval(result[:error_message])
-          @document_sign.destroy
-          flash.now[:errors] = ["#{error[:errorCode]}: #{error[:message]}"]
-        end
-      end
+    service = ContractDocumentSigningService.new(company: current_company, user: current_user)
+    result = service.sign_documents_for_buy_contract(@buy_contract, doc_ids: params[:ids], signers: params[:signers])
+    if result[:success]
+      flash.now[:success] = 'Document is submitted to the candidate for signature'
     else
-      flash.now[:errors] = ['Docusign token request failed, please regenerate the token from integrations']
+      flash.now[:errors] = [result[:error]]
     end
-    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: 'E-Signature').ids)
+    @document_signs = result[:document_signs] || []
   end
 
   def buy_emp_doc_create
-    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
-    @company_candidate_docs.each do |sign_doc|
-      current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @buy_contract.contract.candidate, is_sign_done: false, part_of: @buy_contract, signers_ids: params[:signers].to_s.tr('[', '{').tr(']', '}'))
-    end
+    service = ContractDocumentSigningService.new(company: current_company, user: current_user)
+    result = service.request_employee_documents(@buy_contract, doc_ids: params[:ids], signers: params[:signers])
     flash.now[:success] = 'Document(s) submission request is submitted to the Company'
-    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.contract.candidate, documentable: current_company.company_candidate_docs.where(is_require: 'Document').ids)
+    @document_signs = result[:document_signs] || []
   end
 
   def buy_ven_doc_create
-    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
-    @plugin = current_company.plugins.docusign.first
-    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 2 ? true : RefreshToken.new(@plugin).refresh_docusign_token
-    if response.present?
-      @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @buy_contract.company.owner, is_sign_done: false, part_of: @buy_contract, signers_ids: params[:signers].to_s.tr('[', '{').tr(']', '}'))
-        result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
-        if !result.is_a?(Hash) && (result.status == 'sent')
-          @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
-          flash.now[:success] = 'Document is submitted to the candidate for signature'
-        else
-          @document_sign.destroy
-          error = eval(result[:error_message])
-          flash.now[:errors] = ["#{error[:errorCode]}: #{error[:message]}"]
-        end
-      end
+    service = ContractDocumentSigningService.new(company: current_company, user: current_user)
+    result = service.sign_documents_for_vendor(@buy_contract, doc_ids: params[:ids], signers: params[:signers])
+    if result[:success]
+      flash.now[:success] = 'Document is submitted to the candidate for signature'
     else
-      flash.now[:errors] = ['Docusign token request failed, please regenerate the token from integrations']
+      flash.now[:errors] = [result[:error]]
     end
-    @document_signs = @buy_contract.document_signs.where(signable: @buy_contract.company.owner, documentable: current_company.company_candidate_docs.where(is_require: 'E-Signature').ids)
+    @document_signs = result[:document_signs] || []
   end
 
   def submit_document_create
-    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
-    @plugin = current_company.plugins.first
-    response = (Time.current - @plugin.updated_at).to_i.abs / 3600 <= 2 ? true : RefreshToken.new(@plugin).refresh_docusign_token
-    if response.present?
-      @company_candidate_docs.each do |sign_doc|
-        @document_sign = current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @sell_contract.team_admin, is_sign_done: false, part_of: @sell_contract, signers_ids: params[:signers].to_s.tr('[', '{').tr(']', '}'))
-        result = DocusignEnvelope.new(@document_sign, @plugin).create_envelope
-        if !result.is_a?(Hash) && (result.status == 'sent')
-          @document_sign.update(envelope_id: result.envelope_id, envelope_uri: result.uri)
-          flash.now[:success] = 'Document is submitted to the Company for signature'
-        else
-          @document_sign.destroy
-          error = eval(result[:error_message])
-          flash.now[:errors] = ["#{error[:errorCode]}: #{error[:message]}"]
-        end
-      end
+    service = ContractDocumentSigningService.new(company: current_company, user: current_user)
+    result = service.sign_documents_for_sell_contract(@sell_contract, doc_ids: params[:ids], signers: params[:signers])
+    if result[:success]
+      flash.now[:success] = 'Document is submitted to the Company for signature'
     else
-      flash.now[:errors] = ['Docusign token request failed, please regenerate the token from integrations']
+      flash.now[:errors] = [result[:error]]
     end
-    @document_signs = @sell_contract.document_signs.where(documentable: current_company.company_candidate_docs.where(is_require: 'E-Signature').ids)
+    @document_signs = result[:document_signs] || []
   end
 
   def create_document_request
-    @company_candidate_docs = current_company.company_candidate_docs.where(id: params[:ids])
-    @company_candidate_docs.each do |sign_doc|
-      current_company.document_signs.create(requested_by: current_user, documentable: sign_doc, signable: @sell_contract.team_admin, is_sign_done: false, part_of: @sell_contract)
-    end
+    service = ContractDocumentSigningService.new(company: current_company, user: current_user)
+    result = service.request_sell_documents(@sell_contract, doc_ids: params[:ids])
     flash.now[:success] = 'Document(s) submission request is submitted to the Company'
-    @document_signs = @sell_contract.document_signs.where(documentable: current_company.company_candidate_docs.where(is_require: 'Document').ids)
+    @document_signs = result[:document_signs] || []
   end
 
   def edit; end
