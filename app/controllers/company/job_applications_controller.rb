@@ -39,21 +39,9 @@ class Company::JobApplicationsController < Company::BaseController
 
   def create_multiple_for_candidate
     if request.post?
-      messages = []
-      Candidate.where(id: params[:temp_candidates]).each do |c|
-        begin
-          if @job.status == 'Bench'
-            resume = c.candidates_resumes.find_by(id: params[:job_application][:applicant_resume])
-            resume = c.candidates_resumes.create(resume: params[:job_application][:applicant_resume]) unless @resume
-            c.job_applications.create!(job_application_params.merge!(cover_letter: 'Application created by owner', applicant_resume: resume.resume, job_id: @job.id, applied_by: current_user))
-          else
-            c.job_applications.create!(applicant_resume: c.resume, cover_letter: 'Application created by owner', job_id: @job.id, applied_by: current_user)
-          end
-        rescue ActiveRecord::RecordInvalid => e
-          messages << "#{c.first_name} is already an applicant"
-        end
-      end
-      flash[:error] = messages
+      service = JobApplicationWorkflowService.new(current_user, current_company)
+      result = service.create_multiple_for_candidate(@job, params[:temp_candidates], job_application_params)
+      flash[:error] = result[:errors] if result[:errors].any?
       @post = true
       redirect_back(fallback_location: root_path)
     end
@@ -112,22 +100,8 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def send_templates
-    @plugin = current_company.plugins.docusign.first
-    @company_candidate_docs.each do |sign_doc|
-      @document_sign = current_company.document_signs.create(
-        requested_by: current_user,
-        documentable: sign_doc,
-        signable: @job_application.applicationable,
-        is_sign_done: false,
-        part_of: @job_application,
-        signers_ids: params[:signers].to_s.tr('[', '{').tr(']', '}')
-      )
-      if @document_sign.is_signable?
-        request_sign
-      else
-        flash[:success] = 'Your request is submitted for processing'
-      end
-    end
+    service = JobApplicationWorkflowService.new(current_user, current_company)
+    service.send_docusign_templates(@job_application, params[:ids], params[:signers])
     @document_signs = @job_application.applicationable.document_signs
     redirect_back(fallback_location: current_company.etyme_url)
   end
@@ -150,29 +124,14 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def client_submission
-    if @job_application.job.parent_job_id
-      new_application = @job_application.dup
-      new_application.job_id = @job_application.job.parent_job_id
-      new_application.company = current_company
-      if new_application.save
-        @job_application.client_submission!
-        record_activity
-        flash[:success] = 'Application Is submitted to the client'
-      else
-        flash[:errors] = new_application.errors.full_messages
-      end
-      redirect_back(fallback_location: root_path)
+    service = JobApplicationWorkflowService.new(current_user, current_company)
+    result = service.submit_to_client(@job_application)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      if /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z]+)*\.[a-z]+\z/i.match?(@job_application.job.source.strip)
-        if JobApplicationMailer.submit_to_client(@job_application.id, @job_application.job.id, current_company).deliver
-          @job_application.client_submission!
-          flash[:success] = 'Application is Mailed to the client'
-        else
-          flash[:errors] = ['Something went wrong']
-        end
-      end
-      redirect_back(fallback_location: root_path)
+      flash[:errors] = result[:errors]
     end
+    redirect_back(fallback_location: root_path)
   end
 
   def prescreen
@@ -202,46 +161,25 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def interview
-    @interview = params[:interview][:id].present? ?
-                     @job_application.interviews.find_by(id: params[:interview][:id])
-                     : @job_application.interviews.new(interview_params.merge(accepted_by_company: true))
+    service = JobApplicationWorkflowService.new(current_user, current_company)
+    result = service.schedule_interview(@job_application, interview_params, static_job_url(@job_application.job).to_s)
     respond_to do |format|
-      if @interview.new_record? ? @interview.save : @interview.update(interview_params.merge(accept: false, accepted_by_recruiter: false, accepted_by_company: true))
-        @conversation = @job_application.conversation
-        @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
-        body = current_user.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='#{static_job_url(@job_application.job).to_s}'> with reference to the job </a>#{@job_application.job.title}."
-        current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
-        format.html { flash[:success] = 'Interview is Scheduled, pending confirmation' }
+      if result[:success]
+        format.html { flash[:success] = result[:message] }
       else
-        format.html { flash[:errors] = @job_application.errors.full_messages }
+        format.html { flash[:errors] = result[:errors] }
       end
     end
     redirect_back fallback_location: root_path
   end
 
   def accept_interview
-    @interview = @job_application.interviews.find_by(id: params[:interview_id])
-    if current_user == @job_application.job.company.owner
-      flash[:errors] = ['Already Accepted by you'] if @interview.accepted_by_company
+    service = JobApplicationWorkflowService.new(current_user, current_company)
+    result = service.accept_interview(@job_application, params[:interview_id], static_job_url(@job_application.job).to_s)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      flash[:errors] = ['Already Accepted by you'] if @interview.accepted_by_recruiter
-    end
-    if flash[:errors].present?
-      redirect_back(fallback_location: root_path)
-      return
-    end
-    if current_user == @job_application.job.company.owner ? @interview.update(accepted_by_company: true) : @interview.update(accepted_by_recruiter: true)
-      @conversation = @job_application.conversation
-      if @interview.is_accepted?
-        @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
-        @job_application.interviewing!
-        record_activity
-      end
-      body = current_user.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='#{static_job_url(@job_application.job).to_s}}'> with reference to the job </a>#{@job_application.job.title}."
-      current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, resource_id: @interview_id)
-      flash[:success] = 'Interview Schedule is accepted'
-    else
-      flash[:errors] = @interview.errors.full_messages
+      flash[:errors] = result[:errors]
     end
     redirect_back(fallback_location: root_path)
   end
@@ -286,31 +224,23 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def accept_rate
-    if @job_application.job.company.owner == current_user ? @job_application.update(accept_rate_by_company: true, status: :rate_confirmation) : @job_application.update(accept_rate: true, status: :rate_confirmation)
-      @conversation = @job_application.conversation
-      if @job_application.is_rate_accepted?
-        @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
-        record_activity
-      end
-      body = current_user.full_name + " has accepted #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
-      current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :job_conversation)
-      flash[:success] = 'Rate is Confirmed'
+    service = JobApplicationWorkflowService.new(current_user, current_company)
+    result = service.accept_rate(@job_application)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      flash[:errors] = @job_application.errors.full_messages
+      flash[:errors] = result[:errors]
     end
     redirect_back(fallback_location: root_path)
   end
 
   def rate_negotiation
-    base_url = @job_application.applicationable&.associated_company&.owner ? "http://#{@job_application&.applicationable&.associated_company&.etyme_url}" : HOSTNAME
-    if @job_application.update(job_application_rate.merge(rate_initiator: current_user.full_name, accept_rate: false, accept_rate_by_company: false))
-      @conversation = @job_application.conversation
-      @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
-      body = current_user.full_name + " has offered you #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
-      current_user.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
-      flash[:success] = 'Rate is set for candidate confirmation'
+    service = JobApplicationWorkflowService.new(current_user, current_company)
+    result = service.negotiate_rate(@job_application, job_application_rate)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      flash[:errors] = @job_application.errors.full_messages
+      flash[:errors] = result[:errors]
     end
     redirect_back(fallback_location: root_path)
   end
@@ -322,16 +252,8 @@ class Company::JobApplicationsController < Company::BaseController
 
   def share_application_with_companies
     if params.key?('vendor_company')
-      Company.all.where(id: params[:vendor_company]).each do |c|
-        if c.invited_by.present?
-          next unless c.company_contacts.first.present?
-
-          c.company_contacts.first.notifications.create(message: current_company.name + " share a <a href='http://#{current_company.etyme_url + share_job_application_path(@job_application.share_key)}' target='_blank'>job application - #{@job_application.job.title}</a> with you.", title: 'Job Application')
-        else
-          c.owner.notifications.create(message: current_company.name + " share a <a href='http://#{current_company.etyme_url + share_job_application_path(@job_application.share_key)}' target='_blank'>job application - #{@job_application.job.title}</a> with you.", title: 'Job Application')
-
-        end
-      end
+      service = JobApplicationWorkflowService.new(current_user, current_company)
+      service.share_with_companies(@job_application, params[:vendor_company])
     end
     redirect_back fallback_location: root_path, notice: "job application - #{@job_application.job.title} Successfully Shared."
   end
@@ -346,23 +268,8 @@ class Company::JobApplicationsController < Company::BaseController
   end
 
   def set_conversation(user)
-    ConversationMessage.unread_messages(user, current_user).update_all(is_read: true)
-    @conversation = Conversation.where(topic: :JobApplication, job_application_id: @job_application.id).first
-    unless @conversation.present?
-      name = [user.full_name]
-      name << current_user.full_name
-      # name << user.associated_company.owner.full_name if user.associated_company.owner
-      group = nil
-      Group.transaction do
-        group = current_company.groups.create(group_name: name.join(', '), member_type: 'Chat')
-        group.groupables.create(groupable: user)
-        group.groupables.create(groupable: current_user)
-        # group.groupables.create(groupable: user.associated_company.owner) if user.associated_company.owner
-        # group.groupables.create(groupable: @job_application.recruiter_company) if user.associated_company.owner
-        group.groupables.create(groupable: @job_application.recruiter_company)  if @job_application.recruiter_company
-      end
-      @conversation = Conversation.create(chatable: group, topic: :JobApplication, job_application_id: @job_application.id) if group.present?
-    end
+    service = JobApplicationWorkflowService.new(current_user, current_company)
+    @conversation = service.find_or_create_conversation(@job_application, user)
   end
 
   def interview_params

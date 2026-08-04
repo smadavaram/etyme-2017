@@ -62,17 +62,12 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def move_to_employer
-    @client = current_candidate.clients.find_by(id: params[:client_id])
-    @designation = current_candidate.designations.new(start_date: @client.start_date,
-                                                      end_date: @client.end_date,
-                                                      comp_name: @client.name,
-                                                      company_role: @client.role)
-    if @designation.save
-      flash[:success] = 'Successfully transfer Client to employer'
-      @client.destroy
-      current_candidate.update(ever_worked_with_company: 'No') if current_candidate.clients.count == 0
+    service = CandidateProfileService.new(current_candidate)
+    result = service.move_to_employer(params[:client_id])
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      flash[:errors] = @designation.errors.full_messages
+      flash[:errors] = result[:errors]
     end
     redirect_to onboarding_profile_path(tag: 'skill')
   end
@@ -86,40 +81,16 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def get_cards
-    @cards = {}
-    start_date = get_start_date
-    end_date = get_end_date
-    @cards['APPLICATION'] = current_candidate.job_applications.where(created_at: start_date...end_date).size
-    @cards['STATUS'] = Candidate.application_status_count(current_candidate, start_date, end_date)
-    @cards['ACTIVE'] = params[:filter]
+    service = DashboardService.new(current_candidate, nil)
+    @cards = service.candidate_dashboard_cards(current_candidate, params)
   end
 
   def get_start_date
-    filter = params[:filter] || 'year'
-    case filter
-    when 'period'
-      DateTime.parse(params[:start_date]).beginning_of_day
-    when 'month'
-      DateTime.current.beginning_of_month
-    when 'quarter'
-      DateTime.current.beginning_of_quarter
-    when 'year'
-      DateTime.current.beginning_of_year
-    end
+    DashboardService.new(current_candidate, nil).get_start_date(params)
   end
 
   def get_end_date
-    filter = params[:filter] || 'year'
-    case filter
-    when 'period'
-      DateTime.parse(params[:end_date]).end_of_day
-    when 'month'
-      DateTime.current.end_of_month
-    when 'quarter'
-      DateTime.current.end_of_quarter
-    when 'year'
-      DateTime.current.end_of_year
-    end
+    DashboardService.new(current_candidate, nil).get_end_date(params)
   end
 
   def show
@@ -184,18 +155,12 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def build_profile
-    resume = current_candidate.candidates_resumes.find_by(id: params[:id])
-    response = ResumeParser.new(resume.resume).sovren_parse
-    begin
-      if response.code == '200'
-        parsed_hash = JSON.parse(JSON.parse(response.body)['Value']['ParsedDocument'])['Resume']
-        current_candidate.sovren_build_profile(parsed_hash)
-        flash[:success] = 'Profile build request from resume is processed'
-      else
-        flash[:errors] = [response.body]
-      end
-    rescue StandardError => e
-      flash[:errors] = [e]
+    service = CandidateProfileService.new(current_candidate)
+    result = service.build_profile(params[:id])
+    if result[:success]
+      flash[:success] = result[:message]
+    else
+      flash[:errors] = result[:errors]
     end
     redirect_to onboarding_profile_path(tag: 'verify-phone')
   end

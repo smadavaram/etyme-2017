@@ -49,87 +49,52 @@ class Company::InvoicesController < Company::BaseController
   end
 
   def client_submit_invoice
-    @timesheets = Timesheet.where(id: params[:ids])
-    @contract = @timesheets.first.contract_cycle.contract
-    @invoice = @contract.invoices.timesheet_invoice.open.new(submitted_by: current_user, sender_company_id: current_user.company.id, receiver_company_id: @contract.sell_contract.company.id,
-                                                             total_amount: @timesheets.sum(:amount), total_approve_time: @timesheets.sum(:total_time), start_date: Date.today, end_date: Date.today + 1.month)
-    if @invoice.save
-      @timesheets.each do |ts|
-        @invoice.invoice_items.build(itemable: ts).save
-      end
-    else
-      flash[:errors] = @invoice.errors.full_messages
-    end
+    service = InvoiceWorkflowService.new(current_user, current_company)
+    result = service.client_submit_invoice(params[:ids])
+    flash[:errors] = result[:errors] unless result[:success]
     redirect_back(fallback_location: root_path)
   end
 
   def submit_invoice
-    @invoice = Invoice.where(id: params[:id]).first
-    if @invoice.submitted!
-      @invoice.contract_cycle.completed!
-      flash[:success] = 'Successfully Submitted'
+    service = InvoiceWorkflowService.new(current_user, current_company)
+    result = service.submit_invoice(params[:id])
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      flash[:errors] = ['Unable to submit this Invoice.']
+      flash[:errors] = result[:errors]
     end
     redirect_back fallback_location: invoices_path
   end
 
   def accept_invoice
-    # if current_user.is_admin?
-    #     @invoice.submitted!
-    #     @invoice.submitted_by = current_user
-    #     @invoice.submitted_on = DateTime.now
-    #   if @invoice.save
-    #   flash[:success] = "Successfully Submitted"
-    # else
-    #   flash[:errors] = "You are Not authorized to Submitt this Invoice. "
-    #   end
-    # end
-    # redirect_back fallback_location: root_path
-
-    if @invoice.total_approve_time <= 0 || @invoice.rate <= 0
-      flash[:errors] = 'Invoice not contains any amount. '
+    service = InvoiceWorkflowService.new(current_user, current_company)
+    result = service.accept_invoice(@invoice)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      @invoice.open!
-      @invoice.submitted_by = current_user
-      @invoice.submitted_on = DateTime.now
-      @invoice.total_amount = (@invoice.total_approve_time * @invoice.rate)
-      if @invoice.save
-        @invoice.set_seq_accept_in
-        flash[:success] = 'Successfully Submitted'
-      else
-        flash[:errors] = 'You are Not authorized to Submitt this Invoice. '
-      end
+      flash[:errors] = result[:errors]
     end
     redirect_back fallback_location: root_path
   end
 
   def paid_invoice
-    if @invoice.total_approve_time <= 0 || @invoice.rate <= 0
-      flash[:errors] = 'Invoice not contains any amount. '
+    service = InvoiceWorkflowService.new(current_user, current_company)
+    result = service.pay_invoice(@invoice)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      @invoice.paid!
-
-      if @invoice.save
-        @invoice.set_seq_paid_in
-        flash[:success] = 'Successfully Paid'
-      else
-        flash[:errors] = 'You are Not authorized to Submitt this Invoice. '
-      end
+      flash[:errors] = result[:errors]
     end
     redirect_back fallback_location: root_path
   end
 
   def reject_invoice
-    if @contract.assignee == current_user
-      @invoice.cancelled!
-      @invoice.submitted_by = current_user
-      @invoice.submitted_on = DateTime.now
-      if @invoice.save
-        flash[:success] = 'Successfully Cancelled'
-      else
-        flash[:errors] = 'You are Not authorized to Cancel this Invoice. '
-      end
+    service = InvoiceWorkflowService.new(current_user, current_company)
+    result = service.reject_invoice(@invoice, @contract)
+    if result[:success]
+      flash[:success] = result[:message]
+    else
+      flash[:errors] = result[:errors]
     end
     redirect_back fallback_location: root_path
   end
@@ -170,18 +135,12 @@ class Company::InvoicesController < Company::BaseController
   end
 
   def update_expense_invoice
-    @invoice = Invoice.find(params[:id])
-    @client_expenses = ClientExpense.where(id: params[:ids])
-    if @invoice.invoice_items.pluck(:itemable_id).include? params[:id]
-      ClientExpense.transaction do
-        @client_expenses.each do |ce|
-          @invoice.invoice_items.build(itemable: ce).save
-        end
-        @invoice.open! if @invoice.pending_invoice?
-      end
-      flash[:success] = 'Updated Successfully'
+    service = InvoiceWorkflowService.new(current_user, current_company)
+    result = service.update_expense_invoice(params[:id], params[:ids])
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      flash[:error] = 'Expense already exists.'
+      flash[:error] = result[:errors].first
       redirect_to invoices_path(tab: 'sent_invoices')
     end
   end
@@ -202,24 +161,8 @@ class Company::InvoicesController < Company::BaseController
   private
 
   def set_invoice_timesheets(inv)
-    timesheets = inv.contract.timesheets.approved_timesheets.where('start_date <= ? AND end_date <= ?', inv.start_date, inv.end_date)
-
-    total_amount = 0
-    total_approve_time = 0
-    payrate = inv.contract.sell_contract.today_rate.rate
-
-    timesheets.each do |t|
-      t.days.each_key do |k|
-        if inv.start_date <= k.to_date && inv.end_date >= k.to_date
-          total_amount += t.days[k].to_i * payrate
-          total_approve_time += t.days[k].to_i
-        end
-      end
-    end
-    inv.total_amount = total_amount,
-                       inv.total_approve_time = total_approve_time,
-                       inv.rate = payrate
-    inv.save
+    service = InvoiceWorkflowService.new(current_user, current_company)
+    service.set_invoice_timesheets(inv)
   end
 
   def find_contract
