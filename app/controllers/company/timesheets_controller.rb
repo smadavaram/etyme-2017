@@ -139,34 +139,12 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def approve
-    if @timesheet.approved!
-      @timesheet.contract_cycle.approved!
-      @timesheet.set_cost_and_time
-      if (@timesheet.contract_cycle.cycle_of_type == 'BuyContract') && @timesheet.contract.sell_contract.present?
-        Timesheet.transaction do
-          dup_ts = @timesheet.dup
-          dup_ts.candidate = nil
-          dup_ts.user = @timesheet.contract.admin_user
-          dup_ts.status = :submitted
-          if dup_ts.save
-            dup_cc = @timesheet.contract_cycle.dup
-            dup_cc.candidate = nil
-            dup_cc.cyclable = dup_ts
-            dup_cc.cycle_of = @timesheet.contract.sell_contract
-            dup_cc.user = @timesheet.contract.admin_user
-            if dup_cc.save
-              @timesheet.transactions.each do |tt|
-                dup_tt = tt.dup
-                dup_tt.timesheet = dup_ts
-                dup_tt.save
-              end
-            end
-          end
-        end
-      end
-      flash[:success] = 'Successfully Approved The Timesheet'
+    service = TimesheetApprovalService.new(current_user, current_company)
+    result = service.approve(@timesheet)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      flash[:errors] = @timesheet.errors.full_messages
+      flash[:errors] = result[:errors]
     end
     redirect_back(fallback_location: root_path)
   end
@@ -185,30 +163,13 @@ class Company::TimesheetsController < Company::BaseController
   end
 
   def generate_invoice
-    timesheet = current_company.timesheets.approved_timesheets.where(id: (params[:id] || params[:timesheet_id])).first
-    if timesheet.present?
-      timesheets = timesheet.contract.timesheets.approved_timesheets.where(invoice_id: nil)
-      if timesheets.present?
-        min_date = timesheets.minimum(:start_date)
-        max_date = timesheets.maximum(:end_date)
-
-        invoice = Invoice.new(contract_id: timesheet.contract_id, start_date: min_date, end_date: max_date,
-                              total_amount: (timesheets.pluck(:total_time).sum * timesheet.contract.sell_contract.today_rate.rate),
-                              total_approve_time: timesheets.pluck(:total_time).sum, submitted_on: Time.now,
-                              rate: timesheet.contract.sell_contract.today_rate.rate)
-        if invoice.save
-          timesheets.update_all(invoice_id: invoice.id)
-          flash[:sucess] = 'Invoice Generated successfully.'
-        else
-          flash[:errors] = invoice.errors.full_messages
-        end
-      else
-        flash[:errors] = ['There is no approve timesheets.']
-      end
+    service = TimesheetApprovalService.new(current_user, current_company)
+    result = service.generate_invoice(params[:id] || params[:timesheet_id])
+    if result[:success]
+      flash[:sucess] = result[:message]
     else
-      flash[:errors] = ['Invlid Timesheet.']
+      flash[:errors] = result[:errors]
     end
-
     redirect_to approved_timesheets_path
   end
 

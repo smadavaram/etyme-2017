@@ -184,38 +184,17 @@ class Static::JobsController < ApplicationController
   end
  
   def find_or_create_company(from)
-    company = Company.find_or_create_by(domain: from.domain.split('@')[0].split('.').first) do |compny|
-      compny.name = from.domain.split('@')[0].split('.').first
-      compny.website = from.domain
-      compny.phone = '123456789'
-      compny.email = from.address.to_s
-      compny.company_type = 'hiring_manager'
-    end
+    service = PublicJobService.new(current_company)
+    service.find_or_create_company_from_email(from.to_s)
   end
 
   def job_request
-    subject = request.POST[:subject]
-    from = Mail::Address.new(request.POST[:from])
-    company_email = from.address.to_s
-    company_domain = from.domain.split('@')[0]
-    company = find_or_create_company(from)
-    full_name = from.name.split
-    user = User.find_by_email(company_email) || Admin.create(email: company_email, first_name: full_name.first, last_name: full_name.slice(1, full_name.length), company_id: company.id)
-    company.update(owner_id: user.id) if company.owner_id.nil?
-    if company
-      job = company.jobs.build(job_attr_extractor.merge(created_by_id: user.id))
-      job.title = 'Draft Job' unless job.title.present?
-      job.description = request.POST['stripped-html'] unless job.source && job.price && job.education_list && job.tag_list
-
-      if job.save(validate: false)
-        begin
-          JobMailer.send_confirmation_receipt(job).deliver_now
-        rescue StandardError
-        end
-        render json: { message: 'Job Created' }, status: :ok
-      else
-        render json: { errors: job.errors.full_messages }, status: :unprocessable_entity
-      end
+    service = PublicJobService.new(current_company)
+    result = service.process_job_request(request.POST, job_attr_extractor)
+    if result[:success]
+      render json: { message: result[:message] }, status: :ok
+    else
+      render json: { errors: result[:errors] }, status: :unprocessable_entity
     end
   end
 
@@ -312,51 +291,25 @@ class Static::JobsController < ApplicationController
 
 
   def post_job
-    Rails.logger.info "current_user_id>>>>>>#{current_user.id}"
+    service = PublicJobService.new(current_company)
     if current_user.present?
-      Rails.logger.info "current_company_id>>>>>>#{current_company.id}"
-      Rails.logger.info "request.host>>>>>>#{request.host}"
-      Rails.logger.info "request.domain>>>>>>#{request.domain}"
-      Rails.logger.info "request.subdomain>>>>>>#{request.subdomain}"
-      Rails.logger.info "request.port_string>>>>>>#{request.port_string}"
-      current_company = current_user.company if current_user.company.present?
-      @job = current_company.jobs.new(company_user_job_params.merge!(created_by_id: current_user.id, listing_type: 'Job'))
-      if @job.save
-        handle_google_update(@job)
-        flash[:success] = 'The job was successfully created!'
+      result = service.post_job_as_user(current_user, current_company, company_user_job_params)
+      if result[:success]
+        handle_google_update(result[:job])
+        flash[:success] = result[:message]
         return redirect_to root_path if request.subdomain == "app"
-        return  redirect_to @job
+        return redirect_to result[:job]
       else
-        flash[:errors] = @job.errors.full_messages
+        flash[:errors] = result[:errors]
       end
-
     elsif current_candidate.present?
-      @job = current_company.jobs.new(company_candidate_job_params.merge!(created_by_candidate_id: current_candidate.id, listing_type: 'Job', status: 'Draft'))
-      if @job.save
-        handle_google_update(@job)
-        flash[:success] = 'The job was successfully created! An admin will review it before it shows up in the feed.'
+      result = service.post_job_as_candidate(current_candidate, current_company, company_candidate_job_params)
+      if result[:success]
+        handle_google_update(result[:job])
+        flash[:success] = result[:message]
       else
-        flash[:errors] = @job.errors.full_messages
+        flash[:errors] = result[:errors]
       end
-      if current_company.owner.present?
-        current_company.owner.notifications.create(
-          title: "A new job listing created by #{@job.created_by_candidate.full_name} needs to be reviewed!",
-          message: "#{@job.created_by_candidate.full_name} has just created a new job listing! It needs to be reviewed before it can be published to the main feed. You can review it here: #{jobs_url(@job)}",
-          notification_type: 'job',
-          createable_id: @job.created_by_candidate_id,
-          createable_type: 'Candidate'
-        )
-      elsif current_company.admins.first.present?
-        current_company.owner.notifications.create(
-          title: "A new job listing created by #{@job.created_by_candidate.full_name} needs to be reviewed!",
-          message: "#{@job.created_by_candidate.full_name} has just created a new job listing! It needs to be reviewed before it can be published to the main feed. You can review it here: #{jobs_url(@job)}",
-          notification_type: 'job',
-          createable_id: @job.created_by_candidate_id,
-          createable_type: 'Candidate'
-        )
-
-      end
-
       redirect_to root_path
     else
       flash[:errors] = 'You must be logged in to post a new job!'
