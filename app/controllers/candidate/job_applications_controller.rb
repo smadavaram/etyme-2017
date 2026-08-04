@@ -26,66 +26,47 @@ class Candidate::JobApplicationsController < Candidate::BaseController
   end
 
   def accept_rate
-    if @job_application.update(accept_rate: true, status: :rate_confirmation)
-      @conversation = @job_application.conversation
-      @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation) if @job_application.is_rate_accepted?
-      body = current_candidate.full_name + " has accepted #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
-      current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :job_conversation)
-      flash[:success] = 'Rate is Confirmed'
+    service = CandidateApplicationService.new(current_candidate)
+    result = service.accept_rate(@job_application)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      flash[:errors] = @job_application.errors.full_messages
+      flash[:errors] = result[:errors]
     end
     redirect_back(fallback_location: root_path)
   end
 
   def rate_negotiation
-    if @job_application.accept_rate
-      flash[:errors] = ['You cannot change the rate once accepted by you.']
+    service = CandidateApplicationService.new(current_candidate)
+    result = service.negotiate_rate(@job_application, job_application_rate)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      if @job_application.update(job_application_rate.merge(rate_initiator: current_candidate.full_name, accept_rate: false, accept_rate_by_company: false))
-        @conversation = @job_application.conversation
-        @conversation.conversation_messages.rate_confirmation.update_all(message_type: :job_conversation)
-        body = current_candidate.full_name + " has Countered #{@job_application.rate_per_hour}/hr with reference to #{@job_application.job.title} job."
-        current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :rate_confirmation)
-        flash[:success] = 'Rate is set for company confirmation'
-      else
-        flash[:errors] = @job_application.errors.full_messages
-      end
+      flash[:errors] = result[:errors]
     end
     redirect_back(fallback_location: root_path)
   end
 
   def interview
-    @interview = @job_application.interviews.find_by(id: params[:interview][:id])
+    service = CandidateApplicationService.new(current_candidate)
+    result = service.schedule_interview(@job_application, interview_params, static_job_url(@job_application.job).to_s)
     respond_to do |format|
-      if @interview.update(interview_params.merge(accept: true, accepted_by_recruiter: false, accepted_by_company: false))
-        @conversation = @job_application.conversation
-        @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation)
-        body = current_candidate.full_name + " has schedule an interview on #{@interview.date} at #{@interview.date} <a href='#{static_job_url(@job_application.job).to_s}}'> with reference to the job </a>#{@job_application.job.title}."
-        current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, message_type: :schedule_interview, resource_id: @interview.id)
-        format.html { flash[:success] = 'Interview details updated, pending confirmation' }
+      if result[:success]
+        format.html { flash[:success] = result[:message] }
       else
-        format.html { flash[:errors] = @job_application.errors.full_messages }
+        format.html { flash[:errors] = result[:errors] }
       end
     end
     redirect_back fallback_location: root_path
   end
 
   def accept_interview
-    @interview = @job_application.interviews.find_by(id: params[:interview_id])
-    if @interview.accept
-      flash[:errors] = ['Already Accepted by you.']
+    service = CandidateApplicationService.new(current_candidate)
+    result = service.accept_interview(@job_application, params[:interview_id], static_job_url(@job_application.job).to_s)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      if @interview.update(accept: true)
-        @job_application.interviewing! if @interview.is_accepted?
-        @conversation = @job_application.conversation
-        @conversation.conversation_messages.schedule_interview.update_all(message_type: :job_conversation) if @interview.is_accepted?
-        body = current_candidate.full_name + " has accepted the interview on #{@interview.date} at #{@interview.date} <a href='#{static_job_url(@job_application.job).to_s}}'> with reference to the job </a>#{@job_application.job.title}."
-        current_candidate.conversation_messages.create(conversation_id: @conversation.id, body: body, resource_id: @interview_id)
-        flash[:success] = 'Interview is accepted by candidate'
-      else
-        flash[:errors] = @interview.errors.full_messages
-      end
+      flash[:errors] = result[:errors]
     end
     redirect_back(fallback_location: root_path)
   end

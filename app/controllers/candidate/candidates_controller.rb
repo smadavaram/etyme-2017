@@ -166,14 +166,12 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def upload_resume
-    new_resume = current_candidate.candidates_resumes.new
-    new_resume.resume = params[:resume]
-    new_resume.candidate_id = current_candidate.id
-    new_resume.is_primary = current_candidate.candidates_resumes.empty?
-    if new_resume.save
-      flash[:success] = 'Resume uploaded successfully.'
+    service = CandidateProfileService.new(current_candidate)
+    result = service.upload_resume(params[:resume])
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      flash[:errors] = ['Resume not updated']
+      flash[:errors] = result[:errors]
     end
     respond_to do |format|
       format.js {}
@@ -181,34 +179,15 @@ class Candidate::CandidatesController < Candidate::BaseController
   end
 
   def delete_resume
-    if params[:id].present?
-      resume = CandidatesResume.find_by(id: params['id'])
-      if resume.is_primary
-        resumes = CandidatesResume.where(candidate_id: resume.candidate_id).map(&:id)
-        resumes.delete(resume.id)
-        resume.destroy
-        unless resumes.empty?
-          primary_resume = CandidatesResume.find_by(id: resumes[0])
-          primary_resume.update_attributes(is_primary: true)
-        end
-        flash.now[:success] = !resumes.empty? ? 'Selected Resume has been destroy and First Resume status mark as primary' : 'Resume Destroy Successfully'
-
-      else
-        resume.destroy
-        flash.now[:success] = 'Resume Destroy Successfully'
-      end
-    end
+    service = CandidateProfileService.new(current_candidate)
+    result = service.delete_resume(params[:id])
+    flash.now[:success] = result[:message] if result[:success]
     render 'upload_resume'
-    # redirect_back fallback_location: root_path
   end
 
   def make_primary_resume
-    return unless params[:id].present?
-
-    resume = CandidatesResume.find_by(id: params['id'])
-    resumes = CandidatesResume.where(candidate_id: resume.candidate_id)
-    resumes.update_all(is_primary: false)
-    resume.update_attributes(is_primary: true)
+    service = CandidateProfileService.new(current_candidate)
+    service.make_primary_resume(params[:id])
     render 'upload_resume'
   end
 

@@ -39,10 +39,11 @@ class Candidate::TimesheetsController < Candidate::BaseController
   end
 
   def get_timesheets
-    dates = params[:date_range].split(' - ')
-    @start_date = Date.strptime(dates[0].tr('/', '-'), '%m-%d-%Y')
-    @end_date = Date.strptime(dates[1].tr('/', '-'), '%m-%d-%Y')
-    @timesheets = current_candidate.timesheets.includes(:contract).open_timesheets.where('(start_date >= ? AND start_date <= ?) OR (end_date >= ? AND end_date <= ?) ', @start_date, @end_date, @start_date, @end_date)
+    service = CandidateTimesheetService.new(current_candidate)
+    timesheets = service.get_timesheets_by_date_range(params[:date_range])
+    @start_date = timesheets.first&.start_date
+    @end_date = timesheets.last&.end_date
+    @timesheets = timesheets
   end
 
   def add_hrs
@@ -73,49 +74,23 @@ class Candidate::TimesheetsController < Candidate::BaseController
   end
 
   def create
-    contract = Contract.where(id: params[:timesheet][:contract_id]).first
-    if contract.present?
-      if check_valid_dates(contract, params[:timesheet][:start_date], params[:timesheet][:end_date])
-        if contract.buy_contract.candidate_id == current_candidate.id
-          buy_contract = contract.buy_contract
-          if buy_contract.first_date_of_timesheet <= Time.now
-            @timesheet = current_candidate.timesheets.new(timesheet_params)
-            @timesheet.days = params[:timesheet][:days]
-            @timesheet.total_time = params[:timesheet][:days].values.map(&:to_i).sum
-            if @timesheet.save
-              next_date = get_next_date(buy_contract.first_date_of_timesheet, buy_contract.time_sheet, buy_contract.ts_date_1, buy_contract.ts_date_2, buy_contract.ts_end_of_month, buy_contract.ts_day_of_week, @timesheet.end_date)
-              buy_contract.update(first_date_of_timesheet: next_date)
-
-              flash[:success] = 'Successfully Created' if params[:is_all].blank?
-              # redirect_to candidate_contracts_path
-            else
-              flash[:errors] = @timesheet.errors.full_messages if params[:is_all].blank?
-              # redirect_to candidate_contracts_path
-            end
-          else
-            flash[:errors] = ["You are able to submit timeshhet for #{contract.title} on #{buy_contract.first_date_of_timesheet.strftime('%d/%m/%Y')}"]
-          end
-        else
-          flash[:errors] = ['Contract Invalid']
-        end
-      end
+    service = CandidateTimesheetService.new(current_candidate)
+    result = service.create_timesheet(timesheet_params, params[:timesheet][:days])
+    if result[:success]
+      flash[:success] = result[:message] if params[:is_all].blank?
     else
-      flash[:errors] = ['Contract Invalid']
+      flash[:errors] = result[:errors] if params[:is_all].blank?
     end
   end
 
   def submit_timesheet
-    
-    if @timesheet.end_date <= DateTime.now
-      if @timesheet.submitted
-        flash[:status] = 'Timesheet submitted successfully'
-        params[:redirect_url].present? ? redirect_to(params[:redirect_url]) : redirect_back(fallback_location: root_path)
-      else
-        flash[:errors] = @timesheet.errors.full_messages
-        redirect_back(fallback_location: root_path)
-      end
+    service = CandidateTimesheetService.new(current_candidate)
+    result = service.submit_timesheet(@timesheet)
+    if result[:success]
+      flash[:status] = result[:message]
+      params[:redirect_url].present? ? redirect_to(params[:redirect_url]) : redirect_back(fallback_location: root_path)
     else
-      flash[:errors] = ['You cannot submit the before time.']
+      flash[:errors] = result[:errors]
       redirect_back(fallback_location: root_path)
     end
   end
@@ -150,14 +125,8 @@ class Candidate::TimesheetsController < Candidate::BaseController
   end
 
   def check_valid_dates(contract, startdate, enddate)
-    ts = contract.timesheets.order('created_at DESC').first
-    nd = ts.present? ? ts.end_date + 1.day : contract.start_date
-    if startdate.to_date <= nd && nd <= enddate.to_date
-      true
-    else
-      flash[:errors] = ["You are able to submit timesheet, You need to send timesheet of date #{nd} first."]
-      false
-    end
+    service = CandidateTimesheetService.new(current_candidate)
+    service.send(:check_valid_dates, contract, startdate, enddate)
   end
 
   def if_all?(value)

@@ -52,44 +52,24 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def submit_bill
-    ActiveRecord::Base.transaction do
-      bd = BankDetail.find_by(id: params[:bank_id].to_i)
-      if bd.present?
-        if bd.balance.to_i >= params[:expense_account][:payment].to_i
-          ex = ExpenseAccount.find_by(id: params[:pay_bill_id])
-          ex.status = 'cleared' if ex.amount.to_i == (ex.payment.to_i + params[:expense_account][:payment].to_i)
-          ex.status = 'cancelled' if params[:pay_type] == 'reject'
-          ex.payment = ex.payment.to_i + params[:expense_account][:payment].to_i
-          ex.balance_due = params[:expense_account][:balance_due]
-          ex.pay_type = params[:pay_type]
-
-          if ex.status != 'cancelled'
-            current_company.etyme_transactions.create!(amount: (ex.payment * -1), transaction_type: "Expense", salary_id: ex.expense.salary_ids, contract_id: ex.expense.contract_id, transaction_user_type: 'candidate', transaction_user_id: ex.expense.account_id, is_processed: true)
-            if ex.balance_due > 0
-              current_company.etyme_transactions.create!(amount: (ex.balance_due * -1), transaction_type: "Expense", salary_id: ex.expense.salary_ids, contract_id: ex.expense.contract_id, transaction_user_type: 'candidate', transaction_user_id: ex.expense.account_id, is_processed: false)
-            end
-          end
-          ex.save
-
-          bd.update(balance: bd.balance.to_i - params[:expense_account][:payment].to_i)
-          flash[:success] = 'Payment done successfully'
-        else
-          flash[:alert] = 'Insufficient balance in your account please try with another account.'
-        end
-        redirect_to pay_expense_expenses_path
-      else
-        flash[:alert] = 'please Add Bank to Pay Bill'
-        redirect_to add_bank_details_path(current_company.id)
-      end
+    service = ExpensePaymentService.new(current_user, current_company)
+    result = service.submit_bill(params[:pay_bill_id], params[:bank_id], params[:expense_account][:payment], params[:expense_account][:balance_due], params[:pay_type])
+    if result[:success]
+      flash[:success] = result[:message]
+      redirect_to pay_expense_expenses_path
+    elsif result[:redirect] == :add_bank
+      flash[:alert] = result[:errors].first
+      redirect_to add_bank_details_path(current_company.id)
+    else
+      flash[:alert] = result[:errors].first
+      redirect_to pay_expense_expenses_path
     end
   end
 
   def client_expense_generate_invoice
-    expense = Expense.find_by(id: params[:ex_id])
-    expense.set_ce_invoice_on_seq(expense)
-    expense.update(status: 'invoice_generated')
-    ClientExpense.where(ce_ap_cycle_id: expense.ce_ap_cycle_id, status: 'bill_generated').update_all(status: 4)
-    flash[:success] = 'Invoice generated successfully'
+    service = ExpensePaymentService.new(current_user, current_company)
+    result = service.generate_client_expense_invoice(params[:ex_id])
+    flash[:success] = result[:message]
     redirect_to pay_expense_expenses_path
   end
 
@@ -104,11 +84,8 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def filter_approved_client_expense
-    @client_expenses = current_company.client_expenses.joins(contract: [:client, [buy_contract: :candidate]])
-                                      .approved_client_expenses.where(contract_id: params[:contract_id])
-                                      .select('DISTINCT(client_expenses.ce_ap_cycle_id), contracts.number, companies.name, buy_contracts.contract_type, candidates.first_name, candidates.last_name, sum(amount) as total_amount')
-                                      .group('client_expenses.ce_ap_cycle_id', 'contracts.number', 'companies.name', 'buy_contracts.contract_type', 'candidates.first_name', 'candidates.last_name')
-                                      .map(&:attributes)
+    service = ExpensePaymentService.new(current_user, current_company)
+    @client_expenses = service.filter_approved_client_expenses(params[:contract_id])
   end
 
   def get_bank_balance
@@ -117,11 +94,9 @@ class Company::ExpensesController < Company::BaseController
   end
 
   def invoice_payment
-    expense = Expense.find_by(id: params[:ex_id])
-    expense.update(status: 'paid', attachment: params[:expense][:attachment])
-    ClientExpense.where(ce_ap_cycle_id: expense.ce_ap_cycle_id, status: 'invoice_generated').update_all(status: 'paid')
-    expense.set_ce_invoice_payment_on_seq(expense)
-    flash[:success] = 'Payment done successfully'
+    service = ExpensePaymentService.new(current_user, current_company)
+    result = service.record_invoice_payment(params[:ex_id], params[:expense][:attachment])
+    flash[:success] = result[:message]
     redirect_to pay_expense_expenses_path
   end
 

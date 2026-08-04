@@ -260,33 +260,21 @@ class Company::CompaniesController < Company::BaseController
   def assign_groups
     @invited_company = current_company.invited_companies.find_by(invited_company_id: params[:company_id])
     if request.post?
-      groups = params[:invited_company][:group_ids]
-      groups = groups.reject(&:empty?)
-      groups_id = groups.map(&:to_i)
-      @invited_company.update_attribute(:group_ids, groups_id)
-      if @invited_company.save
-        flash[:success] = 'Groups has been assigned'
-      else
-        flash[:errors] = @invited_company.errors.full_messages
-      end
+      service = CompanySetupService.new(current_user, current_company)
+      result = service.assign_groups(@invited_company, params[:invited_company][:group_ids])
+      flash[:success] = result[:message] if result[:success]
+      flash[:errors] = result[:errors] unless result[:success]
       redirect_back fallback_location: root_path
     end
   end
 
   def assign_groups_to_contact
     @company_contact = CompanyContact.find(params[:company_id])
-    # @invited_company = current_company.invited_companies.find_by(invited_company_id: params[:company_id])
     if request.post?
-      groups = params[:invited_company][:group_ids]
-      groups = groups.reject(&:empty?)
-      groups_id = groups.map(&:to_i)
-      @company_contact.update_attribute(:group_ids, groups_id)
-      # @invited_company.update_attribute(:group_ids, groups_id)
-      if @company_contact.save
-        flash[:success] = 'Groups has been assigned'
-      else
-        flash[:errors] = @company_contact.errors.full_messages
-      end
+      service = CompanySetupService.new(current_user, current_company)
+      result = service.assign_groups(@company_contact, params[:invited_company][:group_ids])
+      flash[:success] = result[:message] if result[:success]
+      flash[:errors] = result[:errors] unless result[:success]
     end
   end
 
@@ -307,27 +295,10 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def verify_website
-    require 'openssl'
-    begin
-      doc = Nokogiri::HTML(open("#{params['url']}/verifyetyme.html", ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE))
-
-      if !doc.css('a')[0].nil?
-        if current_company.verification_code == doc.css('a')[0].text
-          current_company.update_attributes(owner_verified: true)
-          flash[:success] = 'Veriy Successfully'
-          redirect_back fallback_location: root_path
-        else
-          flash[:success] = 'Verification code dose not match.'
-          redirect_back fallback_location: root_path
-        end
-      else
-        flash[:success] = 'File not found.'
-        redirect_back fallback_location: root_path
-      end
-    rescue StandardError
-      flash[:success] = 'File not found.'
-      redirect_back fallback_location: root_path
-    end
+    service = CompanySetupService.new(current_user, current_company)
+    result = service.verify_website(params['url'], current_company.verification_code)
+    flash[:success] = result[:message]
+    redirect_back fallback_location: root_path
   end
 
   def authorized_user
@@ -389,12 +360,9 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def create_new_company
-    @company = Company.new(company_params)
-
-    if @company.save
-      create_current_company_contact(@company)
-      # @company.update_attribute(:owner_id, @company.admins.first.id)
-
+    service = CompanySetupService.new(current_user, current_company)
+    result = service.create_new_company(company_params, company_contact_params)
+    if result[:success]
       respond_to do |format|
         format.html { redirect_to new_company_company_path, success: 'Successfully Created company.' }
         format.js { flash[:success] = 'Successfully Created company.' }
@@ -402,7 +370,7 @@ class Company::CompaniesController < Company::BaseController
     else
       respond_to do |format|
         format.html { render :new }
-        format.js { flash[:errors] = @company.errors.full_messages }
+        format.js { flash[:errors] = result[:errors] }
       end
     end
   end
@@ -422,13 +390,8 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def create_current_company_contact(current_com)
-    if current_company && company_contact_params.present?
-      company_contact_params.to_h.map do |_key, contact_hash|
-        user_params = contact_hash.slice(:first_name, :last_name, :email)
-        user = User.find_by_email(contact_hash['email']) || Admin.create(user_params.merge(company_id: @company.id))
-        company_contact = current_company.company_contacts.create!(contact_hash.except(:_destroy).merge(user_id: user.id, user_company_id: user.company.id, created_by_id: current_user.id))
-      end.all?
-    end
+    service = CompanySetupService.new(current_user, current_company)
+    service.create_company_contact(current_com, company_contact_params)
   end
 
   def create_company_contacts_and_admins
@@ -456,27 +419,16 @@ class Company::CompaniesController < Company::BaseController
   end
 
   def add_company_admin(admin_hash)
-    admin_hash = admin_hash.slice(:first_name, :last_name, :email)
-    company_admin = @company.admins.build(admin_hash)
-    company_admin.role_ids = Array(Role.all.joins(:permissions).where('permissions.name = ?', "manage_all").pluck(:id).first) #Set Default Permission
-    if company_admin.save
-      flash[:success] = "Successful!"
-      true
-    else
-      flash[:errors] = "Cannot Process!"
-      false
-    end
+    service = CompanySetupService.new(current_user, current_company)
+    result = service.add_company_admin(@company, admin_hash)
+    flash[:success] = "Successful!" if result[:success]
+    flash[:errors] = "Cannot Process!" unless result[:success]
+    result[:success]
   end
 
   def add_new_company_admin(admin_hash)
-    contact_hash = admin_hash.slice(:first_name, :last_name, :email, :phone, :title)
-    admin_hash = admin_hash.slice(:first_name, :last_name, :email)
-    company_admin = @company.admins.build(admin_hash)
-    company_admin.save
-    if @company.try(:owner_id).nil? && @company.try(:admins).count == 1
-      @company.update(owner_id: company_admin.id)
-      add_contact_to_current_company(contact_hash)
-    end
+    service = CompanySetupService.new(current_user, current_company)
+    service.add_new_company_admin(@company, admin_hash)
   end
 
   def add_contact_to_current_company(contact_hash)

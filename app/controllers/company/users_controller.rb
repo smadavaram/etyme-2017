@@ -56,48 +56,18 @@ class Company::UsersController < Company::BaseController
   end
 
   def get_cards
-    @cards = {}
-    @current_user_cards = {}
-    start_date = get_start_date
-    end_date = get_end_date
-    @cards['JOB'] = @current_company.jobs.where(created_at: start_date...end_date).count
-    @cards['BENCH JOB'] = @current_company.jobs.where(status: 'Bench').where(created_at: start_date...end_date).count
-    @cards['BENCH'] = @current_company.candidates_companies.hot_candidate.joins(:candidate).where('candidates.created_at': start_date...end_date).count
-    @cards['APPLICATION'] = @current_company.received_job_applications.where(created_at: start_date...end_date).count
-    @cards['STATUS'] = Company.status_count(@current_company, start_date, end_date)
-    @cards['ACTIVE'] = params[:filter]
-    @current_user_cards['JOB'] = Job.where(created_by_id: current_user, created_at: start_date...end_date).count
-    @current_user_cards['BENCH JOB'] = Job.where(created_by_id: current_user, status: 'Bench').where(created_at: start_date...end_date).count
-    @current_user_cards['APPLICATION'] = JobApplication.joins(:job).where('jobs.created_by_id= ?', current_user)
-    @current_user_cards['BENCH'] = current_user.company.candidates_companies.hot_candidate.where('created_at': start_date...end_date).count
+    service = DashboardService.new(current_user, @current_company)
+    result = service.company_dashboard_cards(params)
+    @cards = result[:cards]
+    @current_user_cards = result[:current_user_cards]
   end
 
   def get_start_date
-    filter = params[:filter] || 'year'
-    case filter
-    when 'period'
-      DateTime.parse(params[:start_date]).beginning_of_day
-    when 'month'
-      DateTime.current.beginning_of_month
-    when 'quarter'
-      DateTime.current.beginning_of_quarter
-    when 'year'
-      DateTime.current.beginning_of_year
-    end
+    DashboardService.new(current_user, @current_company).get_start_date(params)
   end
 
   def get_end_date
-    filter = params[:filter] || 'year'
-    case filter
-    when 'period'
-      DateTime.parse(params[:end_date]).end_of_day
-    when 'month'
-      DateTime.current.end_of_month
-    when 'quarter'
-      DateTime.current.end_of_quarter
-    when 'year'
-      DateTime.current.end_of_year
-    end
+    DashboardService.new(current_user, @current_company).get_end_date(params)
   end
 
   def profile
@@ -105,38 +75,22 @@ class Company::UsersController < Company::BaseController
   end
 
   def import
-    emails = params[:emails].split(',')
-    CompanyContact.transaction do
-      emails.each do |email|
-        email = email.downcase
-        next unless (email =~ /\A([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})\z/i).present?
-
-        password = SecureRandom.hex(10)
-        user = @current_company.admins.where(email: email).first_or_initialize(password_hash)
-        user.save! unless user.persisted?
-      end
-      flash.now[:success] = 'All the email are processed successfully'
+    service = DashboardService.new(current_user, @current_company)
+    result = service.import_users(params[:emails])
+    if result[:success]
+      flash.now[:success] = result[:message]
+    else
+      flash[:errors] = result[:errors]
     end
-  rescue ActiveRecord::RecordInvalid
-    flash[:errors] = ["Please check the users' email formats and try again"]
   end
 
   def add_contacts
-    emails = params[:emails].split(',')
-    begin
-      CompanyContact.transaction do
-        emails.each do |email|
-          email = email.downcase
-          next unless (email =~ /\A([^@\s]+)@((?:[-a-z0-9]+\.)+[a-z]{2,})\z/i).present?
-
-          user = DiscoverUser.new.discover_user(email)
-          contact = @current_company.company_contacts.where(user: user).first_or_initialize(created_by: current_user, user_company: user.company, email: user.email)
-          contact.save! unless contact.persisted?
-        end
-        flash.now[:success] = 'All the email are processed successfully'
-      end
-    rescue ActiveRecord::RecordInvalid
-      flash[:errors] = ["Please check the contacts' email formats and try again"]
+    service = DashboardService.new(current_user, @current_company)
+    result = service.add_contacts(params[:emails])
+    if result[:success]
+      flash.now[:success] = result[:message]
+    else
+      flash[:errors] = result[:errors]
     end
     respond_to do |f|
       f.js {}
@@ -166,16 +120,12 @@ class Company::UsersController < Company::BaseController
   end
 
   def change_owner
-    if with_company_domain?
-      owner = @current_company.admins.where(email: params[:email].downcase).first_or_initialize(password_hash.merge(owner_params))
-      if owner.save
-        @current_company.update(owner_id: owner.id)
-        flash.now[:success] = 'Owner/Adminstrator has been changed'
-      else
-        flash.now[:errors] = owner.errors.full_messages
-      end
+    service = DashboardService.new(current_user, @current_company)
+    result = service.change_owner(params[:email], owner_params)
+    if result[:success]
+      flash.now[:success] = result[:message]
     else
-      flash.now[:errors] = ['Owner must be with company domain']
+      flash.now[:errors] = result[:errors]
     end
     respond_to do |f|
       f.js {}

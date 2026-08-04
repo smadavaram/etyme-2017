@@ -154,61 +154,25 @@ class Company::CandidatesController < Company::BaseController
   end
 
   def get_or_create_bench_candidate
-    candidate = Candidate.find_by(email: params[:candidate][:email]) || current_company.candidates.new(create_candidate_params.merge(send_welcome_email_to_candidate: false, invited_by_id: current_user.id, invited_by_type: 'User', status: 'campany_candidate'))
-
-    if candidate.new_record? && candidate.save
-      flash[:success] = 'New Candidate Is Added'
-      current_company.candidates << candidate
-      candidate.create_activity :create, owner: current_company, recipient: current_company
-      CandidatesResume.create(candidate_id: candidate.id, resume: candidate.resume, is_primary: true)
-      Address.create(address_1: candidate.location, addressable_type: 'Candidate', addressable_id: candidate.id)
-      current_company.candidates_companies.where(candidate: candidate).first.hot_candidate! if params['is_add_to_bench']
+    service = CandidateManagementService.new(current_user, current_company)
+    result = service.get_or_create_bench_candidate(create_candidate_params, add_to_bench: params['is_add_to_bench'].present?)
+    if result[:success]
+      flash[:success] = result[:message] if result[:message]
     else
-      flash[:errors] = candidate.errors.full_messages
+      flash[:errors] = result[:errors]
     end
-
-    candidate
+    result[:candidate]
   end
 
   def create
-
-    @candidate = Candidate.find_by email: params[:candidate][:email]
-
-    if @candidate.present?
-      @candidates_company = CandidatesCompany.new candidate_id: @candidate.id, company_id: current_company.id, candidate_status: 'pending'
-
-      if @candidates_company.save
-        flash[:success] = 'Candidate added to the company!'
-        redirect_to candidates_path and return
-      else
-        flash[:errors] = @candidates_company.errors.full_messages
-        redirect_to candidates_path and return
-      end
+    service = CandidateManagementService.new(current_user, current_company)
+    result = service.create_candidate(create_candidate_params, add_to_bench: params['is_add_to_bench'].present?)
+    if result[:success]
+      flash[:success] = result[:message]
     else
-      @candidate = current_company.candidates.new(
-        create_candidate_params.merge(
-          send_welcome_email_to_candidate: false,
-          invited_by_id: current_user.id,
-          invited_by_type: 'User',
-          status: 'campany_candidate')
-        )
-
-      if @candidate.save
-        flash[:success] = 'New Candidate Is Added'
-
-        current_company.candidates << @candidate
-        @candidate.create_activity :create, owner: current_company, recipient: current_company
-        CandidatesResume.create(candidate_id: @candidate.id, resume: @candidate.resume, is_primary: true)
-        Address.create(address_1: @candidate.location, addressable_type: 'Candidate', addressable_id: @candidate.id)
-        current_company.candidates_companies.where(candidate: @candidate).first.hot_candidate! if params['is_add_to_bench']
-
-        redirect_to candidates_path and return
-      else
-        flash[:errors] = @candidate.errors.full_messages
-        debugger
-        redirect_to candidates_path and return
-      end
+      flash[:errors] = result[:errors]
     end
+    redirect_to candidates_path
   end
 
   def new_candidate_to_bench
@@ -217,33 +181,22 @@ class Company::CandidatesController < Company::BaseController
   end
 
   def make_hot
-    @candidate = Candidate.find_by_id(params[:candidate_id])
-    @company_candidate = CandidatesCompany.normal.where(candidate_id: @candidate.id, company_id: current_company.id)
+    service = CandidateManagementService.new(current_user, current_company)
+    result = service.make_hot(params[:candidate_id])
     respond_to do |format|
-      if @company_candidate.update_all(status: 1)
-        current_company.sent_job_invitations.bench.create(recipient: @candidate, created_by: current_user, invitation_type: :candidate, expiry: Date.today + 1.year, min_hourly_rate: 20, max_hourly_rate: 30)
-        flash[:success] = 'Candidate is now Hot Candidate.'
-        format.js { render inline: 'location.reload();' }
-      else
-        flash[:errors] = @company_candidate.errors.full_messages
-        format.js { render inline: 'location.reload();' }
-      end
+      flash[:success] = result[:message] if result[:success]
+      flash[:errors] = result[:errors] unless result[:success]
+      format.js { render inline: 'location.reload();' }
     end
   end
 
   def make_normal
-    @candidate = Candidate.find_by_id(params[:candidate_id])
-    @company_candidate = CandidatesCompany.hot_candidate.where(candidate_id: params[:candidate_id], company_id: current_company.id)
+    service = CandidateManagementService.new(current_user, current_company)
+    result = service.make_normal(params[:candidate_id])
     respond_to do |format|
-      if @company_candidate.update_all(status: 0)
-        JobInvitation.where(recipient_id: params[:candidate_id], company_id: current_company.id).destroy_all
-        @candidate.update(associated_company: Company.get_freelancer_company)
-        flash[:success] = 'Candidate is now Normal Candidate.'
-        format.js { render inline: 'location.reload();' }
-      else
-        flash[:errors] = @company_candidate.errors.full_messages
-        format.js { render inline: 'location.reload();' }
-      end
+      flash[:success] = result[:message] if result[:success]
+      flash[:errors] = result[:errors] unless result[:success]
+      format.js { render inline: 'location.reload();' }
     end
   end
 
@@ -328,36 +281,9 @@ class Company::CandidatesController < Company::BaseController
   end
 
   def share_candidates
-    c_ids = params[:candidates_ids].split(',').map(&:to_i)
-    emails = []
-    params[:emails].each do |e|
-      company = User.where(email: e).first
-      if company.present?
-        c_ids.each do |id|
-          current_company.active_relationships.create(candidate_id: id, shared_to_id: company.company_id)
-        end
-      end
-
-      email = e.include?('[') ? JSON.parse(e) : e
-      emails << email
-    end
-    if params[:emails_bcc].present?
-      params[:emails_bcc].each do |e|
-        company = User.where(email: e).first
-        if company.present?
-          c_ids.each do |id|
-            current_company.active_relationships.create(candidate_id: id, shared_to_id: company.company_id)
-          end
-        end
-
-        email = e.include?('[') ? JSON.parse(e) : e
-        emails << email
-      end
-    end
-
-    User.share_candidates(current_user.email, emails.flatten.uniq.split(','), c_ids, current_company, params[:message], params[:subject])
-    # CandidateMailer.share_hot_candidates(params[:emails].split(","),c_ids,current_company,params[:message]).deliver
-    flash[:success] = 'Candidates shared successfully.'
+    service = CandidateManagementService.new(current_user, current_company)
+    result = service.share_candidates(params[:candidates_ids], params[:emails], params[:emails_bcc], params[:message], params[:subject])
+    flash[:success] = result[:message]
     redirect_back fallback_location: root_path
   end
 
@@ -385,15 +311,8 @@ class Company::CandidatesController < Company::BaseController
   private
 
   def upload_file(file, file_name)
-    client = Aws::S3::Client.new(access_key_id: ENV['DO_ACCESS_KEY_ID'], secret_access_key: ENV['DO_SECRET_ACCESS_KEY'], endpoint: "https://#{ENV['DO_REGION']}.digitaloceanspaces.com", region: ENV['DO_REGION'])
-    file_name_slug = SecureRandom.hex(10)
-    response = client.put_object(
-      body: file,
-      bucket: ENV['DO_BUCKET'],
-      key: file_name_slug+ file_name,
-      acl: 'public-read',
-    )
-    "https://#{ENV['DO_BUCKET']}.#{ENV['DO_REGION']}.digitaloceanspaces.com/#{file_name_slug + file_name}"
+    result = FileUploadService.new.upload_to_s3(file, file_name)
+    result[:success] ? result[:url] : nil
   end
 
   def find_signup_candidate
