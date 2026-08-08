@@ -1,0 +1,107 @@
+//@version=5
+// =============================================================================
+//  EMA/VWAP STACK — SINGLE-SYMBOL BACKTEST / OPTIMIZER
+// -----------------------------------------------------------------------------
+//  Companion to ema-vwap-scanner.pine. Pine's Strategy Tester (and its
+//  "Optimize" sweep, where your plan includes it) only backtests ONE
+//  instrument at a time — there is no multi-symbol backtesting in Pine —
+//  so this is the tool for tuning the scanner's thresholds, not the scanner
+//  itself. Workflow:
+//    1) Apply this script to ONE representative ticker at a time (pick a
+//       few from your list that trade the way you care about).
+//    2) Open the "Strategy Tester" tab and try different EMA lengths /
+//       body-strength % / VWAP anchor / exit rule combinations (manually,
+//       or via "Optimize" if your plan has it) — watch Net Profit, Win
+//       Rate, Profit Factor and Max Drawdown, not just Net Profit alone.
+//    3) Once you find settings that hold up across several symbols and
+//       both timeframes you care about, set those same values as the
+//       DEFAULTS on ema-vwap-scanner.pine's inputs.
+//  Entry logic mirrors the scanner exactly (trend stack + clean 2-bar move
+//  + VWAP Rip / Mean Revert trigger). Exit is configurable below since the
+//  original spec only described the entry.
+// =============================================================================
+strategy("EMA/VWAP Stack — Backtest/Optimizer", shorttitle = "EV Backtest", overlay = true,
+     default_qty_type = strategy.percent_of_equity, default_qty_value = 100,
+     initial_capital = 10000, commission_type = strategy.commission.percent, commission_value = 0.02,
+     slippage = 1)
+
+// ---------------------------------------------------------------------------
+// INPUTS — same signal knobs as the scanner, so tuned values transfer 1:1.
+// ---------------------------------------------------------------------------
+g1 = "Signal"
+emaFastLen = input.int(8,  "Fast EMA length",  minval = 1, group = g1)
+emaSlowLen = input.int(21, "Slow EMA length",  minval = 1, group = g1)
+vwapAnchor = input.string("Session", "VWAP Anchor", options = ["Session", "Week", "Month"], group = g1)
+bodyMinPct = input.float(50, "Min. body strength for 'VWAP Rip' (% of range)", minval = 0, maxval = 100, group = g1) / 100
+useRip     = input.bool(true,  "Allow VWAP Rip trigger",     group = g1)
+useRevert  = input.bool(true,  "Allow Mean Revert trigger",  group = g1)
+
+g2 = "Exit"
+exitMode   = input.string("Trend Flip", "Exit rule", options = ["Trend Flip", "Fixed %", "ATR Multiple"], group = g2,
+     tooltip = "Trend Flip: exit when 8EMA crosses back below 21EMA. Fixed %: stop-loss/take-profit as % of entry. ATR Multiple: stop-loss/take-profit as a multiple of ATR(14) at entry.")
+stopPct    = input.float(2.0, "Fixed % stop-loss",   minval = 0.1, group = g2)
+targetPct  = input.float(4.0, "Fixed % take-profit", minval = 0.1, group = g2)
+atrStopMul = input.float(1.5, "ATR stop-loss multiple",   minval = 0.1, group = g2)
+atrTgtMul  = input.float(3.0, "ATR take-profit multiple", minval = 0.1, group = g2)
+maxBarsHold = input.int(0, "Max bars in trade (0 = no limit)", minval = 0, group = g2)
+
+g3 = "Backtest Window"
+startDate = input.time(timestamp("2023-01-01"), "Backtest start", group = g3)
+
+// ---------------------------------------------------------------------------
+// SIGNAL — identical construction to ema-vwap-scanner.pine's f_symExpr,
+// just running directly on the chart symbol instead of via request.security.
+// ---------------------------------------------------------------------------
+f_avwap(anchorRes, src, vol) =>
+    var float sumPV = na
+    var float sumV  = na
+    newPeriod = ta.change(time(anchorRes))
+    if newPeriod != 0 or na(sumPV)
+        sumPV := src * vol
+        sumV  := vol
+    else
+        sumPV += src * vol
+        sumV  += vol
+    sumPV / sumV
+
+anchorRes = vwapAnchor == "Session" ? "D" : vwapAnchor == "Week" ? "W" : "M"
+
+e8  = ta.ema(close, emaFastLen)
+e21 = ta.ema(close, emaSlowLen)
+vw  = f_avwap(anchorRes, hlc3, volume)
+
+trendStack   = e8 > e21 and e21 > vw
+noOverlapUp  = low[1] > high[2]
+bullishBar1  = close[1] > open[1]
+body1        = math.abs(close[1] - open[1])
+range1       = high[1] - low[1]
+strongBody   = range1 > 0 and (body1 / range1) >= bodyMinPct
+ripThroughVW = useRip    and open[1] < vw[1] and close[1] > vw[1] and close[1] > e8[1] and strongBody
+meanRevertVW = useRevert and low[1] <= vw[1] and close[1] > vw[1] and bullishBar1
+signal       = trendStack[1] and noOverlapUp and bullishBar1 and (ripThroughVW or meanRevertVW)
+trendFlipExit = ta.crossunder(e8, e21)
+
+inWindow = time >= startDate
+
+// ---------------------------------------------------------------------------
+// STRATEGY
+// ---------------------------------------------------------------------------
+atrVal = ta.atr(14)
+
+if inWindow and signal and strategy.position_size == 0
+    strategy.entry("Long", strategy.long)
+    if exitMode == "Fixed %"
+        strategy.exit("Exit", "Long", stop = close * (1 - stopPct / 100), limit = close * (1 + targetPct / 100))
+    else if exitMode == "ATR Multiple"
+        strategy.exit("Exit", "Long", stop = close - atrVal * atrStopMul, limit = close + atrVal * atrTgtMul)
+
+if exitMode == "Trend Flip" and trendFlipExit and strategy.position_size > 0
+    strategy.close("Long", comment = "Trend flip")
+
+if maxBarsHold > 0 and strategy.position_size > 0 and (bar_index - strategy.opentrades.entry_bar_index(0)) >= maxBarsHold
+    strategy.close("Long", comment = "Max hold")
+
+plot(e8,  "8 EMA",  color = color.aqua)
+plot(e21, "21 EMA", color = color.orange)
+plot(vw,  "VWAP",   color = color.purple, linewidth = 2)
+plotshape(signal, title = "Signal", style = shape.triangleup, location = location.belowbar, color = color.lime, size = size.tiny)

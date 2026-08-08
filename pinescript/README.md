@@ -103,8 +103,27 @@ carries real volume and behaves correctly in this scanner.
 4. **Trigger**: **Once Per Bar Close** (the script already gates on closed
    bars internally, but this keeps TradingView from re-checking mid-bar).
 5. The alert message is generated per-symbol automatically, e.g.:
-   `🚀 UBER [60] 8EMA>21EMA>VWAP stack + clean 2-bar move + VWAP Rip`
+   `🚀 UBER [60] px=87.40 8EMA>21EMA>VWAP + clean 2-bar move + VWAP Rip`
 6. Repeat for every dashboard copy (9 alerts total for the 3×3 setup above).
+
+### Cutting alert noise
+
+- **Alert cooldown (closed bars)** — if a signal stays true across several
+  consecutive closes (trend still stacked, no new pattern), this input
+  suppresses repeat alerts for that *same symbol* until N closed bars have
+  passed. Tracked per symbol by name via a map, so it survives you
+  reordering or editing the ticker list. Default `0` = alert on every
+  qualifying close (no suppression).
+- **Cross-dashboard duplicates aren't technically de-dupable.** Each of the
+  9 copies is a fully separate script instance with no shared state, so if
+  the same ticker qualifies on both the 15m and 1H dashboard around the
+  same time, you'll get two distinct alerts — Pine has no mechanism for one
+  instance to know what another just fired. Two practical mitigations: (a)
+  name each TradingView alert distinctly per dashboard (e.g. "EV 15m",
+  "EV 1H", "EV Daily") so you can tell at a glance which timeframe fired,
+  or (b) if 15m/1H overlap is mostly noise for your style, don't run every
+  timeframe on every symbol — e.g. only keep the Daily dashboard for slower
+  names and 15m/1H for the ones you actively day-trade.
 
 ## Tuning
 
@@ -116,6 +135,46 @@ carries real volume and behaves correctly in this scanner.
   be real body (vs. wicks) to count as a breakout thrust. Default 50%.
 - **Show only rows with an active signal** — toggle on to declutter the
   table to just the tickers currently flashing a setup.
+- **Alert cooldown** — see "Cutting alert noise" above.
+
+## Optimizing the signal thresholds
+
+Pine has no multi-symbol backtester — the Strategy Tester (and its
+"Optimize"/parameter-sweep feature, where available on your plan) only runs
+against one instrument at a time. So thresholds are tuned with a separate
+companion script, `ema-vwap-backtest.pine`, not the scanner itself:
+
+1. Add `ema-vwap-backtest.pine` to a chart for **one ticker at a time** —
+   pick 3–5 representative names from your list (mix of high/low volatility,
+   stock + ETF) rather than optimizing against a single symbol.
+2. Open the **Strategy Tester** tab. It exposes the exact same knobs as the
+   scanner (EMA lengths, body-strength %, VWAP anchor) plus an **Exit rule**
+   the original setup didn't specify — `Trend Flip` (exit when 8EMA crosses
+   back below 21EMA), `Fixed %` stop/target, or `ATR Multiple` stop/target.
+3. Adjust inputs and compare **Win Rate, Profit Factor, and Max Drawdown**
+   together — not Net Profit alone, which one lucky trade can dominate on a
+   short backtest window. Use the **Backtest start** input to control how
+   much history is included.
+4. Once a setting holds up across several symbols (not just the one that
+   happened to backtest best), set that same value as the **default** on
+   the matching input in `ema-vwap-scanner.pine` so all 9 dashboard copies
+   pick it up.
+
+## Performance
+
+- The scanner only re-scans its full ticker batch when the **dashboard's own
+  timeframe** closes a genuinely new bar — detected with a single cheap
+  `request.security` time check up front — instead of on every realtime
+  tick. Since every signal input is built from already-closed bars (`[1]`/
+  `[2]`), nothing is lost by skipping the in-between ticks; this is what
+  keeps a 40-symbol loop from re-running dozens of times a second on a fast
+  chart timeframe.
+- The **status row** at the top of the table also flags a **misconfigured
+  batch** in red — e.g. if you trim your ticker list down to 90 symbols but
+  still have a Batch Index `3` copy running (which now has nothing to scan),
+  it'll show `⚠ Batch 3 unused — list only needs 3 batch(es)` (or however
+  many are actually needed) so you know to lower that copy's Batch Index or
+  delete it, instead of it silently sitting there wasting a chart slot.
 
 ## Notes / limitations
 
@@ -127,6 +186,7 @@ carries real volume and behaves correctly in this scanner.
   filter. If you also want the mirrored bearish short setup
   (`8ema < 21ema < vwap` + gap-down stacking + rip/reversion under VWAP), say
   so and it can be added as a second signal column.
-- This is a scanner/alerting tool, not a backtestable strategy — it uses
-  `indicator()`, not `strategy()`, since the ask was for alerts across many
-  symbols rather than a single-symbol backtest.
+- `ema-vwap-scanner.pine` is the multi-symbol scanner/alerting tool
+  (`indicator()`). `ema-vwap-backtest.pine` is the single-symbol tuning tool
+  (`strategy()`) described above — they share identical signal logic so
+  values tune on one and transfer directly to the other.

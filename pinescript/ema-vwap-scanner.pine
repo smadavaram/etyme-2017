@@ -22,7 +22,17 @@
 //          b) Mean Revert  — candle wicks down into/through VWAP and closes
 //                             back above it (green) — a pullback bounce.
 //  This is an interpretation of a discretionary setup; tune the inputs
-//  (body-strength %, VWAP anchor) to match how you actually trade it.
+//  (body-strength %, VWAP anchor) to match how you actually trade it — or
+//  use pinescript/ema-vwap-backtest.pine (single-symbol Strategy Tester
+//  version) to optimize those inputs against history before setting them
+//  here.
+//
+//  PERFORMANCE: the whole scan only re-runs when the dashboard timeframe
+//  prints a genuinely new closed bar (detected once, cheaply, up front) —
+//  not on every realtime tick — since the signal is built entirely from
+//  already-closed bars and can't change mid-bar anyway. Alerts carry a
+//  per-symbol cooldown so a signal that stays true across several closes
+//  doesn't re-fire every single bar.
 // =============================================================================
 indicator("EMA/VWAP Stack Scanner — Dashboard", shorttitle = "EV Scanner", overlay = false, max_labels_count = 500)
 
@@ -42,6 +52,8 @@ vwapAnchor   = input.string("Session", "VWAP Anchor", options = ["Session", "Wee
      tooltip = "Use Session for the 15m/1H dashboards. On a Daily dashboard, session-anchored VWAP resets every bar and is meaningless — use Week or Month instead.")
 bodyMinPct   = input.float(50, "Min. body strength for 'VWAP Rip' (% of range)", minval = 0, maxval = 100, group = g2) / 100
 onlySignals  = input.bool(false, "Show only rows with an active signal", group = g2)
+cooldownBars = input.int(0, "Alert cooldown (closed bars of this timeframe, 0 = alert on every qualifying close)", minval = 0, group = g2,
+     tooltip = "If a signal stays true across several consecutive closes, this suppresses repeat alerts for the same symbol until the cooldown elapses. Tracked per symbol, independent of table row position.")
 
 g3 = "Dashboard Display"
 tablePos  = input.string("top_right", "Table Position",
@@ -106,27 +118,42 @@ f_get(sym, tf, anchorRes) =>
     request.security(sym, tf, f_symExpr(anchorRes), lookahead = barmerge.lookahead_off)
 
 // ---------------------------------------------------------------------------
-// SCAN LOOP — runs once per realtime update on the last bar to keep the
-// script light; the dashboard and alerts only need the latest state anyway.
+// SCAN LOOP — gated to run only when the dashboard timeframe closes a new
+// bar (checked with one cheap request.security call), not on every
+// realtime tick. The signal is built entirely from already-closed bars, so
+// nothing is lost by skipping the intrabar re-scans — this is the single
+// biggest cost cut for a 40-symbol loop.
 // ---------------------------------------------------------------------------
 var table dash = table.new(f_tablePos(tablePos), 8, 42, border_width = 1, frame_color = color.gray, frame_width = 1)
+var map<string, int> lastAlertClose = map.new<string, int>()
+var int closeCounter = 0
+var int lastBarTime  = na
 
-if barstate.islast
+curBarTime = request.security(syminfo.tickerid, tfInput, time, lookahead = barmerge.lookahead_off)
+isNewClose = na(lastBarTime) or curBarTime != lastBarTime
+
+if barstate.islast and isNewClose
+    lastBarTime := curBarTime
+    closeCounter += 1
+
     symbols = str.split(str.replace_all(tickersInput, " ", ""), ",")
     total = array.size(symbols)
     batchesNeeded = int(math.ceil(total / 40.0))
     startIdx = (batchIndex - 1) * 40
     endIdx   = math.min(startIdx + 40, total)
     ts = f_textSize(textSize)
+    outOfRange = batchIndex > batchesNeeded and total > 0
 
     table.clear(dash, 0, 0, 7, 41)
     // Status row: tells you at a glance whether this batch has anything to
-    // scan, and how many total batch copies your current list needs.
-    statusTxt = startIdx >= total
-         ? "Batch " + str.tostring(batchIndex) + ": empty — list only needs " + str.tostring(batchesNeeded) + " batch(es)"
+    // scan, how many total batch copies your current list needs, and flags
+    // a batch that's now redundant after you trimmed the ticker list.
+    statusTxt = outOfRange
+         ? "⚠ Batch " + str.tostring(batchIndex) + " unused — list only needs " + str.tostring(batchesNeeded) + " batch(es). Lower Batch Index or remove this copy."
          : "Batch " + str.tostring(batchIndex) + "/" + str.tostring(batchesNeeded) + " · tickers " + str.tostring(startIdx + 1) + "–" + str.tostring(endIdx) + " of " + str.tostring(total) + " · TF " + tfInput
+    statusBg = outOfRange ? color.new(color.red, 15) : color.new(color.blue, 20)
     table.merge_cells(dash, 0, 0, 7, 0)
-    table.cell(dash, 0, 0, statusTxt, text_color = color.white, bgcolor = color.new(color.blue, 20), text_size = ts, text_halign = text.align_left)
+    table.cell(dash, 0, 0, statusTxt, text_color = color.white, bgcolor = statusBg, text_size = ts, text_halign = text.align_left)
 
     table.cell(dash, 0, 1, "Ticker",  text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
     table.cell(dash, 1, 1, "Price",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
@@ -167,5 +194,9 @@ if barstate.islast
                 row += 1
 
             if signal
-                alert("🚀 " + sym + " [" + tfInput + "] 8EMA>21EMA>VWAP stack + clean 2-bar move + " + setupType,
-                     alert.freq_once_per_bar_close)
+                lastFire = map.contains(lastAlertClose, sym) ? map.get(lastAlertClose, sym) : -999999
+                if (closeCounter - lastFire) > cooldownBars
+                    alert("🚀 " + sym + " [" + tfInput + "] px=" + str.tostring(px, format.mintick) +
+                         " 8EMA>21EMA>VWAP + clean 2-bar move + " + setupType,
+                         alert.freq_once_per_bar_close)
+                    map.put(lastAlertClose, sym, closeCounter)
