@@ -29,10 +29,12 @@ indicator("EMA/VWAP Stack Scanner — Dashboard", shorttitle = "EV Scanner", ove
 // ---------------------------------------------------------------------------
 // INPUTS
 // ---------------------------------------------------------------------------
-g1 = "Watchlist (max 40 tickers per dashboard copy)"
+g1 = "Watchlist — paste your FULL list here (add/remove freely, no manual splitting)"
 tickersInput = input.text_area(
      defval = "PLTR,SNAP,ON,SPOT,CAT,MCD,PFE,CIFR,MRK,AMD,ANET,ALAB,ZETA,OPEN,BKNG,LLY,UBER,SHOP,EOSE,DIS,CVS,SNDK,IONQ,APP,DUOL,SOUN,FIG,ELF,SMR,AXON,DDOG,CELH,OSCR,QBTS,RGTI,DKNG,MARA,NET,MP,TT",
-     title = "Tickers (comma-separated)", group = g1)
+     title = "Master Tickers List (stocks/ETFs/indexes, comma-separated)", group = g1,
+     tooltip = "Maintain ONE growing/shrinking list here and paste the exact same full text into every dashboard copy (all timeframes, all batches). Each copy independently slices out its own 40-symbol window using the Batch Index below — you never have to manually figure out which tickers go in which copy.")
+batchIndex = input.int(1, "Batch Index (1 = tickers 1-40, 2 = 41-80, 3 = 81-120, ...)", minval = 1, maxval = 10, group = g1)
 
 g2 = "Dashboard Settings"
 tfInput      = input.timeframe("60", "Dashboard Timeframe (15 / 60 / D — one per copy)", group = g2)
@@ -107,25 +109,36 @@ f_get(sym, tf, anchorRes) =>
 // SCAN LOOP — runs once per realtime update on the last bar to keep the
 // script light; the dashboard and alerts only need the latest state anyway.
 // ---------------------------------------------------------------------------
-var table dash = table.new(f_tablePos(tablePos), 8, 41, border_width = 1, frame_color = color.gray, frame_width = 1)
+var table dash = table.new(f_tablePos(tablePos), 8, 42, border_width = 1, frame_color = color.gray, frame_width = 1)
 
 if barstate.islast
     symbols = str.split(str.replace_all(tickersInput, " ", ""), ",")
-    n = math.min(array.size(symbols), 40)
+    total = array.size(symbols)
+    batchesNeeded = int(math.ceil(total / 40.0))
+    startIdx = (batchIndex - 1) * 40
+    endIdx   = math.min(startIdx + 40, total)
     ts = f_textSize(textSize)
 
-    table.clear(dash, 0, 0, 7, 40)
-    table.cell(dash, 0, 0, "Ticker",  text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
-    table.cell(dash, 1, 0, "Price",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
-    table.cell(dash, 2, 0, "8EMA",    text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
-    table.cell(dash, 3, 0, "21EMA",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
-    table.cell(dash, 4, 0, "VWAP",    text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
-    table.cell(dash, 5, 0, "Trend",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
-    table.cell(dash, 6, 0, "Pattern", text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
-    table.cell(dash, 7, 0, "Setup",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.clear(dash, 0, 0, 7, 41)
+    // Status row: tells you at a glance whether this batch has anything to
+    // scan, and how many total batch copies your current list needs.
+    statusTxt = startIdx >= total
+         ? "Batch " + str.tostring(batchIndex) + ": empty — list only needs " + str.tostring(batchesNeeded) + " batch(es)"
+         : "Batch " + str.tostring(batchIndex) + "/" + str.tostring(batchesNeeded) + " · tickers " + str.tostring(startIdx + 1) + "–" + str.tostring(endIdx) + " of " + str.tostring(total) + " · TF " + tfInput
+    table.merge_cells(dash, 0, 0, 7, 0)
+    table.cell(dash, 0, 0, statusTxt, text_color = color.white, bgcolor = color.new(color.blue, 20), text_size = ts, text_halign = text.align_left)
 
-    row = 1
-    for i = 0 to n - 1
+    table.cell(dash, 0, 1, "Ticker",  text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 1, 1, "Price",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 2, 1, "8EMA",    text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 3, 1, "21EMA",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 4, 1, "VWAP",    text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 5, 1, "Trend",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 6, 1, "Pattern", text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 7, 1, "Setup",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+
+    row = 2
+    for i = startIdx to endIdx - 1
         sym = str.trim(array.get(symbols, i))
         if str.length(sym) > 0
             [e8, e21, vw, px, c1, o1, h1, l1, h2] = f_get(sym, tfInput, anchorRes)

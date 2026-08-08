@@ -24,34 +24,56 @@ this scanner uses one call per ticker. That means:
 - **One script instance = one timeframe × up to 40 tickers.**
 - For "three dashboards" (15m, 1H, Daily) covering **100+ tickers**, you add
   the *same* script to your chart multiple times, changing two inputs on
-  each copy: the **Dashboard Timeframe** and the **Tickers** batch.
+  each copy: **Dashboard Timeframe** and **Batch Index**.
 
-Example for ~120 tickers split into 3 batches of 40:
+That's still multiple indicator instances (3 timeframes × as many batches as
+your list needs), but as of this version **you never manually split the
+ticker list yourself.** Paste your one master list — the same exact text —
+into every copy's **Master Tickers List** field. Each copy then pulls its own
+40-symbol window out of that shared list automatically, based on its
+**Batch Index** input (1 = tickers 1–40, 2 = 41–80, 3 = 81–120, …). The
+dashboard's top status row tells you, e.g.:
 
-| Copy | Dashboard Timeframe | Tickers input |
-|------|---------------------|----------------|
-| 15m-A | `15` | tickers 1–40 |
-| 15m-B | `15` | tickers 41–80 |
-| 15m-C | `15` | tickers 81–120 |
-| 1H-A  | `60` | tickers 1–40 |
-| 1H-B  | `60` | tickers 41–80 |
-| 1H-C  | `60` | tickers 81–120 |
-| D-A   | `D`  | tickers 1–40 |
-| D-B   | `D`  | tickers 41–80 |
-| D-C   | `D`  | tickers 81–120 |
+```
+Batch 2/3 · tickers 41–80 of 118 · TF 60
+```
 
-That's 9 indicator instances total (3 timeframes × 3 batches). Each one is
-a separate row of table panels you can stack/tab in your layout — TradingView
-free/paid plans limit how many indicators can be on a chart at once (5 on
-Basic, more on paid tiers), so a paid plan is effectively required to run all
-9 simultaneously on one chart. If that's a constraint, put each timeframe's
-3 batches on 3 separate saved chart layouts instead — alerts still fire from
-each independently.
+so you always know how many batch copies your current list actually needs
+(`batchesNeeded` shown right there) — add or remove a batch copy as your list
+crosses a 40-ticker boundary, nothing else changes.
 
-## Populating your full ticker list
+Example layout for a ~120-ticker list:
+
+| Copy | Dashboard Timeframe | Batch Index |
+|------|---------------------|-------------|
+| 15m-1 | `15` | `1` |
+| 15m-2 | `15` | `2` |
+| 15m-3 | `15` | `3` |
+| 1H-1  | `60` | `1` |
+| 1H-2  | `60` | `2` |
+| 1H-3  | `60` | `3` |
+| D-1   | `D`  | `1` |
+| D-2   | `D`  | `2` |
+| D-3   | `D`  | `3` |
+
+Every one of those 9 copies has the **identical** Master Tickers List pasted
+in — only Timeframe and Batch Index differ. TradingView free/paid plans limit
+how many indicators can run on one chart at once (5 on Basic, more on paid
+tiers), so a paid plan is effectively required to run all 9 simultaneously on
+one chart. If that's a constraint, put each timeframe's batches on separate
+saved chart layouts instead — alerts still fire from each independently.
+
+## Adding/removing tickers going forward
+
+This is now a one-place edit: update the **Master Tickers List** text (add or
+remove symbols — stocks, ETFs, or indexes, comma-separated, no spaces
+needed), then paste that same updated string into every dashboard copy's
+Master Tickers List field. You don't need to figure out which batch a ticker
+lands in — Batch Index handles the slicing. You only touch Batch Index /
+add a new copy when the total count crosses a multiple of 40.
 
 The script ships with the ~40 tickers visible in your screenshot as the
-default `Tickers` input:
+default list:
 
 ```
 PLTR,SNAP,ON,SPOT,CAT,MCD,PFE,CIFR,MRK,AMD,ANET,ALAB,ZETA,OPEN,BKNG,LLY,UBER,SHOP,
@@ -59,12 +81,17 @@ EOSE,DIS,CVS,SNDK,IONQ,APP,DUOL,SOUN,FIG,ELF,SMR,AXON,DDOG,CELH,OSCR,QBTS,RGTI,
 DKNG,MARA,NET,MP,TT
 ```
 
-Your list was truncated by TradingView's "Show more" — paste your complete
-100+ symbol list (stocks + ETFs, comma-separated, no spaces needed) into the
-`Tickers` field on each dashboard copy, split into batches of ≤40. One ticker
-from your screenshot (`SPCX`) may not resolve on TradingView since SpaceX
-isn't a listed public company on standard exchanges — swap it for whatever
-symbol/exchange prefix your broker's data feed actually publishes, or drop it.
+That was truncated by TradingView's "Show more" — paste your complete 100+
+symbol list in. One ticker from your screenshot (`SPCX`) may not resolve on
+TradingView since SpaceX isn't a listed public company on standard exchanges
+— swap it for whatever symbol/exchange prefix your broker's data feed
+actually publishes, or drop it.
+
+**Indexes specifically**: this scanner's VWAP needs real traded volume. Raw
+index tickers (`SPX`, `NDX`, `DJI`, `RUT`, …) typically report zero/no volume
+on TradingView, so VWAP will come back `n/a` and those rows will never
+signal. Use the tradable ETF proxy instead — `SPY`/`QQQ`/`DIA`/`IWM` — which
+carries real volume and behaves correctly in this scanner.
 
 ## Setting up alerts
 
