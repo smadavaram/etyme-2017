@@ -1,0 +1,158 @@
+//@version=5
+// =============================================================================
+//  EMA/VWAP STACK SCANNER — Multi-Ticker Dashboard
+// -----------------------------------------------------------------------------
+//  One script, deployed as THREE separate dashboards (15m / 1H / Daily) by
+//  changing the "Dashboard Timeframe" input on each copy you add to a chart.
+//  Because a single Pine script is hard-capped at 40 request.security() calls,
+//  100+ symbols are covered by pasting them into batches of ≤40 in the
+//  "Tickers" input and adding one dashboard copy per batch, per timeframe.
+//  See pinescript/README.md for the full setup (batches, alerts, tuning).
+//
+//  SIGNAL LOGIC (applied on the dashboard's own timeframe, closed bars only):
+//    1) Trend stack:      8 EMA > 21 EMA > VWAP
+//    2) Clean 2-bar move: the last two closed candles do not overlap
+//                         (2nd-most-recent candle's low is fully above the
+//                          3rd-most-recent candle's high — a bullish, no-
+//                          overlap "staircase" step)
+//    3) Entry trigger (either one):
+//          a) VWAP Rip     — candle opens below VWAP, closes above both
+//                             VWAP and the 8 EMA, with a strong (≥50% by
+//                             default) real body — a breakout thrust.
+//          b) Mean Revert  — candle wicks down into/through VWAP and closes
+//                             back above it (green) — a pullback bounce.
+//  This is an interpretation of a discretionary setup; tune the inputs
+//  (body-strength %, VWAP anchor) to match how you actually trade it.
+// =============================================================================
+indicator("EMA/VWAP Stack Scanner — Dashboard", shorttitle = "EV Scanner", overlay = false, max_labels_count = 500)
+
+// ---------------------------------------------------------------------------
+// INPUTS
+// ---------------------------------------------------------------------------
+g1 = "Watchlist (max 40 tickers per dashboard copy)"
+tickersInput = input.text_area(
+     defval = "PLTR,SNAP,ON,SPOT,CAT,MCD,PFE,CIFR,MRK,AMD,ANET,ALAB,ZETA,OPEN,BKNG,LLY,UBER,SHOP,EOSE,DIS,CVS,SNDK,IONQ,APP,DUOL,SOUN,FIG,ELF,SMR,AXON,DDOG,CELH,OSCR,QBTS,RGTI,DKNG,MARA,NET,MP,TT",
+     title = "Tickers (comma-separated)", group = g1)
+
+g2 = "Dashboard Settings"
+tfInput      = input.timeframe("60", "Dashboard Timeframe (15 / 60 / D — one per copy)", group = g2)
+vwapAnchor   = input.string("Session", "VWAP Anchor", options = ["Session", "Week", "Month"], group = g2,
+     tooltip = "Use Session for the 15m/1H dashboards. On a Daily dashboard, session-anchored VWAP resets every bar and is meaningless — use Week or Month instead.")
+bodyMinPct   = input.float(50, "Min. body strength for 'VWAP Rip' (% of range)", minval = 0, maxval = 100, group = g2) / 100
+onlySignals  = input.bool(false, "Show only rows with an active signal", group = g2)
+
+g3 = "Dashboard Display"
+tablePos  = input.string("top_right", "Table Position",
+     options = ["top_left", "top_center", "top_right", "middle_left", "middle_center", "middle_right", "bottom_left", "bottom_center", "bottom_right"], group = g3)
+textSize  = input.string("small", "Text Size", options = ["tiny", "small", "normal", "large"], group = g3)
+
+// ---------------------------------------------------------------------------
+// HELPERS
+// ---------------------------------------------------------------------------
+f_tablePos(p) =>
+    switch p
+        "top_left"      => position.top_left
+        "top_center"    => position.top_center
+        "top_right"     => position.top_right
+        "middle_left"   => position.middle_left
+        "middle_center" => position.middle_center
+        "middle_right"  => position.middle_right
+        "bottom_left"   => position.bottom_left
+        "bottom_center" => position.bottom_center
+        => position.bottom_right
+
+f_textSize(s) =>
+    switch s
+        "tiny"   => size.tiny
+        "small"  => size.small
+        "normal" => size.normal
+        => size.large
+
+// Anchored VWAP that resets on Session / Week / Month boundaries.
+// Kept as its own persistent-state function so each request.security()
+// call (one per symbol) gets its own independent running total.
+f_avwap(anchorRes, src, vol) =>
+    var float sumPV = na
+    var float sumV  = na
+    newPeriod = ta.change(time(anchorRes))
+    if newPeriod != 0 or na(sumPV)
+        sumPV := src * vol
+        sumV  := vol
+    else
+        sumPV += src * vol
+        sumV  += vol
+    sumPV / sumV
+
+anchorRes = vwapAnchor == "Session" ? "D" : vwapAnchor == "Week" ? "W" : "M"
+
+// Expression evaluated inside each symbol's request.security() context.
+// Everything is offset by [1]/[2] so the signal is built from fully CLOSED
+// bars only (non-repainting) — [1] = most recently closed bar on the
+// dashboard timeframe, [2] = the bar before it.
+f_symExpr(anchorRes) =>
+    e8  = ta.ema(close, 8)[1]
+    e21 = ta.ema(close, 21)[1]
+    vw  = f_avwap(anchorRes, hlc3, volume)[1]
+    c1 = close[1]
+    o1 = open[1]
+    h1 = high[1]
+    l1 = low[1]
+    h2 = high[2]
+    [e8, e21, vw, close, c1, o1, h1, l1, h2]
+
+f_get(sym, tf, anchorRes) =>
+    request.security(sym, tf, f_symExpr(anchorRes), lookahead = barmerge.lookahead_off)
+
+// ---------------------------------------------------------------------------
+// SCAN LOOP — runs once per realtime update on the last bar to keep the
+// script light; the dashboard and alerts only need the latest state anyway.
+// ---------------------------------------------------------------------------
+var table dash = table.new(f_tablePos(tablePos), 8, 41, border_width = 1, frame_color = color.gray, frame_width = 1)
+
+if barstate.islast
+    symbols = str.split(str.replace_all(tickersInput, " ", ""), ",")
+    n = math.min(array.size(symbols), 40)
+    ts = f_textSize(textSize)
+
+    table.clear(dash, 0, 0, 7, 40)
+    table.cell(dash, 0, 0, "Ticker",  text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 1, 0, "Price",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 2, 0, "8EMA",    text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 3, 0, "21EMA",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 4, 0, "VWAP",    text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 5, 0, "Trend",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 6, 0, "Pattern", text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+    table.cell(dash, 7, 0, "Setup",   text_color = color.white, bgcolor = color.new(color.gray, 0), text_size = ts)
+
+    row = 1
+    for i = 0 to n - 1
+        sym = str.trim(array.get(symbols, i))
+        if str.length(sym) > 0
+            [e8, e21, vw, px, c1, o1, h1, l1, h2] = f_get(sym, tfInput, anchorRes)
+
+            trendStack   = not na(e8) and not na(e21) and not na(vw) and e8 > e21 and e21 > vw
+            noOverlapUp  = not na(l1) and not na(h2) and l1 > h2
+            bullishBar1  = c1 > o1
+            body1        = math.abs(c1 - o1)
+            range1       = h1 - l1
+            strongBody   = range1 > 0 and (body1 / range1) >= bodyMinPct
+            ripThroughVW = o1 < vw and c1 > vw and c1 > e8 and strongBody
+            meanRevertVW = l1 <= vw and c1 > vw and bullishBar1
+            setupType    = ripThroughVW ? "VWAP Rip" : meanRevertVW ? "Mean Revert" : "—"
+            signal       = trendStack and noOverlapUp and bullishBar1 and (ripThroughVW or meanRevertVW)
+
+            if not onlySignals or signal
+                bg = signal ? color.new(color.green, 70) : na
+                table.cell(dash, 0, row, sym,                                     text_color = color.white, bgcolor = bg, text_size = ts)
+                table.cell(dash, 1, row, str.tostring(px,  format.mintick),       text_color = color.white, bgcolor = bg, text_size = ts)
+                table.cell(dash, 2, row, str.tostring(e8,  format.mintick),       text_color = color.white, bgcolor = bg, text_size = ts)
+                table.cell(dash, 3, row, str.tostring(e21, format.mintick),       text_color = color.white, bgcolor = bg, text_size = ts)
+                table.cell(dash, 4, row, str.tostring(vw,  format.mintick),       text_color = color.white, bgcolor = bg, text_size = ts)
+                table.cell(dash, 5, row, trendStack  ? "✔" : "—", text_color = trendStack  ? color.lime : color.gray, bgcolor = bg, text_size = ts)
+                table.cell(dash, 6, row, noOverlapUp ? "✔" : "—", text_color = noOverlapUp ? color.lime : color.gray, bgcolor = bg, text_size = ts)
+                table.cell(dash, 7, row, setupType, text_color = signal ? color.lime : color.gray, bgcolor = bg, text_size = ts)
+                row += 1
+
+            if signal
+                alert("🚀 " + sym + " [" + tfInput + "] 8EMA>21EMA>VWAP stack + clean 2-bar move + " + setupType,
+                     alert.freq_once_per_bar_close)
