@@ -1,4 +1,4 @@
-import { EtymeClockMark } from '@/components/logo'
+import { EtymeMark } from '@/components/logo'
 
 export const metadata = {
   title: 'Dashboard',
@@ -120,7 +120,7 @@ export default function DashboardPage() {
       {/* Decision Queue */}
       <div className="card mb-8">
         <div className="flex items-center gap-2 mb-4">
-          <EtymeClockMark size={18} />
+          <EtymeMark size={18} />
           <h2 className="text-sm font-semibold">Decision queue</h2>
           <span className="pill bg-etyme-ground text-etyme-muted text-[10px]">
             0 pending

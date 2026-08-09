@@ -9,10 +9,13 @@
     --color-ground: 248 250 252;  /* #F8FAFC */
     --color-border: 226 232 240;  /* #E2E8F0 */
     --color-muted: 100 116 139;   /* #64748B */
-    --color-blue: 37 99 235;      /* #2563EB */
+    --color-cyan: 0 212 255;      /* #00D4FF */
     --color-purple: 124 58 237;   /* #7C3AED */
+    --color-blue: 37 99 235;      /* #2563EB */
     --color-amber: 245 158 11;    /* #F59E0B */
     --color-green: 5 150 105;     /* #059669 */
+
+    --gradient-brand: linear-gradient(90deg, #00D4FF, #7C3AED);
   }
 
   html {
@@ -93,6 +96,14 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: rgb(var(--color-blue));
+  }
+
+  /* Brand gradient text — for accents and headings */
+  .gradient-text {
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
 

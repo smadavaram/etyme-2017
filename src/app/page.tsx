@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { EtymeLogo, EtymeClockMark } from '@/components/logo'
+import { EtymeLogo, EtymeMark } from '@/components/logo'
 
 export default function LandingPage() {
   return (
@@ -32,7 +32,8 @@ export default function LandingPage() {
 
           {/* Headline */}
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold tracking-[0.14em] uppercase text-etyme-amber mb-4 animate-fade-in">
+            <p className="text-sm font-semibold tracking-[0.14em] uppercase mb-4 animate-fade-in"
+               style={{ color: '#00D4FF' }}>
               System of record
             </p>
             <h1 className="text-4xl md:text-[56px] font-semibold text-white leading-[1.1] tracking-[-0.03em] mb-6 text-balance animate-slide-up">
@@ -86,20 +87,20 @@ export default function LandingPage() {
         {/* Pipeline */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           {[
-            { n: '01', t: 'Find', d: 'Search, hotlists, outreach', fades: true },
-            { n: '02', t: 'Screen', d: 'Resumes, write-ups, submissions', fades: true },
-            { n: '03', t: 'Interview', d: 'Scheduling, follow-ups', fades: true },
-            { n: '04', t: 'Select', d: 'Rate negotiation, offers', fades: true },
+            { n: '01', t: 'Find', d: 'Search, hotlists, outreach' },
+            { n: '02', t: 'Screen', d: 'Resumes, write-ups, submissions' },
+            { n: '03', t: 'Interview', d: 'Scheduling, follow-ups' },
+            { n: '04', t: 'Select', d: 'Rate negotiation, offers' },
           ].map((s) => (
             <div
               key={s.n}
               className="rounded-xl p-4 border transition-all"
               style={{
-                background: '#FFFBEB',
-                borderColor: '#FCD34D',
+                background: 'rgba(0, 212, 255, 0.04)',
+                borderColor: 'rgba(0, 212, 255, 0.15)',
               }}
             >
-              <div className="text-[10px] font-bold text-etyme-amber mb-1">{s.n}</div>
+              <div className="text-[10px] font-bold mb-1" style={{ color: '#00D4FF' }}>{s.n}</div>
               <div className="text-sm font-semibold mb-0.5">{s.t}</div>
               <div className="text-xs text-etyme-muted leading-snug">{s.d}</div>
             </div>
@@ -117,11 +118,11 @@ export default function LandingPage() {
               key={s.n}
               className="rounded-xl p-4 border transition-all"
               style={{
-                background: '#ECFDF5',
-                borderColor: '#A7F3D0',
+                background: 'rgba(124, 58, 237, 0.04)',
+                borderColor: 'rgba(124, 58, 237, 0.15)',
               }}
             >
-              <div className="text-[10px] font-bold text-etyme-green mb-1">{s.n}</div>
+              <div className="text-[10px] font-bold text-etyme-purple mb-1">{s.n}</div>
               <div className="text-sm font-semibold mb-0.5">{s.t}</div>
               <div className="text-xs text-etyme-muted leading-snug">{s.d}</div>
             </div>
@@ -132,14 +133,14 @@ export default function LandingPage() {
           <span className="flex items-center gap-2">
             <span
               className="w-3 h-3 rounded"
-              style={{ background: '#FFFBEB', border: '1px solid #FCD34D' }}
+              style={{ background: 'rgba(0, 212, 255, 0.08)', border: '1px solid rgba(0, 212, 255, 0.2)' }}
             />
             AI collapses this
           </span>
           <span className="flex items-center gap-2">
             <span
               className="w-3 h-3 rounded"
-              style={{ background: '#ECFDF5', border: '1px solid #A7F3D0' }}
+              style={{ background: 'rgba(124, 58, 237, 0.08)', border: '1px solid rgba(124, 58, 237, 0.2)' }}
             />
             Someone still has to do this — Etyme makes it work
           </span>
@@ -192,9 +193,9 @@ export default function LandingPage() {
               <div className="flex items-center gap-2 mb-3">
                 <span
                   className="w-[6px] h-[6px] rounded-full flex-shrink-0"
-                  style={{ background: '#F59E0B' }}
+                  style={{ background: '#00D4FF' }}
                 />
-                <span className="text-xs font-semibold uppercase tracking-widest text-etyme-amber">
+                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#00D4FF' }}>
                   Transparency
                 </span>
               </div>
@@ -214,7 +215,7 @@ export default function LandingPage() {
       {/* ── CTA ───────────────────────────────────────────── */}
       <section className="bg-etyme-ink">
         <div className="max-w-5xl mx-auto px-6 py-16 md:py-20 text-center">
-          <EtymeClockMark size={40} className="mx-auto mb-6 opacity-30" />
+          <EtymeMark size={40} className="mx-auto mb-6 opacity-40" />
           <h2 className="text-2xl md:text-3xl font-semibold text-white mb-3 tracking-[-0.02em]">
             Run a staffing company at a fraction of the headcount.
           </h2>

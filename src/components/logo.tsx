@@ -1,13 +1,20 @@
 /**
- * Etyme logo — the 't' is the differentiator.
+ * Etyme logo — the 't' crossbar is the differentiator.
  *
- * The vertical stroke of the 't' extends into a clock face above the baseline.
- * Three hands in the brand colours (purple, amber, green) radiate from the
- * junction, making the 't' literally a timepiece inside the wordmark.
+ * The wordmark is "etyme" in deep navy custom sans-serif. The crossbar
+ * of the 't' is replaced with a rising bar carrying a cyan-to-purple
+ * gradient — progress lifting the word forward.
+ *
+ * Design rationale (from brand guidelines):
+ *   - Rising crossbar = progress
+ *   - Wide stance = stability
+ *   - Open counters = clarity
+ *   - Gradient: cyan (#00D4FF) → purple (#7C3AED)
  *
  * Usage:
  *   <EtymeLogo size="lg" />           — dark text, for light backgrounds
  *   <EtymeLogo size="lg" inverted />  — white text, for dark backgrounds
+ *   <EtymeMark size={32} />           — 't' in a circle, for icons
  */
 
 interface EtymeLogoProps {
@@ -15,10 +22,8 @@ interface EtymeLogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'hero'
   /** White text for dark backgrounds */
   inverted?: boolean
-  /** Show only the clock mark, no wordmark */
+  /** Show only the mark (t-in-circle), no wordmark */
   mark?: boolean
-  /** Animate the second hand */
-  animated?: boolean
   className?: string
 }
 
@@ -28,216 +33,106 @@ export function EtymeLogo({
   size = 'md',
   inverted = false,
   mark = false,
-  animated = false,
   className = '',
 }: EtymeLogoProps) {
   const h = SIZES[size]
   const textColor = inverted ? '#FFFFFF' : '#0D1426'
 
-  // Clock face dimensions relative to the height
-  const clockR = h * 0.22
-  const cx = 0
-  const cy = 0
-
-  const clockMark = (
-    <svg
-      width={clockR * 2.6}
-      height={clockR * 2.6}
-      viewBox="-13 -13 26 26"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="inline-block"
-      aria-hidden="true"
-    >
-      {/* Clock face */}
-      <circle
-        cx={cx}
-        cy={cy}
-        r="11"
-        stroke={textColor}
-        strokeWidth="1.8"
-        fill="none"
-        opacity="0.2"
-      />
-      {/* Hour ticks — 12, 3, 6, 9 */}
-      {[0, 90, 180, 270].map((angle) => {
-        const rad = (angle * Math.PI) / 180
-        const x1 = Math.sin(rad) * 9
-        const y1 = -Math.cos(rad) * 9
-        const x2 = Math.sin(rad) * 11
-        const y2 = -Math.cos(rad) * 11
-        return (
-          <line
-            key={angle}
-            x1={x1}
-            y1={y1}
-            x2={x2}
-            y2={y2}
-            stroke={textColor}
-            strokeWidth="1.2"
-            opacity="0.25"
-            strokeLinecap="round"
-          />
-        )
-      })}
-      {/* Center dot */}
-      <circle cx={cx} cy={cy} r="1.4" fill={textColor} />
-      {/* Hour hand — purple, pointing ~2 o'clock */}
-      <line
-        x1={cx}
-        y1={cy}
-        x2="4.5"
-        y2="-5.5"
-        stroke="#7C3AED"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-      />
-      {/* Minute hand — amber, pointing ~10 o'clock */}
-      <line
-        x1={cx}
-        y1={cy}
-        x2="-5"
-        y2="-7"
-        stroke="#F59E0B"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      {/* Second hand — green, pointing ~5 o'clock */}
-      <line
-        x1={cx}
-        y1={cy}
-        x2="4"
-        y2="7.5"
-        stroke="#059669"
-        strokeWidth="1"
-        strokeLinecap="round"
-        className={animated ? 'origin-center animate-clock-tick' : ''}
-      />
-    </svg>
-  )
-
   if (mark) {
-    return <span className={className}>{clockMark}</span>
+    return <EtymeMark size={Math.round(h * 0.85)} className={className} />
   }
+
+  const letterStyle: React.CSSProperties = {
+    fontSize: h,
+    fontWeight: 700,
+    lineHeight: 1,
+    color: textColor,
+    letterSpacing: '-0.04em',
+  }
+
+  // Gradient crossbar scales with font size
+  const barHeight = Math.max(2.5, h * 0.075)
 
   return (
     <span
-      className={`inline-flex items-center gap-0 select-none ${className}`}
-      style={{ fontFamily: 'var(--font-inter), system-ui, sans-serif' }}
+      className={`inline-flex items-baseline select-none ${className}`}
+      style={{ fontFamily: 'var(--font-inter), Inter, system-ui, sans-serif' }}
       role="img"
       aria-label="Etyme"
     >
-      {/* 'e' */}
-      <span
-        style={{
-          fontSize: h,
-          fontWeight: 600,
-          lineHeight: 1,
-          color: textColor,
-          letterSpacing: '-0.03em',
-        }}
-      >
-        e
+      <span style={letterStyle}>e</span>
+
+      {/* The 't' — its crossbar carries the brand gradient */}
+      <span className="relative inline-block">
+        <span style={letterStyle}>t</span>
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: '43%',
+            left: '-12%',
+            right: '-35%',
+            height: barHeight,
+            background: 'linear-gradient(90deg, #00D4FF, #7C3AED)',
+            borderRadius: barHeight,
+            transform: 'rotate(-4deg)',
+            transformOrigin: '30% center',
+          }}
+        />
       </span>
 
-      {/* 't' with clock — the differentiator */}
-      <span
-        className="relative inline-flex items-center justify-center"
-        style={{ width: h * 0.62 }}
-      >
-        {/* The letter 't' */}
-        <span
-          style={{
-            fontSize: h,
-            fontWeight: 600,
-            lineHeight: 1,
-            color: textColor,
-            letterSpacing: '-0.03em',
-            opacity: 0.12,
-          }}
-        >
-          t
-        </span>
-        {/* Clock overlay on the 't' */}
-        <span
-          className="absolute"
-          style={{
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -55%)',
-          }}
-        >
-          {clockMark}
-        </span>
-      </span>
-
-      {/* 'yme' */}
-      <span
-        style={{
-          fontSize: h,
-          fontWeight: 600,
-          lineHeight: 1,
-          color: textColor,
-          letterSpacing: '-0.03em',
-        }}
-      >
-        yme
-      </span>
+      <span style={letterStyle}>yme</span>
     </span>
   )
 }
 
-/** Standalone clock mark for favicon, app icon, loading states */
-export function EtymeClockMark({
+/**
+ * Standalone mark — lowercase 't' with gradient crossbar in a navy circle.
+ * Used for favicon, app icon, loading states, and compact branding.
+ */
+export function EtymeMark({
   size = 32,
+  inverted = false,
   className = '',
 }: {
   size?: number
+  inverted?: boolean
   className?: string
 }) {
+  const bgFill = inverted ? '#FFFFFF' : '#0D1426'
+  const strokeFill = inverted ? '#0D1426' : '#FFFFFF'
+
   return (
     <svg
       width={size}
       height={size}
-      viewBox="-14 -14 28 28"
+      viewBox="0 0 40 40"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       role="img"
       aria-label="Etyme"
     >
-      {/* Outer ring */}
-      <circle cx="0" cy="0" r="12" stroke="#0D1426" strokeWidth="2" fill="none" />
-      {/* Hour ticks */}
-      {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((angle) => {
-        const rad = (angle * Math.PI) / 180
-        const major = angle % 90 === 0
-        const x1 = Math.sin(rad) * (major ? 8.5 : 9.5)
-        const y1 = -Math.cos(rad) * (major ? 8.5 : 9.5)
-        const x2 = Math.sin(rad) * 11
-        const y2 = -Math.cos(rad) * 11
-        return (
-          <line
-            key={angle}
-            x1={x1}
-            y1={y1}
-            x2={x2}
-            y2={y2}
-            stroke="#0D1426"
-            strokeWidth={major ? 1.5 : 0.8}
-            strokeLinecap="round"
-            opacity={major ? 0.6 : 0.3}
-          />
-        )
-      })}
-      {/* Center */}
-      <circle cx="0" cy="0" r="1.5" fill="#0D1426" />
-      {/* Hour — purple */}
-      <line x1="0" y1="0" x2="4.5" y2="-5.5" stroke="#7C3AED" strokeWidth="2.4" strokeLinecap="round" />
-      {/* Minute — amber */}
-      <line x1="0" y1="0" x2="-5" y2="-7" stroke="#F59E0B" strokeWidth="1.8" strokeLinecap="round" />
-      {/* Second — green */}
-      <line x1="0" y1="0" x2="4" y2="7.5" stroke="#059669" strokeWidth="1" strokeLinecap="round" />
+      <defs>
+        <linearGradient id="etyme-g" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#00D4FF" />
+          <stop offset="100%" stopColor="#7C3AED" />
+        </linearGradient>
+      </defs>
+      {/* Circle ground */}
+      <circle cx="20" cy="20" r="20" fill={bgFill} />
+      {/* Vertical stroke of 't' */}
+      <rect x="18.25" y="8" width="3.5" height="24" rx="1.75" fill={strokeFill} />
+      {/* Gradient crossbar — rising left-to-right */}
+      <rect
+        x="10"
+        y="17.5"
+        width="20"
+        height="3.5"
+        rx="1.75"
+        fill="url(#etyme-g)"
+        transform="rotate(-4 20 19.25)"
+      />
     </svg>
   )
 }

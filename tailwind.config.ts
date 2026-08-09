@@ -12,8 +12,9 @@ const config: Config = {
           ink: '#0D1426',
           navy: '#131B2E',
           slate: '#1E293B',
-          blue: '#2563EB',
+          cyan: '#00D4FF',
           purple: '#7C3AED',
+          blue: '#2563EB',
           amber: '#F59E0B',
           green: '#059669',
           surface: '#FFFFFF',
@@ -27,20 +28,10 @@ const config: Config = {
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
       animation: {
-        'clock-tick': 'clockTick 60s linear infinite',
-        'clock-minute': 'clockMinute 3600s linear infinite',
         'fade-in': 'fadeIn 0.6s ease-out',
         'slide-up': 'slideUp 0.5s ease-out',
       },
       keyframes: {
-        clockTick: {
-          from: { transform: 'rotate(0deg)' },
-          to: { transform: 'rotate(360deg)' },
-        },
-        clockMinute: {
-          from: { transform: 'rotate(0deg)' },
-          to: { transform: 'rotate(360deg)' },
-        },
         fadeIn: {
           from: { opacity: '0' },
           to: { opacity: '1' },
