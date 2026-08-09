@@ -1,0 +1,569 @@
+// Etyme — data model
+// Postgres + Prisma. Consolidates the 134 models of the 2017 application.
+// Read alongside BUILD.md. Change this file before writing any application code.
+
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+// ─────────────────────────────────────────────
+// IDENTITY  — a Person is permanent, credentials are replaceable,
+// contexts are granted and revocable. Replaces 2017 candidate/user/admin/owner/consultant.
+// ─────────────────────────────────────────────
+
+model Person {
+  id            String   @id @default(cuid())
+  name          String
+  primaryEmail  String   @unique
+  createdAt     DateTime @default(now())
+
+  credentials   Credential[]
+  contexts      Context[]
+  consultant    ConsultantProfile?
+  accessedBy    AccessLog[]        @relation("subject")
+  actions       AccessLog[]        @relation("actor")
+  visas         VisaPetition[]
+  submissions   Submission[]
+  assignments   Assignment[]
+  timesheets    Timesheet[]
+}
+
+model Credential {
+  id         String   @id @default(cuid())
+  personId   String
+  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  provider   Provider
+  providerId String   // subject claim from the IdP, or the email for magic links
+  email      String
+  lastUsedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  @@unique([provider, providerId])
+  @@index([personId])
+}
+
+enum Provider { MICROSOFT GOOGLE EMAIL SAML }
+
+model Context {
+  id          String      @id @default(cuid())
+  personId    String
+  person      Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type        ContextType
+  companyId   String?
+  company     Company?    @relation(fields: [companyId], references: [id])
+  roleId      String?
+  role        Role?       @relation(fields: [roleId], references: [id])
+  orgUnitId   String?     // a delivery manager owns a practice, not the firm
+  orgUnit     OrgUnit?    @relation(fields: [orgUnitId], references: [id])
+  grantedById String?
+  grantedAt   DateTime    @default(now())
+  revokedAt   DateTime?
+
+  @@index([personId, revokedAt])
+  @@index([companyId])
+}
+
+enum ContextType { CONSULTANT EMPLOYEE PARTNER CLIENT_CONTACT PLATFORM_ADMIN }
+
+// One company acting for another (an MSP running a client programme).
+// Deliberately not a ContextType — it has a validity window and a scope.
+model Delegation {
+  id            String   @id @default(cuid())
+  grantorId     String
+  grantor       Company  @relation("grantor", fields: [grantorId], references: [id])
+  granteeId     String
+  grantee       Company  @relation("grantee", fields: [granteeId], references: [id])
+  scope         String[] // permission keys the grantee may exercise
+  validFrom     DateTime @default(now())
+  validTo       DateTime?
+  revokedAt     DateTime?
+
+  @@index([granteeId, validTo])
+}
+
+// Every read of a person's data, including refusals. The subject can see this.
+model AccessLog {
+  id             String   @id @default(cuid())
+  subjectId      String
+  subject        Person   @relation("subject", fields: [subjectId], references: [id], onDelete: Cascade)
+  actorPersonId  String?
+  actorPerson    Person?  @relation("actor", fields: [actorPersonId], references: [id])
+  actorCompanyId String?
+  actorCompany   Company? @relation(fields: [actorCompanyId], references: [id])
+  action         String   // PROFILE_VIEW · TALENT_VIEW_ANON · SUBMIT · MARKETING_REQUEST
+  allowed        Boolean  @default(true)
+  reason         String?  // why it was refused
+  at             DateTime @default(now())
+
+  @@index([subjectId, at])
+}
+
+// ─────────────────────────────────────────────
+// ORGANISATION
+// ─────────────────────────────────────────────
+
+model Company {
+  id                String      @id @default(cuid())
+  name              String
+  slug              String      @unique   // {slug}.etyme.com — 2017 create_slug, collision numbered
+  domain            String?     @unique
+  domainVerified    Boolean     @default(false) // true when it came from an OAuth tenant
+  kind              CompanyKind
+  entityType        String?
+  templatePack      String?     // US_IT · US_SAP · IN_DELIVERY · UK
+  currency          String      @default("USD")
+  siteLiveAt        DateTime?   // the ninety second promise
+  networkVerifiedAt DateTime?   // visibility to other companies waits for this
+  createdAt         DateTime    @default(now())
+
+  contexts        Context[]
+  roles           Role[]
+  orgUnits        OrgUnit[]
+  entities        LegalEntity[]
+  docTemplates    DocTemplate[]
+  msasAsVendor    MasterAgreement[] @relation("vendor")
+  msasAsClient    MasterAgreement[] @relation("client")
+  requirements    Requirement[]
+  invitationsOut  RequirementInvitation[] @relation("from")
+  invitationsIn   RequirementInvitation[] @relation("to")
+  benchListings   BenchListing[]
+  submissionsOut  Submission[]      @relation("from")
+  submissionsIn   Submission[]      @relation("to")
+  automationLog   AutomationLog[]
+  accessLogs      AccessLog[]
+  delegationsOut  Delegation[]      @relation("grantor")
+  delegationsIn   Delegation[]      @relation("grantee")
+  partnersA       Partnership[]     @relation("a")
+  partnersB       Partnership[]     @relation("b")
+}
+
+enum CompanyKind { VENDOR CLIENT MSP GSI }
+
+// Infosys India and Infosys US: one Company, two employers.
+model LegalEntity {
+  id          String  @id @default(cuid())
+  companyId   String
+  company     Company @relation(fields: [companyId], references: [id])
+  name        String
+  country     String
+  currency    String
+  assignments Assignment[]
+
+  @@index([companyId])
+}
+
+// Business unit → practice → account → project. Scopes utilization and authority.
+model OrgUnit {
+  id        String    @id @default(cuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id])
+  parentId  String?
+  parent    OrgUnit?  @relation("tree", fields: [parentId], references: [id])
+  children  OrgUnit[] @relation("tree")
+  name      String
+  kind      String    // BU · PRACTICE · ACCOUNT · PROJECT
+  contexts  Context[]
+
+  @@index([companyId])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  name        String
+  permissions String[] // see PERMISSIONS in BUILD.md
+  isDefault   Boolean  @default(false)
+  contexts    Context[]
+
+  @@index([companyId])
+}
+
+model Partnership {
+  id        String   @id @default(cuid())
+  aId       String
+  a         Company  @relation("a", fields: [aId], references: [id])
+  bId       String
+  b         Company  @relation("b", fields: [bId], references: [id])
+  status    String   // PENDING · ACCEPTED · BLOCKED
+  createdAt DateTime @default(now())
+
+  @@unique([aId, bId])
+}
+
+// ─────────────────────────────────────────────
+// SUPPLY
+// ─────────────────────────────────────────────
+
+model ConsultantProfile {
+  id             String   @id @default(cuid())
+  personId       String   @unique
+  person         Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  headline       String?
+  skills         String[]
+  location       String?
+  workAuth       String?  // US_CITIZEN · GC · H1B · OPT · GBP_SW · null
+  rateFloor      Int?     // the consultant sets this; no listing may go below it
+  availableFrom  DateTime?
+  visibility     Visibility @default(INTERNAL) // progressive enrichment, never a hard gate
+  listings       BenchListing[]
+  matches        Match[]
+}
+
+enum Visibility { INTERNAL FEED CLIENT_VISIBLE VERIFIED }
+
+// A consultant may appear on several marketing benches, one retained bench.
+model BenchListing {
+  id           String   @id @default(cuid())
+  consultantId String
+  consultant   ConsultantProfile @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id])
+  tier         BenchTier
+  rateMin      Int?
+  rateMax      Int?
+  grantedAt    DateTime @default(now()) // by the consultant, not the company
+  revokedAt    DateTime?
+
+  @@unique([consultantId, companyId])
+  @@index([companyId, revokedAt])
+}
+
+enum BenchTier { RETAINED MARKETING }
+
+model VisaPetition {
+  id         String   @id @default(cuid())
+  personId   String
+  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type       String   // H1B · L1 · GC · TN · SKILLED_WORKER
+  country    String
+  status     String   // FILED · RFE · APPROVED · STAMPED · ACTIVE · EXPIRING · EXPIRED
+  filedAt    DateTime?
+  approvedAt DateTime?
+  expiresAt  DateTime?
+  transferOk Boolean  @default(false)
+
+  @@index([personId, status])
+}
+
+// ─────────────────────────────────────────────
+// DEMAND
+// ─────────────────────────────────────────────
+
+model MasterAgreement {
+  id           String   @id @default(cuid())
+  vendorId     String
+  vendor       Company  @relation("vendor", fields: [vendorId], references: [id])
+  clientId     String
+  client       Company  @relation("client", fields: [clientId], references: [id])
+  paymentTerms Int      @default(30)
+  currency     String   @default("USD")
+  minMarginPct Int?     // the floor a recruiter may not price below without approval
+  rateCard     Json?    // condition records: client + skill + level + location
+  createdAt    DateTime @default(now())
+
+  engagements  Engagement[]
+  requirements Requirement[]
+  @@index([vendorId])
+  @@index([clientId])
+}
+
+model Requirement {
+  id          String   @id @default(cuid())
+  companyId   String   // whoever owns the demand
+  company     Company  @relation(fields: [companyId], references: [id])
+  msaId       String?
+  msa         MasterAgreement? @relation(fields: [msaId], references: [id])
+  title       String
+  skills      String[]
+  location    String?
+  billMin     Int?
+  billMax     Int?
+  months      Int?
+  startDate   DateTime?
+  status      String   @default("OPEN") // DRAFT · OPEN · FILLED · CLOSED
+  source      String   @default("MANUAL") // MANUAL · EMAIL · VMS · NETWORK
+  parseConf   Json?    // per field confidence when it came from a parser
+  createdAt   DateTime @default(now())
+
+  invitations RequirementInvitation[]
+  matches     Match[]
+  submissions Submission[]
+  @@index([companyId, status])
+}
+
+// The rate band lives here, not on the requirement. Every recipient may see a different one.
+model RequirementInvitation {
+  id            String   @id @default(cuid())
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  fromCompanyId String
+  fromCompany   Company  @relation("from", fields: [fromCompanyId], references: [id])
+  toCompanyId   String
+  toCompany     Company  @relation("to", fields: [toCompanyId], references: [id])
+  payMin        Int?
+  payMax        Int?
+  message       String?
+  expiresAt     DateTime
+  status        String   @default("SENT") // SENT · ACCEPTED · DECLINED · EXPIRED
+  createdAt     DateTime @default(now())
+
+  @@unique([requirementId, toCompanyId])
+  @@index([toCompanyId, status])
+}
+
+// Computed, disposable, carries its own reasoning. Never confused with a Submission.
+model Match {
+  id            String   @id @default(cuid())
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  consultantId  String
+  consultant    ConsultantProfile @relation(fields: [consultantId], references: [id], onDelete: Cascade)
+  score         Int
+  confidence    String   // HIGH · MODERATE · LOW
+  factors       Json     // [{ label, value, weight }] — shown in the UI, not hidden
+  basis         String   // "34 BRIM placements over 18 months"
+  unknowns      String?  // what it could not account for
+  computedAt    DateTime @default(now())
+
+  @@unique([requirementId, consultantId])
+}
+
+// One record, two views. Sent for the origin, received for the destination.
+model Submission {
+  id            String   @id @default(cuid())
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id])
+  personId      String
+  person        Person   @relation(fields: [personId], references: [id])
+  fromCompanyId String
+  fromCompany   Company  @relation("from", fields: [fromCompanyId], references: [id])
+  toCompanyId   String
+  toCompany     Company  @relation("to", fields: [toCompanyId], references: [id])
+  kind          SubmissionKind
+  rate          Int
+  status        String   @default("SUBMITTED")
+  submittedAt   DateTime @default(now()) // first timestamp wins on a duplicate
+
+  @@unique([requirementId, personId]) // enforces the duplicate rule
+  @@index([fromCompanyId, status])
+  @@index([toCompanyId, status])
+}
+
+// Computed from ownership, never chosen by the user. 2017 console_controller.
+enum SubmissionKind { INTERNAL BENCH NETWORK }
+
+// ─────────────────────────────────────────────
+// WORK AND MONEY
+// ─────────────────────────────────────────────
+
+model Engagement {
+  id           String   @id @default(cuid())
+  msaId        String
+  msa          MasterAgreement @relation(fields: [msaId], references: [id])
+  title        String
+  rateCard     Json?    // onshore / nearshore / offshore tiers
+  invoiceCycle String   @default("MONTHLY")
+  assignments  Assignment[]
+  invoices     Invoice[]
+}
+
+model Assignment {
+  id                 String   @id @default(cuid())
+  engagementId       String?  // null for bench, internal staff, training stipends
+  engagement         Engagement? @relation(fields: [engagementId], references: [id])
+  personId           String
+  person             Person   @relation(fields: [personId], references: [id])
+  employerCompanyId  String
+  originEntityId     String?  // Infosys India employs, Infosys US bills
+  originEntity       LegalEntity? @relation(fields: [originEntityId], references: [id])
+  subVendorCompanyId String?  // the C2C chain
+  payRate            Int
+  billRate           Int?
+  payCurrency        String   @default("USD")
+  contractType       String   // W2 · C2C · 1099 · C2H_W2 · CDD · FIXED_TERM
+  state              AssignmentState
+  startDate          DateTime
+  endDate            DateTime?
+  conversionFee      Int?
+  conversionEligible DateTime?
+
+  timesheets  Timesheet[]
+  cycles      Cycle[]
+  rolloff     RolloffEvent?
+  docs        DocInstance[]
+  @@index([employerCompanyId, state])
+  @@index([endDate])
+}
+
+enum AssignmentState { DRAFT PENDING ACCEPTED IN_PROGRESS BENCH_PAID INTERNAL TRAINING PAUSED ENDED CANCELLED }
+
+// The 2017 nineteen cycle types, one table. Generated on contract start, extended on extension.
+model Cycle {
+  id           String   @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  kind         String   // TIMESHEET_SUBMIT · TIMESHEET_APPROVE · INVOICE_GENERATE · SALARY_* · VENDOR_BILL_* · COMMISSION_*
+  dueOn        DateTime // already shifted off weekends and holidays
+  completedAt  DateTime?
+
+  @@index([assignmentId, kind])
+  @@index([dueOn, completedAt])
+}
+
+model Timesheet {
+  id            String   @id @default(cuid())
+  assignmentId  String
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  personId      String
+  person        Person   @relation(fields: [personId], references: [id])
+  periodStart   DateTime
+  periodEnd     DateTime
+  days          Json     // { "2026-08-01": 8, ... }
+  totalHours    Decimal  @db.Decimal(7, 2)
+  status        String   @default("OPEN") // OPEN · SUBMITTED · APPROVED · PARTIAL · REJECTED
+  anomalyScore  Int?     // low score means low confidence; held, never auto rejected
+  anomalyReason String?
+  approvedById  String?
+  approvedAt    DateTime?
+  invoiceId     String?
+
+  @@unique([assignmentId, periodStart])
+  @@index([status])
+}
+
+model Invoice {
+  id           String   @id @default(cuid())
+  engagementId String
+  engagement   Engagement @relation(fields: [engagementId], references: [id])
+  number       String   @unique
+  periodStart  DateTime
+  periodEnd    DateTime
+  lines        Json     // consolidated: many assignments, possibly several pay currencies
+  currency     String
+  total        Decimal  @db.Decimal(12, 2)
+  paid         Decimal  @db.Decimal(12, 2) @default(0)
+  dueAt        DateTime
+  status       String   @default("ISSUED")
+  payments     Payment[]
+
+  @@index([status, dueAt])
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  invoiceId  String
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  amount     Decimal  @db.Decimal(12, 2)
+  method     String?
+  reference  String?
+  receivedAt DateTime @default(now())
+}
+
+// Owed between legal entities of the same company. Derived, never hand maintained.
+model IntercompanyPosition {
+  id           String   @id @default(cuid())
+  fromEntityId String
+  toEntityId   String
+  period       String   // 2026-08
+  amount       Decimal  @db.Decimal(12, 2)
+  currency     String
+  settledAt    DateTime?
+
+  @@unique([fromEntityId, toEntityId, period])
+}
+
+// ─────────────────────────────────────────────
+// EVENTS
+// ─────────────────────────────────────────────
+
+model RolloffEvent {
+  id            String   @id @default(cuid())
+  assignmentId  String   @unique
+  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  triggeredAt   DateTime @default(now())
+  endDate       DateTime
+  notified      Json     // who was told, when, with what
+  checklist     Json     // knowledge transfer · final timesheet · access revocation · assets
+  claimedById   String?
+  outcome       String?  // REDEPLOYED · BENCH · LOST
+
+  @@index([endDate])
+}
+
+// Everything the system did on a company's behalf. Inspectable, mostly reversible.
+model AutomationLog {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id])
+  action     String
+  summary    String
+  reason     String   // the rule it followed, in words
+  payload    Json
+  reversible Boolean  @default(false)
+  reversedAt DateTime?
+  at         DateTime @default(now())
+
+  @@index([companyId, at])
+}
+
+// ─────────────────────────────────────────────
+// DOCUMENTS  — five 2017 library models and six doc set models, collapsed
+// ─────────────────────────────────────────────
+
+model DocTemplate {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  name          String
+  audience      String   // CANDIDATE · VENDOR · CLIENT · EMPLOYEE · GENERAL
+  needsSignature Boolean @default(false)
+  fileUrl       String?
+  instances     DocInstance[]
+
+  @@index([companyId, audience])
+}
+
+model DocInstance {
+  id           String   @id @default(cuid())
+  templateId   String
+  template     DocTemplate @relation(fields: [templateId], references: [id])
+  assignmentId String?
+  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
+  subjectType  String   // ASSIGNMENT · PERSON · COMPANY
+  subjectId    String
+  status       String   @default("PENDING") // PENDING · SENT · SIGNED · UPLOADED
+  envelopeId   String?  // DocuSign
+  signedFileUrl String?
+  signedAt     DateTime?
+
+  @@index([subjectType, subjectId, status])
+}
+
+// ─────────────────────────────────────────────
+// IMPORT  — the onboarding path. Rows land even when incomplete.
+// ─────────────────────────────────────────────
+
+model Import {
+  id         String   @id @default(cuid())
+  companyId  String
+  kind       String   // PEOPLE · ASSIGNMENTS · CONTACTS
+  fileName   String?
+  mapping    Json     // AI proposed, human corrected
+  rowCount   Int
+  issueCount Int
+  committedAt DateTime?
+  rows       ImportRow[]
+  createdAt  DateTime @default(now())
+}
+
+model ImportRow {
+  id        String  @id @default(cuid())
+  importId  String
+  import    Import  @relation(fields: [importId], references: [id], onDelete: Cascade)
+  raw       Json
+  parsed    Json
+  issues    String[] // "no rate in the file" — never blocking
+  createdId String?  // what it became once committed
+
+  @@index([importId])
+}
