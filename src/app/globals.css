@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-ink: 13 20 38;        /* #0D1426 */
+    --color-surface: 255 255 255;
+    --color-ground: 248 250 252;  /* #F8FAFC */
+    --color-border: 226 232 240;  /* #E2E8F0 */
+    --color-muted: 100 116 139;   /* #64748B */
+    --color-blue: 37 99 235;      /* #2563EB */
+    --color-purple: 124 58 237;   /* #7C3AED */
+    --color-amber: 245 158 11;    /* #F59E0B */
+    --color-green: 5 150 105;     /* #059669 */
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+    color: rgb(var(--color-ink));
+    background: rgb(var(--color-ground));
+  }
+
+  /* Tabular figures wherever digits align */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Focus ring — visible, consistent */
+  :focus-visible {
+    outline: 2px solid rgb(var(--color-blue));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Scrollbar for wide content */
+  .overflow-scroll-x {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@layer components {
+  /* Evidence dot — the visual signature of verified records */
+  .evidence-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgb(var(--color-green));
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  .evidence-dot--pending {
+    background: rgb(var(--color-amber));
+  }
+
+  .evidence-dot--blocked {
+    background: #DC2626;
+  }
+
+  /* Card — the container for everything */
+  .card {
+    background: rgb(var(--color-surface));
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  /* Pill badge */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 100px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+
+  /* Eyebrow label */
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgb(var(--color-blue));
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
