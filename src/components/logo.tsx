@@ -1,12 +1,11 @@
 /**
  * Etyme logo — the 't' crossbar is the differentiator.
  *
- * The wordmark is "etyme" in deep navy custom sans-serif. The crossbar
- * of the 't' is replaced with a rising bar carrying a cyan-to-purple
- * gradient — progress lifting the word forward.
+ * The wordmark is "etyme" in deep navy. The 't' has NO standard crossbar —
+ * it is replaced entirely by a rising cyan→purple gradient slash (~25°).
  *
  * Design rationale (from brand guidelines):
- *   - Rising crossbar = progress (~25° tilt, compact slash)
+ *   - Rising crossbar = progress
  *   - Wide stance = stability
  *   - Open counters = clarity
  *   - Gradient: cyan (#00D4FF) → purple (#7C3AED)
@@ -29,6 +28,25 @@ interface EtymeLogoProps {
 
 const SIZES = { sm: 20, md: 28, lg: 40, xl: 56, hero: 72 } as const
 
+/**
+ * Clip-path that removes the horizontal crossbar of 't' while
+ * keeping the vertical stem and curved foot.
+ *
+ * The polygon carves out the crossbar zone (35%–50% from top)
+ * outside the stem strip (36%–64% of width). Everything above,
+ * below, and the stem itself remain.
+ */
+const T_CLIP = [
+  '0% 0%', '100% 0%',           // top edge
+  '100% 35%',                    // right side → crossbar top
+  '64% 35%', '64% 50%',         // stem right edge through crossbar
+  '100% 50%',                    // right side → crossbar bottom
+  '100% 100%', '0% 100%',       // bottom edge
+  '0% 50%',                      // left side → crossbar bottom
+  '36% 50%', '36% 35%',         // stem left edge through crossbar
+  '0% 35%',                      // left side → crossbar top
+].join(', ')
+
 export function EtymeLogo({
   size = 'md',
   inverted = false,
@@ -50,7 +68,7 @@ export function EtymeLogo({
     letterSpacing: '-0.04em',
   }
 
-  // Gradient crossbar — compact, steeply tilted (~25°)
+  // Gradient crossbar — compact rising slash
   const barHeight = Math.max(2.5, h * 0.08)
   const barWidth = h * 0.5
 
@@ -63,19 +81,25 @@ export function EtymeLogo({
     >
       <span style={letterStyle}>e</span>
 
-      {/* The 't' — its crossbar carries the brand gradient */}
+      {/* The 't' — native crossbar clipped, gradient crossbar overlaid */}
       <span className="relative inline-block">
-        <span style={letterStyle}>t</span>
+        <span
+          style={{
+            ...letterStyle,
+            clipPath: `polygon(${T_CLIP})`,
+          }}
+        >
+          t
+        </span>
         {/*
-         * Gradient crossbar — the brand differentiator.
-         * Compact rising slash from cyan (lower-left) to purple (upper-right).
-         * Positioned at the x-height of the 't', centered on the stem.
+         * Gradient crossbar — the ONLY crossbar.
+         * Rising slash from cyan (lower-left) to purple (upper-right).
          */}
         <span
           aria-hidden="true"
           style={{
             position: 'absolute',
-            top: '36%',
+            top: '38%',
             left: '50%',
             width: barWidth,
             height: barHeight,
@@ -95,7 +119,7 @@ export function EtymeLogo({
 
 /**
  * Standalone mark — lowercase 't' with gradient crossbar in a navy circle.
- * Used for favicon, app icon, loading states, and compact branding.
+ * The vertical stem is the text color; the crossbar is the gradient.
  */
 export function EtymeMark({
   size = 32,
@@ -128,9 +152,9 @@ export function EtymeMark({
       </defs>
       {/* Circle ground */}
       <circle cx="20" cy="20" r="20" fill={bgFill} />
-      {/* Vertical stroke of 't' */}
+      {/* Vertical stem only — no horizontal crossbar */}
       <rect x="18" y="8" width="4" height="24" rx="2" fill={strokeFill} />
-      {/* Gradient crossbar — rising slash, ~25° tilt */}
+      {/* Gradient crossbar — the only crossbar, rising ~25° */}
       <rect
         x="11"
         y="17"
