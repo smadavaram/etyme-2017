@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/db'
 
 /**
  * GET /api/me
@@ -14,26 +15,93 @@ import { authOptions } from '@/lib/auth'
 export async function GET() {
   const session = await getServerSession(authOptions)
 
-  if (!session?.user) {
+  if (!session?.user?.email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }
     )
   }
 
-  // TODO: Look up Person + Credentials + Contexts from Prisma
-  // For now, return the session user
+  const person = await prisma.person.findUnique({
+    where: { primaryEmail: session.user.email },
+    include: {
+      credentials: {
+        select: {
+          id: true,
+          provider: true,
+          email: true,
+          lastUsedAt: true,
+          createdAt: true,
+        },
+      },
+      contexts: {
+        where: { revokedAt: null },
+        include: {
+          company: {
+            select: { id: true, name: true, slug: true, kind: true },
+          },
+          role: {
+            select: { id: true, name: true, permissions: true },
+          },
+        },
+        orderBy: { grantedAt: 'desc' },
+      },
+    },
+  })
+
+  if (!person) {
+    // Person record doesn't exist yet — happens before company creation.
+    // Return session info so the frontend knows they're authenticated.
+    return NextResponse.json({
+      data: {
+        person: {
+          id: null,
+          email: session.user.email,
+          name: session.user.name ?? session.user.email.split('@')[0],
+        },
+        credentials: [],
+        contexts: [],
+        activeContext: null,
+      },
+    })
+  }
+
+  // Default active context: first context (most recently granted)
+  const activeContext = person.contexts[0] ?? null
+
   return NextResponse.json({
     data: {
       person: {
-        id: (session.user as any).id,
-        email: session.user.email,
-        name: session.user.name,
-        image: session.user.image,
+        id: person.id,
+        email: person.primaryEmail,
+        name: person.name,
+        createdAt: person.createdAt.toISOString(),
       },
-      credentials: [],
-      contexts: [],
-      activeContext: null,
+      credentials: person.credentials.map((c) => ({
+        id: c.id,
+        provider: c.provider,
+        email: c.email,
+        lastUsedAt: c.lastUsedAt?.toISOString() ?? null,
+      })),
+      contexts: person.contexts.map((ctx) => ({
+        id: ctx.id,
+        type: ctx.type,
+        company: ctx.company,
+        role: ctx.role
+          ? { id: ctx.role.id, name: ctx.role.name, permissions: ctx.role.permissions }
+          : null,
+        grantedAt: ctx.grantedAt.toISOString(),
+      })),
+      activeContext: activeContext
+        ? {
+            id: activeContext.id,
+            type: activeContext.type,
+            company: activeContext.company,
+            role: activeContext.role
+              ? { id: activeContext.role.id, name: activeContext.role.name, permissions: activeContext.role.permissions }
+              : null,
+          }
+        : null,
     },
   })
 }

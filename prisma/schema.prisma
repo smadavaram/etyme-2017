@@ -2,8 +2,14 @@
 // Postgres + Prisma. Consolidates the 134 models of the 2017 application.
 // Read alongside BUILD.md. Change this file before writing any application code.
 
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
 
 // ─────────────────────────────────────────────
 // IDENTITY  — a Person is permanent, credentials are replaceable,
@@ -41,7 +47,12 @@ model Credential {
   @@index([personId])
 }
 
-enum Provider { MICROSOFT GOOGLE EMAIL SAML }
+enum Provider {
+  MICROSOFT
+  GOOGLE
+  EMAIL
+  SAML
+}
 
 model Context {
   id          String      @id @default(cuid())
@@ -62,7 +73,13 @@ model Context {
   @@index([companyId])
 }
 
-enum ContextType { CONSULTANT EMPLOYEE PARTNER CLIENT_CONTACT PLATFORM_ADMIN }
+enum ContextType {
+  CONSULTANT
+  EMPLOYEE
+  PARTNER
+  CLIENT_CONTACT
+  PLATFORM_ADMIN
+}
 
 // One company acting for another (an MSP running a client programme).
 // Deliberately not a ContextType — it has a validity window and a scope.
@@ -136,7 +153,12 @@ model Company {
   partnersB       Partnership[]     @relation("b")
 }
 
-enum CompanyKind { VENDOR CLIENT MSP GSI }
+enum CompanyKind {
+  VENDOR
+  CLIENT
+  MSP
+  GSI
+}
 
 // Infosys India and Infosys US: one Company, two employers.
 model LegalEntity {
@@ -209,7 +231,12 @@ model ConsultantProfile {
   matches        Match[]
 }
 
-enum Visibility { INTERNAL FEED CLIENT_VISIBLE VERIFIED }
+enum Visibility {
+  INTERNAL
+  FEED
+  CLIENT_VISIBLE
+  VERIFIED
+}
 
 // A consultant may appear on several marketing benches, one retained bench.
 model BenchListing {
@@ -228,7 +255,10 @@ model BenchListing {
   @@index([companyId, revokedAt])
 }
 
-enum BenchTier { RETAINED MARKETING }
+enum BenchTier {
+  RETAINED
+  MARKETING
+}
 
 model VisaPetition {
   id         String   @id @default(cuid())
@@ -350,7 +380,11 @@ model Submission {
 }
 
 // Computed from ownership, never chosen by the user. 2017 console_controller.
-enum SubmissionKind { INTERNAL BENCH NETWORK }
+enum SubmissionKind {
+  INTERNAL
+  BENCH
+  NETWORK
+}
 
 // ─────────────────────────────────────────────
 // WORK AND MONEY
@@ -395,7 +429,18 @@ model Assignment {
   @@index([endDate])
 }
 
-enum AssignmentState { DRAFT PENDING ACCEPTED IN_PROGRESS BENCH_PAID INTERNAL TRAINING PAUSED ENDED CANCELLED }
+enum AssignmentState {
+  DRAFT
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  BENCH_PAID
+  INTERNAL
+  TRAINING
+  PAUSED
+  ENDED
+  CANCELLED
+}
 
 // The 2017 nineteen cycle types, one table. Generated on contract start, extended on extension.
 model Cycle {

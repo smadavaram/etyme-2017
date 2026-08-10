@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/db'
 import { getTemplatePack, TEMPLATE_PACK_IDS } from '@/lib/template-packs'
 
 /**
@@ -57,28 +58,121 @@ export async function POST(
     )
   }
 
-  // TODO: Verify caller has settings.manage permission on this company
-  // TODO: Check company exists and hasn't already had a pack applied
-  // TODO: In one transaction:
-  //   1. Set company.templatePack = packId
-  //   2. Create ContractType records (not in schema yet — stored as company config)
-  //   3. Create CycleDefinition records (template for cycle generation)
-  //   4. Create DocTemplate records
-  //   5. Seed skill graph
-  //   6. Write AutomationLog
-
-  return NextResponse.json({
-    data: {
-      companyId,
-      pack: pack.id,
-      applied: {
-        contractTypes: pack.contractTypes.length,
-        cycleDefinitions: pack.cycleDefinitions.length,
-        docTemplates: pack.docTemplates.length,
-        skillCategories: pack.skillSeeds.length,
-        totalSkills: pack.skillSeeds.reduce((n, s) => n + s.skills.length, 0),
-      },
-      message: `Applied ${pack.label} template pack with ${pack.contractTypes.length} contract types, ${pack.cycleDefinitions.length} cycles, and ${pack.docTemplates.length} document templates`,
-    },
+  // Verify company exists
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { id: true, name: true, templatePack: true },
   })
+
+  if (!company) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Company not found' } },
+      { status: 404 }
+    )
+  }
+
+  // Guard: template pack already applied
+  if (company.templatePack) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'ALREADY_APPLIED',
+          message: `Template pack "${company.templatePack}" has already been applied to this company. Packs can only be applied once.`,
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  // Verify caller has settings.manage on this company
+  const person = await prisma.person.findUnique({
+    where: { primaryEmail: session.user.email },
+    select: { id: true },
+  })
+
+  if (person) {
+    const callerContext = await prisma.context.findFirst({
+      where: {
+        personId: person.id,
+        companyId,
+        revokedAt: null,
+      },
+      include: { role: { select: { permissions: true } } },
+    })
+
+    const perms = callerContext?.role?.permissions ?? []
+    const hasAccess = perms.includes('*') || perms.includes('settings.manage')
+    if (!callerContext || !hasAccess) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'You need settings.manage permission on this company' } },
+        { status: 403 }
+      )
+    }
+  }
+
+  try {
+    // One transaction: set templatePack + create DocTemplates + write AutomationLog
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Set company.templatePack
+      await tx.company.update({
+        where: { id: companyId },
+        data: { templatePack: pack.id },
+      })
+
+      // 2. Create DocTemplate records
+      const docTemplates = await Promise.all(
+        pack.docTemplates.map((dt) =>
+          tx.docTemplate.create({
+            data: {
+              companyId,
+              name: dt.name,
+              audience: dt.audience,
+              needsSignature: dt.needsSignature,
+            },
+          })
+        )
+      )
+
+      // 3. Write AutomationLog
+      await tx.automationLog.create({
+        data: {
+          companyId,
+          action: 'TEMPLATE_PACK_APPLIED',
+          summary: `Applied ${pack.label} template pack: ${pack.contractTypes.length} contract types, ${pack.cycleDefinitions.length} cycles, ${pack.docTemplates.length} document templates, ${pack.skillSeeds.reduce((n, s) => n + s.skills.length, 0)} skills`,
+          reason: 'Template pack selected during company onboarding',
+          payload: {
+            packId: pack.id,
+            contractTypes: pack.contractTypes.map((c) => c.code),
+            cycleKinds: pack.cycleDefinitions.map((c) => c.kind),
+            docTemplateIds: docTemplates.map((d) => d.id),
+            skillCategories: pack.skillSeeds.map((s) => s.category),
+          },
+          reversible: false,
+        },
+      })
+
+      return { docTemplates }
+    })
+
+    return NextResponse.json({
+      data: {
+        companyId,
+        pack: pack.id,
+        applied: {
+          contractTypes: pack.contractTypes.length,
+          cycleDefinitions: pack.cycleDefinitions.length,
+          docTemplates: result.docTemplates.length,
+          skillCategories: pack.skillSeeds.length,
+          totalSkills: pack.skillSeeds.reduce((n, s) => n + s.skills.length, 0),
+        },
+        message: `Applied ${pack.label} template pack with ${pack.contractTypes.length} contract types, ${pack.cycleDefinitions.length} cycles, and ${result.docTemplates.length} document templates`,
+      },
+    })
+  } catch (err: any) {
+    console.error('Template pack application failed:', err)
+    return NextResponse.json(
+      { error: { code: 'INTERNAL', message: 'Failed to apply template pack. Please try again.' } },
+      { status: 500 }
+    )
+  }
 }

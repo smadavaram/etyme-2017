@@ -289,7 +289,7 @@ export default function RolloffConsole() {
                         </span>
                       </>
                     )}
-                    {open.stage === "redeployed" && (
+                    {(open.stage as Stage) === "redeployed" && (
                       <span className="mono text-[12px]" style={{ color: CALM }}>
                         ✓ redeployed — {match.client}, {match.site} · burn avoided ${fmt(monthlyBurn(open))}/mo
                       </span>
