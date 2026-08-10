@@ -6,7 +6,7 @@
  * gradient — progress lifting the word forward.
  *
  * Design rationale (from brand guidelines):
- *   - Rising crossbar = progress
+ *   - Rising crossbar = progress (~25° tilt, compact slash)
  *   - Wide stance = stability
  *   - Open counters = clarity
  *   - Gradient: cyan (#00D4FF) → purple (#7C3AED)
@@ -50,8 +50,9 @@ export function EtymeLogo({
     letterSpacing: '-0.04em',
   }
 
-  // Gradient crossbar scales with font size
-  const barHeight = Math.max(2.5, h * 0.075)
+  // Gradient crossbar — compact, steeply tilted (~25°)
+  const barHeight = Math.max(2.5, h * 0.08)
+  const barWidth = h * 0.5
 
   return (
     <span
@@ -65,18 +66,24 @@ export function EtymeLogo({
       {/* The 't' — its crossbar carries the brand gradient */}
       <span className="relative inline-block">
         <span style={letterStyle}>t</span>
+        {/*
+         * Gradient crossbar — the brand differentiator.
+         * Compact rising slash from cyan (lower-left) to purple (upper-right).
+         * Positioned at the x-height of the 't', centered on the stem.
+         */}
         <span
           aria-hidden="true"
           style={{
             position: 'absolute',
-            top: '43%',
-            left: '-12%',
-            right: '-35%',
+            top: '36%',
+            left: '50%',
+            width: barWidth,
             height: barHeight,
+            marginLeft: barWidth * -0.45,
             background: 'linear-gradient(90deg, #00D4FF, #7C3AED)',
             borderRadius: barHeight,
-            transform: 'rotate(-4deg)',
-            transformOrigin: '30% center',
+            transform: 'rotate(-25deg)',
+            transformOrigin: 'center center',
           }}
         />
       </span>
@@ -114,7 +121,7 @@ export function EtymeMark({
       aria-label="Etyme"
     >
       <defs>
-        <linearGradient id="etyme-g" x1="0" y1="0" x2="1" y2="0">
+        <linearGradient id="etyme-g" x1="0" y1="1" x2="1" y2="0">
           <stop offset="0%" stopColor="#00D4FF" />
           <stop offset="100%" stopColor="#7C3AED" />
         </linearGradient>
@@ -122,16 +129,16 @@ export function EtymeMark({
       {/* Circle ground */}
       <circle cx="20" cy="20" r="20" fill={bgFill} />
       {/* Vertical stroke of 't' */}
-      <rect x="18.25" y="8" width="3.5" height="24" rx="1.75" fill={strokeFill} />
-      {/* Gradient crossbar — rising left-to-right */}
+      <rect x="18" y="8" width="4" height="24" rx="2" fill={strokeFill} />
+      {/* Gradient crossbar — rising slash, ~25° tilt */}
       <rect
-        x="10"
-        y="17.5"
-        width="20"
-        height="3.5"
-        rx="1.75"
+        x="11"
+        y="17"
+        width="18"
+        height="4"
+        rx="2"
         fill="url(#etyme-g)"
-        transform="rotate(-4 20 19.25)"
+        transform="rotate(-25 20 19)"
       />
     </svg>
   )
