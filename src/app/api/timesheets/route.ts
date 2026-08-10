@@ -1,0 +1,183 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/db'
+
+/**
+ * GET /api/timesheets
+ *
+ * BUILD.md: status, period, assignment
+ */
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user?.email) {
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+      { status: 401 }
+    )
+  }
+
+  const url = request.nextUrl
+  const status = url.searchParams.get('status')
+  const assignmentId = url.searchParams.get('assignmentId')
+  const companyId = url.searchParams.get('companyId')
+  const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
+  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
+
+  const where: any = {}
+  if (status) where.status = status.toUpperCase()
+  if (assignmentId) where.assignmentId = assignmentId
+  if (companyId) where.assignment = { employerCompanyId: companyId }
+
+  const [timesheets, total] = await Promise.all([
+    prisma.timesheet.findMany({
+      where,
+      include: {
+        person: { select: { id: true, name: true } },
+        assignment: {
+          select: {
+            id: true,
+            contractType: true,
+            payRate: true,
+            billRate: true,
+            engagement: { select: { id: true, title: true } },
+          },
+        },
+      },
+      orderBy: { periodStart: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.timesheet.count({ where }),
+  ])
+
+  return NextResponse.json({
+    data: {
+      timesheets: timesheets.map((t) => ({
+        id: t.id,
+        person: t.person,
+        assignment: {
+          id: t.assignment.id,
+          contractType: t.assignment.contractType,
+          payRate: t.assignment.payRate,
+          billRate: t.assignment.billRate,
+          engagement: t.assignment.engagement,
+        },
+        periodStart: t.periodStart.toISOString(),
+        periodEnd: t.periodEnd.toISOString(),
+        totalHours: Number(t.totalHours),
+        status: t.status,
+        anomalyScore: t.anomalyScore,
+        anomalyReason: t.anomalyReason,
+        approvedAt: t.approvedAt?.toISOString() ?? null,
+      })),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    },
+  })
+}
+
+/**
+ * POST /api/timesheets
+ *
+ * Create a timesheet.
+ */
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user?.email) {
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+      { status: 401 }
+    )
+  }
+
+  const body = await request.json()
+  const { assignmentId, periodStart, periodEnd, days } = body
+
+  if (!assignmentId) return err('assignmentId is required', 'assignmentId')
+  if (!periodStart) return err('periodStart is required', 'periodStart')
+  if (!periodEnd) return err('periodEnd is required', 'periodEnd')
+  if (!days || typeof days !== 'object') return err('days object is required (e.g. {"2026-08-01": 8})', 'days')
+
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    select: { id: true, personId: true, state: true },
+  })
+
+  if (!assignment) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Assignment not found' } },
+      { status: 404 }
+    )
+  }
+
+  // Calculate total hours
+  const totalHours = Object.values(days as Record<string, number>).reduce(
+    (sum: number, h) => sum + (typeof h === 'number' ? h : 0),
+    0
+  )
+
+  // Simple anomaly detection: > 12 hours in a day or > 60 hours in a week
+  let anomalyScore: number | null = null
+  let anomalyReason: string | null = null
+
+  const dayValues = Object.values(days as Record<string, number>)
+  const maxDay = Math.max(...dayValues.map((v) => (typeof v === 'number' ? v : 0)))
+
+  if (maxDay > 12) {
+    anomalyScore = 30
+    anomalyReason = `Day with ${maxDay} hours exceeds 12-hour threshold`
+  } else if (totalHours > 60) {
+    anomalyScore = 50
+    anomalyReason = `Total ${totalHours} hours exceeds 60-hour weekly threshold`
+  }
+
+  try {
+    const timesheet = await prisma.timesheet.create({
+      data: {
+        assignmentId,
+        personId: assignment.personId,
+        periodStart: new Date(periodStart),
+        periodEnd: new Date(periodEnd),
+        days: days as any,
+        totalHours,
+        status: 'OPEN',
+        anomalyScore,
+        anomalyReason,
+      },
+    })
+
+    return NextResponse.json({
+      data: {
+        timesheet: {
+          id: timesheet.id,
+          totalHours: Number(timesheet.totalHours),
+          status: timesheet.status,
+          anomalyScore,
+          anomalyReason,
+          periodStart: timesheet.periodStart.toISOString(),
+          periodEnd: timesheet.periodEnd.toISOString(),
+        },
+        message: anomalyReason
+          ? `Timesheet created with anomaly detected: ${anomalyReason}`
+          : `Timesheet created: ${totalHours} hours`,
+      },
+    }, { status: 201 })
+  } catch (e: any) {
+    if (e?.code === 'P2002') {
+      return NextResponse.json(
+        { error: { code: 'DUPLICATE', message: 'A timesheet already exists for this assignment and period' } },
+        { status: 409 }
+      )
+    }
+    throw e
+  }
+}
+
+function err(message: string, field: string) {
+  return NextResponse.json(
+    { error: { code: 'VALIDATION', message, field } },
+    { status: 422 }
+  )
+}

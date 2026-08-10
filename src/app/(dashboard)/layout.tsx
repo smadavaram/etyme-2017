@@ -4,6 +4,7 @@ import { EtymeLogo } from '@/components/logo'
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: '◻' },
   { label: 'Consultants', href: '/dashboard/consultants', icon: '◻' },
+  { label: 'Import', href: '/dashboard/import', icon: '◻' },
   { label: 'Requirements', href: '/dashboard/requirements', icon: '◻' },
   { label: 'Assignments', href: '/dashboard/assignments', icon: '◻' },
   { label: 'Timesheets', href: '/dashboard/timesheets', icon: '◻' },

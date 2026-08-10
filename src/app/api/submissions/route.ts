@@ -1,0 +1,289 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/db'
+
+/**
+ * POST /api/submissions
+ *
+ * BUILD.md: { requirementId, personIds[], rate }
+ *   → batch, per item errors, kind computed server side
+ *
+ * CLAUDE.md invariants:
+ *   - A Submission requires a live BenchListing granted by the consultant
+ *   - Submission is unique on (requirementId, personId) — first submission wins
+ *   - SubmissionKind is computed from ownership, never accepted from a client
+ *   - Every read of another person's data writes an AccessLog row
+ */
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user?.email) {
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+      { status: 401 }
+    )
+  }
+
+  const body = await request.json()
+  const { requirementId, personIds, rate, fromCompanyId } = body
+
+  if (!requirementId || typeof requirementId !== 'string') {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'requirementId is required', field: 'requirementId' } },
+      { status: 422 }
+    )
+  }
+
+  if (!Array.isArray(personIds) || personIds.length === 0) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'personIds must be a non-empty array', field: 'personIds' } },
+      { status: 422 }
+    )
+  }
+
+  if (typeof rate !== 'number' || rate <= 0) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'rate must be a positive number', field: 'rate' } },
+      { status: 422 }
+    )
+  }
+
+  if (!fromCompanyId || typeof fromCompanyId !== 'string') {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'fromCompanyId is required', field: 'fromCompanyId' } },
+      { status: 422 }
+    )
+  }
+
+  // Verify requirement exists and is open
+  const requirement = await prisma.requirement.findUnique({
+    where: { id: requirementId },
+    select: { id: true, companyId: true, status: true, title: true },
+  })
+
+  if (!requirement) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Requirement not found' } },
+      { status: 404 }
+    )
+  }
+
+  if (requirement.status !== 'OPEN') {
+    return NextResponse.json(
+      { error: { code: 'NOT_OPEN', message: `Requirement is ${requirement.status}, not OPEN` } },
+      { status: 409 }
+    )
+  }
+
+  const toCompanyId = requirement.companyId
+  const results: any[] = []
+
+  for (const personId of personIds) {
+    const item: any = { personId, status: 'pending' }
+
+    try {
+      // 1. Verify person exists
+      const person = await prisma.person.findUnique({
+        where: { id: personId },
+        select: { id: true, name: true },
+      })
+
+      if (!person) {
+        item.status = 'error'
+        item.error = 'Person not found'
+        results.push(item)
+        continue
+      }
+
+      // 2. Check for live BenchListing from this company
+      // CLAUDE.md: "A Submission requires a live BenchListing granted by the consultant"
+      const consultant = await prisma.consultantProfile.findUnique({
+        where: { personId },
+        select: { id: true },
+      })
+
+      if (!consultant) {
+        item.status = 'error'
+        item.error = 'Person has no consultant profile'
+        results.push(item)
+        continue
+      }
+
+      const listing = await prisma.benchListing.findFirst({
+        where: {
+          consultantId: consultant.id,
+          companyId: fromCompanyId,
+          revokedAt: null,
+        },
+      })
+
+      if (!listing) {
+        item.status = 'error'
+        item.error = 'No active bench listing from this company. The consultant must grant a listing first.'
+        results.push(item)
+        continue
+      }
+
+      // 3. Check for duplicate — unique on (requirementId, personId)
+      const existing = await prisma.submission.findUnique({
+        where: {
+          requirementId_personId: { requirementId, personId },
+        },
+      })
+
+      if (existing) {
+        item.status = 'duplicate'
+        item.error = 'This person has already been submitted to this requirement. First submission wins.'
+        item.existingSubmissionId = existing.id
+        item.existingSubmittedAt = existing.submittedAt.toISOString()
+        results.push(item)
+        continue
+      }
+
+      // 4. Compute SubmissionKind from ownership (never accepted from client)
+      let kind: 'INTERNAL' | 'BENCH' | 'NETWORK'
+      if (fromCompanyId === toCompanyId) {
+        kind = 'INTERNAL'
+      } else if (listing.tier === 'RETAINED') {
+        kind = 'BENCH'
+      } else {
+        kind = 'NETWORK'
+      }
+
+      // 5. Create the submission
+      const submission = await prisma.submission.create({
+        data: {
+          requirementId,
+          personId,
+          fromCompanyId,
+          toCompanyId,
+          kind,
+          rate,
+          status: 'SUBMITTED',
+        },
+      })
+
+      // 6. Write AccessLog — submission is a read of person's data
+      await prisma.accessLog.create({
+        data: {
+          subjectId: personId,
+          actorCompanyId: fromCompanyId,
+          action: 'SUBMIT',
+          allowed: true,
+          reason: `Submitted to "${requirement.title}"`,
+        },
+      })
+
+      item.status = 'created'
+      item.submissionId = submission.id
+      item.kind = kind
+      item.submittedAt = submission.submittedAt.toISOString()
+    } catch (err: any) {
+      // Handle race condition on duplicate
+      if (err?.code === 'P2002') {
+        item.status = 'duplicate'
+        item.error = 'This person has already been submitted (concurrent submission)'
+      } else {
+        item.status = 'error'
+        item.error = 'Submission failed'
+        console.error(`Submission failed for person ${personId}:`, err)
+      }
+    }
+
+    results.push(item)
+  }
+
+  const created = results.filter((r) => r.status === 'created')
+  const errors = results.filter((r) => r.status === 'error')
+  const duplicates = results.filter((r) => r.status === 'duplicate')
+
+  return NextResponse.json({
+    data: {
+      requirementId,
+      results,
+      summary: {
+        submitted: created.length,
+        duplicates: duplicates.length,
+        errors: errors.length,
+        total: personIds.length,
+      },
+      message: `${created.length} submitted, ${duplicates.length} duplicates, ${errors.length} errors`,
+    },
+  })
+}
+
+/**
+ * GET /api/submissions
+ *
+ * BUILD.md: direction=sent|received
+ */
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user?.email) {
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+      { status: 401 }
+    )
+  }
+
+  const url = request.nextUrl
+  const direction = url.searchParams.get('direction') ?? 'sent'
+  const companyId = url.searchParams.get('companyId')
+  const status = url.searchParams.get('status')
+  const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
+  const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
+
+  if (!companyId) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'companyId is required', field: 'companyId' } },
+      { status: 422 }
+    )
+  }
+
+  const where: any = {}
+
+  if (direction === 'sent') {
+    where.fromCompanyId = companyId
+  } else {
+    where.toCompanyId = companyId
+  }
+
+  if (status) {
+    where.status = status.toUpperCase()
+  }
+
+  const [submissions, total] = await Promise.all([
+    prisma.submission.findMany({
+      where,
+      include: {
+        person: { select: { id: true, name: true } },
+        requirement: { select: { id: true, title: true, skills: true } },
+        fromCompany: { select: { id: true, name: true } },
+        toCompany: { select: { id: true, name: true } },
+      },
+      orderBy: { submittedAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.submission.count({ where }),
+  ])
+
+  return NextResponse.json({
+    data: {
+      submissions: submissions.map((s) => ({
+        id: s.id,
+        person: s.person,
+        requirement: s.requirement,
+        fromCompany: s.fromCompany,
+        toCompany: s.toCompany,
+        kind: s.kind,
+        rate: s.rate,
+        status: s.status,
+        submittedAt: s.submittedAt.toISOString(),
+      })),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    },
+  })
+}
