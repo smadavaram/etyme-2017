@@ -1,6 +1,10 @@
 // Etyme — data model
 // Postgres + Prisma. Consolidates the 134 models of the 2017 application.
 // Read alongside BUILD.md. Change this file before writing any application code.
+//
+// Phase 2 schema — replaces single Assignment with SellContract + BuyContract + ContractLink.
+// Each company creates their own contracts. ContractLink joins buy↔sell within one company
+// for profitability tracking. Adds Verification, Governance, Training, Visa document models.
 
 generator client {
   provider = "prisma-client-js"
@@ -17,10 +21,10 @@ datasource db {
 // ─────────────────────────────────────────────
 
 model Person {
-  id            String   @id @default(cuid())
-  name          String
-  primaryEmail  String   @unique
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String
+  primaryEmail String   @unique
+  createdAt    DateTime @default(now())
 
   credentials   Credential[]
   contexts      Context[]
@@ -29,19 +33,22 @@ model Person {
   actions       AccessLog[]        @relation("actor")
   visas         VisaPetition[]
   submissions   Submission[]
-  assignments   Assignment[]
+  sellContracts SellContract[]
+  buyContracts  BuyContract[]
   timesheets    Timesheet[]
+  verifications Verification[]
+  enrollments   Enrollment[]
 }
 
 model Credential {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   personId   String
-  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  person     Person    @relation(fields: [personId], references: [id], onDelete: Cascade)
   provider   Provider
-  providerId String   // subject claim from the IdP, or the email for magic links
+  providerId String // subject claim from the IdP, or the email for magic links
   email      String
   lastUsedAt DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@unique([provider, providerId])
   @@index([personId])
@@ -63,7 +70,7 @@ model Context {
   company     Company?    @relation(fields: [companyId], references: [id])
   roleId      String?
   role        Role?       @relation(fields: [roleId], references: [id])
-  orgUnitId   String?     // a delivery manager owns a practice, not the firm
+  orgUnitId   String? // a delivery manager owns a practice, not the firm
   orgUnit     OrgUnit?    @relation(fields: [orgUnitId], references: [id])
   grantedById String?
   grantedAt   DateTime    @default(now())
@@ -84,15 +91,15 @@ enum ContextType {
 // One company acting for another (an MSP running a client programme).
 // Deliberately not a ContextType — it has a validity window and a scope.
 model Delegation {
-  id            String   @id @default(cuid())
-  grantorId     String
-  grantor       Company  @relation("grantor", fields: [grantorId], references: [id])
-  granteeId     String
-  grantee       Company  @relation("grantee", fields: [granteeId], references: [id])
-  scope         String[] // permission keys the grantee may exercise
-  validFrom     DateTime @default(now())
-  validTo       DateTime?
-  revokedAt     DateTime?
+  id        String    @id @default(cuid())
+  grantorId String
+  grantor   Company   @relation("grantor", fields: [grantorId], references: [id])
+  granteeId String
+  grantee   Company   @relation("grantee", fields: [granteeId], references: [id])
+  scope     String[] // permission keys the grantee may exercise
+  validFrom DateTime  @default(now())
+  validTo   DateTime?
+  revokedAt DateTime?
 
   @@index([granteeId, validTo])
 }
@@ -106,9 +113,9 @@ model AccessLog {
   actorPerson    Person?  @relation("actor", fields: [actorPersonId], references: [id])
   actorCompanyId String?
   actorCompany   Company? @relation(fields: [actorCompanyId], references: [id])
-  action         String   // PROFILE_VIEW · TALENT_VIEW_ANON · SUBMIT · MARKETING_REQUEST
+  action         String // PROFILE_VIEW · TALENT_VIEW_ANON · SUBMIT · MARKETING_REQUEST
   allowed        Boolean  @default(true)
-  reason         String?  // why it was refused
+  reason         String? // why it was refused
   at             DateTime @default(now())
 
   @@index([subjectId, at])
@@ -121,36 +128,46 @@ model AccessLog {
 model Company {
   id                String      @id @default(cuid())
   name              String
-  slug              String      @unique   // {slug}.etyme.com — 2017 create_slug, collision numbered
+  slug              String      @unique // {slug}.etyme.com — 2017 create_slug, collision numbered
   domain            String?     @unique
   domainVerified    Boolean     @default(false) // true when it came from an OAuth tenant
   kind              CompanyKind
   entityType        String?
-  templatePack      String?     // US_IT · US_SAP · IN_DELIVERY · UK
+  templatePack      String? // US_IT · US_SAP · IN_DELIVERY · UK
   currency          String      @default("USD")
-  siteLiveAt        DateTime?   // the ninety second promise
-  networkVerifiedAt DateTime?   // visibility to other companies waits for this
+  siteLiveAt        DateTime? // the ninety second promise
+  networkVerifiedAt DateTime? // visibility to other companies waits for this
   createdAt         DateTime    @default(now())
 
-  contexts        Context[]
-  roles           Role[]
-  orgUnits        OrgUnit[]
-  entities        LegalEntity[]
-  docTemplates    DocTemplate[]
-  msasAsVendor    MasterAgreement[] @relation("vendor")
-  msasAsClient    MasterAgreement[] @relation("client")
-  requirements    Requirement[]
-  invitationsOut  RequirementInvitation[] @relation("from")
-  invitationsIn   RequirementInvitation[] @relation("to")
-  benchListings   BenchListing[]
-  submissionsOut  Submission[]      @relation("from")
-  submissionsIn   Submission[]      @relation("to")
-  automationLog   AutomationLog[]
-  accessLogs      AccessLog[]
-  delegationsOut  Delegation[]      @relation("grantor")
-  delegationsIn   Delegation[]      @relation("grantee")
-  partnersA       Partnership[]     @relation("a")
-  partnersB       Partnership[]     @relation("b")
+  contexts           Context[]
+  roles              Role[]
+  orgUnits           OrgUnit[]
+  entities           LegalEntity[]
+  docTemplates       DocTemplate[]
+  msasAsVendor       MasterAgreement[]       @relation("vendor")
+  msasAsClient       MasterAgreement[]       @relation("client")
+  requirements       Requirement[]
+  invitationsOut     RequirementInvitation[] @relation("from")
+  invitationsIn      RequirementInvitation[] @relation("to")
+  benchListings      BenchListing[]
+  submissionsOut     Submission[]            @relation("from")
+  submissionsIn      Submission[]            @relation("to")
+  automationLog      AutomationLog[]
+  accessLogs         AccessLog[]
+  delegationsOut     Delegation[]            @relation("grantor")
+  delegationsIn      Delegation[]            @relation("grantee")
+  partnersA          Partnership[]           @relation("a")
+  partnersB          Partnership[]           @relation("b")
+  // Contract relations — each company manages their own buy and sell contracts
+  sellContractsOut   SellContract[]          @relation("sellVendor") // we sell talent
+  sellContractsIn    SellContract[]          @relation("sellClient") // talent sold to us
+  buyContractsOut    BuyContract[]           @relation("buyer") // we buy talent
+  buyContractsIn     BuyContract[]           @relation("buyVendor") // talent bought from us
+  // Compliance & governance
+  verifications      Verification[]
+  governancePolicies GovernancePolicy[]
+  // Training
+  courses            Course[]
 }
 
 enum CompanyKind {
@@ -162,13 +179,13 @@ enum CompanyKind {
 
 // Infosys India and Infosys US: one Company, two employers.
 model LegalEntity {
-  id          String  @id @default(cuid())
-  companyId   String
-  company     Company @relation(fields: [companyId], references: [id])
-  name        String
-  country     String
-  currency    String
-  assignments Assignment[]
+  id           String        @id @default(cuid())
+  companyId    String
+  company      Company       @relation(fields: [companyId], references: [id])
+  name         String
+  country      String
+  currency     String
+  buyContracts BuyContract[] // payroll runs through the legal entity
 
   @@index([companyId])
 }
@@ -182,19 +199,19 @@ model OrgUnit {
   parent    OrgUnit?  @relation("tree", fields: [parentId], references: [id])
   children  OrgUnit[] @relation("tree")
   name      String
-  kind      String    // BU · PRACTICE · ACCOUNT · PROJECT
+  kind      String // BU · PRACTICE · ACCOUNT · PROJECT
   contexts  Context[]
 
   @@index([companyId])
 }
 
 model Role {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   companyId   String
-  company     Company  @relation(fields: [companyId], references: [id])
+  company     Company   @relation(fields: [companyId], references: [id])
   name        String
   permissions String[] // see PERMISSIONS in BUILD.md
-  isDefault   Boolean  @default(false)
+  isDefault   Boolean   @default(false)
   contexts    Context[]
 
   @@index([companyId])
@@ -206,7 +223,7 @@ model Partnership {
   a         Company  @relation("a", fields: [aId], references: [id])
   bId       String
   b         Company  @relation("b", fields: [bId], references: [id])
-  status    String   // PENDING · ACCEPTED · BLOCKED
+  status    String // PENDING · ACCEPTED · BLOCKED
   createdAt DateTime @default(now())
 
   @@unique([aId, bId])
@@ -217,18 +234,18 @@ model Partnership {
 // ─────────────────────────────────────────────
 
 model ConsultantProfile {
-  id             String   @id @default(cuid())
-  personId       String   @unique
-  person         Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
-  headline       String?
-  skills         String[]
-  location       String?
-  workAuth       String?  // US_CITIZEN · GC · H1B · OPT · GBP_SW · null
-  rateFloor      Int?     // the consultant sets this; no listing may go below it
-  availableFrom  DateTime?
-  visibility     Visibility @default(INTERNAL) // progressive enrichment, never a hard gate
-  listings       BenchListing[]
-  matches        Match[]
+  id            String         @id @default(cuid())
+  personId      String         @unique
+  person        Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
+  headline      String?
+  skills        String[]
+  location      String?
+  workAuth      String? // US_CITIZEN · GC · H1B · OPT · GBP_SW · null
+  rateFloor     Int? // the consultant sets this; no listing may go below it
+  availableFrom DateTime?
+  visibility    Visibility     @default(INTERNAL) // progressive enrichment, never a hard gate
+  listings      BenchListing[]
+  matches       Match[]
 }
 
 enum Visibility {
@@ -240,15 +257,15 @@ enum Visibility {
 
 // A consultant may appear on several marketing benches, one retained bench.
 model BenchListing {
-  id           String   @id @default(cuid())
+  id           String            @id @default(cuid())
   consultantId String
   consultant   ConsultantProfile @relation(fields: [consultantId], references: [id], onDelete: Cascade)
   companyId    String
-  company      Company  @relation(fields: [companyId], references: [id])
+  company      Company           @relation(fields: [companyId], references: [id])
   tier         BenchTier
   rateMin      Int?
   rateMax      Int?
-  grantedAt    DateTime @default(now()) // by the consultant, not the company
+  grantedAt    DateTime          @default(now()) // by the consultant, not the company
   revokedAt    DateTime?
 
   @@unique([consultantId, companyId])
@@ -261,18 +278,47 @@ enum BenchTier {
 }
 
 model VisaPetition {
-  id         String   @id @default(cuid())
+  id         String         @id @default(cuid())
   personId   String
-  person     Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
-  type       String   // H1B · L1 · GC · TN · SKILLED_WORKER
+  person     Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type       String // H1B · L1 · GC · TN · SKILLED_WORKER
   country    String
-  status     String   // FILED · RFE · APPROVED · STAMPED · ACTIVE · EXPIRING · EXPIRED
+  status     String // FILED · RFE · APPROVED · STAMPED · ACTIVE · EXPIRING · EXPIRED
   filedAt    DateTime?
   approvedAt DateTime?
   expiresAt  DateTime?
-  transferOk Boolean  @default(false)
+  transferOk Boolean        @default(false)
+  documents  VisaDocument[]
+  events     VisaEvent[]
 
   @@index([personId, status])
+}
+
+// Supporting documents for a visa petition (I-797, EAD card, passport, etc.)
+model VisaDocument {
+  id         String       @id @default(cuid())
+  petitionId String
+  petition   VisaPetition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+  docType    String // I797 · EAD · PASSPORT · VISA_STAMP · OFFER_LETTER · LCA · I94
+  fileName   String
+  fileUrl    String
+  expiresAt  DateTime?
+  uploadedAt DateTime     @default(now())
+
+  @@index([petitionId])
+}
+
+// Status change events for a visa petition (filed, RFE issued, approved, etc.)
+model VisaEvent {
+  id         String       @id @default(cuid())
+  petitionId String
+  petition   VisaPetition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
+  eventType  String // FILED · RECEIVED · RFE_ISSUED · RFE_RESPONDED · APPROVED · DENIED · STAMPED · TRANSFER_FILED
+  occurredAt DateTime
+  notes      String?
+  createdAt  DateTime     @default(now())
+
+  @@index([petitionId, occurredAt])
 }
 
 // ─────────────────────────────────────────────
@@ -287,20 +333,23 @@ model MasterAgreement {
   client       Company  @relation("client", fields: [clientId], references: [id])
   paymentTerms Int      @default(30)
   currency     String   @default("USD")
-  minMarginPct Int?     // the floor a recruiter may not price below without approval
-  rateCard     Json?    // condition records: client + skill + level + location
+  minMarginPct Int? // the floor a recruiter may not price below without approval
+  rateCard     Json? // condition records: client + skill + level + location
+  capacity     Int? // max resources for GSA global contracts (null = unlimited)
   createdAt    DateTime @default(now())
 
-  engagements  Engagement[]
-  requirements Requirement[]
+  engagements   Engagement[]
+  requirements  Requirement[]
+  sellContracts SellContract[]
+
   @@index([vendorId])
   @@index([clientId])
 }
 
 model Requirement {
-  id          String   @id @default(cuid())
-  companyId   String   // whoever owns the demand
-  company     Company  @relation(fields: [companyId], references: [id])
+  id          String           @id @default(cuid())
+  companyId   String // whoever owns the demand
+  company     Company          @relation(fields: [companyId], references: [id])
   msaId       String?
   msa         MasterAgreement? @relation(fields: [msaId], references: [id])
   title       String
@@ -310,32 +359,36 @@ model Requirement {
   billMax     Int?
   months      Int?
   startDate   DateTime?
-  status      String   @default("OPEN") // DRAFT · OPEN · FILLED · CLOSED
-  source      String   @default("MANUAL") // MANUAL · EMAIL · VMS · NETWORK
-  parseConf   Json?    // per field confidence when it came from a parser
-  createdAt   DateTime @default(now())
+  status      String           @default("OPEN") // DRAFT · OPEN · FILLED · CLOSED
+  source      String           @default("MANUAL") // MANUAL · EMAIL · VMS · NETWORK
+  parseConf   Json? // per field confidence when it came from a parser
+  // Addendum D: rate transparency per requirement
+  marginClass String? // ARBITRAGE · EXPERTISE — distinguishes opacity-based vs capability-based margin
+  rateVisible Boolean          @default(false) // vendor rate visibility setting, inherited by contracts
+  createdAt   DateTime         @default(now())
 
   invitations RequirementInvitation[]
   matches     Match[]
   submissions Submission[]
+
   @@index([companyId, status])
 }
 
 // The rate band lives here, not on the requirement. Every recipient may see a different one.
 model RequirementInvitation {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   requirementId String
   requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
   fromCompanyId String
-  fromCompany   Company  @relation("from", fields: [fromCompanyId], references: [id])
+  fromCompany   Company     @relation("from", fields: [fromCompanyId], references: [id])
   toCompanyId   String
-  toCompany     Company  @relation("to", fields: [toCompanyId], references: [id])
+  toCompany     Company     @relation("to", fields: [toCompanyId], references: [id])
   payMin        Int?
   payMax        Int?
   message       String?
   expiresAt     DateTime
-  status        String   @default("SENT") // SENT · ACCEPTED · DECLINED · EXPIRED
-  createdAt     DateTime @default(now())
+  status        String      @default("SENT") // SENT · ACCEPTED · DECLINED · EXPIRED
+  createdAt     DateTime    @default(now())
 
   @@unique([requirementId, toCompanyId])
   @@index([toCompanyId, status])
@@ -343,36 +396,36 @@ model RequirementInvitation {
 
 // Computed, disposable, carries its own reasoning. Never confused with a Submission.
 model Match {
-  id            String   @id @default(cuid())
+  id            String            @id @default(cuid())
   requirementId String
-  requirement   Requirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  requirement   Requirement       @relation(fields: [requirementId], references: [id], onDelete: Cascade)
   consultantId  String
   consultant    ConsultantProfile @relation(fields: [consultantId], references: [id], onDelete: Cascade)
   score         Int
-  confidence    String   // HIGH · MODERATE · LOW
-  factors       Json     // [{ label, value, weight }] — shown in the UI, not hidden
-  basis         String   // "34 BRIM placements over 18 months"
-  unknowns      String?  // what it could not account for
-  computedAt    DateTime @default(now())
+  confidence    String // HIGH · MODERATE · LOW
+  factors       Json // [{ label, value, weight }] — shown in the UI, not hidden
+  basis         String // "34 BRIM placements over 18 months"
+  unknowns      String? // what it could not account for
+  computedAt    DateTime          @default(now())
 
   @@unique([requirementId, consultantId])
 }
 
 // One record, two views. Sent for the origin, received for the destination.
 model Submission {
-  id            String   @id @default(cuid())
+  id            String         @id @default(cuid())
   requirementId String
-  requirement   Requirement @relation(fields: [requirementId], references: [id])
+  requirement   Requirement    @relation(fields: [requirementId], references: [id])
   personId      String
-  person        Person   @relation(fields: [personId], references: [id])
+  person        Person         @relation(fields: [personId], references: [id])
   fromCompanyId String
-  fromCompany   Company  @relation("from", fields: [fromCompanyId], references: [id])
+  fromCompany   Company        @relation("from", fields: [fromCompanyId], references: [id])
   toCompanyId   String
-  toCompany     Company  @relation("to", fields: [toCompanyId], references: [id])
+  toCompany     Company        @relation("to", fields: [toCompanyId], references: [id])
   kind          SubmissionKind
   rate          Int
-  status        String   @default("SUBMITTED")
-  submittedAt   DateTime @default(now()) // first timestamp wins on a duplicate
+  status        String         @default("SUBMITTED")
+  submittedAt   DateTime       @default(now()) // first timestamp wins on a duplicate
 
   @@unique([requirementId, personId]) // enforces the duplicate rule
   @@index([fromCompanyId, status])
@@ -387,108 +440,220 @@ enum SubmissionKind {
 }
 
 // ─────────────────────────────────────────────
-// WORK AND MONEY
+// CONTRACTS  — always separate: sell separately, buy separately, link for profitability.
+// A SellContract is "we sell Person X to Client Y at $N/hr".
+// A BuyContract is "we pay Person X (or Vendor Z for Person X) at $M/hr".
+// ContractLink joins buy↔sell within ONE company for margin/profitability tracking.
+// The 2017 Assignment model combined both — causing ghost contracts, orphan cycles,
+// and no way to track profitability on commission or subcontracting arrangements.
 // ─────────────────────────────────────────────
 
-model Engagement {
-  id           String   @id @default(cuid())
-  msaId        String
-  msa          MasterAgreement @relation(fields: [msaId], references: [id])
-  title        String
-  rateCard     Json?    // onshore / nearshore / offshore tiers
-  invoiceCycle String   @default("MONTHLY")
-  assignments  Assignment[]
-  invoices     Invoice[]
-}
+// SELL CONTRACT — the vendor's record of what they bill a client for a consultant
+model SellContract {
+  id              String           @id @default(cuid())
+  companyId       String // the vendor selling talent
+  company         Company          @relation("sellVendor", fields: [companyId], references: [id])
+  clientCompanyId String // who they're billing
+  clientCompany   Company          @relation("sellClient", fields: [clientCompanyId], references: [id])
+  personId        String
+  person          Person           @relation(fields: [personId], references: [id])
+  engagementId    String?
+  engagement      Engagement?      @relation(fields: [engagementId], references: [id])
+  msaId           String? // master agreement (denormalised from engagement for query convenience)
+  msa             MasterAgreement? @relation(fields: [msaId], references: [id])
 
-model Assignment {
-  id                 String   @id @default(cuid())
-  engagementId       String?  // null for bench, internal staff, training stipends
-  engagement         Engagement? @relation(fields: [engagementId], references: [id])
-  personId           String
-  person             Person   @relation(fields: [personId], references: [id])
-  employerCompanyId  String
-  originEntityId     String?  // Infosys India employs, Infosys US bills
-  originEntity       LegalEntity? @relation(fields: [originEntityId], references: [id])
-  subVendorCompanyId String?  // the C2C chain
-  payRate            Int
-  billRate           Int?
-  payCurrency        String   @default("USD")
-  contractType       String   // W2 · C2C · 1099 · C2H_W2 · CDD · FIXED_TERM
-  state              AssignmentState
+  billRate           Int // cents per hour
+  billCurrency       String            @default("USD")
+  paymentTerms       Int               @default(30) // NET days — cascades from MSA, overridable
+  state              SellContractState @default(DRAFT)
   startDate          DateTime
   endDate            DateTime?
-  conversionFee      Int?
-  conversionEligible DateTime?
+  conversionFee      Int? // contract-to-hire conversion fee (cents)
+  conversionEligible DateTime? // earliest eligible date
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
-  timesheets  Timesheet[]
-  cycles      Cycle[]
-  rolloff     RolloffEvent?
-  docs        DocInstance[]
-  @@index([employerCompanyId, state])
+  buyLinks   ContractLink[] // linked buy contracts (for profitability)
+  timesheets Timesheet[]
+  sellCycles Cycle[]        @relation("sellCycles")
+  rolloff    RolloffEvent?
+  docs       DocInstance[]  @relation("sellDocs")
+
+  @@index([companyId, state])
+  @@index([clientCompanyId])
+  @@index([personId])
   @@index([endDate])
 }
 
-enum AssignmentState {
+enum SellContractState {
+  DRAFT // terms agreed, not yet submitted for verification
+  PENDING_VERIFICATION // verification checklist open — gates on I-9, insurance, etc.
+  VERIFIED // all required verifications pass
+  IN_PROGRESS // work started, timesheets and billing active
+  PAUSED // temporarily suspended (client request, visa issue, etc.)
+  ENDED // normal completion
+  CANCELLED // terminated before start or during
+}
+
+// BUY CONTRACT — the company's record of what they pay for talent
+// For direct employment: vendorCompanyId is null, entityId points to payroll entity.
+// For subcontracting: vendorCompanyId points to the vendor supplying the talent.
+// For commissions: commissionType + commissionRate define the payout; one buy contract
+//   can link to many sell contracts via ContractLink (the "commission umbrella" pattern).
+model BuyContract {
+  id              String       @id @default(cuid())
+  companyId       String // the company paying
+  company         Company      @relation("buyer", fields: [companyId], references: [id])
+  vendorCompanyId String? // who they're buying from (null = direct employment)
+  vendorCompany   Company?     @relation("buyVendor", fields: [vendorCompanyId], references: [id])
+  personId        String
+  person          Person       @relation(fields: [personId], references: [id])
+  entityId        String? // legal entity for payroll (Infosys India vs Infosys US)
+  entity          LegalEntity? @relation(fields: [entityId], references: [id])
+
+  payRate      Int // cents per hour (or salary equivalent)
+  payCurrency  String           @default("USD")
+  contractType ContractType     @default(W2)
+  state        BuyContractState @default(DRAFT)
+  startDate    DateTime
+  endDate      DateTime?
+
+  // Commission configuration — only for commission-type buy contracts
+  commissionType CommissionType? // null = not a commission arrangement
+  commissionRate Int? // interpretation depends on commissionType:
+  //   PER_HOUR: cents per hour worked
+  //   FIXED_PER_PERIOD: cents per period
+  //   ON_PLACEMENT: total cents (one-time)
+  //   MARGIN_SHARE: basis points (e.g. 2500 = 25%)
+  commissionCap  Int? // max total commission in cents (null = uncapped)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sellLinks ContractLink[] // linked sell contracts (for profitability)
+  buyCycles Cycle[]        @relation("buyCycles")
+  docs      DocInstance[]  @relation("buyDocs")
+
+  @@index([companyId, state])
+  @@index([vendorCompanyId])
+  @@index([personId])
+  @@index([endDate])
+}
+
+enum BuyContractState {
   DRAFT
-  PENDING
-  ACCEPTED
+  PENDING_VERIFICATION
+  VERIFIED
   IN_PROGRESS
-  BENCH_PAID
-  INTERNAL
-  TRAINING
+  BENCH_PAID // consultant on bench, being paid between client assignments
+  INTERNAL // company's own employee (no client assignment)
+  TRAINING // in a training program
   PAUSED
   ENDED
   CANCELLED
 }
 
-// The 2017 nineteen cycle types, one table. Generated on contract start, extended on extension.
-model Cycle {
-  id           String   @id @default(cuid())
-  assignmentId String
-  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  kind         String   // TIMESHEET_SUBMIT · TIMESHEET_APPROVE · INVOICE_GENERATE · SALARY_* · VENDOR_BILL_* · COMMISSION_*
-  dueOn        DateTime // already shifted off weekends and holidays
-  completedAt  DateTime?
+enum ContractType {
+  W2 // employer of record
+  C2C // corp-to-corp subcontracting
+  IND_1099 // independent contractor
+  C2H_W2 // contract-to-hire converting to W2
+  CDD // contrat à durée déterminée (fixed-term, EU/FR)
+  FIXED_TERM // general fixed-term employment
+}
 
-  @@index([assignmentId, kind])
+enum CommissionType {
+  PER_HOUR // fixed cents per hour worked across linked sell contracts
+  FIXED_PER_PERIOD // fixed amount per pay period
+  ON_PLACEMENT // one-time placement fee
+  MARGIN_SHARE // percentage of margin (sell − buy across linked contracts)
+}
+
+// Links buy contracts to sell contracts within ONE company for profitability tracking.
+// Example: GSA links their SellContract (to client, $150/hr) with their BuyContract
+// (from primary vendor, $100/hr) → $50/hr margin visible on profitability dashboard.
+// Commission umbrella: one BuyContract (commission agent) links to 10 SellContracts.
+model ContractLink {
+  id             String       @id @default(cuid())
+  sellContractId String
+  sellContract   SellContract @relation(fields: [sellContractId], references: [id])
+  buyContractId  String
+  buyContract    BuyContract  @relation(fields: [buyContractId], references: [id])
+  effectiveFrom  DateTime // when this link is active from
+  effectiveTo    DateTime? // null = open-ended
+  createdAt      DateTime     @default(now())
+
+  @@unique([sellContractId, buyContractId])
+  @@index([buyContractId])
+}
+
+// ─────────────────────────────────────────────
+// WORK AND MONEY
+// ─────────────────────────────────────────────
+
+model Engagement {
+  id            String          @id @default(cuid())
+  msaId         String
+  msa           MasterAgreement @relation(fields: [msaId], references: [id])
+  title         String
+  rateCard      Json? // onshore / nearshore / offshore tiers
+  invoiceCycle  String          @default("MONTHLY")
+  sellContracts SellContract[]
+  invoices      Invoice[]
+}
+
+// The 2017 nineteen cycle types, one table. Generated on contract start, extended on extension.
+// Sell-side cycles: TIMESHEET_SUBMIT · TIMESHEET_APPROVE · INVOICE_GENERATE · INVOICE_DUE
+// Buy-side cycles:  SALARY_PROCESS · SALARY_PAY · VENDOR_BILL_GENERATE · VENDOR_BILL_DUE · COMMISSION_CLEAR
+model Cycle {
+  id             String        @id @default(cuid())
+  sellContractId String?
+  sellContract   SellContract? @relation("sellCycles", fields: [sellContractId], references: [id], onDelete: Cascade)
+  buyContractId  String?
+  buyContract    BuyContract?  @relation("buyCycles", fields: [buyContractId], references: [id], onDelete: Cascade)
+  kind           String // see comments above
+  dueOn          DateTime // already shifted off weekends and holidays
+  completedAt    DateTime?
+
+  @@index([sellContractId, kind])
+  @@index([buyContractId, kind])
   @@index([dueOn, completedAt])
 }
 
 model Timesheet {
-  id            String   @id @default(cuid())
-  assignmentId  String
-  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  personId      String
-  person        Person   @relation(fields: [personId], references: [id])
-  periodStart   DateTime
-  periodEnd     DateTime
-  days          Json     // { "2026-08-01": 8, ... }
-  totalHours    Decimal  @db.Decimal(7, 2)
-  status        String   @default("OPEN") // OPEN · SUBMITTED · APPROVED · PARTIAL · REJECTED
-  anomalyScore  Int?     // low score means low confidence; held, never auto rejected
-  anomalyReason String?
-  approvedById  String?
-  approvedAt    DateTime?
-  invoiceId     String?
+  id             String       @id @default(cuid())
+  sellContractId String
+  sellContract   SellContract @relation(fields: [sellContractId], references: [id], onDelete: Cascade)
+  personId       String
+  person         Person       @relation(fields: [personId], references: [id])
+  periodStart    DateTime
+  periodEnd      DateTime
+  days           Json // { "2026-08-01": 8, ... }
+  totalHours     Decimal      @db.Decimal(7, 2)
+  status         String       @default("OPEN") // OPEN · SUBMITTED · APPROVED · PARTIAL · REJECTED
+  anomalyScore   Int? // low score means low confidence; held, never auto rejected
+  anomalyReason  String?
+  approvedById   String?
+  approvedAt     DateTime?
+  invoiceId      String?
 
-  @@unique([assignmentId, periodStart])
+  @@unique([sellContractId, periodStart])
   @@index([status])
 }
 
 model Invoice {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   engagementId String
   engagement   Engagement @relation(fields: [engagementId], references: [id])
-  number       String   @unique
+  number       String     @unique
   periodStart  DateTime
   periodEnd    DateTime
-  lines        Json     // consolidated: many assignments, possibly several pay currencies
+  lines        Json // consolidated: many sell contracts, possibly several currencies
   currency     String
-  total        Decimal  @db.Decimal(12, 2)
-  paid         Decimal  @db.Decimal(12, 2) @default(0)
+  total        Decimal    @db.Decimal(12, 2)
+  paid         Decimal    @default(0) @db.Decimal(12, 2)
   dueAt        DateTime
-  status       String   @default("ISSUED")
+  status       String     @default("ISSUED")
   payments     Payment[]
 
   @@index([status, dueAt])
@@ -506,11 +671,11 @@ model Payment {
 
 // Owed between legal entities of the same company. Derived, never hand maintained.
 model IntercompanyPosition {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   fromEntityId String
   toEntityId   String
-  period       String   // 2026-08
-  amount       Decimal  @db.Decimal(12, 2)
+  period       String // 2026-08
+  amount       Decimal   @db.Decimal(12, 2)
   currency     String
   settledAt    DateTime?
 
@@ -522,33 +687,217 @@ model IntercompanyPosition {
 // ─────────────────────────────────────────────
 
 model RolloffEvent {
-  id            String   @id @default(cuid())
-  assignmentId  String   @unique
-  assignment    Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  triggeredAt   DateTime @default(now())
-  endDate       DateTime
-  notified      Json     // who was told, when, with what
-  checklist     Json     // knowledge transfer · final timesheet · access revocation · assets
-  claimedById   String?
-  outcome       String?  // REDEPLOYED · BENCH · LOST
+  id             String       @id @default(cuid())
+  sellContractId String       @unique
+  sellContract   SellContract @relation(fields: [sellContractId], references: [id], onDelete: Cascade)
+  triggeredAt    DateTime     @default(now())
+  endDate        DateTime
+  notified       Json // who was told, when, with what
+  checklist      Json // knowledge transfer · final timesheet · access revocation · assets
+  claimedById    String?
+  outcome        String? // REDEPLOYED · BENCH · LOST
 
   @@index([endDate])
 }
 
 // Everything the system did on a company's behalf. Inspectable, mostly reversible.
 model AutomationLog {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   companyId  String
-  company    Company  @relation(fields: [companyId], references: [id])
+  company    Company   @relation(fields: [companyId], references: [id])
   action     String
   summary    String
-  reason     String   // the rule it followed, in words
+  reason     String // the rule it followed, in words
   payload    Json
-  reversible Boolean  @default(false)
+  reversible Boolean   @default(false)
   reversedAt DateTime?
-  at         DateTime @default(now())
+  at         DateTime  @default(now())
 
   @@index([companyId, at])
+}
+
+// ─────────────────────────────────────────────
+// VERIFICATION  — person-level (I-9, background, education, drug screen)
+// and company-level (insurance COI, business partner verification).
+// Lives on Person or Company, NOT on contracts. Uploaded once by whoever
+// is closest to the subject, checked across all tiers of the supply chain.
+// See etyme-verification-chain artifact for the full design.
+// ─────────────────────────────────────────────
+
+model Verification {
+  id        String   @id @default(cuid())
+  personId  String? // for person-level checks (I-9, background, education, drug)
+  person    Person?  @relation(fields: [personId], references: [id])
+  companyId String? // for company-level checks (insurance, partner verification)
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  type        VerificationType
+  status      VerificationStatus @default(PENDING)
+  provider    String? // "HireRight" · "Sterling" · "WES" · "ECE" · "E-Verify" · "Quest"
+  referenceId String? // external provider reference number
+  issuedAt    DateTime?
+  expiresAt   DateTime? // null = permanent (e.g. education evaluation)
+  result      Json? // { outcome: "CLEAR", notes: "...", details: {...} }
+
+  uploadedById String // personId of whoever uploaded this
+  verifiedById String? // personId of whoever verified/approved it
+  verifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  documents VerificationDoc[]
+
+  @@index([personId, type, status])
+  @@index([companyId, type, status])
+  @@index([expiresAt]) // for expiry alert jobs
+}
+
+model VerificationDoc {
+  id             String       @id @default(cuid())
+  verificationId String
+  verification   Verification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  fileName       String
+  fileUrl        String
+  fileHash       String? // SHA-256 for dedup — same file uploaded twice is stored once
+  uploadedAt     DateTime     @default(now())
+
+  @@index([verificationId])
+}
+
+enum VerificationType {
+  I9_EVERIFY // federal work authorization (BLOCK gate)
+  BACKGROUND_CHECK // criminal, credit, employment history (WARN gate)
+  EDUCATION_EVALUATION // WES, ECE credential evaluation (WARN gate)
+  DRUG_SCREENING // pre-assignment or periodic (WARN gate)
+  INSURANCE_GL // general liability (BLOCK gate)
+  INSURANCE_WC // workers' compensation (BLOCK gate)
+  INSURANCE_EO // errors & omissions (BLOCK gate)
+  INSURANCE_CYBER // cyber liability (BLOCK gate)
+  BUSINESS_PARTNER // DUNS, SAM.gov, references (BLOCK for new vendors)
+  REFERENCE_CHECK // professional references (informational)
+}
+
+enum VerificationStatus {
+  PENDING // requested, not yet started
+  IN_PROGRESS // underway (background check processing, provider working)
+  CLEAR // passed — no issues found
+  CONDITIONAL // passed with conditions (e.g. misdemeanor disclosed, client decides)
+  FLAGGED // requires human review
+  FAILED // did not pass
+  EXPIRED // was valid, now past expiresAt
+}
+
+// ─────────────────────────────────────────────
+// GOVERNANCE  — client-configurable rules evaluated at submission,
+// assignment, extension, and alumni re-engagement.
+// Addendum E: BLOCK where legally grounded, WARN everywhere else.
+// Never silently permit. See etyme-governance-rules artifact.
+// ─────────────────────────────────────────────
+
+model GovernancePolicy {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  name        String // "Standard Contingent Workforce Policy"
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rules GovernanceRule[]
+
+  @@index([companyId, isActive])
+}
+
+model GovernanceRule {
+  id              String             @id @default(cuid())
+  policyId        String
+  policy          GovernancePolicy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  ruleType        GovernanceRuleType
+  enforcementMode EnforcementMode
+  parameters      Json // type-specific: { maxMonths: 18, exemptCompanyKinds: ["MSP"] }
+  description     String // plain English: "No direct vendor hire beyond 18 months"
+  isActive        Boolean            @default(true)
+  createdAt       DateTime           @default(now())
+
+  evaluations GovernanceEvaluation[]
+
+  @@index([policyId, isActive])
+}
+
+enum GovernanceRuleType {
+  TENURE_CAP // max months at client across all vendors (Addendum E)
+  BREAK_IN_SERVICE // required gap between engagements (co-employment)
+  RATE_BAND // rate must fall within approved range
+  HEADCOUNT_PLAN // position count vs approved headcount
+  VENDOR_TIER // vendor must be approved/preferred tier
+  WORK_AUTHORIZATION // valid work auth required before start
+  INSURANCE_REQUIRED // vendor must have current insurance
+  SEGREGATION_OF_DUTIES // same person cannot hold conflicting roles
+}
+
+enum EnforcementMode {
+  BLOCK // legally grounded — cannot proceed (tenure, break-in-service, work auth, insurance)
+  WARN // capture a reason, proceed (rate band, headcount, vendor tier)
+}
+
+// Every governance evaluation, pass or fail, is recorded. Auditable trail.
+model GovernanceEvaluation {
+  id           String         @id @default(cuid())
+  ruleId       String
+  rule         GovernanceRule @relation(fields: [ruleId], references: [id])
+  triggerPoint String // SUBMISSION · CONTRACT_START · EXTENSION · ALUMNI_REENGAGEMENT
+  subjectType  String // PERSON · SELL_CONTRACT · BUY_CONTRACT
+  subjectId    String
+  outcome      String // PASS · WARN · BLOCK
+  reason       String // plain English: "Ravi Patel has 19 months at AMAT (cap: 18)"
+  overriddenBy String? // personId of who overrode a WARN
+  overrideNote String? // why the override was justified
+  evaluatedAt  DateTime       @default(now())
+
+  @@index([ruleId, evaluatedAt])
+  @@index([subjectType, subjectId])
+}
+
+// ─────────────────────────────────────────────
+// TRAINING  — courses offered by companies (free or paid),
+// enrolled by consultants. Part of the bench vendor value prop
+// (free website + free/paid training). See etyme-value-architecture artifact.
+// ─────────────────────────────────────────────
+
+model Course {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  title       String
+  description String?
+  category    String? // TECH · COMPLIANCE · SOFT_SKILLS · CERTIFICATION · AI_UPSKILLING
+  duration    Int? // estimated hours
+  price       Int? // cents — null = free
+  currency    String   @default("USD")
+  isPublic    Boolean  @default(false) // visible to candidates outside the company
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  enrollments Enrollment[]
+
+  @@index([companyId, isPublic])
+}
+
+model Enrollment {
+  id             String    @id @default(cuid())
+  courseId       String
+  course         Course    @relation(fields: [courseId], references: [id])
+  personId       String
+  person         Person    @relation(fields: [personId], references: [id])
+  status         String    @default("ENROLLED") // ENROLLED · IN_PROGRESS · COMPLETED · DROPPED
+  enrolledAt     DateTime  @default(now())
+  completedAt    DateTime?
+  score          Int?
+  certificateUrl String?
+
+  @@unique([courseId, personId])
+  @@index([personId, status])
 }
 
 // ─────────────────────────────────────────────
@@ -556,30 +905,32 @@ model AutomationLog {
 // ─────────────────────────────────────────────
 
 model DocTemplate {
-  id            String   @id @default(cuid())
-  companyId     String
-  company       Company  @relation(fields: [companyId], references: [id])
-  name          String
-  audience      String   // CANDIDATE · VENDOR · CLIENT · EMPLOYEE · GENERAL
-  needsSignature Boolean @default(false)
-  fileUrl       String?
-  instances     DocInstance[]
+  id             String        @id @default(cuid())
+  companyId      String
+  company        Company       @relation(fields: [companyId], references: [id])
+  name           String
+  audience       String // CANDIDATE · VENDOR · CLIENT · EMPLOYEE · GENERAL
+  needsSignature Boolean       @default(false)
+  fileUrl        String?
+  instances      DocInstance[]
 
   @@index([companyId, audience])
 }
 
 model DocInstance {
-  id           String   @id @default(cuid())
-  templateId   String
-  template     DocTemplate @relation(fields: [templateId], references: [id])
-  assignmentId String?
-  assignment   Assignment? @relation(fields: [assignmentId], references: [id])
-  subjectType  String   // ASSIGNMENT · PERSON · COMPANY
-  subjectId    String
-  status       String   @default("PENDING") // PENDING · SENT · SIGNED · UPLOADED
-  envelopeId   String?  // DocuSign
-  signedFileUrl String?
-  signedAt     DateTime?
+  id             String        @id @default(cuid())
+  templateId     String
+  template       DocTemplate   @relation(fields: [templateId], references: [id])
+  sellContractId String?
+  sellContract   SellContract? @relation("sellDocs", fields: [sellContractId], references: [id])
+  buyContractId  String?
+  buyContract    BuyContract?  @relation("buyDocs", fields: [buyContractId], references: [id])
+  subjectType    String // SELL_CONTRACT · BUY_CONTRACT · PERSON · COMPANY
+  subjectId      String
+  status         String        @default("PENDING") // PENDING · SENT · SIGNED · UPLOADED
+  envelopeId     String? // DocuSign
+  signedFileUrl  String?
+  signedAt       DateTime?
 
   @@index([subjectType, subjectId, status])
 }
@@ -589,26 +940,26 @@ model DocInstance {
 // ─────────────────────────────────────────────
 
 model Import {
-  id         String   @id @default(cuid())
-  companyId  String
-  kind       String   // PEOPLE · ASSIGNMENTS · CONTACTS
-  fileName   String?
-  mapping    Json     // AI proposed, human corrected
-  rowCount   Int
-  issueCount Int
+  id          String      @id @default(cuid())
+  companyId   String
+  kind        String // PEOPLE · CONTRACTS · CONTACTS
+  fileName    String?
+  mapping     Json // AI proposed, human corrected
+  rowCount    Int
+  issueCount  Int
   committedAt DateTime?
-  rows       ImportRow[]
-  createdAt  DateTime @default(now())
+  rows        ImportRow[]
+  createdAt   DateTime    @default(now())
 }
 
 model ImportRow {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   importId  String
-  import    Import  @relation(fields: [importId], references: [id], onDelete: Cascade)
+  import    Import   @relation(fields: [importId], references: [id], onDelete: Cascade)
   raw       Json
   parsed    Json
   issues    String[] // "no rate in the file" — never blocking
-  createdId String?  // what it became once committed
+  createdId String? // what it became once committed
 
   @@index([importId])
 }
