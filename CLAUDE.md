@@ -170,13 +170,98 @@ Named so you approach them with care, not speed.
 
 ---
 
-## First task
+## Design system — the prototypes ARE the standard
 
-Read the 2017 Rails codebase and produce `LEGACY_RULES.md` — the business rules
-encoded across 4,197 commits, in plain English, with file references.
+The prototypes in `prototypes/` define how the production UI must look and feel.
+**If the production build does not look like the prototypes, we have failed.**
 
-Prioritise: the cycle engine, rate change history, submission and duplicate handling,
-contract state transitions, commission calculation.
+### Design tokens (from `Etyme_Demo_AllViews.jsx`)
 
-This is the highest-leverage job in the project and it gets harder the longer it waits.
-Everything built afterwards is faster and more correct for having it.
+```
+canvas:   #F0EEE6    surface:  #FBFAF7    raised:   #FFFFFF
+ink:      #1F1E1D    muted:    #6B6862    faint:    #9C9891    rule:     #E3DFD5
+action:   #2B47E5    attention:#C0622E    verified: #4F6F52
+```
+
+### Typography
+
+- **Serif** (headlines, hero numbers): Iowan Old Style → Palatino → Georgia
+- **Sans** (body, UI): Inter → system sans
+- **Mono** (data): IBM Plex Mono (rolloff console)
+- Tabular figures inside tables (`font-variant-numeric: tabular-nums`)
+- Serif headlines are set loose (`letter-spacing: -0.02em`) with `text-wrap: balance`
+
+### Two surface types (from `Etyme_UX_Stress_Test.md`)
+
+| | Decision surfaces | Working surfaces |
+|---|---|---|
+| Examples | Yours to decide, rolloff fan-out, rate approval | Bench list, requirements, timesheets, invoices |
+| Voice | Prose, reasoning, confidence, calm | Tables, search, filters, bulk, density |
+| Volume | 3–10 items | Hundreds |
+| Typography | Serif headlines, generous space | Tabular figures, tight rows |
+| Success | User decides well and leaves | User finds and acts fast |
+
+The theme stays the same on both — warm canvas, ink, one blue, clay for
+attention. What changes is density and voice.
+
+### Components (extracted from prototypes)
+
+- **Shell** — sticky header (logo + org + role), sidebar nav with section
+  groups (Sell / Procure / Operate / Grow), mobile pill nav
+- **Panel** — surface background, 1px rule border, serif title, optional
+  subtitle
+- **Stat** — label (uppercase 10px) + serif number + optional subtitle.
+  Tone variants: default (ink), attention (clay), verified (green)
+- **Chip** — small rounded label with tone-coded background: attention,
+  verified, action, passive
+- **Why** (reasoning disclosure) — score + confidence label, expandable to
+  show factors (bar chart), basis, and unknowns
+- **Head** — eyebrow label + serif h1 + optional prose subtitle
+- **Lbl** — 10px uppercase letter-spaced label
+
+### Navigation per company type
+
+| Company type | Sections |
+|---|---|
+| Vendor | Today → Sell → Procure → Operate → Grow |
+| Consultant | You → Grow |
+| GSI (Infosys) | Deliver → Supply → Operate |
+| Client (Enterprise) | Program → Governance |
+
+### Eight things to build before features (from UX Stress Test)
+
+1. **Search on every list.** Before anything else.
+2. **Restore the plus button** with its four sections.
+3. **Working-surface table** — dense, sortable, filterable, paginated,
+   bulk-selectable, exportable. One component, used everywhere.
+4. **Batch submission.** The 2017 `temp_candidates` pattern with per-item
+   error collection.
+5. **Progressive explanation.** One line by default, reasoning on click.
+6. **Tabular figures inside tables.** Serif for headlines and hero only.
+7. **Scope the undo promise** to what is actually built.
+8. **Missing states** — loading, error, empty, partial, denied.
+
+### Prototype files (reference, not production code)
+
+- `prototypes/rolloff-console.tsx` — vendor-side rolloff (BRD §16)
+- `prototypes/client-console.tsx` — client operations (BRD §17.1)
+- `prototypes/Etyme_Demo_AllViews.jsx` — all four company views
+- `prototypes/Etyme_Onboarding.jsx` — five-step onboarding flow
+- `prototypes/Etyme_UX_Stress_Test.md` — UX analysis and resolution
+
+---
+
+## Completed tasks
+
+### LEGACY_RULES.md ✓
+
+`LEGACY_RULES.md` — business rules from 4,197 commits, in plain English
+with file references. Covers all 14 sections: cycle engine, contracts,
+submissions, invoicing, company structure, documents, conversations,
+compliance, commissions, database constraints, routing, background jobs,
+seed data. Seven known bugs documented for the new build to fix.
+
+### Service object extraction ✓
+
+Phase 1: 5 service objects (901 lines extracted).
+Phase 2: 14 service objects (2,085 lines extracted from 13 controllers).
