@@ -94,8 +94,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="Senior SAP BRIM Consultant — Remote"
             />
           </div>
@@ -106,8 +106,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
               type="text"
               value={form.skills}
               onChange={(e) => setForm({ ...form, skills: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="SAP BRIM, Revenue Accounting, S/4HANA"
             />
           </div>
@@ -119,8 +119,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
                 type="number"
                 value={form.billMin}
                 onChange={(e) => setForm({ ...form, billMin: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 placeholder="80"
               />
             </div>
@@ -130,8 +130,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
                 type="number"
                 value={form.billMax}
                 onChange={(e) => setForm({ ...form, billMax: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 placeholder="120"
               />
             </div>
@@ -141,8 +141,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
                 type="number"
                 value={form.months}
                 onChange={(e) => setForm({ ...form, months: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 placeholder="12"
               />
             </div>
@@ -154,8 +154,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
               type="text"
               value={form.location}
               onChange={(e) => setForm({ ...form, location: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="Remote / Dallas, TX / Hybrid"
             />
           </div>
@@ -164,8 +164,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-border
-                         hover:bg-etyme-ground transition-colors"
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-rule
+                         hover:bg-etyme-canvas transition-colors"
             >
               Cancel
             </button>
@@ -188,13 +188,13 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
 
 function StatusPill({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    DRAFT: 'bg-etyme-ground text-etyme-muted',
-    OPEN: 'bg-etyme-blue/5 text-etyme-blue',
-    FILLED: 'bg-emerald-50 text-etyme-green',
+    DRAFT: 'bg-etyme-canvas text-etyme-muted',
+    OPEN: 'bg-etyme-action/5 text-etyme-action',
+    FILLED: 'bg-emerald-50 text-etyme-verified',
     CLOSED: 'bg-slate-100 text-etyme-muted',
   }
   return (
-    <span className={`pill text-[10px] ${styles[status] ?? 'bg-etyme-ground text-etyme-muted'}`}>
+    <span className={`pill text-[10px] ${styles[status] ?? 'bg-etyme-canvas text-etyme-muted'}`}>
       {status}
     </span>
   )
@@ -272,7 +272,7 @@ export default function RequirementsPage() {
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
               statusFilter === s.key
                 ? 'bg-etyme-ink text-white'
-                : 'text-etyme-muted hover:bg-etyme-ground border border-transparent hover:border-etyme-border'
+                : 'text-etyme-muted hover:bg-etyme-canvas border border-transparent hover:border-etyme-rule'
             }`}
           >
             {s.label}
@@ -292,7 +292,7 @@ export default function RequirementsPage() {
         <div className="overflow-scroll-x">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-etyme-border">
+              <tr className="border-b border-etyme-rule">
                 <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Title</th>
                 <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Skills</th>
                 <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Bill Range</th>
@@ -323,7 +323,7 @@ export default function RequirementsPage() {
                 requirements.map((r) => (
                   <tr
                     key={r.id}
-                    className="border-b border-etyme-border last:border-0 hover:bg-etyme-ground/50
+                    className="border-b border-etyme-rule last:border-0 hover:bg-etyme-canvas/50
                                cursor-pointer transition-colors"
                   >
                     <td className="px-6 py-3">
@@ -335,10 +335,10 @@ export default function RequirementsPage() {
                     <td className="px-6 py-3">
                       <div className="flex flex-wrap gap-1 max-w-[200px]">
                         {r.skills.slice(0, 3).map((skill) => (
-                          <span key={skill} className="pill bg-etyme-blue/5 text-etyme-blue text-[10px]">{skill}</span>
+                          <span key={skill} className="pill bg-etyme-action/5 text-etyme-action text-[10px]">{skill}</span>
                         ))}
                         {r.skills.length > 3 && (
-                          <span className="pill bg-etyme-ground text-etyme-muted text-[10px]">+{r.skills.length - 3}</span>
+                          <span className="pill bg-etyme-canvas text-etyme-muted text-[10px]">+{r.skills.length - 3}</span>
                         )}
                       </div>
                     </td>
@@ -386,8 +386,8 @@ export default function RequirementsPage() {
       )}
 
       {/* Placeholder notice */}
-      <div className="mt-6 card bg-etyme-blue/5 border-etyme-blue/20">
-        <p className="text-xs text-etyme-blue">
+      <div className="mt-6 card bg-etyme-action/5 border-etyme-action/20">
+        <p className="text-xs text-etyme-action">
           <strong>Week 3 scope.</strong> The requirements API with Claude-powered parsing and matching is under development.
           This page will connect to <code className="font-mono">POST /api/requirements</code> once the API is ready.
         </p>

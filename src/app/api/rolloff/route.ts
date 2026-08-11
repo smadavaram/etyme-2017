@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db'
  *
  * BUILD.md: window=30|60|90
  *
- * Returns assignments ending within the specified window,
+ * Returns sell contracts ending within the specified window,
  * sorted by urgency (soonest first).
  */
 export async function GET(request: NextRequest) {
@@ -43,15 +43,16 @@ export async function GET(request: NextRequest) {
   }
 
   if (companyId) {
-    where.assignment = { employerCompanyId: companyId }
+    where.sellContract = { companyId }
   }
 
   const rolloffs = await prisma.rolloffEvent.findMany({
     where,
     include: {
-      assignment: {
+      sellContract: {
         include: {
           person: { select: { id: true, name: true } },
+          clientCompany: { select: { id: true, name: true } },
           engagement: { select: { id: true, title: true } },
         },
       },
@@ -59,24 +60,25 @@ export async function GET(request: NextRequest) {
     orderBy: { endDate: 'asc' },
   })
 
-  // Also find assignments ending within the window that DON'T have rolloff events yet
-  const assignmentWhere: any = {
+  // Also find sell contracts ending within the window that DON'T have rolloff events yet
+  const contractWhere: any = {
     endDate: {
       gte: now,
       lte: windowEnd,
     },
-    state: { in: ['IN_PROGRESS', 'PENDING', 'ACCEPTED'] },
+    state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
     rolloff: null, // no rolloff event yet
   }
 
   if (companyId) {
-    assignmentWhere.employerCompanyId = companyId
+    contractWhere.companyId = companyId
   }
 
-  const untracked = await prisma.assignment.findMany({
-    where: assignmentWhere,
+  const untracked = await prisma.sellContract.findMany({
+    where: contractWhere,
     include: {
       person: { select: { id: true, name: true } },
+      clientCompany: { select: { id: true, name: true } },
       engagement: { select: { id: true, title: true } },
     },
     orderBy: { endDate: 'asc' },
@@ -87,27 +89,26 @@ export async function GET(request: NextRequest) {
       window,
       tracked: rolloffs.map((r) => ({
         id: r.id,
-        assignmentId: r.assignmentId,
+        sellContractId: r.sellContractId,
         endDate: r.endDate.toISOString(),
         daysLeft: Math.ceil((r.endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
-        person: r.assignment.person,
-        engagement: r.assignment.engagement,
-        contractType: r.assignment.contractType,
-        payRate: r.assignment.payRate,
-        billRate: r.assignment.billRate,
+        person: r.sellContract.person,
+        clientCompany: r.sellContract.clientCompany,
+        engagement: r.sellContract.engagement,
+        billRate: r.sellContract.billRate,
         checklist: r.checklist,
         claimedById: r.claimedById,
         outcome: r.outcome,
         notified: r.notified,
       })),
-      untracked: untracked.map((a) => ({
-        assignmentId: a.id,
-        endDate: a.endDate!.toISOString(),
-        daysLeft: Math.ceil((a.endDate!.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
-        person: a.person,
-        engagement: a.engagement,
-        contractType: a.contractType,
-        payRate: a.payRate,
+      untracked: untracked.map((c) => ({
+        sellContractId: c.id,
+        endDate: c.endDate!.toISOString(),
+        daysLeft: Math.ceil((c.endDate!.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
+        person: c.person,
+        clientCompany: c.clientCompany,
+        engagement: c.engagement,
+        billRate: c.billRate,
       })),
       summary: {
         total: rolloffs.length + untracked.length,

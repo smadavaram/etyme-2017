@@ -5,7 +5,7 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen">
       {/* ── Hero ──────────────────────────────────────────── */}
-      <section className="relative bg-etyme-ink overflow-hidden">
+      <section className="relative bg-etyme-navy overflow-hidden">
         {/* Subtle grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.03]"
@@ -52,7 +52,7 @@ export default function LandingPage() {
               <Link
                 href="/login"
                 className="inline-flex items-center px-6 py-3.5 text-sm font-semibold
-                           text-etyme-ink bg-white rounded-lg hover:bg-white/90
+                           text-etyme-navy bg-white rounded-lg hover:bg-white/90
                            transition-colors shadow-lg shadow-white/10"
               >
                 Get started
@@ -70,95 +70,83 @@ export default function LandingPage() {
       </section>
 
       {/* ── The Argument ─────────────────────────────────── */}
-      <section id="how-it-works" className="max-w-5xl mx-auto px-6 py-20 md:py-28">
-        <p className="eyebrow mb-3">The argument</p>
-        <h2 className="text-2xl md:text-3xl font-semibold tracking-[-0.02em] leading-snug mb-4 text-balance">
-          AI eats the front of the chain.
-          <br />
-          It cannot touch the back.
-        </h2>
-        <p className="text-base text-etyme-muted max-w-2xl mb-12 leading-relaxed">
-          A staffing company makes money today because it knows who is available
-          and the client does not. AI closes that gap. Everything after it —
-          employment, timesheets, invoices, compliance — remains irreducibly human
-          and legal.
-        </p>
+      <section id="how-it-works" className="bg-etyme-canvas">
+        <div className="max-w-5xl mx-auto px-6 py-20 md:py-28">
+          <div className="eyebrow mb-3">The argument</div>
+          <h2 className="font-serif text-2xl md:text-3xl tracking-[-0.02em] leading-snug mb-4 text-balance text-etyme-ink">
+            AI eats the front of the chain.
+            <br />
+            It cannot touch the back.
+          </h2>
+          <p className="text-body text-etyme-muted max-w-2xl mb-12 leading-relaxed">
+            A staffing company makes money today because it knows who is available
+            and the client does not. AI closes that gap. Everything after it —
+            employment, timesheets, invoices, compliance — remains irreducibly human
+            and legal.
+          </p>
 
-        {/* Pipeline */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          {[
-            { n: '01', t: 'Find', d: 'Search, hotlists, outreach' },
-            { n: '02', t: 'Screen', d: 'Resumes, write-ups, submissions' },
-            { n: '03', t: 'Interview', d: 'Scheduling, follow-ups' },
-            { n: '04', t: 'Select', d: 'Rate negotiation, offers' },
-          ].map((s) => (
-            <div
-              key={s.n}
-              className="rounded-xl p-4 border transition-all"
-              style={{
-                background: 'rgba(0, 212, 255, 0.04)',
-                borderColor: 'rgba(0, 212, 255, 0.15)',
-              }}
-            >
-              <div className="text-[10px] font-bold mb-1" style={{ color: '#00D4FF' }}>{s.n}</div>
-              <div className="text-sm font-semibold mb-0.5">{s.t}</div>
-              <div className="text-xs text-etyme-muted leading-snug">{s.d}</div>
-            </div>
-          ))}
-        </div>
+          {/* Pipeline */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {[
+              { n: '01', t: 'Find', d: 'Search, hotlists, outreach' },
+              { n: '02', t: 'Screen', d: 'Resumes, write-ups, submissions' },
+              { n: '03', t: 'Interview', d: 'Scheduling, follow-ups' },
+              { n: '04', t: 'Select', d: 'Rate negotiation, offers' },
+            ].map((s) => (
+              <div
+                key={s.n}
+                className="rounded-lg p-4 border border-etyme-rule bg-etyme-surface"
+              >
+                <div className="text-[10px] font-bold mb-1 text-etyme-faint">{s.n}</div>
+                <div className="text-sm font-semibold mb-0.5 text-etyme-ink">{s.t}</div>
+                <div className="text-xs text-etyme-muted leading-snug">{s.d}</div>
+              </div>
+            ))}
+          </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          {[
-            { n: '05', t: 'Employ', d: 'Contract, I-9, visa, insurance' },
-            { n: '06', t: 'Track', d: 'Timesheets, approvals, cycles' },
-            { n: '07', t: 'Pay', d: 'Invoices, payroll, C2C, float' },
-            { n: '08', t: 'Prove', d: 'Verified hours, extensions' },
-          ].map((s) => (
-            <div
-              key={s.n}
-              className="rounded-xl p-4 border transition-all"
-              style={{
-                background: 'rgba(124, 58, 237, 0.04)',
-                borderColor: 'rgba(124, 58, 237, 0.15)',
-              }}
-            >
-              <div className="text-[10px] font-bold text-etyme-purple mb-1">{s.n}</div>
-              <div className="text-sm font-semibold mb-0.5">{s.t}</div>
-              <div className="text-xs text-etyme-muted leading-snug">{s.d}</div>
-            </div>
-          ))}
-        </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            {[
+              { n: '05', t: 'Employ', d: 'Contract, I-9, visa, insurance' },
+              { n: '06', t: 'Track', d: 'Timesheets, approvals, cycles' },
+              { n: '07', t: 'Pay', d: 'Invoices, payroll, C2C, float' },
+              { n: '08', t: 'Prove', d: 'Verified hours, extensions' },
+            ].map((s) => (
+              <div
+                key={s.n}
+                className="rounded-lg p-4 border border-etyme-action/20 bg-etyme-action/5"
+              >
+                <div className="text-[10px] font-bold text-etyme-action mb-1">{s.n}</div>
+                <div className="text-sm font-semibold mb-0.5 text-etyme-ink">{s.t}</div>
+                <div className="text-xs text-etyme-muted leading-snug">{s.d}</div>
+              </div>
+            ))}
+          </div>
 
-        <div className="flex gap-6 text-xs text-etyme-muted">
-          <span className="flex items-center gap-2">
-            <span
-              className="w-3 h-3 rounded"
-              style={{ background: 'rgba(0, 212, 255, 0.08)', border: '1px solid rgba(0, 212, 255, 0.2)' }}
-            />
-            AI collapses this
-          </span>
-          <span className="flex items-center gap-2">
-            <span
-              className="w-3 h-3 rounded"
-              style={{ background: 'rgba(124, 58, 237, 0.08)', border: '1px solid rgba(124, 58, 237, 0.2)' }}
-            />
-            Someone still has to do this — Etyme makes it work
-          </span>
+          <div className="flex gap-6 text-xs text-etyme-muted">
+            <span className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded bg-etyme-surface border border-etyme-rule" />
+              AI collapses this
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded bg-etyme-action/5 border border-etyme-action/20" />
+              Etyme makes this work
+            </span>
+          </div>
         </div>
       </section>
 
       {/* ── Three Pillars ─────────────────────────────────── */}
-      <section className="bg-white border-y border-etyme-border">
+      <section className="bg-etyme-surface border-y border-etyme-rule">
         <div className="max-w-5xl mx-auto px-6 py-20 md:py-24">
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <span className="evidence-dot" />
-                <span className="text-xs font-semibold uppercase tracking-widest text-etyme-green">
+                <span className="text-xs font-semibold uppercase tracking-widest text-etyme-verified">
                   Evidence
                 </span>
               </div>
-              <h3 className="text-lg font-semibold mb-2">
+              <h3 className="text-lg font-semibold mb-2 text-etyme-ink">
                 Every action writes a record
               </h3>
               <p className="text-sm text-etyme-muted leading-relaxed">
@@ -171,15 +159,12 @@ export default function LandingPage() {
 
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span
-                  className="w-[6px] h-[6px] rounded-full flex-shrink-0"
-                  style={{ background: '#7C3AED' }}
-                />
-                <span className="text-xs font-semibold uppercase tracking-widest text-etyme-purple">
+                <span className="w-[6px] h-[6px] rounded-full flex-shrink-0 bg-etyme-action" />
+                <span className="text-xs font-semibold uppercase tracking-widest text-etyme-action">
                   Compliance
                 </span>
               </div>
-              <h3 className="text-lg font-semibold mb-2">
+              <h3 className="text-lg font-semibold mb-2 text-etyme-ink">
                 Block where required. Warn everywhere else.
               </h3>
               <p className="text-sm text-etyme-muted leading-relaxed">
@@ -191,15 +176,12 @@ export default function LandingPage() {
 
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <span
-                  className="w-[6px] h-[6px] rounded-full flex-shrink-0"
-                  style={{ background: '#00D4FF' }}
-                />
-                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: '#00D4FF' }}>
+                <span className="w-[6px] h-[6px] rounded-full flex-shrink-0 bg-etyme-attention" />
+                <span className="text-xs font-semibold uppercase tracking-widest text-etyme-attention">
                   Transparency
                 </span>
               </div>
-              <h3 className="text-lg font-semibold mb-2">
+              <h3 className="text-lg font-semibold mb-2 text-etyme-ink">
                 Trust by showing, not by hiding
               </h3>
               <p className="text-sm text-etyme-muted leading-relaxed">
@@ -213,7 +195,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA ───────────────────────────────────────────── */}
-      <section className="bg-etyme-ink">
+      <section className="bg-etyme-navy">
         <div className="max-w-5xl mx-auto px-6 py-16 md:py-20 text-center">
           <EtymeMark size={40} className="mx-auto mb-6 opacity-40" />
           <h2 className="text-2xl md:text-3xl font-semibold text-white mb-3 tracking-[-0.02em]">
@@ -226,7 +208,7 @@ export default function LandingPage() {
           <Link
             href="/login"
             className="inline-flex items-center px-8 py-3.5 text-sm font-semibold
-                       text-etyme-ink bg-white rounded-lg hover:bg-white/90
+                       text-etyme-navy bg-white rounded-lg hover:bg-white/90
                        transition-colors"
           >
             Get started free
@@ -235,7 +217,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Footer ─────────────────────────────────────────── */}
-      <footer className="bg-etyme-ink border-t border-white/5">
+      <footer className="bg-etyme-navy border-t border-white/5">
         <div className="max-w-5xl mx-auto px-6 py-8 flex items-center justify-between">
           <EtymeLogo size="sm" inverted />
           <p className="text-xs text-white/25">

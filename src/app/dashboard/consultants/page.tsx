@@ -102,8 +102,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 placeholder="Jane Smith"
               />
             </div>
@@ -114,8 +114,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
                 required
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 placeholder="jane@example.com"
               />
             </div>
@@ -127,8 +127,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
               type="text"
               value={form.headline}
               onChange={(e) => setForm({ ...form, headline: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="Senior SAP BRIM Consultant"
             />
           </div>
@@ -139,8 +139,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
               type="text"
               value={form.skills}
               onChange={(e) => setForm({ ...form, skills: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               placeholder="SAP BRIM, S/4HANA, ABAP, Revenue Accounting"
             />
           </div>
@@ -152,8 +152,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
                 type="text"
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
                 placeholder="Dallas, TX"
               />
             </div>
@@ -162,8 +162,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
               <select
                 value={form.workAuth}
                 onChange={(e) => setForm({ ...form, workAuth: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg bg-white
-                           focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
                 <option value="">Select...</option>
                 <option value="US_CITIZEN">US Citizen</option>
@@ -182,8 +182,8 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-border
-                         hover:bg-etyme-ground transition-colors"
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-rule
+                         hover:bg-etyme-canvas transition-colors"
             >
               Cancel
             </button>
@@ -211,7 +211,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
         className="w-full max-w-md bg-white h-full shadow-xl overflow-y-auto animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 border-b border-etyme-border flex items-center justify-between">
+        <div className="p-6 border-b border-etyme-rule flex items-center justify-between">
           <h2 className="text-lg font-semibold">{consultant.name}</h2>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -241,7 +241,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
             {consultant.skills.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {consultant.skills.map((skill) => (
-                  <span key={skill} className="pill bg-etyme-blue/5 text-etyme-blue">{skill}</span>
+                  <span key={skill} className="pill bg-etyme-action/5 text-etyme-action">{skill}</span>
                 ))}
               </div>
             ) : (
@@ -266,9 +266,9 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-1">Visibility</p>
               <span className={`pill text-[10px] ${
-                consultant.visibility === 'VERIFIED' ? 'bg-emerald-50 text-etyme-green' :
-                consultant.visibility === 'FEED' ? 'bg-etyme-blue/5 text-etyme-blue' :
-                'bg-etyme-ground text-etyme-muted'
+                consultant.visibility === 'VERIFIED' ? 'bg-emerald-50 text-etyme-verified' :
+                consultant.visibility === 'FEED' ? 'bg-etyme-action/5 text-etyme-action' :
+                'bg-etyme-canvas text-etyme-muted'
               }`}>
                 {consultant.visibility}
               </span>
@@ -371,7 +371,7 @@ export default function ConsultantsPage() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-border
+            className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-rule
                        hover:bg-white transition-colors text-etyme-muted cursor-not-allowed"
             title="CSV export coming soon"
             disabled
@@ -398,8 +398,8 @@ export default function ConsultantsPage() {
               placeholder="Search by name, email, or skill..."
               value={filters.q}
               onChange={(e) => setFilters({ ...filters, q: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
             />
           </div>
 
@@ -410,8 +410,8 @@ export default function ConsultantsPage() {
               placeholder="Skill filter"
               value={filters.skill}
               onChange={(e) => setFilters({ ...filters, skill: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-border rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
             />
           </div>
 
@@ -419,8 +419,8 @@ export default function ConsultantsPage() {
           <select
             value={filters.workAuth}
             onChange={(e) => setFilters({ ...filters, workAuth: e.target.value })}
-            className="px-3 py-2 text-sm border border-etyme-border rounded-lg bg-white
-                       focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+            className="px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                       focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
           >
             <option value="">All work auth</option>
             <option value="US_CITIZEN">US Citizen</option>
@@ -436,8 +436,8 @@ export default function ConsultantsPage() {
           <select
             value={filters.tier}
             onChange={(e) => setFilters({ ...filters, tier: e.target.value })}
-            className="px-3 py-2 text-sm border border-etyme-border rounded-lg bg-white
-                       focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue"
+            className="px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                       focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
           >
             <option value="">All tiers</option>
             <option value="RETAINED">Retained</option>
@@ -458,7 +458,7 @@ export default function ConsultantsPage() {
         <div className="overflow-scroll-x">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-etyme-border">
+              <tr className="border-b border-etyme-rule">
                 <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Name</th>
                 <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Skills</th>
                 <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Location</th>
@@ -491,7 +491,7 @@ export default function ConsultantsPage() {
                   <tr
                     key={c.id}
                     onClick={() => setSelected(c)}
-                    className="border-b border-etyme-border last:border-0 hover:bg-etyme-ground/50
+                    className="border-b border-etyme-rule last:border-0 hover:bg-etyme-canvas/50
                                cursor-pointer transition-colors"
                   >
                     <td className="px-6 py-3">
@@ -503,10 +503,10 @@ export default function ConsultantsPage() {
                     <td className="px-6 py-3">
                       <div className="flex flex-wrap gap-1 max-w-[200px]">
                         {c.skills.slice(0, 3).map((skill) => (
-                          <span key={skill} className="pill bg-etyme-blue/5 text-etyme-blue text-[10px]">{skill}</span>
+                          <span key={skill} className="pill bg-etyme-action/5 text-etyme-action text-[10px]">{skill}</span>
                         ))}
                         {c.skills.length > 3 && (
-                          <span className="pill bg-etyme-ground text-etyme-muted text-[10px]">+{c.skills.length - 3}</span>
+                          <span className="pill bg-etyme-canvas text-etyme-muted text-[10px]">+{c.skills.length - 3}</span>
                         )}
                       </div>
                     </td>
@@ -551,8 +551,8 @@ export default function ConsultantsPage() {
                       {c.tier ? (
                         <span className={`pill text-[10px] ${
                           c.tier === 'RETAINED'
-                            ? 'bg-emerald-50 text-etyme-green border border-emerald-200'
-                            : 'bg-amber-50 text-etyme-amber border border-amber-200'
+                            ? 'bg-emerald-50 text-etyme-verified border border-emerald-200'
+                            : 'bg-amber-50 text-etyme-attention border border-amber-200'
                         }`}>
                           {c.tier}
                         </span>

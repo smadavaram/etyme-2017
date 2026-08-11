@@ -163,28 +163,63 @@ export async function POST(
           })
         }
 
-        // If there's assignment data (payRate, startDate), create an Assignment
-        if (parsed.payRate && parsed.startDate) {
-          const assignment = await tx.assignment.create({
-            data: {
-              personId: person.id,
-              employerCompanyId: importRecord.companyId,
-              payRate: parsed.payRate,
-              billRate: parsed.billRate ?? null,
-              contractType: parsed.contractType ?? 'W2',
-              state: parsed.endDate && new Date(parsed.endDate) < now ? 'ENDED' : 'IN_PROGRESS',
-              startDate: new Date(parsed.startDate),
-              endDate: parsed.endDate ? new Date(parsed.endDate) : null,
-            },
-          })
+        // If there's contract data (payRate or billRate, startDate), create contracts
+        if ((parsed.payRate || parsed.billRate) && parsed.startDate) {
+          const contractStart = new Date(parsed.startDate)
+          const contractEnd = parsed.endDate ? new Date(parsed.endDate) : null
+          const isEnded = contractEnd && contractEnd < now
+
+          // Create sell contract if billRate is present
+          let sellContract = null
+          if (parsed.billRate) {
+            sellContract = await tx.sellContract.create({
+              data: {
+                companyId: importRecord.companyId,
+                clientCompanyId: importRecord.companyId, // placeholder — enriched later
+                personId: person.id,
+                billRate: parsed.billRate,
+                state: isEnded ? 'ENDED' : 'IN_PROGRESS',
+                startDate: contractStart,
+                endDate: contractEnd,
+              },
+            })
+          }
+
+          // Create buy contract if payRate is present
+          let buyContract = null
+          if (parsed.payRate) {
+            buyContract = await tx.buyContract.create({
+              data: {
+                companyId: importRecord.companyId,
+                personId: person.id,
+                payRate: parsed.payRate,
+                contractType: parsed.contractType ?? 'W2',
+                state: isEnded ? 'ENDED' : 'IN_PROGRESS',
+                startDate: contractStart,
+                endDate: contractEnd,
+              },
+            })
+          }
+
+          // Link them if both exist
+          if (sellContract && buyContract) {
+            await tx.contractLink.create({
+              data: {
+                sellContractId: sellContract.id,
+                buyContractId: buyContract.id,
+                effectiveFrom: contractStart,
+                effectiveTo: contractEnd,
+              },
+            })
+          }
 
           // BUILD.md: "any row with an endDate inside 8 weeks immediately creates a RolloffEvent"
-          if (parsed.endDate) {
+          if (sellContract && parsed.endDate) {
             const endDate = new Date(parsed.endDate)
             if (endDate > now && endDate <= eightWeeksOut) {
               await tx.rolloffEvent.create({
                 data: {
-                  assignmentId: assignment.id,
+                  sellContractId: sellContract.id,
                   endDate,
                   notified: {},
                   checklist: {

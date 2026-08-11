@@ -8,42 +8,46 @@ import { describe, it, expect } from 'vitest'
  * via another is twenty-four months of exposure. Per-assignment tenure
  * tracking is wrong and is the industry's blind spot."
  *
- * This is the Vizcaino v. Microsoft test — the $97M settlement that
- * proved co-employment risk is real.
+ * Uses the new contract architecture: SellContract (not Assignment).
+ * Tenure is calculated from sell contracts where this person is placed
+ * at a given client, across all vendor companies.
  */
 
-type Assignment = {
+type SellContract = {
   personId: string
-  clientId: string
-  vendorId: string
+  clientCompanyId: string
+  companyId: string        // the vendor
   startDate: Date
   endDate: Date | null
+  state: 'IN_PROGRESS' | 'ENDED' | 'PAUSED' | 'CANCELLED'
 }
 
 /** Calculate total tenure in days for a person at a client, across all vendors */
 function calculateTenure(
   personId: string,
   clientId: string,
-  assignments: Assignment[]
-): { totalDays: number; vendors: string[]; assignments: number } {
-  const relevant = assignments.filter(
-    (a) => a.personId === personId && a.clientId === clientId
+  contracts: SellContract[]
+): { totalDays: number; vendors: string[]; contracts: number } {
+  const relevant = contracts.filter(
+    (c) => c.personId === personId
+      && c.clientCompanyId === clientId
+      && (c.state === 'IN_PROGRESS' || c.state === 'ENDED' || c.state === 'PAUSED')
   )
 
   let totalDays = 0
   const vendors = new Set<string>()
 
-  for (const a of relevant) {
-    const end = a.endDate || new Date()
-    const days = Math.ceil((end.getTime() - a.startDate.getTime()) / (1000 * 60 * 60 * 24))
+  for (const c of relevant) {
+    const end = c.endDate || new Date()
+    const days = Math.ceil((end.getTime() - c.startDate.getTime()) / (1000 * 60 * 60 * 24))
     totalDays += Math.max(0, days)
-    vendors.add(a.vendorId)
+    vendors.add(c.companyId)
   }
 
   return {
     totalDays,
     vendors: Array.from(vendors),
-    assignments: relevant.length,
+    contracts: relevant.length,
   }
 }
 
@@ -82,50 +86,79 @@ function isInBreakPeriod(
 describe('Tenure Invariants (Addendum E, CLAUDE.md)', () => {
   describe('Cross-vendor tenure aggregation', () => {
     it('tenure accrues across vendors — 12 months via A plus 12 via B equals 24 months', () => {
-      const assignments: Assignment[] = [
+      const contracts: SellContract[] = [
         {
           personId: 'person-1',
-          clientId: 'client-1',
-          vendorId: 'vendor-a',
+          clientCompanyId: 'client-1',
+          companyId: 'vendor-a',
           startDate: new Date('2023-01-01'),
           endDate: new Date('2024-01-01'),
+          state: 'ENDED',
         },
         {
           personId: 'person-1',
-          clientId: 'client-1',
-          vendorId: 'vendor-b',
+          clientCompanyId: 'client-1',
+          companyId: 'vendor-b',
           startDate: new Date('2024-01-15'),
           endDate: new Date('2025-01-15'),
+          state: 'ENDED',
         },
       ]
 
-      const tenure = calculateTenure('person-1', 'client-1', assignments)
+      const tenure = calculateTenure('person-1', 'client-1', contracts)
       expect(tenure.totalDays).toBeGreaterThanOrEqual(730) // ~24 months
       expect(tenure.vendors).toContain('vendor-a')
       expect(tenure.vendors).toContain('vendor-b')
-      expect(tenure.assignments).toBe(2)
+      expect(tenure.contracts).toBe(2)
     })
 
-    it('assignments at different clients do not aggregate', () => {
-      const assignments: Assignment[] = [
+    it('contracts at different clients do not aggregate', () => {
+      const contracts: SellContract[] = [
         {
           personId: 'person-1',
-          clientId: 'client-1',
-          vendorId: 'vendor-a',
+          clientCompanyId: 'client-1',
+          companyId: 'vendor-a',
           startDate: new Date('2023-01-01'),
           endDate: new Date('2024-01-01'),
+          state: 'ENDED',
         },
         {
           personId: 'person-1',
-          clientId: 'client-2',
-          vendorId: 'vendor-a',
+          clientCompanyId: 'client-2',
+          companyId: 'vendor-a',
           startDate: new Date('2024-01-15'),
           endDate: new Date('2025-01-15'),
+          state: 'ENDED',
         },
       ]
 
-      const tenureClient1 = calculateTenure('person-1', 'client-1', assignments)
+      const tenureClient1 = calculateTenure('person-1', 'client-1', contracts)
       expect(tenureClient1.totalDays).toBeLessThan(370) // ~12 months only
+    })
+
+    it('cancelled contracts do not count toward tenure', () => {
+      const contracts: SellContract[] = [
+        {
+          personId: 'person-1',
+          clientCompanyId: 'client-1',
+          companyId: 'vendor-a',
+          startDate: new Date('2023-01-01'),
+          endDate: new Date('2024-01-01'),
+          state: 'ENDED',
+        },
+        {
+          personId: 'person-1',
+          clientCompanyId: 'client-1',
+          companyId: 'vendor-b',
+          startDate: new Date('2024-01-15'),
+          endDate: new Date('2024-03-01'),
+          state: 'CANCELLED',
+        },
+      ]
+
+      const tenure = calculateTenure('person-1', 'client-1', contracts)
+      expect(tenure.vendors).not.toContain('vendor-b')
+      expect(tenure.contracts).toBe(1)
     })
   })
 

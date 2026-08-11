@@ -9,6 +9,7 @@ import { prisma } from '@/lib/db'
  * BUILD.md: "writes the ledger, increments payable"
  *
  * Approver approves a submitted timesheet.
+ * Timesheets are on the sell side — billRate comes from the SellContract.
  */
 export async function POST(
   request: NextRequest,
@@ -33,8 +34,8 @@ export async function POST(
   const timesheet = await prisma.timesheet.findUnique({
     where: { id },
     include: {
-      assignment: {
-        select: { id: true, payRate: true, billRate: true, employerCompanyId: true },
+      sellContract: {
+        select: { id: true, billRate: true, billCurrency: true, companyId: true },
       },
     },
   })
@@ -54,8 +55,7 @@ export async function POST(
   }
 
   const hours = Number(timesheet.totalHours)
-  const payAmount = hours * timesheet.assignment.payRate
-  const billAmount = timesheet.assignment.billRate ? hours * timesheet.assignment.billRate : null
+  const billAmount = hours * timesheet.sellContract.billRate / 100 // billRate is in cents
 
   await prisma.$transaction([
     prisma.timesheet.update({
@@ -68,16 +68,14 @@ export async function POST(
     }),
     prisma.automationLog.create({
       data: {
-        companyId: timesheet.assignment.employerCompanyId,
+        companyId: timesheet.sellContract.companyId,
         action: 'TIMESHEET_APPROVED',
-        summary: `Timesheet approved: ${hours}h × $${timesheet.assignment.payRate}/hr = $${payAmount.toFixed(2)} payable`,
+        summary: `Timesheet approved: ${hours}h × $${(timesheet.sellContract.billRate / 100).toFixed(2)}/hr = $${billAmount.toFixed(2)} billable`,
         reason: `Approved by ${person?.name ?? session.user.email}`,
         payload: {
           timesheetId: id,
           hours,
-          payRate: timesheet.assignment.payRate,
-          payAmount,
-          billRate: timesheet.assignment.billRate,
+          billRate: timesheet.sellContract.billRate,
           billAmount,
         },
         reversible: true,
@@ -90,10 +88,9 @@ export async function POST(
       id,
       status: 'APPROVED',
       totalHours: hours,
-      payAmount,
       billAmount,
       approvedBy: person?.name ?? session.user.email,
-      message: `Approved ${hours}h — $${payAmount.toFixed(2)} payable${billAmount ? `, $${billAmount.toFixed(2)} billable` : ''}`,
+      message: `Approved ${hours}h — $${billAmount.toFixed(2)} billable`,
     },
   })
 }

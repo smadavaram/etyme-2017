@@ -128,23 +128,22 @@ export async function GET(
     (l) => isSubject || l.companyId === companyId
   )
 
-  // Active assignments for this consultant (if caller has assignments.read)
-  let assignments: any[] = []
+  // Active sell contracts for this consultant (if caller has assignments.read)
+  let contracts: any[] = []
   if (hasPermission(caller.permissions, 'assignments.read')) {
-    const rawAssignments = await prisma.assignment.findMany({
+    const rawContracts = await prisma.sellContract.findMany({
       where: {
         personId: profile.personId,
-        state: { in: ['IN_PROGRESS', 'PENDING', 'ACCEPTED'] },
+        state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
       },
       select: {
         id: true,
-        payRate: true,
         billRate: true,
-        contractType: true,
+        billCurrency: true,
         state: true,
         startDate: true,
         endDate: true,
-        payCurrency: true,
+        clientCompany: { select: { id: true, name: true } },
       },
       orderBy: { startDate: 'desc' },
     })
@@ -154,15 +153,14 @@ export async function GET(
       isSubject,
     }
 
-    assignments = rawAssignments.map((a) => ({
-      id: a.id,
-      payRate: showPayRate ? a.payRate : undefined,
-      billRate: canReadBillRate(billCtx) ? a.billRate : undefined,
-      contractType: a.contractType,
-      state: a.state,
-      startDate: a.startDate.toISOString(),
-      endDate: a.endDate?.toISOString() ?? null,
-      payCurrency: a.payCurrency,
+    contracts = rawContracts.map((c) => ({
+      id: c.id,
+      billRate: canReadBillRate(billCtx) ? c.billRate : undefined,
+      billCurrency: c.billCurrency,
+      state: c.state,
+      startDate: c.startDate.toISOString(),
+      endDate: c.endDate?.toISOString() ?? null,
+      clientCompany: c.clientCompany,
     }))
   }
 
@@ -202,7 +200,7 @@ export async function GET(
           unknowns: m.unknowns,
           computedAt: m.computedAt.toISOString(),
         })),
-        assignments,
+        contracts,
       },
     },
   })

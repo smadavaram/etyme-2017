@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-etyme-ink flex">
+    <div className="min-h-screen bg-etyme-navy flex">
       {/* Left — Branding */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12">
         <Link href="/">
@@ -50,7 +50,7 @@ export default function LoginPage() {
           <div className="space-y-3 mb-6">
             <button
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg
-                         border border-etyme-border hover:border-etyme-blue/30
+                         border border-etyme-rule hover:border-etyme-action/30
                          hover:bg-blue-50/50 transition-all text-sm font-medium"
             >
               <svg width="20" height="20" viewBox="0 0 21 21" fill="none">
@@ -64,7 +64,7 @@ export default function LoginPage() {
 
             <button
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg
-                         border border-etyme-border hover:border-etyme-blue/30
+                         border border-etyme-rule hover:border-etyme-action/30
                          hover:bg-blue-50/50 transition-all text-sm font-medium"
             >
               <svg width="20" height="20" viewBox="0 0 24 24">
@@ -91,9 +91,9 @@ export default function LoginPage() {
 
           {/* Divider */}
           <div className="flex items-center gap-3 mb-6">
-            <div className="flex-1 h-px bg-etyme-border" />
+            <div className="flex-1 h-px bg-etyme-rule" />
             <span className="text-xs text-etyme-muted">or</span>
-            <div className="flex-1 h-px bg-etyme-border" />
+            <div className="flex-1 h-px bg-etyme-rule" />
           </div>
 
           {/* Email sign in */}
@@ -106,16 +106,16 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 placeholder="you@company.com"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-etyme-border
+                className="w-full px-3.5 py-2.5 rounded-lg border border-etyme-rule
                            text-sm placeholder:text-etyme-muted/50
-                           focus:outline-none focus:ring-2 focus:ring-etyme-blue/20
-                           focus:border-etyme-blue transition-all"
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20
+                           focus:border-etyme-action transition-all"
               />
             </div>
             <button
               type="submit"
-              className="w-full px-4 py-2.5 rounded-lg bg-etyme-ink text-white
-                         text-sm font-medium hover:bg-etyme-navy transition-colors"
+              className="w-full px-4 py-2.5 rounded-lg bg-etyme-navy text-white
+                         text-sm font-medium hover:bg-etyme-ink transition-colors"
             >
               Send magic link
             </button>

@@ -6,11 +6,11 @@ import { useEffect, useState, useCallback } from 'react'
 
 interface RolloffEvent {
   id: string
-  assignmentId: string
+  sellContractId: string
   personName: string
   personEmail: string
   clientName: string | null
-  payRate: number
+  billRate: number
   endDate: string
   daysUntilEnd: number
   outcome: string | null
@@ -43,8 +43,8 @@ function ChecklistItem({
     >
       <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
         checked
-          ? 'bg-etyme-green border-etyme-green'
-          : 'border-etyme-border hover:border-etyme-muted'
+          ? 'bg-etyme-verified border-etyme-verified'
+          : 'border-etyme-rule hover:border-etyme-muted'
       }`}>
         {checked && (
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -69,12 +69,12 @@ function UrgencyBadge({ daysUntilEnd }: { daysUntilEnd: number }) {
     return <span className="pill text-[10px] bg-red-50 text-red-600 border border-red-200">Critical — {daysUntilEnd}d</span>
   }
   if (daysUntilEnd <= 14) {
-    return <span className="pill text-[10px] bg-amber-50 text-etyme-amber border border-amber-200">Urgent — {daysUntilEnd}d</span>
+    return <span className="pill text-[10px] bg-amber-50 text-etyme-attention border border-amber-200">Urgent — {daysUntilEnd}d</span>
   }
   if (daysUntilEnd <= 28) {
-    return <span className="pill text-[10px] bg-amber-50 text-etyme-amber border border-amber-200">{daysUntilEnd}d remaining</span>
+    return <span className="pill text-[10px] bg-amber-50 text-etyme-attention border border-amber-200">{daysUntilEnd}d remaining</span>
   }
-  return <span className="pill text-[10px] bg-etyme-ground text-etyme-muted">{daysUntilEnd}d remaining</span>
+  return <span className="pill text-[10px] bg-etyme-canvas text-etyme-muted">{daysUntilEnd}d remaining</span>
 }
 
 // ── Page ───────────────────────────────────────────────────
@@ -129,7 +129,7 @@ export default function RolloffPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-[-0.02em]">Rolloff console</h1>
           <p className="text-sm text-etyme-muted mt-1">
-            Upcoming assignment endings. Triage, complete checklists, redeploy or bench.
+            Upcoming contract endings. Triage, complete checklists, redeploy or bench.
           </p>
         </div>
       </div>
@@ -144,7 +144,7 @@ export default function RolloffPage() {
             className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
               window === d
                 ? 'bg-etyme-ink text-white'
-                : 'text-etyme-muted hover:bg-etyme-ground border border-transparent hover:border-etyme-border'
+                : 'text-etyme-muted hover:bg-etyme-canvas border border-transparent hover:border-etyme-rule'
             }`}
           >
             {d} days
@@ -198,8 +198,8 @@ export default function RolloffPage() {
         <div className="card text-center py-12">
           <p className="text-sm text-etyme-muted">No rolloff events in the next {window} days.</p>
           <p className="text-xs text-etyme-muted/60 mt-1">
-            Rolloff events are created automatically when an assignment has an end date within 8 weeks,
-            either from import or when an assignment end date is set.
+            Rolloff events are created automatically when a sell contract has an end date within 8 weeks,
+            either from import or when a contract end date is set.
           </p>
         </div>
       )}
@@ -218,9 +218,9 @@ export default function RolloffPage() {
                       <UrgencyBadge daysUntilEnd={event.daysUntilEnd} />
                       {event.outcome && (
                         <span className={`pill text-[10px] ${
-                          event.outcome === 'REDEPLOYED' ? 'bg-emerald-50 text-etyme-green' :
-                          event.outcome === 'BENCH' ? 'bg-amber-50 text-etyme-amber' :
-                          'bg-etyme-ground text-etyme-muted'
+                          event.outcome === 'REDEPLOYED' ? 'bg-emerald-50 text-etyme-verified' :
+                          event.outcome === 'BENCH' ? 'bg-amber-50 text-etyme-attention' :
+                          'bg-etyme-canvas text-etyme-muted'
                         }`}>
                           {event.outcome}
                         </span>
@@ -229,7 +229,7 @@ export default function RolloffPage() {
                     <p className="text-xs text-etyme-muted">
                       {event.personEmail}
                       {event.clientName && ` · ${event.clientName}`}
-                      {` · $${event.payRate}/hr`}
+                      {` · $${(event.billRate / 100).toFixed(2)}/hr`}
                     </p>
                   </div>
                   <div className="text-right">
@@ -241,25 +241,25 @@ export default function RolloffPage() {
                 </div>
 
                 {/* Checklist */}
-                <div className="border-t border-etyme-border pt-3">
+                <div className="border-t border-etyme-rule pt-3">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
                       Offboarding checklist
                     </p>
                     <span className={`pill text-[10px] ${
                       progress === 4
-                        ? 'bg-emerald-50 text-etyme-green'
-                        : 'bg-etyme-ground text-etyme-muted'
+                        ? 'bg-emerald-50 text-etyme-verified'
+                        : 'bg-etyme-canvas text-etyme-muted'
                     }`}>
                       {progress}/4 complete
                     </span>
                   </div>
 
                   {/* Progress bar */}
-                  <div className="w-full h-1.5 bg-etyme-ground rounded-full mb-3">
+                  <div className="w-full h-1.5 bg-etyme-canvas rounded-full mb-3">
                     <div
                       className={`h-1.5 rounded-full transition-all ${
-                        progress === 4 ? 'bg-etyme-green' : 'bg-etyme-blue'
+                        progress === 4 ? 'bg-etyme-verified' : 'bg-etyme-action'
                       }`}
                       style={{ width: `${(progress / 4) * 100}%` }}
                     />

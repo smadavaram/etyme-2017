@@ -150,7 +150,7 @@ function UploadStep({ onUploaded }: { onUploaded: (imp: ImportRecord) => void })
               className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
                 kind === k
                   ? 'bg-etyme-ink text-white border-etyme-ink'
-                  : 'border-etyme-border text-etyme-muted hover:bg-etyme-ground'
+                  : 'border-etyme-rule text-etyme-muted hover:bg-etyme-canvas'
               }`}
             >
               {k.charAt(0) + k.slice(1).toLowerCase()}
@@ -167,13 +167,13 @@ function UploadStep({ onUploaded }: { onUploaded: (imp: ImportRecord) => void })
         onClick={() => fileInputRef.current?.click()}
         className={`card text-center py-16 cursor-pointer transition-all ${
           dragging
-            ? 'border-etyme-blue bg-etyme-blue/5 border-dashed border-2'
-            : 'border-dashed border-2 border-etyme-border hover:border-etyme-muted'
+            ? 'border-etyme-action bg-etyme-action/5 border-dashed border-2'
+            : 'border-dashed border-2 border-etyme-rule hover:border-etyme-muted'
         }`}
       >
         {uploading ? (
           <>
-            <div className="mx-auto mb-3 w-8 h-8 border-2 border-etyme-blue border-t-transparent rounded-full animate-spin" />
+            <div className="mx-auto mb-3 w-8 h-8 border-2 border-etyme-action border-t-transparent rounded-full animate-spin" />
             <p className="text-sm font-medium">Parsing your file...</p>
             <p className="text-xs text-etyme-muted mt-1">AI is mapping columns to Etyme fields</p>
           </>
@@ -211,19 +211,19 @@ function UploadStep({ onUploaded }: { onUploaded: (imp: ImportRecord) => void })
         <h3 className="text-sm font-semibold mb-2">How the import works</h3>
         <ol className="space-y-2 text-xs text-etyme-muted">
           <li className="flex items-start gap-2">
-            <span className="pill bg-etyme-blue/10 text-etyme-blue text-[10px] mt-0.5">1</span>
+            <span className="pill bg-etyme-action/10 text-etyme-action text-[10px] mt-0.5">1</span>
             <span><strong>Upload</strong> your CSV. The system reads every column header and proposes a mapping to Etyme fields.</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="pill bg-etyme-blue/10 text-etyme-blue text-[10px] mt-0.5">2</span>
+            <span className="pill bg-etyme-action/10 text-etyme-action text-[10px] mt-0.5">2</span>
             <span><strong>Review the mapping.</strong> Fix any column that was not mapped or was mapped incorrectly. Low-confidence mappings are flagged.</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="pill bg-etyme-blue/10 text-etyme-blue text-[10px] mt-0.5">3</span>
+            <span className="pill bg-etyme-action/10 text-etyme-action text-[10px] mt-0.5">3</span>
             <span><strong>Review the data.</strong> Scan rows for issues — missing emails, bad dates, unknown work authorization. Fix inline.</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="pill bg-etyme-blue/10 text-etyme-blue text-[10px] mt-0.5">4</span>
+            <span className="pill bg-etyme-action/10 text-etyme-action text-[10px] mt-0.5">4</span>
             <span><strong>Commit.</strong> Creates real records. Rows with issues import at INTERNAL visibility — they will not appear on the bench until enriched.</span>
           </li>
         </ol>
@@ -292,11 +292,11 @@ function MappingStep({
     <div className="space-y-6">
       {/* Summary */}
       <div className="flex items-center gap-4 flex-wrap">
-        <span className="pill bg-etyme-blue/5 text-etyme-blue">
+        <span className="pill bg-etyme-action/5 text-etyme-action">
           {mappings.length} columns detected
         </span>
         {flaggedCount > 0 && (
-          <span className="pill bg-amber-50 text-etyme-amber border border-amber-200">
+          <span className="pill bg-amber-50 text-etyme-attention border border-amber-200">
             {flaggedCount} flagged for review
           </span>
         )}
@@ -323,7 +323,7 @@ function MappingStep({
         <div className="overflow-scroll-x">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-etyme-border">
+              <tr className="border-b border-etyme-rule">
                 <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted w-8" />
                 <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
                   CSV Column
@@ -341,7 +341,7 @@ function MappingStep({
               {mappings.map((m, i) => (
                 <tr
                   key={m.sourceColumn}
-                  className={`border-b border-etyme-border last:border-0 ${
+                  className={`border-b border-etyme-rule last:border-0 ${
                     m.flagged ? 'bg-amber-50/50' : ''
                   }`}
                 >
@@ -359,8 +359,8 @@ function MappingStep({
                       value={m.targetField ?? ''}
                       onChange={(e) => updateMapping(i, e.target.value)}
                       className={`px-2 py-1 text-sm border rounded-lg bg-white
-                                  focus:outline-none focus:ring-2 focus:ring-etyme-blue/20 focus:border-etyme-blue
-                                  ${m.flagged ? 'border-amber-300' : 'border-etyme-border'}`}
+                                  focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                                  ${m.flagged ? 'border-amber-300' : 'border-etyme-rule'}`}
                     >
                       {TARGET_FIELDS.map((f) => (
                         <option key={f.value} value={f.value}>{f.label}</option>
@@ -369,8 +369,8 @@ function MappingStep({
                   </td>
                   <td className="px-6 py-3 text-right tabular-nums">
                     <span className={`text-xs font-medium ${
-                      m.confidence >= 0.9 ? 'text-etyme-green' :
-                      m.confidence >= 0.5 ? 'text-etyme-amber' :
+                      m.confidence >= 0.9 ? 'text-etyme-verified' :
+                      m.confidence >= 0.5 ? 'text-etyme-attention' :
                       'text-red-500'
                     }`}>
                       {Math.round(m.confidence * 100)}%
@@ -480,15 +480,15 @@ function ReviewStep({
       {/* Summary bar */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <span className="pill bg-etyme-blue/5 text-etyme-blue">
+          <span className="pill bg-etyme-action/5 text-etyme-action">
             {importRecord.rowCount} rows
           </span>
           {importRecord.issueCount > 0 ? (
-            <span className="pill bg-amber-50 text-etyme-amber border border-amber-200">
+            <span className="pill bg-amber-50 text-etyme-attention border border-amber-200">
               {importRecord.issueCount} with issues
             </span>
           ) : (
-            <span className="pill bg-emerald-50 text-etyme-green border border-emerald-200">
+            <span className="pill bg-emerald-50 text-etyme-verified border border-emerald-200">
               All clean
             </span>
           )}
@@ -503,7 +503,7 @@ function ReviewStep({
               className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                 filter === f
                   ? 'bg-etyme-ink text-white'
-                  : 'text-etyme-muted hover:bg-etyme-ground'
+                  : 'text-etyme-muted hover:bg-etyme-canvas'
               }`}
             >
               {f === 'all' ? 'All rows' : f === 'issues' ? 'With issues' : 'Clean'}
@@ -517,7 +517,7 @@ function ReviewStep({
         <div className="overflow-scroll-x">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-etyme-border">
+              <tr className="border-b border-etyme-rule">
                 <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted w-8">
                   #
                 </th>
@@ -550,7 +550,7 @@ function ReviewStep({
                   return (
                     <tr
                       key={row.id}
-                      className={`border-b border-etyme-border last:border-0 ${
+                      className={`border-b border-etyme-rule last:border-0 ${
                         hasIssues ? 'bg-amber-50/30' : ''
                       }`}
                     >
@@ -577,7 +577,7 @@ function ReviewStep({
                             ))}
                           </div>
                         ) : (
-                          <span className="flex items-center gap-1.5 text-etyme-green">
+                          <span className="flex items-center gap-1.5 text-etyme-verified">
                             <span className="evidence-dot" />
                             Clean
                           </span>
@@ -602,16 +602,16 @@ function ReviewStep({
             <button
               onClick={() => fetchRows(pagination.page - 1)}
               disabled={pagination.page <= 1}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-etyme-border
-                         hover:bg-etyme-ground transition-colors disabled:opacity-30"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-etyme-rule
+                         hover:bg-etyme-canvas transition-colors disabled:opacity-30"
             >
               Previous
             </button>
             <button
               onClick={() => fetchRows(pagination.page + 1)}
               disabled={pagination.page >= pagination.totalPages}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-etyme-border
-                         hover:bg-etyme-ground transition-colors disabled:opacity-30"
+              className="px-3 py-1.5 text-xs font-medium rounded-lg border border-etyme-rule
+                         hover:bg-etyme-canvas transition-colors disabled:opacity-30"
             >
               Next
             </button>
@@ -627,7 +627,7 @@ function ReviewStep({
       )}
 
       {/* Commit */}
-      <div className="flex items-center justify-between pt-2 border-t border-etyme-border">
+      <div className="flex items-center justify-between pt-2 border-t border-etyme-rule">
         <p className="text-xs text-etyme-muted max-w-md">
           Committing creates People, ConsultantProfiles, and Assignments.
           Rows with issues import at INTERNAL visibility. Assignments ending within 8 weeks create rolloff events.
@@ -661,7 +661,7 @@ function CommittedStep({ result, onReset }: { result: CommitResult; onReset: () 
 
       <div className="flex justify-center gap-4 mb-8">
         <div className="text-center">
-          <p className="text-2xl font-semibold tabular-nums text-etyme-green">{result.created}</p>
+          <p className="text-2xl font-semibold tabular-nums text-etyme-verified">{result.created}</p>
           <p className="text-xs text-etyme-muted mt-0.5">Created</p>
         </div>
         {result.skipped > 0 && (
@@ -672,7 +672,7 @@ function CommittedStep({ result, onReset }: { result: CommitResult; onReset: () 
         )}
         {result.rolloffCount > 0 && (
           <div className="text-center">
-            <p className="text-2xl font-semibold tabular-nums text-etyme-amber">{result.rolloffCount}</p>
+            <p className="text-2xl font-semibold tabular-nums text-etyme-attention">{result.rolloffCount}</p>
             <p className="text-xs text-etyme-muted mt-0.5">Rolloff events</p>
           </div>
         )}
@@ -681,8 +681,8 @@ function CommittedStep({ result, onReset }: { result: CommitResult; onReset: () 
       <div className="flex justify-center gap-3">
         <button
           onClick={onReset}
-          className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-border
-                     hover:bg-etyme-ground transition-colors"
+          className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-rule
+                     hover:bg-etyme-canvas transition-colors"
         >
           Import another file
         </button>
@@ -751,15 +751,15 @@ export default function ImportPage() {
           {steps.map((s, i) => (
             <div key={s.key} className="flex items-center gap-2">
               {i > 0 && (
-                <div className={`w-8 h-px ${i <= stepIndex ? 'bg-etyme-blue' : 'bg-etyme-border'}`} />
+                <div className={`w-8 h-px ${i <= stepIndex ? 'bg-etyme-action' : 'bg-etyme-rule'}`} />
               )}
               <div className="flex items-center gap-2">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
                   i < stepIndex
-                    ? 'bg-etyme-green text-white'
+                    ? 'bg-etyme-verified text-white'
                     : i === stepIndex
-                    ? 'bg-etyme-blue text-white'
-                    : 'bg-etyme-ground text-etyme-muted border border-etyme-border'
+                    ? 'bg-etyme-action text-white'
+                    : 'bg-etyme-canvas text-etyme-muted border border-etyme-rule'
                 }`}>
                   {i < stepIndex ? (
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none">

@@ -40,8 +40,8 @@ export async function POST(
   const rolloff = await prisma.rolloffEvent.findUnique({
     where: { id },
     include: {
-      assignment: {
-        select: { id: true, employerCompanyId: true },
+      sellContract: {
+        select: { id: true, companyId: true },
       },
     },
   })
@@ -67,9 +67,9 @@ export async function POST(
     }),
     prisma.automationLog.create({
       data: {
-        companyId: rolloff.assignment.employerCompanyId,
+        companyId: rolloff.sellContract.companyId,
         action: 'ROLLOFF_CLAIMED',
-        summary: `${person.name} claimed rolloff for assignment ${rolloff.assignmentId}`,
+        summary: `${person.name} claimed rolloff for sell contract ${rolloff.sellContractId}`,
         reason: `Manual claim via rolloff console`,
         payload: { rolloffId: id, claimedBy: person.id },
         reversible: true,

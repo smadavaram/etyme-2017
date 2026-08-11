@@ -4,18 +4,18 @@
 
 @layer base {
   :root {
-    --color-ink: 13 20 38;        /* #0D1426 */
-    --color-surface: 255 255 255;
-    --color-ground: 248 250 252;  /* #F8FAFC */
-    --color-border: 226 232 240;  /* #E2E8F0 */
-    --color-muted: 100 116 139;   /* #64748B */
-    --color-cyan: 0 212 255;      /* #00D4FF */
-    --color-purple: 124 58 237;   /* #7C3AED */
-    --color-blue: 37 99 235;      /* #2563EB */
-    --color-amber: 245 158 11;    /* #F59E0B */
-    --color-green: 5 150 105;     /* #059669 */
-
-    --gradient-brand: linear-gradient(90deg, #00D4FF, #7C3AED);
+    /* Prototype palette — warm, not slate. From Etyme_Demo_AllViews.jsx */
+    --color-canvas:  #F0EEE6;
+    --color-surface: #FBFAF7;
+    --color-raised:  #FFFFFF;
+    --color-ink:     #1F1E1D;
+    --color-muted:   #6B6862;
+    --color-faint:   #9C9891;
+    --color-rule:    #E3DFD5;
+    --color-action:  #2B47E5;
+    --color-attention: #C0622E;
+    --color-verified:  #4F6F52;
+    --color-danger:    #B83A3A;
   }
 
   html {
@@ -25,9 +25,14 @@
   }
 
   body {
-    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
-    color: rgb(var(--color-ink));
-    background: rgb(var(--color-ground));
+    font-family: var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
+    color: var(--color-ink);
+    background: var(--color-canvas);
+  }
+
+  /* Serif — headlines, hero numbers, decision surfaces */
+  .font-serif {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
   }
 
   /* Tabular figures wherever digits align */
@@ -37,7 +42,7 @@
 
   /* Focus ring — visible, consistent */
   :focus-visible {
-    outline: 2px solid rgb(var(--color-blue));
+    outline: 2px solid var(--color-action);
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -55,60 +60,98 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: rgb(var(--color-green));
+    background: var(--color-verified);
     display: inline-block;
     flex-shrink: 0;
   }
 
   .evidence-dot--pending {
-    background: rgb(var(--color-amber));
+    background: var(--color-attention);
   }
 
   .evidence-dot--blocked {
-    background: #DC2626;
+    background: var(--color-danger);
   }
 
-  /* Card — the container for everything */
-  .card {
-    background: rgb(var(--color-surface));
-    border: 1px solid rgb(var(--color-border));
-    border-radius: 12px;
+  /* Panel — surface background, 1px rule border, from CLAUDE.md design system */
+  .panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-radius: 8px;
     padding: 24px;
   }
 
-  /* Pill badge */
-  .pill {
+  /* Card — raised variant */
+  .card {
+    background: var(--color-raised);
+    border: 1px solid var(--color-rule);
+    border-radius: 8px;
+    padding: 24px;
+  }
+
+  /* Chip — small rounded label with tone-coded background */
+  .chip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
-    padding: 3px 10px;
-    border-radius: 100px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
     white-space: nowrap;
-    letter-spacing: 0.02em;
   }
 
-  /* Eyebrow label */
+  .chip--action    { background: #EDEFFC; color: var(--color-action);    border: 1px solid #C7CDF5; }
+  .chip--attention { background: #F7EDE6; color: var(--color-attention); border: 1px solid #E5C9B5; }
+  .chip--verified  { background: #EDF1ED; color: var(--color-verified);  border: 1px solid #C9D6CA; }
+  .chip--danger    { background: #FDE8E8; color: var(--color-danger);    border: 1px solid #F0C0C0; }
+  .chip--passive   { background: #F0EEE6; color: var(--color-muted);     border: 1px solid var(--color-rule); }
+
+  /* Eyebrow label — 10px uppercase letter-spaced */
   .eyebrow {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: rgb(var(--color-blue));
+    color: var(--color-faint);
   }
 
-  /* Brand gradient text — for accents and headings */
-  .gradient-text {
-    background: var(--gradient-brand);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+  /* Lbl — same concept, sometimes action-colored */
+  .lbl {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* Stat — label + serif number + optional subtitle */
+  .stat-value {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    font-size: 30px;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-faint);
   }
 }
 
 @layer utilities {
   .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Serif headline treatment */
+  .headline-serif {
+    font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    letter-spacing: -0.02em;
     text-wrap: balance;
   }
 }

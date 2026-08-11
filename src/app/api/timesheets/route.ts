@@ -6,7 +6,8 @@ import { prisma } from '@/lib/db'
 /**
  * GET /api/timesheets
  *
- * BUILD.md: status, period, assignment
+ * Timesheets live on the sell side — they track billable hours
+ * against a SellContract.
  */
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -20,27 +21,27 @@ export async function GET(request: NextRequest) {
 
   const url = request.nextUrl
   const status = url.searchParams.get('status')
-  const assignmentId = url.searchParams.get('assignmentId')
+  const sellContractId = url.searchParams.get('sellContractId')
   const companyId = url.searchParams.get('companyId')
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
 
   const where: any = {}
   if (status) where.status = status.toUpperCase()
-  if (assignmentId) where.assignmentId = assignmentId
-  if (companyId) where.assignment = { employerCompanyId: companyId }
+  if (sellContractId) where.sellContractId = sellContractId
+  if (companyId) where.sellContract = { companyId }
 
   const [timesheets, total] = await Promise.all([
     prisma.timesheet.findMany({
       where,
       include: {
         person: { select: { id: true, name: true } },
-        assignment: {
+        sellContract: {
           select: {
             id: true,
-            contractType: true,
-            payRate: true,
             billRate: true,
+            billCurrency: true,
+            clientCompany: { select: { id: true, name: true } },
             engagement: { select: { id: true, title: true } },
           },
         },
@@ -57,12 +58,12 @@ export async function GET(request: NextRequest) {
       timesheets: timesheets.map((t) => ({
         id: t.id,
         person: t.person,
-        assignment: {
-          id: t.assignment.id,
-          contractType: t.assignment.contractType,
-          payRate: t.assignment.payRate,
-          billRate: t.assignment.billRate,
-          engagement: t.assignment.engagement,
+        sellContract: {
+          id: t.sellContract.id,
+          billRate: t.sellContract.billRate,
+          billCurrency: t.sellContract.billCurrency,
+          clientCompany: t.sellContract.clientCompany,
+          engagement: t.sellContract.engagement,
         },
         periodStart: t.periodStart.toISOString(),
         periodEnd: t.periodEnd.toISOString(),
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/timesheets
  *
- * Create a timesheet.
+ * Create a timesheet against a sell contract.
  */
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -93,21 +94,21 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { assignmentId, periodStart, periodEnd, days } = body
+  const { sellContractId, periodStart, periodEnd, days } = body
 
-  if (!assignmentId) return err('assignmentId is required', 'assignmentId')
+  if (!sellContractId) return err('sellContractId is required', 'sellContractId')
   if (!periodStart) return err('periodStart is required', 'periodStart')
   if (!periodEnd) return err('periodEnd is required', 'periodEnd')
   if (!days || typeof days !== 'object') return err('days object is required (e.g. {"2026-08-01": 8})', 'days')
 
-  const assignment = await prisma.assignment.findUnique({
-    where: { id: assignmentId },
-    select: { id: true, personId: true, state: true },
+  const sellContract = await prisma.sellContract.findUnique({
+    where: { id: sellContractId },
+    select: { id: true, personId: true, state: true, billRate: true },
   })
 
-  if (!assignment) {
+  if (!sellContract) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Assignment not found' } },
+      { error: { code: 'NOT_FOUND', message: 'Sell contract not found' } },
       { status: 404 }
     )
   }
@@ -136,8 +137,8 @@ export async function POST(request: NextRequest) {
   try {
     const timesheet = await prisma.timesheet.create({
       data: {
-        assignmentId,
-        personId: assignment.personId,
+        sellContractId,
+        personId: sellContract.personId,
         periodStart: new Date(periodStart),
         periodEnd: new Date(periodEnd),
         days: days as any,
@@ -167,7 +168,7 @@ export async function POST(request: NextRequest) {
   } catch (e: any) {
     if (e?.code === 'P2002') {
       return NextResponse.json(
-        { error: { code: 'DUPLICATE', message: 'A timesheet already exists for this assignment and period' } },
+        { error: { code: 'DUPLICATE', message: 'A timesheet already exists for this contract and period' } },
         { status: 409 }
       )
     }
