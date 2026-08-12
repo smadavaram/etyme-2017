@@ -97,6 +97,7 @@ async function main() {
         'contracts.read', 'contracts.write',
         'timesheets.read', 'timesheets.write', 'timesheets.approve',
         'invoices.read', 'invoices.issue', 'payments.record',
+        'payroll.read', 'payroll.run', 'payroll.approve',
         'margin.read', 'pnl.read',
         'bench.read', 'bench.write',
         'company.admin',
@@ -360,6 +361,103 @@ async function main() {
     sellContracts.push(sc)
   }
 
+  // ── Buy Contracts (payroll side) ────────────────
+  // Each active sell contract gets a linked buy contract representing
+  // what the vendor pays the consultant (BRD §12, LEGACY_RULES.md §2.5)
+  const buyContractData = [
+    { personIdx: 2, payRate: 8500, type: 'W2' as const,  state: 'IN_PROGRESS' as const, startDays: -120, endDays: 60,   entityName: null },
+    { personIdx: 5, payRate: 7200, type: 'W2' as const,  state: 'IN_PROGRESS' as const, startDays: -90,  endDays: 14,   entityName: null },
+    { personIdx: 0, payRate: 9500, type: 'C2C' as const, state: 'IN_PROGRESS' as const, startDays: -200, endDays: 165,  entityName: null },
+    { personIdx: 4, payRate: 9000, type: 'W2' as const,  state: 'DRAFT' as const,       startDays: 14,   endDays: 380,  entityName: null },
+    // Bench-paid H1B (no sell contract — standalone payroll obligation)
+    { personIdx: 3, payRate: 6000, type: 'W2' as const,  state: 'BENCH_PAID' as const,  startDays: -30,  endDays: 180,  entityName: null },
+  ]
+
+  const buyContracts: any[] = []
+  for (const bc of buyContractData) {
+    const startDate = new Date(now)
+    startDate.setDate(startDate.getDate() + bc.startDays)
+    const endDate = new Date(now)
+    endDate.setDate(endDate.getDate() + bc.endDays)
+
+    const buyContract = await prisma.buyContract.create({
+      data: {
+        companyId: vendor.id,
+        vendorCompanyId: bc.type === 'C2C' ? null : null, // direct employment
+        personId: people[bc.personIdx].id,
+        payRate: bc.payRate,
+        payCurrency: 'USD',
+        contractType: bc.type,
+        state: bc.state,
+        startDate,
+        endDate,
+      },
+    })
+    buyContracts.push(buyContract)
+  }
+
+  // ── Contract Links (sell ↔ buy for profitability) ──
+  // First 4 buy contracts link to the 4 sell contracts
+  for (let i = 0; i < 4; i++) {
+    await prisma.contractLink.create({
+      data: {
+        sellContractId: sellContracts[i].id,
+        buyContractId: buyContracts[i].id,
+        effectiveFrom: sellContracts[i].startDate,
+        effectiveTo: sellContracts[i].endDate,
+      },
+    })
+  }
+
+  // ── Buy-side Cycles (SALARY_CALCULATE, SALARY_PAY) ─
+  // Generate biweekly payroll cycles for active buy contracts
+  for (const bc of buyContracts) {
+    if (bc.state === 'DRAFT') continue
+
+    const start = new Date(bc.startDate)
+    const end = new Date(bc.endDate)
+    const cursor = new Date(start)
+
+    // Find the first Friday
+    while (cursor.getDay() !== 5) cursor.setDate(cursor.getDate() + 1)
+
+    while (cursor <= end) {
+      const calcDate = new Date(cursor)
+      calcDate.setDate(calcDate.getDate() + 3) // Wednesday after period end
+
+      const payDate = new Date(cursor)
+      payDate.setDate(payDate.getDate() + 5) // Friday after period end
+
+      // Only generate cycles near the present (±60 days)
+      const diffDays = Math.abs(
+        (calcDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      )
+      if (diffDays <= 60) {
+        const isPast = calcDate < now
+
+        await prisma.cycle.create({
+          data: {
+            buyContractId: bc.id,
+            kind: 'SALARY_CALCULATE',
+            dueOn: calcDate,
+            completedAt: isPast ? calcDate : null,
+          },
+        })
+
+        await prisma.cycle.create({
+          data: {
+            buyContractId: bc.id,
+            kind: 'SALARY_PAY',
+            dueOn: payDate,
+            completedAt: isPast ? payDate : null,
+          },
+        })
+      }
+
+      cursor.setDate(cursor.getDate() + 14) // biweekly
+    }
+  }
+
   // ── Timesheets ─────────────────────────────────
   const timesheetData = [
     { contractIdx: 0, startDays: -14, endDays: -1,  hours: 40,   status: 'APPROVED'  },
@@ -512,15 +610,16 @@ async function main() {
   })
 
   console.log('✅ Seed complete.')
-  console.log(`   Companies:   3 (${vendor.name}, ${client.name}, ${client2.name})`)
-  console.log(`   Consultants: ${consultantData.length}`)
+  console.log(`   Companies:    3 (${vendor.name}, ${client.name}, ${client2.name})`)
+  console.log(`   Consultants:  ${consultantData.length}`)
   console.log(`   Requirements: ${reqs.length}`)
-  console.log(`   Submissions: ${submissionData.length}`)
-  console.log(`   Contracts:   ${contractData.length}`)
-  console.log(`   Timesheets:  ${timesheetData.length}`)
-  console.log(`   Engagements: 2 (${eng1.title}, ${eng2.title})`)
-  console.log(`   Invoices:    ${invoiceData.length}`)
-  console.log(`   Payments:    3`)
+  console.log(`   Submissions:  ${submissionData.length}`)
+  console.log(`   Sell contracts: ${contractData.length}`)
+  console.log(`   Buy contracts:  ${buyContractData.length} (${buyContractData.filter(b => b.state !== 'DRAFT').length} active)`)
+  console.log(`   Timesheets:   ${timesheetData.length}`)
+  console.log(`   Engagements:  2 (${eng1.title}, ${eng2.title})`)
+  console.log(`   Invoices:     ${invoiceData.length}`)
+  console.log(`   Payments:     3`)
 }
 
 main()

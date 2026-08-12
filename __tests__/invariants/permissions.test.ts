@@ -25,8 +25,8 @@ import {
 
 describe('Permissions (BUILD.md §2)', () => {
   describe('The flat permission list', () => {
-    it('has exactly 24 permissions', () => {
-      expect(PERMISSIONS).toHaveLength(24)
+    it('has exactly 27 permissions', () => {
+      expect(PERMISSIONS).toHaveLength(27)
     })
 
     it('every permission follows the resource.action pattern', () => {
@@ -83,6 +83,13 @@ describe('Permissions (BUILD.md §2)', () => {
       expect(accountant.permissions).toContain('invoices.issue')
       expect(accountant.permissions).toContain('payments.record')
       expect(accountant.permissions).not.toContain('vendors.manage')
+    })
+
+    it('an accountant can read, run, and approve payroll', () => {
+      const accountant = DEFAULT_ROLES.find((r) => r.name === 'Accountant')!
+      expect(accountant.permissions).toContain('payroll.read')
+      expect(accountant.permissions).toContain('payroll.run')
+      expect(accountant.permissions).toContain('payroll.approve')
     })
 
     it('a compliance officer can read but never write', () => {
