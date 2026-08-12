@@ -85,9 +85,21 @@ export default function SubmissionsPage() {
   const [direction, setDirection] = useState<DirectionFilter>('sent')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
 
-  const companyId = 'placeholder-company-id'
+  const [companyId, setCompanyId] = useState<string | null>(null)
+
+  // Resolve the user's company from /api/me
+  useEffect(() => {
+    fetch('/api/me')
+      .then((r) => r.json())
+      .then((body) => {
+        const cid = body.data?.context?.companyId ?? body.data?.company?.id
+        if (cid) setCompanyId(cid)
+      })
+      .catch(() => {})
+  }, [])
 
   const fetchSubmissions = useCallback(async () => {
+    if (!companyId) return
     setLoading(true)
     setError(null)
     try {
@@ -112,7 +124,7 @@ export default function SubmissionsPage() {
     } finally {
       setLoading(false)
     }
-  }, [direction, statusFilter])
+  }, [direction, statusFilter, companyId])
 
   useEffect(() => {
     fetchSubmissions()

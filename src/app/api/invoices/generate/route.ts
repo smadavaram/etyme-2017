@@ -1,0 +1,262 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
+import { prisma } from '@/lib/db'
+
+/**
+ * POST /api/invoices/generate
+ *
+ * BUILD.md §3: "from approved, uninvoiced timesheets"
+ *
+ * LEGACY_RULES.md §4:
+ *   - Invoice numbering: IN_{contract_number}_{sequential_three_digit_padded}
+ *   - total_amount = (total_time_in_seconds / 3600) × contract rate
+ *   - Guard: cannot generate if time <= 0 or rate <= 0
+ *   - Due date: periodEnd + paymentTerms days
+ *
+ * Groups approved timesheets by engagement, calculates line items per
+ * sell contract, then creates one Invoice per engagement covering the period.
+ */
+export async function POST(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  if (!hasPermission(caller.permissions, 'invoices.issue')) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'Requires invoices.issue permission' } },
+      { status: 403 }
+    )
+  }
+
+  const body = await request.json()
+  const { engagementId, periodStart, periodEnd } = body
+
+  if (!engagementId) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'engagementId is required', field: 'engagementId' } },
+      { status: 422 }
+    )
+  }
+
+  // Verify engagement and get payment terms
+  const engagement = await prisma.engagement.findUnique({
+    where: { id: engagementId },
+    include: {
+      msa: {
+        include: {
+          vendor: { select: { id: true, name: true } },
+          client: { select: { id: true, name: true } },
+        },
+      },
+      sellContracts: {
+        where: { state: 'IN_PROGRESS' },
+        include: {
+          person: { select: { id: true, name: true } },
+        },
+      },
+    },
+  })
+
+  if (!engagement) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Engagement not found' } },
+      { status: 404 }
+    )
+  }
+
+  if (engagement.sellContracts.length === 0) {
+    return NextResponse.json(
+      { error: { code: 'NO_CONTRACTS', message: 'No active sell contracts under this engagement' } },
+      { status: 422 }
+    )
+  }
+
+  // Find approved, uninvoiced timesheets under this engagement's sell contracts
+  const contractIds = engagement.sellContracts.map((sc) => sc.id)
+
+  const timesheetWhere: any = {
+    sellContractId: { in: contractIds },
+    status: 'APPROVED',
+    invoiceId: null,
+  }
+
+  if (periodStart) {
+    timesheetWhere.periodStart = { gte: new Date(periodStart) }
+  }
+  if (periodEnd) {
+    timesheetWhere.periodEnd = { lte: new Date(periodEnd) }
+  }
+
+  const timesheets = await prisma.timesheet.findMany({
+    where: timesheetWhere,
+    include: {
+      person: { select: { id: true, name: true } },
+      sellContract: { select: { id: true, billRate: true, billCurrency: true } },
+    },
+    orderBy: { periodStart: 'asc' },
+  })
+
+  if (timesheets.length === 0) {
+    return NextResponse.json(
+      { error: { code: 'NO_TIMESHEETS', message: 'No approved uninvoiced timesheets found for this engagement and period' } },
+      { status: 422 }
+    )
+  }
+
+  // Build line items grouped by sell contract (person)
+  const linesByContract = new Map<string, {
+    sellContractId: string
+    personId: string
+    personName: string
+    billRate: number
+    currency: string
+    totalHours: number
+    amount: number
+    timesheetIds: string[]
+  }>()
+
+  let earliestPeriod = new Date('9999-12-31')
+  let latestPeriod = new Date('1970-01-01')
+
+  for (const ts of timesheets) {
+    const hours = Number(ts.totalHours)
+    const rate = ts.sellContract.billRate // cents per hour
+
+    // Guard: LEGACY_RULES.md — cannot invoice if time <= 0 or rate <= 0
+    if (hours <= 0 || rate <= 0) continue
+
+    const key = ts.sellContractId
+    const existing = linesByContract.get(key)
+
+    if (existing) {
+      existing.totalHours += hours
+      existing.amount += hours * rate / 100 // convert cents to dollars
+      existing.timesheetIds.push(ts.id)
+    } else {
+      linesByContract.set(key, {
+        sellContractId: ts.sellContractId,
+        personId: ts.person.id,
+        personName: ts.person.name,
+        billRate: rate,
+        currency: ts.sellContract.billCurrency,
+        totalHours: hours,
+        amount: hours * rate / 100,
+        timesheetIds: [ts.id],
+      })
+    }
+
+    if (ts.periodStart < earliestPeriod) earliestPeriod = ts.periodStart
+    if (ts.periodEnd > latestPeriod) latestPeriod = ts.periodEnd
+  }
+
+  if (linesByContract.size === 0) {
+    return NextResponse.json(
+      { error: { code: 'ZERO_VALUE', message: 'All timesheets have zero hours or zero rate' } },
+      { status: 422 }
+    )
+  }
+
+  const lines = Array.from(linesByContract.values())
+  const total = lines.reduce((sum, line) => sum + line.amount, 0)
+  const currency = lines[0].currency // consolidated under one currency per invoice
+
+  // Payment terms from the first contract (they cascade from MSA)
+  const paymentTerms = engagement.sellContracts[0].paymentTerms ?? 30
+  const dueAt = new Date(latestPeriod.getTime() + paymentTerms * 86400000)
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Generate invoice number: IN_{engagement_seq}_{3-digit}
+      // Count existing invoices for this engagement for sequencing
+      const existingCount = await tx.invoice.count({
+        where: { engagementId },
+      })
+      const seq = String(existingCount + 1).padStart(3, '0')
+      // Use engagement ID fragment for the contract portion
+      const engFragment = engagementId.slice(-6).toUpperCase()
+      const number = `IN_${engFragment}_${seq}`
+
+      // Create the invoice
+      const invoice = await tx.invoice.create({
+        data: {
+          engagementId,
+          number,
+          periodStart: earliestPeriod,
+          periodEnd: latestPeriod,
+          lines: lines.map((l) => ({
+            sellContractId: l.sellContractId,
+            personId: l.personId,
+            personName: l.personName,
+            billRate: l.billRate,
+            totalHours: l.totalHours,
+            amount: l.amount,
+          })),
+          currency,
+          total,
+          dueAt,
+          status: 'ISSUED',
+        },
+      })
+
+      // Mark timesheets as invoiced
+      const allTimesheetIds = lines.flatMap((l) => l.timesheetIds)
+      await tx.timesheet.updateMany({
+        where: { id: { in: allTimesheetIds } },
+        data: { invoiceId: invoice.id },
+      })
+
+      // AutomationLog
+      await tx.automationLog.create({
+        data: {
+          companyId: caller.company!.id,
+          action: 'INVOICE_GENERATED',
+          summary: `Invoice ${number} generated: ${lines.length} line item(s), ${allTimesheetIds.length} timesheet(s), $${total.toFixed(2)} total, due ${dueAt.toISOString().slice(0, 10)}`,
+          reason: `Generated by ${caller.person.name}`,
+          payload: {
+            invoiceId: invoice.id,
+            number,
+            engagementId,
+            lineCount: lines.length,
+            timesheetCount: allTimesheetIds.length,
+            total,
+            currency,
+            dueAt: dueAt.toISOString(),
+          },
+          reversible: true,
+        },
+      })
+
+      return invoice
+    })
+
+    return NextResponse.json({
+      data: {
+        invoice: {
+          id: result.id,
+          number: result.number,
+          periodStart: result.periodStart.toISOString(),
+          periodEnd: result.periodEnd.toISOString(),
+          total: Number(result.total),
+          currency: result.currency,
+          dueAt: result.dueAt.toISOString(),
+          status: result.status,
+          lineCount: lines.length,
+          timesheetCount: lines.reduce((sum, l) => sum + l.timesheetIds.length, 0),
+        },
+        message: `Invoice ${result.number} generated: $${Number(result.total).toFixed(2)} total`,
+      },
+    }, { status: 201 })
+  } catch (err: any) {
+    if (err?.code === 'P2002') {
+      return NextResponse.json(
+        { error: { code: 'DUPLICATE', message: 'Invoice number already exists — retry' } },
+        { status: 409 }
+      )
+    }
+    console.error('Invoice generation failed:', err)
+    return NextResponse.json(
+      { error: { code: 'INTERNAL', message: 'Invoice generation failed' } },
+      { status: 500 }
+    )
+  }
+}

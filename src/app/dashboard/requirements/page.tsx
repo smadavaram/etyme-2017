@@ -29,7 +29,7 @@ interface Requirement {
   months: number | null
   status: string
   source: string
-  matchCount: number
+  matches: number
   createdAt: string
 }
 
@@ -228,7 +228,7 @@ export default function RequirementsPage() {
 
   // ── Stats ──────────────────────────────────────────
   const openCount = requirements.filter((r) => r.status === 'OPEN').length
-  const totalMatches = requirements.reduce((sum, r) => sum + r.matchCount, 0)
+  const totalMatches = requirements.reduce((sum, r) => sum + r.matches, 0)
   const filledCount = requirements.filter((r) => r.status === 'FILLED').length
 
   // ── Filtered ───────────────────────────────────────
@@ -304,16 +304,16 @@ export default function RequirementsPage() {
       key: 'matchCount',
       label: 'Matches',
       render: (row) => (
-        row.matchCount > 0 ? (
+        row.matches > 0 ? (
           <span className="flex items-center justify-end gap-1.5 tabular-nums">
             <span className="evidence-dot" />
-            {row.matchCount}
+            {row.matches}
           </span>
         ) : (
           <span className="text-etyme-faint tabular-nums">0</span>
         )
       ),
-      sortValue: (row) => row.matchCount,
+      sortValue: (row) => row.matches,
       align: 'right' as const,
     },
     {

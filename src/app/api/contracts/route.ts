@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
 import type { CycleDefinition } from '@/lib/cycle-generator'
@@ -18,9 +17,9 @@ import { getTemplatePack } from '@/lib/template-packs'
  *   ContractLink — joins them for profitability tracking
  */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }
@@ -232,9 +231,9 @@ export async function POST(request: NextRequest) {
  * Lists sell contracts (default) or buy contracts.
  */
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }

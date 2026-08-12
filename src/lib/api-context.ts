@@ -33,6 +33,19 @@ export interface CallerContext {
 }
 
 /**
+ * Resolve the session email — dev bypass or real OAuth.
+ * Shared by getCallerContext and any route that uses getServerSession directly.
+ */
+export async function getSessionEmail(): Promise<string | null> {
+  const devBypass = process.env.DEV_BYPASS_AUTH
+  if (devBypass && process.env.NODE_ENV === 'development') {
+    return devBypass
+  }
+  const session = await getServerSession(authOptions)
+  return session?.user?.email ?? null
+}
+
+/**
  * Resolve the authenticated caller's person, active context, company, and permissions.
  *
  * Uses the `x-context-id` header when present; otherwise falls back to the
@@ -46,9 +59,20 @@ export async function getCallerContext(
   | { caller: CallerContext; error: null }
   | { caller: null; error: NextResponse }
 > {
-  const session = await getServerSession(authOptions)
+  // ── Dev bypass — resolve founder context without OAuth ──
+  // Set DEV_BYPASS_AUTH=email in .env.local for development screenshots.
+  // NEVER enable in production. Removed before deploy.
+  const devBypass = process.env.DEV_BYPASS_AUTH
+  let sessionEmail: string | null = null
 
-  if (!session?.user?.email) {
+  if (devBypass && process.env.NODE_ENV === 'development') {
+    sessionEmail = devBypass
+  } else {
+    const session = await getServerSession(authOptions)
+    sessionEmail = session?.user?.email ?? null
+  }
+
+  if (!sessionEmail) {
     return {
       caller: null,
       error: NextResponse.json(
@@ -59,7 +83,7 @@ export async function getCallerContext(
   }
 
   const person = await prisma.person.findUnique({
-    where: { primaryEmail: session.user.email },
+    where: { primaryEmail: sessionEmail },
     select: { id: true, name: true, primaryEmail: true },
   })
 

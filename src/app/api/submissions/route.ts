@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 
 /**
@@ -16,9 +15,9 @@ import { prisma } from '@/lib/db'
  *   - Every read of another person's data writes an AccessLog row
  */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }
@@ -219,9 +218,9 @@ export async function POST(request: NextRequest) {
  * BUILD.md: direction=sent|received
  */
 export async function GET(request: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }

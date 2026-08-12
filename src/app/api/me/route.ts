@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 
 /**
@@ -13,9 +12,9 @@ import { prisma } from '@/lib/db'
  * unless the caller holds the required permission (BUILD.md §2).
  */
 export async function GET() {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }
@@ -23,7 +22,7 @@ export async function GET() {
   }
 
   const person = await prisma.person.findUnique({
-    where: { primaryEmail: session.user.email },
+    where: { primaryEmail: email },
     include: {
       credentials: {
         select: {
@@ -56,8 +55,8 @@ export async function GET() {
       data: {
         person: {
           id: null,
-          email: session.user.email,
-          name: session.user.name ?? session.user.email.split('@')[0],
+          email,
+          name: email.split('@')[0],
         },
         credentials: [],
         contexts: [],
