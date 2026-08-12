@@ -34,38 +34,38 @@ const VENDOR_NAV: NavSection[] = [
     label: 'Today',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: '◉' },
-      { label: 'Notifications', href: '/notifications', icon: '⦿' },
+      { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
     ],
   },
   {
     label: 'Sell',
     items: [
-      { label: 'Requirements', href: '/requirements', icon: '◈' },
-      { label: 'Submissions', href: '/submissions', icon: '◇' },
-      { label: 'Sell Contracts', href: '/sell-contracts', icon: '▤' },
+      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
+      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
+      { label: 'Sell Contracts', href: '/dashboard/contracts', icon: '▤' },
     ],
   },
   {
     label: 'Procure',
     items: [
-      { label: 'Bench', href: '/bench', icon: '◎' },
-      { label: 'Candidates', href: '/candidates', icon: '◌' },
-      { label: 'Buy Contracts', href: '/buy-contracts', icon: '▥' },
+      { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
+      { label: 'Candidates', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Buy Contracts', href: '/dashboard/contracts', icon: '▥' },
     ],
   },
   {
     label: 'Operate',
     items: [
-      { label: 'Timesheets', href: '/timesheets', icon: '▦' },
-      { label: 'Invoices', href: '/invoices', icon: '▧' },
-      { label: 'Compliance', href: '/compliance', icon: '◆' },
+      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧' },
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
     ],
   },
   {
     label: 'Grow',
     items: [
-      { label: 'Training', href: '/training', icon: '◪' },
-      { label: 'Reports', href: '/reports', icon: '▨' },
+      { label: 'Training', href: '/dashboard/training', icon: '◪' },
+      { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
     ],
   },
 ]
@@ -92,7 +92,9 @@ export function Sidebar() {
               {section.label}
             </div>
             {section.items.map((item) => {
-              const active = pathname === item.href
+              const active = item.href === '/dashboard'
+                ? pathname === '/dashboard'
+                : pathname.startsWith(item.href)
               return (
                 <Link
                   key={item.href}
