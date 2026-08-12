@@ -38,54 +38,26 @@ type DirectionFilter = 'sent' | 'received'
 
 // ── Status styling ───────────────────────────────────
 
-const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-  SUBMITTED:   { bg: 'bg-etyme-action/8',    text: 'text-etyme-action' },
-  SHORTLISTED: { bg: 'bg-amber-50',          text: 'text-amber-700' },
-  INTERVIEW:   { bg: 'bg-violet-50',         text: 'text-violet-700' },
-  OFFERED:     { bg: 'bg-emerald-50',        text: 'text-etyme-verified' },
-  PLACED:      { bg: 'bg-emerald-100',       text: 'text-etyme-verified' },
-  REJECTED:    { bg: 'bg-red-50',            text: 'text-etyme-danger' },
-  WITHDRAWN:   { bg: 'bg-etyme-canvas',      text: 'text-etyme-faint' },
-}
-
-function StatusChip({ status }: { status: string }) {
-  const style = STATUS_STYLES[status] ?? { bg: 'bg-etyme-canvas', text: 'text-etyme-muted' }
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px]
-                      font-semibold uppercase tracking-wider ${style.bg} ${style.text}`}>
-      {status}
-    </span>
-  )
-}
-
-function KindChip({ kind }: { kind: string }) {
-  const styles: Record<string, string> = {
-    INTERNAL: 'bg-etyme-canvas text-etyme-muted',
-    BENCH:    'bg-etyme-action/8 text-etyme-action',
-    NETWORK:  'bg-amber-50 text-amber-700',
+function statusChipClass(status: string): string {
+  const map: Record<string, string> = {
+    SUBMITTED:   'chip--action',
+    SHORTLISTED: 'chip--attention',
+    INTERVIEW:   'chip--action',
+    OFFERED:     'chip--verified',
+    PLACED:      'chip--verified',
+    REJECTED:    'chip--danger',
+    WITHDRAWN:   'chip--passive',
   }
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px]
-                      font-semibold uppercase tracking-wider
-                      ${styles[kind] ?? 'bg-etyme-canvas text-etyme-muted'}`}>
-      {kind}
-    </span>
-  )
+  return map[status] ?? 'chip--passive'
 }
 
-// ── Stats row ────────────────────────────────────────
-
-function StatChip({ label, value, active }: { label: string; value: number; active?: boolean }) {
-  return (
-    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px]
-                     font-medium border transition-colors
-                     ${active
-                       ? 'bg-etyme-ink text-white border-etyme-ink'
-                       : 'bg-etyme-surface text-etyme-muted border-etyme-rule'}`}>
-      <span className="tabular-nums">{value}</span>
-      <span>{label}</span>
-    </div>
-  )
+function kindChipClass(kind: string): string {
+  const map: Record<string, string> = {
+    INTERNAL: 'chip--passive',
+    BENCH:    'chip--action',
+    NETWORK:  'chip--attention',
+  }
+  return map[kind] ?? 'chip--passive'
 }
 
 // ── Relative time helper ─────────────────────────────
@@ -113,8 +85,6 @@ export default function SubmissionsPage() {
   const [direction, setDirection] = useState<DirectionFilter>('sent')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
 
-  // In production, companyId comes from session context.
-  // For now, use a placeholder that the API needs.
   const companyId = 'placeholder-company-id'
 
   const fetchSubmissions = useCallback(async () => {
@@ -154,12 +124,10 @@ export default function SubmissionsPage() {
     submitted: submissions.filter((s) => s.status === 'SUBMITTED').length,
     shortlisted: submissions.filter((s) => s.status === 'SHORTLISTED').length,
     interview: submissions.filter((s) => s.status === 'INTERVIEW').length,
-    offered: submissions.filter((s) => s.status === 'OFFERED').length,
     placed: submissions.filter((s) => s.status === 'PLACED').length,
-    rejected: submissions.filter((s) => s.status === 'REJECTED').length,
   }
 
-  // ── Filter by status (client-side from fetched set) ──
+  // ── Filter by status ──────────────────────────────
   const filtered = statusFilter === 'ALL'
     ? submissions
     : submissions.filter((s) => s.status === statusFilter)
@@ -186,14 +154,10 @@ export default function SubmissionsPage() {
           <p className="font-medium text-etyme-ink truncate">{row.requirement.title}</p>
           <div className="flex flex-wrap gap-1 mt-0.5">
             {row.requirement.skills.slice(0, 2).map((skill) => (
-              <span key={skill} className="pill bg-etyme-action/5 text-etyme-action text-[10px]">
-                {skill}
-              </span>
+              <span key={skill} className="chip chip--action">{skill}</span>
             ))}
             {row.requirement.skills.length > 2 && (
-              <span className="pill bg-etyme-canvas text-etyme-faint text-[10px]">
-                +{row.requirement.skills.length - 2}
-              </span>
+              <span className="chip chip--passive">+{row.requirement.skills.length - 2}</span>
             )}
           </div>
         </div>
@@ -215,7 +179,7 @@ export default function SubmissionsPage() {
     {
       key: 'kind',
       label: 'Kind',
-      render: (row) => <KindChip kind={row.kind} />,
+      render: (row) => <span className={`chip ${kindChipClass(row.kind)}`}>{row.kind}</span>,
       sortValue: (row) => row.kind,
       hideOnMobile: true,
     },
@@ -233,7 +197,7 @@ export default function SubmissionsPage() {
     {
       key: 'status',
       label: 'Status',
-      render: (row) => <StatusChip status={row.status} />,
+      render: (row) => <span className={`chip ${statusChipClass(row.status)}`}>{row.status}</span>,
       sortValue: (row) => row.status,
     },
     {
@@ -260,35 +224,36 @@ export default function SubmissionsPage() {
     row.kind.toLowerCase().includes(q) ||
     row.status.toLowerCase().includes(q)
 
-  // ── Status filter pills ────────────────────────────
-  const statusOptions: { key: StatusFilter; label: string; count?: number }[] = [
-    { key: 'ALL', label: 'All', count: stats.total },
-    { key: 'SUBMITTED', label: 'Submitted', count: stats.submitted },
-    { key: 'SHORTLISTED', label: 'Shortlisted', count: stats.shortlisted },
-    { key: 'INTERVIEW', label: 'Interview', count: stats.interview },
-    { key: 'OFFERED', label: 'Offered', count: stats.offered },
-    { key: 'PLACED', label: 'Placed', count: stats.placed },
-    { key: 'REJECTED', label: 'Rejected', count: stats.rejected },
+  // ── Status filter options ──────────────────────────
+  const statusOptions: { key: StatusFilter; label: string }[] = [
+    { key: 'ALL', label: 'All' },
+    { key: 'SUBMITTED', label: 'Submitted' },
+    { key: 'SHORTLISTED', label: 'Shortlisted' },
+    { key: 'INTERVIEW', label: 'Interview' },
+    { key: 'OFFERED', label: 'Offered' },
+    { key: 'PLACED', label: 'Placed' },
+    { key: 'REJECTED', label: 'Rejected' },
   ]
 
   return (
     <>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em]">Submissions</h1>
-          <p className="text-sm text-etyme-muted mt-1">
+      {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + direction toggle */}
+      <div className="flex items-start justify-between mb-6">
+        <div className="page-head">
+          <p className="eyebrow">Sell</p>
+          <h1>Submissions</h1>
+          <p>
             {direction === 'sent'
-              ? 'Candidates submitted to client requirements.'
-              : 'Candidates received from other vendors.'}
+              ? 'Candidates submitted to client requirements. Track from submission through to placement.'
+              : 'Candidates received from other vendors against your requirements.'}
           </p>
         </div>
 
-        {/* Direction toggle */}
-        <div className="flex bg-etyme-canvas rounded-lg p-0.5">
+        {/* Direction toggle — prototype segmented control */}
+        <div className="flex bg-etyme-canvas rounded-md p-0.5 mt-3 shrink-0">
           <button
             onClick={() => { setDirection('sent'); setStatusFilter('ALL') }}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`px-4 py-2 text-[13px] font-medium rounded transition-colors ${
               direction === 'sent'
                 ? 'bg-white shadow-sm text-etyme-ink'
                 : 'text-etyme-muted hover:text-etyme-ink'
@@ -298,7 +263,7 @@ export default function SubmissionsPage() {
           </button>
           <button
             onClick={() => { setDirection('received'); setStatusFilter('ALL') }}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+            className={`px-4 py-2 text-[13px] font-medium rounded transition-colors ${
               direction === 'received'
                 ? 'bg-white shadow-sm text-etyme-ink'
                 : 'text-etyme-muted hover:text-etyme-ink'
@@ -309,34 +274,45 @@ export default function SubmissionsPage() {
         </div>
       </div>
 
-      {/* Stat chips */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <StatChip label="Total" value={stats.total} />
-        {stats.submitted > 0 && <StatChip label="Pending" value={stats.submitted} />}
-        {stats.shortlisted > 0 && <StatChip label="Shortlisted" value={stats.shortlisted} />}
-        {stats.interview > 0 && <StatChip label="Interview" value={stats.interview} />}
-        {stats.offered > 0 && <StatChip label="Offered" value={stats.offered} />}
-        {stats.placed > 0 && <StatChip label="Placed" value={stats.placed} active />}
+      {/* Stats row — prototype Stat component pattern */}
+      <div className="flex gap-3 mb-6 flex-wrap">
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Total</p>
+          <p className="stat-value text-etyme-ink">{stats.total}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">submissions</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Pending</p>
+          <p className={`stat-value ${stats.submitted > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+            {stats.submitted}
+          </p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">awaiting review</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">In process</p>
+          <p className={`stat-value ${(stats.shortlisted + stats.interview) > 0 ? 'text-etyme-action' : 'text-etyme-ink'}`}>
+            {stats.shortlisted + stats.interview}
+          </p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">shortlisted + interview</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Placed</p>
+          <p className="stat-value text-etyme-verified">{stats.placed}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">placements</p>
+        </div>
       </div>
 
-      {/* Status filters */}
-      <div className="flex gap-1 mb-5 flex-wrap">
+      {/* Status filters — prototype filter-tab pattern */}
+      <div className="flex gap-1.5 mb-5 flex-wrap">
         {statusOptions.map((opt) => (
           <button
             key={opt.key}
             onClick={() => setStatusFilter(opt.key)}
-            className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors ${
-              statusFilter === opt.key
-                ? 'bg-etyme-ink text-white'
-                : 'text-etyme-muted hover:bg-etyme-canvas border border-transparent hover:border-etyme-rule'
+            className={`filter-tab ${
+              statusFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
             }`}
           >
             {opt.label}
-            {opt.count != null && opt.count > 0 && (
-              <span className={`ml-1 tabular-nums ${statusFilter === opt.key ? 'text-white/70' : 'text-etyme-faint'}`}>
-                {opt.count}
-              </span>
-            )}
           </button>
         ))}
       </div>

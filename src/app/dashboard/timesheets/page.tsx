@@ -47,23 +47,16 @@ interface Timesheet {
 
 type StatusFilter = 'ALL' | 'OPEN' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
 
-// ── Status styling ───────────────────────────────────
+// ── Status chip class ───────────────────────────────
 
-const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-  OPEN:      { bg: 'bg-etyme-canvas',      text: 'text-etyme-muted' },
-  SUBMITTED: { bg: 'bg-etyme-action/8',    text: 'text-etyme-action' },
-  APPROVED:  { bg: 'bg-emerald-50',        text: 'text-etyme-verified' },
-  REJECTED:  { bg: 'bg-red-50',            text: 'text-etyme-danger' },
-}
-
-function StatusChip({ status }: { status: string }) {
-  const style = STATUS_STYLES[status] ?? { bg: 'bg-etyme-canvas', text: 'text-etyme-muted' }
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px]
-                      font-semibold uppercase tracking-wider ${style.bg} ${style.text}`}>
-      {status}
-    </span>
-  )
+function statusChipClass(status: string): string {
+  const map: Record<string, string> = {
+    OPEN:      'chip--passive',
+    SUBMITTED: 'chip--action',
+    APPROVED:  'chip--verified',
+    REJECTED:  'chip--danger',
+  }
+  return map[status] ?? 'chip--passive'
 }
 
 // ── Period formatting ────────────────────────────────
@@ -79,26 +72,6 @@ function formatPeriod(start: string, end: string): string {
   }
   // Different months → "Jul 28 – Aug 10"
   return `${s.toLocaleDateString('en-US', opts)} – ${e.toLocaleDateString('en-US', opts)}`
-}
-
-// ── Stat box ─────────────────────────────────────────
-
-function StatBox({ label, value, sub, tone }: {
-  label: string; value: string; sub?: string; tone?: 'default' | 'attention' | 'verified'
-}) {
-  const toneColor = tone === 'attention'
-    ? 'text-etyme-attention'
-    : tone === 'verified'
-      ? 'text-etyme-verified'
-      : 'text-etyme-ink'
-
-  return (
-    <div className="panel flex-1 min-w-[140px]">
-      <p className="lbl mb-1">{label}</p>
-      <p className={`text-xl font-serif tabular-nums ${toneColor}`}>{value}</p>
-      {sub && <p className="text-[11px] text-etyme-faint mt-0.5">{sub}</p>}
-    </div>
-  )
 }
 
 // ── Page ─────────────────────────────────────────────
@@ -229,7 +202,7 @@ export default function TimesheetsPage() {
     {
       key: 'status',
       label: 'Status',
-      render: (row) => <StatusChip status={row.status} />,
+      render: (row) => <span className={`chip ${statusChipClass(row.status)}`}>{row.status}</span>,
       sortValue: (row) => row.status,
     },
   ]
@@ -241,7 +214,7 @@ export default function TimesheetsPage() {
     (row.sellContract.engagement?.title ?? '').toLowerCase().includes(q) ||
     row.status.toLowerCase().includes(q)
 
-  // ── Status filter pills ────────────────────────────
+  // ── Status filter options ──────────────────────────
   const statusOptions: { key: StatusFilter; label: string }[] = [
     { key: 'ALL', label: 'All' },
     { key: 'OPEN', label: 'Open' },
@@ -252,47 +225,51 @@ export default function TimesheetsPage() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-[-0.02em]">Timesheets</h1>
-        <p className="text-sm text-etyme-muted mt-1">
-          Billable hours against sell contracts. Submit, review, and approve.
-        </p>
+      {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle */}
+      <div className="page-head">
+        <p className="eyebrow">Operate</p>
+        <h1>Timesheets</h1>
+        <p>Billable hours against sell contracts. Submit, review, and approve — with anomaly detection for flagged entries.</p>
       </div>
 
-      {/* Stats row */}
+      {/* Stats row — prototype Stat component pattern */}
       <div className="flex gap-3 mb-6 flex-wrap">
-        <StatBox label="Total hours" value={totalHours.toFixed(0)} sub="this period" />
-        <StatBox
-          label="Pending approval"
-          value={String(pendingApproval)}
-          sub={pendingApproval > 0 ? 'need review' : 'all clear'}
-          tone={pendingApproval > 0 ? 'attention' : 'default'}
-        />
-        <StatBox
-          label="Anomalies"
-          value={String(anomalies)}
-          sub={anomalies > 0 ? 'flagged by system' : 'none detected'}
-          tone={anomalies > 0 ? 'attention' : 'default'}
-        />
-        <StatBox
-          label="Approved value"
-          value={`$${approvedValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-          sub="billable"
-          tone="verified"
-        />
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Total hours</p>
+          <p className="stat-value text-etyme-ink">{totalHours.toFixed(0)}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">this period</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Pending approval</p>
+          <p className={`stat-value ${pendingApproval > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+            {pendingApproval}
+          </p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">{pendingApproval > 0 ? 'need review' : 'all clear'}</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Anomalies</p>
+          <p className={`stat-value ${anomalies > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+            {anomalies}
+          </p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">{anomalies > 0 ? 'flagged by system' : 'none detected'}</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Approved value</p>
+          <p className="stat-value text-etyme-verified">
+            ${approvedValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+          </p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">billable</p>
+        </div>
       </div>
 
-      {/* Status filters */}
-      <div className="flex gap-1 mb-5">
+      {/* Status filters — prototype filter-tab pattern */}
+      <div className="flex gap-1.5 mb-5 flex-wrap">
         {statusOptions.map((opt) => (
           <button
             key={opt.key}
             onClick={() => setStatusFilter(opt.key)}
-            className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors ${
-              statusFilter === opt.key
-                ? 'bg-etyme-ink text-white'
-                : 'text-etyme-muted hover:bg-etyme-canvas border border-transparent hover:border-etyme-rule'
+            className={`filter-tab ${
+              statusFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
             }`}
           >
             {opt.label}

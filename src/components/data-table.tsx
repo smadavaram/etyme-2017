@@ -315,13 +315,13 @@ export function DataTable<T extends Record<string, any>>({
 
       {/* Table */}
       {!loading && !error && (
-        <div className="panel p-0 overflow-hidden">
+        <div className="bg-etyme-surface border border-etyme-rule rounded-[6px] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+            <table className="data-table w-full text-[13px]">
               <thead>
-                <tr className="border-b border-etyme-rule bg-etyme-surface/50">
+                <tr>
                   {selectable && (
-                    <th className="w-10 px-3 py-2.5">
+                    <th style={{ width: 34, padding: '9px 10px' }}>
                       <input
                         type="checkbox"
                         checked={allPageSelected}
@@ -338,10 +338,9 @@ export function DataTable<T extends Record<string, any>>({
                       <th
                         key={col.key}
                         className={`
-                          px-4 py-2.5 lbl whitespace-nowrap
                           ${col.width ?? ''}
                           ${col.hideOnMobile ? 'hidden md:table-cell' : ''}
-                          ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'}
+                          ${align === 'right' ? '!text-right' : align === 'center' ? '!text-center' : ''}
                           ${isSortable ? 'cursor-pointer select-none hover:text-etyme-ink' : ''}
                         `}
                         onClick={isSortable ? () => handleSort(col.key) : undefined}
@@ -366,11 +365,11 @@ export function DataTable<T extends Record<string, any>>({
                   <tr>
                     <td
                       colSpan={columns.length + (selectable ? 1 : 0)}
-                      className="text-center py-12 text-etyme-muted"
+                      className="!text-center !py-12 text-etyme-muted !border-b-0"
                     >
-                      <p className="text-sm">{emptyMessage}</p>
+                      <p className="text-[13px]">{emptyMessage}</p>
                       {emptyDetail && (
-                        <p className="text-xs text-etyme-faint mt-1">{emptyDetail}</p>
+                        <p className="text-[12px] text-etyme-faint mt-1 max-w-md mx-auto leading-relaxed">{emptyDetail}</p>
                       )}
                     </td>
                   </tr>
@@ -382,16 +381,15 @@ export function DataTable<T extends Record<string, any>>({
                       <tr
                         key={key}
                         className={`
-                          border-b border-etyme-rule last:border-0
                           transition-colors
                           ${onRowClick ? 'cursor-pointer' : ''}
-                          ${isSelected ? 'bg-etyme-action/5' : 'hover:bg-etyme-canvas/50'}
+                          ${isSelected ? '!bg-[#EDEFFC]' : 'hover:bg-etyme-canvas/50'}
                           ${rowClassName?.(row) ?? ''}
                         `}
                         onClick={onRowClick ? () => onRowClick(row) : undefined}
                       >
                         {selectable && (
-                          <td className="w-10 px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                          <td style={{ width: 34 }} onClick={(e) => e.stopPropagation()}>
                             <input
                               type="checkbox"
                               checked={isSelected}
@@ -406,10 +404,9 @@ export function DataTable<T extends Record<string, any>>({
                             <td
                               key={col.key}
                               className={`
-                                px-4 py-2.5
                                 ${col.width ?? ''}
                                 ${col.hideOnMobile ? 'hidden md:table-cell' : ''}
-                                ${align === 'right' ? 'text-right tabular-nums' : align === 'center' ? 'text-center' : ''}
+                                ${align === 'right' ? '!text-right tabular-nums' : align === 'center' ? '!text-center' : ''}
                               `}
                             >
                               {col.render
@@ -426,10 +423,10 @@ export function DataTable<T extends Record<string, any>>({
             </table>
           </div>
 
-          {/* Pagination footer */}
+          {/* Pagination footer — from onboarding prototype */}
           {sorted.length > 0 && (
-            <div className="flex items-center justify-between px-4 py-2.5 border-t border-etyme-rule bg-etyme-surface/30">
-              <p className="text-[11px] text-etyme-faint tabular-nums">
+            <div className="flex items-center justify-between px-[14px] py-[10px] border-t border-etyme-rule">
+              <p className="text-[12.5px] text-etyme-faint tabular-nums">
                 {((safePage - 1) * pageSize) + 1}–{Math.min(safePage * pageSize, sorted.length)} of {sorted.length}
                 {filtered.length !== data.length && (
                   <span> (filtered from {data.length})</span>
@@ -439,19 +436,19 @@ export function DataTable<T extends Record<string, any>>({
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={safePage <= 1}
-                  className="px-2 py-1 text-[11px] rounded border border-etyme-rule
+                  className="px-2.5 py-1 text-[12px] rounded-[3px] border border-etyme-rule
                              text-etyme-muted hover:bg-etyme-canvas
                              disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   ←
                 </button>
-                <span className="text-[11px] text-etyme-muted tabular-nums px-2">
+                <span className="text-[12px] text-etyme-muted tabular-nums px-2">
                   {safePage} / {totalPages}
                 </span>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={safePage >= totalPages}
-                  className="px-2 py-1 text-[11px] rounded border border-etyme-rule
+                  className="px-2.5 py-1 text-[12px] rounded-[3px] border border-etyme-rule
                              text-etyme-muted hover:bg-etyme-canvas
                              disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >

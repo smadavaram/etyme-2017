@@ -2,6 +2,20 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { DataTable, type Column } from '@/components/data-table'
+
+/**
+ * Requirements working surface — open demand.
+ *
+ * CLAUDE.md design system:
+ *   Working surfaces: "Tables, search, filters, bulk, density"
+ *   "Tabular figures, tight rows"
+ *   "User finds and acts fast"
+ *
+ * Requirements live on the sell side — demand from clients or internal
+ * requisitions that consultants are matched and submitted against.
+ * Status lifecycle: DRAFT → OPEN → FILLED or → CLOSED at any point.
+ */
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -162,42 +176,16 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-rule
-                         hover:bg-etyme-canvas transition-colors"
-            >
+            <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-ink text-white
-                         hover:bg-etyme-navy transition-colors disabled:opacity-50"
-            >
-              {submitting ? 'Creating...' : 'Create requirement'}
+            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+              {submitting ? 'Creating…' : 'Create requirement'}
             </button>
           </div>
         </form>
       </div>
     </div>
-  )
-}
-
-// ── Status pill ────────────────────────────────────────────
-
-function StatusPill({ status }: { status: string }) {
-  const styles: Record<string, string> = {
-    DRAFT: 'bg-etyme-canvas text-etyme-muted',
-    OPEN: 'bg-etyme-action/5 text-etyme-action',
-    FILLED: 'bg-emerald-50 text-etyme-verified',
-    CLOSED: 'bg-slate-100 text-etyme-muted',
-  }
-  return (
-    <span className={`pill text-[10px] ${styles[status] ?? 'bg-etyme-canvas text-etyme-muted'}`}>
-      {status}
-    </span>
   )
 }
 
@@ -238,7 +226,118 @@ export default function RequirementsPage() {
     fetchRequirements()
   }, [fetchRequirements])
 
-  const statuses: { key: StatusFilter; label: string }[] = [
+  // ── Stats ──────────────────────────────────────────
+  const openCount = requirements.filter((r) => r.status === 'OPEN').length
+  const totalMatches = requirements.reduce((sum, r) => sum + r.matchCount, 0)
+  const filledCount = requirements.filter((r) => r.status === 'FILLED').length
+
+  // ── Filtered ───────────────────────────────────────
+  const filtered = statusFilter === 'ALL'
+    ? requirements
+    : requirements.filter((r) => r.status === statusFilter)
+
+  // ── Column definitions ─────────────────────────────
+  const columns: Column<Requirement>[] = [
+    {
+      key: 'title',
+      label: 'Title',
+      render: (row) => (
+        <div>
+          <p className="font-medium text-etyme-ink">{row.title}</p>
+          {row.location && (
+            <p className="text-[11px] text-etyme-faint truncate max-w-[200px]">{row.location}</p>
+          )}
+        </div>
+      ),
+      sortValue: (row) => row.title,
+      width: 'min-w-[200px]',
+    },
+    {
+      key: 'skills',
+      label: 'Skills',
+      render: (row) => (
+        <div className="flex flex-wrap gap-1 max-w-[200px]">
+          {row.skills.slice(0, 3).map((skill) => (
+            <span key={skill} className="chip chip--action">{skill}</span>
+          ))}
+          {row.skills.length > 3 && (
+            <span className="chip chip--passive">+{row.skills.length - 3}</span>
+          )}
+        </div>
+      ),
+      sortable: false,
+      hideOnMobile: true,
+    },
+    {
+      key: 'billRange',
+      label: 'Bill range',
+      render: (row) => (
+        row.billMin != null || row.billMax != null ? (
+          <span className="tabular-nums">
+            {row.billMin != null && `$${row.billMin}`}
+            {row.billMin != null && row.billMax != null && '–'}
+            {row.billMax != null && `$${row.billMax}`}
+            <span className="text-etyme-faint">/hr</span>
+          </span>
+        ) : (
+          <span className="text-etyme-faint">—</span>
+        )
+      ),
+      sortValue: (row) => row.billMax ?? row.billMin ?? 0,
+      align: 'right' as const,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (row) => {
+        const styles: Record<string, string> = {
+          DRAFT:  'chip--passive',
+          OPEN:   'chip--action',
+          FILLED: 'chip--verified',
+          CLOSED: 'chip--passive',
+        }
+        return <span className={`chip ${styles[row.status] ?? 'chip--passive'}`}>{row.status}</span>
+      },
+      sortValue: (row) => row.status,
+    },
+    {
+      key: 'matchCount',
+      label: 'Matches',
+      render: (row) => (
+        row.matchCount > 0 ? (
+          <span className="flex items-center justify-end gap-1.5 tabular-nums">
+            <span className="evidence-dot" />
+            {row.matchCount}
+          </span>
+        ) : (
+          <span className="text-etyme-faint tabular-nums">0</span>
+        )
+      ),
+      sortValue: (row) => row.matchCount,
+      align: 'right' as const,
+    },
+    {
+      key: 'createdAt',
+      label: 'Created',
+      render: (row) => (
+        <span className="text-etyme-muted text-[12px] tabular-nums">
+          {new Date(row.createdAt).toLocaleDateString()}
+        </span>
+      ),
+      sortValue: (row) => new Date(row.createdAt).getTime(),
+      hideOnMobile: true,
+    },
+  ]
+
+  // ── Search filter ──────────────────────────────────
+  const searchFilter = (row: Requirement, q: string) =>
+    row.title.toLowerCase().includes(q) ||
+    row.skills.some((s) => s.toLowerCase().includes(q)) ||
+    (row.location ?? '').toLowerCase().includes(q) ||
+    row.status.toLowerCase().includes(q)
+
+  // ── Status filter options ──────────────────────────
+  const statusOptions: { key: StatusFilter; label: string }[] = [
     { key: 'ALL', label: 'All' },
     { key: 'DRAFT', label: 'Draft' },
     { key: 'OPEN', label: 'Open' },
@@ -248,153 +347,79 @@ export default function RequirementsPage() {
 
   return (
     <>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em]">Requirements</h1>
-          <p className="text-sm text-etyme-muted mt-1">
-            Open demand. Match, distribute, and track submissions.
-          </p>
+      {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + action */}
+      <div className="flex items-start justify-between mb-6">
+        <div className="page-head">
+          <p className="eyebrow">Sell</p>
+          <h1>Requirements</h1>
+          <p>Open demand. Match consultants, distribute to clients, track submissions through to placement.</p>
         </div>
-        <button
-          onClick={() => setShowNew(true)}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-ink text-white
-                     hover:bg-etyme-navy transition-colors"
-        >
+        <button onClick={() => setShowNew(true)} className="btn-primary mt-3 shrink-0">
           New requirement
         </button>
       </div>
 
-      {/* Status filters */}
-      <div className="flex gap-1 mb-6">
-        {statuses.map((s) => (
+      {/* Stats row */}
+      <div className="flex gap-3 mb-6 flex-wrap">
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Open</p>
+          <p className={`stat-value ${openCount > 0 ? 'text-etyme-action' : 'text-etyme-ink'}`}>
+            {openCount}
+          </p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">requirements</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Matches</p>
+          <p className={`stat-value ${totalMatches > 0 ? 'text-etyme-verified' : 'text-etyme-ink'}`}>
+            {totalMatches}
+          </p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">across all reqs</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Filled</p>
+          <p className="stat-value text-etyme-verified">{filledCount}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">placements</p>
+        </div>
+      </div>
+
+      {/* Status filters — prototype filter-tab pattern */}
+      <div className="flex gap-1.5 mb-5 flex-wrap">
+        {statusOptions.map((opt) => (
           <button
-            key={s.key}
-            onClick={() => setStatusFilter(s.key)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              statusFilter === s.key
-                ? 'bg-etyme-ink text-white'
-                : 'text-etyme-muted hover:bg-etyme-canvas border border-transparent hover:border-etyme-rule'
+            key={opt.key}
+            onClick={() => setStatusFilter(opt.key)}
+            className={`filter-tab ${
+              statusFilter === opt.key ? 'filter-tab--active' : 'filter-tab--inactive'
             }`}
           >
-            {s.label}
+            {opt.label}
           </button>
         ))}
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          Could not load requirements: {error}
-        </div>
-      )}
+      {/* Data table */}
+      <DataTable<Requirement>
+        columns={columns}
+        data={filtered}
+        rowKey={(row) => row.id}
+        loading={loading}
+        error={error}
+        searchFilter={searchFilter}
+        searchPlaceholder="Search by title, skill, location, or status…"
+        emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} requirements.` : 'No requirements yet.'}
+        emptyDetail="Create your first requirement to start matching consultants, or import requirements from your VMS."
+        onRowClick={(row) => router.push(`/dashboard/requirements/${row.id}` as any)}
+        exportName="requirements"
+        defaultPageSize={20}
+      />
 
-      {/* Table */}
-      <div className="card p-0 overflow-hidden">
-        <div className="overflow-scroll-x">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-etyme-rule">
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Title</th>
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Skills</th>
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Bill Range</th>
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Status</th>
-                <th className="text-right px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Matches</th>
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-sm text-etyme-muted">
-                    Loading requirements...
-                  </td>
-                </tr>
-              ) : requirements.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
-                    <p className="text-sm text-etyme-muted">No requirements found.</p>
-                    <p className="text-xs text-etyme-muted/60 mt-1">
-                      {statusFilter !== 'ALL'
-                        ? 'No requirements match this filter. Try "All" to see everything.'
-                        : 'Create your first requirement to start matching consultants, or import requirements from your VMS.'}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                requirements.map((r) => (
-                  <tr
-                    key={r.id}
-                    onClick={() => router.push(`/dashboard/requirements/${r.id}` as any)}
-                    className="border-b border-etyme-rule last:border-0 hover:bg-etyme-canvas/50
-                               cursor-pointer transition-colors"
-                  >
-                    <td className="px-6 py-3">
-                      <div>
-                        <p className="font-medium">{r.title}</p>
-                        {r.location && <p className="text-xs text-etyme-muted">{r.location}</p>}
-                      </div>
-                    </td>
-                    <td className="px-6 py-3">
-                      <div className="flex flex-wrap gap-1 max-w-[200px]">
-                        {r.skills.slice(0, 3).map((skill) => (
-                          <span key={skill} className="pill bg-etyme-action/5 text-etyme-action text-[10px]">{skill}</span>
-                        ))}
-                        {r.skills.length > 3 && (
-                          <span className="pill bg-etyme-canvas text-etyme-muted text-[10px]">+{r.skills.length - 3}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-3 tabular-nums">
-                      {r.billMin != null || r.billMax != null ? (
-                        <span>
-                          {r.billMin != null && `$${r.billMin}`}
-                          {r.billMin != null && r.billMax != null && ' - '}
-                          {r.billMax != null && `$${r.billMax}`}
-                          <span className="text-etyme-muted">/hr</span>
-                        </span>
-                      ) : (
-                        <span className="text-etyme-muted">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3">
-                      <StatusPill status={r.status} />
-                    </td>
-                    <td className="px-6 py-3 text-right tabular-nums">
-                      {r.matchCount > 0 ? (
-                        <span className="flex items-center justify-end gap-1.5">
-                          <span className="evidence-dot" />
-                          {r.matchCount}
-                        </span>
-                      ) : (
-                        <span className="text-etyme-muted">0</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3 text-etyme-muted">
-                      {new Date(r.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Count footer */}
-      {!loading && requirements.length > 0 && (
-        <p className="text-xs text-etyme-muted mt-3">
-          Showing {requirements.length} requirement{requirements.length !== 1 ? 's' : ''}
+      {/* Footer count */}
+      {!loading && filtered.length > 0 && (
+        <p className="text-xs text-etyme-faint mt-3 tabular-nums">
+          {filtered.length} requirement{filtered.length !== 1 ? 's' : ''}
+          {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase()}`}
         </p>
       )}
-
-      {/* Placeholder notice */}
-      <div className="mt-6 card bg-etyme-action/5 border-etyme-action/20">
-        <p className="text-xs text-etyme-action">
-          <strong>Week 3 scope.</strong> The requirements API with Claude-powered parsing and matching is under development.
-          This page will connect to <code className="font-mono">POST /api/requirements</code> once the API is ready.
-        </p>
-      </div>
 
       {/* Modal */}
       {showNew && <NewRequirementModal onClose={() => setShowNew(false)} onCreated={fetchRequirements} />}

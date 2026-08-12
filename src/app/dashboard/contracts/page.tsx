@@ -2,6 +2,23 @@
 
 import { useEffect, useState, useCallback } from 'react'
 
+/**
+ * Contracts working surface — sell and buy side.
+ *
+ * CLAUDE.md design system:
+ *   Working surfaces: "Tables, search, filters, bulk, density"
+ *   "Tabular figures, tight rows"
+ *
+ * Contracts are grouped by state (active, draft, ended) because users
+ * operate on a state group at a time — "approve all drafts" or "review
+ * active rolloffs." This makes grouped tables the right pattern here
+ * rather than a single flat DataTable.
+ *
+ * Sell contracts → what you bill clients (revenue).
+ * Buy contracts → what you pay talent (cost).
+ * Rolloff warning: contracts ending within 28 days surface a banner.
+ */
+
 // ── Types ──────────────────────────────────────────────────
 
 interface Contract {
@@ -37,7 +54,7 @@ const BUY_STATE_GROUPS: { key: string; label: string; states: string[] }[] = [
 function stateLabel(state: string): string {
   const labels: Record<string, string> = {
     DRAFT: 'Draft',
-    PENDING_VERIFICATION: 'Pending Verification',
+    PENDING_VERIFICATION: 'Pending',
     VERIFIED: 'Verified',
     IN_PROGRESS: 'Active',
     BENCH_PAID: 'Bench (Paid)',
@@ -50,26 +67,24 @@ function stateLabel(state: string): string {
   return labels[state] ?? state
 }
 
-function stateColor(state: string): string {
+function stateChipClass(state: string): string {
   switch (state) {
     case 'IN_PROGRESS':
     case 'VERIFIED':
-      return 'bg-emerald-50 text-etyme-verified border border-emerald-200'
+      return 'chip--verified'
     case 'PENDING_VERIFICATION':
     case 'DRAFT':
-      return 'bg-etyme-action/5 text-etyme-action border border-etyme-action/20'
+      return 'chip--action'
     case 'BENCH_PAID':
     case 'TRAINING':
-      return 'bg-amber-50 text-etyme-attention border border-amber-200'
+      return 'chip--attention'
     case 'INTERNAL':
-      return 'bg-purple-50 text-purple-700 border border-purple-200'
+      return 'chip--action'
     case 'PAUSED':
-      return 'bg-etyme-canvas text-etyme-muted border border-etyme-rule'
     case 'ENDED':
     case 'CANCELLED':
-      return 'bg-etyme-canvas text-etyme-muted'
     default:
-      return 'bg-etyme-canvas text-etyme-muted'
+      return 'chip--passive'
   }
 }
 
@@ -94,7 +109,6 @@ export default function ContractsPage() {
       const body = await res.json()
       const rawContracts = body.data?.contracts ?? []
 
-      // Normalise into common shape
       setContracts(rawContracts.map((c: any) => ({
         id: c.id,
         side: c.side ?? tab,
@@ -148,44 +162,72 @@ export default function ContractsPage() {
     (c) => c.daysUntilEnd != null && c.daysUntilEnd >= 0 && c.daysUntilEnd <= 28 && c.state === 'IN_PROGRESS'
   )
 
-  const rateLabel = tab === 'sell' ? 'Bill Rate' : 'Pay Rate'
+  // Stats
+  const activeCount = contracts.filter((c) =>
+    ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION'].includes(c.state)
+  ).length
+  const totalRevenue = tab === 'sell'
+    ? contracts
+        .filter((c) => ['IN_PROGRESS', 'VERIFIED'].includes(c.state))
+        .reduce((sum, c) => sum + (c.rate / 100), 0)
+    : 0
+
+  const rateLabel = tab === 'sell' ? 'Bill rate' : 'Pay rate'
   const counterpartyLabel = tab === 'sell' ? 'Client' : 'Vendor'
 
   return (
     <>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="headline-serif text-heading text-etyme-ink">
-            {tab === 'sell' ? 'Sell' : 'Buy'} Contracts
-          </h1>
-          <p className="text-body-sm text-etyme-muted mt-1">
-            {tab === 'sell'
-              ? 'What you bill clients. Revenue side.'
-              : 'What you pay for talent. Cost side.'}
-          </p>
-        </div>
+      {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle */}
+      <div className="page-head">
+        <p className="eyebrow">{tab === 'sell' ? 'Sell' : 'Procure'}</p>
+        <h1>{tab === 'sell' ? 'Sell' : 'Buy'} Contracts</h1>
+        <p>
+          {tab === 'sell'
+            ? 'What you bill clients. Revenue side — track active engagements, pending verifications, and upcoming rolloffs.'
+            : 'What you pay for talent. Cost side — bench payments, internal contracts, and vendor agreements.'}
+        </p>
       </div>
 
-      {/* Sell / Buy tabs */}
-      <div className="flex items-center gap-1 mb-6 p-1 bg-etyme-canvas rounded-lg w-fit">
+      {/* Sell / Buy tabs — prototype filter-tab pattern */}
+      <div className="flex gap-1.5 mb-6">
         {(['sell', 'buy'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-              tab === t
-                ? 'bg-white text-etyme-ink shadow-sm'
-                : 'text-etyme-muted hover:text-etyme-ink'
-            }`}
+            className={`filter-tab ${tab === t ? 'filter-tab--active' : 'filter-tab--inactive'}`}
           >
             {t === 'sell' ? 'Sell' : 'Buy'}
           </button>
         ))}
       </div>
 
-      {/* Rolloff warnings banner (sell side only) */}
-      {tab === 'sell' && rolloffWarnings.length > 0 && (
+      {/* Stats row */}
+      <div className="flex gap-3 mb-6 flex-wrap">
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Active</p>
+          <p className="stat-value text-etyme-ink">{activeCount}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">contracts</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Rolloffs</p>
+          <p className={`stat-value ${rolloffWarnings.length > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+            {rolloffWarnings.length}
+          </p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">within 28 days</p>
+        </div>
+        {tab === 'sell' && (
+          <div className="panel flex-1 min-w-[140px]">
+            <p className="stat-label">Active bill rates</p>
+            <p className="stat-value text-etyme-verified">
+              ${totalRevenue.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+            </p>
+            <p className="text-[11px] text-etyme-faint mt-0.5">total $/hr</p>
+          </div>
+        )}
+      </div>
+
+      {/* Rolloff warnings banner */}
+      {rolloffWarnings.length > 0 && (
         <div className="mb-6 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
           <div className="flex items-center gap-2 mb-1">
             <span className="evidence-dot evidence-dot--pending" />
@@ -205,12 +247,6 @@ export default function ContractsPage() {
               </p>
             ))}
           </div>
-          <a
-            href="/dashboard/rolloff"
-            className="inline-block mt-2 text-xs font-medium text-amber-800 underline underline-offset-2 hover:text-amber-900"
-          >
-            View rolloff console
-          </a>
         </div>
       )}
 
@@ -224,14 +260,14 @@ export default function ContractsPage() {
       {/* Loading */}
       {loading && (
         <div className="panel text-center py-12">
-          <p className="text-body-sm text-etyme-muted">Loading contracts...</p>
+          <p className="text-sm text-etyme-muted">Loading contracts…</p>
         </div>
       )}
 
       {/* Empty state */}
       {!loading && contracts.length === 0 && !error && (
         <div className="panel text-center py-12">
-          <p className="text-body-sm text-etyme-muted">No {tab} contracts yet.</p>
+          <p className="text-sm text-etyme-muted">No {tab} contracts yet.</p>
           <p className="text-xs text-etyme-faint mt-1">
             {tab === 'sell'
               ? 'Sell contracts are created when a submission is accepted or via import.'
@@ -240,29 +276,27 @@ export default function ContractsPage() {
         </div>
       )}
 
-      {/* Grouped tables */}
+      {/* Grouped tables — each group uses data-table class for prototype styling */}
       {!loading && Object.entries(grouped).map(([groupKey, groupContracts]) => {
         const groupLabel = stateGroups.find((g) => g.key === groupKey)?.label ?? 'Other'
         return (
           <div key={groupKey} className="mb-8">
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-sm font-semibold text-etyme-ink">{groupLabel}</h2>
-              <span className="chip chip--passive text-[10px]">
-                {groupContracts.length}
-              </span>
+              <span className="chip chip--passive">{groupContracts.length}</span>
             </div>
 
-            <div className="panel p-0 overflow-hidden">
+            <div className="bg-etyme-surface border border-etyme-rule rounded-[6px] overflow-hidden">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="data-table w-full text-[13px]">
                   <thead>
-                    <tr className="border-b border-etyme-rule">
-                      <th className="text-left px-6 py-3 lbl">Consultant</th>
-                      <th className="text-left px-6 py-3 lbl">{counterpartyLabel}</th>
-                      <th className="text-left px-6 py-3 lbl">{rateLabel}</th>
-                      <th className="text-left px-6 py-3 lbl">Start</th>
-                      <th className="text-left px-6 py-3 lbl">End</th>
-                      <th className="text-left px-6 py-3 lbl">Status</th>
+                    <tr>
+                      <th>Consultant</th>
+                      <th>{counterpartyLabel}</th>
+                      <th className="!text-right">{rateLabel}</th>
+                      <th>Start</th>
+                      <th>End</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -271,22 +305,23 @@ export default function ContractsPage() {
                       return (
                         <tr
                           key={c.id}
-                          className={`border-b border-etyme-rule last:border-0 hover:bg-etyme-canvas/50
-                                     cursor-pointer transition-colors ${isRolloff ? 'bg-amber-50/30' : ''}`}
+                          className={`hover:bg-etyme-canvas/50 cursor-pointer transition-colors ${
+                            isRolloff ? 'bg-amber-50/30' : ''
+                          }`}
                         >
-                          <td className="px-6 py-3">
+                          <td>
                             <p className="font-medium text-etyme-ink">{c.personName}</p>
                           </td>
-                          <td className="px-6 py-3 text-etyme-muted">
-                            {c.counterpartyName ?? <span className="italic">—</span>}
+                          <td className="text-etyme-muted">
+                            {c.counterpartyName ?? <span className="text-etyme-faint">—</span>}
                           </td>
-                          <td className="px-6 py-3 tabular-nums text-etyme-ink">
-                            ${(c.rate / 100).toFixed(2)}/hr
+                          <td className="!text-right tabular-nums text-etyme-ink">
+                            ${(c.rate / 100).toFixed(0)}<span className="text-etyme-faint">/hr</span>
                           </td>
-                          <td className="px-6 py-3 tabular-nums text-etyme-muted">
+                          <td className="tabular-nums text-etyme-muted text-[12px]">
                             {new Date(c.startDate).toLocaleDateString()}
                           </td>
-                          <td className="px-6 py-3 tabular-nums">
+                          <td className="tabular-nums text-[12px]">
                             {c.endDate ? (
                               <span className={isRolloff ? 'text-etyme-attention font-medium' : 'text-etyme-muted'}>
                                 {new Date(c.endDate).toLocaleDateString()}
@@ -297,11 +332,11 @@ export default function ContractsPage() {
                                 )}
                               </span>
                             ) : (
-                              <span className="text-etyme-muted">Open-ended</span>
+                              <span className="text-etyme-faint">Open-ended</span>
                             )}
                           </td>
-                          <td className="px-6 py-3">
-                            <span className={`chip text-[10px] ${stateColor(c.state)}`}>
+                          <td>
+                            <span className={`chip ${stateChipClass(c.state)}`}>
                               {stateLabel(c.state)}
                             </span>
                           </td>
@@ -318,7 +353,7 @@ export default function ContractsPage() {
 
       {/* Count footer */}
       {!loading && contracts.length > 0 && (
-        <p className="text-xs text-etyme-faint">
+        <p className="text-xs text-etyme-faint tabular-nums">
           {contracts.length} {tab} contract{contracts.length !== 1 ? 's' : ''}
         </p>
       )}

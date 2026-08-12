@@ -1,6 +1,20 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { DataTable, type Column } from '@/components/data-table'
+
+/**
+ * Consultants working surface — the company's talent pool.
+ *
+ * CLAUDE.md design system:
+ *   Working surfaces: "Tables, search, filters, bulk, density"
+ *   "Tabular figures, tight rows"
+ *   "User finds and acts fast"
+ *
+ * Consultants live on the sell side — retained and marketing bench.
+ * The page surfaces availability, skills, work auth, and tier at a glance.
+ * Row click opens a detail drawer (right-side slide).
+ */
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -18,13 +32,6 @@ interface Consultant {
   tier: string | null
   rateMin: number | null
   rateMax: number | null
-}
-
-interface ConsultantFilters {
-  q: string
-  skill: string
-  workAuth: string
-  tier: string
 }
 
 // ── Add Consultant Modal ───────────────────────────────────
@@ -165,7 +172,7 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
                 className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
                            focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
               >
-                <option value="">Select...</option>
+                <option value="">Select…</option>
                 <option value="US_CITIZEN">US Citizen</option>
                 <option value="GC">Green Card</option>
                 <option value="H1B">H-1B</option>
@@ -179,21 +186,11 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-rule
-                         hover:bg-etyme-canvas transition-colors"
-            >
+            <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-ink text-white
-                         hover:bg-etyme-navy transition-colors disabled:opacity-50"
-            >
-              {submitting ? 'Creating...' : 'Add consultant'}
+            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+              {submitting ? 'Creating…' : 'Add consultant'}
             </button>
           </div>
         </form>
@@ -223,25 +220,25 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
         <div className="p-6 space-y-6">
           {/* Contact */}
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-2">Contact</p>
+            <p className="eyebrow mb-2">Contact</p>
             <p className="text-sm">{consultant.email}</p>
           </div>
 
           {/* Headline */}
           {consultant.headline && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-2">Headline</p>
+              <p className="eyebrow mb-2">Headline</p>
               <p className="text-sm">{consultant.headline}</p>
             </div>
           )}
 
           {/* Skills */}
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-2">Skills</p>
+            <p className="eyebrow mb-2">Skills</p>
             {consultant.skills.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {consultant.skills.map((skill) => (
-                  <span key={skill} className="pill bg-etyme-action/5 text-etyme-action">{skill}</span>
+                  <span key={skill} className="chip chip--action">{skill}</span>
                 ))}
               </div>
             ) : (
@@ -252,23 +249,23 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
           {/* Details grid */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-1">Location</p>
+              <p className="eyebrow mb-1">Location</p>
               <p className="text-sm">{consultant.location ?? 'Not specified'}</p>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-1">Work auth</p>
+              <p className="eyebrow mb-1">Work auth</p>
               <p className="text-sm">{formatWorkAuth(consultant.workAuth)}</p>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-1">Tier</p>
+              <p className="eyebrow mb-1">Tier</p>
               <p className="text-sm">{consultant.tier ?? 'Unset'}</p>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-1">Visibility</p>
-              <span className={`pill text-[10px] ${
-                consultant.visibility === 'VERIFIED' ? 'bg-emerald-50 text-etyme-verified' :
-                consultant.visibility === 'FEED' ? 'bg-etyme-action/5 text-etyme-action' :
-                'bg-etyme-canvas text-etyme-muted'
+              <p className="eyebrow mb-1">Visibility</p>
+              <span className={`chip ${
+                consultant.visibility === 'VERIFIED' ? 'chip--verified' :
+                consultant.visibility === 'FEED' ? 'chip--action' :
+                'chip--passive'
               }`}>
                 {consultant.visibility}
               </span>
@@ -278,7 +275,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
           {/* Availability */}
           {consultant.availableFrom && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-1">Available from</p>
+              <p className="eyebrow mb-1">Available from</p>
               <p className="text-sm">{new Date(consultant.availableFrom).toLocaleDateString()}</p>
             </div>
           )}
@@ -286,10 +283,10 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
           {/* Rate */}
           {consultant.rateMin != null && (
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-1">Rate range</p>
+              <p className="eyebrow mb-1">Rate range</p>
               <p className="text-sm tabular-nums">
                 ${consultant.rateMin}/hr
-                {consultant.rateMax != null && ` - $${consultant.rateMax}/hr`}
+                {consultant.rateMax != null && ` – $${consultant.rateMax}/hr`}
               </p>
             </div>
           )}
@@ -322,7 +319,6 @@ export default function ConsultantsPage() {
   const [consultants, setConsultants] = useState<Consultant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filters, setFilters] = useState<ConsultantFilters>({ q: '', skill: '', workAuth: '', tier: '' })
   const [showAdd, setShowAdd] = useState(false)
   const [selected, setSelected] = useState<Consultant | null>(null)
   const [hasCostPermission, setHasCostPermission] = useState(false)
@@ -331,13 +327,7 @@ export default function ConsultantsPage() {
     setLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams()
-      if (filters.q) params.set('q', filters.q)
-      if (filters.skill) params.set('skill', filters.skill)
-      if (filters.workAuth) params.set('workAuth', filters.workAuth)
-      if (filters.tier) params.set('tier', filters.tier)
-
-      const res = await fetch(`/api/consultants?${params}`)
+      const res = await fetch('/api/consultants')
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -352,226 +342,193 @@ export default function ConsultantsPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [])
 
   useEffect(() => {
-    const timer = setTimeout(fetchConsultants, 300) // debounce search
-    return () => clearTimeout(timer)
+    fetchConsultants()
   }, [fetchConsultants])
+
+  // ── Stats ──────────────────────────────────────────
+  const retainedCount = consultants.filter((c) => c.tier === 'RETAINED').length
+  const availableNow = consultants.filter(
+    (c) => c.availableFrom && new Date(c.availableFrom) <= new Date()
+  ).length
+
+  // ── Column definitions ─────────────────────────────
+  const columns: Column<Consultant>[] = [
+    {
+      key: 'name',
+      label: 'Name',
+      render: (row) => (
+        <div>
+          <p className="font-medium text-etyme-ink">{row.name}</p>
+          <p className="text-[11px] text-etyme-faint">{row.email}</p>
+        </div>
+      ),
+      sortValue: (row) => row.name,
+      width: 'min-w-[180px]',
+    },
+    {
+      key: 'skills',
+      label: 'Skills',
+      render: (row) => (
+        <div className="flex flex-wrap gap-1 max-w-[200px]">
+          {row.skills.slice(0, 3).map((skill) => (
+            <span key={skill} className="chip chip--action">{skill}</span>
+          ))}
+          {row.skills.length > 3 && (
+            <span className="chip chip--passive">+{row.skills.length - 3}</span>
+          )}
+        </div>
+      ),
+      sortable: false,
+      hideOnMobile: true,
+    },
+    {
+      key: 'location',
+      label: 'Location',
+      render: (row) => (
+        <span className="text-etyme-muted">{row.location ?? '—'}</span>
+      ),
+      sortValue: (row) => row.location ?? '',
+      hideOnMobile: true,
+    },
+    {
+      key: 'workAuth',
+      label: 'Work auth',
+      render: (row) => (
+        row.workAuth ? (
+          <span className="chip chip--passive">{formatWorkAuth(row.workAuth)}</span>
+        ) : (
+          <span className="text-etyme-faint">—</span>
+        )
+      ),
+      sortValue: (row) => row.workAuth ?? '',
+      hideOnMobile: true,
+    },
+    {
+      key: 'rate',
+      label: 'Pay rate',
+      render: (row) => (
+        hasCostPermission ? (
+          row.rateMin != null ? (
+            <span className="tabular-nums">
+              ${row.rateMin}<span className="text-etyme-faint">/hr</span>
+            </span>
+          ) : (
+            <span className="text-etyme-faint">—</span>
+          )
+        ) : (
+          <span className="text-etyme-faint text-[11px] italic">Restricted</span>
+        )
+      ),
+      sortValue: (row) => row.rateMin ?? 0,
+      align: 'right' as const,
+    },
+    {
+      key: 'availability',
+      label: 'Availability',
+      render: (row) => (
+        row.availableFrom ? (
+          new Date(row.availableFrom) <= new Date() ? (
+            <span className="flex items-center gap-1.5">
+              <span className="evidence-dot" />
+              <span className="text-[12px] text-etyme-verified font-medium">Now</span>
+            </span>
+          ) : (
+            <span className="text-[12px] tabular-nums text-etyme-muted">
+              {new Date(row.availableFrom).toLocaleDateString()}
+            </span>
+          )
+        ) : (
+          <span className="text-etyme-faint">—</span>
+        )
+      ),
+      sortValue: (row) =>
+        row.availableFrom ? new Date(row.availableFrom).getTime() : Infinity,
+    },
+    {
+      key: 'tier',
+      label: 'Tier',
+      render: (row) => (
+        row.tier ? (
+          <span className={`chip ${
+            row.tier === 'RETAINED' ? 'chip--verified' : 'chip--attention'
+          }`}>
+            {row.tier}
+          </span>
+        ) : (
+          <span className="text-etyme-faint">—</span>
+        )
+      ),
+      sortValue: (row) => row.tier ?? '',
+    },
+  ]
+
+  // ── Search filter ──────────────────────────────────
+  const searchFilter = (row: Consultant, q: string) =>
+    row.name.toLowerCase().includes(q) ||
+    row.email.toLowerCase().includes(q) ||
+    row.skills.some((s) => s.toLowerCase().includes(q)) ||
+    (row.location ?? '').toLowerCase().includes(q) ||
+    (row.headline ?? '').toLowerCase().includes(q) ||
+    (row.workAuth ?? '').toLowerCase().includes(q)
 
   return (
     <>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em]">Consultants</h1>
-          <p className="text-sm text-etyme-muted mt-1">
-            Your talent pool. Imported, retained, and marketing bench.
+      {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
+      <div className="flex items-start justify-between mb-6">
+        <div className="page-head">
+          <p className="eyebrow">Sell</p>
+          <h1>Consultants</h1>
+          <p>Your talent pool. Imported, retained, and marketing bench — with skills, availability, and work authorization at a glance.</p>
+        </div>
+        <button onClick={() => setShowAdd(true)} className="btn-primary mt-3 shrink-0">
+          Add consultant
+        </button>
+      </div>
+
+      {/* Stats row */}
+      <div className="flex gap-3 mb-6 flex-wrap">
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Total</p>
+          <p className="stat-value text-etyme-ink">{consultants.length}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">consultants</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Retained</p>
+          <p className="stat-value text-etyme-verified">{retainedCount}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">on bench</p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">Available now</p>
+          <p className={`stat-value ${availableNow > 0 ? 'text-etyme-verified' : 'text-etyme-ink'}`}>
+            {availableNow}
           </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            className="px-4 py-2 text-sm font-medium rounded-lg border border-etyme-rule
-                       hover:bg-white transition-colors text-etyme-muted cursor-not-allowed"
-            title="CSV export coming soon"
-            disabled
-          >
-            Export CSV
-          </button>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-ink text-white
-                       hover:bg-etyme-navy transition-colors"
-          >
-            Add consultant
-          </button>
+          <p className="text-[11px] text-etyme-faint mt-0.5">ready to deploy</p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="card mb-6">
-        <div className="flex flex-wrap gap-3">
-          {/* Search */}
-          <div className="flex-1 min-w-[200px]">
-            <input
-              type="text"
-              placeholder="Search by name, email, or skill..."
-              value={filters.q}
-              onChange={(e) => setFilters({ ...filters, q: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-            />
-          </div>
+      {/* Data table */}
+      <DataTable<Consultant>
+        columns={columns}
+        data={consultants}
+        rowKey={(row) => row.id}
+        loading={loading}
+        error={error}
+        searchFilter={searchFilter}
+        searchPlaceholder="Search by name, email, skill, location, or work auth…"
+        emptyMessage="No consultants found."
+        emptyDetail="Import your team from CSV or add consultants one at a time."
+        onRowClick={(row) => setSelected(row)}
+        exportName="consultants"
+        defaultPageSize={20}
+      />
 
-          {/* Skill filter */}
-          <div className="w-40">
-            <input
-              type="text"
-              placeholder="Skill filter"
-              value={filters.skill}
-              onChange={(e) => setFilters({ ...filters, skill: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-            />
-          </div>
-
-          {/* Work auth filter */}
-          <select
-            value={filters.workAuth}
-            onChange={(e) => setFilters({ ...filters, workAuth: e.target.value })}
-            className="px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
-                       focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-          >
-            <option value="">All work auth</option>
-            <option value="US_CITIZEN">US Citizen</option>
-            <option value="GC">Green Card</option>
-            <option value="H1B">H-1B</option>
-            <option value="OPT">OPT</option>
-            <option value="EAD">EAD</option>
-            <option value="TN">TN</option>
-            <option value="L1">L-1</option>
-          </select>
-
-          {/* Tier filter */}
-          <select
-            value={filters.tier}
-            onChange={(e) => setFilters({ ...filters, tier: e.target.value })}
-            className="px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
-                       focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-          >
-            <option value="">All tiers</option>
-            <option value="RETAINED">Retained</option>
-            <option value="MARKETING">Marketing</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div className="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          Could not load consultants: {error}
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="card p-0 overflow-hidden">
-        <div className="overflow-scroll-x">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-etyme-rule">
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Name</th>
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Skills</th>
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Location</th>
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Work Auth</th>
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Pay Rate</th>
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Availability</th>
-                <th className="text-left px-6 py-3 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">Tier</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-sm text-etyme-muted">
-                    Loading consultants...
-                  </td>
-                </tr>
-              ) : consultants.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
-                    <p className="text-sm text-etyme-muted">No consultants found.</p>
-                    <p className="text-xs text-etyme-muted/60 mt-1">
-                      {filters.q || filters.skill || filters.workAuth || filters.tier
-                        ? 'Try adjusting your filters, or clear them to see all consultants.'
-                        : 'Import your team from CSV or add consultants one at a time.'}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                consultants.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => setSelected(c)}
-                    className="border-b border-etyme-rule last:border-0 hover:bg-etyme-canvas/50
-                               cursor-pointer transition-colors"
-                  >
-                    <td className="px-6 py-3">
-                      <div>
-                        <p className="font-medium">{c.name}</p>
-                        <p className="text-xs text-etyme-muted">{c.email}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-3">
-                      <div className="flex flex-wrap gap-1 max-w-[200px]">
-                        {c.skills.slice(0, 3).map((skill) => (
-                          <span key={skill} className="pill bg-etyme-action/5 text-etyme-action text-[10px]">{skill}</span>
-                        ))}
-                        {c.skills.length > 3 && (
-                          <span className="pill bg-etyme-canvas text-etyme-muted text-[10px]">+{c.skills.length - 3}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-3 text-etyme-muted">{c.location ?? '—'}</td>
-                    <td className="px-6 py-3">
-                      {c.workAuth ? (
-                        <span className="pill bg-purple-50 text-etyme-purple text-[10px]">
-                          {formatWorkAuth(c.workAuth)}
-                        </span>
-                      ) : (
-                        <span className="text-etyme-muted">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3 tabular-nums">
-                      {hasCostPermission ? (
-                        c.rateMin != null ? (
-                          <span>${c.rateMin}/hr</span>
-                        ) : (
-                          <span className="text-etyme-muted">—</span>
-                        )
-                      ) : (
-                        <span className="text-etyme-muted text-xs italic">Restricted</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3">
-                      {c.availableFrom ? (
-                        <span className="text-xs">
-                          {new Date(c.availableFrom) <= new Date() ? (
-                            <span className="flex items-center gap-1.5">
-                              <span className="evidence-dot" />
-                              Now
-                            </span>
-                          ) : (
-                            new Date(c.availableFrom).toLocaleDateString()
-                          )}
-                        </span>
-                      ) : (
-                        <span className="text-etyme-muted">—</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-3">
-                      {c.tier ? (
-                        <span className={`pill text-[10px] ${
-                          c.tier === 'RETAINED'
-                            ? 'bg-emerald-50 text-etyme-verified border border-emerald-200'
-                            : 'bg-amber-50 text-etyme-attention border border-amber-200'
-                        }`}>
-                          {c.tier}
-                        </span>
-                      ) : (
-                        <span className="text-etyme-muted">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Count footer */}
+      {/* Footer count */}
       {!loading && consultants.length > 0 && (
-        <p className="text-xs text-etyme-muted mt-3">
-          Showing {consultants.length} consultant{consultants.length !== 1 ? 's' : ''}
+        <p className="text-xs text-etyme-faint mt-3 tabular-nums">
+          {consultants.length} consultant{consultants.length !== 1 ? 's' : ''}
         </p>
       )}
 
