@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -203,6 +204,7 @@ function StatusPill({ status }: { status: string }) {
 // ── Page ───────────────────────────────────────────────────
 
 export default function RequirementsPage() {
+  const router = useRouter()
   const [requirements, setRequirements] = useState<Requirement[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -323,6 +325,7 @@ export default function RequirementsPage() {
                 requirements.map((r) => (
                   <tr
                     key={r.id}
+                    onClick={() => router.push(`/dashboard/requirements/${r.id}` as any)}
                     className="border-b border-etyme-rule last:border-0 hover:bg-etyme-canvas/50
                                cursor-pointer transition-colors"
                   >
