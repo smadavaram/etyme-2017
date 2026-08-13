@@ -92,7 +92,7 @@ export default function SubmissionsPage() {
     fetch('/api/me')
       .then((r) => r.json())
       .then((body) => {
-        const cid = body.data?.context?.companyId ?? body.data?.company?.id
+        const cid = body.data?.activeContext?.company?.id ?? body.data?.contexts?.[0]?.company?.id
         if (cid) setCompanyId(cid)
       })
       .catch(() => {})

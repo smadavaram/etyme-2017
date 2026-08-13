@@ -334,7 +334,16 @@ export default function ConsultantsPage() {
       }
 
       const body = await res.json()
-      setConsultants(body.data?.consultants ?? [])
+      // API returns nested person object; flatten for the table
+      const mapped = (body.data?.consultants ?? []).map((c: any) => ({
+        ...c,
+        name: c.person?.name ?? c.name ?? 'Unknown',
+        email: c.person?.email ?? c.email ?? '',
+        tier: c.listings?.[0]?.tier ?? c.tier ?? null,
+        rateMin: c.listings?.[0]?.rateMin ?? c.rateMin ?? null,
+        rateMax: c.listings?.[0]?.rateMax ?? c.rateMax ?? null,
+      }))
+      setConsultants(mapped)
       setHasCostPermission(body.data?.permissions?.includes('consultants.cost') ?? false)
     } catch (err: any) {
       setError(err.message)

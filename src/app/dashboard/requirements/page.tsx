@@ -213,7 +213,12 @@ export default function RequirementsPage() {
       }
 
       const body = await res.json()
-      setRequirements(body.data?.requirements ?? [])
+      // API returns counts.matches; flatten for the table
+      const reqs = (body.data?.requirements ?? []).map((r: any) => ({
+        ...r,
+        matches: r.counts?.matches ?? r.matches ?? 0,
+      }))
+      setRequirements(reqs)
     } catch (err: any) {
       setError(err.message)
       setRequirements([])
