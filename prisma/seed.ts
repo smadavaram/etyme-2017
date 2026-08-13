@@ -25,6 +25,7 @@ async function main() {
   await prisma.$transaction([
     prisma.payment.deleteMany(),
     prisma.invoice.deleteMany(),
+    prisma.expense.deleteMany(),
     prisma.timesheet.deleteMany(),
     prisma.submission.deleteMany(),
     prisma.match.deleteMany(),
@@ -609,6 +610,166 @@ async function main() {
     },
   })
 
+  // ── Expenses ───────────────────────────────────
+  // BUILD.md §6.3: Client-billable expenses appear on invoices.
+  // LEGACY_RULES.md §4.4: ClientExpense lifecycle, amount = sum(qty × unitPrice).
+  const expenseData = [
+    {
+      sellContractIdx: 0,  // Anita @ Terumo
+      personIdx: 2,
+      category: 'TRAVEL',
+      billable: true,
+      description: 'Round-trip flight DFW→DEN for onsite sprint planning',
+      periodStart: -14,
+      periodEnd: -10,
+      items: [
+        { description: 'Flight DFW→DEN round-trip', quantity: 1, unitPrice: 485, expenseType: 'AIRFARE' },
+        { description: 'Hotel — 4 nights @ $189/night', quantity: 4, unitPrice: 189, expenseType: 'LODGING' },
+        { description: 'Rental car', quantity: 4, unitPrice: 65, expenseType: 'GROUND' },
+        { description: 'Per diem meals', quantity: 4, unitPrice: 75, expenseType: 'MEALS' },
+      ],
+      status: 'APPROVED',
+      daysAgo: 7,
+    },
+    {
+      sellContractIdx: 1,  // John @ Terumo
+      personIdx: 5,
+      category: 'EQUIPMENT',
+      billable: false,
+      description: 'Replacement laptop charger and USB-C hub',
+      periodStart: -5,
+      periodEnd: -5,
+      items: [
+        { description: 'USB-C laptop charger', quantity: 1, unitPrice: 89.99, expenseType: 'EQUIPMENT' },
+        { description: 'USB-C multiport hub', quantity: 1, unitPrice: 59.99, expenseType: 'EQUIPMENT' },
+      ],
+      status: 'SUBMITTED',
+      daysAgo: 3,
+    },
+    {
+      sellContractIdx: 2,  // Ravi @ Nike
+      personIdx: 0,
+      category: 'TRAINING',
+      billable: true,
+      description: 'SAP BRIM certification exam and prep materials',
+      periodStart: -30,
+      periodEnd: -28,
+      items: [
+        { description: 'SAP C_BRIM_2020 certification exam', quantity: 1, unitPrice: 595, expenseType: 'CERT' },
+        { description: 'Official SAP training materials', quantity: 1, unitPrice: 250, expenseType: 'MATERIALS' },
+      ],
+      status: 'INVOICED',
+      daysAgo: 21,
+    },
+    {
+      sellContractIdx: 0,  // Anita @ Terumo
+      personIdx: 2,
+      category: 'MEALS',
+      billable: true,
+      description: 'Client dinner — project kickoff',
+      periodStart: -3,
+      periodEnd: -3,
+      items: [
+        { description: 'Client dinner — 4 attendees', quantity: 1, unitPrice: 312.50, expenseType: 'MEALS' },
+      ],
+      status: 'SUBMITTED',
+      daysAgo: 2,
+    },
+    {
+      sellContractIdx: 1,  // John @ Terumo
+      personIdx: 5,
+      category: 'TRAVEL',
+      billable: true,
+      description: 'Uber rides — week of Aug 4 for client site visits',
+      periodStart: -10,
+      periodEnd: -6,
+      items: [
+        { description: 'Uber — Mon office→client site', quantity: 1, unitPrice: 28.50, expenseType: 'GROUND' },
+        { description: 'Uber — Mon client site→office', quantity: 1, unitPrice: 31.00, expenseType: 'GROUND' },
+        { description: 'Uber — Wed office→datacenter', quantity: 1, unitPrice: 45.00, expenseType: 'GROUND' },
+        { description: 'Uber — Wed datacenter→office', quantity: 1, unitPrice: 42.00, expenseType: 'GROUND' },
+        { description: 'Uber — Fri office→client site', quantity: 1, unitPrice: 29.50, expenseType: 'GROUND' },
+      ],
+      status: 'DRAFT',
+      daysAgo: 1,
+    },
+    {
+      sellContractIdx: 2,  // Ravi @ Nike
+      personIdx: 0,
+      category: 'RELOCATION',
+      billable: false,
+      description: 'Temporary housing first month — Portland assignment',
+      periodStart: -45,
+      periodEnd: -15,
+      items: [
+        { description: 'Furnished apartment — 1 month', quantity: 1, unitPrice: 3200, expenseType: 'HOUSING' },
+        { description: 'Moving company — personal items', quantity: 1, unitPrice: 850, expenseType: 'MOVING' },
+      ],
+      status: 'PAID',
+      daysAgo: 35,
+    },
+    {
+      sellContractIdx: 0,  // Anita @ Terumo
+      personIdx: 2,
+      category: 'EQUIPMENT',
+      billable: true,
+      description: 'External monitor for remote work setup',
+      periodStart: -20,
+      periodEnd: -20,
+      items: [
+        { description: 'Dell 27" 4K monitor', quantity: 1, unitPrice: 429.99, expenseType: 'EQUIPMENT' },
+        { description: 'Monitor arm mount', quantity: 1, unitPrice: 39.99, expenseType: 'EQUIPMENT' },
+      ],
+      status: 'APPROVED',
+      daysAgo: 12,
+    },
+    {
+      sellContractIdx: 1,  // John @ Terumo
+      personIdx: 5,
+      category: 'TRAINING',
+      billable: false,
+      description: 'ServiceNow CSA renewal — online proctored',
+      periodStart: -8,
+      periodEnd: -8,
+      items: [
+        { description: 'ServiceNow CSA renewal exam', quantity: 1, unitPrice: 300, expenseType: 'CERT' },
+      ],
+      status: 'REJECTED',
+      daysAgo: 5,
+    },
+  ]
+
+  for (const exp of expenseData) {
+    const periodStartDate = new Date(now)
+    periodStartDate.setDate(periodStartDate.getDate() + exp.periodStart)
+    const periodEndDate = new Date(now)
+    periodEndDate.setDate(periodEndDate.getDate() + exp.periodEnd)
+    const createdAt = new Date(now)
+    createdAt.setDate(createdAt.getDate() - exp.daysAgo)
+
+    const total = exp.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+
+    await prisma.expense.create({
+      data: {
+        companyId: vendor.id,
+        sellContractId: sellContracts[exp.sellContractIdx].id,
+        personId: people[exp.personIdx].id,
+        category: exp.category,
+        billable: exp.billable,
+        description: exp.description,
+        periodStart: periodStartDate,
+        periodEnd: periodEndDate,
+        items: exp.items,
+        total,
+        status: exp.status,
+        submittedAt: ['SUBMITTED', 'APPROVED', 'INVOICED', 'PAID', 'REJECTED'].includes(exp.status) ? createdAt : null,
+        approvedAt: ['APPROVED', 'INVOICED', 'PAID'].includes(exp.status) ? createdAt : null,
+        rejectedReason: exp.status === 'REJECTED' ? 'Company does not reimburse individual certification renewals — use group training budget' : null,
+        createdAt,
+      },
+    })
+  }
+
   console.log('✅ Seed complete.')
   console.log(`   Companies:    3 (${vendor.name}, ${client.name}, ${client2.name})`)
   console.log(`   Consultants:  ${consultantData.length}`)
@@ -619,6 +780,7 @@ async function main() {
   console.log(`   Timesheets:   ${timesheetData.length}`)
   console.log(`   Engagements:  2 (${eng1.title}, ${eng2.title})`)
   console.log(`   Invoices:     ${invoiceData.length}`)
+  console.log(`   Expenses:     ${expenseData.length}`)
   console.log(`   Payments:     3`)
 }
 

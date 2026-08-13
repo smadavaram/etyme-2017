@@ -38,6 +38,7 @@ model Person {
   timesheets    Timesheet[]
   verifications Verification[]
   enrollments   Enrollment[]
+  expenses      Expense[]
 }
 
 model Credential {
@@ -168,6 +169,8 @@ model Company {
   governancePolicies GovernancePolicy[]
   // Training
   courses            Course[]
+  // Expenses
+  expenses           Expense[]
 }
 
 enum CompanyKind {
@@ -478,6 +481,7 @@ model SellContract {
   sellCycles Cycle[]        @relation("sellCycles")
   rolloff    RolloffEvent?
   docs       DocInstance[]  @relation("sellDocs")
+  expenses   Expense[]
 
   @@index([companyId, state])
   @@index([clientCompanyId])
@@ -657,6 +661,40 @@ model Invoice {
   payments     Payment[]
 
   @@index([status, dueAt])
+}
+
+// Expenses — consolidates 2017 expense, client_expense, expense_account, contract_expense, expense_item.
+// Two kinds: COMPANY (internal) and CLIENT_BILLABLE (passed to client on invoices).
+// Lifecycle: DRAFT → SUBMITTED → APPROVED → INVOICED → PAID  or  → REJECTED at any point.
+// BUILD.md §6.3: "Client-billable expenses appear on invoices."
+model Expense {
+  id             String       @id @default(cuid())
+  companyId      String
+  company        Company      @relation(fields: [companyId], references: [id])
+  sellContractId String
+  sellContract   SellContract @relation(fields: [sellContractId], references: [id])
+  personId       String // consultant who incurred the expense
+  person         Person       @relation(fields: [personId], references: [id])
+  category       String // TRAVEL · EQUIPMENT · TRAINING · RELOCATION · MEALS · OTHER
+  billable       Boolean      @default(true) // client-billable vs internal company expense
+  description    String
+  periodStart    DateTime
+  periodEnd      DateTime
+  items          Json // [{ description, quantity, unitPrice, expenseType }]
+  total          Decimal      @db.Decimal(12, 2)
+  receiptUrl     String?
+  status         String       @default("DRAFT") // DRAFT · SUBMITTED · APPROVED · INVOICED · PAID · REJECTED
+  submittedAt    DateTime?
+  approvedById   String?
+  approvedAt     DateTime?
+  rejectedReason String?
+  invoiceId      String? // linked when invoiced (client-billable only)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([companyId, status])
+  @@index([sellContractId])
+  @@index([personId])
 }
 
 model Payment {

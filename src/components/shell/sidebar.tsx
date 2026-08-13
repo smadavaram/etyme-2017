@@ -58,6 +58,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧' },
+      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫' },
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
     ],
