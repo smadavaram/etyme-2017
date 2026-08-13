@@ -171,6 +171,8 @@ model Company {
   courses            Course[]
   // Expenses
   expenses           Expense[]
+  // Conversations
+  conversations      Conversation[]
 }
 
 enum CompanyKind {
@@ -718,6 +720,67 @@ model IntercompanyPosition {
   settledAt    DateTime?
 
   @@unique([fromEntityId, toEntityId, period])
+}
+
+// ─────────────────────────────────────────────
+// CONVERSATIONS — consolidates 2017 chat, chat_user, conversation,
+// conversation_message, group, message into three models.
+// BUILD.md §6.1: "The connective tissue. Its absence will be felt immediately."
+// Auto-created threads per requirement, per contract, per document request.
+// ─────────────────────────────────────────────
+
+model Conversation {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id])
+  topic        String    @default("GENERAL") // GENERAL · REQUIREMENT · CONTRACT · SUBMISSION · DOCUMENT · INVOICE · EXPENSE · DIRECT
+  topicId      String?   // links to the entity (requirementId, sellContractId, etc.)
+  title        String?   // null for direct messages; auto-generated for topic threads
+  participants Json      // [{ personId, name, joinedAt }]
+  parentId     String?   // branch conversations (sub-chats)
+  archivedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  messages Message[]
+
+  @@unique([companyId, topic, topicId]) // one thread per entity
+  @@index([companyId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorId       String
+  body           String
+  type           String       @default("TEXT") // TEXT · SYSTEM · RATE_CONFIRMATION · INTERVIEW · DOCUMENT_REQUEST
+  metadata       Json?        // type-specific payload (rate amount, interview date, doc template)
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([authorId])
+}
+
+// BUILD.md §6.2: "Needs type × channel routing including Teams and email digests."
+// Status: UNREAD → READ. Channel: IN_APP · EMAIL · TEAMS.
+model Notification {
+  id        String   @id @default(cuid())
+  personId  String
+  companyId String?
+  type      String   // SUBMISSION · TIMESHEET · INVOICE · EXPENSE · CONTRACT · ROLLOFF · CONVERSATION · SYSTEM
+  title     String
+  body      String
+  entityId  String?  // the thing this is about
+  channel   String   @default("IN_APP") // IN_APP · EMAIL · TEAMS
+  status    String   @default("UNREAD") // UNREAD · READ
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([personId, status])
+  @@index([companyId, createdAt])
 }
 
 // ─────────────────────────────────────────────

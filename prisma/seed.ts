@@ -23,6 +23,9 @@ async function main() {
 
   // Clean slate
   await prisma.$transaction([
+    prisma.notification.deleteMany(),
+    prisma.message.deleteMany(),
+    prisma.conversation.deleteMany(),
     prisma.payment.deleteMany(),
     prisma.invoice.deleteMany(),
     prisma.expense.deleteMany(),
@@ -770,6 +773,142 @@ async function main() {
     })
   }
 
+  // ── Conversations ──────────────────────────────
+  // BUILD.md §6.1: "auto-created a thread per job, per contract and per document request"
+  const conversationData = [
+    {
+      topic: 'REQUIREMENT',
+      topicId: requirementRecords[0].id,
+      title: 'SAP BRIM Consultant — Remote',
+      messages: [
+        { authorIdx: -1, body: 'Requirement created and distributed to 3 vendors.', type: 'SYSTEM', daysAgo: 30 },
+        { authorIdx: 0, body: 'I have two strong BRIM candidates available immediately — Ravi and Anita. Both have 5+ years on S/4HANA.', type: 'TEXT', daysAgo: 29 },
+        { authorIdx: -1, body: 'Ravi Patel submitted at $130/hr.', type: 'SYSTEM', daysAgo: 28 },
+        { authorIdx: -1, body: 'Anita Desai submitted at $120/hr.', type: 'SYSTEM', daysAgo: 27 },
+      ],
+    },
+    {
+      topic: 'CONTRACT',
+      topicId: sellContracts[0].id,
+      title: 'Anita Desai — Terumo BCT (SAP SD/MM)',
+      messages: [
+        { authorIdx: -1, body: 'Sell contract created: Anita Desai → Terumo BCT at $120/hr.', type: 'SYSTEM', daysAgo: 60 },
+        { authorIdx: 2, body: 'Hi team, just wanted to confirm my start date is next Monday. I have completed the I-9 and background check.', type: 'TEXT', daysAgo: 55 },
+        { authorIdx: -1, body: 'All verifications passed. Contract moved to IN_PROGRESS.', type: 'SYSTEM', daysAgo: 54 },
+        { authorIdx: 0, body: 'Anita, please submit timesheets by Friday EOD. The approval cycle is biweekly.', type: 'TEXT', daysAgo: 50 },
+      ],
+    },
+    {
+      topic: 'CONTRACT',
+      topicId: sellContracts[2].id,
+      title: 'Ravi Patel — Nike (Cloud Platform)',
+      messages: [
+        { authorIdx: -1, body: 'Sell contract created: Ravi Patel → Nike Inc. at $135/hr.', type: 'SYSTEM', daysAgo: 120 },
+        { authorIdx: 0, body: 'Ravi is performing exceptionally. Nike has requested an extension through Q1 2027.', type: 'TEXT', daysAgo: 10 },
+        { authorIdx: -1, body: 'Rate confirmation: $135/hr maintained for extension period.', type: 'RATE_CONFIRMATION', daysAgo: 9 },
+      ],
+    },
+    {
+      topic: 'SUBMISSION',
+      topicId: null,
+      title: 'Azure Architect — Terumo BCT submission discussion',
+      messages: [
+        { authorIdx: -1, body: 'Priya Sharma shortlisted for Azure Cloud Architect position.', type: 'SYSTEM', daysAgo: 20 },
+        { authorIdx: 0, body: 'Priya is available for a technical interview anytime this week. She has strong Azure + Terraform credentials.', type: 'TEXT', daysAgo: 19 },
+        { authorIdx: -1, body: 'Interview scheduled for Thursday at 2pm CST.', type: 'INTERVIEW', daysAgo: 18 },
+      ],
+    },
+    {
+      topic: 'EXPENSE',
+      topicId: null,
+      title: 'Q3 travel expense approvals',
+      messages: [
+        { authorIdx: 0, body: 'Please submit all Q3 travel expenses by Aug 15. We need to invoice Terumo BCT for client-billable items before month-end.', type: 'TEXT', daysAgo: 5 },
+        { authorIdx: 2, body: 'Submitted my DFW→DEN trip expenses — flight, hotel, car rental, and per diem. Total $1,801.', type: 'TEXT', daysAgo: 4 },
+        { authorIdx: 5, body: 'I have some Uber receipts from last week — should those go under Travel or Other?', type: 'TEXT', daysAgo: 3 },
+        { authorIdx: 0, body: 'Travel — any ground transportation for client site visits counts as travel.', type: 'TEXT', daysAgo: 3 },
+      ],
+    },
+  ]
+
+  let conversationCount = 0
+  let messageCount = 0
+  for (const conv of conversationData) {
+    const participants = [
+      { personId: founder.id, name: founder.name, joinedAt: now.toISOString() },
+    ]
+    // Add relevant people from messages
+    const authorIdxs = [...new Set(conv.messages.map(m => m.authorIdx).filter(i => i >= 0))]
+    for (const idx of authorIdxs) {
+      participants.push({
+        personId: people[idx].id,
+        name: consultantData[idx].name,
+        joinedAt: now.toISOString(),
+      })
+    }
+
+    const conversation = await prisma.conversation.create({
+      data: {
+        companyId: vendor.id,
+        topic: conv.topic,
+        topicId: conv.topicId,
+        title: conv.title,
+        participants,
+      },
+    })
+    conversationCount++
+
+    for (const msg of conv.messages) {
+      const createdAt = new Date(now)
+      createdAt.setDate(createdAt.getDate() - msg.daysAgo)
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          authorId: msg.authorIdx < 0 ? 'SYSTEM' : (msg.authorIdx === 0 ? founder.id : people[msg.authorIdx].id),
+          body: msg.body,
+          type: msg.type,
+          createdAt,
+        },
+      })
+      messageCount++
+    }
+  }
+
+  // ── Notifications ──────────────────────────────
+  // BUILD.md §6.2: "type × channel routing including Teams and email digests"
+  const notificationData = [
+    { type: 'SUBMISSION', title: 'Priya Sharma shortlisted', body: 'Priya Sharma has been shortlisted for Azure Cloud Architect at Terumo BCT.', daysAgo: 0.1, status: 'UNREAD' },
+    { type: 'TIMESHEET', title: 'Timesheet due tomorrow', body: 'Anita Desai has not submitted her timesheet for the period ending Aug 15.', daysAgo: 0.5, status: 'UNREAD' },
+    { type: 'INVOICE', title: 'Invoice INV-2026-003 past due', body: 'Invoice INV-2026-003 for Terumo BCT SAP BRIM Migration is 15 days past due. Outstanding: $12,000.', daysAgo: 1, status: 'UNREAD' },
+    { type: 'EXPENSE', title: 'Expense submitted for approval', body: 'Anita Desai submitted a client dinner expense of $312.50 for your review.', daysAgo: 2, status: 'UNREAD' },
+    { type: 'CONTRACT', title: 'Contract extension requested', body: 'Nike Inc. has requested an extension for Ravi Patel through Q1 2027 at $135/hr.', daysAgo: 3, status: 'READ' },
+    { type: 'ROLLOFF', title: 'Rolloff alert: John Martinez', body: 'John Martinez at Terumo BCT ends in 14 days. No redeployment claim yet.', daysAgo: 3, status: 'UNREAD' },
+    { type: 'EXPENSE', title: 'Expense approved', body: 'Your DFW→DEN travel expense of $1,801.00 has been approved and queued for invoicing.', daysAgo: 5, status: 'READ' },
+    { type: 'CONVERSATION', title: 'New message in SAP BRIM requirement', body: 'Sharath Madavaram: I have two strong BRIM candidates available immediately.', daysAgo: 6, status: 'READ' },
+    { type: 'SYSTEM', title: 'Payroll processed', body: 'Biweekly payroll cycle completed. 4 consultants processed, total gross: $18,400.', daysAgo: 7, status: 'READ' },
+    { type: 'SUBMISSION', title: 'Rate negotiation', body: 'Terumo BCT has counter-offered $125/hr for Anita Desai (you submitted at $120/hr).', daysAgo: 8, status: 'READ' },
+    { type: 'TIMESHEET', title: 'Timesheet approved', body: 'Ravi Patel timesheet for Jul 28 – Aug 10 approved. 80 hours at $135/hr.', daysAgo: 10, status: 'READ' },
+    { type: 'INVOICE', title: 'Payment received', body: 'Nike Inc. payment of $16,200 received for INV-2026-001. Invoice fully paid.', daysAgo: 12, status: 'READ' },
+  ]
+
+  for (const notif of notificationData) {
+    const createdAt = new Date(now)
+    createdAt.setDate(createdAt.getDate() - notif.daysAgo)
+    await prisma.notification.create({
+      data: {
+        personId: founder.id,
+        companyId: vendor.id,
+        type: notif.type,
+        title: notif.title,
+        body: notif.body,
+        channel: 'IN_APP',
+        status: notif.status,
+        readAt: notif.status === 'READ' ? createdAt : null,
+        createdAt,
+      },
+    })
+  }
+
   console.log('✅ Seed complete.')
   console.log(`   Companies:    3 (${vendor.name}, ${client.name}, ${client2.name})`)
   console.log(`   Consultants:  ${consultantData.length}`)
@@ -781,6 +920,8 @@ async function main() {
   console.log(`   Engagements:  2 (${eng1.title}, ${eng2.title})`)
   console.log(`   Invoices:     ${invoiceData.length}`)
   console.log(`   Expenses:     ${expenseData.length}`)
+  console.log(`   Conversations: ${conversationCount} (${messageCount} messages)`)
+  console.log(`   Notifications: ${notificationData.length}`)
   console.log(`   Payments:     3`)
 }
 
