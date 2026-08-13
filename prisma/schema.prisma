@@ -173,6 +173,8 @@ model Company {
   expenses           Expense[]
   // Conversations
   conversations      Conversation[]
+  // Blacklist
+  blacklists         Blacklist[]
 }
 
 enum CompanyKind {
@@ -720,6 +722,56 @@ model IntercompanyPosition {
   settledAt    DateTime?
 
   @@unique([fromEntityId, toEntityId, period])
+}
+
+// ─────────────────────────────────────────────
+// RATE HISTORY — versioned rate changes for buy and sell contracts.
+// BUILD.md §6.9: "Rate changes must be versioned or the timesheet valuation is unreliable."
+// LEGACY_RULES.md §2.4: ChangeRate — polymorphic, date-ranged rate versioning
+//   with overlap validation. No two rate periods for the same contract may overlap.
+// ─────────────────────────────────────────────
+
+model RateHistory {
+  id               String    @id @default(cuid())
+  contractType     String    // SELL | BUY
+  contractId       String    // sellContractId or buyContractId
+  rate             Int       // cents per hour (or per period depending on rateType)
+  rateType         String    @default("HOURLY") // HOURLY · DAILY · WEEKLY · MONTHLY
+  overtimeRate     Int?      // cents per hour for overtime
+  fromDate         DateTime
+  toDate           DateTime?  // null = current/open-ended
+  reason           String?    // why the rate changed
+  changedById      String     // personId of who made the change
+  previousRate     Int?       // the rate before this change (for audit trail)
+  createdAt        DateTime  @default(now())
+
+  @@index([contractType, contractId])
+  @@index([contractId, fromDate])
+}
+
+// ─────────────────────────────────────────────
+// BLACKLIST — filters candidates and companies out of search, feeds and contracts.
+// BUILD.md §6.10: "black_lister — filters candidates and companies out of search,
+// feeds and contracts."
+// ─────────────────────────────────────────────
+
+model Blacklist {
+  id          String    @id @default(cuid())
+  companyId   String    // the company that blacklisted
+  company     Company   @relation(fields: [companyId], references: [id])
+  targetType  String    // PERSON | COMPANY
+  targetId    String    // personId or companyId
+  reason      String
+  blockedById String    // personId who added the block
+  blockedAt   DateTime  @default(now())
+  expiresAt   DateTime? // null = permanent
+  liftedAt    DateTime? // set when manually lifted
+  liftedById  String?
+  liftReason  String?
+
+  @@unique([companyId, targetType, targetId])
+  @@index([companyId])
+  @@index([targetType, targetId])
 }
 
 // ─────────────────────────────────────────────

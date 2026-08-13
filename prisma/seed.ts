@@ -23,6 +23,8 @@ async function main() {
 
   // Clean slate
   await prisma.$transaction([
+    prisma.blacklist.deleteMany(),
+    prisma.rateHistory.deleteMany(),
     prisma.notification.deleteMany(),
     prisma.message.deleteMany(),
     prisma.conversation.deleteMany(),
@@ -909,6 +911,214 @@ async function main() {
     })
   }
 
+  // ── Rate History ───────────────────────────────
+  // BUILD.md §6.9: "Rate changes must be versioned or the timesheet valuation
+  // is unreliable."
+  // LEGACY_RULES.md §2.4: ChangeRate — date-ranged rate versioning.
+  const rateHistoryData = [
+    // Anita's sell contract — rate went from $110 → $120 at 90 days
+    {
+      contractType: 'SELL',
+      contractId: sellContracts[0].id,
+      rate: 11000, // $110/hr
+      rateType: 'HOURLY',
+      fromDate: -120,
+      toDate: -31,
+      reason: 'Initial contract rate',
+      previousRate: null,
+    },
+    {
+      contractType: 'SELL',
+      contractId: sellContracts[0].id,
+      rate: 12000, // $120/hr — current rate
+      rateType: 'HOURLY',
+      fromDate: -30,
+      toDate: null,
+      reason: '90-day review — 9% increase based on performance and client feedback',
+      previousRate: 11000,
+    },
+    // John's sell contract — steady rate
+    {
+      contractType: 'SELL',
+      contractId: sellContracts[1].id,
+      rate: 10500,
+      rateType: 'HOURLY',
+      fromDate: -90,
+      toDate: null,
+      reason: 'Initial contract rate',
+      previousRate: null,
+    },
+    // Ravi's sell contract at Nike — rate went $125 → $130 → $135
+    {
+      contractType: 'SELL',
+      contractId: sellContracts[2].id,
+      rate: 12500,
+      rateType: 'HOURLY',
+      fromDate: -200,
+      toDate: -121,
+      reason: 'Initial contract rate',
+      previousRate: null,
+    },
+    {
+      contractType: 'SELL',
+      contractId: sellContracts[2].id,
+      rate: 13000,
+      rateType: 'HOURLY',
+      fromDate: -120,
+      toDate: -31,
+      reason: '6-month review — 4% increase',
+      previousRate: 12500,
+    },
+    {
+      contractType: 'SELL',
+      contractId: sellContracts[2].id,
+      rate: 13500,
+      rateType: 'HOURLY',
+      fromDate: -30,
+      toDate: null,
+      reason: 'Contract extension rate — client requested $135/hr',
+      previousRate: 13000,
+    },
+    // Anita's buy contract — pay rate $75 → $85
+    {
+      contractType: 'BUY',
+      contractId: buyContracts[0].id,
+      rate: 7500,
+      rateType: 'HOURLY',
+      fromDate: -120,
+      toDate: -31,
+      reason: 'Initial pay rate',
+      previousRate: null,
+    },
+    {
+      contractType: 'BUY',
+      contractId: buyContracts[0].id,
+      rate: 8500,
+      rateType: 'HOURLY',
+      fromDate: -30,
+      toDate: null,
+      reason: 'Pay increase aligned with bill rate adjustment',
+      previousRate: 7500,
+    },
+    // Ravi's buy contract (C2C) — $95/hr steady
+    {
+      contractType: 'BUY',
+      contractId: buyContracts[2].id,
+      rate: 9500,
+      rateType: 'HOURLY',
+      fromDate: -200,
+      toDate: null,
+      reason: 'C2C rate — negotiated with vendor entity',
+      previousRate: null,
+    },
+  ]
+
+  let rateHistoryCount = 0
+  for (const rh of rateHistoryData) {
+    const fromDate = new Date(now)
+    fromDate.setDate(fromDate.getDate() + rh.fromDate)
+    const toDate = rh.toDate !== null ? new Date(now) : null
+    if (toDate !== null) toDate.setDate(toDate.getDate() + rh.toDate!)
+
+    await prisma.rateHistory.create({
+      data: {
+        contractType: rh.contractType,
+        contractId: rh.contractId,
+        rate: rh.rate,
+        rateType: rh.rateType,
+        fromDate,
+        toDate,
+        reason: rh.reason,
+        changedById: founder.id,
+        previousRate: rh.previousRate,
+      },
+    })
+    rateHistoryCount++
+  }
+
+  // ── Blacklist ─────────────────────────────────────
+  // BUILD.md §6.10: "black_lister — filters candidates and companies out of
+  // search, feeds and contracts."
+  // Create a third-party company to blacklist
+  const blockedCompany = await prisma.company.create({
+    data: {
+      name: 'Unreliable Staffing LLC',
+      slug: 'unreliable-staffing',
+      domain: 'unreliable-staffing.com',
+      domainVerified: false,
+      kind: 'VENDOR',
+      currency: 'USD',
+    },
+  })
+
+  // Create a person to blacklist (not one of our consultants)
+  const blockedPerson = await prisma.person.create({
+    data: {
+      name: 'Former Consultant',
+      primaryEmail: 'former@example.com',
+    },
+  })
+
+  const blacklistData = [
+    // Active permanent person blacklist
+    {
+      targetType: 'PERSON',
+      targetId: blockedPerson.id,
+      reason: 'Non-performance on 3 consecutive assignments — client escalation and contract termination',
+      daysAgo: 90,
+      expiresAt: null,
+      liftedAt: null,
+      liftedById: null,
+      liftReason: null,
+    },
+    // Active permanent company blacklist
+    {
+      targetType: 'COMPANY',
+      targetId: blockedCompany.id,
+      reason: 'Failed background verification audit — falsified candidate credentials',
+      daysAgo: 60,
+      expiresAt: null,
+      liftedAt: null,
+      liftedById: null,
+      liftReason: null,
+    },
+    // Active temporary blacklist (expires in 90 days)
+    {
+      targetType: 'COMPANY',
+      targetId: client2.id,
+      reason: 'Payment dispute — 3 invoices past 90 days overdue. Reinstated after settlement.',
+      daysAgo: 30,
+      expiresAt: 90, // days from now
+      liftedAt: null,
+      liftedById: null,
+      liftReason: null,
+    },
+  ]
+
+  let blacklistCount = 0
+  for (const bl of blacklistData) {
+    const blockedAt = new Date(now)
+    blockedAt.setDate(blockedAt.getDate() - bl.daysAgo)
+    const expiresAt = bl.expiresAt !== null ? new Date(now) : null
+    if (expiresAt !== null) expiresAt.setDate(expiresAt.getDate() + bl.expiresAt!)
+
+    await prisma.blacklist.create({
+      data: {
+        companyId: vendor.id,
+        targetType: bl.targetType,
+        targetId: bl.targetId,
+        reason: bl.reason,
+        blockedById: founder.id,
+        blockedAt,
+        expiresAt,
+        liftedAt: bl.liftedAt ? new Date(bl.liftedAt) : null,
+        liftedById: bl.liftedById,
+        liftReason: bl.liftReason,
+      },
+    })
+    blacklistCount++
+  }
+
   console.log('✅ Seed complete.')
   console.log(`   Companies:    3 (${vendor.name}, ${client.name}, ${client2.name})`)
   console.log(`   Consultants:  ${consultantData.length}`)
@@ -922,6 +1132,8 @@ async function main() {
   console.log(`   Expenses:     ${expenseData.length}`)
   console.log(`   Conversations: ${conversationCount} (${messageCount} messages)`)
   console.log(`   Notifications: ${notificationData.length}`)
+  console.log(`   Rate history: ${rateHistoryCount}`)
+  console.log(`   Blacklist:    ${blacklistCount}`)
   console.log(`   Payments:     3`)
 }
 
