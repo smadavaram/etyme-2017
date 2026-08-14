@@ -1119,6 +1119,156 @@ async function main() {
     blacklistCount++
   }
 
+  // ── Automation Log ────────────────────────────────
+  // Realistic log entries showing what the system did automatically.
+  // These demonstrate platform transparency for enterprise demos.
+  const automationData = [
+    {
+      action: 'COMPANY_CREATED',
+      summary: `Company Cloudepa Inc. created with 7 default roles`,
+      reason: 'Onboarding: new company created via OAuth sign-in',
+      payload: { companyId: vendor.id, slug: 'cloudepa', roles: 7 },
+      reversible: false,
+      daysAgo: 45,
+    },
+    {
+      action: 'TEMPLATE_PACK_APPLIED',
+      summary: `US_SAP template pack applied — 4 contract types, 5 cycle definitions, 12 doc templates`,
+      reason: 'Onboarding: template pack selected during company setup',
+      payload: { pack: 'US_SAP', contractTypes: 4, cycles: 5, docTemplates: 12 },
+      reversible: false,
+      daysAgo: 45,
+    },
+    {
+      action: 'IMPORT_COMMITTED',
+      summary: `Imported 8 consultants from CSV upload`,
+      reason: 'Bulk import committed after column mapping verified by user',
+      payload: { total: 8, succeeded: 8, failed: 0, visibility: 'FULL' },
+      reversible: false,
+      daysAgo: 44,
+    },
+    {
+      action: 'BENCH_LISTING_CREATED',
+      summary: `Bench listing requested for ${consultantData[0].name}`,
+      reason: 'Vendor added consultant to bench for distribution',
+      payload: { personId: people[0].id, tier: 'RETAINED' },
+      reversible: true,
+      daysAgo: 40,
+    },
+    {
+      action: 'BENCH_LISTING_GRANTED',
+      summary: `${consultantData[0].name} granted bench listing — available for submissions`,
+      reason: 'Consultant approved sharing profile with vendor network',
+      payload: { personId: people[0].id, grantedAt: true },
+      reversible: false,
+      daysAgo: 39,
+    },
+    {
+      action: 'REQUIREMENT_DISTRIBUTED',
+      summary: `Requirement "SAP S/4HANA Migration Lead" distributed to 3 vendors`,
+      reason: 'Distribution triggered: vendors selected based on reply rate > 40% and matching skill coverage',
+      payload: { requirementId: reqs[0].id, vendorCount: 3, criteria: 'reply_rate > 40%, skill_match' },
+      reversible: true,
+      daysAgo: 30,
+    },
+    {
+      action: 'CONTRACT_CREATED',
+      summary: `Sell contract created for ${consultantData[2].name} at Terumo BCT`,
+      reason: 'Contract generated from accepted submission',
+      payload: { contractId: sellContracts[0].id, billRate: 12000, client: 'Terumo BCT' },
+      reversible: false,
+      daysAgo: 28,
+    },
+    {
+      action: 'CONSULTANT_CREATED',
+      summary: `Consultant profile created for ${consultantData[3].name}`,
+      reason: 'Profile created during bulk import — all required fields present',
+      payload: { personId: people[3].id, skills: consultantData[3].skills },
+      reversible: false,
+      daysAgo: 25,
+    },
+    {
+      action: 'TIMESHEET_APPROVED',
+      summary: `Timesheet approved for ${consultantData[2].name} — 40h, $4,800`,
+      reason: 'Approved by Sharath Madavaram via timesheets page',
+      payload: { personName: consultantData[2].name, hours: 40, amount: 4800 },
+      reversible: true,
+      daysAgo: 14,
+    },
+    {
+      action: 'INVOICE_GENERATED',
+      summary: `Invoice INV-2026-001 generated — $14,400 for Terumo BCT`,
+      reason: 'Invoice generated from 3 approved timesheets in billing cycle ending Jul 31',
+      payload: { invoiceNumber: 'INV-2026-001', total: 1440000, timesheets: 3, client: 'Terumo BCT' },
+      reversible: false,
+      daysAgo: 12,
+    },
+    {
+      action: 'PAYMENT_RECORDED',
+      summary: `Payment of $14,400 recorded against INV-2026-001`,
+      reason: 'Wire transfer confirmed — payment matched to invoice by amount and reference',
+      payload: { invoiceNumber: 'INV-2026-001', amount: 1440000, method: 'WIRE' },
+      reversible: false,
+      daysAgo: 8,
+    },
+    {
+      action: 'ROLLOFF_CLAIMED',
+      summary: `Rolloff claimed for ${consultantData[5].name} — contract ends in 14 days`,
+      reason: 'Manual claim via rolloff console',
+      payload: { contractId: sellContracts[1].id, claimedBy: founder.id, daysUntilEnd: 14 },
+      reversible: true,
+      daysAgo: 7,
+    },
+    {
+      action: 'EXPENSE_APPROVED',
+      summary: `Expense report approved for ${consultantData[2].name} — $450 travel`,
+      reason: 'Approved by Sharath Madavaram — within policy limits, billable to client',
+      payload: { personName: consultantData[2].name, amount: 45000, category: 'TRAVEL', billable: true },
+      reversible: true,
+      daysAgo: 5,
+    },
+    {
+      action: 'BLACKLIST_ADD',
+      summary: `Unreliable Staffing LLC added to blacklist — permanent`,
+      reason: 'Failed background verification audit — falsified candidate credentials',
+      payload: { targetType: 'COMPANY', targetName: 'Unreliable Staffing LLC', permanent: true },
+      reversible: true,
+      daysAgo: 3,
+    },
+    {
+      action: 'PAYROLL_RUN',
+      summary: `Payroll cycle completed — 4 consultants, $28,200 disbursed`,
+      reason: 'Bi-weekly payroll run for active W2 consultants',
+      payload: { consultants: 4, totalDisbursed: 2820000, frequency: 'BI_WEEKLY' },
+      reversible: false,
+      daysAgo: 2,
+    },
+    {
+      action: 'BENCH_LISTING_REVOKED',
+      summary: `${consultantData[6].name} revoked bench listing — no longer available`,
+      reason: 'Consultant requested removal from vendor bench',
+      payload: { personId: people[6].id },
+      reversible: false,
+      daysAgo: 1,
+    },
+  ]
+
+  for (const al of automationData) {
+    const at = new Date(now)
+    at.setDate(at.getDate() - al.daysAgo)
+    await prisma.automationLog.create({
+      data: {
+        companyId: vendor.id,
+        action: al.action,
+        summary: al.summary,
+        reason: al.reason,
+        payload: al.payload,
+        reversible: al.reversible,
+        at,
+      },
+    })
+  }
+
   console.log('✅ Seed complete.')
   console.log(`   Companies:    3 (${vendor.name}, ${client.name}, ${client2.name})`)
   console.log(`   Consultants:  ${consultantData.length}`)
@@ -1134,6 +1284,7 @@ async function main() {
   console.log(`   Notifications: ${notificationData.length}`)
   console.log(`   Rate history: ${rateHistoryCount}`)
   console.log(`   Blacklist:    ${blacklistCount}`)
+  console.log(`   Automation:   ${automationData.length}`)
   console.log(`   Payments:     3`)
 }
 
