@@ -35,6 +35,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: '◉' },
       { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
+      { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' },
     ],
   },
   {
@@ -43,6 +44,7 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Sell Contracts', href: '/dashboard/contracts', icon: '▤' },
+      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
     ],
   },
   {

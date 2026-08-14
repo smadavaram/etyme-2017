@@ -56,11 +56,34 @@ export async function GET(request: NextRequest) {
     take: limit,
   })
 
+  // Resolve author names from conversation participants and Person table
+  const participants = (conversation.participants as any[]) ?? []
+  const participantMap = new Map<string, string>()
+  for (const p of participants) {
+    if (p.personId && p.name) participantMap.set(p.personId, p.name)
+  }
+
+  // Look up any authors not in the participant list
+  const unknownAuthorIds = messages
+    .map((m) => m.authorId)
+    .filter((id) => id !== 'SYSTEM' && !participantMap.has(id))
+
+  if (unknownAuthorIds.length > 0) {
+    const persons = await prisma.person.findMany({
+      where: { id: { in: [...new Set(unknownAuthorIds)] } },
+      select: { id: true, name: true },
+    })
+    for (const p of persons) {
+      participantMap.set(p.id, p.name)
+    }
+  }
+
   return NextResponse.json({
     data: {
       messages: messages.reverse().map((m) => ({
         id: m.id,
         authorId: m.authorId,
+        authorName: m.authorId === 'SYSTEM' ? 'System' : (participantMap.get(m.authorId) ?? null),
         body: m.body,
         type: m.type,
         metadata: m.metadata,
