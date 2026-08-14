@@ -36,6 +36,7 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Dashboard', href: '/dashboard', icon: '◉' },
       { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
       { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' },
+      { label: 'Decisions', href: '/dashboard/decisions', icon: '⬡' },
     ],
   },
   {
