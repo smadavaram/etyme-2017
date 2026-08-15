@@ -84,6 +84,8 @@ export default function SubmissionsPage() {
   const [error, setError] = useState<string | null>(null)
   const [direction, setDirection] = useState<DirectionFilter>('sent')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [acting, setActing] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const [companyId, setCompanyId] = useState<string | null>(null)
 
@@ -129,6 +131,42 @@ export default function SubmissionsPage() {
   useEffect(() => {
     fetchSubmissions()
   }, [fetchSubmissions])
+
+  // ── Bulk status change ────────────────────────────
+  async function handleBulkStatus(selectedIds: Set<string>, newStatus: string) {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+
+    setActing(true)
+    let succeeded = 0
+    let failed = 0
+
+    for (const id of ids) {
+      try {
+        const res = await fetch(`/api/submissions/${id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        })
+        if (res.ok) {
+          succeeded++
+        } else {
+          failed++
+        }
+      } catch {
+        failed++
+      }
+    }
+
+    setActing(false)
+    const label = newStatus.charAt(0) + newStatus.slice(1).toLowerCase()
+    const msg = failed > 0
+      ? `${label}: ${succeeded} succeeded, ${failed} failed`
+      : `${succeeded} submission${succeeded !== 1 ? 's' : ''} ${newStatus.toLowerCase()}`
+    setToast({ message: msg, type: failed > 0 ? 'error' : 'success' })
+    setTimeout(() => setToast(null), 3500)
+    fetchSubmissions()
+  }
 
   // ── Stats ──────────────────────────────────────────
   const stats = {
@@ -348,6 +386,29 @@ export default function SubmissionsPage() {
         }
         onRowClick={(row) => router.push(`/dashboard/requirements/${row.requirement.id}` as any)}
         exportName={`submissions-${direction}`}
+        selectable
+        bulkActions={(selected) => (
+          <>
+            <button
+              onClick={() => handleBulkStatus(selected, 'SHORTLISTED')}
+              disabled={acting}
+              className="px-3 py-1.5 text-[11px] font-medium rounded-md
+                         bg-etyme-attention text-white hover:bg-etyme-attention/90
+                         transition-colors disabled:opacity-50"
+            >
+              {acting ? '…' : `Shortlist (${selected.size})`}
+            </button>
+            <button
+              onClick={() => handleBulkStatus(selected, 'REJECTED')}
+              disabled={acting}
+              className="px-3 py-1.5 text-[11px] font-medium rounded-md
+                         border border-red-300 text-red-600
+                         hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              {acting ? '…' : `Reject (${selected.size})`}
+            </button>
+          </>
+        )}
         defaultPageSize={20}
       />
 
@@ -358,6 +419,17 @@ export default function SubmissionsPage() {
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase()}`}
           {` · ${direction}`}
         </p>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up ${
+          toast.type === 'success'
+            ? 'bg-etyme-verified text-white'
+            : 'bg-red-600 text-white'
+        }`}>
+          {toast.message}
+        </div>
       )}
     </>
   )
