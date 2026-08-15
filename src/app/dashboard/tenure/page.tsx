@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { DataTable, type Column } from '@/components/data-table'
 
 /**
  * Tenure Tracking — Governance section
@@ -10,6 +11,7 @@ import { useEffect, useState } from 'react'
  * vendors. Twelve months via one vendor plus twelve via another is
  * twenty-four months of exposure."
  *
+ * This is a working surface: dense, sortable, filterable, exportable.
  * Single-vendor systems structurally cannot show this.
  */
 
@@ -52,12 +54,12 @@ interface TenurePerson {
 
 // ── Status helpers ─────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  OK:             { label: 'OK',             bg: 'bg-etyme-verified/10', text: 'text-etyme-verified' },
-  WARNING:        { label: 'Approaching',    bg: 'bg-etyme-attention/10', text: 'text-etyme-attention' },
-  BREAK_REQUIRED: { label: 'Break required', bg: 'bg-red-500/10',        text: 'text-red-600' },
-  IN_BREAK:       { label: 'In break',       bg: 'bg-etyme-action/10',   text: 'text-etyme-action' },
-  ELIGIBLE:       { label: 'Eligible',       bg: 'bg-etyme-verified/10', text: 'text-etyme-verified' },
+const STATUS_CONFIG: Record<string, { label: string; chipClass: string }> = {
+  OK:             { label: 'OK',             chipClass: 'chip--verified' },
+  WARNING:        { label: 'Approaching',    chipClass: 'chip--attention' },
+  BREAK_REQUIRED: { label: 'Break required', chipClass: 'chip--danger' },
+  IN_BREAK:       { label: 'In break',       chipClass: 'chip--action' },
+  ELIGIBLE:       { label: 'Eligible',       chipClass: 'chip--verified' },
 }
 
 function tenureBarColor(pct: number): string {
@@ -85,193 +87,228 @@ export default function TenurePage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="h-8 w-48 bg-etyme-rule/50 rounded animate-pulse" />
-        <div className="h-64 bg-etyme-surface rounded-lg border border-etyme-rule animate-pulse" />
-      </div>
-    )
-  }
+  if (!data && !loading && !error) return null
 
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <p className="text-red-700 text-sm">{error}</p>
-      </div>
-    )
-  }
+  const summary = data?.summary ?? { totalTracked: 0, ok: 0, warning: 0, breakRequired: 0, inBreak: 0, eligible: 0 }
+  const capMonths = data?.tenureCapMonths ?? null
 
-  if (!data) return null
-
-  const { summary, tenureCapMonths } = data
+  // ── Column definitions — depend on capMonths, so inside the component ──
+  const columns: Column<TenurePerson>[] = [
+    {
+      key: 'name',
+      label: 'Person',
+      render: (row) => (
+        <div>
+          <div className="font-medium text-etyme-ink">{row.name}</div>
+          {row.hasActive && (
+            <span className="chip chip--verified mt-0.5">
+              <span className="evidence-dot" style={{ width: 5, height: 5 }} />
+              active
+            </span>
+          )}
+        </div>
+      ),
+      sortValue: (row) => row.name,
+    },
+    {
+      key: 'vendors',
+      label: 'Vendor(s)',
+      render: (row) => (
+        <div>
+          <span className="text-etyme-muted">{row.vendors.map(v => v.name).join(', ')}</span>
+          {row.vendors.length > 1 && (
+            <span className="chip chip--action ml-1">cross-vendor</span>
+          )}
+        </div>
+      ),
+      sortValue: (row) => row.vendors.map(v => v.name).join(', '),
+    },
+    {
+      key: 'cumulativeMonths',
+      label: 'Tenure',
+      render: (row) => {
+        const pct = capMonths
+          ? Math.min(100, Math.round((row.cumulativeMonths / capMonths) * 100))
+          : 0
+        return (
+          <div className="flex items-center gap-3">
+            <span className="font-medium text-etyme-ink tabular-nums w-10">
+              {row.cumulativeMonths}mo
+            </span>
+            {capMonths && (
+              <div className="flex-1 min-w-[80px] max-w-[120px]">
+                <div className="h-1.5 bg-etyme-rule/30 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${tenureBarColor(pct)}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <div className="text-[9px] text-etyme-faint mt-0.5 tabular-nums">
+                  {pct}% of {capMonths}mo cap
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      },
+      sortValue: (row) => row.cumulativeMonths,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      sortValue: (row) => {
+        const order = { BREAK_REQUIRED: 0, WARNING: 1, IN_BREAK: 2, OK: 3, ELIGIBLE: 4 }
+        return order[row.status]
+      },
+      render: (row) => {
+        const config = STATUS_CONFIG[row.status]
+        return <span className={`chip ${config.chipClass}`}>{config.label}</span>
+      },
+    },
+    {
+      key: 'contractCount',
+      label: 'Contracts',
+      align: 'right',
+      sortValue: (row) => row.contractCount,
+    },
+    {
+      key: 'eligibleDate',
+      label: 'Eligible',
+      render: (row) => (
+        <span className="text-etyme-muted text-xs">
+          {row.eligibleDate ?? '—'}
+        </span>
+      ),
+      sortValue: (row) => row.eligibleDate ?? '',
+      hideOnMobile: true,
+    },
+  ]
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <div className="eyebrow mb-2">Governance</div>
-        <h1 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]" style={{ textWrap: 'balance' }}>
-          Tenure tracking
-        </h1>
-        <p className="text-sm text-etyme-muted mt-1 max-w-2xl">
-          Cross-vendor tenure at {data.client.name}. Aggregated across all vendors — twelve months via one
+    <>
+      {/* Head */}
+      <div className="page-head">
+        <p className="eyebrow">Governance</p>
+        <h1>Tenure tracking</h1>
+        <p>
+          Cross-vendor tenure at {data?.client.name ?? '…'}. Aggregated across all vendors — twelve months via one
           plus twelve via another is twenty-four months of exposure.
-          {tenureCapMonths && ` Cap: ${tenureCapMonths} months.`}
-          {data.breakDays && ` Break: ${data.breakDays} days.`}
+          {capMonths != null && ` Cap: ${capMonths} months.`}
+          {data?.breakDays != null && ` Break: ${data.breakDays} days.`}
         </p>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard label="Tracked" value={summary.totalTracked} />
-        <StatCard label="OK" value={summary.ok} tone="verified" />
-        <StatCard label="Approaching" value={summary.warning} tone={summary.warning > 0 ? 'attention' : undefined} />
-        <StatCard label="Break req." value={summary.breakRequired} tone={summary.breakRequired > 0 ? 'danger' : undefined} />
-        <StatCard label="In break" value={summary.inBreak} tone={summary.inBreak > 0 ? 'action' : undefined} />
-        <StatCard label="Eligible" value={summary.eligible} tone="verified" />
+      {/* Stats */}
+      <div className="flex gap-3 mb-6 flex-wrap">
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Tracked</p>
+          <p className="stat-value text-etyme-ink">{summary.totalTracked}</p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">OK</p>
+          <p className="stat-value text-etyme-verified">{summary.ok}</p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Approaching</p>
+          <p className={`stat-value ${summary.warning > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+            {summary.warning}
+          </p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Break req.</p>
+          <p className={`stat-value ${summary.breakRequired > 0 ? 'text-etyme-danger' : 'text-etyme-ink'}`}>
+            {summary.breakRequired}
+          </p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">In break</p>
+          <p className={`stat-value ${summary.inBreak > 0 ? 'text-etyme-action' : 'text-etyme-ink'}`}>
+            {summary.inBreak}
+          </p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Eligible</p>
+          <p className="stat-value text-etyme-verified">{summary.eligible}</p>
+        </div>
       </div>
 
-      {/* Tenure table */}
-      {data.people.length === 0 ? (
-        <div className="bg-etyme-surface rounded-lg border border-etyme-rule p-8 text-center">
-          <p className="text-etyme-muted text-sm">No tenure records found at {data.client.name}.</p>
-        </div>
-      ) : (
-        <div className="bg-etyme-surface rounded-lg border border-etyme-rule overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-etyme-rule">
-                  <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Person</th>
-                  <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Vendor(s)</th>
-                  <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Tenure</th>
-                  <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Status</th>
-                  <th className="text-right px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Contracts</th>
-                  <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Eligible</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.people.map((person) => {
-                  const pct = tenureCapMonths
-                    ? Math.min(100, Math.round((person.cumulativeMonths / tenureCapMonths) * 100))
-                    : 0
-                  const config = STATUS_CONFIG[person.status]
-                  const isExpanded = expanded === person.personId
+      {/* DataTable */}
+      <DataTable
+        columns={columns}
+        data={data?.people ?? []}
+        rowKey={(row) => row.personId}
+        loading={loading}
+        error={error}
+        searchPlaceholder="Search by person or vendor…"
+        searchFilter={(row, q) =>
+          row.name.toLowerCase().includes(q) ||
+          row.vendors.some(v => v.name.toLowerCase().includes(q))
+        }
+        emptyMessage={`No tenure records found at ${data?.client.name ?? 'this client'}.`}
+        exportName={`tenure-${data?.client.name ?? 'export'}`}
+        onRowClick={(row) => setExpanded(expanded === row.personId ? null : row.personId)}
+      />
 
-                  return (
-                    <tbody key={person.personId}>
-                      <tr
-                        className="border-b border-etyme-rule/50 hover:bg-etyme-canvas/50 cursor-pointer transition-colors"
-                        onClick={() => setExpanded(isExpanded ? null : person.personId)}
-                      >
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-etyme-ink">{person.name}</div>
-                          {person.hasActive && (
-                            <span className="text-[10px] text-etyme-verified">● active</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-etyme-muted">
-                          {person.vendors.map(v => v.name).join(', ')}
-                          {person.vendors.length > 1 && (
-                            <span className="ml-1 text-[10px] text-etyme-action font-medium">
-                              cross-vendor
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <span className="font-medium text-etyme-ink tabular-nums w-12">
-                              {person.cumulativeMonths}mo
-                            </span>
-                            {tenureCapMonths && (
-                              <div className="flex-1 min-w-[80px] max-w-[120px]">
-                                <div className="h-1.5 bg-etyme-rule/30 rounded-full overflow-hidden">
-                                  <div
-                                    className={`h-full rounded-full transition-all ${tenureBarColor(pct)}`}
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </div>
-                                <div className="text-[9px] text-etyme-faint mt-0.5 tabular-nums">
-                                  {pct}% of {tenureCapMonths}mo cap
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${config.bg} ${config.text}`}>
-                            {config.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right tabular-nums text-etyme-muted">
-                          {person.contractCount}
-                        </td>
-                        <td className="px-4 py-3 text-etyme-muted text-xs">
-                          {person.eligibleDate ?? '—'}
-                        </td>
-                      </tr>
-                      {isExpanded && (
-                        <tr>
-                          <td colSpan={6} className="px-4 py-3 bg-etyme-canvas/50">
-                            <div className="text-[10px] uppercase tracking-wider text-etyme-faint font-medium mb-2">
-                              Contributing contracts
-                            </div>
-                            <div className="space-y-1.5">
-                              {person.contracts.map((c) => (
-                                <div key={c.id} className="flex items-center gap-4 text-xs text-etyme-muted">
-                                  <span className="w-40 truncate">{c.vendorName}</span>
-                                  <span className="tabular-nums">
-                                    {new Date(c.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                                    {' → '}
-                                    {c.endDate
-                                      ? new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                                      : 'present'}
-                                  </span>
-                                  <span className="tabular-nums">{c.daysWorked}d</span>
-                                  <span className={`text-[10px] ${c.state === 'IN_PROGRESS' ? 'text-etyme-verified' : 'text-etyme-faint'}`}>
-                                    {c.state === 'IN_PROGRESS' ? 'Active' : c.state === 'ENDED' ? 'Ended' : c.state}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  )
-                })}
-              </tbody>
-            </table>
+      {/* Expanded contract detail — rendered below the table for the selected person */}
+      {expanded && data?.people && (() => {
+        const person = data.people.find(p => p.personId === expanded)
+        if (!person || person.contracts.length === 0) return null
+        return (
+          <div className="mt-2 panel">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-semibold text-etyme-ink">
+                  {person.name} — contributing contracts
+                </p>
+                <p className="text-[11px] text-etyme-faint mt-0.5">
+                  {person.contracts.length} contract{person.contracts.length !== 1 ? 's' : ''} across{' '}
+                  {person.vendors.length} vendor{person.vendors.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => setExpanded(null)}
+                className="text-xs text-etyme-muted hover:text-etyme-ink transition-colors"
+              >
+                Close
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="data-table w-full text-[13px]">
+                <thead>
+                  <tr>
+                    <th>Vendor</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th style={{ textAlign: 'right' }}>Days</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {person.contracts.map(c => (
+                    <tr key={c.id}>
+                      <td>{c.vendorName}</td>
+                      <td className="tabular-nums">
+                        {new Date(c.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </td>
+                      <td className="tabular-nums">
+                        {c.endDate
+                          ? new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                          : 'present'}
+                      </td>
+                      <td style={{ textAlign: 'right' }} className="tabular-nums">{c.daysWorked}</td>
+                      <td>
+                        <span className={`chip ${c.state === 'IN_PROGRESS' ? 'chip--verified' : 'chip--passive'}`}>
+                          {c.state === 'IN_PROGRESS' ? 'Active' : c.state === 'ENDED' ? 'Ended' : c.state}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Stat card ──────────────────────────────────────────────
-
-function StatCard({ label, value, tone }: {
-  label: string
-  value: number
-  tone?: 'verified' | 'attention' | 'danger' | 'action'
-}) {
-  const toneClasses = {
-    verified: 'text-etyme-verified',
-    attention: 'text-etyme-attention',
-    danger: 'text-red-600',
-    action: 'text-etyme-action',
-  }
-
-  return (
-    <div className="bg-etyme-surface rounded-lg border border-etyme-rule p-4">
-      <div className="text-[10px] uppercase tracking-wider text-etyme-faint font-medium">
-        {label}
-      </div>
-      <div className={`font-serif text-2xl mt-1 ${tone ? toneClasses[tone] : 'text-etyme-ink'}`}>
-        {value}
-      </div>
-    </div>
+        )
+      })()}
+    </>
   )
 }

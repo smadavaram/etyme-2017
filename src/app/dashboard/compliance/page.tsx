@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { DataTable, type Column } from '@/components/data-table'
 
 /**
  * Compliance Overview — Governance section
@@ -9,6 +10,7 @@ import { useEffect, useState } from 'react'
  * which it cleared. An auto-cleared requisition is not an unreviewed
  * one — it is one where the review was executed by rule and recorded."
  *
+ * This is a working surface: dense, sortable, filterable, exportable.
  * Surfaces governance policies with BLOCK vs WARN enforcement,
  * recent evaluations, verification status, and compliance health.
  */
@@ -17,44 +19,11 @@ import { useEffect, useState } from 'react'
 
 interface ComplianceData {
   client: { id: string; name: string }
-  policies: {
-    id: string
-    name: string
-    description: string | null
-    rules: {
-      id: string
-      ruleType: string
-      enforcementMode: string
-      description: string | null
-      parameters: any
-      evaluationCount: number
-    }[]
-  }[]
-  recentEvaluations: {
-    id: string
-    ruleType: string
-    enforcementMode: string
-    ruleDescription: string | null
-    triggerPoint: string
-    subjectType: string
-    subjectId: string
-    outcome: string
-    reason: string | null
-    overriddenBy: string | null
-    overrideNote: string | null
-    evaluatedAt: string
-  }[]
+  policies: PolicyGroup[]
+  recentEvaluations: Evaluation[]
   verifications: {
-    persons: {
-      personId: string
-      name: string
-      checks: VerificationCheck[]
-    }[]
-    companies: {
-      companyId: string
-      name: string
-      checks: VerificationCheck[]
-    }[]
+    persons: VerificationSubject[]
+    companies: VerificationSubject[]
   }
   health: {
     totalChecks: number
@@ -73,6 +42,44 @@ interface ComplianceData {
   }
 }
 
+interface PolicyGroup {
+  id: string
+  name: string
+  description: string | null
+  rules: GovernanceRule[]
+}
+
+interface GovernanceRule {
+  id: string
+  ruleType: string
+  enforcementMode: string
+  description: string | null
+  parameters: any
+  evaluationCount: number
+}
+
+interface Evaluation {
+  id: string
+  ruleType: string
+  enforcementMode: string
+  ruleDescription: string | null
+  triggerPoint: string
+  subjectType: string
+  subjectId: string
+  outcome: string
+  reason: string | null
+  overriddenBy: string | null
+  overrideNote: string | null
+  evaluatedAt: string
+}
+
+interface VerificationSubject {
+  personId?: string
+  companyId?: string
+  name: string
+  checks: VerificationCheck[]
+}
+
 interface VerificationCheck {
   type: string
   status: string
@@ -83,30 +90,112 @@ interface VerificationCheck {
 
 // ── Status helpers ─────────────────────────────────────────
 
-const OUTCOME_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  PASS:  { label: 'Pass',  bg: 'bg-etyme-verified/10', text: 'text-etyme-verified' },
-  WARN:  { label: 'Warn',  bg: 'bg-etyme-attention/10', text: 'text-etyme-attention' },
-  BLOCK: { label: 'Block', bg: 'bg-red-500/10',        text: 'text-red-600' },
-}
-
-const ENFORCEMENT_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
-  BLOCK: { label: 'BLOCK', bg: 'bg-red-500/10', text: 'text-red-600' },
-  WARN:  { label: 'WARN',  bg: 'bg-etyme-attention/10', text: 'text-etyme-attention' },
-}
-
-const VERIF_STATUS_CONFIG: Record<string, { dot: string; label: string }> = {
-  CLEAR:       { dot: 'bg-etyme-verified', label: 'Clear' },
-  PENDING:     { dot: 'bg-etyme-attention', label: 'Pending' },
-  IN_PROGRESS: { dot: 'bg-etyme-action', label: 'In progress' },
-  FLAGGED:     { dot: 'bg-red-500', label: 'Flagged' },
-  FAILED:      { dot: 'bg-red-500', label: 'Failed' },
-  CONDITIONAL: { dot: 'bg-etyme-attention', label: 'Conditional' },
-  EXPIRED:     { dot: 'bg-etyme-faint', label: 'Expired' },
-}
-
 function formatRuleType(type: string): string {
   return type.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
 }
+
+function outcomeChipClass(outcome: string): string {
+  switch (outcome) {
+    case 'PASS':  return 'chip--verified'
+    case 'WARN':  return 'chip--attention'
+    case 'BLOCK': return 'chip--danger'
+    default:      return 'chip--passive'
+  }
+}
+
+function enforcementChipClass(mode: string): string {
+  return mode === 'BLOCK' ? 'chip--danger' : 'chip--attention'
+}
+
+function verifDotClass(status: string): string {
+  switch (status) {
+    case 'CLEAR':       return 'evidence-dot'
+    case 'PENDING':
+    case 'IN_PROGRESS': return 'evidence-dot evidence-dot--pending'
+    case 'FLAGGED':
+    case 'FAILED':
+    case 'CONDITIONAL': return 'evidence-dot evidence-dot--blocked'
+    case 'EXPIRED':     return 'evidence-dot' // faint — override inline
+    default:            return 'evidence-dot'
+  }
+}
+
+function verifLabel(status: string): string {
+  const labels: Record<string, string> = {
+    CLEAR: 'Clear', PENDING: 'Pending', IN_PROGRESS: 'In progress',
+    FLAGGED: 'Flagged', FAILED: 'Failed', CONDITIONAL: 'Conditional', EXPIRED: 'Expired',
+  }
+  return labels[status] ?? status
+}
+
+// ── Evaluation columns ─────────────────────────────────────
+
+const EVAL_COLUMNS: Column<Evaluation>[] = [
+  {
+    key: 'ruleType',
+    label: 'Rule',
+    render: (row) => (
+      <div>
+        <div className="font-medium text-etyme-ink text-xs">{formatRuleType(row.ruleType)}</div>
+        <span className={`chip ${enforcementChipClass(row.enforcementMode)} mt-0.5`}>
+          {row.enforcementMode}
+        </span>
+      </div>
+    ),
+    sortValue: (row) => row.ruleType,
+  },
+  {
+    key: 'triggerPoint',
+    label: 'Trigger',
+    render: (row) => (
+      <span className="text-etyme-muted">{row.triggerPoint.replace(/_/g, ' ').toLowerCase()}</span>
+    ),
+    sortValue: (row) => row.triggerPoint,
+    hideOnMobile: true,
+  },
+  {
+    key: 'outcome',
+    label: 'Outcome',
+    render: (row) => (
+      <div>
+        <span className={`chip ${outcomeChipClass(row.outcome)}`}>{row.outcome}</span>
+        {row.overriddenBy && (
+          <div className="text-[10px] text-etyme-action mt-0.5">
+            Overridden{row.overrideNote ? `: ${row.overrideNote}` : ''}
+          </div>
+        )}
+      </div>
+    ),
+    sortValue: (row) => {
+      const order: Record<string, number> = { BLOCK: 0, WARN: 1, PASS: 2 }
+      return order[row.outcome] ?? 3
+    },
+  },
+  {
+    key: 'reason',
+    label: 'Reason',
+    render: (row) => (
+      <span className="text-etyme-muted text-xs max-w-[300px] block truncate">
+        {row.reason ?? '—'}
+      </span>
+    ),
+    sortable: false,
+    hideOnMobile: true,
+  },
+  {
+    key: 'evaluatedAt',
+    label: 'Date',
+    align: 'right',
+    render: (row) => (
+      <span className="text-etyme-muted tabular-nums whitespace-nowrap">
+        {new Date(row.evaluatedAt).toLocaleDateString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric',
+        })}
+      </span>
+    ),
+    sortValue: (row) => new Date(row.evaluatedAt).getTime(),
+  },
+]
 
 // ── Page ───────────────────────────────────────────────────
 
@@ -129,109 +218,135 @@ export default function CompliancePage() {
       .finally(() => setLoading(false))
   }, [])
 
+  if (!data && !loading && !error) return null
+
+  const health = data?.health ?? { totalChecks: 0, clear: 0, pending: 0, flagged: 0, expired: 0, clearPercentage: 100 }
+  const evalSummary = data?.evaluationSummary ?? { total: 0, pass: 0, warn: 0, block: 0, overridden: 0 }
+
+  return (
+    <>
+      {/* Head */}
+      <div className="page-head">
+        <p className="eyebrow">Governance</p>
+        <h1>Compliance overview</h1>
+        <p>
+          Governance policies, enforcement evaluations, and verification status at {data?.client.name ?? '…'}.
+          Every cleared requisition records the basis on which it cleared.
+        </p>
+      </div>
+
+      {/* Health stats */}
+      <div className="flex gap-3 mb-6 flex-wrap">
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Clear rate</p>
+          <p className={`stat-value ${
+            health.clearPercentage >= 90 ? 'text-etyme-verified' :
+            health.clearPercentage >= 70 ? 'text-etyme-attention' : 'text-etyme-danger'
+          }`}>
+            {health.clearPercentage}%
+          </p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Total checks</p>
+          <p className="stat-value text-etyme-ink">{health.totalChecks}</p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Clear</p>
+          <p className="stat-value text-etyme-verified">{health.clear}</p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Pending</p>
+          <p className={`stat-value ${health.pending > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+            {health.pending}
+          </p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Flagged</p>
+          <p className={`stat-value ${health.flagged > 0 ? 'text-etyme-danger' : 'text-etyme-ink'}`}>
+            {health.flagged}
+          </p>
+        </div>
+        <div className="panel flex-1 min-w-[100px]">
+          <p className="stat-label">Evaluations</p>
+          <p className="stat-value text-etyme-ink">{evalSummary.total}</p>
+          <p className="text-[10px] text-etyme-faint mt-0.5">
+            {evalSummary.pass}p · {evalSummary.warn}w · {evalSummary.block}b
+          </p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1.5 mb-6">
+        {([
+          { key: 'policies' as const, label: 'Policies' },
+          { key: 'evaluations' as const, label: `Evaluations (${evalSummary.total})` },
+          { key: 'verifications' as const, label: `Verifications (${health.totalChecks})` },
+        ]).map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`filter-tab ${tab === t.key ? 'filter-tab--active' : 'filter-tab--inactive'}`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      {tab === 'policies' && <PoliciesTab policies={data?.policies ?? []} loading={loading} error={error} />}
+      {tab === 'evaluations' && (
+        <DataTable
+          columns={EVAL_COLUMNS}
+          data={data?.recentEvaluations ?? []}
+          rowKey={(row) => row.id}
+          loading={loading}
+          error={error}
+          searchPlaceholder="Search evaluations…"
+          searchFilter={(row, q) =>
+            formatRuleType(row.ruleType).toLowerCase().includes(q) ||
+            row.outcome.toLowerCase().includes(q) ||
+            (row.reason?.toLowerCase().includes(q) ?? false)
+          }
+          emptyMessage="No evaluations in the last 90 days."
+          exportName={`evaluations-${data?.client.name ?? 'export'}`}
+        />
+      )}
+      {tab === 'verifications' && <VerificationsTab data={data} loading={loading} error={error} />}
+    </>
+  )
+}
+
+// ── Policies tab — rules are grouped, not flat ────────────
+
+function PoliciesTab({
+  policies,
+  loading,
+  error,
+}: {
+  policies: PolicyGroup[]
+  loading: boolean
+  error: string | null
+}) {
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="h-8 w-48 bg-etyme-rule/50 rounded animate-pulse" />
-        <div className="h-64 bg-etyme-surface rounded-lg border border-etyme-rule animate-pulse" />
+      <div className="panel text-center py-12">
+        <p className="text-body-sm text-etyme-muted">Loading…</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <p className="text-red-700 text-sm">{error}</p>
+      <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+        {error}
       </div>
     )
   }
 
-  if (!data) return null
-
-  const { health, evaluationSummary } = data
-
-  const TABS: { key: ComplianceTab; label: string; count?: number }[] = [
-    { key: 'policies', label: 'Policies' },
-    { key: 'evaluations', label: 'Evaluations', count: evaluationSummary.total || undefined },
-    { key: 'verifications', label: 'Verifications', count: health.totalChecks || undefined },
-  ]
-
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <div className="eyebrow mb-2">Governance</div>
-        <h1 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]" style={{ textWrap: 'balance' }}>
-          Compliance overview
-        </h1>
-        <p className="text-sm text-etyme-muted mt-1 max-w-2xl">
-          Governance policies, enforcement evaluations, and verification status at {data.client.name}.
-          Every cleared requisition records the basis on which it cleared.
-        </p>
-      </div>
-
-      {/* Health summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard
-          label="Clear rate"
-          value={`${health.clearPercentage}%`}
-          tone={health.clearPercentage >= 90 ? 'verified' : health.clearPercentage >= 70 ? 'attention' : 'danger'}
-        />
-        <StatCard label="Total checks" value={health.totalChecks} />
-        <StatCard label="Clear" value={health.clear} tone="verified" />
-        <StatCard label="Pending" value={health.pending} tone={health.pending > 0 ? 'attention' : undefined} />
-        <StatCard label="Flagged" value={health.flagged} tone={health.flagged > 0 ? 'danger' : undefined} />
-        <StatCard label="Evaluations" value={evaluationSummary.total} sub={
-          `${evaluationSummary.pass} pass · ${evaluationSummary.warn} warn · ${evaluationSummary.block} block`
-        } />
-      </div>
-
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b border-etyme-rule">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`
-              px-4 py-2.5 text-[13px] -mb-px flex items-center gap-2 transition-colors
-              border-b-2
-              ${tab === t.key
-                ? 'text-etyme-ink font-semibold border-etyme-ink'
-                : 'text-etyme-muted border-transparent hover:text-etyme-ink'
-              }
-            `}
-          >
-            {t.label}
-            {t.count !== undefined && (
-              <span className={`
-                text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums
-                ${tab === t.key
-                  ? 'bg-etyme-ink text-white'
-                  : 'bg-etyme-canvas text-etyme-muted'
-                }
-              `}>
-                {t.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {tab === 'policies' && <PoliciesTab policies={data.policies} />}
-      {tab === 'evaluations' && <EvaluationsTab evaluations={data.recentEvaluations} summary={evaluationSummary} />}
-      {tab === 'verifications' && <VerificationsTab verifications={data.verifications} />}
-    </div>
-  )
-}
-
-// ── Policies tab ──────────────────────────────────────────
-
-function PoliciesTab({ policies }: { policies: ComplianceData['policies'] }) {
   if (policies.length === 0) {
     return (
-      <div className="bg-etyme-surface rounded-lg border border-etyme-rule p-8 text-center">
-        <p className="text-etyme-muted text-sm">No governance policies configured.</p>
+      <div className="panel text-center py-12">
+        <p className="text-[13px] text-etyme-muted">No governance policies configured.</p>
       </div>
     )
   }
@@ -239,48 +354,50 @@ function PoliciesTab({ policies }: { policies: ComplianceData['policies'] }) {
   return (
     <div className="space-y-6">
       {policies.map(policy => (
-        <div key={policy.id} className="bg-etyme-surface rounded-lg border border-etyme-rule overflow-hidden">
-          <div className="px-5 py-4 border-b border-etyme-rule">
+        <div key={policy.id} className="bg-etyme-surface border border-etyme-rule rounded-[6px] overflow-hidden">
+          <div className="px-4 py-3 border-b border-etyme-rule">
             <h3 className="text-sm font-semibold text-etyme-ink">{policy.name}</h3>
             {policy.description && (
-              <p className="text-xs text-etyme-muted mt-1">{policy.description}</p>
+              <p className="text-[12px] text-etyme-muted mt-0.5">{policy.description}</p>
             )}
           </div>
-          <div className="divide-y divide-etyme-rule/50">
-            {policy.rules.map(rule => {
-              const enforcement = ENFORCEMENT_CONFIG[rule.enforcementMode] ?? {
-                label: rule.enforcementMode,
-                bg: 'bg-etyme-rule/40',
-                text: 'text-etyme-muted',
-              }
-              return (
-                <div key={rule.id} className="px-5 py-3.5 flex items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-etyme-ink">
-                        {formatRuleType(rule.ruleType)}
+          <div className="overflow-x-auto">
+            <table className="data-table w-full text-[13px]">
+              <thead>
+                <tr>
+                  <th>Rule</th>
+                  <th>Enforcement</th>
+                  <th>Description</th>
+                  <th>Parameters</th>
+                  <th style={{ textAlign: 'right' }}>Evaluations</th>
+                </tr>
+              </thead>
+              <tbody>
+                {policy.rules.map(rule => (
+                  <tr key={rule.id}>
+                    <td>
+                      <span className="font-medium text-etyme-ink">{formatRuleType(rule.ruleType)}</span>
+                    </td>
+                    <td>
+                      <span className={`chip ${enforcementChipClass(rule.enforcementMode)}`}>
+                        {rule.enforcementMode}
                       </span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider ${enforcement.bg} ${enforcement.text}`}>
-                        {enforcement.label}
-                      </span>
-                    </div>
-                    {rule.description && (
-                      <p className="text-xs text-etyme-muted mt-1">{rule.description}</p>
-                    )}
-                    {rule.parameters && (
-                      <p className="text-[11px] text-etyme-faint mt-1 font-mono">
+                    </td>
+                    <td>
+                      <span className="text-etyme-muted">{rule.description ?? '—'}</span>
+                    </td>
+                    <td>
+                      <span className="text-[11px] text-etyme-faint font-mono">
                         {formatParameters(rule.parameters)}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-xs tabular-nums text-etyme-muted">
-                      {rule.evaluationCount} eval{rule.evaluationCount !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                </div>
-              )
-            })}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }} className="tabular-nums">
+                      {rule.evaluationCount}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       ))}
@@ -292,106 +409,47 @@ function formatParameters(params: any): string {
   if (!params || typeof params !== 'object') return ''
   return Object.entries(params)
     .map(([k, v]) => {
-      const label = k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()
+      const label = k.replace(/([A-Z])/g, ' $1').trim()
       if (Array.isArray(v)) return `${label}: ${JSON.stringify(v)}`
       return `${label}: ${v}`
     })
     .join(' · ')
 }
 
-// ── Evaluations tab ───────────────────────────────────────
+// ── Verifications tab — person + company groups ───────────
 
-function EvaluationsTab({
-  evaluations,
-  summary,
+function VerificationsTab({
+  data,
+  loading,
+  error,
 }: {
-  evaluations: ComplianceData['recentEvaluations']
-  summary: ComplianceData['evaluationSummary']
+  data: ComplianceData | null
+  loading: boolean
+  error: string | null
 }) {
-  if (evaluations.length === 0) {
+  if (loading) {
     return (
-      <div className="bg-etyme-surface rounded-lg border border-etyme-rule p-8 text-center">
-        <p className="text-etyme-muted text-sm">No evaluations in the last 90 days.</p>
+      <div className="panel text-center py-12">
+        <p className="text-body-sm text-etyme-muted">Loading…</p>
       </div>
     )
   }
 
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-etyme-muted">
-        Last 90 days: {summary.pass} passed, {summary.warn} warned, {summary.block} blocked.
-        {summary.overridden > 0 && ` ${summary.overridden} overridden.`}
-      </p>
-
-      <div className="bg-etyme-surface rounded-lg border border-etyme-rule overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-etyme-rule">
-                <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Rule</th>
-                <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Trigger</th>
-                <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Outcome</th>
-                <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Reason</th>
-                <th className="text-left px-4 py-3 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {evaluations.map((ev) => {
-                const outcomeConfig = OUTCOME_CONFIG[ev.outcome] ?? {
-                  label: ev.outcome,
-                  bg: 'bg-etyme-rule/40',
-                  text: 'text-etyme-muted',
-                }
-                return (
-                  <tr key={ev.id} className="border-b border-etyme-rule/50 hover:bg-etyme-canvas/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-etyme-ink text-xs">{formatRuleType(ev.ruleType)}</div>
-                      <div className="text-[10px] text-etyme-faint mt-0.5">{ev.enforcementMode}</div>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-etyme-muted">
-                      {ev.triggerPoint.replace(/_/g, ' ').toLowerCase()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${outcomeConfig.bg} ${outcomeConfig.text}`}>
-                        {outcomeConfig.label}
-                      </span>
-                      {ev.overriddenBy && (
-                        <div className="text-[10px] text-etyme-action mt-0.5">
-                          Overridden{ev.overrideNote ? `: ${ev.overrideNote}` : ''}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-etyme-muted max-w-[300px]">
-                      {ev.reason ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-etyme-muted tabular-nums whitespace-nowrap">
-                      {new Date(ev.evaluatedAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Verifications tab ─────────────────────────────────────
-
-function VerificationsTab({ verifications }: { verifications: ComplianceData['verifications'] }) {
-  const hasPersons = verifications.persons.length > 0
-  const hasCompanies = verifications.companies.length > 0
-
-  if (!hasPersons && !hasCompanies) {
+  if (error) {
     return (
-      <div className="bg-etyme-surface rounded-lg border border-etyme-rule p-8 text-center">
-        <p className="text-etyme-muted text-sm">No verifications found.</p>
+      <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+        {error}
+      </div>
+    )
+  }
+
+  const persons = data?.verifications.persons ?? []
+  const companies = data?.verifications.companies ?? []
+
+  if (persons.length === 0 && companies.length === 0) {
+    return (
+      <div className="panel text-center py-12">
+        <p className="text-[13px] text-etyme-muted">No verifications found.</p>
       </div>
     )
   }
@@ -399,110 +457,103 @@ function VerificationsTab({ verifications }: { verifications: ComplianceData['ve
   return (
     <div className="space-y-6">
       {/* Person verifications */}
-      {hasPersons && (
+      {persons.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-etyme-ink mb-3">Contractor verifications</h3>
-          <div className="bg-etyme-surface rounded-lg border border-etyme-rule overflow-hidden divide-y divide-etyme-rule/50">
-            {verifications.persons.map(person => (
-              <div key={person.personId} className="px-5 py-4">
-                <div className="text-sm font-medium text-etyme-ink mb-2">{person.name}</div>
-                <div className="flex flex-wrap gap-3">
-                  {person.checks.map((check, i) => {
-                    const status = VERIF_STATUS_CONFIG[check.status] ?? {
-                      dot: 'bg-etyme-faint',
-                      label: check.status,
-                    }
-                    return (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 text-xs bg-etyme-canvas/80 rounded px-2.5 py-1.5"
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                        <span className="text-etyme-muted">{formatRuleType(check.type)}</span>
-                        <span className="text-etyme-faint">·</span>
-                        <span className="text-etyme-ink font-medium">{status.label}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
+          <div className="bg-etyme-surface border border-etyme-rule rounded-[6px] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="data-table w-full text-[13px]">
+                <thead>
+                  <tr>
+                    <th>Person</th>
+                    <th>Checks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {persons.map(person => (
+                    <tr key={person.personId}>
+                      <td>
+                        <span className="font-medium text-etyme-ink">{person.name}</span>
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap gap-2">
+                          {person.checks.map((check, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1.5 text-[11px] bg-etyme-canvas/80 rounded px-2 py-1"
+                            >
+                              <span
+                                className={verifDotClass(check.status)}
+                                style={check.status === 'EXPIRED' ? { background: 'var(--color-faint)' } : undefined}
+                              />
+                              <span className="text-etyme-muted">{formatRuleType(check.type)}</span>
+                              <span className="text-etyme-faint">·</span>
+                              <span className="font-medium text-etyme-ink">{verifLabel(check.status)}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
       {/* Company verifications */}
-      {hasCompanies && (
+      {companies.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold text-etyme-ink mb-3">Vendor verifications</h3>
-          <div className="bg-etyme-surface rounded-lg border border-etyme-rule overflow-hidden divide-y divide-etyme-rule/50">
-            {verifications.companies.map(company => (
-              <div key={company.companyId} className="px-5 py-4">
-                <div className="text-sm font-medium text-etyme-ink mb-2">{company.name}</div>
-                <div className="flex flex-wrap gap-3">
-                  {company.checks.map((check, i) => {
-                    const status = VERIF_STATUS_CONFIG[check.status] ?? {
-                      dot: 'bg-etyme-faint',
-                      label: check.status,
-                    }
-                    return (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 text-xs bg-etyme-canvas/80 rounded px-2.5 py-1.5"
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                        <span className="text-etyme-muted">{formatRuleType(check.type)}</span>
-                        <span className="text-etyme-faint">·</span>
-                        <span className="text-etyme-ink font-medium">{status.label}</span>
-                        {check.expiresAt && (
-                          <>
-                            <span className="text-etyme-faint">·</span>
-                            <span className="text-etyme-faint tabular-nums">
-                              exp {new Date(check.expiresAt).toLocaleDateString('en-US', {
-                                month: 'short',
-                                year: 'numeric',
-                              })}
+          <div className="bg-etyme-surface border border-etyme-rule rounded-[6px] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="data-table w-full text-[13px]">
+                <thead>
+                  <tr>
+                    <th>Vendor</th>
+                    <th>Checks</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {companies.map(company => (
+                    <tr key={company.companyId}>
+                      <td>
+                        <span className="font-medium text-etyme-ink">{company.name}</span>
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap gap-2">
+                          {company.checks.map((check, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1.5 text-[11px] bg-etyme-canvas/80 rounded px-2 py-1"
+                            >
+                              <span
+                                className={verifDotClass(check.status)}
+                                style={check.status === 'EXPIRED' ? { background: 'var(--color-faint)' } : undefined}
+                              />
+                              <span className="text-etyme-muted">{formatRuleType(check.type)}</span>
+                              <span className="text-etyme-faint">·</span>
+                              <span className="font-medium text-etyme-ink">{verifLabel(check.status)}</span>
+                              {check.expiresAt && (
+                                <>
+                                  <span className="text-etyme-faint">·</span>
+                                  <span className="text-etyme-faint tabular-nums">
+                                    exp {new Date(check.expiresAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                                  </span>
+                                </>
+                              )}
                             </span>
-                          </>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      )}
-    </div>
-  )
-}
-
-// ── Stat card ──────────────────────────────────────────────
-
-function StatCard({ label, value, sub, tone }: {
-  label: string
-  value: number | string
-  sub?: string
-  tone?: 'verified' | 'attention' | 'danger' | 'action'
-}) {
-  const toneClasses = {
-    verified: 'text-etyme-verified',
-    attention: 'text-etyme-attention',
-    danger: 'text-red-600',
-    action: 'text-etyme-action',
-  }
-
-  return (
-    <div className="bg-etyme-surface rounded-lg border border-etyme-rule p-4">
-      <div className="text-[10px] uppercase tracking-wider text-etyme-faint font-medium">
-        {label}
-      </div>
-      <div className={`font-serif text-2xl mt-1 ${tone ? toneClasses[tone] : 'text-etyme-ink'}`}>
-        {value}
-      </div>
-      {sub && (
-        <div className="text-[10px] text-etyme-faint mt-0.5">{sub}</div>
       )}
     </div>
   )

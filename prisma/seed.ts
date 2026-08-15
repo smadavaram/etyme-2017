@@ -1196,7 +1196,7 @@ async function main() {
       action: 'REQUIREMENT_DISTRIBUTED',
       summary: `Requirement "SAP S/4HANA Migration Lead" distributed to 3 vendors`,
       reason: 'Distribution triggered: vendors selected based on reply rate > 40% and matching skill coverage',
-      payload: { requirementId: reqs[0].id, vendorCount: 3, criteria: 'reply_rate > 40%, skill_match' },
+      payload: { requirementId: requirementRecords[0].id, vendorCount: 3, criteria: 'reply_rate > 40%, skill_match' },
       reversible: true,
       daysAgo: 30,
     },
