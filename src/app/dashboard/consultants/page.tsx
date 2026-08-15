@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -556,12 +557,22 @@ function formatWorkAuth(auth: string | null): string {
 // ── Page ───────────────────────────────────────────────────
 
 export default function ConsultantsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [consultants, setConsultants] = useState<Consultant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [selected, setSelected] = useState<Consultant | null>(null)
   const [hasCostPermission, setHasCostPermission] = useState(false)
+
+  // Open the add modal when navigated with ?new=1
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowAdd(true)
+      router.replace('/dashboard/consultants', { scroll: false })
+    }
+  }, [searchParams, router])
 
   const fetchConsultants = useCallback(async () => {
     setLoading(true)
