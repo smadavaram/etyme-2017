@@ -7,12 +7,12 @@ import { EtymeMark } from '@/components/logo'
  * Sidebar navigation — from CLAUDE.md design system.
  *
  * Navigation per company type:
- *   Vendor     → Today → Sell → Procure → Operate → Grow
+ *   Vendor     → Today → Sell → Talent → Operate → Grow
  *   Consultant → You → Grow
  *   GSI        → Deliver → Supply → Operate
  *   Client     → Program → Governance
  *
- * Phase 1: Vendor view (the primary user).
+ * Phase 1 ships both Vendor and Client views.
  * href is typed as `string` because most pages are not yet built —
  * Next.js typedRoutes would reject them. Tighten when pages exist.
  */
@@ -28,6 +28,8 @@ type NavItem = {
   icon: string  // emoji for now; SVG icons later
   badge?: number
 }
+
+type CompanyKind = 'VENDOR' | 'CLIENT'
 
 const VENDOR_NAV: NavSection[] = [
   {
@@ -49,10 +51,11 @@ const VENDOR_NAV: NavSection[] = [
     ],
   },
   {
-    label: 'Procure',
+    label: 'Talent',
     items: [
       { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
       { label: 'Candidates', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Training', href: '/dashboard/training', icon: '◪' },
       { label: 'Buy Contracts', href: '/dashboard/contracts', icon: '▥' },
     ],
   },
@@ -70,20 +73,57 @@ const VENDOR_NAV: NavSection[] = [
   {
     label: 'Grow',
     items: [
-      { label: 'Training', href: '/dashboard/training', icon: '◪' },
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
-    ],
-  },
-  {
-    label: 'Client view',
-    items: [
-      { label: 'Program', href: '/dashboard/program', icon: '◉' },
     ],
   },
 ]
 
-export function Sidebar() {
+const CLIENT_NAV: NavSection[] = [
+  {
+    label: 'Program',
+    items: [
+      { label: 'Dashboard', href: '/dashboard/program', icon: '◉' },
+      { label: 'Open roles', href: '/dashboard/requirements', icon: '◈' },
+      { label: 'Candidates', href: '/dashboard/submissions', icon: '◇' },
+      { label: 'Placements', href: '/dashboard/contracts', icon: '▤' },
+      { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠' },
+      { label: 'Worked here before', href: '/dashboard/alumni', icon: '◎' },
+    ],
+  },
+  {
+    label: 'Governance',
+    items: [
+      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧' },
+      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫' },
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
+      { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
+    ],
+  },
+]
+
+function getNavForKind(kind: CompanyKind): NavSection[] {
+  switch (kind) {
+    case 'CLIENT': return CLIENT_NAV
+    case 'VENDOR':
+    default:       return VENDOR_NAV
+  }
+}
+
+export function Sidebar({
+  companyKind = 'VENDOR',
+  companyName,
+  companyLabel,
+}: {
+  companyKind?: CompanyKind
+  companyName?: string
+  companyLabel?: string
+}) {
   const pathname = usePathname()
+  const sections = getNavForKind(companyKind)
+
+  // For client view, the "dashboard" link is /dashboard/program
+  const dashboardHref = companyKind === 'CLIENT' ? '/dashboard/program' : '/dashboard'
 
   return (
     <aside className="w-[220px] flex-shrink-0 h-screen sticky top-0 flex flex-col
@@ -98,18 +138,18 @@ export function Sidebar() {
 
       {/* Nav sections */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
-        {VENDOR_NAV.map((section) => (
+        {sections.map((section) => (
           <div key={section.label} className="mb-1">
             <div className="eyebrow px-2 pt-5 pb-1.5">
               {section.label}
             </div>
             {section.items.map((item) => {
-              const active = item.href === '/dashboard'
-                ? pathname === '/dashboard'
+              const active = item.href === dashboardHref
+                ? pathname === dashboardHref
                 : pathname.startsWith(item.href)
               return (
                 <Link
-                  key={item.href}
+                  key={item.label}
                   href={item.href as any}
                   className={`
                     flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px]
@@ -140,10 +180,10 @@ export function Sidebar() {
       {/* Bottom — company info */}
       <div className="px-4 py-3 border-t border-etyme-rule">
         <div className="text-[11px] font-medium text-etyme-ink truncate">
-          Cloudepa Inc.
+          {companyName ?? 'Cloudepa Inc.'}
         </div>
         <div className="text-[10px] text-etyme-faint">
-          Vendor · US IT
+          {companyLabel ?? (companyKind === 'CLIENT' ? 'Client · Enterprise' : 'Vendor · US IT')}
         </div>
       </div>
     </aside>

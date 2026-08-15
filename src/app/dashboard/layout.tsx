@@ -1,12 +1,16 @@
-import { Sidebar } from '@/components/shell/sidebar'
 import { Header } from '@/components/shell/header'
+import { DashboardShell } from './shell'
 
 /**
  * Authenticated dashboard shell — sidebar + header + content.
  *
  * CLAUDE.md design system:
  *   "Shell — sticky header (logo + org + role), sidebar nav with
- *    section groups (Sell / Procure / Operate / Grow), mobile pill nav"
+ *    section groups, mobile pill nav"
+ *
+ * Navigation adapts to company type:
+ *   Vendor → Today → Sell → Talent → Operate → Grow
+ *   Client → Program → Governance
  *
  * Warm canvas, ink, one blue, clay for attention.
  * The prototype palette — not the slate palette.
@@ -19,9 +23,9 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen flex bg-etyme-canvas">
-      {/* Sidebar — desktop only */}
+      {/* Sidebar — desktop only, adapts to route */}
       <div className="hidden md:block">
-        <Sidebar />
+        <DashboardShell />
       </div>
 
       {/* Main content area */}
