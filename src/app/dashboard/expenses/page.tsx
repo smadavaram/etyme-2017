@@ -114,6 +114,7 @@ export default function ExpensesPage() {
   const [kindFilter, setKindFilter] = useState<KindFilter>('all')
   const [totals, setTotals] = useState({ grand: 0, billable: 0, billableCount: 0, internal: 0, internalCount: 0 })
   const [actionLoading, setActionLoading] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const fetchExpenses = useCallback(async () => {
     setLoading(true)
@@ -168,9 +169,20 @@ export default function ExpensesPage() {
         throw new Error(body.error?.message ?? `Action failed`)
       }
 
+      const body = await res.json()
+      const processed = body.data?.processed ?? targetIds.length
+      const errors = body.data?.errors ?? 0
+      const label = action === 'submit' ? 'Submitted' : action === 'approve' ? 'Approved' : action.charAt(0).toUpperCase() + action.slice(1)
+      const msg = errors > 0
+        ? `${label} ${processed}, ${errors} failed`
+        : `${label} ${processed} expense${processed !== 1 ? 's' : ''}`
+      setToast({ message: msg, type: errors > 0 ? 'error' : 'success' })
+      setTimeout(() => setToast(null), 3500)
+
       await fetchExpenses()
     } catch (err: any) {
-      setError(err.message)
+      setToast({ message: err.message, type: 'error' })
+      setTimeout(() => setToast(null), 4000)
     } finally {
       setActionLoading(false)
     }
@@ -428,6 +440,17 @@ export default function ExpensesPage() {
           {kindFilter !== 'all' && ` · ${kindFilter}`}
           {` · ${formatUSD(filtered.reduce((sum, e) => sum + e.total, 0))}`}
         </p>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium
+                         ${toast.type === 'success'
+                           ? 'bg-etyme-verified text-white'
+                           : 'bg-red-600 text-white'
+                         } animate-slide-up`}>
+          {toast.message}
+        </div>
       )}
     </>
   )

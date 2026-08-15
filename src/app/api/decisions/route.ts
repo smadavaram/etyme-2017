@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
 
       // Check if a rolloff event already exists
       const rolloffEvent = await prisma.rolloffEvent.findFirst({
-        where: { contractId: sc.id },
+        where: { sellContractId: sc.id },
       })
 
       decisions.push({

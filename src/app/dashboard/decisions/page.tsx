@@ -110,6 +110,8 @@ export default function DecisionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const [acting, setActing] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const fetchDecisions = useCallback(async () => {
     setLoading(true)
@@ -134,6 +136,56 @@ export default function DecisionsPage() {
   useEffect(() => {
     fetchDecisions()
   }, [fetchDecisions])
+
+  // ── Inline actions ────────────────────────────────
+
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  async function handleApproveTimesheet(entityId: string, e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setActing(entityId)
+    try {
+      const res = await fetch(`/api/timesheets/${entityId}/approve`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error?.message ?? 'Approval failed')
+      }
+      showToast('Timesheet approved')
+      // Remove from local list immediately
+      setDecisions(prev => prev.filter(d => !(d.entityType === 'TIMESHEET' && d.entityId === entityId)))
+    } catch (err: any) {
+      showToast(err.message, 'error')
+    } finally {
+      setActing(null)
+    }
+  }
+
+  async function handleApproveExpense(entityId: string, e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setActing(entityId)
+    try {
+      const res = await fetch('/api/expenses/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve', expenseIds: [entityId] }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error?.message ?? 'Approval failed')
+      }
+      showToast('Expense approved')
+      setDecisions(prev => prev.filter(d => !(d.entityType === 'EXPENSE' && d.entityId === entityId)))
+    } catch (err: any) {
+      showToast(err.message, 'error')
+    } finally {
+      setActing(null)
+    }
+  }
 
   // ── Filtered list ─────────────────────────────────
   const filtered = typeFilter === 'all'
@@ -277,6 +329,32 @@ export default function DecisionsPage() {
                   <p className="text-[12px] text-etyme-muted">{d.subtitle}</p>
                 </div>
 
+                {/* Inline actions */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {d.type === 'TIMESHEET_APPROVAL' && (
+                    <button
+                      onClick={(e) => handleApproveTimesheet(d.entityId, e)}
+                      disabled={acting === d.entityId}
+                      className="px-3 py-1.5 text-[11px] font-medium rounded-md
+                                 bg-etyme-verified text-white hover:bg-etyme-verified/90
+                                 transition-colors disabled:opacity-50"
+                    >
+                      {acting === d.entityId ? '…' : 'Approve'}
+                    </button>
+                  )}
+                  {d.type === 'EXPENSE_APPROVAL' && (
+                    <button
+                      onClick={(e) => handleApproveExpense(d.entityId, e)}
+                      disabled={acting === d.entityId}
+                      className="px-3 py-1.5 text-[11px] font-medium rounded-md
+                                 bg-etyme-verified text-white hover:bg-etyme-verified/90
+                                 transition-colors disabled:opacity-50"
+                    >
+                      {acting === d.entityId ? '…' : 'Approve'}
+                    </button>
+                  )}
+                </div>
+
                 {/* Amount + time */}
                 <div className="text-right shrink-0">
                   {d.amount != null && (
@@ -300,6 +378,17 @@ export default function DecisionsPage() {
           {filtered.length} decision{filtered.length !== 1 ? 's' : ''}
           {typeFilter !== 'all' && ` · ${typeLabel(typeFilter).toLowerCase()}`}
         </p>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium
+                         ${toast.type === 'success'
+                           ? 'bg-etyme-verified text-white'
+                           : 'bg-red-600 text-white'
+                         } animate-slide-up`}>
+          {toast.message}
+        </div>
       )}
     </>
   )

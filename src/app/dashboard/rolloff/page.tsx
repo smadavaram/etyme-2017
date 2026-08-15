@@ -100,6 +100,8 @@ export default function RolloffPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [window, setWindow] = useState<WindowDays>(30)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [claiming, setClaiming] = useState<string | null>(null)
 
   const fetchRolloffs = useCallback(async () => {
     setLoading(true)
@@ -128,6 +130,60 @@ export default function RolloffPage() {
   useEffect(() => {
     fetchRolloffs()
   }, [fetchRolloffs])
+
+  // ── Toggle checklist item ─────────────────────────────────
+  async function handleChecklistToggle(rolloffId: string, item: string) {
+    // Optimistic update
+    setTracked(prev => prev.map(r => {
+      if (r.id !== rolloffId) return r
+      const cl = { ...(r.checklist ?? {}) }
+      cl[item] = !cl[item]
+      return { ...r, checklist: cl }
+    }))
+
+    try {
+      const res = await fetch(`/api/rolloff/${rolloffId}/checklist`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item }),
+      })
+      if (!res.ok) {
+        throw new Error('Failed to update checklist')
+      }
+      const body = await res.json()
+      const itemLabel = item.replace(/([A-Z])/g, ' $1').toLowerCase().trim()
+      setToast({
+        message: body.data.checklist[item] ? `✓ ${itemLabel}` : `Unchecked ${itemLabel}`,
+        type: 'success',
+      })
+      setTimeout(() => setToast(null), 2500)
+    } catch {
+      // Revert on failure
+      fetchRolloffs()
+      setToast({ message: 'Failed to update checklist', type: 'error' })
+      setTimeout(() => setToast(null), 3000)
+    }
+  }
+
+  // ── Claim rolloff ─────────────────────────────────────────
+  async function handleClaim(rolloffId: string) {
+    setClaiming(rolloffId)
+    try {
+      const res = await fetch(`/api/rolloff/${rolloffId}/claim`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error?.message ?? 'Claim failed')
+      }
+      setToast({ message: 'Rolloff claimed — you own this offboarding', type: 'success' })
+      setTimeout(() => setToast(null), 3000)
+      fetchRolloffs()
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' })
+      setTimeout(() => setToast(null), 4000)
+    } finally {
+      setClaiming(null)
+    }
+  }
 
   const total = tracked.length + untracked.length
 
@@ -301,6 +357,9 @@ export default function RolloffPage() {
                             {event.outcome}
                           </span>
                         )}
+                        {event.claimedById && (
+                          <span className="pill text-[10px] bg-etyme-action/10 text-etyme-action">Claimed</span>
+                        )}
                       </div>
                       <p className="text-xs text-etyme-muted">
                         {event.clientCompany?.name ?? 'No client'}
@@ -308,11 +367,23 @@ export default function RolloffPage() {
                         {event.billRate != null && ` · $${(event.billRate / 100).toFixed(2)}/hr`}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium tabular-nums">
-                        {new Date(event.endDate).toLocaleDateString()}
-                      </p>
-                      <p className="text-[10px] text-etyme-muted">End date</p>
+                    <div className="flex items-start gap-3">
+                      {!event.claimedById && !event.outcome && (
+                        <button
+                          onClick={() => handleClaim(event.id)}
+                          disabled={claiming === event.id}
+                          className="text-xs px-3 py-1.5 bg-etyme-action text-white rounded
+                                     hover:bg-etyme-action/90 transition-colors disabled:opacity-50"
+                        >
+                          {claiming === event.id ? 'Claiming…' : 'Claim'}
+                        </button>
+                      )}
+                      <div className="text-right">
+                        <p className="text-sm font-medium tabular-nums">
+                          {new Date(event.endDate).toLocaleDateString()}
+                        </p>
+                        <p className="text-[10px] text-etyme-muted">End date</p>
+                      </div>
                     </div>
                   </div>
 
@@ -346,22 +417,22 @@ export default function RolloffPage() {
                         <ChecklistItem
                           label="Knowledge transfer"
                           checked={event.checklist.knowledgeTransfer ?? false}
-                          onToggle={() => {/* Would PATCH /api/rolloff/:id/checklist */}}
+                          onToggle={() => handleChecklistToggle(event.id, 'knowledgeTransfer')}
                         />
                         <ChecklistItem
                           label="Final timesheet"
                           checked={event.checklist.finalTimesheet ?? false}
-                          onToggle={() => {}}
+                          onToggle={() => handleChecklistToggle(event.id, 'finalTimesheet')}
                         />
                         <ChecklistItem
                           label="Access revocation"
                           checked={event.checklist.accessRevocation ?? false}
-                          onToggle={() => {}}
+                          onToggle={() => handleChecklistToggle(event.id, 'accessRevocation')}
                         />
                         <ChecklistItem
                           label="Assets returned"
                           checked={event.checklist.assets ?? false}
-                          onToggle={() => {}}
+                          onToggle={() => handleChecklistToggle(event.id, 'assets')}
                         />
                       </div>
                     </div>
@@ -379,6 +450,17 @@ export default function RolloffPage() {
           {total} contract ending{total !== 1 ? 's' : ''} in the next {window} days
           {summary && ` · ${summary.tracked} tracked · ${summary.untracked} untracked`}
         </p>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium
+                         ${toast.type === 'success'
+                           ? 'bg-etyme-verified text-white'
+                           : 'bg-red-600 text-white'
+                         } animate-slide-up`}>
+          {toast.message}
+        </div>
       )}
     </>
   )

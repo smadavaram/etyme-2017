@@ -84,22 +84,59 @@ export default function ProgramPage() {
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('overview')
   const [scope, setScope] = useState<ViewScope>('mine')
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  async function loadData() {
+    try {
+      const res = await fetch('/api/program')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const body = await res.json()
+      setData(body.data)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/api/program')
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const body = await res.json()
-        setData(body.data)
-      } catch (err: any) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+    loadData()
   }, [])
+
+  async function handleApproveItem(item: ProgramData['approvalQueue'][number]) {
+    try {
+      if (item.kind === 'timesheet') {
+        const res = await fetch(`/api/timesheets/${item.id}/approve`, { method: 'POST' })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          throw new Error(body.error?.message ?? 'Approval failed')
+        }
+      } else {
+        const res = await fetch('/api/expenses/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'approve', expenseIds: [item.id] }),
+        })
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}))
+          throw new Error(body.error?.message ?? 'Approval failed')
+        }
+      }
+      setToast({ message: `${item.kind === 'timesheet' ? 'Timesheet' : 'Expense'} approved — ${item.person}`, type: 'success' })
+      setTimeout(() => setToast(null), 3000)
+      // Remove from local queue immediately
+      if (data) {
+        setData({
+          ...data,
+          approvalQueue: data.approvalQueue.filter(a => a.id !== item.id),
+          summary: { ...data.summary, pendingApprovals: data.summary.pendingApprovals - 1 },
+        })
+      }
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' })
+      setTimeout(() => setToast(null), 4000)
+    }
+  }
 
   if (loading) {
     return (
@@ -215,10 +252,21 @@ export default function ProgramPage() {
 
       {/* ── Tab content ────────────────────────── */}
       {tab === 'overview' && <OverviewTab data={data} />}
-      {tab === 'approvals' && <ApprovalsTab items={data.approvalQueue} />}
+      {tab === 'approvals' && <ApprovalsTab items={data.approvalQueue} onApprove={handleApproveItem} />}
       {tab === 'contractors' && <ContractorsTab contractors={data.contractors} />}
       {tab === 'vendors' && <VendorsTab vendors={data.vendors} />}
       {tab === 'roles' && <RolesTab roles={data.openRoles} />}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium
+                         ${toast.type === 'success'
+                           ? 'bg-etyme-verified text-white'
+                           : 'bg-red-600 text-white'
+                         } animate-slide-up`}>
+          {toast.message}
+        </div>
+      )}
     </>
   )
 }
@@ -459,7 +507,7 @@ function OverviewTab({ data }: { data: ProgramData }) {
 
 // ── Approvals tab ─────────────────────────────────────────
 
-function ApprovalsTab({ items }: { items: ProgramData['approvalQueue'] }) {
+function ApprovalsTab({ items, onApprove }: { items: ProgramData['approvalQueue']; onApprove?: (item: ProgramData['approvalQueue'][number]) => void }) {
   if (items.length === 0) {
     return (
       <div className="card text-center py-12">
@@ -509,8 +557,11 @@ function ApprovalsTab({ items }: { items: ProgramData['approvalQueue'] }) {
               {item.daysWaiting > 0 ? `${item.daysWaiting}d waiting` : 'today'}
             </div>
             <div className="flex gap-2 shrink-0">
-              <button className="text-xs px-3.5 py-2 bg-etyme-verified text-white rounded
-                                 hover:bg-etyme-verified/90 transition-colors">
+              <button
+                onClick={() => onApprove?.(item)}
+                className="text-xs px-3.5 py-2 bg-etyme-verified text-white rounded
+                                 hover:bg-etyme-verified/90 transition-colors"
+              >
                 Approve
               </button>
               <button className="text-xs px-3 py-2 border border-etyme-rule rounded text-etyme-muted
