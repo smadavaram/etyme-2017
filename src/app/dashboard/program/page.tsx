@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { DataTable, type Column } from '@/components/data-table'
 
 /**
  * Client Program Overview
@@ -526,6 +527,91 @@ function ApprovalsTab({ items }: { items: ProgramData['approvalQueue'] }) {
 
 // ── Contractors tab ───────────────────────────────────────
 
+type Contractor = ProgramData['contractors'][number]
+
+const CONTRACTOR_COLUMNS: Column<Contractor>[] = [
+  {
+    key: 'person',
+    label: 'Contractor',
+    render: (row) => (
+      <div>
+        <div className="font-medium text-etyme-ink">{row.person.name}</div>
+        {row.person.headline && (
+          <div className="text-[11px] text-etyme-muted mt-0.5">{row.person.headline}</div>
+        )}
+      </div>
+    ),
+    sortValue: (row) => row.person.name,
+  },
+  {
+    key: 'vendor',
+    label: 'Vendor',
+    render: (row) => <span className="text-etyme-muted">{row.vendor.name}</span>,
+    sortValue: (row) => row.vendor.name,
+  },
+  {
+    key: 'role',
+    label: 'Role / Engagement',
+    render: (row) => (
+      <span className="text-etyme-muted">{row.engagement?.title ?? row.role ?? '—'}</span>
+    ),
+    sortValue: (row) => row.engagement?.title ?? row.role ?? '',
+    hideOnMobile: true,
+  },
+  {
+    key: 'billRate',
+    label: 'Rate',
+    align: 'right',
+    render: (row) => (
+      <span className="tabular-nums">
+        {row.billRate != null ? `$${(row.billRate / 100).toFixed(0)}/hr` : '—'}
+      </span>
+    ),
+    sortValue: (row) => row.billRate ?? 0,
+  },
+  {
+    key: 'daysRemaining',
+    label: 'Days left',
+    align: 'right',
+    render: (row) => (
+      <span className={`tabular-nums font-medium ${
+        row.daysRemaining != null && row.daysRemaining <= 14 ? 'text-red-600' :
+        row.daysRemaining != null && row.daysRemaining <= 30 ? 'text-etyme-attention' :
+        'text-etyme-muted'
+      }`}>
+        {row.daysRemaining ?? '—'}
+      </span>
+    ),
+    sortValue: (row) => row.daysRemaining ?? 9999,
+  },
+  {
+    key: 'state',
+    label: 'Status',
+    render: (row) => (
+      <span className={`chip ${
+        row.state === 'IN_PROGRESS' ? 'chip--verified' :
+        row.state === 'DRAFT' ? 'chip--passive' :
+        'chip--action'
+      }`}>
+        {row.state === 'IN_PROGRESS' ? 'Active' : row.state}
+      </span>
+    ),
+    sortValue: (row) => row.state,
+  },
+  {
+    key: 'timesheets',
+    label: 'Timesheets',
+    align: 'right',
+    render: (row) => row.pendingTimesheets > 0 ? (
+      <span className="chip chip--attention">{row.pendingTimesheets} pending</span>
+    ) : (
+      <span className="text-xs text-etyme-muted">current</span>
+    ),
+    sortValue: (row) => row.pendingTimesheets,
+    hideOnMobile: true,
+  },
+]
+
 function ContractorsTab({ contractors }: { contractors: ProgramData['contractors'] }) {
   return (
     <div>
@@ -535,68 +621,23 @@ function ContractorsTab({ contractors }: { contractors: ProgramData['contractors
       <p className="text-sm text-etyme-muted mb-6">
         Everyone placed here, their vendor, rate, and contract status.
       </p>
-
-      {/* Table header */}
-      <div className="border border-etyme-rule rounded-lg overflow-hidden">
-        <div className="bg-etyme-canvas px-5 py-3 grid grid-cols-12 gap-4 text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
-          <span className="col-span-3">Contractor</span>
-          <span className="col-span-2">Vendor</span>
-          <span className="col-span-2">Role / Engagement</span>
-          <span className="col-span-1 text-right">Rate</span>
-          <span className="col-span-1 text-right">Ends</span>
-          <span className="col-span-1 text-right">Days left</span>
-          <span className="col-span-1 text-center">Status</span>
-          <span className="col-span-1 text-center">Timesheets</span>
-        </div>
-        {contractors.map((c, i) => (
-          <div
-            key={c.contractId}
-            className={`px-5 py-3.5 grid grid-cols-12 gap-4 items-center text-sm
-              ${i > 0 ? 'border-t border-etyme-rule' : ''}
-              ${c.daysRemaining != null && c.daysRemaining <= 30 ? 'bg-amber-50/30' : 'bg-white'}
-            `}
-          >
-            <div className="col-span-3">
-              <p className="font-medium text-etyme-ink">{c.person.name}</p>
-            </div>
-            <div className="col-span-2 text-xs text-etyme-muted">{c.vendor.name}</div>
-            <div className="col-span-2 text-xs text-etyme-muted">
-              {c.engagement?.title ?? c.role ?? '—'}
-            </div>
-            <div className="col-span-1 text-right text-xs tabular-nums">
-              {c.billRate != null ? `$${(c.billRate / 100).toFixed(0)}/hr` : '—'}
-            </div>
-            <div className="col-span-1 text-right text-xs tabular-nums text-etyme-muted">
-              {c.endDate ? new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-            </div>
-            <div className={`col-span-1 text-right text-xs tabular-nums font-medium ${
-              c.daysRemaining != null && c.daysRemaining <= 14 ? 'text-red-600' :
-              c.daysRemaining != null && c.daysRemaining <= 30 ? 'text-etyme-attention' :
-              'text-etyme-muted'
-            }`}>
-              {c.daysRemaining ?? '—'}
-            </div>
-            <div className="col-span-1 text-center">
-              <span className={`pill text-[9px] ${
-                c.state === 'IN_PROGRESS' ? 'bg-emerald-50 text-etyme-verified' :
-                c.state === 'DRAFT' ? 'bg-etyme-canvas text-etyme-muted' :
-                'bg-etyme-action/10 text-etyme-action'
-              }`}>
-                {c.state === 'IN_PROGRESS' ? 'Active' : c.state}
-              </span>
-            </div>
-            <div className="col-span-1 text-center">
-              {c.pendingTimesheets > 0 ? (
-                <span className="pill text-[9px] bg-amber-50 text-etyme-attention">
-                  {c.pendingTimesheets} pending
-                </span>
-              ) : (
-                <span className="text-xs text-etyme-muted">current</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+      <DataTable
+        columns={CONTRACTOR_COLUMNS}
+        data={contractors}
+        rowKey={(row) => row.contractId}
+        searchPlaceholder="Search by name, vendor, role…"
+        searchFilter={(row, q) =>
+          row.person.name.toLowerCase().includes(q) ||
+          row.vendor.name.toLowerCase().includes(q) ||
+          (row.engagement?.title?.toLowerCase().includes(q) ?? false) ||
+          (row.role?.toLowerCase().includes(q) ?? false)
+        }
+        emptyMessage="No active contractors."
+        exportName={`contractors-program`}
+        rowClassName={(row) =>
+          row.daysRemaining != null && row.daysRemaining <= 30 ? '!bg-amber-50/30' : ''
+        }
+      />
     </div>
   )
 }

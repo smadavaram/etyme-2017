@@ -1364,7 +1364,8 @@ async function main() {
   })
 
   const endedContractData = [
-    // Marcus Bell: 18 months via Cloudepa, ended 6 months ago
+    // Marcus Bell: 18 months via Cloudepa, ended 45 days ago
+    // In 90-day break period — demonstrates the re-engagement block
     {
       personId: alumniPeople[0].id,
       companyId: vendor.id,
@@ -1373,8 +1374,8 @@ async function main() {
       msaId: msa.id,
       billRate: 10200,
       state: 'ENDED' as const,
-      startDays: -730, // ~24 months ago
-      endDays: -180,   // ended 6 months ago (18 months duration)
+      startDays: -593, // 18 months (548 days) + 45 = 593 days ago
+      endDays: -45,    // ended 45 days ago — in break period (45 of 90 days)
     },
     // Sarah Lindqvist: 9 months via TechVista, ended 2 months ago
     {
@@ -1518,8 +1519,10 @@ async function main() {
     { ruleIdx: 2, triggerPoint: 'CONTRACT_START', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[3].id, outcome: 'WARN', reason: `${consultantData[4].name} — $130/hr exceeds typical band for Data Engineer role. Specialist Snowflake skill justifies premium.`, daysAgo: 14, overriddenBy: founder.id, overrideNote: 'Approved — Snowflake expertise rare in Colorado market, justified premium' },
     // WARN — approaching headcount (no override)
     { ruleIdx: 2, triggerPoint: 'SUBMISSION', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[0].id, outcome: 'WARN', reason: 'IT contingent headcount at 87 of 100 — approaching limit', daysAgo: 30 },
-    // BLOCK — Tomás Ferreira tenure cap approaching
-    { ruleIdx: 0, triggerPoint: 'ALUMNI_REENGAGEMENT', subjectType: 'PERSON', subjectId: alumniPeople[2].id, outcome: 'BLOCK', reason: `${alumniData[2].name} — 15 months cumulative at Terumo BCT (cap: 18). In 90-day break period, eligible ${new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}.`, daysAgo: 5 },
+    // BLOCK — Marcus Bell tenure cap reached, in break period
+    { ruleIdx: 0, triggerPoint: 'ALUMNI_REENGAGEMENT', subjectType: 'PERSON', subjectId: alumniPeople[0].id, outcome: 'BLOCK', reason: `${alumniData[0].name} — 18 months cumulative at Terumo BCT (cap: 18). In 90-day break period, eligible ${new Date(now.getTime() + 45 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}.`, daysAgo: 5 },
+    // WARN — Tomás Ferreira approaching tenure cap
+    { ruleIdx: 0, triggerPoint: 'CONTRACT_EXTENSION', subjectType: 'PERSON', subjectId: alumniPeople[2].id, outcome: 'WARN', reason: `${alumniData[2].name} — 15 months cumulative at Terumo BCT (cap: 18). Approaching limit.`, daysAgo: 10 },
   ]
 
   let evalCount = 0

@@ -410,7 +410,14 @@ function formatParameters(params: any): string {
   return Object.entries(params)
     .map(([k, v]) => {
       const label = k.replace(/([A-Z])/g, ' $1').trim()
-      if (Array.isArray(v)) return `${label}: ${JSON.stringify(v)}`
+      if (Array.isArray(v)) {
+        const items = v.map(item =>
+          typeof item === 'string'
+            ? item.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+            : Array.isArray(item) ? item.join(' / ') : String(item)
+        )
+        return `${label}: ${items.join(', ')}`
+      }
       return `${label}: ${v}`
     })
     .join(' · ')
