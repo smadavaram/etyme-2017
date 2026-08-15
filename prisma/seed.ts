@@ -23,6 +23,11 @@ async function main() {
 
   // Clean slate
   await prisma.$transaction([
+    prisma.governanceEvaluation.deleteMany(),
+    prisma.governanceRule.deleteMany(),
+    prisma.governancePolicy.deleteMany(),
+    prisma.verificationDoc.deleteMany(),
+    prisma.verification.deleteMany(),
     prisma.blacklist.deleteMany(),
     prisma.rateHistory.deleteMany(),
     prisma.notification.deleteMany(),
@@ -144,6 +149,30 @@ async function main() {
       vendorId: vendor.id,
       clientId: client2.id,
       paymentTerms: 45,
+      currency: 'USD',
+    },
+  })
+
+  // ── Second vendor (for cross-vendor tenure demo) ──
+  const vendor2 = await prisma.company.create({
+    data: {
+      name: 'TechVista Consulting',
+      slug: 'techvista',
+      domain: 'techvista.com',
+      domainVerified: true,
+      kind: 'VENDOR',
+      templatePack: 'US_SAP',
+      currency: 'USD',
+      siteLiveAt: new Date(),
+      networkVerifiedAt: new Date(),
+    },
+  })
+
+  const msaTV = await prisma.masterAgreement.create({
+    data: {
+      vendorId: vendor2.id,
+      clientId: client.id,
+      paymentTerms: 30,
       currency: 'USD',
     },
   })
@@ -1269,15 +1298,309 @@ async function main() {
     })
   }
 
+  // ── Alumni people (for cross-vendor tenure demo) ────────
+  // These are people who worked at Terumo BCT through different vendors
+  // and whose contracts have ended. Some came through TechVista.
+
+  const alumniData = [
+    { name: 'Marcus Bell',     email: 'marcus@techvista.com',   headline: 'SAP FICO · CO-PA',       skills: ['SAP FICO', 'CO-PA', 'Product Costing'], location: 'Denver, CO',  workAuth: 'US_CITIZEN' },
+    { name: 'Sarah Lindqvist', email: 'sarah@techvista.com',    headline: 'Regulatory Affairs',      skills: ['Regulatory Affairs', 'FDA', 'ISO 13485'], location: 'Boulder, CO', workAuth: 'GC' },
+    { name: 'Tomás Ferreira',  email: 'tomas@techvista.com',    headline: 'Automation · PLC',        skills: ['PLC', 'Automation', 'SCADA', 'MES'],   location: 'Fort Collins, CO', workAuth: 'US_CITIZEN' },
+  ]
+
+  const alumniPeople: any[] = []
+  for (const a of alumniData) {
+    const person = await prisma.person.create({
+      data: { name: a.name, primaryEmail: a.email },
+    })
+
+    await prisma.consultantProfile.create({
+      data: {
+        personId: person.id,
+        headline: a.headline,
+        skills: a.skills,
+        location: a.location,
+        workAuth: a.workAuth,
+        availableFrom: new Date(),
+        visibility: 'VERIFIED',
+      },
+    })
+
+    // Bench listing under TechVista (available)
+    const profile = await prisma.consultantProfile.findUnique({
+      where: { personId: person.id },
+    })
+    if (profile) {
+      await prisma.benchListing.create({
+        data: {
+          consultantId: profile.id,
+          companyId: vendor2.id,
+          tier: 'RETAINED',
+          rateMin: 9000,
+          rateMax: 12000,
+        },
+      })
+    }
+
+    await prisma.context.create({
+      data: {
+        personId: person.id,
+        type: 'CONSULTANT',
+        companyId: vendor2.id,
+      },
+    })
+
+    alumniPeople.push(person)
+  }
+
+  // ── Ended SellContracts at Terumo BCT (alumni) ────────
+
+  const alumniEngagement = await prisma.engagement.create({
+    data: {
+      msaId: msaTV.id,
+      title: 'Manufacturing Systems Support — Terumo BCT',
+      invoiceCycle: 'BIWEEKLY',
+    },
+  })
+
+  const endedContractData = [
+    // Marcus Bell: 18 months via Cloudepa, ended 6 months ago
+    {
+      personId: alumniPeople[0].id,
+      companyId: vendor.id,
+      clientCompanyId: client.id,
+      engagementId: eng1.id,
+      msaId: msa.id,
+      billRate: 10200,
+      state: 'ENDED' as const,
+      startDays: -730, // ~24 months ago
+      endDays: -180,   // ended 6 months ago (18 months duration)
+    },
+    // Sarah Lindqvist: 9 months via TechVista, ended 2 months ago
+    {
+      personId: alumniPeople[1].id,
+      companyId: vendor2.id,
+      clientCompanyId: client.id,
+      engagementId: alumniEngagement.id,
+      msaId: msaTV.id,
+      billRate: 9100,
+      state: 'ENDED' as const,
+      startDays: -330, // ~11 months ago
+      endDays: -60,    // ended 2 months ago (9 months duration)
+    },
+    // Tomás Ferreira: 9 months via TechVista, then 6 months via Cloudepa
+    // Total: 15 months — nearing 18-month tenure cap
+    // Contract 1: TechVista, ended 8 months ago
+    {
+      personId: alumniPeople[2].id,
+      companyId: vendor2.id,
+      clientCompanyId: client.id,
+      engagementId: alumniEngagement.id,
+      msaId: msaTV.id,
+      billRate: 8800,
+      state: 'ENDED' as const,
+      startDays: -480, // ~16 months ago
+      endDays: -210,   // ended 7 months ago (9 months via TechVista)
+    },
+    // Contract 2: Cloudepa, ended 30 days ago
+    {
+      personId: alumniPeople[2].id,
+      companyId: vendor.id,
+      clientCompanyId: client.id,
+      engagementId: eng1.id,
+      msaId: msa.id,
+      billRate: 9600,
+      state: 'ENDED' as const,
+      startDays: -210, // started right after TechVista contract
+      endDays: -30,    // ended 30 days ago (6 months via Cloudepa)
+    },
+  ]
+
+  const endedContracts: any[] = []
+  for (const c of endedContractData) {
+    const startDate = new Date(now)
+    startDate.setDate(startDate.getDate() + c.startDays)
+    const endDate = new Date(now)
+    endDate.setDate(endDate.getDate() + c.endDays)
+
+    const sc = await prisma.sellContract.create({
+      data: {
+        companyId: c.companyId,
+        clientCompanyId: c.clientCompanyId,
+        personId: c.personId,
+        billRate: c.billRate,
+        state: c.state,
+        startDate,
+        endDate,
+        msaId: c.msaId,
+        engagementId: c.engagementId,
+      },
+    })
+    endedContracts.push(sc)
+  }
+
+  // Add approved timesheets for ended contracts (so alumni hours aggregate)
+  for (const sc of endedContracts) {
+    const tsStart = new Date(sc.startDate)
+    tsStart.setDate(tsStart.getDate() + 14) // first period after start
+
+    // Build days JSON — 8 hours per weekday in the period
+    const days: Record<string, number> = {}
+    const d = new Date(sc.startDate)
+    while (d <= tsStart) {
+      const day = d.getDay()
+      if (day !== 0 && day !== 6) {
+        days[d.toISOString().slice(0, 10)] = 8
+      }
+      d.setDate(d.getDate() + 1)
+    }
+
+    await prisma.timesheet.create({
+      data: {
+        sellContractId: sc.id,
+        personId: sc.personId,
+        status: 'APPROVED',
+        periodStart: sc.startDate,
+        periodEnd: tsStart,
+        totalHours: 80,
+        days,
+      },
+    })
+  }
+
+  // ── Governance Policy + Rules (Terumo BCT) ────────────
+
+  const terumoPolicy = await prisma.governancePolicy.create({
+    data: {
+      companyId: client.id,
+      name: 'Terumo BCT Contingent Workforce Policy',
+      description: 'Standard governance rules for all contingent workers at Terumo BCT. Aligned with medical device quality system requirements.',
+    },
+  })
+
+  const governanceRulesData = [
+    { ruleType: 'TENURE_CAP' as const,            enforcementMode: 'BLOCK' as const, parameters: { maxMonths: 18 }, description: 'No contingent worker beyond 18 months cumulative at Terumo BCT' },
+    { ruleType: 'BREAK_IN_SERVICE' as const,       enforcementMode: 'BLOCK' as const, parameters: { breakDays: 90 }, description: '90-day break in service required after reaching tenure cap' },
+    { ruleType: 'RATE_BAND' as const,              enforcementMode: 'WARN' as const,  parameters: { minRate: 7500, maxRate: 16000 }, description: 'Bill rates must fall within $75–$160/hr band' },
+    { ruleType: 'WORK_AUTHORIZATION' as const,     enforcementMode: 'BLOCK' as const, parameters: { requiredBefore: 'CONTRACT_START' }, description: 'Valid work authorization verified before assignment start' },
+    { ruleType: 'INSURANCE_REQUIRED' as const,     enforcementMode: 'BLOCK' as const, parameters: { types: ['INSURANCE_GL', 'INSURANCE_WC'] }, description: 'Vendor must carry current GL and Workers Comp insurance' },
+    { ruleType: 'SEGREGATION_OF_DUTIES' as const,  enforcementMode: 'BLOCK' as const, parameters: { conflictingRoles: [['APPROVER', 'SUBMITTER']] }, description: 'Timesheet submitter cannot also approve their own timesheet' },
+  ]
+
+  const govRules: any[] = []
+  for (const r of governanceRulesData) {
+    const rule = await prisma.governanceRule.create({
+      data: {
+        policyId: terumoPolicy.id,
+        ruleType: r.ruleType,
+        enforcementMode: r.enforcementMode,
+        parameters: r.parameters,
+        description: r.description,
+      },
+    })
+    govRules.push(rule)
+  }
+
+  // ── Governance Evaluations ────────────────────────────
+
+  const evaluationsData = [
+    // PASS — Anita Desai contract start, work auth check
+    { ruleIdx: 3, triggerPoint: 'CONTRACT_START', subjectType: 'PERSON', subjectId: people[2].id, outcome: 'PASS', reason: `${consultantData[2].name} — Green Card holder, work authorization valid`, daysAgo: 120 },
+    // PASS — John Martinez contract start, rate band check
+    { ruleIdx: 2, triggerPoint: 'CONTRACT_START', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[1].id, outcome: 'PASS', reason: `${consultantData[5].name} — $105/hr within $75–$160 band`, daysAgo: 90 },
+    // PASS — Cloudepa insurance verified
+    { ruleIdx: 4, triggerPoint: 'CONTRACT_START', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[0].id, outcome: 'PASS', reason: 'Cloudepa Inc. — GL and WC insurance verified, expires 2027-03-15', daysAgo: 120 },
+    // PASS — Ravi Patel work auth (H1B valid through 2027)
+    { ruleIdx: 3, triggerPoint: 'CONTRACT_START', subjectType: 'PERSON', subjectId: people[0].id, outcome: 'PASS', reason: `${consultantData[0].name} — H1B valid through 2027-04-30`, daysAgo: 200 },
+    // PASS — segregation of duties check
+    { ruleIdx: 5, triggerPoint: 'SUBMISSION', subjectType: 'PERSON', subjectId: people[1].id, outcome: 'PASS', reason: `${consultantData[1].name} — no conflicting role assignments`, daysAgo: 45 },
+    // WARN — Meera rate above band (overridden)
+    { ruleIdx: 2, triggerPoint: 'CONTRACT_START', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[3].id, outcome: 'WARN', reason: `${consultantData[4].name} — $130/hr exceeds typical band for Data Engineer role. Specialist Snowflake skill justifies premium.`, daysAgo: 14, overriddenBy: founder.id, overrideNote: 'Approved — Snowflake expertise rare in Colorado market, justified premium' },
+    // WARN — approaching headcount (no override)
+    { ruleIdx: 2, triggerPoint: 'SUBMISSION', subjectType: 'SELL_CONTRACT', subjectId: sellContracts[0].id, outcome: 'WARN', reason: 'IT contingent headcount at 87 of 100 — approaching limit', daysAgo: 30 },
+    // BLOCK — Tomás Ferreira tenure cap approaching
+    { ruleIdx: 0, triggerPoint: 'ALUMNI_REENGAGEMENT', subjectType: 'PERSON', subjectId: alumniPeople[2].id, outcome: 'BLOCK', reason: `${alumniData[2].name} — 15 months cumulative at Terumo BCT (cap: 18). In 90-day break period, eligible ${new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)}.`, daysAgo: 5 },
+  ]
+
+  let evalCount = 0
+  for (const e of evaluationsData) {
+    const evaluatedAt = new Date(now)
+    evaluatedAt.setDate(evaluatedAt.getDate() - e.daysAgo)
+
+    await prisma.governanceEvaluation.create({
+      data: {
+        ruleId: govRules[e.ruleIdx].id,
+        triggerPoint: e.triggerPoint,
+        subjectType: e.subjectType,
+        subjectId: e.subjectId,
+        outcome: e.outcome,
+        reason: e.reason,
+        overriddenBy: (e as any).overriddenBy ?? null,
+        overrideNote: (e as any).overrideNote ?? null,
+        evaluatedAt,
+      },
+    })
+    evalCount++
+  }
+
+  // ── Verifications ─────────────────────────────────────
+
+  const verificationsData = [
+    // Person-level — I-9/E-Verify
+    { personId: people[0].id, type: 'I9_EVERIFY' as const, status: 'CLEAR' as const, provider: 'E-Verify', daysAgo: 200 },
+    { personId: people[2].id, type: 'I9_EVERIFY' as const, status: 'CLEAR' as const, provider: 'E-Verify', daysAgo: 120 },
+    { personId: people[5].id, type: 'I9_EVERIFY' as const, status: 'CLEAR' as const, provider: 'E-Verify', daysAgo: 90 },
+    { personId: people[4].id, type: 'I9_EVERIFY' as const, status: 'PENDING' as const, provider: 'E-Verify', daysAgo: 14 },
+    // Background checks
+    { personId: people[0].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'HireRight', daysAgo: 200 },
+    { personId: people[2].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'HireRight', daysAgo: 120 },
+    { personId: people[5].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'Sterling', daysAgo: 90 },
+    { personId: people[4].id, type: 'BACKGROUND_CHECK' as const, status: 'CLEAR' as const, provider: 'HireRight', daysAgo: 14 },
+    // Drug screening
+    { personId: people[0].id, type: 'DRUG_SCREENING' as const, status: 'CLEAR' as const, provider: 'Quest', daysAgo: 200 },
+    { personId: people[2].id, type: 'DRUG_SCREENING' as const, status: 'CLEAR' as const, provider: 'Quest', daysAgo: 120 },
+    { personId: people[5].id, type: 'DRUG_SCREENING' as const, status: 'CONDITIONAL' as const, provider: 'Quest', daysAgo: 88 },
+    // Company-level — insurance
+    { companyId: vendor.id, type: 'INSURANCE_GL' as const, status: 'CLEAR' as const, provider: 'Travelers', daysAgo: 300, expiresInDays: 200 },
+    { companyId: vendor.id, type: 'INSURANCE_WC' as const, status: 'CLEAR' as const, provider: 'Travelers', daysAgo: 300, expiresInDays: 200 },
+    { companyId: vendor2.id, type: 'INSURANCE_GL' as const, status: 'CLEAR' as const, provider: 'Hartford', daysAgo: 180, expiresInDays: 90 },
+    { companyId: vendor2.id, type: 'INSURANCE_WC' as const, status: 'PENDING' as const, provider: 'Hartford', daysAgo: 30 },
+  ]
+
+  let verificationCount = 0
+  for (const v of verificationsData) {
+    const issuedAt = new Date(now)
+    issuedAt.setDate(issuedAt.getDate() - v.daysAgo)
+    const expiresAt = (v as any).expiresInDays
+      ? new Date(now.getTime() + (v as any).expiresInDays * 24 * 60 * 60 * 1000)
+      : null
+
+    await prisma.verification.create({
+      data: {
+        personId: (v as any).personId ?? null,
+        companyId: (v as any).companyId ?? null,
+        type: v.type,
+        status: v.status,
+        provider: v.provider,
+        issuedAt,
+        expiresAt,
+        uploadedById: founder.id,
+        verifiedById: v.status === 'CLEAR' ? founder.id : null,
+        verifiedAt: v.status === 'CLEAR' ? issuedAt : null,
+      },
+    })
+    verificationCount++
+  }
+
   console.log('✅ Seed complete.')
-  console.log(`   Companies:    3 (${vendor.name}, ${client.name}, ${client2.name})`)
-  console.log(`   Consultants:  ${consultantData.length}`)
+  console.log(`   Companies:    4 (${vendor.name}, ${vendor2.name}, ${client.name}, ${client2.name})`)
+  console.log(`   Consultants:  ${consultantData.length} + ${alumniData.length} alumni`)
   console.log(`   Requirements: ${reqs.length}`)
   console.log(`   Submissions:  ${submissionData.length}`)
-  console.log(`   Sell contracts: ${contractData.length}`)
+  console.log(`   Sell contracts: ${contractData.length} active + ${endedContractData.length} ended`)
   console.log(`   Buy contracts:  ${buyContractData.length} (${buyContractData.filter(b => b.state !== 'DRAFT').length} active)`)
-  console.log(`   Timesheets:   ${timesheetData.length}`)
-  console.log(`   Engagements:  2 (${eng1.title}, ${eng2.title})`)
+  console.log(`   Timesheets:   ${timesheetData.length} + ${endedContractData.length} alumni`)
+  console.log(`   Engagements:  3 (${eng1.title}, ${eng2.title}, ${alumniEngagement.title})`)
   console.log(`   Invoices:     ${invoiceData.length}`)
   console.log(`   Expenses:     ${expenseData.length}`)
   console.log(`   Conversations: ${conversationCount} (${messageCount} messages)`)
@@ -1286,6 +1609,8 @@ async function main() {
   console.log(`   Blacklist:    ${blacklistCount}`)
   console.log(`   Automation:   ${automationData.length}`)
   console.log(`   Payments:     3`)
+  console.log(`   Governance:   1 policy, ${governanceRulesData.length} rules, ${evalCount} evaluations`)
+  console.log(`   Verifications: ${verificationCount}`)
 }
 
 main()

@@ -1,0 +1,226 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+
+/**
+ * GET /api/compliance
+ *
+ * Client governance compliance overview — Addendum E §E.6.
+ *
+ * Surfaces:
+ * - Active governance policies and rules (BLOCK vs WARN)
+ * - Recent governance evaluations with outcomes
+ * - Verification status for contractors and vendors
+ * - Compliance health score
+ *
+ * "Every cleared requisition records the basis on which it cleared.
+ *  An auto-cleared requisition is not an unreviewed one — it is one
+ *  where the review was executed by rule and recorded."
+ */
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const url = request.nextUrl
+  const clientCompanyId = url.searchParams.get('clientCompanyId')
+
+  // Resolve client company
+  const clientCompany = clientCompanyId
+    ? await prisma.company.findUnique({ where: { id: clientCompanyId } })
+    : await prisma.company.findFirst({ where: { kind: 'CLIENT' } })
+      ?? await prisma.sellContract.findFirst({
+          select: { clientCompany: true },
+        }).then(r => r?.clientCompany ?? null)
+
+  if (!clientCompany) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No client company found' } },
+      { status: 404 }
+    )
+  }
+
+  const now = new Date()
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+
+  // Active governance policies with rules
+  const policies = await prisma.governancePolicy.findMany({
+    where: { companyId: clientCompany.id, isActive: true },
+    include: {
+      rules: {
+        where: { isActive: true },
+        orderBy: { ruleType: 'asc' },
+      },
+    },
+  })
+
+  // Get evaluation counts per rule
+  const ruleIds = policies.flatMap(p => p.rules.map(r => r.id))
+  const evalCounts = await prisma.governanceEvaluation.groupBy({
+    by: ['ruleId'],
+    where: { ruleId: { in: ruleIds } },
+    _count: true,
+  })
+  const evalCountMap = new Map(evalCounts.map(ec => [ec.ruleId, ec._count]))
+
+  // Recent evaluations (last 90 days)
+  const evaluations = await prisma.governanceEvaluation.findMany({
+    where: {
+      rule: { policy: { companyId: clientCompany.id } },
+      evaluatedAt: { gte: ninetyDaysAgo },
+    },
+    include: {
+      rule: {
+        select: { ruleType: true, enforcementMode: true, description: true },
+      },
+    },
+    orderBy: { evaluatedAt: 'desc' },
+  })
+
+  // Find active contractors and vendors at this client
+  const activeContracts = await prisma.sellContract.findMany({
+    where: {
+      clientCompanyId: clientCompany.id,
+      state: { in: ['IN_PROGRESS', 'PAUSED', 'PENDING_VERIFICATION', 'VERIFIED'] },
+    },
+    select: {
+      personId: true,
+      companyId: true,
+      person: { select: { id: true, name: true } },
+      company: { select: { id: true, name: true } },
+    },
+  })
+
+  const contractPersonIds = [...new Set(activeContracts.map(c => c.personId))]
+  const vendorCompanyIds = [...new Set(activeContracts.map(c => c.companyId))]
+
+  // Person-level verifications
+  const personVerifications = contractPersonIds.length > 0
+    ? await prisma.verification.findMany({
+        where: { personId: { in: contractPersonIds } },
+        include: { person: { select: { id: true, name: true } } },
+        orderBy: { type: 'asc' },
+      })
+    : []
+
+  // Company-level verifications (vendor insurance etc.)
+  const companyVerifications = vendorCompanyIds.length > 0
+    ? await prisma.verification.findMany({
+        where: { companyId: { in: vendorCompanyIds } },
+        include: { company: { select: { id: true, name: true } } },
+        orderBy: { type: 'asc' },
+      })
+    : []
+
+  // Group verifications by person
+  const personVerifMap = new Map<string, { name: string; checks: any[] }>()
+  for (const v of personVerifications) {
+    if (!v.personId || !v.person) continue
+    const existing = personVerifMap.get(v.personId)
+    const check = {
+      type: v.type,
+      status: v.status,
+      provider: v.provider,
+      issuedAt: v.issuedAt?.toISOString() ?? null,
+      expiresAt: v.expiresAt?.toISOString() ?? null,
+    }
+    if (existing) {
+      existing.checks.push(check)
+    } else {
+      personVerifMap.set(v.personId, { name: v.person.name, checks: [check] })
+    }
+  }
+
+  // Group verifications by company
+  const companyVerifMap = new Map<string, { name: string; checks: any[] }>()
+  for (const v of companyVerifications) {
+    if (!v.companyId || !v.company) continue
+    const existing = companyVerifMap.get(v.companyId)
+    const check = {
+      type: v.type,
+      status: v.status,
+      provider: v.provider,
+      issuedAt: v.issuedAt?.toISOString() ?? null,
+      expiresAt: v.expiresAt?.toISOString() ?? null,
+    }
+    if (existing) {
+      existing.checks.push(check)
+    } else {
+      companyVerifMap.set(v.companyId, { name: v.company.name, checks: [check] })
+    }
+  }
+
+  // Compute compliance health
+  const allVerifications = [...personVerifications, ...companyVerifications]
+  const totalChecks = allVerifications.length
+  const clear = allVerifications.filter(v => v.status === 'CLEAR').length
+  const pending = allVerifications.filter(v => v.status === 'PENDING' || v.status === 'IN_PROGRESS').length
+  const flagged = allVerifications.filter(v => v.status === 'FLAGGED' || v.status === 'FAILED' || v.status === 'CONDITIONAL').length
+  const expired = allVerifications.filter(v => v.status === 'EXPIRED').length
+
+  // Evaluation summary
+  const evalTotal = evaluations.length
+  const evalPass = evaluations.filter(e => e.outcome === 'PASS').length
+  const evalWarn = evaluations.filter(e => e.outcome === 'WARN').length
+  const evalBlock = evaluations.filter(e => e.outcome === 'BLOCK').length
+  const evalOverridden = evaluations.filter(e => e.overriddenBy !== null).length
+
+  return NextResponse.json({
+    data: {
+      client: { id: clientCompany.id, name: clientCompany.name },
+      policies: policies.map(p => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        rules: p.rules.map(r => ({
+          id: r.id,
+          ruleType: r.ruleType,
+          enforcementMode: r.enforcementMode,
+          description: r.description,
+          parameters: r.parameters,
+          evaluationCount: evalCountMap.get(r.id) ?? 0,
+        })),
+      })),
+      recentEvaluations: evaluations.map(e => ({
+        id: e.id,
+        ruleType: e.rule.ruleType,
+        enforcementMode: e.rule.enforcementMode,
+        ruleDescription: e.rule.description,
+        triggerPoint: e.triggerPoint,
+        subjectType: e.subjectType,
+        subjectId: e.subjectId,
+        outcome: e.outcome,
+        reason: e.reason,
+        overriddenBy: e.overriddenBy,
+        overrideNote: e.overrideNote,
+        evaluatedAt: e.evaluatedAt.toISOString(),
+      })),
+      verifications: {
+        persons: Array.from(personVerifMap.entries()).map(([personId, data]) => ({
+          personId,
+          name: data.name,
+          checks: data.checks,
+        })),
+        companies: Array.from(companyVerifMap.entries()).map(([companyId, data]) => ({
+          companyId,
+          name: data.name,
+          checks: data.checks,
+        })),
+      },
+      health: {
+        totalChecks,
+        clear,
+        pending,
+        flagged,
+        expired,
+        clearPercentage: totalChecks > 0 ? Math.round((clear / totalChecks) * 100) : 100,
+      },
+      evaluationSummary: {
+        total: evalTotal,
+        pass: evalPass,
+        warn: evalWarn,
+        block: evalBlock,
+        overridden: evalOverridden,
+      },
+    },
+  })
+}
