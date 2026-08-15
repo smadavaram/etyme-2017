@@ -145,7 +145,8 @@ export async function POST(request: NextRequest) {
         companyId: caller.company!.id,
         action: `expense.${action}`,
         summary: `${action} ${successCount} expense${successCount !== 1 ? 's' : ''}`,
-        detail: { expenseIds: results.filter((r) => !r.error).map((r) => r.id), actor: caller.person.id },
+        reason: `Bulk ${action} via API`,
+        payload: { expenseIds: results.filter((r) => !r.error).map((r) => r.id), actor: caller.person.id },
         reversible: action === 'submit' || action === 'approve',
       },
     })

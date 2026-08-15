@@ -22,6 +22,9 @@ interface Contract {
   side: 'sell' | 'buy'
   personName: string
   counterpartyName: string | null
+  endClientName: string | null  // where the consultant actually works
+  viaName: string | null        // paying customer when different from end client
+  workLocationLabel: string | null
   rate: number
   currency: string
   state: string
@@ -108,22 +111,42 @@ export default function ContractsPage() {
       const body = await res.json()
       const rawContracts = body.data?.contracts ?? []
 
-      setContracts(rawContracts.map((c: any) => ({
-        id: c.id,
-        side: c.side ?? tab,
-        personName: c.person?.name ?? 'Unknown',
-        counterpartyName: tab === 'sell'
-          ? c.clientCompany?.name ?? null
-          : c.vendorCompany?.name ?? null,
-        rate: tab === 'sell' ? c.billRate : c.payRate,
-        currency: tab === 'sell' ? (c.billCurrency ?? 'USD') : (c.payCurrency ?? 'USD'),
-        state: c.state,
-        startDate: c.startDate,
-        endDate: c.endDate ?? null,
-        daysUntilEnd: c.endDate
-          ? Math.ceil((new Date(c.endDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
-          : null,
-      })))
+      setContracts(rawContracts.map((c: any) => {
+        // Resolve the display name: end client if set, otherwise paying customer
+        const endClientName = tab === 'sell'
+          ? (c.endClientCompany?.name ?? c.clientCompany?.name ?? null)
+          : null
+        // "via" label: show paying customer when it differs from end client
+        const viaName = tab === 'sell' && c.endClientCompany && c.clientCompany
+          && c.endClientCompany.id !== c.clientCompany.id
+          ? c.clientCompany.name
+          : null
+        // Work location label
+        const loc = c.workLocation
+        const workLocationLabel = loc
+          ? (loc.isRemote ? 'Remote' : [loc.name, loc.city, loc.state].filter(Boolean).join(', '))
+          : null
+
+        return {
+          id: c.id,
+          side: c.side ?? tab,
+          personName: c.person?.name ?? 'Unknown',
+          counterpartyName: tab === 'sell'
+            ? (endClientName ?? c.clientCompany?.name ?? null)
+            : c.vendorCompany?.name ?? null,
+          endClientName,
+          viaName,
+          workLocationLabel,
+          rate: tab === 'sell' ? c.billRate : c.payRate,
+          currency: tab === 'sell' ? (c.billCurrency ?? 'USD') : (c.payCurrency ?? 'USD'),
+          state: c.state,
+          startDate: c.startDate,
+          endDate: c.endDate ?? null,
+          daysUntilEnd: c.endDate
+            ? Math.ceil((new Date(c.endDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
+            : null,
+        }
+      }))
     } catch (err: any) {
       setError(err.message)
       setContracts([])
@@ -174,7 +197,15 @@ export default function ContractsPage() {
       key: 'counterpartyName',
       label: counterpartyLabel,
       render: (row) => (
-        <span className="text-etyme-muted">{row.counterpartyName ?? '—'}</span>
+        <div>
+          <span className="text-etyme-muted">{row.counterpartyName ?? '—'}</span>
+          {row.viaName && (
+            <div className="text-[10px] text-etyme-faint">via {row.viaName}</div>
+          )}
+          {row.workLocationLabel && (
+            <div className="text-[10px] text-etyme-faint">{row.workLocationLabel}</div>
+          )}
+        </div>
       ),
       sortValue: (row) => row.counterpartyName ?? '',
     },

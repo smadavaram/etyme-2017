@@ -33,6 +33,7 @@ export async function POST(
     include: {
       person: { select: { id: true, name: true } },
       clientCompany: { select: { id: true, name: true } },
+      endClientCompany: { select: { id: true, name: true } },
       company: { select: { id: true, name: true } },
       rolloff: true,
     },
@@ -82,7 +83,7 @@ export async function POST(
       data: {
         companyId: contract.clientCompany.id,
         action: 'ROLLOFF_INITIATED',
-        summary: `Rolloff initiated for ${contract.person.name} at ${contract.clientCompany.name}, ending ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+        summary: `Rolloff initiated for ${contract.person.name} at ${contract.endClientCompany?.name ?? contract.clientCompany.name}, ending ${endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
         reason: 'Initiated via Program dashboard',
         payload: {
           contractId: id,

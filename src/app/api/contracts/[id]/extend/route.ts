@@ -38,6 +38,8 @@ export async function POST(
     include: {
       person: { select: { id: true, name: true } },
       clientCompany: { select: { id: true, name: true } },
+      endClientCompany: { select: { id: true, name: true } },
+      workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
       company: { select: { id: true, name: true } },
     },
   })
@@ -70,7 +72,7 @@ export async function POST(
       data: {
         companyId: contract.clientCompany.id,
         action: 'CONTRACT_EXTENDED',
-        summary: `${contract.person.name}'s contract at ${contract.clientCompany.name} extended by ${months} month${months !== 1 ? 's' : ''} to ${newEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+        summary: `${contract.person.name}'s contract at ${contract.endClientCompany?.name ?? contract.clientCompany.name} extended by ${months} month${months !== 1 ? 's' : ''} to ${newEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
         reason: 'Extended via Program dashboard',
         payload: {
           contractId: id,

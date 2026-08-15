@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { endClientFilter } from '@/lib/resolve-end-client'
 
 /**
  * GET /api/tenure
@@ -39,15 +40,20 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
 
-  // All sell contracts at this client (active + ended + paused, not draft/cancelled)
+  // All sell contracts at this end client (active + ended + paused, not draft/cancelled)
+  // Uses endClientFilter: matches endClientCompanyId OR clientCompanyId when no
+  // separate end client is set (direct placement — paying customer IS the end client)
   const contracts = await prisma.sellContract.findMany({
     where: {
-      clientCompanyId: clientCompany.id,
+      ...endClientFilter(clientCompany.id),
       state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
     },
     include: {
       person: { select: { id: true, name: true } },
       company: { select: { id: true, name: true } }, // the vendor
+      clientCompany: { select: { id: true, name: true } }, // the paying customer
+      endClientCompany: { select: { id: true, name: true } }, // the end client (if different)
+      workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
     },
     orderBy: { startDate: 'asc' },
   })
@@ -155,6 +161,11 @@ export async function GET(request: NextRequest) {
       contracts: data.contracts.map(c => ({
         id: c.id,
         vendorName: c.company.name,
+        payingCustomer: c.clientCompany.name,
+        endClient: c.endClientCompany?.name ?? c.clientCompany.name,
+        workLocation: c.workLocation
+          ? { name: c.workLocation.name, city: c.workLocation.city, state: c.workLocation.state, isRemote: c.workLocation.isRemote }
+          : null,
         startDate: c.startDate.toISOString(),
         endDate: c.endDate?.toISOString() ?? null,
         state: c.state,

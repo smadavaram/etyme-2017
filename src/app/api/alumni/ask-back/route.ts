@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { endClientFilter } from '@/lib/resolve-end-client'
 
 /**
  * POST /api/alumni/ask-back
@@ -51,11 +52,12 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Check if person already has an active contract at this client
+  // Check if person already has an active contract at this end client
+  // Matches contracts where the end client is this company (via endClientFilter)
   const activeContract = await prisma.sellContract.findFirst({
     where: {
       personId,
-      clientCompanyId,
+      ...endClientFilter(clientCompanyId),
       state: { in: ['IN_PROGRESS', 'PAUSED'] },
     },
   })
@@ -68,10 +70,12 @@ export async function POST(request: NextRequest) {
   }
 
   // Check tenure eligibility (Addendum E §E.2.3)
+  // Tenure aggregates at the end client — find all contracts where this person
+  // worked at this company, regardless of paying customer
   const contracts = await prisma.sellContract.findMany({
     where: {
       personId,
-      clientCompanyId,
+      ...endClientFilter(clientCompanyId),
       state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
     },
     select: { startDate: true, endDate: true, state: true },

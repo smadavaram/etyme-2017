@@ -175,6 +175,10 @@ model Company {
   conversations      Conversation[]
   // Blacklist
   blacklists         Blacklist[]
+  // Locations
+  locations          CompanyLocation[]
+  // End-client contracts (where consultants actually work, when ≠ billing client)
+  endClientContracts SellContract[]     @relation("sellEndClient")
 }
 
 enum CompanyKind {
@@ -182,6 +186,27 @@ enum CompanyKind {
   CLIENT
   MSP
   GSI
+}
+
+// Work sites / offices for a company. Clients have locations where consultants work;
+// vendors have offices where recruiters sit. A SellContract's workLocation pins where
+// the consultant physically works — required for compliance (LCA amendments, state tax,
+// work-rights checks on cross-border moves per BRD Addendum C §C2.2 step 5).
+model CompanyLocation {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+  name      String // "Lakewood HQ", "Tokyo R&D", "Remote"
+  address   String?
+  city      String?
+  state     String? // US state or region
+  country   String  @default("US")
+  isRemote  Boolean @default(false) // virtual location for remote-first work
+  isPrimary Boolean @default(false) // the default location for this company
+
+  sellContracts SellContract[] // contracts at this work site
+
+  @@index([companyId])
 }
 
 // Infosys India and Infosys US: one Company, two employers.
@@ -456,18 +481,33 @@ enum SubmissionKind {
 // ─────────────────────────────────────────────
 
 // SELL CONTRACT — the vendor's record of what they bill a client for a consultant
+//
+// Three-party distinction (BRD Addendum C "layer cake"):
+//   companyId       = the vendor selling talent (Etyme's paying customer)
+//   clientCompanyId = the PAYING CUSTOMER — who the vendor invoices
+//                     Could be the end client, an MSP, or a prime SI
+//   endClientCompanyId = the END CLIENT — where the consultant actually works
+//                     Null when paying customer IS the end client (most common case)
+//   workLocationId  = specific work site at the end client
+//
+// Tenure (Addendum E) aggregates at the END CLIENT, not the paying customer.
+// Use resolvedEndClientId() helper: endClientCompanyId ?? clientCompanyId
 model SellContract {
   id              String           @id @default(cuid())
   companyId       String // the vendor selling talent
   company         Company          @relation("sellVendor", fields: [companyId], references: [id])
-  clientCompanyId String // who they're billing
+  clientCompanyId String // the paying customer — who the vendor invoices
   clientCompany   Company          @relation("sellClient", fields: [clientCompanyId], references: [id])
+  endClientCompanyId String? // the end client where consultant works (null = same as clientCompanyId)
+  endClientCompany   Company?      @relation("sellEndClient", fields: [endClientCompanyId], references: [id])
   personId        String
   person          Person           @relation(fields: [personId], references: [id])
   engagementId    String?
   engagement      Engagement?      @relation(fields: [engagementId], references: [id])
   msaId           String? // master agreement (denormalised from engagement for query convenience)
   msa             MasterAgreement? @relation(fields: [msaId], references: [id])
+  workLocationId  String? // specific site at the end client
+  workLocation    CompanyLocation? @relation(fields: [workLocationId], references: [id])
 
   billRate           Int // cents per hour
   billCurrency       String            @default("USD")
@@ -489,6 +529,7 @@ model SellContract {
 
   @@index([companyId, state])
   @@index([clientCompanyId])
+  @@index([endClientCompanyId])
   @@index([personId])
   @@index([endDate])
 }

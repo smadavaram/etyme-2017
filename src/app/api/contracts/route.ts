@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
     personId,
     companyId,
     clientCompanyId,
+    endClientCompanyId,  // optional — the end client if different from paying customer
+    workLocationId,      // optional — where the consultant physically works
     engagementId,
     msaId,
     billRate,
@@ -80,6 +82,8 @@ export async function POST(request: NextRequest) {
         data: {
           companyId,
           clientCompanyId,
+          endClientCompanyId: endClientCompanyId ?? null,
+          workLocationId: workLocationId ?? null,
           personId,
           engagementId: engagementId ?? null,
           msaId: msaId ?? null,
@@ -301,6 +305,8 @@ export async function GET(request: NextRequest) {
       include: {
         person: { select: { id: true, name: true } },
         clientCompany: { select: { id: true, name: true } },
+        endClientCompany: { select: { id: true, name: true } },
+        workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
         _count: { select: { timesheets: true, sellCycles: true } },
         rolloff: { select: { id: true, endDate: true, outcome: true } },
       },
@@ -318,6 +324,8 @@ export async function GET(request: NextRequest) {
         side: 'sell' as const,
         person: c.person,
         clientCompany: c.clientCompany,
+        endClientCompany: c.endClientCompany,
+        workLocation: c.workLocation,
         state: c.state,
         billRate: c.billRate,
         billCurrency: c.billCurrency,

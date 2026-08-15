@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { endClientFilter } from '@/lib/resolve-end-client'
 
 /**
  * GET /api/program
@@ -40,10 +41,11 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
 
-  // Active contracts placed at this client
+  // Active contracts placed at this end client
+  // Uses endClientFilter to include contracts where the paying customer differs
   const contracts = await prisma.sellContract.findMany({
     where: {
-      clientCompanyId: clientCompany.id,
+      ...endClientFilter(clientCompany.id),
       state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
     },
     include: {
@@ -55,6 +57,9 @@ export async function GET(request: NextRequest) {
         },
       },
       company: { select: { id: true, name: true } }, // the vendor
+      clientCompany: { select: { id: true, name: true } }, // paying customer
+      endClientCompany: { select: { id: true, name: true } }, // end client (if different)
+      workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
       engagement: { select: { id: true, title: true } },
       timesheets: { select: { id: true, status: true } },
     },
@@ -100,7 +105,7 @@ export async function GET(request: NextRequest) {
   // Pending timesheets awaiting approval
   const pendingTimesheets = await prisma.timesheet.findMany({
     where: {
-      sellContract: { clientCompanyId: clientCompany.id },
+      sellContract: endClientFilter(clientCompany.id),
       status: 'SUBMITTED',
     },
     include: {
@@ -117,7 +122,7 @@ export async function GET(request: NextRequest) {
   // Pending expenses
   const pendingExpenses = await prisma.expense.findMany({
     where: {
-      sellContract: { clientCompanyId: clientCompany.id },
+      sellContract: endClientFilter(clientCompany.id),
       status: 'SUBMITTED',
     },
     include: {
@@ -206,6 +211,9 @@ export async function GET(request: NextRequest) {
         contractId: c.id,
         person: c.person,
         vendor: c.company,
+        payingCustomer: c.clientCompany,
+        endClient: c.endClientCompany,
+        workLocation: c.workLocation,
         engagement: c.engagement,
         role: (c.person as any).consultant?.headline ?? null,
         billRate: c.billRate,

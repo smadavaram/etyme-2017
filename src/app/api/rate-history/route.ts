@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  if (!hasPermission(caller.permissions, 'contracts.write')) {
+  if (!hasPermission(caller.permissions, 'assignments.write')) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'Requires contracts.write permission' } },
       { status: 403 }

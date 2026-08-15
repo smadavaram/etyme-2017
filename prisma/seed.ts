@@ -43,6 +43,7 @@ async function main() {
     prisma.rolloffEvent.deleteMany(),
     prisma.cycle.deleteMany(),
     prisma.contractLink.deleteMany(),
+    prisma.companyLocation.deleteMany(),
     prisma.sellContract.deleteMany(),
     prisma.buyContract.deleteMany(),
     prisma.engagement.deleteMany(),
@@ -174,6 +175,69 @@ async function main() {
       clientId: client.id,
       paymentTerms: 30,
       currency: 'USD',
+    },
+  })
+
+  // ── MSP company (paying customer ≠ end client demo) ──
+  const msp = await prisma.company.create({
+    data: {
+      name: 'GlobalStaff MSP',
+      slug: 'globalstaff',
+      domain: 'globalstaff.com',
+      domainVerified: true,
+      kind: 'MSP',
+      currency: 'USD',
+      siteLiveAt: new Date(),
+      networkVerifiedAt: new Date(),
+    },
+  })
+
+  const msaMSP = await prisma.masterAgreement.create({
+    data: {
+      vendorId: vendor.id,
+      clientId: msp.id,
+      paymentTerms: 45,
+      currency: 'USD',
+    },
+  })
+
+  // ── Client locations ──────────────────────────────
+  const locHQ = await prisma.companyLocation.create({
+    data: {
+      companyId: client.id,
+      name: 'Lakewood HQ',
+      address: '11158 W Jefferson Ave',
+      city: 'Lakewood',
+      state: 'CO',
+      country: 'US',
+      isPrimary: true,
+    },
+  })
+
+  const locAnnArbor = await prisma.companyLocation.create({
+    data: {
+      companyId: client.id,
+      name: 'Ann Arbor Site',
+      city: 'Ann Arbor',
+      state: 'MI',
+      country: 'US',
+    },
+  })
+
+  const locTokyo = await prisma.companyLocation.create({
+    data: {
+      companyId: client.id,
+      name: 'Tokyo R&D',
+      city: 'Tokyo',
+      country: 'JP',
+    },
+  })
+
+  const locRemote = await prisma.companyLocation.create({
+    data: {
+      companyId: client.id,
+      name: 'Remote',
+      isRemote: true,
     },
   })
 
@@ -366,11 +430,14 @@ async function main() {
   })
 
   // ── Sell Contracts ─────────────────────────────
+  // Most contracts are direct (paying customer = end client).
+  // One contract demonstrates the three-party layer cake:
+  //   vendor bills MSP (paying customer) → consultant works at Terumo BCT (end client)
   const contractData = [
-    { personIdx: 2, clientId: client.id,  billRate: 12000, state: 'IN_PROGRESS' as const, startDays: -120, endDays: 60,  engId: eng1.id },
-    { personIdx: 5, clientId: client.id,  billRate: 10500, state: 'IN_PROGRESS' as const, startDays: -90,  endDays: 14,  engId: eng1.id },
-    { personIdx: 0, clientId: client2.id, billRate: 13500, state: 'IN_PROGRESS' as const, startDays: -200, endDays: 165, engId: eng2.id },
-    { personIdx: 4, clientId: client.id,  billRate: 13000, state: 'DRAFT' as const,       startDays: 14,   endDays: 380, engId: eng1.id },
+    { personIdx: 2, clientId: client.id,  billRate: 12000, state: 'IN_PROGRESS' as const, startDays: -120, endDays: 60,  engId: eng1.id, locId: locHQ.id },
+    { personIdx: 5, clientId: client.id,  billRate: 10500, state: 'IN_PROGRESS' as const, startDays: -90,  endDays: 14,  engId: eng1.id, locId: locHQ.id },
+    { personIdx: 0, clientId: client2.id, billRate: 13500, state: 'IN_PROGRESS' as const, startDays: -200, endDays: 165, engId: eng2.id, locId: null },
+    { personIdx: 4, clientId: client.id,  billRate: 13000, state: 'DRAFT' as const,       startDays: 14,   endDays: 380, engId: eng1.id, locId: locRemote.id },
   ]
 
   const sellContracts: any[] = []
@@ -391,10 +458,34 @@ async function main() {
         endDate,
         msaId: c.clientId === client.id ? msa.id : msa2.id,
         engagementId: c.engId,
+        workLocationId: c.locId,
       },
     })
     sellContracts.push(sc)
   }
+
+  // Three-party contract: Cloudepa bills GlobalStaff MSP, consultant works at Terumo BCT
+  // personIdx 7 = David Chen (DevOps/SRE Lead)
+  const mspContractStart = new Date(now)
+  mspContractStart.setDate(mspContractStart.getDate() - 60)
+  const mspContractEnd = new Date(now)
+  mspContractEnd.setDate(mspContractEnd.getDate() + 300)
+
+  const mspContract = await prisma.sellContract.create({
+    data: {
+      companyId: vendor.id,
+      clientCompanyId: msp.id,           // paying customer = GlobalStaff MSP
+      endClientCompanyId: client.id,      // end client = Terumo BCT
+      personId: people[7].id,
+      billRate: 16500,
+      state: 'IN_PROGRESS',
+      startDate: mspContractStart,
+      endDate: mspContractEnd,
+      msaId: msaMSP.id,
+      workLocationId: locAnnArbor.id,     // works at Ann Arbor site
+    },
+  })
+  sellContracts.push(mspContract)
 
   // ── Buy Contracts (payroll side) ────────────────
   // Each active sell contract gets a linked buy contract representing
@@ -1596,11 +1687,12 @@ async function main() {
   }
 
   console.log('✅ Seed complete.')
-  console.log(`   Companies:    4 (${vendor.name}, ${vendor2.name}, ${client.name}, ${client2.name})`)
+  console.log(`   Companies:    5 (${vendor.name}, ${vendor2.name}, ${msp.name}, ${client.name}, ${client2.name})`)
+  console.log(`   Locations:    4 (${locHQ.name}, ${locAnnArbor.name}, ${locTokyo.name}, ${locRemote.name})`)
   console.log(`   Consultants:  ${consultantData.length} + ${alumniData.length} alumni`)
   console.log(`   Requirements: ${reqs.length}`)
   console.log(`   Submissions:  ${submissionData.length}`)
-  console.log(`   Sell contracts: ${contractData.length} active + ${endedContractData.length} ended`)
+  console.log(`   Sell contracts: ${contractData.length + 1} active (1 via MSP) + ${endedContractData.length} ended`)
   console.log(`   Buy contracts:  ${buyContractData.length} (${buyContractData.filter(b => b.state !== 'DRAFT').length} active)`)
   console.log(`   Timesheets:   ${timesheetData.length} + ${endedContractData.length} alumni`)
   console.log(`   Engagements:  3 (${eng1.title}, ${eng2.title}, ${alumniEngagement.title})`)

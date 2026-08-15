@@ -144,6 +144,8 @@ export async function GET(
         startDate: true,
         endDate: true,
         clientCompany: { select: { id: true, name: true } },
+        endClientCompany: { select: { id: true, name: true } },
+        workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
       },
       orderBy: { startDate: 'desc' },
     })
@@ -161,6 +163,8 @@ export async function GET(
       startDate: c.startDate.toISOString(),
       endDate: c.endDate?.toISOString() ?? null,
       clientCompany: c.clientCompany,
+      endClientCompany: c.endClientCompany,
+      workLocation: c.workLocation,
     }))
   }
 

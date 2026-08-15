@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     for (const ts of pendingTimesheets) {
       const daysSinceSubmit = Math.floor(
-        (now.getTime() - (ts.submittedAt ?? ts.periodEnd).getTime()) / (1000 * 60 * 60 * 24)
+        (now.getTime() - ts.periodEnd.getTime()) / (1000 * 60 * 60 * 24)
       )
 
       decisions.push({
@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
         entityId: ts.id,
         dueDate: null,
         actionUrl: '/dashboard/timesheets',
-        amount: ts.totalHours * (ts.sellContract.billRate / 100),
-        createdAt: ts.submittedAt?.toISOString() ?? ts.periodEnd.toISOString(),
+        amount: Number(ts.totalHours) * (ts.sellContract.billRate / 100),
+        createdAt: ts.periodEnd.toISOString(),
       })
     }
   }
@@ -102,13 +102,13 @@ export async function GET(request: NextRequest) {
       decisions.push({
         type: 'EXPENSE_APPROVAL',
         title: `Review expense — ${exp.person.name}`,
-        subtitle: `$${(exp.total / 100).toFixed(2)} · ${exp.category} · ${exp.billable ? 'Billable' : 'Internal'} · ${exp.sellContract?.clientCompany?.name ?? ''}`,
+        subtitle: `$${(Number(exp.total) / 100).toFixed(2)} · ${exp.category} · ${exp.billable ? 'Billable' : 'Internal'} · ${exp.sellContract?.clientCompany?.name ?? ''}`,
         urgency: daysSinceSubmit >= 5 ? 'HIGH' : 'MEDIUM',
         entityType: 'EXPENSE',
         entityId: exp.id,
         dueDate: null,
         actionUrl: '/dashboard/expenses',
-        amount: exp.total / 100,
+        amount: Number(exp.total) / 100,
         createdAt: exp.submittedAt?.toISOString() ?? exp.createdAt.toISOString(),
       })
     }
@@ -131,6 +131,7 @@ export async function GET(request: NextRequest) {
       include: {
         person: { select: { name: true } },
         clientCompany: { select: { name: true } },
+        endClientCompany: { select: { name: true } },
       },
       orderBy: { endDate: 'asc' },
       take: 10,
@@ -146,10 +147,11 @@ export async function GET(request: NextRequest) {
         where: { sellContractId: sc.id },
       })
 
+      const endClientName = sc.endClientCompany?.name ?? sc.clientCompany?.name ?? 'Unknown'
       decisions.push({
         type: 'ROLLOFF_ACTION',
         title: `Rolloff in ${daysLeft}d — ${sc.person.name}`,
-        subtitle: `${sc.clientCompany?.name ?? 'Unknown'} · $${sc.billRate / 100}/hr · ${rolloffEvent ? 'Event created' : 'No action yet'}`,
+        subtitle: `${endClientName} · $${sc.billRate / 100}/hr · ${rolloffEvent ? 'Event created' : 'No action yet'}`,
         urgency: daysLeft <= 7 ? 'HIGH' : daysLeft <= 14 ? 'MEDIUM' : 'LOW',
         entityType: 'SELL_CONTRACT',
         entityId: sc.id,
@@ -228,7 +230,7 @@ export async function GET(request: NextRequest) {
       const daysOverdue = Math.floor(
         (now.getTime() - inv.dueAt!.getTime()) / (1000 * 60 * 60 * 24)
       )
-      const outstanding = inv.total - inv.paid
+      const outstanding = Number(inv.total) - Number(inv.paid)
 
       decisions.push({
         type: 'INVOICE_OVERDUE',

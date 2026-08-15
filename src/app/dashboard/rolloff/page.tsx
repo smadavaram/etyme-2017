@@ -11,6 +11,8 @@ interface TrackedRolloff {
   daysLeft: number
   person: { id: string; name: string } | null
   clientCompany: { id: string; name: string } | null
+  endClientCompany: { id: string; name: string } | null
+  workLocation: { id: string; name: string; city: string | null; state: string | null; isRemote: boolean } | null
   engagement: { id: string; title: string } | null
   billRate: number | null
   checklist: Record<string, boolean> | null
@@ -25,6 +27,8 @@ interface UntrackedContract {
   daysLeft: number
   person: { id: string; name: string } | null
   clientCompany: { id: string; name: string } | null
+  endClientCompany: { id: string; name: string } | null
+  workLocation: { id: string; name: string; city: string | null; state: string | null; isRemote: boolean } | null
   engagement: { id: string; title: string } | null
   billRate: number | null
 }
@@ -38,6 +42,27 @@ interface RolloffSummary {
 }
 
 type WindowDays = 30 | 60 | 90
+
+/** Resolve end client display name — shows "at EndClient via PayingCustomer" when different */
+function clientLabel(
+  clientCompany: { id: string; name: string } | null,
+  endClientCompany: { id: string; name: string } | null,
+): string {
+  const endName = endClientCompany?.name ?? clientCompany?.name ?? 'No client'
+  const viaName = endClientCompany && clientCompany && endClientCompany.id !== clientCompany.id
+    ? ` via ${clientCompany.name}`
+    : ''
+  return endName + viaName
+}
+
+function locationLabel(
+  workLocation: { name: string; city: string | null; state: string | null; isRemote: boolean } | null,
+): string {
+  if (!workLocation) return ''
+  if (workLocation.isRemote) return ' · Remote'
+  const parts = [workLocation.city, workLocation.state].filter(Boolean).join(', ')
+  return parts ? ` · ${parts}` : ''
+}
 
 // ── Checklist item ─────────────────────────────────────────
 
@@ -308,7 +333,8 @@ export default function RolloffPage() {
                       <UrgencyBadge daysUntilEnd={c.daysLeft} />
                     </div>
                     <p className="text-xs text-etyme-muted">
-                      {c.clientCompany?.name ?? 'No client'}
+                      {clientLabel(c.clientCompany, c.endClientCompany)}
+                      {locationLabel(c.workLocation)}
                       {c.engagement && ` · ${c.engagement.title}`}
                       {c.billRate != null && ` · $${(c.billRate / 100).toFixed(2)}/hr`}
                     </p>
@@ -362,7 +388,8 @@ export default function RolloffPage() {
                         )}
                       </div>
                       <p className="text-xs text-etyme-muted">
-                        {event.clientCompany?.name ?? 'No client'}
+                        {clientLabel(event.clientCompany, event.endClientCompany)}
+                        {locationLabel(event.workLocation)}
                         {event.engagement && ` · ${event.engagement.title}`}
                         {event.billRate != null && ` · $${(event.billRate / 100).toFixed(2)}/hr`}
                       </p>

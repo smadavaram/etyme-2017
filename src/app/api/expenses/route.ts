@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
             id: true,
             billRate: true,
             clientCompany: { select: { id: true, name: true } },
+            endClientCompany: { select: { id: true, name: true } },
           },
         },
       },

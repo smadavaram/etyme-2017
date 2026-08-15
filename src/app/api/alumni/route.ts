@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { endClientFilter } from '@/lib/resolve-end-client'
 
 /**
  * GET /api/alumni
@@ -39,10 +40,12 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
 
-  // All sell contracts at this client (active + ended + paused)
+  // All sell contracts at this end client (active + ended + paused)
+  // Uses endClientFilter: matches endClientCompanyId OR clientCompanyId when no
+  // separate end client is set (direct placement — paying customer IS the end client)
   const contracts = await prisma.sellContract.findMany({
     where: {
-      clientCompanyId: clientCompany.id,
+      ...endClientFilter(clientCompany.id),
       state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
     },
     include: {
@@ -54,6 +57,9 @@ export async function GET(request: NextRequest) {
         },
       },
       company: { select: { id: true, name: true } },
+      clientCompany: { select: { id: true, name: true } },
+      endClientCompany: { select: { id: true, name: true } },
+      workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
       engagement: { select: { title: true } },
       timesheets: {
         where: { status: 'APPROVED' },

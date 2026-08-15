@@ -193,10 +193,12 @@ async function handleAdd(body: any, caller: any) {
   // Write automation log
   await prisma.automationLog.create({
     data: {
+      companyId: caller.company?.id ?? targetId,
       action: 'BLACKLIST_ADD',
-      reason: `${targetType.toUpperCase()} ${targetId} blacklisted: ${reason}`,
+      summary: `${targetType.toUpperCase()} ${targetId} blacklisted: ${reason}`,
+      reason: `Blacklist entry created via API`,
       reversible: true,
-      meta: { blacklistId: entry.id, targetType: targetType.toUpperCase(), targetId },
+      payload: { blacklistId: entry.id, targetType: targetType.toUpperCase(), targetId },
     },
   })
 
@@ -257,10 +259,12 @@ async function handleLift(body: any, caller: any) {
   // Write automation log
   await prisma.automationLog.create({
     data: {
+      companyId: caller.company?.id ?? entry.targetId,
       action: 'BLACKLIST_LIFT',
-      reason: `Blacklist lifted for ${entry.targetType} ${entry.targetId}: ${liftReason}`,
+      summary: `Blacklist lifted for ${entry.targetType} ${entry.targetId}: ${liftReason}`,
+      reason: `Blacklist entry lifted via API`,
       reversible: false,
-      meta: { blacklistId: entry.id, targetType: entry.targetType, targetId: entry.targetId },
+      payload: { blacklistId: entry.id, targetType: entry.targetType, targetId: entry.targetId },
     },
   })
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { endClientFilter } from '@/lib/resolve-end-client'
 
 /**
  * GET /api/compliance
@@ -76,10 +77,11 @@ export async function GET(request: NextRequest) {
     orderBy: { evaluatedAt: 'desc' },
   })
 
-  // Find active contractors and vendors at this client
+  // Find active contractors and vendors at this end client
+  // Uses endClientFilter to include contracts where the paying customer differs
   const activeContracts = await prisma.sellContract.findMany({
     where: {
-      clientCompanyId: clientCompany.id,
+      ...endClientFilter(clientCompany.id),
       state: { in: ['IN_PROGRESS', 'PAUSED', 'PENDING_VERIFICATION', 'VERIFIED'] },
     },
     select: {
@@ -87,6 +89,9 @@ export async function GET(request: NextRequest) {
       companyId: true,
       person: { select: { id: true, name: true } },
       company: { select: { id: true, name: true } },
+      clientCompany: { select: { id: true, name: true } },
+      endClientCompany: { select: { id: true, name: true } },
+      workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
     },
   })
 
