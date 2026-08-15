@@ -138,6 +138,36 @@ export default function ProgramPage() {
     }
   }
 
+  async function handleExtend(contractId: string) {
+    try {
+      const res = await fetch(`/api/contracts/${contractId}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ months: 3 }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? 'Extension failed')
+      setToast({ message: body.data.message, type: 'success' })
+      loadData()
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' })
+    }
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  async function handleRolloff(contractId: string) {
+    try {
+      const res = await fetch(`/api/contracts/${contractId}/rolloff`, { method: 'POST' })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? 'Rolloff failed')
+      setToast({ message: body.data.message, type: 'success' })
+      loadData()
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' })
+    }
+    setTimeout(() => setToast(null), 3500)
+  }
+
   if (loading) {
     return (
       <div className="card text-center py-16">
@@ -251,7 +281,7 @@ export default function ProgramPage() {
       </div>
 
       {/* ── Tab content ────────────────────────── */}
-      {tab === 'overview' && <OverviewTab data={data} />}
+      {tab === 'overview' && <OverviewTab data={data} onExtend={handleExtend} onRolloff={handleRolloff} />}
       {tab === 'approvals' && <ApprovalsTab items={data.approvalQueue} onApprove={handleApproveItem} />}
       {tab === 'contractors' && <ContractorsTab contractors={data.contractors} />}
       {tab === 'vendors' && <VendorsTab vendors={data.vendors} />}
@@ -308,7 +338,11 @@ function StatCard({
 
 // ── Overview tab ──────────────────────────────────────────
 
-function OverviewTab({ data }: { data: ProgramData }) {
+function OverviewTab({ data, onExtend, onRolloff }: {
+  data: ProgramData
+  onExtend: (contractId: string) => void
+  onRolloff: (contractId: string) => void
+}) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Left column — main content */}
@@ -391,12 +425,18 @@ function OverviewTab({ data }: { data: ProgramData }) {
                     <p className="text-[10px] text-etyme-muted">remaining</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink
-                                       hover:bg-etyme-canvas transition-colors">
+                    <button
+                      onClick={() => onExtend(c.contractId)}
+                      className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink
+                                       hover:bg-etyme-canvas transition-colors"
+                    >
                       Extend
                     </button>
-                    <button className="text-xs px-3 py-1.5 bg-etyme-attention text-white rounded
-                                       hover:bg-etyme-attention/90 transition-colors">
+                    <button
+                      onClick={() => onRolloff(c.contractId)}
+                      className="text-xs px-3 py-1.5 bg-etyme-attention text-white rounded
+                                       hover:bg-etyme-attention/90 transition-colors"
+                    >
                       Roll off
                     </button>
                   </div>

@@ -124,14 +124,20 @@ const COLUMNS: Column<AlumniPerson>[] = [
       )
     },
   },
-  {
-    key: 'action',
-    label: 'Action',
-    align: 'right',
-    sortable: false,
-    render: (row) => <AlumniAction person={row} />,
-  },
 ]
+
+function buildColumns(onAskBack: (person: AlumniPerson) => void, acting: boolean): Column<AlumniPerson>[] {
+  return [
+    ...COLUMNS,
+    {
+      key: 'action',
+      label: 'Action',
+      align: 'right' as const,
+      sortable: false,
+      render: (row: AlumniPerson) => <AlumniAction person={row} onAskBack={onAskBack} acting={acting} />,
+    },
+  ]
+}
 
 // ── Page ───────────────────────────────────────────────────
 
@@ -142,8 +148,10 @@ export default function AlumniPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<StateFilter>('all')
+  const [acting, setActing] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-  useEffect(() => {
+  function loadData() {
     fetch('/api/alumni')
       .then(r => r.json())
       .then(body => {
@@ -152,7 +160,36 @@ export default function AlumniPage() {
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
+
+  async function handleAskBack(person: AlumniPerson) {
+    if (!data?.client) return
+    setActing(true)
+    try {
+      const res = await fetch('/api/alumni/ask-back', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personId: person.personId, clientCompanyId: data.client.id }),
+      })
+      if (res.ok) {
+        const body = await res.json()
+        setToast({ message: body.data.message, type: 'success' })
+        loadData()
+      } else {
+        const body = await res.json().catch(() => ({}))
+        setToast({ message: body.error?.message ?? 'Request failed', type: 'error' })
+      }
+    } catch {
+      setToast({ message: 'Network error', type: 'error' })
+    } finally {
+      setActing(false)
+      setTimeout(() => setToast(null), 3500)
+    }
+  }
 
   if (!data && !loading && !error) return null
 
@@ -213,7 +250,7 @@ export default function AlumniPage() {
 
       {/* DataTable with filter tabs */}
       <DataTable
-        columns={COLUMNS}
+        columns={buildColumns(handleAskBack, acting)}
         data={filtered}
         rowKey={(row) => row.personId}
         loading={loading}
@@ -246,13 +283,28 @@ export default function AlumniPage() {
           row.state === 'available' ? '!bg-[#EDEFFC]/30' : ''
         }
       />
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up ${
+          toast.type === 'success'
+            ? 'bg-etyme-verified text-white'
+            : 'bg-red-600 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
     </>
   )
 }
 
 // ── Alumni action — the critical re-engagement gate ───────
 
-function AlumniAction({ person }: { person: AlumniPerson }) {
+function AlumniAction({ person, onAskBack, acting }: {
+  person: AlumniPerson
+  onAskBack: (person: AlumniPerson) => void
+  acting: boolean
+}) {
   if (person.state === 'placed') {
     return (
       <span className="chip chip--verified">
@@ -264,8 +316,12 @@ function AlumniAction({ person }: { person: AlumniPerson }) {
 
   if (person.canReengage) {
     return (
-      <button className="btn-primary !py-1.5 !px-3 !text-[12px] whitespace-nowrap">
-        Ask back
+      <button
+        onClick={(e) => { e.stopPropagation(); onAskBack(person) }}
+        disabled={acting}
+        className="btn-primary !py-1.5 !px-3 !text-[12px] whitespace-nowrap disabled:opacity-50"
+      >
+        {acting ? '…' : 'Ask back'}
       </button>
     )
   }
