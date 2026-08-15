@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSessionEmail } from '@/lib/api-context'
 
 /**
  * POST /api/requirements/parse
@@ -15,9 +14,9 @@ import { authOptions } from '@/lib/auth'
  * are configured, this switches to the full AI extraction.
  */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }

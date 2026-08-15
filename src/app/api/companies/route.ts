@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions, isExcludedDomain } from '@/lib/auth'
+import { getSessionEmail } from '@/lib/api-context'
+import { isExcludedDomain } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 /**
@@ -146,9 +146,9 @@ async function uniqueSlug(base: string): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Personal email domains cannot register companies
-  if (isExcludedDomain(session.user.email)) {
+  if (isExcludedDomain(email)) {
     return NextResponse.json(
       {
         error: {
@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Domain from the authenticated user's email
-  const domain = session.user.email.split('@')[1]?.toLowerCase() ?? null
+  const domain = email.split('@')[1]?.toLowerCase() ?? null
 
   try {
     const slug = await uniqueSlug(baseSlug)
@@ -234,14 +234,14 @@ export async function POST(request: NextRequest) {
 
       // 3. Find or create the person for this email
       let person = await tx.person.findUnique({
-        where: { primaryEmail: session.user!.email! },
+        where: { primaryEmail: email },
       })
 
       if (!person) {
         person = await tx.person.create({
           data: {
-            name: session.user!.name || session.user!.email!.split('@')[0],
-            primaryEmail: session.user!.email!,
+            name: email.split('@')[0],
+            primaryEmail: email,
           },
         })
       }
@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
           reason: 'User registered a new company via the onboarding flow',
           payload: {
             personId: person.id,
-            email: session.user!.email,
+            email,
             roleCount: roles.length,
             kind: company.kind,
           },

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 
 /**
@@ -19,9 +18,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }
@@ -132,7 +131,7 @@ export async function POST(
           companyId: requirement.companyId,
           action: 'REQUIREMENT_DISTRIBUTED',
           summary: `Distributed "${requirement.title}" to ${created.length} vendor(s)`,
-          reason: `Manual distribution by ${session.user!.email}`,
+          reason: `Manual distribution by ${email}`,
           payload: {
             requirementId,
             distributedTo: created.map((c) => c.toCompanyId),

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 
 /**
@@ -17,9 +16,9 @@ import { prisma } from '@/lib/db'
  * The active context is stored in the JWT and refreshed on switch.
  */
 export async function POST(request: NextRequest) {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }
@@ -44,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   // Find the person by their email
   const person = await prisma.person.findUnique({
-    where: { primaryEmail: session.user.email },
+    where: { primaryEmail: email },
     select: { id: true },
   })
 
@@ -117,9 +116,9 @@ export async function POST(request: NextRequest) {
  * List all active (non-revoked) contexts for the authenticated person.
  */
 export async function GET() {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }
@@ -127,7 +126,7 @@ export async function GET() {
   }
 
   const person = await prisma.person.findUnique({
-    where: { primaryEmail: session.user.email },
+    where: { primaryEmail: email },
     include: {
       contexts: {
         where: { revokedAt: null },

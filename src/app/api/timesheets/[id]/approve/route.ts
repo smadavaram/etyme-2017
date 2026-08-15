@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 
 /**
@@ -15,9 +14,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions)
+  const email = await getSessionEmail()
 
-  if (!session?.user?.email) {
+  if (!email) {
     return NextResponse.json(
       { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
       { status: 401 }
@@ -27,7 +26,7 @@ export async function POST(
   const { id } = await params
 
   const person = await prisma.person.findUnique({
-    where: { primaryEmail: session.user.email },
+    where: { primaryEmail: email },
     select: { id: true, name: true },
   })
 
@@ -71,7 +70,7 @@ export async function POST(
         companyId: timesheet.sellContract.companyId,
         action: 'TIMESHEET_APPROVED',
         summary: `Timesheet approved: ${hours}h × $${(timesheet.sellContract.billRate / 100).toFixed(2)}/hr = $${billAmount.toFixed(2)} billable`,
-        reason: `Approved by ${person?.name ?? session.user.email}`,
+        reason: `Approved by ${person?.name ?? email}`,
         payload: {
           timesheetId: id,
           hours,
@@ -89,7 +88,7 @@ export async function POST(
       status: 'APPROVED',
       totalHours: hours,
       billAmount,
-      approvedBy: person?.name ?? session.user.email,
+      approvedBy: person?.name ?? email,
       message: `Approved ${hours}h — $${billAmount.toFixed(2)} billable`,
     },
   })
