@@ -130,13 +130,17 @@ export default function DashboardPage() {
         return end <= in28 && end >= now
       })
 
-      // Parse bench
-      const benchListings = benchRes.data?.listings ?? []
-      const benchItems = benchListings.slice(0, 5).map((bl: any) => ({
-        name: bl.person?.name ?? 'Unknown',
-        skill: bl.person?.profile?.headline?.split(' ')[0] ?? bl.person?.profile?.skills?.[0] ?? '',
-        status: bl.status === 'GRANTED' ? 'available' : 'pending',
-        daysSince: Math.floor((now.getTime() - new Date(bl.availableFrom ?? bl.createdAt).getTime()) / (1000 * 60 * 60 * 24)),
+      // Parse bench — API returns { tiers: { RETAINED: [...], MARKETING: [...] } }
+      const benchTiers = benchRes.data?.tiers ?? {}
+      const allBenchListings = [
+        ...(benchTiers.RETAINED ?? []),
+        ...(benchTiers.MARKETING ?? []),
+      ]
+      const benchItems = allBenchListings.slice(0, 5).map((bl: any) => ({
+        name: bl.consultant?.person?.name ?? 'Unknown',
+        skill: bl.consultant?.headline ?? bl.consultant?.skills?.[0] ?? '',
+        status: bl.tier === 'RETAINED' ? 'available' : 'marketing',
+        daysSince: Math.max(0, Math.floor((now.getTime() - new Date(bl.consultant?.availableFrom ?? bl.grantedAt).getTime()) / (1000 * 60 * 60 * 24))),
       }))
 
       // Pipeline revenue (sum of active contract bill rates as monthly)
@@ -325,8 +329,8 @@ export default function DashboardPage() {
                     <div className="text-[13px] font-medium text-etyme-ink truncate">{item.name}</div>
                     <div className="text-[11px] text-etyme-faint">{item.skill}</div>
                   </div>
-                  <span className={`chip ${item.status === 'available' ? 'chip--verified' : 'chip--attention'}`}>
-                    {item.status === 'available' ? `${item.daysSince}d` : item.status}
+                  <span className={`chip ${item.status === 'available' ? 'chip--verified' : 'chip--action'}`}>
+                    {item.status === 'available' ? `${item.daysSince}d` : 'network'}
                   </span>
                 </div>
               ))}
