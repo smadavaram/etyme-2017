@@ -74,6 +74,12 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
     ],
   },
+  {
+    label: 'Client view',
+    items: [
+      { label: 'Program', href: '/dashboard/program', icon: '◉' },
+    ],
+  },
 ]
 
 export function Sidebar() {
