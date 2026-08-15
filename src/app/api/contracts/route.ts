@@ -244,6 +244,7 @@ export async function GET(request: NextRequest) {
   const side = url.searchParams.get('side') ?? 'sell'
   const companyId = url.searchParams.get('companyId')
   const state = url.searchParams.get('state')
+  const filterPersonId = url.searchParams.get('personId')
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
 
@@ -251,6 +252,7 @@ export async function GET(request: NextRequest) {
     const where: any = {}
     if (companyId) where.companyId = companyId
     if (state) where.state = state.toUpperCase()
+    if (filterPersonId) where.personId = filterPersonId
 
     const [contracts, total] = await Promise.all([
       prisma.buyContract.findMany({
@@ -291,6 +293,7 @@ export async function GET(request: NextRequest) {
   const where: any = {}
   if (companyId) where.companyId = companyId
   if (state) where.state = state.toUpperCase()
+  if (filterPersonId) where.personId = filterPersonId
 
   const [contracts, total] = await Promise.all([
     prisma.sellContract.findMany({

@@ -201,7 +201,135 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
 
 // ── Consultant Detail Drawer ───────────────────────────────
 
+interface DrawerContract {
+  id: string
+  side: string
+  state: string
+  clientName: string | null
+  rate: number
+  startDate: string
+  endDate: string | null
+}
+
+interface DrawerSubmission {
+  id: string
+  requirementTitle: string
+  clientName: string
+  state: string
+  rate: number
+  submittedAt: string
+}
+
 function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onClose: () => void }) {
+  const [contracts, setContracts] = useState<DrawerContract[]>([])
+  const [submissions, setSubmissions] = useState<DrawerSubmission[]>([])
+  const [loadingActivity, setLoadingActivity] = useState(true)
+
+  useEffect(() => {
+    async function fetchActivity() {
+      setLoadingActivity(true)
+      try {
+        // Fetch sell + buy contracts and submissions in parallel
+        const [sellRes, buyRes, submissionsRes] = await Promise.all([
+          fetch(`/api/contracts?side=sell&personId=${consultant.personId}`).catch(() => null),
+          fetch(`/api/contracts?side=buy&personId=${consultant.personId}`).catch(() => null),
+          fetch(`/api/submissions?personId=${consultant.personId}`).catch(() => null),
+        ])
+
+        const allContracts: DrawerContract[] = []
+
+        // Show sell contracts (client engagements) — these are the meaningful ones
+        if (sellRes?.ok) {
+          const body = await sellRes.json()
+          for (const c of body.data?.contracts ?? []) {
+            allContracts.push({
+              id: c.id,
+              side: 'sell',
+              state: c.state,
+              clientName: c.clientCompany?.name ?? null,
+              rate: c.billRate,
+              startDate: c.startDate,
+              endDate: c.endDate ?? null,
+            })
+          }
+        }
+
+        // Also add buy contracts that have a different context (bench/internal)
+        if (buyRes?.ok) {
+          const body = await buyRes.json()
+          for (const c of body.data?.contracts ?? []) {
+            // Only show bench/internal buy contracts — active buy contracts
+            // paired with a sell contract are redundant in the drawer
+            if (['BENCH_PAID', 'INTERNAL', 'TRAINING'].includes(c.state)) {
+              allContracts.push({
+                id: c.id,
+                side: 'buy',
+                state: c.state,
+                clientName: c.state === 'BENCH_PAID' ? 'Bench' : c.state === 'TRAINING' ? 'Training' : 'Internal',
+                rate: c.payRate,
+                startDate: c.startDate,
+                endDate: c.endDate ?? null,
+              })
+            }
+          }
+        }
+
+        setContracts(allContracts)
+
+        if (submissionsRes?.ok) {
+          const body = await submissionsRes.json()
+          const raw = body.data?.submissions ?? []
+          setSubmissions(raw.slice(0, 5).map((s: any) => ({
+            id: s.id,
+            requirementTitle: s.requirement?.title ?? 'Unknown',
+            clientName: s.toCompany?.name ?? s.fromCompany?.name ?? 'Unknown',
+            state: s.status ?? s.state,
+            rate: s.billRate,
+            submittedAt: s.submittedAt ?? s.createdAt,
+          })))
+        }
+      } catch {
+        // Silently fail — activity section is supplementary
+      } finally {
+        setLoadingActivity(false)
+      }
+    }
+    fetchActivity()
+  }, [consultant.personId])
+
+  const activeContracts = contracts.filter(c =>
+    ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION'].includes(c.state)
+  )
+  const pastContracts = contracts.filter(c =>
+    ['ENDED', 'CANCELLED'].includes(c.state)
+  )
+
+  function contractStateLabel(state: string): string {
+    const labels: Record<string, string> = {
+      IN_PROGRESS: 'Active',
+      VERIFIED: 'Verified',
+      PENDING_VERIFICATION: 'Pending',
+      DRAFT: 'Draft',
+      ENDED: 'Ended',
+      CANCELLED: 'Cancelled',
+      BENCH_PAID: 'Bench',
+      PAUSED: 'Paused',
+    }
+    return labels[state] ?? state
+  }
+
+  function submissionStateChip(state: string): { label: string; cls: string } {
+    switch (state) {
+      case 'PLACED': return { label: 'Placed', cls: 'chip--verified' }
+      case 'SHORTLISTED': return { label: 'Shortlisted', cls: 'chip--action' }
+      case 'INTERVIEW': return { label: 'Interview', cls: 'chip--action' }
+      case 'SUBMITTED': return { label: 'Submitted', cls: 'chip--attention' }
+      case 'REJECTED': return { label: 'Rejected', cls: 'chip--passive' }
+      case 'OFFERED': return { label: 'Offered', cls: 'chip--verified' }
+      default: return { label: state, cls: 'chip--passive' }
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/20" onClick={onClose}>
       <div
@@ -209,7 +337,12 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6 border-b border-etyme-rule flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{consultant.name}</h2>
+          <div>
+            <h2 className="text-lg font-semibold">{consultant.name}</h2>
+            {consultant.headline && (
+              <p className="text-[13px] text-etyme-muted mt-0.5">{consultant.headline}</p>
+            )}
+          </div>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -223,14 +356,6 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
             <p className="eyebrow mb-2">Contact</p>
             <p className="text-sm">{consultant.email}</p>
           </div>
-
-          {/* Headline */}
-          {consultant.headline && (
-            <div>
-              <p className="eyebrow mb-2">Headline</p>
-              <p className="text-sm">{consultant.headline}</p>
-            </div>
-          )}
 
           {/* Skills */}
           <div>
@@ -272,23 +397,138 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
             </div>
           </div>
 
-          {/* Availability */}
-          {consultant.availableFrom && (
+          {/* Availability + Rate row */}
+          <div className="grid grid-cols-2 gap-4">
+            {consultant.availableFrom && (
+              <div>
+                <p className="eyebrow mb-1">Available from</p>
+                <p className="text-sm">
+                  {new Date(consultant.availableFrom) <= new Date() ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="evidence-dot" />
+                      <span className="text-etyme-verified font-medium">Now</span>
+                    </span>
+                  ) : (
+                    <span className="tabular-nums">{new Date(consultant.availableFrom).toLocaleDateString()}</span>
+                  )}
+                </p>
+              </div>
+            )}
+            {consultant.rateMin != null && (
+              <div>
+                <p className="eyebrow mb-1">Rate range</p>
+                <p className="text-sm tabular-nums">
+                  ${consultant.rateMin}/hr
+                  {consultant.rateMax != null && ` – $${consultant.rateMax}/hr`}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <hr className="border-etyme-rule" />
+
+          {/* Active Contracts */}
+          <div>
+            <p className="eyebrow mb-2">
+              Active contracts
+              {!loadingActivity && <span className="text-etyme-faint"> ({activeContracts.length})</span>}
+            </p>
+            {loadingActivity ? (
+              <p className="text-sm text-etyme-faint animate-pulse">Loading…</p>
+            ) : activeContracts.length === 0 ? (
+              <p className="text-sm text-etyme-muted">No active contracts</p>
+            ) : (
+              <div className="space-y-2">
+                {activeContracts.map(c => (
+                  <div key={c.id} className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-etyme-ink">
+                        {c.clientName ?? 'Unknown'}
+                      </span>
+                      <span className="text-sm tabular-nums text-etyme-ink">
+                        ${(c.rate / 100).toFixed(0)}/hr
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="chip chip--verified text-[10px]">
+                        {contractStateLabel(c.state)}
+                      </span>
+                      <span className="text-[11px] tabular-nums text-etyme-faint">
+                        {new Date(c.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        {c.endDate && ` – ${new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Past contracts */}
+          {!loadingActivity && pastContracts.length > 0 && (
             <div>
-              <p className="eyebrow mb-1">Available from</p>
-              <p className="text-sm">{new Date(consultant.availableFrom).toLocaleDateString()}</p>
+              <p className="eyebrow mb-2">
+                Past contracts <span className="text-etyme-faint">({pastContracts.length})</span>
+              </p>
+              <div className="space-y-1.5">
+                {pastContracts.map(c => (
+                  <div key={c.id} className="flex items-center justify-between text-sm text-etyme-muted">
+                    <span>{c.clientName ?? 'Unknown'}</span>
+                    <span className="tabular-nums text-[12px]">
+                      {new Date(c.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      {c.endDate && ` – ${new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Rate */}
-          {consultant.rateMin != null && (
-            <div>
-              <p className="eyebrow mb-1">Rate range</p>
-              <p className="text-sm tabular-nums">
-                ${consultant.rateMin}/hr
-                {consultant.rateMax != null && ` – $${consultant.rateMax}/hr`}
-              </p>
-            </div>
+          {/* Recent submissions */}
+          {!loadingActivity && submissions.length > 0 && (
+            <>
+              <hr className="border-etyme-rule" />
+              <div>
+                <p className="eyebrow mb-2">
+                  Recent submissions <span className="text-etyme-faint">({submissions.length})</span>
+                </p>
+                <div className="space-y-2">
+                  {submissions.map(s => {
+                    const chip = submissionStateChip(s.state)
+                    return (
+                      <div key={s.id} className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-etyme-ink truncate mr-2">
+                            {s.requirementTitle}
+                          </span>
+                          <span className={`chip ${chip.cls} text-[10px] shrink-0`}>
+                            {chip.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[11px] text-etyme-muted">
+                            {s.clientName}
+                          </span>
+                          {s.rate != null && s.rate > 0 && (
+                            <span className="text-[11px] tabular-nums text-etyme-faint">
+                              ${(s.rate / 100).toFixed(0)}/hr
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Empty state for no activity */}
+          {!loadingActivity && activeContracts.length === 0 && pastContracts.length === 0 && submissions.length === 0 && (
+            <p className="text-sm text-etyme-faint text-center py-2">
+              No contract or submission history yet.
+            </p>
           )}
         </div>
       </div>

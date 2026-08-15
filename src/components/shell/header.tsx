@@ -9,14 +9,166 @@
  *   "Search on every list. Before anything else." (UX Stress Test #1)
  */
 
-import { useState } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 
 type HeaderProps = {
   title?: string
 }
 
+// ── Plus menu sections (UX Stress Test #2: four sections) ──
+
+type PlusMenuItem = {
+  label: string
+  description: string
+  href: string
+  icon: string
+}
+
+type PlusMenuSection = {
+  label: string
+  items: PlusMenuItem[]
+}
+
+const PLUS_MENU: PlusMenuSection[] = [
+  {
+    label: 'Sell',
+    items: [
+      {
+        label: 'New requirement',
+        description: 'Open a role for client submissions',
+        href: '/dashboard/requirements?new=1',
+        icon: '◈',
+      },
+    ],
+  },
+  {
+    label: 'Talent',
+    items: [
+      {
+        label: 'Add consultant',
+        description: 'Create a candidate profile',
+        href: '/dashboard/consultants?new=1',
+        icon: '◌',
+      },
+      {
+        label: 'Import data',
+        description: 'Bulk import from CSV',
+        href: '/dashboard/import',
+        icon: '↓',
+      },
+    ],
+  },
+  {
+    label: 'Operate',
+    items: [
+      {
+        label: 'New expense report',
+        description: 'Submit travel, equipment, or training',
+        href: '/dashboard/expenses?new=1',
+        icon: '◫',
+      },
+      {
+        label: 'New conversation',
+        description: 'Message a client or candidate',
+        href: '/dashboard/conversations?new=1',
+        icon: '💬',
+      },
+    ],
+  },
+]
+
+// ── Global search results ──
+
+type SearchResult = {
+  label: string
+  type: string
+  href: string
+}
+
+const SEARCH_SECTIONS: { type: string; label: string; href: string }[] = [
+  { type: 'page', label: 'Dashboard', href: '/dashboard' },
+  { type: 'page', label: 'Requirements', href: '/dashboard/requirements' },
+  { type: 'page', label: 'Submissions', href: '/dashboard/submissions' },
+  { type: 'page', label: 'Sell Contracts', href: '/dashboard/contracts' },
+  { type: 'page', label: 'Buy Contracts', href: '/dashboard/contracts' },
+  { type: 'page', label: 'Rolloff', href: '/dashboard/rolloff' },
+  { type: 'page', label: 'Bench', href: '/dashboard/bench' },
+  { type: 'page', label: 'Candidates', href: '/dashboard/consultants' },
+  { type: 'page', label: 'Training', href: '/dashboard/training' },
+  { type: 'page', label: 'Timesheets', href: '/dashboard/timesheets' },
+  { type: 'page', label: 'Invoices', href: '/dashboard/invoices' },
+  { type: 'page', label: 'Expenses', href: '/dashboard/expenses' },
+  { type: 'page', label: 'Payroll', href: '/dashboard/payroll' },
+  { type: 'page', label: 'Automation', href: '/dashboard/automation' },
+  { type: 'page', label: 'Compliance', href: '/dashboard/compliance' },
+  { type: 'page', label: 'Notifications', href: '/dashboard/notifications' },
+  { type: 'page', label: 'Conversations', href: '/dashboard/conversations' },
+  { type: 'page', label: 'Decisions', href: '/dashboard/decisions' },
+  { type: 'page', label: 'Reports', href: '/dashboard/reports' },
+  { type: 'page', label: 'Import', href: '/dashboard/import' },
+  { type: 'page', label: 'Program', href: '/dashboard/program' },
+  { type: 'page', label: 'Alumni', href: '/dashboard/alumni' },
+  { type: 'page', label: 'Tenure', href: '/dashboard/tenure' },
+]
+
 export function Header({ title }: HeaderProps) {
-  const [searchOpen, setSearchOpen] = useState(false)
+  const router = useRouter()
+  const [plusOpen, setPlusOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
+  const plusRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Close plus menu on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (plusRef.current && !plusRef.current.contains(e.target as Node)) {
+        setPlusOpen(false)
+      }
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchFocused(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  // Keyboard shortcuts: Escape to close, Cmd+K to focus search
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setPlusOpen(false)
+        setSearchFocused(false)
+        searchInputRef.current?.blur()
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        setSearchFocused(true)
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [])
+
+  // Search results — filter pages by query
+  const searchResults: SearchResult[] = searchQuery.length >= 1
+    ? SEARCH_SECTIONS
+        .filter(s => s.label.toLowerCase().includes(searchQuery.toLowerCase()))
+        .slice(0, 8)
+        .map(s => ({ label: s.label, type: s.type, href: s.href }))
+    : []
+
+  const showSearchResults = searchFocused && searchQuery.length >= 1
+
+  function navigateTo(href: string) {
+    setPlusOpen(false)
+    setSearchFocused(false)
+    setSearchQuery('')
+    router.push(href as any)
+  }
 
   return (
     <header className="sticky top-0 z-30 bg-etyme-canvas/95 backdrop-blur-sm
@@ -32,17 +184,24 @@ export function Header({ title }: HeaderProps) {
       <div className="flex-1" />
 
       {/* Search — global, always visible (UX Stress Test #1) */}
-      <div className="relative">
+      <div className="relative" ref={searchRef}>
         <input
           type="text"
-          placeholder="Search…"
+          ref={searchInputRef}
+          placeholder="Search… ⌘K"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="w-56 h-8 pl-8 pr-3 rounded-md text-[13px]
                      bg-etyme-surface border border-etyme-rule
                      text-etyme-ink placeholder:text-etyme-faint
                      focus:outline-none focus:ring-2 focus:ring-etyme-action/20
                      focus:border-etyme-action/40 transition-all"
-          onFocus={() => setSearchOpen(true)}
-          onBlur={() => setSearchOpen(false)}
+          onFocus={() => setSearchFocused(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && searchResults.length > 0) {
+              navigateTo(searchResults[0].href)
+            }
+          }}
         />
         <svg
           className="absolute left-2.5 top-1/2 -translate-y-1/2 text-etyme-faint"
@@ -52,22 +211,97 @@ export function Header({ title }: HeaderProps) {
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.3-4.3" />
         </svg>
+
+        {/* Search results dropdown */}
+        {showSearchResults && (
+          <div className="absolute right-0 top-10 w-72 bg-white rounded-lg
+                          shadow-lg border border-etyme-rule overflow-hidden z-50">
+            {searchResults.length === 0 ? (
+              <div className="px-4 py-3 text-[13px] text-etyme-muted">
+                No results for &ldquo;{searchQuery}&rdquo;
+              </div>
+            ) : (
+              <div className="py-1">
+                <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">
+                  Pages
+                </div>
+                {searchResults.map((r) => (
+                  <button
+                    key={r.href + r.label}
+                    onClick={() => navigateTo(r.href)}
+                    className="w-full text-left px-3 py-2 text-[13px] text-etyme-ink
+                               hover:bg-etyme-canvas transition-colors flex items-center gap-2"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                         className="text-etyme-faint flex-shrink-0">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="border-t border-etyme-rule px-3 py-2 text-[11px] text-etyme-faint">
+              ↵ to navigate · esc to close
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Plus button — the four-section add menu (UX Stress Test #2) */}
-      <button
-        className="h-8 px-3 rounded-md text-[13px] font-medium
-                   bg-etyme-action text-white
-                   hover:bg-etyme-action/90 transition-colors
-                   flex items-center gap-1.5"
-        title="Add new"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-        <span className="hidden sm:inline">New</span>
-      </button>
+      <div className="relative" ref={plusRef}>
+        <button
+          onClick={() => setPlusOpen(!plusOpen)}
+          className={`h-8 px-3 rounded-md text-[13px] font-medium
+                     bg-etyme-action text-white
+                     hover:bg-etyme-action/90 transition-colors
+                     flex items-center gap-1.5
+                     ${plusOpen ? 'ring-2 ring-etyme-action/30' : ''}`}
+          title="Add new"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          <span className="hidden sm:inline">New</span>
+        </button>
+
+        {/* Plus menu dropdown */}
+        {plusOpen && (
+          <div className="absolute right-0 top-10 w-72 bg-white rounded-lg
+                          shadow-lg border border-etyme-rule overflow-hidden z-50">
+            {PLUS_MENU.map((section, si) => (
+              <div key={section.label}>
+                {si > 0 && <div className="border-t border-etyme-rule" />}
+                <div className="px-3 py-1.5 mt-1 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">
+                  {section.label}
+                </div>
+                {section.items.map((item) => (
+                  <button
+                    key={item.href + item.label}
+                    onClick={() => navigateTo(item.href)}
+                    className="w-full text-left px-3 py-2 hover:bg-etyme-canvas
+                               transition-colors group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] text-etyme-muted w-4 text-center flex-shrink-0">
+                        {item.icon}
+                      </span>
+                      <span className="text-[13px] font-medium text-etyme-ink group-hover:text-etyme-action">
+                        {item.label}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-etyme-faint ml-6 mt-0.5">
+                      {item.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* User avatar */}
       <button className="w-8 h-8 rounded-full bg-etyme-action/10 text-etyme-action
