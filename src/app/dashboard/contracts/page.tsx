@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { DataTable, type Column } from '@/components/data-table'
 
 /**
  * Contracts working surface — sell and buy side.
@@ -9,14 +10,9 @@ import { useEffect, useState, useCallback } from 'react'
  *   Working surfaces: "Tables, search, filters, bulk, density"
  *   "Tabular figures, tight rows"
  *
- * Contracts are grouped by state (active, draft, ended) because users
- * operate on a state group at a time — "approve all drafts" or "review
- * active rolloffs." This makes grouped tables the right pattern here
- * rather than a single flat DataTable.
- *
  * Sell contracts → what you bill clients (revenue).
  * Buy contracts → what you pay talent (cost).
- * Rolloff warning: contracts ending within 28 days surface a banner.
+ * Filter tabs partition by state group (Active, Draft, Ended).
  */
 
 // ── Types ──────────────────────────────────────────────────
@@ -37,19 +33,7 @@ interface Contract {
 // ── Helpers ────────────────────────────────────────────────
 
 type ViewTab = 'sell' | 'buy'
-
-const SELL_STATE_GROUPS: { key: string; label: string; states: string[] }[] = [
-  { key: 'active', label: 'Active', states: ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION'] },
-  { key: 'draft', label: 'Draft', states: ['DRAFT'] },
-  { key: 'ended', label: 'Ended', states: ['ENDED', 'CANCELLED', 'PAUSED'] },
-]
-
-const BUY_STATE_GROUPS: { key: string; label: string; states: string[] }[] = [
-  { key: 'active', label: 'Active', states: ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION'] },
-  { key: 'bench', label: 'Bench & Internal', states: ['BENCH_PAID', 'INTERNAL', 'TRAINING'] },
-  { key: 'draft', label: 'Draft', states: ['DRAFT'] },
-  { key: 'ended', label: 'Ended', states: ['ENDED', 'CANCELLED', 'PAUSED'] },
-]
+type StateFilter = 'all' | 'active' | 'draft' | 'ended' | 'bench'
 
 function stateLabel(state: string): string {
   const labels: Record<string, string> = {
@@ -88,6 +72,20 @@ function stateChipClass(state: string): string {
   }
 }
 
+const ACTIVE_STATES = ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION']
+const DRAFT_STATES = ['DRAFT']
+const ENDED_STATES = ['ENDED', 'CANCELLED', 'PAUSED']
+const BENCH_STATES = ['BENCH_PAID', 'INTERNAL', 'TRAINING']
+
+function matchesFilter(state: string, filter: StateFilter): boolean {
+  if (filter === 'all') return true
+  if (filter === 'active') return ACTIVE_STATES.includes(state)
+  if (filter === 'draft') return DRAFT_STATES.includes(state)
+  if (filter === 'ended') return ENDED_STATES.includes(state)
+  if (filter === 'bench') return BENCH_STATES.includes(state)
+  return true
+}
+
 // ── Page ───────────────────────────────────────────────────
 
 export default function ContractsPage() {
@@ -95,6 +93,7 @@ export default function ContractsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<ViewTab>('sell')
+  const [stateFilter, setStateFilter] = useState<StateFilter>('all')
 
   const fetchContracts = useCallback(async () => {
     setLoading(true)
@@ -137,47 +136,134 @@ export default function ContractsPage() {
     fetchContracts()
   }, [fetchContracts])
 
-  const stateGroups = tab === 'sell' ? SELL_STATE_GROUPS : BUY_STATE_GROUPS
+  // Reset state filter when switching sell/buy
+  useEffect(() => {
+    setStateFilter('all')
+  }, [tab])
 
-  function getGrouped() {
-    const grouped: Record<string, Contract[]> = {}
-    for (const group of stateGroups) {
-      const matching = contracts.filter((c) => group.states.includes(c.state))
-      if (matching.length > 0) {
-        grouped[group.key] = matching
-      }
-    }
-    const knownStates = stateGroups.flatMap((g) => g.states)
-    const other = contracts.filter((c) => !knownStates.includes(c.state))
-    if (other.length > 0) {
-      grouped['other'] = other
-    }
-    return grouped
-  }
-
-  const grouped = loading ? {} : getGrouped()
-
-  // Rolloff warnings — contracts ending within 28 days
-  const rolloffWarnings = contracts.filter(
-    (c) => c.daysUntilEnd != null && c.daysUntilEnd >= 0 && c.daysUntilEnd <= 28 && c.state === 'IN_PROGRESS'
-  )
+  const filtered = contracts.filter(c => matchesFilter(c.state, stateFilter))
 
   // Stats
-  const activeCount = contracts.filter((c) =>
-    ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION'].includes(c.state)
-  ).length
-  const totalRevenue = tab === 'sell'
-    ? contracts
-        .filter((c) => ['IN_PROGRESS', 'VERIFIED'].includes(c.state))
-        .reduce((sum, c) => sum + (c.rate / 100), 0)
-    : 0
+  const activeCount = contracts.filter(c => ACTIVE_STATES.includes(c.state)).length
+  const draftCount = contracts.filter(c => DRAFT_STATES.includes(c.state)).length
+  const endedCount = contracts.filter(c => ENDED_STATES.includes(c.state)).length
+  const benchCount = contracts.filter(c => BENCH_STATES.includes(c.state)).length
+
+  const rolloffWarnings = contracts.filter(
+    c => c.daysUntilEnd != null && c.daysUntilEnd >= 0 && c.daysUntilEnd <= 28 && c.state === 'IN_PROGRESS'
+  )
+
+  const totalRate = contracts
+    .filter(c => ['IN_PROGRESS', 'VERIFIED'].includes(c.state))
+    .reduce((sum, c) => sum + (c.rate / 100), 0)
 
   const rateLabel = tab === 'sell' ? 'Bill rate' : 'Pay rate'
   const counterpartyLabel = tab === 'sell' ? 'Client' : 'Vendor'
 
+  // ── Column definitions ──
+  const columns: Column<Contract>[] = [
+    {
+      key: 'personName',
+      label: 'Consultant',
+      render: (row) => (
+        <span className="font-medium text-etyme-ink">{row.personName}</span>
+      ),
+      sortValue: (row) => row.personName,
+    },
+    {
+      key: 'counterpartyName',
+      label: counterpartyLabel,
+      render: (row) => (
+        <span className="text-etyme-muted">{row.counterpartyName ?? '—'}</span>
+      ),
+      sortValue: (row) => row.counterpartyName ?? '',
+    },
+    {
+      key: 'rate',
+      label: rateLabel,
+      align: 'right',
+      render: (row) => (
+        <span className="tabular-nums text-etyme-ink">
+          ${(row.rate / 100).toFixed(0)}<span className="text-etyme-faint">/hr</span>
+        </span>
+      ),
+      sortValue: (row) => row.rate,
+    },
+    {
+      key: 'startDate',
+      label: 'Start',
+      render: (row) => (
+        <span className="tabular-nums text-etyme-muted text-[12px]">
+          {new Date(row.startDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+        </span>
+      ),
+      sortValue: (row) => new Date(row.startDate).getTime(),
+      hideOnMobile: true,
+    },
+    {
+      key: 'endDate',
+      label: 'End',
+      render: (row) => {
+        const isRolloff = row.daysUntilEnd != null && row.daysUntilEnd >= 0 && row.daysUntilEnd <= 28
+        if (!row.endDate) {
+          return <span className="text-etyme-faint text-[12px]">Open-ended</span>
+        }
+        return (
+          <div>
+            <span className={`tabular-nums text-[12px] ${isRolloff ? 'text-etyme-attention font-medium' : 'text-etyme-muted'}`}>
+              {new Date(row.endDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+            </span>
+            {isRolloff && (
+              <div className="text-[10px] text-etyme-attention">
+                {row.daysUntilEnd === 0 ? 'Today' : `${row.daysUntilEnd}d left`}
+              </div>
+            )}
+          </div>
+        )
+      },
+      sortValue: (row) => row.endDate ? new Date(row.endDate).getTime() : Infinity,
+      hideOnMobile: true,
+    },
+    {
+      key: 'state',
+      label: 'Status',
+      render: (row) => (
+        <span className={`chip ${stateChipClass(row.state)}`}>
+          {stateLabel(row.state)}
+        </span>
+      ),
+      sortValue: (row) => {
+        const order: Record<string, number> = {
+          IN_PROGRESS: 0, VERIFIED: 1, PENDING_VERIFICATION: 2,
+          DRAFT: 3, BENCH_PAID: 4, INTERNAL: 5, TRAINING: 6,
+          PAUSED: 7, ENDED: 8, CANCELLED: 9,
+        }
+        return order[row.state] ?? 10
+      },
+    },
+  ]
+
+  // Build filter tabs
+  const SELL_FILTERS: { key: StateFilter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: contracts.length },
+    { key: 'active', label: 'Active', count: activeCount },
+    { key: 'draft', label: 'Draft', count: draftCount },
+    { key: 'ended', label: 'Ended', count: endedCount },
+  ]
+
+  const BUY_FILTERS: { key: StateFilter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: contracts.length },
+    { key: 'active', label: 'Active', count: activeCount },
+    { key: 'bench', label: 'Bench & Internal', count: benchCount },
+    { key: 'draft', label: 'Draft', count: draftCount },
+    { key: 'ended', label: 'Ended', count: endedCount },
+  ]
+
+  const filters = tab === 'sell' ? SELL_FILTERS : BUY_FILTERS
+
   return (
     <>
-      {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle */}
+      {/* Head */}
       <div className="page-head">
         <p className="eyebrow">{tab === 'sell' ? 'Sell' : 'Procure'}</p>
         <h1>{tab === 'sell' ? 'Sell' : 'Buy'} Contracts</h1>
@@ -188,7 +274,7 @@ export default function ContractsPage() {
         </p>
       </div>
 
-      {/* Sell / Buy tabs — prototype filter-tab pattern */}
+      {/* Sell / Buy tabs */}
       <div className="flex gap-1.5 mb-6">
         {(['sell', 'buy'] as const).map((t) => (
           <button
@@ -219,7 +305,7 @@ export default function ContractsPage() {
           <div className="panel flex-1 min-w-[140px]">
             <p className="stat-label">Active bill rates</p>
             <p className="stat-value text-etyme-verified">
-              ${totalRevenue.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+              ${totalRate.toLocaleString('en-US', { maximumFractionDigits: 0 })}
             </p>
             <p className="text-[11px] text-etyme-faint mt-0.5">total $/hr</p>
           </div>
@@ -250,113 +336,49 @@ export default function ContractsPage() {
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <div className="mb-6 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          Could not load contracts: {error}
-        </div>
-      )}
-
-      {/* Loading */}
-      {loading && (
-        <div className="panel text-center py-12">
-          <p className="text-sm text-etyme-muted">Loading contracts…</p>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!loading && contracts.length === 0 && !error && (
-        <div className="panel text-center py-12">
-          <p className="text-sm text-etyme-muted">No {tab} contracts yet.</p>
-          <p className="text-xs text-etyme-faint mt-1">
-            {tab === 'sell'
-              ? 'Sell contracts are created when a submission is accepted or via import.'
-              : 'Buy contracts track what you pay — created alongside sell contracts or for bench/internal employees.'}
-          </p>
-        </div>
-      )}
-
-      {/* Grouped tables — each group uses data-table class for prototype styling */}
-      {!loading && Object.entries(grouped).map(([groupKey, groupContracts]) => {
-        const groupLabel = stateGroups.find((g) => g.key === groupKey)?.label ?? 'Other'
-        return (
-          <div key={groupKey} className="mb-8">
-            <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-sm font-semibold text-etyme-ink">{groupLabel}</h2>
-              <span className="chip chip--passive">{groupContracts.length}</span>
-            </div>
-
-            <div className="bg-etyme-surface border border-etyme-rule rounded-[6px] overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="data-table w-full text-[13px]">
-                  <thead>
-                    <tr>
-                      <th>Consultant</th>
-                      <th>{counterpartyLabel}</th>
-                      <th className="!text-right">{rateLabel}</th>
-                      <th>Start</th>
-                      <th>End</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groupContracts.map((c) => {
-                      const isRolloff = c.daysUntilEnd != null && c.daysUntilEnd >= 0 && c.daysUntilEnd <= 28
-                      return (
-                        <tr
-                          key={c.id}
-                          className={`hover:bg-etyme-canvas/50 cursor-pointer transition-colors ${
-                            isRolloff ? 'bg-amber-50/30' : ''
-                          }`}
-                        >
-                          <td>
-                            <p className="font-medium text-etyme-ink">{c.personName}</p>
-                          </td>
-                          <td className="text-etyme-muted">
-                            {c.counterpartyName ?? <span className="text-etyme-faint">—</span>}
-                          </td>
-                          <td className="!text-right tabular-nums text-etyme-ink">
-                            ${(c.rate / 100).toFixed(0)}<span className="text-etyme-faint">/hr</span>
-                          </td>
-                          <td className="tabular-nums text-etyme-muted text-[12px]">
-                            {new Date(c.startDate).toLocaleDateString()}
-                          </td>
-                          <td className="tabular-nums text-[12px]">
-                            {c.endDate ? (
-                              <span className={isRolloff ? 'text-etyme-attention font-medium' : 'text-etyme-muted'}>
-                                {new Date(c.endDate).toLocaleDateString()}
-                                {isRolloff && (
-                                  <span className="block text-[10px]">
-                                    {c.daysUntilEnd === 0 ? 'Today' : `${c.daysUntilEnd}d left`}
-                                  </span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="text-etyme-faint">Open-ended</span>
-                            )}
-                          </td>
-                          <td>
-                            <span className={`chip ${stateChipClass(c.state)}`}>
-                              {stateLabel(c.state)}
-                            </span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+      {/* DataTable with state filter tabs */}
+      <DataTable
+        columns={columns}
+        data={filtered}
+        rowKey={(row) => row.id}
+        loading={loading}
+        error={error}
+        searchPlaceholder={`Search by consultant${tab === 'sell' ? ', client' : ', vendor'}…`}
+        searchFilter={(row, q) =>
+          row.personName.toLowerCase().includes(q) ||
+          (row.counterpartyName?.toLowerCase().includes(q) ?? false) ||
+          stateLabel(row.state).toLowerCase().includes(q)
+        }
+        emptyMessage={
+          stateFilter === 'all'
+            ? `No ${tab} contracts yet.`
+            : `No ${stateFilter} ${tab} contracts.`
+        }
+        emptyDetail={
+          tab === 'sell'
+            ? 'Sell contracts are created when a submission is accepted or via import.'
+            : 'Buy contracts track what you pay — created alongside sell contracts or for bench/internal employees.'
+        }
+        exportName={`${tab}-contracts`}
+        filters={
+          <div className="flex gap-1.5">
+            {filters.map(f => (
+              <button
+                key={f.key}
+                onClick={() => setStateFilter(f.key)}
+                className={`filter-tab ${stateFilter === f.key ? 'filter-tab--active' : 'filter-tab--inactive'}`}
+              >
+                {f.label} ({f.count})
+              </button>
+            ))}
           </div>
-        )
-      })}
-
-      {/* Count footer */}
-      {!loading && contracts.length > 0 && (
-        <p className="text-xs text-etyme-faint tabular-nums">
-          {contracts.length} {tab} contract{contracts.length !== 1 ? 's' : ''}
-        </p>
-      )}
+        }
+        rowClassName={(row) =>
+          row.daysUntilEnd != null && row.daysUntilEnd >= 0 && row.daysUntilEnd <= 28
+            ? '!bg-amber-50/30'
+            : ''
+        }
+      />
     </>
   )
 }
