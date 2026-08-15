@@ -81,6 +81,8 @@ export default function TimesheetsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [approving, setApproving] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const fetchTimesheets = useCallback(async () => {
     setLoading(true)
@@ -116,6 +118,47 @@ export default function TimesheetsPage() {
   const approvedValue = timesheets
     .filter((t) => t.status === 'APPROVED')
     .reduce((sum, t) => sum + (t.totalHours * (t.sellContract.billRate / 100)), 0)
+
+  // ── Approve handler ────────────────────────────────
+  async function handleBulkApprove(selectedIds: Set<string>) {
+    const submittedIds = Array.from(selectedIds).filter(id => {
+      const ts = timesheets.find(t => t.id === id)
+      return ts?.status === 'SUBMITTED'
+    })
+
+    if (submittedIds.length === 0) {
+      setToast({ message: 'No submitted timesheets selected — only submitted timesheets can be approved.', type: 'error' })
+      setTimeout(() => setToast(null), 4000)
+      return
+    }
+
+    setApproving(true)
+    let approved = 0
+    let failed = 0
+
+    for (const id of submittedIds) {
+      try {
+        const res = await fetch(`/api/timesheets/${id}/approve`, { method: 'POST' })
+        if (res.ok) {
+          approved++
+        } else {
+          failed++
+        }
+      } catch {
+        failed++
+      }
+    }
+
+    setApproving(false)
+    const msg = failed > 0
+      ? `Approved ${approved}, ${failed} failed`
+      : `Approved ${approved} timesheet${approved !== 1 ? 's' : ''}`
+    setToast({ message: msg, type: failed > 0 ? 'error' : 'success' })
+    setTimeout(() => setToast(null), 4000)
+
+    // Refresh the list
+    fetchTimesheets()
+  }
 
   // ── Filter ─────────────────────────────────────────
   const filtered = statusFilter === 'ALL'
@@ -292,10 +335,14 @@ export default function TimesheetsPage() {
         selectable
         bulkActions={(selected) => (
           <>
-            <button className="px-3 py-1.5 text-[11px] font-medium rounded-md
-                               bg-etyme-verified text-white hover:bg-etyme-verified/90
-                               transition-colors">
-              Approve ({selected.size})
+            <button
+              onClick={() => handleBulkApprove(selected)}
+              disabled={approving}
+              className="px-3 py-1.5 text-[11px] font-medium rounded-md
+                         bg-etyme-verified text-white hover:bg-etyme-verified/90
+                         transition-colors disabled:opacity-50"
+            >
+              {approving ? 'Approving…' : `Approve (${selected.size})`}
             </button>
             <button className="px-3 py-1.5 text-[11px] font-medium rounded-md
                                border border-etyme-rule text-etyme-muted
@@ -318,6 +365,17 @@ export default function TimesheetsPage() {
           {filtered.length} timesheet{filtered.length !== 1 ? 's' : ''}
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase()}`}
         </p>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium
+                         ${toast.type === 'success'
+                           ? 'bg-etyme-verified text-white'
+                           : 'bg-red-600 text-white'
+                         } animate-slide-up`}>
+          {toast.message}
+        </div>
       )}
     </>
   )
