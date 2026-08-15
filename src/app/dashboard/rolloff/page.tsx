@@ -2,25 +2,39 @@
 
 import { useEffect, useState, useCallback } from 'react'
 
-// ── Types ──────────────────────────────────────────────────
+// ── Types — match API response shape ─────────────────────
 
-interface RolloffEvent {
+interface TrackedRolloff {
   id: string
   sellContractId: string
-  personName: string
-  personEmail: string
-  clientName: string | null
-  billRate: number
   endDate: string
-  daysUntilEnd: number
-  outcome: string | null
-  checklist: {
-    knowledgeTransfer: boolean
-    finalTimesheet: boolean
-    accessRevocation: boolean
-    assets: boolean
-  }
+  daysLeft: number
+  person: { id: string; name: string } | null
+  clientCompany: { id: string; name: string } | null
+  engagement: { id: string; title: string } | null
+  billRate: number | null
+  checklist: Record<string, boolean> | null
   claimedById: string | null
+  outcome: string | null
+  notified: boolean
+}
+
+interface UntrackedContract {
+  sellContractId: string
+  endDate: string
+  daysLeft: number
+  person: { id: string; name: string } | null
+  clientCompany: { id: string; name: string } | null
+  engagement: { id: string; title: string } | null
+  billRate: number | null
+}
+
+interface RolloffSummary {
+  total: number
+  tracked: number
+  untracked: number
+  claimed: number
+  resolved: number
 }
 
 type WindowDays = 30 | 60 | 90
@@ -80,7 +94,9 @@ function UrgencyBadge({ daysUntilEnd }: { daysUntilEnd: number }) {
 // ── Page ───────────────────────────────────────────────────
 
 export default function RolloffPage() {
-  const [events, setEvents] = useState<RolloffEvent[]>([])
+  const [tracked, setTracked] = useState<TrackedRolloff[]>([])
+  const [untracked, setUntracked] = useState<UntrackedContract[]>([])
+  const [summary, setSummary] = useState<RolloffSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [window, setWindow] = useState<WindowDays>(30)
@@ -96,10 +112,14 @@ export default function RolloffPage() {
       }
 
       const body = await res.json()
-      setEvents(body.data?.events ?? [])
+      setTracked(body.data?.tracked ?? [])
+      setUntracked(body.data?.untracked ?? [])
+      setSummary(body.data?.summary ?? null)
     } catch (err: any) {
       setError(err.message)
-      setEvents([])
+      setTracked([])
+      setUntracked([])
+      setSummary(null)
     } finally {
       setLoading(false)
     }
@@ -109,15 +129,19 @@ export default function RolloffPage() {
     fetchRolloffs()
   }, [fetchRolloffs])
 
-  // Sort by urgency (soonest first)
-  const sorted = [...events].sort((a, b) => a.daysUntilEnd - b.daysUntilEnd)
+  const total = tracked.length + untracked.length
 
-  // Summary counts
-  const critical = events.filter((e) => e.daysUntilEnd <= 7).length
-  const urgent = events.filter((e) => e.daysUntilEnd > 7 && e.daysUntilEnd <= 14).length
-  const upcoming = events.filter((e) => e.daysUntilEnd > 14).length
+  // Combine all for urgency counts
+  const allDays = [
+    ...tracked.map((t) => t.daysLeft),
+    ...untracked.map((u) => u.daysLeft),
+  ]
+  const critical = allDays.filter((d) => d <= 7).length
+  const urgent = allDays.filter((d) => d > 7 && d <= 14).length
+  const upcoming = allDays.filter((d) => d > 14).length
 
-  function checklistProgress(cl: RolloffEvent['checklist']): number {
+  function checklistProgress(cl: Record<string, boolean> | null): number {
+    if (!cl) return 0
     const items = [cl.knowledgeTransfer, cl.finalTimesheet, cl.accessRevocation, cl.assets]
     return items.filter(Boolean).length
   }
@@ -153,7 +177,7 @@ export default function RolloffPage() {
       </div>
 
       {/* Summary stats */}
-      {!loading && events.length > 0 && (
+      {!loading && total > 0 && (
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="card">
             <div className="flex items-center gap-2 mb-1">
@@ -194,9 +218,9 @@ export default function RolloffPage() {
       )}
 
       {/* Empty state */}
-      {!loading && events.length === 0 && !error && (
+      {!loading && total === 0 && !error && (
         <div className="card text-center py-12">
-          <p className="text-sm text-etyme-muted">No rolloff events in the next {window} days.</p>
+          <p className="text-sm text-etyme-muted">No contract endings in the next {window} days.</p>
           <p className="text-xs text-etyme-muted/60 mt-1">
             Rolloff events are created automatically when a sell contract has an end date within 8 weeks,
             either from import or when a contract end date is set.
@@ -204,100 +228,156 @@ export default function RolloffPage() {
         </div>
       )}
 
-      {/* Rolloff cards */}
-      {!loading && sorted.length > 0 && (
-        <div className="space-y-4">
-          {sorted.map((event) => {
-            const progress = checklistProgress(event.checklist)
-            return (
-              <div key={event.id} className={`card ${event.daysUntilEnd <= 7 ? 'border-red-200' : event.daysUntilEnd <= 14 ? 'border-amber-200' : ''}`}>
-                <div className="flex items-start justify-between mb-4">
+      {/* ── Untracked contracts (need rolloff events) ──── */}
+      {!loading && untracked.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="evidence-dot evidence-dot--pending" />
+            <h2 className="text-sm font-semibold text-etyme-ink">
+              Contracts ending soon — no rolloff event yet
+            </h2>
+            <span className="pill text-[10px] bg-amber-50 text-etyme-attention border border-amber-200">
+              {untracked.length} untracked
+            </span>
+          </div>
+          <div className="space-y-3">
+            {[...untracked].sort((a, b) => a.daysLeft - b.daysLeft).map((c) => (
+              <div key={c.sellContractId} className={`card border-l-4 ${
+                c.daysLeft <= 7 ? 'border-l-red-400' : c.daysLeft <= 14 ? 'border-l-amber-400' : 'border-l-etyme-rule'
+              }`}>
+                <div className="flex items-start justify-between">
                   <div>
                     <div className="flex items-center gap-3 mb-1">
-                      <h3 className="text-sm font-semibold">{event.personName}</h3>
-                      <UrgencyBadge daysUntilEnd={event.daysUntilEnd} />
-                      {event.outcome && (
-                        <span className={`pill text-[10px] ${
-                          event.outcome === 'REDEPLOYED' ? 'bg-emerald-50 text-etyme-verified' :
-                          event.outcome === 'BENCH' ? 'bg-amber-50 text-etyme-attention' :
-                          'bg-etyme-canvas text-etyme-muted'
-                        }`}>
-                          {event.outcome}
-                        </span>
-                      )}
+                      <h3 className="text-sm font-semibold">{c.person?.name ?? 'Unknown'}</h3>
+                      <UrgencyBadge daysUntilEnd={c.daysLeft} />
                     </div>
                     <p className="text-xs text-etyme-muted">
-                      {event.personEmail}
-                      {event.clientName && ` · ${event.clientName}`}
-                      {` · $${(event.billRate / 100).toFixed(2)}/hr`}
+                      {c.clientCompany?.name ?? 'No client'}
+                      {c.engagement && ` · ${c.engagement.title}`}
+                      {c.billRate != null && ` · $${(c.billRate / 100).toFixed(2)}/hr`}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium tabular-nums">
-                      {new Date(event.endDate).toLocaleDateString()}
+                      {new Date(c.endDate).toLocaleDateString()}
                     </p>
                     <p className="text-[10px] text-etyme-muted">End date</p>
                   </div>
                 </div>
-
-                {/* Checklist */}
-                <div className="border-t border-etyme-rule pt-3">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
-                      Offboarding checklist
-                    </p>
-                    <span className={`pill text-[10px] ${
-                      progress === 4
-                        ? 'bg-emerald-50 text-etyme-verified'
-                        : 'bg-etyme-canvas text-etyme-muted'
-                    }`}>
-                      {progress}/4 complete
-                    </span>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="w-full h-1.5 bg-etyme-canvas rounded-full mb-3">
-                    <div
-                      className={`h-1.5 rounded-full transition-all ${
-                        progress === 4 ? 'bg-etyme-verified' : 'bg-etyme-action'
-                      }`}
-                      style={{ width: `${(progress / 4) * 100}%` }}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    <ChecklistItem
-                      label="Knowledge transfer"
-                      checked={event.checklist.knowledgeTransfer}
-                      onToggle={() => {/* Would PATCH /api/rolloff/:id/checklist */}}
-                    />
-                    <ChecklistItem
-                      label="Final timesheet"
-                      checked={event.checklist.finalTimesheet}
-                      onToggle={() => {}}
-                    />
-                    <ChecklistItem
-                      label="Access revocation"
-                      checked={event.checklist.accessRevocation}
-                      onToggle={() => {}}
-                    />
-                    <ChecklistItem
-                      label="Assets returned"
-                      checked={event.checklist.assets}
-                      onToggle={() => {}}
-                    />
-                  </div>
-                </div>
               </div>
-            )
-          })}
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tracked rolloff events ─────────────────────── */}
+      {!loading && tracked.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="evidence-dot evidence-dot--ok" />
+            <h2 className="text-sm font-semibold text-etyme-ink">
+              Tracked rolloff events
+            </h2>
+            <span className="pill text-[10px] bg-emerald-50 text-etyme-verified">
+              {tracked.length} tracked
+            </span>
+          </div>
+          <div className="space-y-3">
+            {[...tracked].sort((a, b) => a.daysLeft - b.daysLeft).map((event) => {
+              const progress = checklistProgress(event.checklist)
+              return (
+                <div key={event.id} className={`card ${event.daysLeft <= 7 ? 'border-red-200' : event.daysLeft <= 14 ? 'border-amber-200' : ''}`}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <h3 className="text-sm font-semibold">{event.person?.name ?? 'Unknown'}</h3>
+                        <UrgencyBadge daysUntilEnd={event.daysLeft} />
+                        {event.outcome && (
+                          <span className={`pill text-[10px] ${
+                            event.outcome === 'REDEPLOYED' ? 'bg-emerald-50 text-etyme-verified' :
+                            event.outcome === 'BENCH' ? 'bg-amber-50 text-etyme-attention' :
+                            'bg-etyme-canvas text-etyme-muted'
+                          }`}>
+                            {event.outcome}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-etyme-muted">
+                        {event.clientCompany?.name ?? 'No client'}
+                        {event.engagement && ` · ${event.engagement.title}`}
+                        {event.billRate != null && ` · $${(event.billRate / 100).toFixed(2)}/hr`}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium tabular-nums">
+                        {new Date(event.endDate).toLocaleDateString()}
+                      </p>
+                      <p className="text-[10px] text-etyme-muted">End date</p>
+                    </div>
+                  </div>
+
+                  {/* Checklist */}
+                  {event.checklist && (
+                    <div className="border-t border-etyme-rule pt-3">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
+                          Offboarding checklist
+                        </p>
+                        <span className={`pill text-[10px] ${
+                          progress === 4
+                            ? 'bg-emerald-50 text-etyme-verified'
+                            : 'bg-etyme-canvas text-etyme-muted'
+                        }`}>
+                          {progress}/4 complete
+                        </span>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="w-full h-1.5 bg-etyme-canvas rounded-full mb-3">
+                        <div
+                          className={`h-1.5 rounded-full transition-all ${
+                            progress === 4 ? 'bg-etyme-verified' : 'bg-etyme-action'
+                          }`}
+                          style={{ width: `${(progress / 4) * 100}%` }}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <ChecklistItem
+                          label="Knowledge transfer"
+                          checked={event.checklist.knowledgeTransfer ?? false}
+                          onToggle={() => {/* Would PATCH /api/rolloff/:id/checklist */}}
+                        />
+                        <ChecklistItem
+                          label="Final timesheet"
+                          checked={event.checklist.finalTimesheet ?? false}
+                          onToggle={() => {}}
+                        />
+                        <ChecklistItem
+                          label="Access revocation"
+                          checked={event.checklist.accessRevocation ?? false}
+                          onToggle={() => {}}
+                        />
+                        <ChecklistItem
+                          label="Assets returned"
+                          checked={event.checklist.assets ?? false}
+                          onToggle={() => {}}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
       {/* Count footer */}
-      {!loading && events.length > 0 && (
+      {!loading && total > 0 && (
         <p className="text-xs text-etyme-muted mt-4">
-          {events.length} rolloff event{events.length !== 1 ? 's' : ''} in the next {window} days
+          {total} contract ending{total !== 1 ? 's' : ''} in the next {window} days
+          {summary && ` · ${summary.tracked} tracked · ${summary.untracked} untracked`}
         </p>
       )}
     </>
