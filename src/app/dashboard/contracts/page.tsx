@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -90,9 +90,340 @@ function matchesFilter(state: string, filter: StateFilter): boolean {
   return true
 }
 
+// ── Create Contract Modal ─────────────────────────────────
+
+interface ClientCompanyOption {
+  id: string
+  name: string
+}
+
+interface ConsultantOption {
+  personId: string
+  name: string
+}
+
+function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({
+    personId: '',
+    clientCompanyId: '',
+    endClientCompanyId: '',
+    workLocationId: '',
+    billRate: '',
+    payRate: '',
+    billCurrency: 'USD',
+    payCurrency: 'USD',
+    startDate: '',
+    endDate: '',
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [companyId, setCompanyId] = useState<string | null>(null)
+  const [consultants, setConsultants] = useState<ConsultantOption[]>([])
+  const [clientCompanies, setClientCompanies] = useState<ClientCompanyOption[]>([])
+  const [loadingOptions, setLoadingOptions] = useState(true)
+
+  // Fetch company context, consultants, and client companies on mount
+  useEffect(() => {
+    async function loadOptions() {
+      setLoadingOptions(true)
+      try {
+        const [meRes, consultantsRes, contractsRes] = await Promise.all([
+          fetch('/api/me'),
+          fetch('/api/consultants?limit=100'),
+          fetch('/api/contracts?side=sell&limit=100'),
+        ])
+
+        // Get user's company ID
+        if (meRes.ok) {
+          const meBody = await meRes.json()
+          setCompanyId(meBody.data?.companyId ?? meBody.data?.membership?.companyId ?? null)
+        }
+
+        // Get consultants for dropdown
+        if (consultantsRes.ok) {
+          const body = await consultantsRes.json()
+          const mapped = (body.data?.consultants ?? []).map((c: any) => ({
+            personId: c.personId,
+            name: c.person?.name ?? c.name ?? 'Unknown',
+          }))
+          setConsultants(mapped)
+        }
+
+        // Extract unique client companies from existing sell contracts
+        if (contractsRes.ok) {
+          const body = await contractsRes.json()
+          const rawContracts = body.data?.contracts ?? []
+          const seen = new Map<string, string>()
+          for (const c of rawContracts) {
+            if (c.clientCompany?.id && c.clientCompany?.name) {
+              seen.set(c.clientCompany.id, c.clientCompany.name)
+            }
+            if (c.endClientCompany?.id && c.endClientCompany?.name) {
+              seen.set(c.endClientCompany.id, c.endClientCompany.name)
+            }
+          }
+          setClientCompanies(
+            Array.from(seen.entries()).map(([id, name]) => ({ id, name }))
+          )
+        }
+      } catch {
+        // Options loading is best-effort
+      } finally {
+        setLoadingOptions(false)
+      }
+    }
+    loadOptions()
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+
+    if (!companyId) {
+      setError('Could not determine your company. Please reload and try again.')
+      setSubmitting(false)
+      return
+    }
+
+    const billRateNum = parseFloat(form.billRate)
+    if (isNaN(billRateNum) || billRateNum <= 0) {
+      setError('Bill rate must be a positive number.')
+      setSubmitting(false)
+      return
+    }
+
+    const payload: Record<string, unknown> = {
+      personId: form.personId,
+      companyId,
+      clientCompanyId: form.clientCompanyId,
+      billRate: Math.round(billRateNum * 100), // convert $/hr to cents/hr
+      billCurrency: form.billCurrency,
+      startDate: form.startDate,
+    }
+
+    if (form.endClientCompanyId) {
+      payload.endClientCompanyId = form.endClientCompanyId
+    }
+    if (form.workLocationId) {
+      payload.workLocationId = form.workLocationId
+    }
+    if (form.endDate) {
+      payload.endDate = form.endDate
+    }
+
+    if (form.payRate) {
+      const payRateNum = parseFloat(form.payRate)
+      if (isNaN(payRateNum) || payRateNum <= 0) {
+        setError('Pay rate must be a positive number if provided.')
+        setSubmitting(false)
+        return
+      }
+      payload.payRate = Math.round(payRateNum * 100)
+      payload.payCurrency = form.payCurrency
+    }
+
+    try {
+      const res = await fetch('/api/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const body = await res.json()
+        setError(body.error?.message ?? 'Failed to create contract')
+        return
+      }
+
+      onCreated()
+      onClose()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const inputClass = `w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                      focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action`
+  const selectClass = `w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                       focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action`
+  const labelClass = 'block text-xs font-semibold text-etyme-muted mb-1'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="card w-full max-w-2xl mx-4 animate-slide-up max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Create contract</h2>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {loadingOptions ? (
+          <div className="text-sm text-etyme-muted animate-pulse py-8 text-center">Loading options…</div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Consultant */}
+            <div>
+              <label className={labelClass}>Consultant *</label>
+              <select
+                required
+                value={form.personId}
+                onChange={(e) => setForm({ ...form, personId: e.target.value })}
+                className={selectClass}
+              >
+                <option value="">Select consultant…</option>
+                {consultants.map((c) => (
+                  <option key={c.personId} value={c.personId}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Client (bill to) and End client */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Client (bill to) *</label>
+                <select
+                  required
+                  value={form.clientCompanyId}
+                  onChange={(e) => setForm({ ...form, clientCompanyId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">Select client…</option>
+                  {clientCompanies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>End client (where consultant works)</label>
+                <select
+                  value={form.endClientCompanyId}
+                  onChange={(e) => setForm({ ...form, endClientCompanyId: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="">Same as billing client</option>
+                  {clientCompanies.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-etyme-faint mt-1">Leave empty if same as billing client</p>
+              </div>
+            </div>
+
+            {/* Bill rate and currency */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className={labelClass}>Bill rate ($/hr) *</label>
+                <input
+                  type="number"
+                  required
+                  min="0.01"
+                  step="0.01"
+                  value={form.billRate}
+                  onChange={(e) => setForm({ ...form, billRate: e.target.value })}
+                  className={inputClass}
+                  placeholder="125.00"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Currency</label>
+                <select
+                  value={form.billCurrency}
+                  onChange={(e) => setForm({ ...form, billCurrency: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="USD">USD</option>
+                  <option value="CAD">CAD</option>
+                  <option value="GBP">GBP</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Pay rate and currency */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className={labelClass}>Pay rate ($/hr)</label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={form.payRate}
+                  onChange={(e) => setForm({ ...form, payRate: e.target.value })}
+                  className={inputClass}
+                  placeholder="95.00"
+                />
+                <p className="text-[10px] text-etyme-faint mt-1">Creates a linked buy contract</p>
+              </div>
+              <div>
+                <label className={labelClass}>Pay currency</label>
+                <select
+                  value={form.payCurrency}
+                  onChange={(e) => setForm({ ...form, payCurrency: e.target.value })}
+                  className={selectClass}
+                >
+                  <option value="USD">USD</option>
+                  <option value="CAD">CAD</option>
+                  <option value="GBP">GBP</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>Start date *</label>
+                <input
+                  type="date"
+                  required
+                  value={form.startDate}
+                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label className={labelClass}>End date</label>
+                <input
+                  type="date"
+                  value={form.endDate}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                  className={inputClass}
+                />
+                <p className="text-[10px] text-etyme-faint mt-1">Leave empty for open-ended</p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={onClose} className="btn-secondary">
+                Cancel
+              </button>
+              <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+                {submitting ? 'Creating…' : 'Create contract'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Page ───────────────────────────────────────────────────
 
 export default function ContractsPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const initialSide = (searchParams.get('side') === 'buy' ? 'buy' : 'sell') as ViewTab
 
@@ -101,6 +432,24 @@ export default function ContractsPage() {
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<ViewTab>(initialSide)
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
+  const [showCreate, setShowCreate] = useState(false)
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+  // Open the create modal when navigated with ?new=1
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowCreate(true)
+      router.replace('/dashboard/contracts', { scroll: false })
+    }
+  }, [searchParams, router])
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000)
+      return () => clearTimeout(timer)
+    }
+  }, [toast])
 
   const fetchContracts = useCallback(async () => {
     setLoading(true)
@@ -298,15 +647,31 @@ export default function ContractsPage() {
 
   return (
     <>
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-[60] px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up ${
+          toast.type === 'success'
+            ? 'bg-green-50 border border-green-200 text-green-800'
+            : 'bg-red-50 border border-red-200 text-red-700'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
       {/* Head */}
-      <div className="page-head">
-        <p className="eyebrow">{tab === 'sell' ? 'Sell' : 'Procure'}</p>
-        <h1>{tab === 'sell' ? 'Sell' : 'Buy'} Contracts</h1>
-        <p>
-          {tab === 'sell'
-            ? 'What you bill clients. Revenue side — track active engagements, pending verifications, and upcoming rolloffs.'
-            : 'What you pay for talent. Cost side — bench payments, internal contracts, and vendor agreements.'}
-        </p>
+      <div className="flex items-start justify-between mb-6">
+        <div className="page-head">
+          <p className="eyebrow">{tab === 'sell' ? 'Sell' : 'Procure'}</p>
+          <h1>{tab === 'sell' ? 'Sell' : 'Buy'} Contracts</h1>
+          <p>
+            {tab === 'sell'
+              ? 'What you bill clients. Revenue side — track active engagements, pending verifications, and upcoming rolloffs.'
+              : 'What you pay for talent. Cost side — bench payments, internal contracts, and vendor agreements.'}
+          </p>
+        </div>
+        <button onClick={() => setShowCreate(true)} className="btn-primary mt-3 shrink-0">
+          + New
+        </button>
       </div>
 
       {/* Sell / Buy tabs */}
@@ -414,6 +779,17 @@ export default function ContractsPage() {
             : ''
         }
       />
+
+      {/* Create contract modal */}
+      {showCreate && (
+        <CreateContractModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => {
+            setToast({ type: 'success', message: 'Contract created successfully.' })
+            fetchContracts()
+          }}
+        />
+      )}
     </>
   )
 }
