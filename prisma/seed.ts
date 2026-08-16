@@ -53,6 +53,9 @@ async function main() {
     prisma.requirement.deleteMany(),
     prisma.automationLog.deleteMany(),
     prisma.accessLog.deleteMany(),
+    prisma.requirementApproval.deleteMany(),
+    prisma.approvalRule.deleteMany(),
+    prisma.headcountPlan.deleteMany(),
     prisma.contractCostAllocation.deleteMany(),
     prisma.costCenter.deleteMany(),
     prisma.remitTo.deleteMany(),
@@ -348,6 +351,55 @@ async function main() {
     })
     costCentres[cc.key] = { id: created.id, code: created.code, name: created.name }
   }
+
+  // ── Headcount plans — what each budget is approved to run ──
+  // Without these, "is there room for this requisition?" has no answer and
+  // every request has to go to a human, which is the failure Addendum E
+  // names: governance slower than the workaround produces the workaround.
+  const planPeriod = String(new Date().getFullYear())
+  const headcountPlanData = [
+    { cc: 'ccMfgFin',  heads: 6, budget: 1_400_000 },
+    { cc: 'ccQuality', heads: 4, budget: 720_000 },
+    { cc: 'ccSupply',  heads: 5, budget: 900_000 },
+    { cc: 'ccData',    heads: 4, budget: 1_100_000 },
+    { cc: 'ccInfra',   heads: 6, budget: 1_300_000 },
+  ]
+  for (const hp of headcountPlanData) {
+    await prisma.headcountPlan.create({
+      data: {
+        costCenterId: costCentres[hp.cc].id,
+        period: planPeriod,
+        approvedHeads: hp.heads,
+        annualBudget: hp.budget,
+        currency: 'USD',
+      },
+    })
+  }
+
+  // ── Approval rules — the delegation of authority ──
+  // Below the threshold a requisition clears itself. The catch-all only
+  // fires when a check actually routed, so ordinary requests never touch it.
+  await prisma.approvalRule.create({
+    data: {
+      companyId: client.id,
+      name: 'Departmental — above $250k',
+      thresholdAmount: 250_000,
+      approverId: managers.whitfield.id,
+      rank: 1,
+      isActive: true,
+    },
+  })
+
+  await prisma.approvalRule.create({
+    data: {
+      companyId: client.id,
+      name: 'Exceptions — over plan, budget or band',
+      thresholdAmount: null,
+      approverId: managers.mbeki.id,
+      rank: 2,
+      isActive: true,
+    },
+  })
 
   // ── Purchase orders — one per leg of the chain ──
   // Terumo raises a PO to each supplier it actually pays. In the layer-cake
