@@ -424,6 +424,9 @@ export default function SubmissionsPage() {
 
   const [companyId, setCompanyId] = useState<string | null>(null)
 
+  // Read filters from URL params
+  const urlRequirementId = searchParams.get('requirementId')
+
   // Open the submit modal when navigated with ?new=1
   useEffect(() => {
     if (searchParams.get('new') === '1') {
@@ -444,15 +447,18 @@ export default function SubmissionsPage() {
   }, [])
 
   const fetchSubmissions = useCallback(async () => {
-    if (!companyId) return
+    if (!companyId && !urlRequirementId) return
     setLoading(true)
     setError(null)
     try {
-      const params = new URLSearchParams({
-        direction,
-        companyId,
-        limit: '50',
-      })
+      const params = new URLSearchParams({ limit: '50' })
+      if (urlRequirementId) {
+        // Filter by specific requirement — skip company/direction
+        params.set('requirementId', urlRequirementId)
+      } else {
+        params.set('direction', direction)
+        params.set('companyId', companyId!)
+      }
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
 
       const res = await fetch(`/api/submissions?${params}`)
@@ -469,7 +475,7 @@ export default function SubmissionsPage() {
     } finally {
       setLoading(false)
     }
-  }, [direction, statusFilter, companyId])
+  }, [direction, statusFilter, companyId, urlRequirementId])
 
   useEffect(() => {
     fetchSubmissions()

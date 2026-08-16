@@ -231,12 +231,13 @@ export async function GET(request: NextRequest) {
   const direction = url.searchParams.get('direction') ?? 'sent'
   const companyId = url.searchParams.get('companyId')
   const filterPersonId = url.searchParams.get('personId')
+  const filterRequirementId = url.searchParams.get('requirementId')
   const status = url.searchParams.get('status')
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
 
-  // personId-only queries skip the companyId requirement (drawer context)
-  if (!companyId && !filterPersonId) {
+  // personId-only or requirementId-only queries skip the companyId requirement
+  if (!companyId && !filterPersonId && !filterRequirementId) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'companyId or personId is required', field: 'companyId' } },
       { status: 422 }
@@ -251,6 +252,10 @@ export async function GET(request: NextRequest) {
     where.fromCompanyId = companyId
   } else {
     where.toCompanyId = companyId
+  }
+
+  if (filterRequirementId) {
+    where.requirementId = filterRequirementId
   }
 
   if (status) {
