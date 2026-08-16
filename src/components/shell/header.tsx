@@ -11,6 +11,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { NotificationBell } from '@/components/notification-bell'
 
 type HeaderProps = {
   title?: string
@@ -272,6 +273,9 @@ export function Header({ title }: HeaderProps) {
           </div>
         )}
       </div>
+
+      {/* Notification bell — real-time via SSE */}
+      <NotificationBell />
 
       {/* Plus button — the four-section add menu (UX Stress Test #2) */}
       <div className="relative" ref={plusRef}>

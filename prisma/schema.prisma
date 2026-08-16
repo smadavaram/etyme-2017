@@ -870,6 +870,7 @@ model Notification {
   title     String
   body      String
   entityId  String?  // the thing this is about
+  data      Json?    // structured metadata (petitionId, cycleId, etc.)
   channel   String   @default("IN_APP") // IN_APP · EMAIL · TEAMS
   status    String   @default("UNREAD") // UNREAD · READ
   readAt    DateTime?

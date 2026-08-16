@@ -19,20 +19,27 @@ export async function GET(request: NextRequest) {
   const MILESTONES = [90, 60, 30] // days before expiry
 
   try {
-    // Find all active (non-expired, non-denied) visa petitions
+    // Find all active (non-expired, non-denied) visa petitions with an expiry date
     const petitions = await prisma.visaPetition.findMany({
       where: {
-        expiresAt: { gt: now },
-        status: { notIn: ['DENIED', 'WITHDRAWN', 'EXPIRED'] },
+        expiresAt: { not: null, gt: now },
+        status: { notIn: ['DENIED', 'EXPIRED'] },
       },
       include: {
         person: { select: { id: true, name: true } },
       },
     })
 
-    const notifications = []
+    const notifications: Array<{
+      personName: string
+      petitionType: string
+      daysUntilExpiry: number
+      milestone: number
+    }> = []
 
     for (const p of petitions) {
+      if (!p.expiresAt) continue
+
       const daysUntilExpiry = Math.ceil(
         (p.expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
       )
@@ -45,13 +52,12 @@ export async function GET(request: NextRequest) {
         await prisma.notification.create({
           data: {
             personId: p.personId,
-            companyId: p.companyId,
             type: 'VISA_EXPIRY',
             title: `Visa petition expires in ${daysUntilExpiry} days`,
-            body: `${p.person.name}'s ${p.petitionType} petition (${p.caseNumber ?? 'no case#'}) expires ${p.expiresAt.toLocaleDateString()}`,
+            body: `${p.person.name}'s ${p.type} petition expires ${p.expiresAt.toLocaleDateString()}`,
             data: {
               petitionId: p.id,
-              petitionType: p.petitionType,
+              petitionType: p.type,
               daysUntilExpiry,
               milestone,
             },
@@ -59,7 +65,7 @@ export async function GET(request: NextRequest) {
         })
         notifications.push({
           personName: p.person.name,
-          petitionType: p.petitionType,
+          petitionType: p.type,
           daysUntilExpiry,
           milestone,
         })
@@ -68,18 +74,25 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // AutomationLog
+    // AutomationLog — find the person's company through their active context
     if (notifications.length > 0 && petitions.length > 0) {
-      await prisma.automationLog.create({
-        data: {
-          companyId: petitions[0].companyId,
-          action: 'VISA_WATCH',
-          summary: `Sent ${notifications.length} visa expiry notification(s)`,
-          reason: 'Nightly visa petition milestone scan',
-          payload: { notifications },
-          reversible: false,
-        },
+      const context = await prisma.context.findFirst({
+        where: { personId: petitions[0].personId, revokedAt: null, companyId: { not: null } },
+        select: { companyId: true },
       })
+
+      if (context?.companyId) {
+        await prisma.automationLog.create({
+          data: {
+            companyId: context.companyId,
+            action: 'VISA_WATCH',
+            summary: `Sent ${notifications.length} visa expiry notification(s)`,
+            reason: 'Nightly visa petition milestone scan',
+            payload: { notifications },
+            reversible: false,
+          },
+        })
+      }
     }
 
     return NextResponse.json({
