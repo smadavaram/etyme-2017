@@ -326,39 +326,80 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/companies?slug=
+ * GET /api/companies
  *
- * Check slug availability.
+ * Without ?slug= → list all companies (admin / operate view).
+ * With ?slug=    → check slug availability (onboarding).
  */
 export async function GET(request: NextRequest) {
   const slug = request.nextUrl.searchParams.get('slug')
 
-  if (!slug) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'slug parameter is required' } },
-      { status: 422 }
-    )
-  }
+  // ── Slug availability check ─────────────────────────
+  if (slug) {
+    const normalized = slugify(slug)
+    const reserved = RESERVED_SLUGS.has(normalized)
 
-  const normalized = slugify(slug)
-  const reserved = RESERVED_SLUGS.has(normalized)
+    if (reserved) {
+      return NextResponse.json({
+        data: { slug: normalized, available: false, reason: 'This name is reserved' },
+      })
+    }
 
-  if (reserved) {
+    const existing = await prisma.company.findUnique({
+      where: { slug: normalized },
+      select: { id: true },
+    })
+
     return NextResponse.json({
-      data: { slug: normalized, available: false, reason: 'This name is reserved' },
+      data: {
+        slug: normalized,
+        available: !existing,
+        reason: existing ? 'This name is already taken' : null,
+      },
     })
   }
 
-  const existing = await prisma.company.findUnique({
-    where: { slug: normalized },
-    select: { id: true },
+  // ── List companies ──────────────────────────────────
+  const email = await getSessionEmail()
+  if (!email) {
+    return NextResponse.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
+      { status: 401 }
+    )
+  }
+
+  const companies = await prisma.company.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      kind: true,
+      entityType: true,
+      domain: true,
+      domainVerified: true,
+      currency: true,
+      siteLiveAt: true,
+      networkVerifiedAt: true,
+      createdAt: true,
+    },
   })
 
   return NextResponse.json({
     data: {
-      slug: normalized,
-      available: !existing,
-      reason: existing ? 'This name is already taken' : null,
+      companies: companies.map((c) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        kind: c.kind,
+        entityType: c.entityType,
+        domain: c.domain,
+        domainVerified: c.domainVerified,
+        currency: c.currency,
+        siteLiveAt: c.siteLiveAt?.toISOString() ?? null,
+        networkVerifiedAt: c.networkVerifiedAt?.toISOString() ?? null,
+        createdAt: c.createdAt.toISOString(),
+      })),
     },
   })
 }

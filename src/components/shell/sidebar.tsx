@@ -68,6 +68,9 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩' },
       { label: 'Automation', href: '/dashboard/automation', icon: '⚙' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
+      { label: 'Blacklist', href: '/dashboard/blacklist', icon: '⊘' },
+      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻' },
+      { label: 'Companies', href: '/dashboard/companies', icon: '▣' },
     ],
   },
   {

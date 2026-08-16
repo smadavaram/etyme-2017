@@ -703,6 +703,7 @@ model Invoice {
   paid         Decimal    @default(0) @db.Decimal(12, 2)
   dueAt        DateTime
   status       String     @default("ISSUED")
+  submittedAt  DateTime?
   payments     Payment[]
 
   @@index([status, dueAt])

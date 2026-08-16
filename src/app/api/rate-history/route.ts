@@ -13,7 +13,11 @@ import { prisma } from '@/lib/db'
  *   rate_on(date) queries change_rates where date falls between from_date and
  *   to_date. Falls back to earliest rate if no match.
  *
- * Returns rate history for a contract. Requires margin.read for buy rates.
+ * Two modes:
+ *   1. Contract-scoped: pass contractId + contractType → returns rate history
+ *      for that contract. Requires consultants.cost for buy rates.
+ *   2. Dashboard (no contractId): returns all rate history for the caller's
+ *      company, enriched with consultant and contract display names.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -23,9 +27,115 @@ export async function GET(request: NextRequest) {
   const contractId = url.searchParams.get('contractId')
   const contractType = url.searchParams.get('contractType') // SELL | BUY
 
-  if (!contractId || !contractType) {
+  // ── Dashboard mode: all rate history for the company ──────────
+  if (!contractId) {
+    const companyId = caller.company?.id
+    if (!companyId) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'No company context' } },
+        { status: 403 }
+      )
+    }
+
+    // Collect all contract IDs belonging to the company
+    const canSeeBuy = hasPermission(caller.permissions, 'consultants.cost')
+    const [sellContracts, buyContracts] = await Promise.all([
+      prisma.sellContract.findMany({
+        where: { companyId },
+        select: {
+          id: true,
+          person: { select: { name: true } },
+          clientCompany: { select: { name: true } },
+        },
+      }),
+      canSeeBuy
+        ? prisma.buyContract.findMany({
+            where: { companyId },
+            select: {
+              id: true,
+              person: { select: { name: true } },
+              vendorCompany: { select: { name: true } },
+            },
+          })
+        : Promise.resolve([]),
+    ])
+
+    const sellIds = sellContracts.map((c) => c.id)
+    const buyIds = buyContracts.map((c) => c.id)
+
+    // Build contract lookup maps
+    const contractMap = new Map<string, { personName: string; contractLabel: string }>()
+    for (const sc of sellContracts) {
+      contractMap.set(`SELL:${sc.id}`, {
+        personName: sc.person.name,
+        contractLabel: `Sell — ${sc.clientCompany?.name ?? 'Unknown client'}`,
+      })
+    }
+    for (const bc of buyContracts) {
+      contractMap.set(`BUY:${bc.id}`, {
+        personName: bc.person.name,
+        contractLabel: `Buy — ${bc.vendorCompany?.name ?? 'Direct'}`,
+      })
+    }
+
+    // Fetch rate history for all company contracts
+    const whereConditions: any[] = []
+    if (sellIds.length > 0) {
+      whereConditions.push({ contractType: 'SELL', contractId: { in: sellIds } })
+    }
+    if (buyIds.length > 0) {
+      whereConditions.push({ contractType: 'BUY', contractId: { in: buyIds } })
+    }
+
+    if (whereConditions.length === 0) {
+      return NextResponse.json({ data: { rateHistory: [] } })
+    }
+
+    const history = await prisma.rateHistory.findMany({
+      where: { OR: whereConditions },
+      orderBy: { fromDate: 'desc' },
+    })
+
+    // Resolve changedBy person names
+    const changedByIds = Array.from(new Set(history.map((h) => h.changedById)))
+    const changedByPersons = changedByIds.length > 0
+      ? await prisma.person.findMany({
+          where: { id: { in: changedByIds } },
+          select: { id: true, name: true },
+        })
+      : []
+    const personNameMap = new Map(changedByPersons.map((p) => [p.id, p.name]))
+
+    return NextResponse.json({
+      data: {
+        rateHistory: history.map((h) => {
+          const info = contractMap.get(`${h.contractType}:${h.contractId}`)
+          return {
+            id: h.id,
+            contractType: h.contractType,
+            contractId: h.contractId,
+            rate: h.rate,
+            rateType: h.rateType,
+            overtimeRate: h.overtimeRate,
+            fromDate: h.fromDate.toISOString(),
+            toDate: h.toDate?.toISOString() ?? null,
+            reason: h.reason,
+            changedById: h.changedById,
+            changedByName: personNameMap.get(h.changedById) ?? 'Unknown',
+            previousRate: h.previousRate,
+            createdAt: h.createdAt.toISOString(),
+            personName: info?.personName ?? 'Unknown',
+            contractLabel: info?.contractLabel ?? `${h.contractType} contract`,
+          }
+        }),
+      },
+    })
+  }
+
+  // ── Contract-scoped mode ──────────────────────────────────────
+  if (!contractType) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'contractId and contractType (SELL|BUY) are required' } },
+      { error: { code: 'VALIDATION', message: 'contractType (SELL|BUY) is required when contractId is provided' } },
       { status: 422 }
     )
   }
