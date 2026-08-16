@@ -150,7 +150,7 @@ type SearchResult = {
 
 /** Pages a client company can actually reach — mirrors CLIENT_NAV. */
 const CLIENT_SEARCH_LABELS = new Set([
-  'Program', 'Requirements', 'Submissions', 'Contracts', 'Rolloff', 'Alumni',
+  'Program', 'Org view', 'Requirements', 'Submissions', 'Contracts', 'Rolloff', 'Alumni',
   'Timesheets', 'Invoices', 'Expenses', 'Compliance', 'Tenure',
   'Notifications', 'Conversations', 'Decisions',
 ])
@@ -177,6 +177,7 @@ const SEARCH_SECTIONS: { type: string; label: string; href: string }[] = [
   { type: 'page', label: 'Reports', href: '/dashboard/reports' },
   { type: 'page', label: 'Import', href: '/dashboard/import' },
   { type: 'page', label: 'Program', href: '/dashboard/program' },
+  { type: 'page', label: 'Org view', href: '/dashboard/program/org' },
   { type: 'page', label: 'Alumni', href: '/dashboard/alumni' },
   { type: 'page', label: 'Tenure', href: '/dashboard/tenure' },
 ]

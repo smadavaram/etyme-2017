@@ -55,6 +55,7 @@ async function main() {
     prisma.accessLog.deleteMany(),
     prisma.context.deleteMany(),
     prisma.role.deleteMany(),
+    prisma.orgUnit.deleteMany(),
     prisma.masterAgreement.deleteMany(),
     prisma.person.deleteMany(),
     prisma.company.deleteMany(),
@@ -274,6 +275,51 @@ async function main() {
     },
   })
 
+  // ── Client org units and hiring managers (Addendum E) ──
+  // Terumo's departments and the managers who own contingent headcount.
+  // Each manager sourced their own vendors and negotiated their own rates —
+  // which is exactly the condition the org view exists to expose.
+  const orgUnitData = [
+    { key: 'mfgFinance', name: 'Manufacturing Finance', kind: 'DEPARTMENT' },
+    { key: 'quality',    name: 'Quality Systems',       kind: 'DEPARTMENT' },
+    { key: 'supplyChain',name: 'Supply Chain',          kind: 'DEPARTMENT' },
+    { key: 'dataPlatform', name: 'Data Platform',       kind: 'DEPARTMENT' },
+    { key: 'infra',      name: 'Infrastructure',        kind: 'DEPARTMENT' },
+  ]
+
+  const orgUnits: Record<string, { id: string; name: string }> = {}
+  for (const u of orgUnitData) {
+    const unit = await prisma.orgUnit.create({
+      data: { companyId: client.id, name: u.name, kind: u.kind },
+    })
+    orgUnits[u.key] = { id: unit.id, name: unit.name }
+  }
+
+  const managerData = [
+    { key: 'whitfield',  name: 'Dana Whitfield',   email: 'd.whitfield@terumobct.com',  unit: 'mfgFinance' },
+    { key: 'okafor',     name: 'Michael Okafor',   email: 'm.okafor@terumobct.com',     unit: 'quality' },
+    { key: 'mbeki',      name: 'Joyce Mbeki',      email: 'j.mbeki@terumobct.com',      unit: 'supplyChain' },
+    { key: 'ramaswamy',  name: 'Karthik Ramaswamy',email: 'k.ramaswamy@terumobct.com',  unit: 'dataPlatform' },
+    { key: 'castellano', name: 'Rosa Castellano',  email: 'r.castellano@terumobct.com', unit: 'infra' },
+  ]
+
+  const managers: Record<string, { id: string; name: string; unitId: string }> = {}
+  for (const m of managerData) {
+    const person = await prisma.person.create({
+      data: { name: m.name, primaryEmail: m.email },
+    })
+    await prisma.context.create({
+      data: {
+        personId: person.id,
+        type: 'EMPLOYEE',
+        companyId: client.id,
+        roleId: null,
+        orgUnitId: orgUnits[m.unit].id,
+      },
+    })
+    managers[m.key] = { id: person.id, name: m.name, unitId: orgUnits[m.unit].id }
+  }
+
   // ── People & Consultant Profiles ───────────────
   const consultantData = [
     { name: 'Ravi Patel',       email: 'ravi@cloudepa.com',    headline: 'Senior SAP BRIM Consultant',    skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA', 'ABAP'],    location: 'Dallas, TX',     workAuth: 'H1B',        availDays: -30, tier: 'RETAINED' as const,  rateMin: 11000, rateMax: 13000 },
@@ -468,11 +514,13 @@ async function main() {
   // Most contracts are direct (paying customer = end client).
   // One contract demonstrates the three-party layer cake:
   //   vendor bills MSP (paying customer) → consultant works at Terumo BCT (end client)
+  // mgr/unit are the END CLIENT's owner of the engagement (Addendum E).
+  // Nike contracts carry none — the org view is a Terumo surface here.
   const contractData = [
-    { personIdx: 2, clientId: client.id,  billRate: 12000, state: 'IN_PROGRESS' as const, startDays: -120, endDays: 60,  engId: eng1.id, locId: locHQ.id },
-    { personIdx: 5, clientId: client.id,  billRate: 10500, state: 'IN_PROGRESS' as const, startDays: -90,  endDays: 14,  engId: eng1.id, locId: locHQ.id },
-    { personIdx: 0, clientId: client2.id, billRate: 13500, state: 'IN_PROGRESS' as const, startDays: -200, endDays: 165, engId: eng2.id, locId: null },
-    { personIdx: 4, clientId: client.id,  billRate: 13000, state: 'DRAFT' as const,       startDays: 14,   endDays: 380, engId: eng1.id, locId: locRemote.id },
+    { personIdx: 2, clientId: client.id,  billRate: 12000, state: 'IN_PROGRESS' as const, startDays: -120, endDays: 60,  engId: eng1.id, locId: locHQ.id,     mgr: 'mbeki',      unit: 'supplyChain' },
+    { personIdx: 5, clientId: client.id,  billRate: 10500, state: 'IN_PROGRESS' as const, startDays: -90,  endDays: 14,  engId: eng1.id, locId: locHQ.id,     mgr: 'castellano', unit: 'infra' },
+    { personIdx: 0, clientId: client2.id, billRate: 13500, state: 'IN_PROGRESS' as const, startDays: -200, endDays: 165, engId: eng2.id, locId: null,         mgr: null,         unit: null },
+    { personIdx: 4, clientId: client.id,  billRate: 13000, state: 'DRAFT' as const,       startDays: 14,   endDays: 380, engId: eng1.id, locId: locRemote.id, mgr: 'ramaswamy',  unit: 'dataPlatform' },
   ]
 
   const sellContracts: any[] = []
@@ -494,6 +542,8 @@ async function main() {
         msaId: c.clientId === client.id ? msa.id : msa2.id,
         engagementId: c.engId,
         workLocationId: c.locId,
+        hiringManagerId: c.mgr ? managers[c.mgr].id : null,
+        orgUnitId: c.unit ? orgUnits[c.unit].id : null,
       },
     })
     sellContracts.push(sc)
@@ -518,9 +568,63 @@ async function main() {
       endDate: mspContractEnd,
       msaId: msaMSP.id,
       workLocationId: locAnnArbor.id,     // works at Ann Arbor site
+      hiringManagerId: managers.castellano.id,
+      orgUnitId: orgUnits.infra.id,
     },
   })
   sellContracts.push(mspContract)
+
+  // ── TechVista contractors at Terumo (Addendum E rate variance) ──
+  // Different managers sourced the same skills from a second vendor at
+  // different rates. This is the condition the org view surfaces: nobody
+  // has seen these side by side, because they live in separate inboxes.
+  const tvContractorData = [
+    { name: 'Elena Fischer',  email: 'elena@techvista.com',  headline: 'SAP MM / SD Consultant',   skills: ['SAP MM', 'SAP SD', 'S/4HANA'],           billRate: 14800, mgr: 'whitfield', unit: 'mfgFinance',   loc: locHQ.id,      startDays: -150, endDays: 120 },
+    { name: 'Owen Bradley',   email: 'owen@techvista.com',   headline: 'Data Engineer',            skills: ['Snowflake', 'Python', 'dbt'],            billRate: 11200, mgr: 'whitfield', unit: 'mfgFinance',   loc: locRemote.id,  startDays: -100, endDays: 200 },
+    { name: 'Aisha Mahmood',  email: 'aisha@techvista.com',  headline: 'Cloud Platform Engineer',  skills: ['AWS', 'Kubernetes', 'Terraform'],        billRate: 13800, mgr: 'ramaswamy', unit: 'dataPlatform', loc: locRemote.id,  startDays: -70,  endDays: 240 },
+    { name: 'Peter Lindgren', email: 'peter@techvista.com',  headline: 'Validation / CSV Lead',    skills: ['CSV', 'Process Validation', 'FDA'],      billRate: 9600,  mgr: 'okafor',    unit: 'quality',      loc: locAnnArbor.id, startDays: -220, endDays: 90 },
+  ]
+
+  for (const t of tvContractorData) {
+    const person = await prisma.person.create({
+      data: { name: t.name, primaryEmail: t.email },
+    })
+    await prisma.consultantProfile.create({
+      data: {
+        personId: person.id,
+        headline: t.headline,
+        skills: t.skills,
+        location: 'United States',
+        workAuth: 'US_CITIZEN',
+        visibility: 'CLIENT_VISIBLE',
+      },
+    })
+    await prisma.context.create({
+      data: { personId: person.id, type: 'CONSULTANT', companyId: vendor2.id },
+    })
+
+    const startDate = new Date(now)
+    startDate.setDate(startDate.getDate() + t.startDays)
+    const endDate = new Date(now)
+    endDate.setDate(endDate.getDate() + t.endDays)
+
+    const sc = await prisma.sellContract.create({
+      data: {
+        companyId: vendor2.id,
+        clientCompanyId: client.id,
+        personId: person.id,
+        billRate: t.billRate,
+        state: 'IN_PROGRESS',
+        startDate,
+        endDate,
+        msaId: msaTV.id,
+        workLocationId: t.loc,
+        hiringManagerId: managers[t.mgr].id,
+        orgUnitId: orgUnits[t.unit].id,
+      },
+    })
+    sellContracts.push(sc)
+  }
 
   // ── Buy Contracts (payroll side) ────────────────
   // Each active sell contract gets a linked buy contract representing
@@ -1544,11 +1648,18 @@ async function main() {
   ]
 
   const endedContracts: any[] = []
-  for (const c of endedContractData) {
+  // Ended contracts carry a manager too — alumni memory is per-department,
+  // and tenure aggregates at the client regardless of who supplied them.
+  const alumniManagerRotation = ['okafor', 'mbeki', 'whitfield'] as const
+
+  for (const [i, c] of endedContractData.entries()) {
     const startDate = new Date(now)
     startDate.setDate(startDate.getDate() + c.startDays)
     const endDate = new Date(now)
     endDate.setDate(endDate.getDate() + c.endDays)
+
+    const mgrKey = alumniManagerRotation[i % alumniManagerRotation.length]
+    const mgr = managers[mgrKey]
 
     const sc = await prisma.sellContract.create({
       data: {
@@ -1561,6 +1672,8 @@ async function main() {
         endDate,
         msaId: c.msaId,
         engagementId: c.engagementId,
+        hiringManagerId: mgr.id,
+        orgUnitId: mgr.unitId,
       },
     })
     endedContracts.push(sc)

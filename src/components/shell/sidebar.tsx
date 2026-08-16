@@ -96,6 +96,7 @@ const CLIENT_NAV: NavSection[] = [
   {
     label: 'Governance',
     items: [
+      { label: 'Org view', href: '/dashboard/program/org', icon: '⬢' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫' },

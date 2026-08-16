@@ -39,6 +39,7 @@ model Person {
   verifications Verification[]
   enrollments   Enrollment[]
   expenses      Expense[]
+  managedContracts SellContract[] @relation("hiringManager") // Addendum E: contracts this person owns at the client
 }
 
 model Credential {
@@ -233,8 +234,9 @@ model OrgUnit {
   parent    OrgUnit?  @relation("tree", fields: [parentId], references: [id])
   children  OrgUnit[] @relation("tree")
   name      String
-  kind      String // BU · PRACTICE · ACCOUNT · PROJECT
+  kind      String // BU · PRACTICE · ACCOUNT · PROJECT · DEPARTMENT
   contexts  Context[]
+  sellContracts SellContract[] // contingent workers charged to this unit
 
   @@index([companyId])
 }
@@ -511,6 +513,17 @@ model SellContract {
   workLocationId  String? // specific site at the end client
   workLocation    CompanyLocation? @relation(fields: [workLocationId], references: [id])
 
+  // Addendum E — who at the END CLIENT owns this engagement.
+  // A contract knows its vendor, its client, and its site, but until now not
+  // which manager and which department it belongs to. Every client governance
+  // capability needs that edge: the multi-manager org view, rate variance by
+  // skill, approval routing, and headcount plans all aggregate on it.
+  // Null on vendor-side contracts where the client has not named an owner.
+  hiringManagerId String?
+  hiringManager   Person?          @relation("hiringManager", fields: [hiringManagerId], references: [id])
+  orgUnitId       String? // the end client's department / cost centre
+  orgUnit         OrgUnit?         @relation(fields: [orgUnitId], references: [id])
+
   billRate           Int // cents per hour
   billCurrency       String            @default("USD")
   paymentTerms       Int               @default(30) // NET days — cascades from MSA, overridable
@@ -534,6 +547,8 @@ model SellContract {
   @@index([endClientCompanyId])
   @@index([personId])
   @@index([endDate])
+  @@index([hiringManagerId])
+  @@index([orgUnitId])
 }
 
 enum SellContractState {
