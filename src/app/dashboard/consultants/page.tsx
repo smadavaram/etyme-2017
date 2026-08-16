@@ -221,20 +221,44 @@ interface DrawerSubmission {
   submittedAt: string
 }
 
+interface RateProgressionData {
+  progression: Array<{
+    date: string
+    payRate: number | null
+    billRate: number | null
+    margin: number | null
+    marginPercent: number | null
+    contractType: string
+    state: string
+    client: string | null
+    vendor: string | null
+    currency: string
+  }>
+  summary: {
+    totalPlacements: number
+    firstRate: number | null
+    currentRate: number | null
+    rateGrowth: number | null
+    currency: string
+  }
+}
+
 function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onClose: () => void }) {
   const [contracts, setContracts] = useState<DrawerContract[]>([])
   const [submissions, setSubmissions] = useState<DrawerSubmission[]>([])
+  const [rateProgression, setRateProgression] = useState<RateProgressionData | null>(null)
   const [loadingActivity, setLoadingActivity] = useState(true)
 
   useEffect(() => {
     async function fetchActivity() {
       setLoadingActivity(true)
       try {
-        // Fetch sell + buy contracts and submissions in parallel
-        const [sellRes, buyRes, submissionsRes] = await Promise.all([
+        // Fetch sell + buy contracts, submissions, and rate progression in parallel
+        const [sellRes, buyRes, submissionsRes, rateRes] = await Promise.all([
           fetch(`/api/contracts?side=sell&personId=${consultant.personId}`).catch(() => null),
           fetch(`/api/contracts?side=buy&personId=${consultant.personId}`).catch(() => null),
           fetch(`/api/submissions?personId=${consultant.personId}`).catch(() => null),
+          fetch(`/api/consultants/${consultant.id}/rate-progression`).catch(() => null),
         ])
 
         const allContracts: DrawerContract[] = []
@@ -288,6 +312,14 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
             rate: s.billRate,
             submittedAt: s.submittedAt ?? s.createdAt,
           })))
+        }
+
+        // Rate progression — Addendum D §D.3.3
+        if (rateRes?.ok) {
+          const body = await rateRes.json()
+          if (body.data) {
+            setRateProgression(body.data)
+          }
         }
       } catch {
         // Silently fail — activity section is supplementary
@@ -484,6 +516,77 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Rate Progression — Addendum D §D.3.3 */}
+          {!loadingActivity && rateProgression && rateProgression.progression.length > 0 && (
+            <>
+              <hr className="border-etyme-rule" />
+              <div>
+                <p className="eyebrow mb-2">
+                  Rate progression
+                  {rateProgression.summary.rateGrowth != null && (
+                    <span className={`ml-2 text-[11px] font-medium ${
+                      rateProgression.summary.rateGrowth > 0 ? 'text-etyme-verified' :
+                      rateProgression.summary.rateGrowth < 0 ? 'text-etyme-attention' :
+                      'text-etyme-muted'
+                    }`}>
+                      {rateProgression.summary.rateGrowth > 0 ? '+' : ''}
+                      {rateProgression.summary.rateGrowth}%
+                    </span>
+                  )}
+                </p>
+                {/* Summary stat row */}
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  {rateProgression.summary.firstRate != null && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">First</p>
+                      <p className="text-sm font-serif tabular-nums">${(rateProgression.summary.firstRate / 100).toFixed(0)}/hr</p>
+                    </div>
+                  )}
+                  {rateProgression.summary.currentRate != null && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Current</p>
+                      <p className="text-sm font-serif tabular-nums font-medium">${(rateProgression.summary.currentRate / 100).toFixed(0)}/hr</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Placements</p>
+                    <p className="text-sm font-serif tabular-nums">{rateProgression.summary.totalPlacements}</p>
+                  </div>
+                </div>
+                {/* Timeline */}
+                <div className="space-y-1.5">
+                  {rateProgression.progression.map((p, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[12px]">
+                      <span className="tabular-nums text-etyme-faint w-[70px] shrink-0">
+                        {new Date(p.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      </span>
+                      <span className={`chip ${
+                        p.state === 'IN_PROGRESS' ? 'chip--verified' :
+                        p.state === 'ENDED' ? 'chip--passive' :
+                        'chip--attention'
+                      } text-[10px]`}>
+                        {p.state === 'IN_PROGRESS' ? 'Active' : p.state === 'ENDED' ? 'Ended' : p.state}
+                      </span>
+                      {p.payRate != null && (
+                        <span className="tabular-nums text-etyme-ink font-medium">
+                          ${(p.payRate / 100).toFixed(0)}/hr
+                        </span>
+                      )}
+                      {p.billRate != null && (
+                        <span className="tabular-nums text-etyme-faint">
+                          (bill: ${(p.billRate / 100).toFixed(0)})
+                        </span>
+                      )}
+                      {p.client && (
+                        <span className="text-etyme-muted truncate">{p.client}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
           )}
 
           {/* Recent submissions */}

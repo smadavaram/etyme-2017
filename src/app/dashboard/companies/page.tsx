@@ -248,27 +248,57 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
 // ── Company Detail Drawer ─────────────────────────────────
 
+interface TrustSignals {
+  medianTenureMonths: number | null
+  benchPayHonouredRate: number | null
+  medianReplacementDays: number | null
+  avgRateGrowthPercent: number | null
+  activeBenchSize: number | null
+  disclosureRate: number | null
+}
+
 function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => void }) {
   const [locations, setLocations] = useState<Location[]>([])
   const [loadingLocations, setLoadingLocations] = useState(true)
+  const [trustSignals, setTrustSignals] = useState<TrustSignals | null>(null)
 
   useEffect(() => {
-    async function fetchLocations() {
+    async function fetchData() {
       setLoadingLocations(true)
       try {
-        const res = await fetch(`/api/companies/${company.id}/locations`)
-        if (res.ok) {
-          const body = await res.json()
+        // Fetch locations (all companies) + trust signals (vendors only) in parallel
+        const fetches: Promise<Response | null>[] = [
+          fetch(`/api/companies/${company.id}/locations`).catch(() => null),
+        ]
+
+        // Trust signals only apply to vendor companies (Addendum D §D.3.3)
+        if (company.kind === 'VENDOR') {
+          fetches.push(
+            fetch(`/api/vendors/${company.id}/trust-signals`).catch(() => null)
+          )
+        }
+
+        const [locRes, trustRes] = await Promise.all(fetches)
+
+        if (locRes?.ok) {
+          const body = await locRes.json()
           setLocations(body.data?.locations ?? [])
         }
+
+        if (trustRes?.ok) {
+          const body = await trustRes.json()
+          if (body.data?.signals) {
+            setTrustSignals(body.data.signals)
+          }
+        }
       } catch {
-        // Silently fail — locations are supplementary
+        // Silently fail — supplementary data
       } finally {
         setLoadingLocations(false)
       }
     }
-    fetchLocations()
-  }, [company.id])
+    fetchData()
+  }, [company.id, company.kind])
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/20" onClick={onClose}>
@@ -395,6 +425,64 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
               </div>
             )}
           </div>
+
+          {/* Trust Signals — Addendum D §D.3.3 (vendor companies only) */}
+          {trustSignals && (
+            <>
+              <hr className="border-etyme-rule" />
+              <div>
+                <p className="eyebrow mb-3">Trust signals</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {trustSignals.medianTenureMonths != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Median tenure</p>
+                      <p className="text-lg font-serif tabular-nums">{trustSignals.medianTenureMonths}<span className="text-sm text-etyme-muted ml-0.5">mo</span></p>
+                    </div>
+                  )}
+                  {trustSignals.benchPayHonouredRate != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Bench pay</p>
+                      <p className="text-lg font-serif tabular-nums">{trustSignals.benchPayHonouredRate}<span className="text-sm text-etyme-muted ml-0.5">%</span></p>
+                    </div>
+                  )}
+                  {trustSignals.medianReplacementDays != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Re-placement</p>
+                      <p className="text-lg font-serif tabular-nums">{trustSignals.medianReplacementDays}<span className="text-sm text-etyme-muted ml-0.5">days</span></p>
+                    </div>
+                  )}
+                  {trustSignals.avgRateGrowthPercent != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Rate growth</p>
+                      <p className={`text-lg font-serif tabular-nums ${
+                        trustSignals.avgRateGrowthPercent > 0 ? 'text-etyme-verified' :
+                        trustSignals.avgRateGrowthPercent < 0 ? 'text-etyme-attention' :
+                        ''
+                      }`}>
+                        {trustSignals.avgRateGrowthPercent > 0 ? '+' : ''}
+                        {trustSignals.avgRateGrowthPercent}%
+                      </p>
+                    </div>
+                  )}
+                  {trustSignals.activeBenchSize != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Bench size</p>
+                      <p className="text-lg font-serif tabular-nums">{trustSignals.activeBenchSize}</p>
+                    </div>
+                  )}
+                  {trustSignals.disclosureRate != null && (
+                    <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Disclosure</p>
+                      <p className="text-lg font-serif tabular-nums">{trustSignals.disclosureRate}<span className="text-sm text-etyme-muted ml-0.5">%</span></p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-etyme-faint mt-2 italic">
+                  Addendum D §D.3.3: Trust signals replace disclosure as the measure of vendor quality.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
