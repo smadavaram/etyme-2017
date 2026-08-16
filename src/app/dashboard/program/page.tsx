@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -548,6 +549,8 @@ function OverviewTab({ data, onExtend, onRolloff }: {
 // ── Approvals tab ─────────────────────────────────────────
 
 function ApprovalsTab({ items, onApprove }: { items: ProgramData['approvalQueue']; onApprove?: (item: ProgramData['approvalQueue'][number]) => void }) {
+  const router = useRouter()
+
   if (items.length === 0) {
     return (
       <div className="card text-center py-12">
@@ -604,8 +607,11 @@ function ApprovalsTab({ items, onApprove }: { items: ProgramData['approvalQueue'
               >
                 Approve
               </button>
-              <button className="text-xs px-3 py-2 border border-etyme-rule rounded text-etyme-muted
-                                 hover:text-etyme-ink transition-colors">
+              <button
+                onClick={() => router.push(`/dashboard/conversations?new=1`)}
+                className="text-xs px-3 py-2 border border-etyme-rule rounded text-etyme-muted
+                                 hover:text-etyme-ink transition-colors"
+              >
                 Query
               </button>
             </div>
@@ -811,6 +817,8 @@ function VendorsTab({ vendors }: { vendors: ProgramData['vendors'] }) {
 // ── Open roles tab ────────────────────────────────────────
 
 function RolesTab({ roles }: { roles: ProgramData['openRoles'] }) {
+  const router = useRouter()
+
   if (roles.length === 0) {
     return (
       <div className="card text-center py-12">
@@ -844,8 +852,11 @@ function RolesTab({ roles }: { roles: ProgramData['openRoles'] }) {
               }`}>
                 {r.status}
               </span>
-              <button className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted
-                                 hover:text-etyme-ink transition-colors">
+              <button
+                onClick={() => router.push(`/dashboard/submissions?requirementId=${r.id}`)}
+                className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted
+                                 hover:text-etyme-ink transition-colors"
+              >
                 View candidates
               </button>
             </div>

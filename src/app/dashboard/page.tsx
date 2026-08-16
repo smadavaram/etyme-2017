@@ -95,10 +95,12 @@ function todayLabel(): string {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [userName, setUserName] = useState<string>('there')
 
   const fetchDashboard = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       // Fetch in parallel: decisions, contracts, bench, me, automation
       const [decisionsRes, contractsRes, benchRes, meRes, automationRes] = await Promise.all([
@@ -172,8 +174,8 @@ export default function DashboardPage() {
         },
         recentAutomation,
       })
-    } catch {
-      // Fallback silently
+    } catch (err: any) {
+      setError(err.message ?? 'Failed to load dashboard data')
     } finally {
       setLoading(false)
     }
@@ -187,6 +189,21 @@ export default function DashboardPage() {
     return (
       <div className="animate-fade-in py-20 text-center text-etyme-muted">
         Loading dashboard…
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="animate-fade-in py-20 text-center">
+        <p className="text-etyme-attention font-medium mb-2">Unable to load dashboard</p>
+        <p className="text-sm text-etyme-muted mb-4">{error}</p>
+        <button
+          onClick={() => { setError(null); fetchDashboard() }}
+          className="btn-secondary"
+        >
+          Retry
+        </button>
       </div>
     )
   }

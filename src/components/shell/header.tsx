@@ -46,6 +46,12 @@ const PLUS_MENU: PlusMenuSection[] = [
         href: '/dashboard/submissions?new=1',
         icon: '◇',
       },
+      {
+        label: 'New contract',
+        description: 'Create a sell or buy contract',
+        href: '/dashboard/contracts?new=1',
+        icon: '▣',
+      },
     ],
   },
   {

@@ -639,9 +639,40 @@ export default function TimesheetsPage() {
             >
               {approving ? 'Approving…' : `Approve (${selected.size})`}
             </button>
-            <button className="px-3 py-1.5 text-[11px] font-medium rounded-md
+            <button
+              onClick={() => {
+                const rows = filtered.filter((t) => selected.has(t.id))
+                if (rows.length === 0) return
+                const header = ['Consultant','Client','Engagement','Period Start','Period End','Hours','Bill Rate','Billable Value','Status']
+                const csvRows = rows.map((t) => {
+                  const value = t.totalHours * (t.sellContract.billRate / 100)
+                  return [
+                    t.person.name,
+                    t.sellContract.clientCompany.name,
+                    t.sellContract.engagement?.title ?? '',
+                    t.periodStart,
+                    t.periodEnd,
+                    t.totalHours.toFixed(1),
+                    (t.sellContract.billRate / 100).toFixed(2),
+                    value.toFixed(2),
+                    t.status,
+                  ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')
+                })
+                const csv = [header.join(','), ...csvRows].join('\n')
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `timesheets-export-${new Date().toISOString().slice(0, 10)}.csv`
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                URL.revokeObjectURL(url)
+              }}
+              className="px-3 py-1.5 text-[11px] font-medium rounded-md
                                border border-etyme-rule text-etyme-muted
-                               hover:bg-etyme-canvas transition-colors">
+                               hover:bg-etyme-canvas transition-colors"
+            >
               Export selected
             </button>
           </>
