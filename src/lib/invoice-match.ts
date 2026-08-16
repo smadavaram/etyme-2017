@@ -1,0 +1,101 @@
+import { prisma } from '@/lib/db'
+import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from '@/lib/three-way-match'
+
+/**
+ * Load the three records and match them.
+ *
+ * Kept apart from any route because more than one path needs the same
+ * answer — reviewing an invoice, submitting it, approving it for payment —
+ * and a control that each caller re-implements is a control that eventually
+ * disagrees with itself.
+ */
+export async function matchInvoice(invoiceId: string): Promise<MatchResult | null> {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: {
+      invoiceLines: {
+        include: {
+          person: { select: { name: true } },
+          timesheet: {
+            select: {
+              id: true, status: true, totalHours: true,
+              sellContract: { select: { billRate: true } },
+            },
+          },
+        },
+      },
+      purchaseOrder: true,
+      engagement: {
+        select: { sellContracts: { select: { purchaseOrderId: true }, take: 1 } },
+      },
+    },
+  })
+
+  if (!invoice) return null
+
+  // What else has drawn on this purchase order. Computed rather than stored:
+  // a denormalised balance drifts, and a drifted ceiling is worse than none.
+  let consumedCents = 0
+  if (invoice.purchaseOrderId) {
+    const others = await prisma.invoice.findMany({
+      where: {
+        purchaseOrderId: invoice.purchaseOrderId,
+        id: { not: invoice.id },
+        status: { notIn: ['VOID', 'CANCELLED', 'DRAFT'] },
+      },
+      select: { total: true },
+    })
+    consumedCents = others.reduce((s, i) => s + decimalToCents(i.total), 0)
+  }
+
+  const input: MatchInput = {
+    invoice: {
+      id: invoice.id,
+      totalCents: decimalToCents(invoice.total),
+      periodStart: invoice.periodStart,
+      periodEnd: invoice.periodEnd,
+    },
+    lines: invoice.invoiceLines.map(l => ({
+      id: l.id,
+      timesheetId: l.timesheetId,
+      personName: l.person.name,
+      hours: Number(l.hours),
+      rateCents: l.rateCents,
+      amountCents: l.amountCents,
+    })),
+    timesheets: Object.fromEntries(
+      invoice.invoiceLines
+        .filter(l => l.timesheet)
+        .map(l => [
+          l.timesheet.id,
+          {
+            id: l.timesheet.id,
+            status: l.timesheet.status,
+            approvedHours: Number(l.timesheet.totalHours),
+            contractRateCents: l.timesheet.sellContract.billRate,
+            // The unique constraint on InvoiceLine.timesheetId means a
+            // timesheet reachable from THIS invoice cannot also be on
+            // another, so this is always self-referential here. It stays in
+            // the engine's input because the engine is also used to check
+            // an invoice before its lines are written.
+            alreadyBilledOnInvoiceId: invoice.id,
+          },
+        ])
+    ),
+    po: invoice.purchaseOrder
+      ? {
+          id: invoice.purchaseOrder.id,
+          number: invoice.purchaseOrder.number,
+          status: invoice.purchaseOrder.status,
+          amountCents: decimalToCents(invoice.purchaseOrder.amount),
+          consumedCents,
+          startDate: invoice.purchaseOrder.startDate,
+          endDate: invoice.purchaseOrder.endDate,
+        }
+      : null,
+    // A PO is required once the contract being billed was raised against one.
+    poRequired: Boolean(invoice.engagement.sellContracts[0]?.purchaseOrderId),
+  }
+
+  return threeWayMatch(input)
+}

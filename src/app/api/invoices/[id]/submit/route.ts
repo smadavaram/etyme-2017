@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { matchInvoice } from '@/lib/invoice-match'
 
 /**
  * POST /api/invoices/:id/submit
@@ -66,6 +67,32 @@ export async function POST(
       }},
       { status: 409 }
     )
+  }
+
+  // ── The control ──
+  // Purchase order, approved timesheet, invoice. An invoice that does not
+  // match cannot be sent to a client for payment — not flagged, not warned
+  // about. This is the difference between a workflow tool and a system of
+  // record, and it is the only thing here a finance team actually buys.
+  //
+  // Invoices raised before line-level receipting have no InvoiceLine rows;
+  // those are let through with the gap recorded, because retro-blocking
+  // historic invoices helps nobody.
+  const lineCount = await prisma.invoiceLine.count({ where: { invoiceId: id } })
+  if (lineCount > 0) {
+    const match = await matchInvoice(id)
+    if (match && !match.matched) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'MATCH_FAILED',
+            message: `This invoice does not match its timesheets or purchase order: ${match.summary}`,
+            checks: match.checks.filter(c => c.outcome === 'FAIL'),
+          },
+        },
+        { status: 409 }
+      )
+    }
   }
 
   const now = new Date()

@@ -77,7 +77,9 @@ export async function POST(request: NextRequest) {
   const timesheetWhere: any = {
     sellContractId: { in: contractIds },
     status: 'APPROVED',
-    invoiceId: null,
+    // Not yet billed. Expressed as the absence of an InvoiceLine rather
+    // than a loose flag, so it cannot disagree with what was invoiced.
+    invoiceLine: null,
   }
 
   if (periodStart) {
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
     where: timesheetWhere,
     include: {
       person: { select: { id: true, name: true } },
-      sellContract: { select: { id: true, billRate: true, billCurrency: true } },
+      sellContract: { select: { id: true, billRate: true, billCurrency: true, purchaseOrderId: true } },
     },
     orderBy: { periodStart: 'asc' },
   })
@@ -195,15 +197,42 @@ export async function POST(request: NextRequest) {
           total,
           dueAt,
           status: 'ISSUED',
+          // Inherit the PO the work was authorised under. Without it the
+          // three-way match has only two records to compare.
+          purchaseOrderId: timesheets.find(t => t.sellContract.purchaseOrderId)
+            ?.sellContract.purchaseOrderId ?? null,
         },
       })
 
-      // Mark timesheets as invoiced
+      // One InvoiceLine per timesheet — one receipt, one line. The JSON
+      // above stays as a display cache grouped by person; these rows are
+      // what the three-way match reads, and what the database constrains
+      // to a single billing per timesheet.
+      for (const group of lines) {
+        for (const tsId of group.timesheetIds) {
+          const ts = timesheets.find((t) => t.id === tsId)
+          if (!ts) continue
+          const hours = Number(ts.totalHours)
+          const rateCents = ts.sellContract.billRate
+          await tx.invoiceLine.create({
+            data: {
+              invoiceId: invoice.id,
+              timesheetId: ts.id,
+              sellContractId: ts.sellContractId,
+              personId: ts.person.id,
+              hours,
+              rateCents,
+              amountCents: Math.round(hours * rateCents),
+              description: `${ts.person.name} — ${ts.periodStart.toISOString().slice(0, 10)} to ${ts.periodEnd.toISOString().slice(0, 10)}`,
+            },
+          })
+        }
+      }
+
+      // Deliberately no write back to Timesheet here. The InvoiceLine rows
+      // are the link, and an invoice must never touch the approval state of
+      // the receipts that justify it.
       const allTimesheetIds = lines.flatMap((l) => l.timesheetIds)
-      await tx.timesheet.updateMany({
-        where: { id: { in: allTimesheetIds } },
-        data: { invoiceId: invoice.id },
-      })
 
       // AutomationLog
       await tx.automationLog.create({

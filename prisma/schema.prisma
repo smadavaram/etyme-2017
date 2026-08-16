@@ -38,6 +38,7 @@ model Person {
   // agreement can cover several people at their own rates.
   buyCandidacies BuyContractCandidate[]
   timesheets    Timesheet[]
+  invoiceLines  InvoiceLine[]
   verifications Verification[]
   enrollments   Enrollment[]
   expenses      Expense[]
@@ -648,6 +649,7 @@ model SellContract {
 
   buyLinks   ContractLink[] // linked buy contracts (for profitability)
   timesheets Timesheet[]
+  invoiceLines InvoiceLine[]
   sellCycles Cycle[]        @relation("sellCycles")
   rolloff    RolloffEvent?
   docs       DocInstance[]  @relation("sellDocs")
@@ -850,7 +852,9 @@ model Timesheet {
   anomalyReason  String?
   approvedById   String?
   approvedAt     DateTime?
-  invoiceId      String?
+  // Billing is expressed by InvoiceLine, which the database constrains to one
+  // line per timesheet. The old loose invoiceId string enforced nothing.
+  invoiceLine    InvoiceLine?
 
   @@unique([sellContractId, periodStart])
   @@index([status])
@@ -863,7 +867,10 @@ model Invoice {
   number       String     @unique
   periodStart  DateTime
   periodEnd    DateTime
-  lines        Json // consolidated: many sell contracts, possibly several currencies
+  // Retained for invoices raised before line-level receipting; new invoices
+  // write InvoiceLine rows and this stays null.
+  lines        Json?
+  invoiceLines InvoiceLine[]
   currency     String
   total        Decimal    @db.Decimal(12, 2)
   paid         Decimal    @default(0) @db.Decimal(12, 2)
@@ -995,6 +1002,45 @@ model ContractCostAllocation {
 //
 // AP will not pay an invoice without a PO reference and remaining balance,
 // which is why this is Phase 1 and not enterprise scope.
+// One billable line, tied to the approved timesheet that justifies it.
+//
+// This is the goods receipt of contingent labour. In a purchasing system
+// nobody pays an invoice for goods that were never receipted; the same rule
+// has to hold for hours. A line without a timesheet is a claim nobody
+// witnessed.
+//
+// The unique on timesheetId is the whole anti-double-billing control, and it
+// lives in the database rather than in a service, because a service can be
+// bypassed by the next route somebody writes. One timesheet bills once, ever.
+// Voiding an invoice deletes its lines, which releases those timesheets to be
+// billed again — the invoice header survives for audit.
+model InvoiceLine {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  timesheetId String    @unique // one timesheet, one line, ever
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id])
+
+  sellContractId String
+  sellContract   SellContract @relation(fields: [sellContractId], references: [id])
+  personId       String
+  person         Person       @relation(fields: [personId], references: [id])
+
+  // Cents throughout, matching every other rate in the schema.
+  // Invoice.total remains a Decimal in whole currency; the two are reconciled
+  // by the HEADER_TOTAL check rather than by assumption.
+  hours       Decimal @db.Decimal(7, 2)
+  rateCents   Int
+  amountCents Int
+
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@index([invoiceId])
+  @@index([sellContractId])
+}
+
 model PurchaseOrder {
   id         String   @id @default(cuid())
   number     String // the payer's PO number
