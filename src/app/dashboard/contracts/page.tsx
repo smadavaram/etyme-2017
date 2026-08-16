@@ -440,6 +440,8 @@ function ContractDetailDrawer({
   const [extending, setExtending] = useState(false)
   const [initiatingRolloff, setInitiatingRolloff] = useState(false)
   const [activating, setActivating] = useState(false)
+  const [governanceWarn, setGovernanceWarn] = useState<{ message: string; evaluations: any[] } | null>(null)
+  const [overrideReason, setOverrideReason] = useState('')
 
   const isActive = contract.state === 'IN_PROGRESS'
   const isDraft = contract.state === 'DRAFT'
@@ -517,21 +519,42 @@ function ContractDetailDrawer({
     }
   }
 
-  async function handleActivation(action: string, label: string) {
+  async function handleActivation(action: string, label: string, overrideReasonText?: string) {
     setActivating(true)
     try {
+      const payload: Record<string, string> = { action }
+      if (overrideReasonText) payload.overrideReason = overrideReasonText
+
       const res = await fetch(`/api/contracts/${contract.id}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify(payload),
       })
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
+
+        // Governance warning — show override prompt
+        if (body.error?.code === 'GOVERNANCE_WARN' && body.error?.overridable) {
+          setGovernanceWarn({
+            message: body.error.message,
+            evaluations: body.error.evaluations ?? [],
+          })
+          return
+        }
+
+        // Governance block — show but don't allow override
+        if (body.error?.code === 'GOVERNANCE_BLOCK') {
+          onToast(`⛔ ${body.error.message}`, 'error')
+          return
+        }
+
         onToast(body.error?.message ?? `Failed to ${label.toLowerCase()} contract`, 'error')
         return
       }
 
+      setGovernanceWarn(null)
+      setOverrideReason('')
       onToast(`Contract ${label.toLowerCase()}d`, 'success')
       onRefresh()
       onClose()
@@ -540,6 +563,13 @@ function ContractDetailDrawer({
     } finally {
       setActivating(false)
     }
+  }
+
+  async function handleGovernanceOverride() {
+    if (!overrideReason.trim()) return
+    setGovernanceWarn(null)
+    await handleActivation('activate', 'Activate', overrideReason)
+    setOverrideReason('')
   }
 
   return (
@@ -794,6 +824,61 @@ function ContractDetailDrawer({
               </button>
               <button onClick={handleRolloff} disabled={initiatingRolloff} className="btn-primary disabled:opacity-50">
                 {initiatingRolloff ? 'Initiating…' : 'Confirm rolloff'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Governance warning override dialog */}
+      {governanceWarn && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30"
+          onClick={() => { setGovernanceWarn(null); setOverrideReason('') }}
+        >
+          <div className="card w-full max-w-md mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xl">⚠️</span>
+              <h3 className="text-base font-semibold">Governance warning</h3>
+            </div>
+            <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 mb-4">
+              <p className="text-sm text-amber-800">{governanceWarn.message}</p>
+              {governanceWarn.evaluations.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {governanceWarn.evaluations
+                    .filter((e: any) => e.outcome === 'WARN')
+                    .map((e: any, i: number) => (
+                      <li key={i} className="text-[12px] text-amber-700">
+                        • <strong>{e.ruleType}</strong>: {e.reason}
+                      </li>
+                    ))
+                  }
+                </ul>
+              )}
+            </div>
+            <p className="text-sm text-etyme-muted mb-3">
+              You can proceed by providing a justification. This will be recorded in the governance audit trail.
+            </p>
+            <textarea
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              placeholder="Justification for override (required)…"
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg mb-4
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                         resize-none"
+            />
+            <div className="flex justify-end gap-3">
+              <button onClick={() => { setGovernanceWarn(null); setOverrideReason('') }} className="btn-secondary">
+                Cancel
+              </button>
+              <button
+                onClick={handleGovernanceOverride}
+                disabled={!overrideReason.trim() || activating}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-amber-600 text-white
+                           hover:bg-amber-700 transition-colors disabled:opacity-50"
+              >
+                {activating ? 'Activating…' : 'Override and activate'}
               </button>
             </div>
           </div>

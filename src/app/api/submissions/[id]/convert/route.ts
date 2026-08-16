@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
 import type { CycleDefinition } from '@/lib/cycle-generator'
 import { getTemplatePack } from '@/lib/template-packs'
+import { evaluateGovernance } from '@/lib/governance'
 
 /**
  * POST /api/submissions/:id/convert
@@ -106,6 +107,34 @@ export async function POST(
       { status: 409 }
     )
   }
+
+  // ── Governance check before creating contract ──
+  const resolvedEndClient = endClientCompanyId ?? submission.toCompanyId
+  const governance = await evaluateGovernance({
+    personId: submission.personId,
+    endClientCompanyId: resolvedEndClient,
+    vendorCompanyId: submission.fromCompanyId,
+    triggerPoint: 'CONTRACT_START',
+    subjectType: 'SELL_CONTRACT',
+    subjectId: id, // submission ID as proxy until contract is created
+    billRate,
+  })
+
+  if (!governance.canProceed) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'GOVERNANCE_BLOCK',
+          message: governance.summary,
+          evaluations: governance.evaluations,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // Warnings are allowed to proceed — contract starts in DRAFT,
+  // governance will be re-checked on activation
 
   try {
     const result = await prisma.$transaction(async (tx) => {

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { evaluateGovernance } from '@/lib/governance'
+import { resolvedEndClientId } from '@/lib/resolve-end-client'
 
 /**
  * POST /api/contracts/:id/activate
@@ -89,6 +91,70 @@ export async function POST(
   const previousState = contract.state
   const newState = transition.to
 
+  // ── Governance check on activation ──
+  // "BLOCK where legally grounded... WARN, capture a reason, proceed"
+  if (action === 'activate') {
+    const endClientId = resolvedEndClientId(contract)
+
+    const governance = await evaluateGovernance({
+      personId: contract.personId,
+      endClientCompanyId: endClientId,
+      vendorCompanyId: contract.companyId,
+      triggerPoint: 'CONTRACT_START',
+      subjectType: 'SELL_CONTRACT',
+      subjectId: id,
+      billRate: contract.billRate,
+    })
+
+    if (!governance.canProceed) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'GOVERNANCE_BLOCK',
+            message: governance.summary,
+            evaluations: governance.evaluations,
+          },
+        },
+        { status: 403 }
+      )
+    }
+
+    // If there are warnings, include them in the response but allow proceeding
+    // The caller can override with { action: 'activate', overrideReason: '...' }
+    if (governance.outcome === 'WARN' && !body.overrideReason) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'GOVERNANCE_WARN',
+            message: governance.summary,
+            evaluations: governance.evaluations,
+            overridable: true,
+          },
+        },
+        { status: 422 }
+      )
+    }
+
+    // If overriding a warning, record the override
+    if (governance.outcome === 'WARN' && body.overrideReason) {
+      const warnEvals = governance.evaluations.filter((e) => e.outcome === 'WARN')
+      for (const we of warnEvals) {
+        await prisma.governanceEvaluation.updateMany({
+          where: {
+            ruleId: we.ruleId,
+            subjectId: id,
+            outcome: 'WARN',
+            overriddenBy: null,
+          },
+          data: {
+            overriddenBy: caller.person.id,
+            overrideNote: body.overrideReason,
+          },
+        })
+      }
+    }
+  }
+
   await prisma.$transaction([
     prisma.sellContract.update({
       where: { id },
@@ -123,6 +189,7 @@ export async function POST(
       action,
       personName: contract.person.name,
       message: `Contract ${ACTION_SUMMARIES[action as Action]}`,
+      governance: action === 'activate' ? 'checked' : undefined,
     },
   })
 }

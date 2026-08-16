@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { evaluateGovernance } from '@/lib/governance'
+import { resolvedEndClientId } from '@/lib/resolve-end-client'
 
 /**
  * POST /api/contracts/:id/extend
@@ -58,6 +60,35 @@ export async function POST(
     )
   }
 
+  // ── Governance check on extension ──
+  const endClientId = resolvedEndClientId(contract)
+
+  const governance = await evaluateGovernance({
+    personId: contract.personId,
+    endClientCompanyId: endClientId,
+    vendorCompanyId: contract.companyId,
+    triggerPoint: 'EXTENSION',
+    subjectType: 'SELL_CONTRACT',
+    subjectId: id,
+    billRate: contract.billRate,
+  })
+
+  if (!governance.canProceed) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'GOVERNANCE_BLOCK',
+          message: governance.summary,
+          evaluations: governance.evaluations,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // Warnings: proceed but include in response
+  // (contract extensions are critical for compliance — tenure warnings here are especially important)
+
   const oldEnd = contract.endDate
   const baseDate = oldEnd ?? new Date()
   const newEnd = new Date(baseDate)
@@ -88,12 +119,20 @@ export async function POST(
     }),
   ])
 
+  const warnings = governance.evaluations.filter((e) => e.outcome === 'WARN')
+
   return NextResponse.json({
     data: {
       id,
       personName: contract.person.name,
       newEndDate: newEnd.toISOString(),
       message: `Contract extended by ${months} month${months !== 1 ? 's' : ''}`,
+      ...(warnings.length > 0 && {
+        governanceWarnings: warnings.map((w) => ({
+          ruleType: w.ruleType,
+          reason: w.reason,
+        })),
+      }),
     },
   })
 }
