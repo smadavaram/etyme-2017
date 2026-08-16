@@ -129,6 +129,8 @@ export default function RequirementDetailPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [submitting, setSubmitting] = useState(false)
   const [submitResult, setSubmitResult] = useState<string | null>(null)
+  const [showDistribute, setShowDistribute] = useState(false)
+  const [distributeResult, setDistributeResult] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -275,8 +277,29 @@ export default function RequirementDetailPage() {
               {requirement.title}
             </h1>
           </div>
-          <span className={`chip ${statusCls}`}>{statusText}</span>
+          <div className="flex items-center gap-2">
+            <span className={`chip ${statusCls}`}>{statusText}</span>
+            {requirement.status === 'OPEN' && (
+              <button
+                onClick={() => setShowDistribute(true)}
+                className="btn-primary text-[12px] px-4 py-1.5"
+              >
+                Distribute →
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Distribute result banner */}
+        {distributeResult && (
+          <div className={`mt-4 px-4 py-3 rounded-lg text-sm ${
+            distributeResult.startsWith('Error')
+              ? 'bg-red-50 border border-red-200 text-red-700'
+              : 'bg-emerald-50 border border-emerald-200 text-etyme-verified'
+          }`}>
+            {distributeResult}
+          </div>
+        )}
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-etyme-rule">
           <DetailField label="Skills" value={
@@ -517,6 +540,19 @@ export default function RequirementDetailPage() {
           })}
         </div>
       )}
+
+      {/* Distribute modal */}
+      {showDistribute && requirement && (
+        <DistributeModal
+          requirementId={requirement.id}
+          requirementTitle={requirement.title}
+          onClose={() => setShowDistribute(false)}
+          onSuccess={(msg) => {
+            setShowDistribute(false)
+            setDistributeResult(msg)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -532,6 +568,273 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
       ) : (
         value
       )}
+    </div>
+  )
+}
+
+// ── Distribute modal ────────────────────────────────
+
+interface VendorOption {
+  id: string
+  name: string
+  kind: string
+}
+
+function DistributeModal({
+  requirementId,
+  requirementTitle,
+  onClose,
+  onSuccess,
+}: {
+  requirementId: string
+  requirementTitle: string
+  onClose: () => void
+  onSuccess: (message: string) => void
+}) {
+  const [vendors, setVendors] = useState<VendorOption[]>([])
+  const [loadingVendors, setLoadingVendors] = useState(true)
+  const [selectedVendors, setSelectedVendors] = useState<Set<string>>(new Set())
+  const [payMin, setPayMin] = useState('')
+  const [payMax, setPayMax] = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
+  const [message, setMessage] = useState('')
+  const [distributing, setDistributing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Default expiry: 14 days from now
+  useEffect(() => {
+    const d = new Date()
+    d.setDate(d.getDate() + 14)
+    setExpiresAt(d.toISOString().split('T')[0])
+  }, [])
+
+  // Fetch vendor companies
+  useEffect(() => {
+    fetch('/api/companies')
+      .then((r) => (r.ok ? r.json() : { data: { companies: [] } }))
+      .then((body) => {
+        const companies = body.data?.companies ?? []
+        // Show vendors and MSPs as distribution targets
+        const opts = companies.filter(
+          (c: any) => c.kind === 'VENDOR' || c.kind === 'MSP' || c.kind === 'GSI'
+        )
+        setVendors(opts)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingVendors(false))
+  }, [])
+
+  const toggleVendor = (id: string) => {
+    setSelectedVendors((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const selectAll = () => {
+    setSelectedVendors(new Set(vendors.map((v) => v.id)))
+  }
+
+  const handleDistribute = async () => {
+    if (selectedVendors.size === 0) {
+      setError('Select at least one vendor')
+      return
+    }
+    if (!expiresAt) {
+      setError('Expiry date is required')
+      return
+    }
+
+    setDistributing(true)
+    setError(null)
+
+    try {
+      const res = await fetch(`/api/requirements/${requirementId}/distribute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toCompanyIds: Array.from(selectedVendors),
+          payMin: payMin ? Number(payMin) : undefined,
+          payMax: payMax ? Number(payMax) : undefined,
+          expiresAt: new Date(expiresAt).toISOString(),
+          message: message || undefined,
+        }),
+      })
+
+      const body = await res.json()
+      if (!res.ok) {
+        throw new Error(body.error?.message ?? 'Distribution failed')
+      }
+
+      onSuccess(body.data?.message ?? `Distributed to ${body.data?.distributed} vendor(s)`)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setDistributing(false)
+    }
+  }
+
+  const kindChip = (kind: string) => {
+    switch (kind) {
+      case 'VENDOR': return 'chip--action'
+      case 'MSP': return 'chip--attention'
+      case 'GSI': return 'chip--verified'
+      default: return 'chip--passive'
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white border-b border-etyme-rule px-6 py-4 flex items-center justify-between z-10">
+          <div>
+            <p className="eyebrow">Sell</p>
+            <h2 className="text-[16px] font-semibold text-etyme-ink">Distribute requirement</h2>
+          </div>
+          <button onClick={onClose} className="text-etyme-faint hover:text-etyme-ink text-xl leading-none">×</button>
+        </div>
+
+        <div className="px-6 py-4 space-y-5">
+          {/* Requirement being distributed */}
+          <div className="panel bg-etyme-canvas">
+            <p className="text-[11px] text-etyme-faint mb-0.5">Distributing</p>
+            <p className="text-[13px] font-medium text-etyme-ink">{requirementTitle}</p>
+          </div>
+
+          {/* Vendor selection */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-[12px] font-medium text-etyme-ink">
+                Select vendors <span className="text-etyme-attention">*</span>
+              </label>
+              <button
+                onClick={selectAll}
+                className="text-[11px] text-etyme-action hover:underline"
+              >
+                Select all ({vendors.length})
+              </button>
+            </div>
+            {loadingVendors ? (
+              <p className="text-[12px] text-etyme-muted py-4 text-center">Loading vendors…</p>
+            ) : vendors.length === 0 ? (
+              <p className="text-[12px] text-etyme-muted py-4 text-center">No vendor companies found</p>
+            ) : (
+              <div className="border border-etyme-rule rounded-lg max-h-48 overflow-y-auto">
+                {vendors.map((v) => (
+                  <label
+                    key={v.id}
+                    className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-etyme-canvas/50 border-b border-etyme-rule last:border-b-0 ${
+                      selectedVendors.has(v.id) ? 'bg-etyme-action/5' : ''
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedVendors.has(v.id)}
+                      onChange={() => toggleVendor(v.id)}
+                      className="rounded border-etyme-rule"
+                    />
+                    <span className="text-[12px] text-etyme-ink flex-1">{v.name}</span>
+                    <span className={`chip text-[9px] ${kindChip(v.kind)}`}>{v.kind}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-etyme-faint mt-1">
+              {selectedVendors.size} of {vendors.length} selected
+            </p>
+          </div>
+
+          {/* Rate band — per CLAUDE.md: "Rate bands live on RequirementInvitation, never on Requirement" */}
+          <div>
+            <label className="block text-[12px] font-medium text-etyme-ink mb-2">
+              Pay rate band <span className="text-[10px] text-etyme-faint font-normal">(optional, $/hr)</span>
+            </label>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={payMin}
+                  onChange={(e) => setPayMin(e.target.value)}
+                  min="0"
+                  step="1"
+                  className="w-full px-3 py-2 text-[13px] border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none tabular-nums"
+                />
+              </div>
+              <span className="flex items-center text-etyme-faint text-[12px]">to</span>
+              <div className="flex-1">
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={payMax}
+                  onChange={(e) => setPayMax(e.target.value)}
+                  min="0"
+                  step="1"
+                  className="w-full px-3 py-2 text-[13px] border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none tabular-nums"
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-etyme-faint mt-1">
+              Each vendor sees only their own band — never another vendor's rate.
+            </p>
+          </div>
+
+          {/* Expiry */}
+          <div>
+            <label className="block text-[12px] font-medium text-etyme-ink mb-1">
+              Expires <span className="text-etyme-attention">*</span>
+            </label>
+            <input
+              type="date"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+              className="w-full px-3 py-2 text-[13px] border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none"
+            />
+          </div>
+
+          {/* Message */}
+          <div>
+            <label className="block text-[12px] font-medium text-etyme-ink mb-1">
+              Message <span className="text-[10px] text-etyme-faint font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={3}
+              placeholder="Additional context for vendors…"
+              className="w-full px-3 py-2 text-[13px] border border-etyme-rule rounded-lg focus:ring-1 focus:ring-etyme-action focus:border-etyme-action outline-none resize-none"
+            />
+          </div>
+
+          {/* Error */}
+          {error && (
+            <p className="text-[12px] text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-white border-t border-etyme-rule px-6 py-4 flex justify-end gap-3">
+          <button onClick={onClose} className="btn-secondary text-[12px]">
+            Cancel
+          </button>
+          <button
+            onClick={handleDistribute}
+            disabled={distributing || selectedVendors.size === 0}
+            className="btn-primary text-[12px] disabled:opacity-50"
+          >
+            {distributing
+              ? 'Distributing…'
+              : `Distribute to ${selectedVendors.size} vendor${selectedVendors.size !== 1 ? 's' : ''}`}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
