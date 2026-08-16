@@ -408,6 +408,112 @@ function SubmitToRequirementModal({
   )
 }
 
+// ── Convert to Contract Modal ────────────────────────
+
+function ConvertToContractModal({
+  submission,
+  converting,
+  onClose,
+  onConvert,
+}: {
+  submission: Submission
+  converting: boolean
+  onClose: () => void
+  onConvert: (billRate: number, startDate: string, payRate?: number) => void
+}) {
+  const [billRate, setBillRate] = useState(submission.rate)
+  const [payRate, setPayRate] = useState('')
+  const [startDate, setStartDate] = useState(
+    new Date().toISOString().slice(0, 10)
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6 mx-4">
+        <h3 className="headline-serif text-[18px] text-etyme-ink mb-4">
+          Convert to contract
+        </h3>
+
+        <div className="mb-4 px-3 py-2 bg-etyme-canvas rounded-lg">
+          <p className="text-[12px] text-etyme-muted">
+            <span className="font-medium text-etyme-ink">{submission.person.name}</span>
+            {' → '}
+            {submission.toCompany.name}
+          </p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">
+            {submission.requirement.title}
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="eyebrow mb-1 block">Bill rate ($/hr) *</label>
+            <input
+              type="number"
+              step="0.01"
+              value={billRate}
+              onChange={(e) => setBillRate(Number(e.target.value))}
+              className="w-full px-3 py-2 border border-etyme-rule rounded-md text-sm
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
+            />
+          </div>
+
+          <div>
+            <label className="eyebrow mb-1 block">Pay rate ($/hr, optional)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={payRate}
+              onChange={(e) => setPayRate(e.target.value)}
+              placeholder="Leave blank for sell-only contract"
+              className="w-full px-3 py-2 border border-etyme-rule rounded-md text-sm
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20
+                         placeholder:text-etyme-faint"
+            />
+          </div>
+
+          <div>
+            <label className="eyebrow mb-1 block">Start date *</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="w-full px-3 py-2 border border-etyme-rule rounded-md text-sm
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
+            />
+          </div>
+
+          {billRate > 0 && payRate && Number(payRate) > 0 && (
+            <div className="px-3 py-2 bg-emerald-50 rounded-lg text-[12px]">
+              <span className="text-etyme-verified font-medium">
+                Margin: ${(billRate - Number(payRate)).toFixed(2)}/hr
+                ({((1 - Number(payRate) / billRate) * 100).toFixed(1)}%)
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 mt-6">
+          <button
+            onClick={onClose}
+            disabled={converting}
+            className="btn-secondary flex-1 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConvert(billRate, startDate, payRate ? Number(payRate) : undefined)}
+            disabled={converting || billRate <= 0 || !startDate}
+            className="btn-primary flex-1 disabled:opacity-50"
+          >
+            {converting ? 'Creating…' : 'Create contract'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────
 
 export default function SubmissionsPage() {
@@ -421,6 +527,8 @@ export default function SubmissionsPage() {
   const [acting, setActing] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showSubmitModal, setShowSubmitModal] = useState(false)
+  const [convertSubmission, setConvertSubmission] = useState<Submission | null>(null)
+  const [converting, setConverting] = useState(false)
 
   const [companyId, setCompanyId] = useState<string | null>(null)
 
@@ -596,7 +704,24 @@ export default function SubmissionsPage() {
     {
       key: 'status',
       label: 'Status',
-      render: (row) => <span className={`chip ${statusChipClass(row.status)}`}>{row.status}</span>,
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <span className={`chip ${statusChipClass(row.status)}`}>{row.status}</span>
+          {row.status === 'PLACED' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setConvertSubmission(row)
+              }}
+              className="text-[10px] font-medium text-etyme-action hover:text-etyme-action/80
+                         border border-etyme-action/30 rounded px-2 py-0.5 hover:bg-etyme-action/5
+                         transition-colors whitespace-nowrap"
+            >
+              → Contract
+            </button>
+          )}
+        </div>
+      ),
       sortValue: (row) => row.status,
     },
     {
@@ -786,6 +911,41 @@ export default function SubmissionsPage() {
             setToast({ message: 'Consultant submitted successfully', type: 'success' })
             setTimeout(() => setToast(null), 3500)
             fetchSubmissions()
+          }}
+        />
+      )}
+
+      {/* Convert to Contract modal */}
+      {convertSubmission && (
+        <ConvertToContractModal
+          submission={convertSubmission}
+          converting={converting}
+          onClose={() => setConvertSubmission(null)}
+          onConvert={async (billRate, startDate, payRate) => {
+            setConverting(true)
+            try {
+              const res = await fetch(`/api/submissions/${convertSubmission.id}/convert`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  billRate: Math.round(billRate * 100), // dollars → cents
+                  startDate,
+                  ...(payRate ? { payRate: Math.round(payRate * 100) } : {}),
+                }),
+              })
+              const body = await res.json()
+              if (!res.ok) throw new Error(body.error?.message ?? 'Conversion failed')
+
+              setToast({ message: body.data?.message ?? 'Contract created', type: 'success' })
+              setTimeout(() => setToast(null), 3500)
+              setConvertSubmission(null)
+              fetchSubmissions()
+            } catch (err: any) {
+              setToast({ message: `Error: ${err.message}`, type: 'error' })
+              setTimeout(() => setToast(null), 5000)
+            } finally {
+              setConverting(false)
+            }
           }}
         />
       )}

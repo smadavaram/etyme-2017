@@ -131,6 +131,8 @@ export default function RequirementDetailPage() {
   const [submitResult, setSubmitResult] = useState<string | null>(null)
   const [showDistribute, setShowDistribute] = useState(false)
   const [distributeResult, setDistributeResult] = useState<string | null>(null)
+  const [matching, setMatching] = useState(false)
+  const [matchResult, setMatchResult] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -228,6 +230,33 @@ export default function RequirementDetailPage() {
     }
   }
 
+  const handleRunMatching = async (forceRefresh = false) => {
+    if (!requirement) return
+    setMatching(true)
+    setMatchResult(null)
+
+    try {
+      const res = await fetch(`/api/requirements/${requirement.id}/matches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ limit: 20, forceRefresh }),
+      })
+
+      const body = await res.json()
+      if (!res.ok) {
+        throw new Error(body.error?.message ?? 'Match engine failed')
+      }
+
+      setMatchResult(body.data?.message ?? `${body.data?.matchCount ?? 0} matches found`)
+      // Refresh match data
+      fetchData()
+    } catch (err: any) {
+      setMatchResult(`Error: ${err.message}`)
+    } finally {
+      setMatching(false)
+    }
+  }
+
   // ── Loading / Error ────────────────────────────────
 
   if (loading) {
@@ -279,6 +308,24 @@ export default function RequirementDetailPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className={`chip ${statusCls}`}>{statusText}</span>
+            {(requirement.status === 'OPEN' || requirement.status === 'DRAFT') && (
+              <button
+                onClick={() => handleRunMatching(matches.length > 0)}
+                disabled={matching}
+                className="btn-secondary text-[12px] px-4 py-1.5 flex items-center gap-1.5"
+              >
+                {matching ? (
+                  <>
+                    <span className="inline-block w-3 h-3 border-2 border-etyme-action/30 border-t-etyme-action rounded-full animate-spin" />
+                    Matching…
+                  </>
+                ) : matches.length > 0 ? (
+                  '↻ Re-match'
+                ) : (
+                  '🧠 Run AI matching'
+                )}
+              </button>
+            )}
             {requirement.status === 'OPEN' && (
               <button
                 onClick={() => setShowDistribute(true)}
@@ -370,12 +417,33 @@ export default function RequirementDetailPage() {
         </p>
       </div>
 
+      {/* Match result banner */}
+      {matchResult && (
+        <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${
+          matchResult.startsWith('Error')
+            ? 'bg-red-50 border border-red-200 text-red-700'
+            : 'bg-emerald-50 border border-emerald-200 text-etyme-verified'
+        }`}>
+          {matchResult}
+        </div>
+      )}
+
       {matches.length === 0 ? (
         <div className="panel text-center py-12">
-          <p className="text-sm text-etyme-muted">No matches computed yet.</p>
-          <p className="text-xs text-etyme-faint mt-1">
-            Matches are computed when the requirement is distributed to your company.
+          <div className="text-3xl mb-3">🧠</div>
+          <p className="text-sm text-etyme-ink font-medium mb-1">No matches yet</p>
+          <p className="text-xs text-etyme-muted mb-4">
+            Run the AI match engine to find the best-fit consultants from your bench.
           </p>
+          {(requirement.status === 'OPEN' || requirement.status === 'DRAFT') && (
+            <button
+              onClick={() => handleRunMatching(false)}
+              disabled={matching}
+              className="btn-primary text-[13px] px-6 py-2"
+            >
+              {matching ? 'Running match engine…' : 'Run AI matching'}
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-2">

@@ -439,8 +439,17 @@ function ContractDetailDrawer({
   const [showRolloffConfirm, setShowRolloffConfirm] = useState(false)
   const [extending, setExtending] = useState(false)
   const [initiatingRolloff, setInitiatingRolloff] = useState(false)
+  const [activating, setActivating] = useState(false)
 
   const isActive = contract.state === 'IN_PROGRESS'
+  const isDraft = contract.state === 'DRAFT'
+  const isPending = contract.state === 'PENDING_VERIFICATION'
+  const isPaused = contract.state === 'PAUSED'
+  const canActivate = isDraft || isPending
+  const canCancel = isDraft || isPending
+  const canPause = isActive
+  const canResume = isPaused
+  const canComplete = isActive
   const isRolloff = contract.daysUntilEnd != null && contract.daysUntilEnd >= 0 && contract.daysUntilEnd <= 28
   const drawerRateLabel = tab === 'sell' ? 'Bill rate' : 'Pay rate'
   const drawerCounterpartyLabel = tab === 'sell' ? 'Client' : 'Vendor'
@@ -505,6 +514,31 @@ function ContractDetailDrawer({
       onToast('Network error. Please try again.', 'error')
     } finally {
       setInitiatingRolloff(false)
+    }
+  }
+
+  async function handleActivation(action: string, label: string) {
+    setActivating(true)
+    try {
+      const res = await fetch(`/api/contracts/${contract.id}/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        onToast(body.error?.message ?? `Failed to ${label.toLowerCase()} contract`, 'error')
+        return
+      }
+
+      onToast(`Contract ${label.toLowerCase()}d`, 'success')
+      onRefresh()
+      onClose()
+    } catch {
+      onToast('Network error. Please try again.', 'error')
+    } finally {
+      setActivating(false)
     }
   }
 
@@ -615,13 +649,43 @@ function ContractDetailDrawer({
             </div>
           )}
 
-          {/* Quick actions — only for active contracts */}
+          {/* Lifecycle actions — DRAFT or PENDING contracts */}
+          {(canActivate || canCancel) && (
+            <>
+              <hr className="border-etyme-rule" />
+              <div>
+                <p className="eyebrow mb-3">Contract lifecycle</p>
+                <div className="flex gap-3">
+                  {canActivate && (
+                    <button
+                      onClick={() => handleActivation('activate', 'Activate')}
+                      disabled={activating}
+                      className="btn-primary flex-1 disabled:opacity-50"
+                    >
+                      {activating ? 'Activating…' : '▶ Activate'}
+                    </button>
+                  )}
+                  {canCancel && (
+                    <button
+                      onClick={() => handleActivation('cancel', 'Cancel')}
+                      disabled={activating}
+                      className="btn-secondary flex-1 disabled:opacity-50 text-red-600 border-red-200 hover:bg-red-50"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Quick actions — active contracts */}
           {isActive && (
             <>
               <hr className="border-etyme-rule" />
               <div>
                 <p className="eyebrow mb-3">Quick actions</p>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <button
                     onClick={() => setShowExtendConfirm(true)}
                     className="btn-primary flex-1"
@@ -635,6 +699,43 @@ function ContractDetailDrawer({
                     Initiate rolloff
                   </button>
                 </div>
+                <div className="flex gap-3 mt-2">
+                  {canPause && (
+                    <button
+                      onClick={() => handleActivation('pause', 'Pause')}
+                      disabled={activating}
+                      className="btn-secondary flex-1 disabled:opacity-50"
+                    >
+                      {activating ? 'Updating…' : '⏸ Pause'}
+                    </button>
+                  )}
+                  {canComplete && (
+                    <button
+                      onClick={() => handleActivation('complete', 'Complete')}
+                      disabled={activating}
+                      className="btn-secondary flex-1 disabled:opacity-50"
+                    >
+                      {activating ? 'Updating…' : '✓ Complete'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Resume — paused contracts */}
+          {canResume && (
+            <>
+              <hr className="border-etyme-rule" />
+              <div>
+                <p className="eyebrow mb-3">Contract lifecycle</p>
+                <button
+                  onClick={() => handleActivation('resume', 'Resume')}
+                  disabled={activating}
+                  className="btn-primary w-full disabled:opacity-50"
+                >
+                  {activating ? 'Resuming…' : '▶ Resume contract'}
+                </button>
               </div>
             </>
           )}
