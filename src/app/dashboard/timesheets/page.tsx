@@ -363,8 +363,11 @@ export default function TimesheetsPage() {
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [approving, setApproving] = useState(false)
+  const [acting, setActing] = useState<string | null>(null)  // ID of the timesheet being acted on
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   // Open modal from ?new=1 link
   useEffect(() => {
@@ -448,6 +451,71 @@ export default function TimesheetsPage() {
 
     // Refresh the list
     fetchTimesheets()
+  }
+
+  // ── Individual timesheet actions ──────────────────
+  async function handleSubmitTimesheet(id: string) {
+    setActing(id)
+    try {
+      const res = await fetch(`/api/timesheets/${id}/submit`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setToast({ message: body.error?.message ?? 'Failed to submit', type: 'error' })
+      } else {
+        setToast({ message: 'Timesheet submitted for approval', type: 'success' })
+        fetchTimesheets()
+      }
+    } catch {
+      setToast({ message: 'Network error', type: 'error' })
+    } finally {
+      setActing(null)
+      setTimeout(() => setToast(null), 4000)
+    }
+  }
+
+  async function handleApproveTimesheet(id: string) {
+    setActing(id)
+    try {
+      const res = await fetch(`/api/timesheets/${id}/approve`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setToast({ message: body.error?.message ?? 'Failed to approve', type: 'error' })
+      } else {
+        const body = await res.json()
+        setToast({ message: body.data?.message ?? 'Timesheet approved', type: 'success' })
+        fetchTimesheets()
+      }
+    } catch {
+      setToast({ message: 'Network error', type: 'error' })
+    } finally {
+      setActing(null)
+      setTimeout(() => setToast(null), 4000)
+    }
+  }
+
+  async function handleRejectTimesheet(id: string, reason: string) {
+    setActing(id)
+    try {
+      const res = await fetch(`/api/timesheets/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setToast({ message: body.error?.message ?? 'Failed to reject', type: 'error' })
+      } else {
+        setToast({ message: 'Timesheet rejected — returned to consultant', type: 'success' })
+        setRejectTarget(null)
+        setRejectReason('')
+        fetchTimesheets()
+      }
+    } catch {
+      setToast({ message: 'Network error', type: 'error' })
+    } finally {
+      setActing(null)
+      setTimeout(() => setToast(null), 4000)
+    }
   }
 
   // ── Filter ─────────────────────────────────────────
@@ -535,7 +603,38 @@ export default function TimesheetsPage() {
     {
       key: 'status',
       label: 'Status',
-      render: (row) => <span className={`chip ${statusChipClass(row.status)}`}>{row.status}</span>,
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <span className={`chip ${statusChipClass(row.status)}`}>{row.status}</span>
+          {row.status === 'OPEN' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleSubmitTimesheet(row.id) }}
+              disabled={acting === row.id}
+              className="text-[11px] text-etyme-action hover:underline disabled:opacity-50 whitespace-nowrap"
+            >
+              {acting === row.id ? '…' : '→ Submit'}
+            </button>
+          )}
+          {row.status === 'SUBMITTED' && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleApproveTimesheet(row.id) }}
+                disabled={acting === row.id}
+                className="text-[11px] text-etyme-verified hover:underline disabled:opacity-50"
+              >
+                {acting === row.id ? '…' : '✓'}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setRejectTarget(row.id) }}
+                disabled={acting === row.id}
+                className="text-[11px] text-red-500 hover:underline disabled:opacity-50"
+              >
+                ✕
+              </button>
+            </>
+          )}
+        </div>
+      ),
       sortValue: (row) => row.status,
     },
   ]
@@ -703,6 +802,43 @@ export default function TimesheetsPage() {
             fetchTimesheets()
           }}
         />
+      )}
+
+      {/* Reject reason modal */}
+      {rejectTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={() => { setRejectTarget(null); setRejectReason('') }}
+        >
+          <div className="card w-full max-w-sm mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold mb-2">Reject timesheet</h3>
+            <p className="text-sm text-etyme-muted mb-4">
+              This will return the timesheet to the consultant for correction.
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Reason for rejection (required)…"
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg mb-4
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                         resize-none"
+            />
+            <div className="flex justify-end gap-3">
+              <button onClick={() => { setRejectTarget(null); setRejectReason('') }} className="btn-secondary">
+                Cancel
+              </button>
+              <button
+                onClick={() => handleRejectTimesheet(rejectTarget, rejectReason)}
+                disabled={!rejectReason.trim() || acting === rejectTarget}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white
+                           hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {acting === rejectTarget ? 'Rejecting…' : 'Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Toast notification */}
