@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -75,10 +75,344 @@ function timeAgo(dateStr: string): string {
   return d.toLocaleDateString()
 }
 
+// ── Submit to Requirement Modal ──────────────────────
+
+interface RequirementOption {
+  id: string
+  title: string
+  skills: string[]
+  company: { id: string; name: string }
+}
+
+interface BenchConsultant {
+  listingId: string
+  personId: string
+  name: string
+  skills: string[]
+}
+
+function SubmitToRequirementModal({
+  companyId,
+  onClose,
+  onCreated,
+}: {
+  companyId: string
+  onClose: () => void
+  onCreated: () => void
+}) {
+  const [requirements, setRequirements] = useState<RequirementOption[]>([])
+  const [consultants, setConsultants] = useState<BenchConsultant[]>([])
+  const [loadingOptions, setLoadingOptions] = useState(true)
+
+  const [form, setForm] = useState({
+    requirementId: '',
+    personId: '',
+    rate: '',
+    rateCurrency: 'USD',
+    coverNote: '',
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch open requirements and bench listings on mount
+  useEffect(() => {
+    async function loadOptions() {
+      setLoadingOptions(true)
+      try {
+        const [reqRes, benchRes] = await Promise.all([
+          fetch('/api/requirements?status=OPEN&limit=50'),
+          fetch('/api/bench?limit=100'),
+        ])
+
+        if (reqRes.ok) {
+          const body = await reqRes.json()
+          setRequirements(
+            (body.data?.requirements ?? []).map((r: any) => ({
+              id: r.id,
+              title: r.title,
+              skills: r.skills ?? [],
+              company: r.company ?? { id: '', name: 'Unknown' },
+            }))
+          )
+        }
+
+        if (benchRes.ok) {
+          const body = await benchRes.json()
+          const tiers = body.data?.tiers ?? {}
+          const all: BenchConsultant[] = []
+          for (const tier of Object.values(tiers) as any[][]) {
+            for (const listing of tier) {
+              // Deduplicate by personId — a consultant may have multiple listings
+              if (!all.some((c) => c.personId === listing.consultant?.personId)) {
+                all.push({
+                  listingId: listing.id,
+                  personId: listing.consultant?.personId ?? listing.consultant?.person?.id,
+                  name: listing.consultant?.person?.name ?? 'Unknown',
+                  skills: listing.consultant?.skills ?? [],
+                })
+              }
+            }
+          }
+          setConsultants(all)
+        }
+      } catch {
+        // Options failed to load — form will show empty selects
+      } finally {
+        setLoadingOptions(false)
+      }
+    }
+    loadOptions()
+  }, [])
+
+  // Selected items for match preview
+  const selectedReq = requirements.find((r) => r.id === form.requirementId)
+  const selectedConsultant = consultants.find((c) => c.personId === form.personId)
+
+  // Compute skill overlap
+  const reqSkills = selectedReq?.skills ?? []
+  const conSkills = selectedConsultant?.skills ?? []
+  const overlapSkills = reqSkills.filter((s) =>
+    conSkills.some((cs) => cs.toLowerCase() === s.toLowerCase())
+  )
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+
+    const rateNum = parseFloat(form.rate)
+    if (isNaN(rateNum) || rateNum <= 0) {
+      setError('Rate must be a positive number')
+      setSubmitting(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/submissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requirementId: form.requirementId,
+          personIds: [form.personId],
+          rate: Math.round(rateNum * 100),
+          fromCompanyId: companyId,
+          rateCurrency: form.rateCurrency,
+          coverNote: form.coverNote || undefined,
+        }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body.error?.message ?? 'Failed to submit')
+        return
+      }
+
+      const body = await res.json()
+      const results = body.data?.results ?? []
+      const firstResult = results[0]
+
+      if (firstResult?.status === 'error') {
+        setError(firstResult.error)
+        return
+      }
+      if (firstResult?.status === 'duplicate') {
+        setError(firstResult.error)
+        return
+      }
+
+      onCreated()
+      onClose()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="card w-full max-w-2xl mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Submit to requirement</h2>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {loadingOptions ? (
+          <div className="py-8 text-center text-sm text-etyme-faint animate-pulse">
+            Loading requirements and consultants…
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Requirement select */}
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Requirement *</label>
+              <select
+                required
+                value={form.requirementId}
+                onChange={(e) => setForm({ ...form, requirementId: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              >
+                <option value="">Select a requirement…</option>
+                {requirements.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.title} — {r.company.name}
+                  </option>
+                ))}
+              </select>
+              {requirements.length === 0 && (
+                <p className="text-[11px] text-etyme-faint mt-1">No open requirements found.</p>
+              )}
+            </div>
+
+            {/* Consultant select */}
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Consultant *</label>
+              <select
+                required
+                value={form.personId}
+                onChange={(e) => setForm({ ...form, personId: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              >
+                <option value="">Select a consultant…</option>
+                {consultants.map((c) => (
+                  <option key={c.personId} value={c.personId}>
+                    {c.name}{c.skills.length > 0 ? ` — ${c.skills.slice(0, 3).join(', ')}` : ''}
+                  </option>
+                ))}
+              </select>
+              {consultants.length === 0 && (
+                <p className="text-[11px] text-etyme-faint mt-1">
+                  No bench listings found. Consultants must grant a bench listing first.
+                </p>
+              )}
+            </div>
+
+            {/* Match preview — shown when both are selected */}
+            {selectedReq && selectedConsultant && (
+              <div className="rounded-lg border border-etyme-rule bg-etyme-canvas px-4 py-3">
+                <p className="text-[11px] font-semibold text-etyme-muted mb-2 uppercase tracking-wider">
+                  Skill match
+                </p>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-[11px] text-etyme-faint mb-1">Requirement skills</p>
+                    <div className="flex flex-wrap gap-1">
+                      {reqSkills.length > 0 ? reqSkills.map((skill) => (
+                        <span
+                          key={skill}
+                          className={`chip ${
+                            overlapSkills.some((o) => o.toLowerCase() === skill.toLowerCase())
+                              ? 'chip--verified'
+                              : 'chip--passive'
+                          }`}
+                        >
+                          {skill}
+                        </span>
+                      )) : (
+                        <span className="text-[11px] text-etyme-faint">No skills listed</span>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[11px] text-etyme-faint mb-1">Consultant skills</p>
+                    <div className="flex flex-wrap gap-1">
+                      {conSkills.length > 0 ? conSkills.map((skill) => (
+                        <span
+                          key={skill}
+                          className={`chip ${
+                            overlapSkills.some((o) => o.toLowerCase() === skill.toLowerCase())
+                              ? 'chip--verified'
+                              : 'chip--passive'
+                          }`}
+                        >
+                          {skill}
+                        </span>
+                      )) : (
+                        <span className="text-[11px] text-etyme-faint">No skills listed</span>
+                      )}
+                    </div>
+                  </div>
+                  {reqSkills.length > 0 && conSkills.length > 0 && (
+                    <p className="text-[11px] text-etyme-muted mt-1">
+                      {overlapSkills.length} of {reqSkills.length} required skill{reqSkills.length !== 1 ? 's' : ''} matched
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Rate + Currency */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="col-span-2">
+                <label className="block text-xs font-semibold text-etyme-muted mb-1">Rate ($/hr) *</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  step="0.01"
+                  value={form.rate}
+                  onChange={(e) => setForm({ ...form, rate: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                  placeholder="125"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-etyme-muted mb-1">Currency</label>
+                <select
+                  value={form.rateCurrency}
+                  onChange={(e) => setForm({ ...form, rateCurrency: e.target.value })}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                >
+                  <option value="USD">USD</option>
+                  <option value="CAD">CAD</option>
+                  <option value="GBP">GBP</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Cover note */}
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Cover note</label>
+              <textarea
+                rows={3}
+                value={form.coverNote}
+                onChange={(e) => setForm({ ...form, coverNote: e.target.value })}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg resize-y
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                placeholder="Why this consultant is a good fit for this role."
+              />
+            </div>
+
+            <button type="submit" disabled={submitting} className="btn-primary w-full disabled:opacity-50">
+              {submitting ? 'Submitting…' : 'Submit consultant'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────
 
 export default function SubmissionsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -86,8 +420,17 @@ export default function SubmissionsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [acting, setActing] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [showSubmitModal, setShowSubmitModal] = useState(false)
 
   const [companyId, setCompanyId] = useState<string | null>(null)
+
+  // Open the submit modal when navigated with ?new=1
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowSubmitModal(true)
+      router.replace('/dashboard/submissions', { scroll: false })
+    }
+  }, [searchParams, router])
 
   // Resolve the user's company from /api/me
   useEffect(() => {
@@ -299,28 +642,35 @@ export default function SubmissionsPage() {
           </p>
         </div>
 
-        {/* Direction toggle — prototype segmented control */}
-        <div className="flex bg-etyme-canvas rounded-md p-0.5 mt-3 shrink-0">
-          <button
-            onClick={() => { setDirection('sent'); setStatusFilter('ALL') }}
-            className={`px-4 py-2 text-[13px] font-medium rounded transition-colors ${
-              direction === 'sent'
-                ? 'bg-white shadow-sm text-etyme-ink'
-                : 'text-etyme-muted hover:text-etyme-ink'
-            }`}
-          >
-            Sent
+        <div className="flex items-center gap-3 mt-3 shrink-0">
+          {/* Submit button */}
+          <button onClick={() => setShowSubmitModal(true)} className="btn-primary">
+            + Submit
           </button>
-          <button
-            onClick={() => { setDirection('received'); setStatusFilter('ALL') }}
-            className={`px-4 py-2 text-[13px] font-medium rounded transition-colors ${
-              direction === 'received'
-                ? 'bg-white shadow-sm text-etyme-ink'
-                : 'text-etyme-muted hover:text-etyme-ink'
-            }`}
-          >
-            Received
-          </button>
+
+          {/* Direction toggle — prototype segmented control */}
+          <div className="flex bg-etyme-canvas rounded-md p-0.5">
+            <button
+              onClick={() => { setDirection('sent'); setStatusFilter('ALL') }}
+              className={`px-4 py-2 text-[13px] font-medium rounded transition-colors ${
+                direction === 'sent'
+                  ? 'bg-white shadow-sm text-etyme-ink'
+                  : 'text-etyme-muted hover:text-etyme-ink'
+              }`}
+            >
+              Sent
+            </button>
+            <button
+              onClick={() => { setDirection('received'); setStatusFilter('ALL') }}
+              className={`px-4 py-2 text-[13px] font-medium rounded transition-colors ${
+                direction === 'received'
+                  ? 'bg-white shadow-sm text-etyme-ink'
+                  : 'text-etyme-muted hover:text-etyme-ink'
+              }`}
+            >
+              Received
+            </button>
+          </div>
         </div>
       </div>
 
@@ -419,6 +769,19 @@ export default function SubmissionsPage() {
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase()}`}
           {` · ${direction}`}
         </p>
+      )}
+
+      {/* Submit to Requirement modal */}
+      {showSubmitModal && companyId && (
+        <SubmitToRequirementModal
+          companyId={companyId}
+          onClose={() => setShowSubmitModal(false)}
+          onCreated={() => {
+            setToast({ message: 'Consultant submitted successfully', type: 'success' })
+            setTimeout(() => setToast(null), 3500)
+            fetchSubmissions()
+          }}
+        />
       )}
 
       {/* Toast */}
