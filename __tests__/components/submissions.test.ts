@@ -81,7 +81,7 @@ describe('Submissions direction toggle', () => {
   })
 
   it('received direction shows the vendor (fromCompany) as counterparty', () => {
-    const direction = 'received'
+    const direction: string = 'received'
     const counterparty = direction === 'sent' ? submission.toCompany.name : submission.fromCompany.name
     expect(counterparty).toBe('Cloudepa Inc.')
   })
@@ -179,8 +179,8 @@ describe('Submissions kind classification', () => {
   })
 
   it('BENCH: different companies, consultant on retained bench', () => {
-    const fromCompanyId = 'company-1'
-    const toCompanyId = 'company-2'
+    const fromCompanyId: string = 'company-1'
+    const toCompanyId: string = 'company-2'
     const tier = 'RETAINED'
     let kind: string
     if (fromCompanyId === toCompanyId) {
@@ -194,9 +194,9 @@ describe('Submissions kind classification', () => {
   })
 
   it('NETWORK: different companies, consultant on marketing bench', () => {
-    const fromCompanyId = 'company-1'
-    const toCompanyId = 'company-2'
-    const tier = 'MARKETING'
+    const fromCompanyId: string = 'company-1'
+    const toCompanyId: string = 'company-2'
+    const tier: string = 'MARKETING'
     let kind: string
     if (fromCompanyId === toCompanyId) {
       kind = 'INTERNAL'
