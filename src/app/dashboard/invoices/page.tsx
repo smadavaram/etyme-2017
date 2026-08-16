@@ -565,6 +565,7 @@ export default function InvoicesPage() {
   const [showGenerate, setShowGenerate] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [submittingBulk, setSubmittingBulk] = useState(false)
 
   // Open the generate modal when navigated with ?new=1
   useEffect(() => {
@@ -609,11 +610,43 @@ export default function InvoicesPage() {
     setTimeout(() => setToast(null), 4000)
   }, [])
 
-  const handleBulkSubmit = useCallback(async (selected: Set<string>) => {
+  const handleBulkSubmit = useCallback(async (selected: Set<string>, clearSelection: () => void) => {
     const count = selected.size
     if (count === 0) return
-    showToast(`Submitted ${count} invoice${count !== 1 ? 's' : ''} for payment`)
-  }, [showToast])
+
+    setSubmittingBulk(true)
+    try {
+      const res = await fetch('/api/invoices/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceIds: Array.from(selected) }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        showToast(body.error?.message ?? 'Failed to submit invoices', 'error')
+        return
+      }
+
+      const body = await res.json()
+      const { submitted, skipped } = body.data ?? {}
+
+      if (submitted > 0) {
+        const parts = [`${submitted} invoice${submitted !== 1 ? 's' : ''} submitted`]
+        if (skipped > 0) parts.push(`${skipped} skipped (not in ISSUED status)`)
+        showToast(parts.join('. '))
+      } else {
+        showToast(`No invoices were submitted — ${skipped ?? 0} skipped (not in ISSUED status)`, 'error')
+      }
+
+      clearSelection()
+      fetchInvoices()
+    } catch {
+      showToast('Network error. Please try again.', 'error')
+    } finally {
+      setSubmittingBulk(false)
+    }
+  }, [showToast, fetchInvoices])
 
   const handleExportSelected = useCallback((selected: Set<string>) => {
     const rows = invoices.filter((inv) => selected.has(inv.id))
@@ -895,14 +928,15 @@ export default function InvoicesPage() {
         exportName="invoices"
         selectable
         onRowClick={(row) => setSelectedInvoice(row)}
-        bulkActions={(selected) => (
+        bulkActions={(selected, clearSelection) => (
           <>
             <button
-              onClick={() => handleBulkSubmit(selected)}
+              onClick={() => handleBulkSubmit(selected, clearSelection)}
+              disabled={submittingBulk}
               className="px-3 py-1.5 text-[11px] font-medium rounded-md
                                bg-etyme-action text-white hover:bg-etyme-action/90
-                               transition-colors">
-              Submit ({selected.size})
+                               transition-colors disabled:opacity-50">
+              {submittingBulk ? 'Submitting…' : `Submit (${selected.size})`}
             </button>
             <button
               onClick={() => handleExportSelected(selected)}

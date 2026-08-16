@@ -49,7 +49,7 @@ export interface DataTableProps<T> {
   /** Called when selection changes (set of keys). */
   onSelectionChange?: (selected: Set<string>) => void
   /** Bulk action buttons rendered above the table when rows are selected. */
-  bulkActions?: (selected: Set<string>) => ReactNode
+  bulkActions?: (selected: Set<string>, clearSelection: () => void) => ReactNode
   /** Search placeholder. */
   searchPlaceholder?: string
   /** Text filter — return true if row matches the query. */
@@ -258,7 +258,7 @@ export function DataTable<T extends Record<string, any>>({
             <span className="text-[11px] font-medium text-etyme-muted tabular-nums">
               {selected.size} selected
             </span>
-            {bulkActions(selected)}
+            {bulkActions(selected, () => setSelected(new Set()))}
           </div>
         )}
 

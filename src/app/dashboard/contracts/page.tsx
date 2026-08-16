@@ -420,6 +420,288 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
   )
 }
 
+// ── Contract Detail Drawer ────────────────────────────────
+
+function ContractDetailDrawer({
+  contract,
+  tab,
+  onClose,
+  onToast,
+  onRefresh,
+}: {
+  contract: Contract
+  tab: ViewTab
+  onClose: () => void
+  onToast: (message: string, type: 'success' | 'error') => void
+  onRefresh: () => void
+}) {
+  const [showExtendConfirm, setShowExtendConfirm] = useState(false)
+  const [showRolloffConfirm, setShowRolloffConfirm] = useState(false)
+  const [extending, setExtending] = useState(false)
+  const [initiatingRolloff, setInitiatingRolloff] = useState(false)
+
+  const isActive = contract.state === 'IN_PROGRESS'
+  const isRolloff = contract.daysUntilEnd != null && contract.daysUntilEnd >= 0 && contract.daysUntilEnd <= 28
+  const drawerRateLabel = tab === 'sell' ? 'Bill rate' : 'Pay rate'
+  const drawerCounterpartyLabel = tab === 'sell' ? 'Client' : 'Vendor'
+
+  // Three-party: endClientName differs from counterpartyName
+  const hasThreeParty = contract.endClientName
+    && contract.counterpartyName
+    && contract.endClientName !== contract.counterpartyName
+
+  const dateOpts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
+
+  async function handleExtend() {
+    setExtending(true)
+    try {
+      const extensionMonths = 3
+      const currentEnd = contract.endDate ? new Date(contract.endDate) : new Date()
+      const newEnd = new Date(currentEnd)
+      newEnd.setMonth(newEnd.getMonth() + extensionMonths)
+
+      const res = await fetch(`/api/contracts/${contract.id}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extensionMonths, newEndDate: newEnd.toISOString() }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        onToast(body.error?.message ?? 'Failed to extend contract', 'error')
+        return
+      }
+
+      onToast('Contract extended by 3 months', 'success')
+      setShowExtendConfirm(false)
+      onRefresh()
+      onClose()
+    } catch {
+      onToast('Network error. Please try again.', 'error')
+    } finally {
+      setExtending(false)
+    }
+  }
+
+  async function handleRolloff() {
+    setInitiatingRolloff(true)
+    try {
+      const res = await fetch(`/api/contracts/${contract.id}/rolloff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        onToast(body.error?.message ?? 'Failed to initiate rolloff', 'error')
+        return
+      }
+
+      onToast('Rolloff initiated', 'success')
+      setShowRolloffConfirm(false)
+      onRefresh()
+      onClose()
+    } catch {
+      onToast('Network error. Please try again.', 'error')
+    } finally {
+      setInitiatingRolloff(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/20" onClick={onClose}>
+      <div
+        className="w-full max-w-md bg-white h-full shadow-xl overflow-y-auto animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-etyme-rule flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">{contract.personName}</h2>
+              <span className={`chip ${stateChipClass(contract.state)}`}>
+                {stateLabel(contract.state)}
+              </span>
+            </div>
+            <p className="text-[11px] text-etyme-faint font-mono mt-1">{contract.id.slice(0, 12)}…</p>
+          </div>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Rolloff warning */}
+          {isRolloff && isActive && (
+            <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200">
+              <div className="flex items-center gap-2">
+                <span className="evidence-dot evidence-dot--pending" />
+                <span className="text-sm font-semibold text-amber-800">
+                  {contract.daysUntilEnd === 0
+                    ? 'Contract ends today'
+                    : `Contract ends in ${contract.daysUntilEnd} day${contract.daysUntilEnd !== 1 ? 's' : ''}`}
+                </span>
+              </div>
+              <p className="text-xs text-amber-700 mt-1 ml-4">
+                Extend or initiate rolloff before the end date.
+              </p>
+            </div>
+          )}
+
+          {/* Key details */}
+          <div>
+            <p className="eyebrow mb-2">Key details</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="stat-label">{drawerCounterpartyLabel}</p>
+                <p className="text-sm font-medium text-etyme-ink mt-0.5">
+                  {contract.counterpartyName ?? '—'}
+                </p>
+              </div>
+              <div>
+                <p className="stat-label">{drawerRateLabel}</p>
+                <p className="text-sm font-medium tabular-nums text-etyme-ink mt-0.5">
+                  ${(contract.rate / 100).toFixed(2)}/hr
+                  <span className="text-etyme-faint text-[11px] ml-1">{contract.currency}</span>
+                </p>
+              </div>
+              <div>
+                <p className="stat-label">Start date</p>
+                <p className="text-sm tabular-nums mt-0.5">
+                  {new Date(contract.startDate).toLocaleDateString('en-US', dateOpts)}
+                </p>
+              </div>
+              <div>
+                <p className="stat-label">End date</p>
+                <p className={`text-sm tabular-nums mt-0.5 ${isRolloff ? 'text-etyme-attention font-medium' : ''}`}>
+                  {contract.endDate
+                    ? new Date(contract.endDate).toLocaleDateString('en-US', dateOpts)
+                    : 'Open-ended'}
+                </p>
+              </div>
+              <div>
+                <p className="stat-label">State</p>
+                <span className={`chip ${stateChipClass(contract.state)}`}>
+                  {stateLabel(contract.state)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Three-party display */}
+          {hasThreeParty && (
+            <div>
+              <p className="eyebrow mb-2">Engagement structure</p>
+              <div className="bg-etyme-canvas rounded-lg px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-etyme-muted">End client</span>
+                  <span className="text-sm font-medium text-etyme-ink">{contract.endClientName}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-etyme-muted">Bills via</span>
+                  <span className="text-sm text-etyme-muted">{contract.counterpartyName}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Work location */}
+          {contract.workLocationLabel && (
+            <div>
+              <p className="eyebrow mb-1">Work location</p>
+              <p className="text-sm">{contract.workLocationLabel}</p>
+            </div>
+          )}
+
+          {/* Quick actions — only for active contracts */}
+          {isActive && (
+            <>
+              <hr className="border-etyme-rule" />
+              <div>
+                <p className="eyebrow mb-3">Quick actions</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowExtendConfirm(true)}
+                    className="btn-primary flex-1"
+                  >
+                    Extend
+                  </button>
+                  <button
+                    onClick={() => setShowRolloffConfirm(true)}
+                    className="btn-secondary flex-1"
+                  >
+                    Initiate rolloff
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Extend confirmation dialog */}
+      {showExtendConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30"
+          onClick={() => setShowExtendConfirm(false)}
+        >
+          <div className="card w-full max-w-sm mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold mb-2">Extend contract</h3>
+            <p className="text-sm text-etyme-muted mb-4">
+              Extend <strong>{contract.personName}</strong>&apos;s contract by 3 months?
+              {contract.endDate && (
+                <span className="block mt-1 text-[12px] tabular-nums">
+                  Current end: {new Date(contract.endDate).toLocaleDateString('en-US', dateOpts)}
+                  {' → '}
+                  New end: {(() => {
+                    const d = new Date(contract.endDate!)
+                    d.setMonth(d.getMonth() + 3)
+                    return d.toLocaleDateString('en-US', dateOpts)
+                  })()}
+                </span>
+              )}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowExtendConfirm(false)} className="btn-secondary">
+                Cancel
+              </button>
+              <button onClick={handleExtend} disabled={extending} className="btn-primary disabled:opacity-50">
+                {extending ? 'Extending…' : 'Confirm extend'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rolloff confirmation dialog */}
+      {showRolloffConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30"
+          onClick={() => setShowRolloffConfirm(false)}
+        >
+          <div className="card w-full max-w-sm mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold mb-2">Initiate rolloff</h3>
+            <p className="text-sm text-etyme-muted mb-4">
+              Start the rolloff process for <strong>{contract.personName}</strong>?
+              This will notify stakeholders and begin the offboarding checklist.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowRolloffConfirm(false)} className="btn-secondary">
+                Cancel
+              </button>
+              <button onClick={handleRolloff} disabled={initiatingRolloff} className="btn-primary disabled:opacity-50">
+                {initiatingRolloff ? 'Initiating…' : 'Confirm rolloff'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page ───────────────────────────────────────────────────
 
 export default function ContractsPage() {
@@ -433,6 +715,7 @@ export default function ContractsPage() {
   const [tab, setTab] = useState<ViewTab>(initialSide)
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
   const [showCreate, setShowCreate] = useState(false)
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   // Open the create modal when navigated with ?new=1
@@ -760,6 +1043,7 @@ export default function ContractsPage() {
             : 'Buy contracts track what you pay — created alongside sell contracts or for bench/internal employees.'
         }
         exportName={`${tab}-contracts`}
+        onRowClick={(row) => setSelectedContract(row)}
         filters={
           <div className="flex gap-1.5">
             {filters.map(f => (
@@ -779,6 +1063,17 @@ export default function ContractsPage() {
             : ''
         }
       />
+
+      {/* Contract detail drawer */}
+      {selectedContract && (
+        <ContractDetailDrawer
+          contract={selectedContract}
+          tab={tab}
+          onClose={() => setSelectedContract(null)}
+          onToast={(message, type) => setToast({ type, message })}
+          onRefresh={fetchContracts}
+        />
+      )}
 
       {/* Create contract modal */}
       {showCreate && (
