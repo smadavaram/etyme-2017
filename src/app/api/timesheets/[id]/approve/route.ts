@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { notify } from '@/lib/notify'
 
 /**
  * POST /api/timesheets/:id/approve
@@ -81,6 +82,17 @@ export async function POST(
       },
     }),
   ])
+
+  // Notify the timesheet owner that their timesheet was approved
+  notify({
+    personId: timesheet.personId,
+    companyId: timesheet.sellContract.companyId,
+    type: 'TIMESHEET',
+    title: 'Timesheet approved',
+    body: `Your timesheet for ${timesheet.periodStart.toISOString().slice(0, 10)} – ${timesheet.periodEnd.toISOString().slice(0, 10)} (${hours}h, $${billAmount.toFixed(2)}) was approved`,
+    entityId: id,
+    data: { hours, billAmount, approvedBy: person?.name ?? email },
+  })
 
   return NextResponse.json({
     data: {

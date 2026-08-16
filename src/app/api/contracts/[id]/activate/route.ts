@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { evaluateGovernance } from '@/lib/governance'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
+import { notify } from '@/lib/notify'
 
 /**
  * POST /api/contracts/:id/activate
@@ -180,6 +181,23 @@ export async function POST(
       },
     }),
   ])
+
+  // Notify the consultant about contract state changes
+  // Activation, completion, and cancellation are the ones they need to know about
+  const notifyActions = ['activate', 'complete', 'cancel', 'pause', 'resume'] as const
+  if ((notifyActions as readonly string[]).includes(action)) {
+    const clientName = contract.endClientCompany?.name ?? contract.clientCompany.name
+
+    notify({
+      personId: contract.person.id,
+      companyId: contract.companyId,
+      type: 'CONTRACT',
+      title: `Contract ${ACTION_SUMMARIES[action as Action]}`,
+      body: `Your contract at ${clientName} has been ${ACTION_SUMMARIES[action as Action]} by ${caller.person.name}`,
+      entityId: id,
+      data: { contractId: id, action, from: previousState, to: newState },
+    })
+  }
 
   return NextResponse.json({
     data: {

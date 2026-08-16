@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { notifyBulk, type NotifyParams } from '@/lib/notify'
 
 /**
  * POST /api/expenses/actions
@@ -150,6 +151,38 @@ export async function POST(request: NextRequest) {
         reversible: action === 'submit' || action === 'approve',
       },
     })
+  }
+
+  // Notify expense owners about approval/rejection
+  if (successCount > 0 && (action === 'approve' || action === 'reject')) {
+    const processedIds = results.filter((r) => !r.error).map((r) => r.id)
+    const processedExpenses = expenses.filter((e) => processedIds.includes(e.id))
+
+    // Group by personId — one notification per person
+    const byPerson = new Map<string, number>()
+    for (const e of processedExpenses) {
+      byPerson.set(e.personId, (byPerson.get(e.personId) ?? 0) + 1)
+    }
+
+    const notifications: NotifyParams[] = []
+    for (const [personId, count] of byPerson) {
+      notifications.push({
+        personId,
+        companyId: caller.company?.id,
+        type: 'EXPENSE',
+        title: action === 'approve'
+          ? `${count} expense${count > 1 ? 's' : ''} approved`
+          : `${count} expense${count > 1 ? 's' : ''} rejected`,
+        body: action === 'approve'
+          ? `Your expense${count > 1 ? 's have' : ' has'} been approved by ${caller.person.name}`
+          : `Your expense${count > 1 ? 's have' : ' has'} been rejected by ${caller.person.name}: ${reason}`,
+        data: { action, count, reason: reason ?? null },
+      })
+    }
+
+    if (notifications.length > 0) {
+      notifyBulk(notifications)
+    }
   }
 
   return NextResponse.json({

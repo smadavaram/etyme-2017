@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { notifyBulk, type NotifyParams } from '@/lib/notify'
 
 /**
  * POST /api/submissions
@@ -196,6 +197,44 @@ export async function POST(request: NextRequest) {
   const created = results.filter((r) => r.status === 'created')
   const errors = results.filter((r) => r.status === 'error')
   const duplicates = results.filter((r) => r.status === 'duplicate')
+
+  // Notify the requirement owner about new submissions
+  if (created.length > 0) {
+    // Find admins at the requirement's company who should see submissions
+    const recipientContexts = await prisma.context.findMany({
+      where: {
+        companyId: toCompanyId,
+        role: { permissions: { hasSome: ['submissions.read'] } },
+      },
+      select: { personId: true },
+      take: 5,
+    })
+
+    const notifications: NotifyParams[] = []
+    for (const ctx of recipientContexts) {
+      notifications.push({
+        personId: ctx.personId,
+        companyId: toCompanyId,
+        type: 'SUBMISSION',
+        title: created.length === 1
+          ? `New submission for "${requirement.title}"`
+          : `${created.length} new submissions for "${requirement.title}"`,
+        body: created.length === 1
+          ? `A candidate was submitted to your requirement "${requirement.title}"`
+          : `${created.length} candidates were submitted to your requirement "${requirement.title}"`,
+        entityId: requirementId,
+        data: {
+          requirementId,
+          count: created.length,
+          submissionIds: created.map((r: any) => r.submissionId),
+        },
+      })
+    }
+
+    if (notifications.length > 0) {
+      notifyBulk(notifications)
+    }
+  }
 
   return NextResponse.json({
     data: {

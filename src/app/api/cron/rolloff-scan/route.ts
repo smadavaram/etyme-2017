@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { notifyBulk, type NotifyParams } from '@/lib/notify'
 
 /**
  * GET /api/cron/rolloff-scan
@@ -107,6 +108,44 @@ export async function GET(request: NextRequest) {
 
       return events
     })
+
+    // Notify vendor admins about new rolloff events (fire-and-forget)
+    // BRD §16: vendor must be notified first in the fan-out sequence
+    const notifications: NotifyParams[] = []
+    for (const c of contracts) {
+      const matched = result.find((e) => e.personName === c.person.name)
+      if (!matched) continue
+
+      // Find admin persons at the vendor company to notify
+      const vendorContexts = await prisma.context.findMany({
+        where: {
+          companyId: c.company.id,
+          role: { permissions: { hasSome: ['assignments.write'] } },
+        },
+        select: { personId: true },
+        take: 5, // cap at 5 admins per vendor
+      })
+
+      for (const ctx of vendorContexts) {
+        notifications.push({
+          personId: ctx.personId,
+          companyId: c.company.id,
+          type: 'ROLLOFF',
+          title: `Contract ending: ${c.person.name} at ${c.clientCompany.name}`,
+          body: `${c.person.name}'s contract at ${c.clientCompany.name} ends in ${matched.daysUntilEnd} days. Claim this rolloff to manage the offboarding.`,
+          entityId: matched.id,
+          data: {
+            rolloffEventId: matched.id,
+            contractId: c.id,
+            daysLeft: matched.daysUntilEnd,
+          },
+        })
+      }
+    }
+
+    if (notifications.length > 0) {
+      notifyBulk(notifications)
+    }
 
     return NextResponse.json({
       data: {

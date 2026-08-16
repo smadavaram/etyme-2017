@@ -31,10 +31,8 @@ export async function GET(
   // Load consultant to verify access
   const consultant = await prisma.consultantProfile.findUnique({
     where: { id: consultantId },
-    select: {
-      id: true,
-      personId: true,
-      person: { select: { id: true, name: true, email: true } },
+    include: {
+      person: { select: { id: true, name: true, primaryEmail: true } },
     },
   })
 

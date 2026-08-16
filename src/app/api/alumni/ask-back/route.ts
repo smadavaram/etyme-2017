@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { notify } from '@/lib/notify'
 
 /**
  * POST /api/alumni/ask-back
@@ -150,6 +151,28 @@ export async function POST(request: NextRequest) {
       reversible: true,
     },
   })
+
+  // Notify the vendor company admins about the re-engagement request
+  const vendorContexts = await prisma.context.findMany({
+    where: {
+      companyId: caller.company?.id,
+      role: { permissions: { hasSome: ['assignments.write'] } },
+    },
+    select: { personId: true },
+    take: 5,
+  })
+
+  for (const ctx of vendorContexts) {
+    if (ctx.personId === caller.person.id) continue // don't notify the initiator
+    notify({
+      personId: ctx.personId,
+      companyId: caller.company?.id,
+      type: 'CONTRACT',
+      title: `Alumni re-engagement: ${person.name}`,
+      body: `${caller.person.name} requested to bring back ${person.name} at ${client.name}`,
+      data: { personId, clientCompanyId, action: 'ASK_BACK' },
+    })
+  }
 
   return NextResponse.json({
     data: {
