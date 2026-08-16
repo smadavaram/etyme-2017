@@ -1301,6 +1301,9 @@ model GovernanceRule {
   enforcementMode EnforcementMode
   parameters      Json // type-specific: { maxMonths: 18, exemptCompanyKinds: ["MSP"] }
   description     String // plain English: "No direct vendor hire beyond 18 months"
+  // Whose decision a breach is. Defaults per rule type in
+  // src/lib/governance-teams.ts; set here when a client differs.
+  ownerTeam       ClientTeam?
   isActive        Boolean            @default(true)
   createdAt       DateTime           @default(now())
 
@@ -1318,6 +1321,21 @@ enum GovernanceRuleType {
   WORK_AUTHORIZATION // valid work auth required before start
   INSURANCE_REQUIRED // vendor must have current insurance
   SEGREGATION_OF_DUTIES // same person cannot hold conflicting roles
+}
+
+// Which team at the client adjudicates a breach of a rule.
+//
+// A client is not one person. A tenure cap breach is HR's to decide — it is
+// co-employment exposure. A lapsed supplier insurance certificate is
+// procurement's. A rate above band is procurement's. Going over the
+// headcount plan belongs to whoever owns the budget. Routing all of them to
+// one "approver" is the thing that makes governance feel like a queue
+// rather than somebody's job.
+enum ClientTeam {
+  HIRING_MANAGER // needs the person; owns the plan and the budget line
+  PROCUREMENT // owns vendors, rates, contracts, spend
+  HR // owns co-employment, tenure, classification, work authorisation
+  LEGAL // owns anything that ends up in front of a regulator
 }
 
 enum EnforcementMode {

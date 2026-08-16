@@ -53,6 +53,7 @@ async function main() {
     prisma.requirement.deleteMany(),
     prisma.automationLog.deleteMany(),
     prisma.accessLog.deleteMany(),
+    prisma.verification.deleteMany(),
     prisma.requirementApproval.deleteMany(),
     prisma.approvalRule.deleteMany(),
     prisma.headcountPlan.deleteMany(),
@@ -162,6 +163,57 @@ async function main() {
       isDefault: false,
     },
   })
+
+  // ── The client's three teams ──
+  // A client is not one person. Each team decides different things and sees
+  // different data, which is why governance rules carry an owning team
+  // (src/lib/governance-horizon.ts). Routing everything to one "approver"
+  // is what makes governance feel like a queue rather than somebody's job.
+  const clientTeams = {
+    hiringManager: await prisma.role.create({
+      data: {
+        companyId: client.id,
+        name: 'Hiring Manager',
+        // Needs people. Sees their own unit, not the whole programme, and
+        // never sees what a vendor pays or earns.
+        permissions: [
+          'requirements.read', 'requirements.write',
+          'submissions.read', 'assignments.read',
+          'timesheets.read', 'timesheets.approve',
+        ],
+        isDefault: false,
+      },
+    }),
+    procurement: await prisma.role.create({
+      data: {
+        companyId: client.id,
+        name: 'Indirect Procurement',
+        // Owns vendors, rates, contracts and spend. Sees money across the
+        // whole programme; does not adjudicate co-employment.
+        permissions: [
+          'vendors.read', 'vendors.write',
+          'requirements.read', 'submissions.read', 'assignments.read',
+          'invoices.read', 'invoices.approve',
+          'rates.read', 'governance.read',
+        ],
+        isDefault: false,
+      },
+    }),
+    hr: await prisma.role.create({
+      data: {
+        companyId: client.id,
+        name: 'HR — Workforce Compliance',
+        // Owns co-employment, tenure, classification and work authorisation.
+        // Sees people and their exposure; has no reason to see rates.
+        permissions: [
+          'consultants.read', 'assignments.read',
+          'governance.read', 'governance.write',
+          'tenure.read', 'compliance.read', 'compliance.write',
+        ],
+        isDefault: false,
+      },
+    }),
+  }
 
   // Granted earlier than the vendor context so the vendor stays the default
   // active context — Phase 1 is vendor-first. Switch to the client console by
@@ -398,6 +450,87 @@ async function main() {
       approverId: managers.mbeki.id,
       rank: 2,
       isActive: true,
+    },
+  })
+
+  // ── Put the client's people on their teams ──
+  // Dana runs manufacturing finance and needs people. Joyce owns supply
+  // chain and holds the exception authority. Ravi is the compliance seat —
+  // tenure and co-employment are his to adjudicate, and nobody else's.
+  const teamSeats: Array<[keyof typeof managers, string]> = [
+    ['whitfield', clientTeams.hiringManager.id],
+    ['mbeki', clientTeams.procurement.id],
+  ]
+  for (const [key, roleId] of teamSeats) {
+    await prisma.context.create({
+      data: {
+        personId: managers[key].id,
+        type: 'EMPLOYEE',
+        companyId: client.id,
+        roleId,
+      },
+    })
+  }
+
+  const hrLead = await prisma.person.create({
+    data: { name: 'Ravi Anand', primaryEmail: 'r.anand@terumobct.com' },
+  })
+  await prisma.context.create({
+    data: {
+      personId: hrLead.id,
+      type: 'EMPLOYEE',
+      companyId: client.id,
+      roleId: clientTeams.hr.id,
+    },
+  })
+
+  // ── Who owns a breach of each rule ──
+  // Defaults live in code; recording them here makes the client's own
+  // arrangement explicit and overridable.
+  const ruleOwners: Array<[string, 'HIRING_MANAGER' | 'PROCUREMENT' | 'HR']> = [
+    ['TENURE_CAP', 'HR'],
+    ['BREAK_IN_SERVICE', 'HR'],
+    ['WORK_AUTHORIZATION', 'HR'],
+    ['SEGREGATION_OF_DUTIES', 'HR'],
+    ['INSURANCE_REQUIRED', 'PROCUREMENT'],
+    ['RATE_BAND', 'PROCUREMENT'],
+  ]
+  for (const [ruleType, owner] of ruleOwners) {
+    await prisma.governanceRule.updateMany({
+      where: { ruleType: ruleType as any, policy: { companyId: client.id } },
+      data: { ownerTeam: owner as any },
+    })
+  }
+
+  // ── Certificates with real expiry dates ──
+  // Without these the horizon has nothing to project and the console looks
+  // reassuringly empty for the wrong reason.
+  const day = 86_400_000
+  await prisma.verification.create({
+    data: {
+      companyId: vendor.id,
+      type: 'INSURANCE_GL',
+      status: 'CLEAR',
+      provider: 'The Hartford',
+      issuedAt: new Date(Date.now() - 330 * day),
+      // Inside the default 120-day window — procurement should see this.
+      expiresAt: new Date(Date.now() + 35 * day),
+      uploadedById: founder.id,
+      verifiedById: founder.id,
+      verifiedAt: new Date(Date.now() - 320 * day),
+    },
+  })
+  await prisma.verification.create({
+    data: {
+      companyId: vendor.id,
+      type: 'INSURANCE_WC',
+      status: 'CLEAR',
+      provider: 'The Hartford',
+      issuedAt: new Date(Date.now() - 300 * day),
+      expiresAt: new Date(Date.now() + 96 * day),
+      uploadedById: founder.id,
+      verifiedById: founder.id,
+      verifiedAt: new Date(Date.now() - 295 * day),
     },
   })
 
