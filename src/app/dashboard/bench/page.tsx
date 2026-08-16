@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -17,6 +17,14 @@ import { DataTable, type Column } from '@/components/data-table'
  */
 
 // ── Types ────────────────────────────────────────────
+
+interface ConsultantOption {
+  id: string
+  personId: string
+  name: string
+  email: string
+  headline: string | null
+}
 
 interface BenchEntry {
   id: string
@@ -82,6 +90,266 @@ function formatRate(min: number | null, max: number | null): string {
   return `$${min ?? max}`
 }
 
+// ── Add Bench Listing Modal ─────────────────────────
+
+function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onCreated: (msg: string) => void }) {
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<ConsultantOption[]>([])
+  const [searching, setSearching] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [selectedConsultant, setSelectedConsultant] = useState<ConsultantOption | null>(null)
+  const [tier, setTier] = useState<'RETAINED' | 'MARKETING'>('RETAINED')
+  const [rateMin, setRateMin] = useState('')
+  const [rateMax, setRateMax] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Debounced consultant search
+  function handleSearchChange(value: string) {
+    setSearchQuery(value)
+    setSelectedConsultant(null)
+    setError(null)
+
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+
+    if (value.trim().length < 2) {
+      setSearchResults([])
+      setShowDropdown(false)
+      return
+    }
+
+    searchTimerRef.current = setTimeout(async () => {
+      setSearching(true)
+      try {
+        const res = await fetch(`/api/consultants?q=${encodeURIComponent(value.trim())}&limit=10`)
+        if (res.ok) {
+          const body = await res.json()
+          const results = (body.data?.consultants ?? []).map((c: any) => ({
+            id: c.id,
+            personId: c.personId,
+            name: c.person?.name ?? c.name ?? 'Unknown',
+            email: c.person?.email ?? c.email ?? '',
+            headline: c.headline ?? null,
+          }))
+          setSearchResults(results)
+          setShowDropdown(results.length > 0)
+        }
+      } catch {
+        // Silently fail — user can retry
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+  }
+
+  function selectConsultant(c: ConsultantOption) {
+    setSelectedConsultant(c)
+    setSearchQuery(c.name)
+    setShowDropdown(false)
+    setError(null)
+  }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedConsultant) {
+      setError('Please select a consultant from the search results.')
+      return
+    }
+
+    const minVal = rateMin.trim() ? Math.round(parseFloat(rateMin) * 100) : null
+    const maxVal = rateMax.trim() ? Math.round(parseFloat(rateMax) * 100) : null
+
+    if (minVal != null && maxVal != null && minVal > maxVal) {
+      setError('Rate min cannot exceed rate max.')
+      return
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/bench/listings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          consultantId: selectedConsultant.id,
+          tier,
+          rateMin: minVal,
+          rateMax: maxVal,
+        }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body.error?.message ?? 'Failed to create bench listing')
+        return
+      }
+
+      const body = await res.json()
+      onCreated(body.data?.message ?? `Bench listing created for "${selectedConsultant.name}".`)
+      onClose()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Add to bench</h2>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Consultant search */}
+          <div ref={dropdownRef} className="relative">
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Consultant *</label>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onFocus={() => searchResults.length > 0 && !selectedConsultant && setShowDropdown(true)}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              placeholder="Search by name or email…"
+              autoComplete="off"
+            />
+            {searching && (
+              <div className="absolute right-3 top-[30px] text-[11px] text-etyme-faint animate-pulse">
+                Searching…
+              </div>
+            )}
+            {selectedConsultant && (
+              <div className="mt-1.5 flex items-center gap-2 px-3 py-2 bg-etyme-canvas rounded-lg">
+                <div className="w-6 h-6 rounded-full bg-etyme-action/10 text-etyme-action
+                                text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                  {selectedConsultant.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-etyme-ink truncate">{selectedConsultant.name}</p>
+                  <p className="text-[11px] text-etyme-faint truncate">{selectedConsultant.headline ?? selectedConsultant.email}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedConsultant(null); setSearchQuery('') }}
+                  className="ml-auto text-etyme-muted hover:text-etyme-ink p-0.5"
+                >
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+                    <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Search results dropdown */}
+            {showDropdown && !selectedConsultant && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-etyme-rule rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {searchResults.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => selectConsultant(c)}
+                    className="w-full text-left px-3 py-2.5 hover:bg-etyme-canvas flex items-center gap-2
+                               border-b border-etyme-rule/50 last:border-0 transition-colors"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-etyme-action/10 text-etyme-action
+                                    text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                      {c.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-etyme-ink truncate">{c.name}</p>
+                      <p className="text-[11px] text-etyme-faint truncate">{c.headline ?? c.email}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Tier */}
+          <div>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Tier *</label>
+            <select
+              value={tier}
+              onChange={(e) => setTier(e.target.value as 'RETAINED' | 'MARKETING')}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+            >
+              <option value="RETAINED">Retained</option>
+              <option value="MARKETING">Marketing</option>
+            </select>
+          </div>
+
+          {/* Rate range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Rate min ($/hr)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={rateMin}
+                onChange={(e) => setRateMin(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                placeholder="e.g. 75"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Rate max ($/hr)</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={rateMax}
+                onChange={(e) => setRateMax(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg tabular-nums
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                placeholder="e.g. 95"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting || !selectedConsultant} className="btn-primary disabled:opacity-50">
+              {submitting ? 'Creating…' : 'Add to bench'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────
 
 export default function BenchPage() {
@@ -90,6 +358,8 @@ export default function BenchPage() {
   const [error, setError] = useState<string | null>(null)
   const [tierFilter, setTierFilter] = useState<TierFilter>('all')
   const [availFilter, setAvailFilter] = useState<AvailFilter>('all')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const fetchBench = useCallback(async () => {
     setLoading(true)
@@ -267,17 +537,28 @@ export default function BenchPage() {
 
   // ── Render ─────────────────────────────────────────
 
+  function handleListingCreated(msg: string) {
+    setToast({ message: msg, type: 'success' })
+    setTimeout(() => setToast(null), 3500)
+    fetchBench()
+  }
+
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="mb-6">
-        <div className="eyebrow mb-2">Procure</div>
-        <h1 className="headline-serif text-heading text-etyme-ink mb-1">
-          Bench
-        </h1>
-        <p className="text-body-sm text-etyme-muted">
-          Your consultant bench — retained and marketing listings.
-        </p>
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <div className="eyebrow mb-2">Procure</div>
+          <h1 className="headline-serif text-heading text-etyme-ink mb-1">
+            Bench
+          </h1>
+          <p className="text-body-sm text-etyme-muted">
+            Your consultant bench — retained and marketing listings.
+          </p>
+        </div>
+        <button onClick={() => setShowAddModal(true)} className="btn-primary mt-3 shrink-0">
+          Add to bench
+        </button>
       </div>
 
       {/* Stats row */}
@@ -375,6 +656,25 @@ export default function BenchPage() {
           </div>
         }
       />
+
+      {/* Add bench listing modal */}
+      {showAddModal && (
+        <AddBenchListingModal
+          onClose={() => setShowAddModal(false)}
+          onCreated={handleListingCreated}
+        />
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up ${
+          toast.type === 'success'
+            ? 'bg-etyme-verified text-white'
+            : 'bg-red-600 text-white'
+        }`}>
+          {toast.message}
+        </div>
+      )}
     </div>
   )
 }

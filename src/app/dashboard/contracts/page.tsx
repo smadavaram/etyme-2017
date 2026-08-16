@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -92,10 +93,13 @@ function matchesFilter(state: string, filter: StateFilter): boolean {
 // ── Page ───────────────────────────────────────────────────
 
 export default function ContractsPage() {
+  const searchParams = useSearchParams()
+  const initialSide = (searchParams.get('side') === 'buy' ? 'buy' : 'sell') as ViewTab
+
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<ViewTab>('sell')
+  const [tab, setTab] = useState<ViewTab>(initialSide)
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
 
   const fetchContracts = useCallback(async () => {

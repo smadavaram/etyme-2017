@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 /**
  * Conversations page — messaging between vendors, clients, and candidates.
@@ -112,12 +113,155 @@ function messageTypeClass(type: string): string {
   return ''
 }
 
+// ── New Conversation Modal ───────────────────────────
+
+function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({
+    subject: '',
+    channel: 'INTERNAL',
+    body: '',
+    recipientIds: '',
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+
+    const ids = form.recipientIds.split(',').map((s) => s.trim()).filter(Boolean)
+    if (ids.length === 0) {
+      setError('At least one recipient is required.')
+      setSubmitting(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: form.subject,
+          channel: form.channel,
+          body: form.body,
+          recipientIds: ids,
+        }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json()
+        setError(body.error?.message ?? 'Failed to create conversation')
+        return
+      }
+
+      onCreated()
+      onClose()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">New conversation</h2>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Subject *</label>
+            <input
+              type="text"
+              required
+              value={form.subject}
+              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              placeholder="e.g. SAP BRIM requirement discussion"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Channel *</label>
+            <select
+              required
+              value={form.channel}
+              onChange={(e) => setForm({ ...form, channel: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+            >
+              <option value="INTERNAL">Internal</option>
+              <option value="EMAIL">Email</option>
+              <option value="TEAMS">Teams</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Recipients *</label>
+            <input
+              type="text"
+              required
+              value={form.recipientIds}
+              onChange={(e) => setForm({ ...form, recipientIds: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              placeholder="person-id-1, person-id-2"
+            />
+            <p className="text-[10px] text-etyme-faint mt-1">(Enter person IDs, comma-separated)</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Message *</label>
+            <textarea
+              required
+              rows={4}
+              value={form.body}
+              onChange={(e) => setForm({ ...form, body: e.target.value })}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action resize-none"
+              placeholder="Type your message…"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting} className="btn-primary w-full disabled:opacity-50">
+              {submitting ? 'Creating…' : 'Start conversation'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────
 
 export default function ConversationsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showNew, setShowNew] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
   const [topicFilter, setTopicFilter] = useState<TopicFilter>('all')
   const [activeConvo, setActiveConvo] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -125,6 +269,21 @@ export default function ConversationsPage() {
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Open the new-conversation modal when navigated with ?new=1
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowNew(true)
+      router.replace('/dashboard/conversations', { scroll: false })
+    }
+  }, [searchParams, router])
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3000)
+    return () => clearTimeout(t)
+  }, [toast])
 
   // ── Fetch conversations ───────────────────────────
   const fetchConversations = useCallback(async () => {
@@ -221,6 +380,13 @@ export default function ConversationsPage() {
 
   return (
     <>
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-6 right-6 z-[60] px-4 py-3 rounded-lg bg-etyme-verified text-white text-sm shadow-lg animate-slide-up">
+          {toast}
+        </div>
+      )}
+
       {/* Head */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
@@ -228,6 +394,9 @@ export default function ConversationsPage() {
           <h1>Conversations</h1>
           <p>Messages between your team, clients, and candidates — linked to requirements, contracts, and submissions.</p>
         </div>
+        <button onClick={() => setShowNew(true)} className="btn-primary mt-3 shrink-0">
+          + New
+        </button>
       </div>
 
       {/* Topic filters */}
@@ -438,6 +607,17 @@ export default function ConversationsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* New conversation modal */}
+      {showNew && (
+        <NewConversationModal
+          onClose={() => setShowNew(false)}
+          onCreated={() => {
+            setToast('Conversation created')
+            fetchConversations()
+          }}
+        />
       )}
     </>
   )

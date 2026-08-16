@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
 /**
  * Sidebar navigation — from CLAUDE.md design system.
@@ -46,7 +46,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
-      { label: 'Sell Contracts', href: '/dashboard/contracts', icon: '▤' },
+      { label: 'Sell Contracts', href: '/dashboard/contracts?side=sell', icon: '▤' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
     ],
   },
@@ -56,7 +56,7 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
       { label: 'Candidates', href: '/dashboard/consultants', icon: '◌' },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },
-      { label: 'Buy Contracts', href: '/dashboard/contracts', icon: '▥' },
+      { label: 'Buy Contracts', href: '/dashboard/contracts?side=buy', icon: '▥' },
     ],
   },
   {
@@ -120,6 +120,7 @@ export function Sidebar({
   companyLabel?: string
 }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const sections = getNavForKind(companyKind)
 
   // For client view, the "dashboard" link is /dashboard/program
@@ -144,9 +145,13 @@ export function Sidebar({
               {section.label}
             </div>
             {section.items.map((item) => {
+              // Handle hrefs with query params (e.g. /dashboard/contracts?side=sell)
+              const [itemPath, itemQuery] = item.href.split('?')
               const active = item.href === dashboardHref
                 ? pathname === dashboardHref
-                : pathname.startsWith(item.href)
+                : itemQuery
+                  ? pathname.startsWith(itemPath) && searchParams.get(itemQuery.split('=')[0]) === itemQuery.split('=')[1]
+                  : pathname.startsWith(item.href)
               return (
                 <Link
                   key={item.label}

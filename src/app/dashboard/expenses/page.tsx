@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -104,9 +105,354 @@ function timeAgo(dateStr: string): string {
   return d.toLocaleDateString()
 }
 
+// ── Contract option for the consultant dropdown ─────
+
+interface ContractOption {
+  id: string
+  personId: string
+  personName: string
+  clientName: string
+}
+
+// ── Line item shape ─────────────────────────────────
+
+interface LineItem {
+  description: string
+  quantity: number
+  unitPrice: string // dollars as string for input; converted to cents on POST
+}
+
+const CATEGORIES = ['TRAVEL', 'EQUIPMENT', 'TRAINING', 'RELOCATION', 'MEALS', 'OTHER'] as const
+
+function emptyItem(): LineItem {
+  return { description: '', quantity: 1, unitPrice: '' }
+}
+
+// ── Add Expense Modal ───────────────────────────────
+
+function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [contracts, setContracts] = useState<ContractOption[]>([])
+  const [loadingContracts, setLoadingContracts] = useState(true)
+
+  const [sellContractId, setSellContractId] = useState('')
+  const [personId, setPersonId] = useState('')
+  const [category, setCategory] = useState('')
+  const [billable, setBillable] = useState(true)
+  const [description, setDescription] = useState('')
+  const [periodStart, setPeriodStart] = useState('')
+  const [periodEnd, setPeriodEnd] = useState('')
+  const [items, setItems] = useState<LineItem[]>([emptyItem()])
+  const [receiptUrl, setReceiptUrl] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch active sell contracts on mount
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/contracts?side=sell&state=IN_PROGRESS&limit=100')
+        if (res.ok) {
+          const body = await res.json()
+          const raw = body.data?.contracts ?? []
+          setContracts(
+            raw.map((c: any) => ({
+              id: c.id,
+              personId: c.person?.id ?? c.personId,
+              personName: c.person?.name ?? 'Unknown',
+              clientName: c.clientCompany?.name ?? c.clientName ?? 'Unknown',
+            }))
+          )
+        }
+      } catch {
+        // Non-fatal — the dropdown will just be empty
+      } finally {
+        setLoadingContracts(false)
+      }
+    }
+    load()
+  }, [])
+
+  function handleContractChange(contractId: string) {
+    setSellContractId(contractId)
+    const match = contracts.find((c) => c.id === contractId)
+    setPersonId(match?.personId ?? '')
+  }
+
+  function updateItem(index: number, field: keyof LineItem, value: string | number) {
+    setItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    )
+  }
+
+  function removeItem(index: number) {
+    setItems((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)))
+  }
+
+  function addItem() {
+    setItems((prev) => [...prev, emptyItem()])
+  }
+
+  // Compute running total in dollars
+  const runningTotal = items.reduce((sum, item) => {
+    const price = parseFloat(item.unitPrice) || 0
+    return sum + item.quantity * price
+  }, 0)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const payload = {
+        sellContractId,
+        personId,
+        category,
+        billable,
+        description,
+        periodStart: new Date(periodStart).toISOString(),
+        periodEnd: new Date(periodEnd).toISOString(),
+        items: items.map((item) => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: Math.round((parseFloat(item.unitPrice) || 0) * 100),
+        })),
+        receiptUrl: receiptUrl || undefined,
+      }
+
+      const res = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const body = await res.json()
+        setError(body.error?.message ?? 'Failed to create expense')
+        return
+      }
+
+      onCreated()
+      onClose()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const inputClass =
+    'w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action'
+  const labelClass = 'block text-xs font-semibold text-etyme-muted mb-1'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="card w-full max-w-2xl mx-4 animate-slide-up max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Add expense</h2>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Consultant (sell contract) */}
+          <div>
+            <label className={labelClass}>Consultant *</label>
+            <select
+              required
+              value={sellContractId}
+              onChange={(e) => handleContractChange(e.target.value)}
+              className={`${inputClass} bg-white`}
+            >
+              <option value="">
+                {loadingContracts ? 'Loading contracts…' : 'Select consultant…'}
+              </option>
+              {contracts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.personName} — {c.clientName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Category + Billable */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Category *</label>
+              <select
+                required
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className={`${inputClass} bg-white`}
+              >
+                <option value="">Select category…</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat.charAt(0) + cat.slice(1).toLowerCase()}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end pb-1">
+              <label className="flex items-start gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={billable}
+                  onChange={(e) => setBillable(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-etyme-rule text-etyme-action focus:ring-etyme-action/20"
+                />
+                <span>
+                  <span className="text-sm font-medium text-etyme-ink">Client-billable</span>
+                  <span className="block text-[11px] text-etyme-faint">(appears on invoices)</span>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className={labelClass}>Description *</label>
+            <input
+              type="text"
+              required
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className={inputClass}
+              placeholder="Travel to client site for Q3 onboarding"
+            />
+          </div>
+
+          {/* Period */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Start date *</label>
+              <input
+                type="date"
+                required
+                value={periodStart}
+                onChange={(e) => setPeriodStart(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>End date *</label>
+              <input
+                type="date"
+                required
+                value={periodEnd}
+                onChange={(e) => setPeriodEnd(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          {/* Line items */}
+          <div>
+            <label className={labelClass}>Line items *</label>
+            <div className="space-y-2">
+              {items.map((item, idx) => (
+                <div key={idx} className="flex items-start gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={item.description}
+                    onChange={(e) => updateItem(idx, 'description', e.target.value)}
+                    className={`${inputClass} flex-[3]`}
+                    placeholder="Description"
+                  />
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={item.quantity}
+                    onChange={(e) => updateItem(idx, 'quantity', parseInt(e.target.value) || 1)}
+                    className={`${inputClass} flex-[1] tabular-nums`}
+                    placeholder="Qty"
+                  />
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    step="0.01"
+                    value={item.unitPrice}
+                    onChange={(e) => updateItem(idx, 'unitPrice', e.target.value)}
+                    className={`${inputClass} flex-[1.5] tabular-nums`}
+                    placeholder="$ Price"
+                  />
+                  <span className="flex-[1] text-sm tabular-nums text-etyme-muted pt-2 text-right whitespace-nowrap">
+                    {formatUSD(item.quantity * (parseFloat(item.unitPrice) || 0))}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(idx)}
+                    disabled={items.length <= 1}
+                    className="text-etyme-faint hover:text-red-500 disabled:opacity-30 disabled:cursor-not-allowed pt-2"
+                    title="Remove item"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <button
+                type="button"
+                onClick={addItem}
+                className="text-sm text-etyme-action hover:underline font-medium"
+              >
+                + Add item
+              </button>
+              <span className="text-sm font-semibold tabular-nums text-etyme-ink">
+                Total: {formatUSD(runningTotal)}
+              </span>
+            </div>
+          </div>
+
+          {/* Receipt URL */}
+          <div>
+            <label className={labelClass}>Receipt URL</label>
+            <input
+              type="url"
+              value={receiptUrl}
+              onChange={(e) => setReceiptUrl(e.target.value)}
+              className={inputClass}
+              placeholder="https://…"
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting} className="btn-primary w-full disabled:opacity-50">
+              {submitting ? 'Creating…' : 'Add expense'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────
 
 export default function ExpensesPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -115,6 +461,15 @@ export default function ExpensesPage() {
   const [totals, setTotals] = useState({ grand: 0, billable: 0, billableCount: 0, internal: 0, internalCount: 0 })
   const [actionLoading, setActionLoading] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [showModal, setShowModal] = useState(false)
+
+  // Open the add modal when navigated with ?new=1
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowModal(true)
+      router.replace('/dashboard/expenses', { scroll: false })
+    }
+  }, [searchParams, router])
 
   const fetchExpenses = useCallback(async () => {
     setLoading(true)
@@ -329,21 +684,26 @@ export default function ExpensesPage() {
           <p>Consultant expenses — travel, equipment, training, relocation. Client-billable expenses appear on invoices.</p>
         </div>
 
-        {/* Kind toggle — billable / internal / all */}
-        <div className="flex bg-etyme-canvas rounded-md p-0.5 mt-3 shrink-0">
-          {(['all', 'billable', 'internal'] as KindFilter[]).map((k) => (
-            <button
-              key={k}
-              onClick={() => setKindFilter(k)}
-              className={`px-4 py-2 text-[13px] font-medium rounded transition-colors capitalize ${
-                kindFilter === k
-                  ? 'bg-white shadow-sm text-etyme-ink'
-                  : 'text-etyme-muted hover:text-etyme-ink'
-              }`}
-            >
-              {k === 'all' ? 'All' : k === 'billable' ? 'Billable' : 'Internal'}
-            </button>
-          ))}
+        {/* Kind toggle + New button */}
+        <div className="flex items-center gap-3 mt-3 shrink-0">
+          <div className="flex bg-etyme-canvas rounded-md p-0.5">
+            {(['all', 'billable', 'internal'] as KindFilter[]).map((k) => (
+              <button
+                key={k}
+                onClick={() => setKindFilter(k)}
+                className={`px-4 py-2 text-[13px] font-medium rounded transition-colors capitalize ${
+                  kindFilter === k
+                    ? 'bg-white shadow-sm text-etyme-ink'
+                    : 'text-etyme-muted hover:text-etyme-ink'
+                }`}
+              >
+                {k === 'all' ? 'All' : k === 'billable' ? 'Billable' : 'Internal'}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setShowModal(true)} className="btn-primary">
+            + New
+          </button>
         </div>
       </div>
 
@@ -451,6 +811,18 @@ export default function ExpensesPage() {
                          } animate-slide-up`}>
           {toast.message}
         </div>
+      )}
+
+      {/* Add Expense Modal */}
+      {showModal && (
+        <AddExpenseModal
+          onClose={() => setShowModal(false)}
+          onCreated={() => {
+            setToast({ message: 'Expense created', type: 'success' })
+            setTimeout(() => setToast(null), 3500)
+            fetchExpenses()
+          }}
+        />
       )}
     </>
   )

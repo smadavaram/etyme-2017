@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -74,15 +75,304 @@ function formatPeriod(start: string, end: string): string {
   return `${s.toLocaleDateString('en-US', opts)} – ${e.toLocaleDateString('en-US', opts)}`
 }
 
+// ── Create Timesheet Modal ──────────────────────────
+
+interface ContractOption {
+  id: string
+  personName: string
+  clientName: string
+  billRate: number
+}
+
+function getWeekDates(start: Date): string[] {
+  const dates: string[] = []
+  const d = new Date(start)
+  for (let i = 0; i < 7; i++) {
+    dates.push(d.toISOString().slice(0, 10))
+    d.setDate(d.getDate() + 1)
+  }
+  return dates
+}
+
+function getMonday(d: Date): Date {
+  const day = d.getDay()
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  const monday = new Date(d)
+  monday.setDate(diff)
+  return monday
+}
+
+const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function CreateTimesheetModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void
+  onCreated: (msg: string) => void
+}) {
+  const [contracts, setContracts] = useState<ContractOption[]>([])
+  const [contractId, setContractId] = useState('')
+  const [weekStart, setWeekStart] = useState(() => {
+    const mon = getMonday(new Date())
+    return mon.toISOString().slice(0, 10)
+  })
+  const [hours, setHours] = useState<Record<string, number>>({})
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch active sell contracts for the dropdown
+  useEffect(() => {
+    fetch('/api/contracts?side=sell&state=IN_PROGRESS&limit=100')
+      .then((r) => r.json())
+      .then((body) => {
+        const list = (body.data?.contracts ?? []).map((c: any) => ({
+          id: c.id,
+          personName: c.person?.name ?? 'Unknown',
+          clientName: c.endClientCompany?.name ?? c.clientCompany?.name ?? 'Unknown',
+          billRate: c.billRate,
+        }))
+        setContracts(list)
+        if (list.length === 1) setContractId(list[0].id)
+      })
+      .catch(() => {})
+  }, [])
+
+  const weekDates = getWeekDates(new Date(weekStart + 'T00:00:00'))
+  const totalHrs = Object.values(hours).reduce((s, h) => s + h, 0)
+  const selectedContract = contracts.find((c) => c.id === contractId)
+  const estimatedValue = selectedContract
+    ? totalHrs * (selectedContract.billRate / 100)
+    : 0
+
+  function setDayHours(date: string, val: string) {
+    const num = parseFloat(val)
+    if (val === '' || isNaN(num)) {
+      const next = { ...hours }
+      delete next[date]
+      setHours(next)
+    } else {
+      setHours({ ...hours, [date]: Math.max(0, Math.min(24, num)) })
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!contractId) {
+      setError('Select a sell contract')
+      return
+    }
+    if (totalHrs === 0) {
+      setError('Enter at least some hours')
+      return
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    // Build days object — only include dates with hours > 0
+    const days: Record<string, number> = {}
+    for (const [date, h] of Object.entries(hours)) {
+      if (h > 0) days[date] = h
+    }
+
+    const periodEnd = weekDates[weekDates.length - 1]
+
+    try {
+      const res = await fetch('/api/timesheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sellContractId: contractId,
+          periodStart: weekStart,
+          periodEnd,
+          days,
+        }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body.error?.message ?? 'Failed to create timesheet')
+        return
+      }
+
+      const body = await res.json()
+      const msg = body.data?.message ?? `Timesheet created: ${totalHrs}h`
+      onCreated(msg)
+      onClose()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="card w-full max-w-2xl mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Create timesheet</h2>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Contract selector */}
+          <div>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Sell contract *</label>
+            <select
+              required
+              value={contractId}
+              onChange={(e) => setContractId(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+            >
+              <option value="">Select a contract…</option>
+              {contracts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.personName} — {c.clientName} (${(c.billRate / 100).toFixed(0)}/hr)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Week selector */}
+          <div>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Week starting</label>
+            <input
+              type="date"
+              value={weekStart}
+              onChange={(e) => {
+                const d = new Date(e.target.value + 'T00:00:00')
+                const mon = getMonday(d)
+                setWeekStart(mon.toISOString().slice(0, 10))
+                setHours({})
+              }}
+              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+            />
+          </div>
+
+          {/* Daily hours grid */}
+          <div>
+            <label className="block text-xs font-semibold text-etyme-muted mb-2">Hours per day</label>
+            <div className="grid grid-cols-7 gap-2">
+              {weekDates.map((date, i) => {
+                const isWeekend = i >= 5
+                return (
+                  <div key={date} className="text-center">
+                    <div className={`text-[10px] font-semibold mb-1 ${isWeekend ? 'text-etyme-faint' : 'text-etyme-muted'}`}>
+                      {DAY_LABELS[i]}
+                    </div>
+                    <div className={`text-[10px] tabular-nums mb-1.5 ${isWeekend ? 'text-etyme-faint' : 'text-etyme-muted'}`}>
+                      {new Date(date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="24"
+                      step="0.5"
+                      value={hours[date] ?? ''}
+                      onChange={(e) => setDayHours(date, e.target.value)}
+                      placeholder={isWeekend ? '0' : '8'}
+                      className={`w-full px-1 py-2 text-sm text-center tabular-nums border rounded-lg
+                                  focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                                  ${isWeekend ? 'border-etyme-rule/50 bg-etyme-canvas/50' : 'border-etyme-rule'}`}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Quick fill buttons */}
+            <div className="flex gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const filled: Record<string, number> = {}
+                  weekDates.forEach((d, i) => { if (i < 5) filled[d] = 8 })
+                  setHours(filled)
+                }}
+                className="text-[11px] text-etyme-action hover:underline"
+              >
+                Fill 40h (8×5)
+              </button>
+              <button
+                type="button"
+                onClick={() => setHours({})}
+                className="text-[11px] text-etyme-muted hover:underline"
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="flex items-center justify-between px-4 py-3 rounded-lg bg-etyme-canvas">
+            <div>
+              <span className="text-sm font-medium tabular-nums">{totalHrs.toFixed(1)}h</span>
+              <span className="text-etyme-muted text-sm ml-1">total</span>
+            </div>
+            {selectedContract && totalHrs > 0 && (
+              <div className="text-sm text-etyme-verified font-medium tabular-nums">
+                ≈ ${estimatedValue.toLocaleString('en-US', { maximumFractionDigits: 0 })} billable
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-secondary flex-1"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting || !contractId || totalHrs === 0}
+              className="btn-primary flex-1 disabled:opacity-50"
+            >
+              {submitting ? 'Creating…' : 'Create timesheet'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────
 
 export default function TimesheetsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [timesheets, setTimesheets] = useState<Timesheet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [approving, setApproving] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+
+  // Open modal from ?new=1 link
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowCreate(true)
+      router.replace('/dashboard/timesheets')
+    }
+  }, [searchParams, router])
 
   const fetchTimesheets = useCallback(async () => {
     setLoading(true)
@@ -269,10 +559,15 @@ export default function TimesheetsPage() {
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle */}
-      <div className="page-head">
-        <p className="eyebrow">Operate</p>
-        <h1>Timesheets</h1>
-        <p>Billable hours against sell contracts. Submit, review, and approve — with anomaly detection for flagged entries.</p>
+      <div className="flex items-start justify-between mb-6">
+        <div className="page-head">
+          <p className="eyebrow">Operate</p>
+          <h1>Timesheets</h1>
+          <p>Billable hours against sell contracts. Submit, review, and approve — with anomaly detection for flagged entries.</p>
+        </div>
+        <button onClick={() => setShowCreate(true)} className="btn-primary mt-3 shrink-0">
+          + New
+        </button>
       </div>
 
       {/* Stats row — prototype Stat component pattern */}
@@ -365,6 +660,18 @@ export default function TimesheetsPage() {
           {filtered.length} timesheet{filtered.length !== 1 ? 's' : ''}
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase()}`}
         </p>
+      )}
+
+      {/* Create timesheet modal */}
+      {showCreate && (
+        <CreateTimesheetModal
+          onClose={() => setShowCreate(false)}
+          onCreated={(msg) => {
+            setToast({ message: msg, type: 'success' })
+            setTimeout(() => setToast(null), 4000)
+            fetchTimesheets()
+          }}
+        />
       )}
 
       {/* Toast notification */}
