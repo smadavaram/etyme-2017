@@ -15,6 +15,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
+import { PERMISSIONS } from '../src/lib/permissions'
 
 const prisma = new PrismaClient()
 
@@ -98,22 +99,17 @@ async function main() {
   })
 
   // ── Roles ──────────────────────────────────────
+  // Permissions come from PERMISSIONS in src/lib/permissions.ts — that list
+  // is what every hasPermission() call in the API checks against. Inventing
+  // names here (contracts.read, bench.read, company.admin) silently disabled
+  // features: /api/decisions skipped its contract queue, the consultant
+  // drawer hid contracts, and rolloff-scan found nobody to notify, all
+  // because they look for assignments.read / assignments.write.
   const adminRole = await prisma.role.create({
     data: {
       companyId: vendor.id,
       name: 'Company Admin',
-      permissions: [
-        'consultants.read', 'consultants.write', 'consultants.cost',
-        'requirements.read', 'requirements.write',
-        'submissions.read', 'submissions.write',
-        'contracts.read', 'contracts.write',
-        'timesheets.read', 'timesheets.write', 'timesheets.approve',
-        'invoices.read', 'invoices.issue', 'payments.record',
-        'payroll.read', 'payroll.run', 'payroll.approve',
-        'margin.read', 'pnl.read',
-        'bench.read', 'bench.write',
-        'company.admin',
-      ],
+      permissions: [...PERMISSIONS],
       isDefault: false,
     },
   })
@@ -132,6 +128,43 @@ async function main() {
       type: 'EMPLOYEE',
       companyId: vendor.id,
       roleId: adminRole.id,
+    },
+  })
+
+  // ── Client-side context for the same demo user ──
+  // A person can hold contexts at more than one company. Giving the founder
+  // a seat at Terumo BCT makes the client console reachable without hand-
+  // written SQL: pass its id as x-context-id, or make it the active context.
+  // Program Manager is a demand-side role — it reads placements, approves
+  // hours, and reviews governance, but never sees vendor cost or margin.
+  const clientRole = await prisma.role.create({
+    data: {
+      companyId: client.id,
+      name: 'Program Manager',
+      permissions: [
+        'consultants.read',
+        'requirements.read',
+        'submissions.read',
+        'assignments.read',
+        'timesheets.read',
+        'timesheets.approve',
+        'invoices.read',
+        'vendors.read',
+      ],
+      isDefault: false,
+    },
+  })
+
+  // Granted earlier than the vendor context so the vendor stays the default
+  // active context — Phase 1 is vendor-first. Switch to the client console by
+  // passing this context's id as x-context-id.
+  await prisma.context.create({
+    data: {
+      personId: founder.id,
+      type: 'EMPLOYEE',
+      companyId: client.id,
+      roleId: clientRole.id,
+      grantedAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
     },
   })
 
@@ -1690,6 +1723,7 @@ async function main() {
 
   console.log('✅ Seed complete.')
   console.log(`   Companies:    5 (${vendor.name}, ${vendor2.name}, ${msp.name}, ${client.name}, ${client2.name})`)
+  console.log(`   Demo user:    ${founder.primaryEmail} — 2 contexts (${vendor.name} vendor, ${client.name} client)`)
   console.log(`   Locations:    4 (${locHQ.name}, ${locAnnArbor.name}, ${locTokyo.name}, ${locRemote.name})`)
   console.log(`   Consultants:  ${consultantData.length} + ${alumniData.length} alumni`)
   console.log(`   Requirements: ${reqs.length}`)

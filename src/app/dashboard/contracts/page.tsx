@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
+import { useSession } from '@/components/session-provider'
+import { pageFraming } from '@/lib/page-framing'
 
 /**
  * Contracts working surface — sell and buy side.
@@ -895,10 +897,14 @@ export default function ContractsPage() {
   const searchParams = useSearchParams()
   const initialSide = (searchParams.get('side') === 'buy' ? 'buy' : 'sell') as ViewTab
 
+  const { company } = useSession()
+  const isClient = company?.kind === 'CLIENT'
+
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<ViewTab>(initialSide)
+  const framing = pageFraming(company?.kind ?? 'VENDOR', tab === 'sell' ? 'contracts.sell' : 'contracts.buy')
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
   const [showCreate, setShowCreate] = useState(false)
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
@@ -1130,21 +1136,20 @@ export default function ContractsPage() {
       {/* Head */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">{tab === 'sell' ? 'Sell' : 'Procure'}</p>
-          <h1>{tab === 'sell' ? 'Sell' : 'Buy'} Contracts</h1>
-          <p>
-            {tab === 'sell'
-              ? 'What you bill clients. Revenue side — track active engagements, pending verifications, and upcoming rolloffs.'
-              : 'What you pay for talent. Cost side — bench payments, internal contracts, and vendor agreements.'}
-          </p>
+          <p className="eyebrow">{framing.eyebrow}</p>
+          <h1>{framing.title}</h1>
+          <p>{framing.subtitle}</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary mt-3 shrink-0">
-          + New
-        </button>
+        {/* A client does not raise contracts here — their vendors do. */}
+        {!isClient && (
+          <button onClick={() => setShowCreate(true)} className="btn-primary mt-3 shrink-0">
+            + New
+          </button>
+        )}
       </div>
 
-      {/* Sell / Buy tabs */}
-      <div className="flex gap-1.5 mb-6">
+      {/* Sell / Buy tabs — a client has no buy side */}
+      <div className={`flex gap-1.5 mb-6 ${isClient ? 'hidden' : ''}`}>
         {(['sell', 'buy'] as const).map((t) => (
           <button
             key={t}

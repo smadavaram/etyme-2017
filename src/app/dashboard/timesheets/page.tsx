@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
+import { useSession } from '@/components/session-provider'
+import { pageFraming } from '@/lib/page-framing'
 
 /**
  * Timesheets working surface — the Operate section.
@@ -358,6 +360,10 @@ export default function TimesheetsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  const { company } = useSession()
+  const isClient = company?.kind === 'CLIENT'
+  const framing = pageFraming(company?.kind ?? 'VENDOR', 'timesheets')
+
   const [timesheets, setTimesheets] = useState<Timesheet[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -660,13 +666,16 @@ export default function TimesheetsPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Operate</p>
-          <h1>Timesheets</h1>
-          <p>Billable hours against sell contracts. Submit, review, and approve — with anomaly detection for flagged entries.</p>
+          <p className="eyebrow">{framing.eyebrow}</p>
+          <h1>{framing.title}</h1>
+          <p>{framing.subtitle}</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary mt-3 shrink-0">
-          + New
-        </button>
+        {/* A client approves hours; the consultant's vendor raises them. */}
+        {!isClient && (
+          <button onClick={() => setShowCreate(true)} className="btn-primary mt-3 shrink-0">
+            + New
+          </button>
+        )}
       </div>
 
       {/* Stats row — prototype Stat component pattern */}

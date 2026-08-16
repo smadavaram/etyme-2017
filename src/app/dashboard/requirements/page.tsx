@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
+import { useSession } from '@/components/session-provider'
+import { pageFraming } from '@/lib/page-framing'
 
 /**
  * Requirements working surface — open demand.
@@ -368,6 +370,9 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
 // ── Page ───────────────────────────────────────────────────
 
 export default function RequirementsPage() {
+  const { company } = useSession()
+  const isClient = company?.kind === 'CLIENT'
+  const framing = pageFraming(company?.kind ?? 'VENDOR', 'requirements')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [requirements, setRequirements] = useState<Requirement[]>([])
@@ -566,9 +571,9 @@ export default function RequirementsPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + action */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Sell</p>
-          <h1>Requirements</h1>
-          <p>Open demand. Match consultants, distribute to clients, track submissions through to placement.</p>
+          <p className="eyebrow">{framing.eyebrow}</p>
+          <h1>{framing.title}</h1>
+          <p>{framing.subtitle}</p>
         </div>
         <button onClick={() => setShowNew(true)} className="btn-primary mt-3 shrink-0">
           New requirement

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
 import type { CycleDefinition } from '@/lib/cycle-generator'
 import { getTemplatePack } from '@/lib/template-packs'
+import { sellContractScope, buyContractScope } from '@/lib/resolve-client-company'
 
 /**
  * POST /api/contracts
@@ -235,14 +236,8 @@ export async function POST(request: NextRequest) {
  * Lists sell contracts (default) or buy contracts.
  */
 export async function GET(request: NextRequest) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const url = request.nextUrl
   const side = url.searchParams.get('side') ?? 'sell'
@@ -253,8 +248,17 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
 
   if (side === 'buy') {
-    const where: any = {}
-    if (companyId) where.companyId = companyId
+    // Scoped to the caller's company — a missing ?companyId= used to mean
+    // "every buy contract in the database".
+    const scope = buyContractScope(caller)
+    if (!scope) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'No company context' } },
+        { status: 403 }
+      )
+    }
+
+    const where: any = { ...scope }
     if (state) where.state = state.toUpperCase()
     if (filterPersonId) where.personId = filterPersonId
 
@@ -293,9 +297,18 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // Default: sell contracts
-  const where: any = {}
-  if (companyId) where.companyId = companyId
+  // Default: sell contracts — scoped to whichever side of the placement
+  // the caller sits on. A client sees contracts at their sites; a vendor
+  // sees the ones they sell.
+  const scope = sellContractScope(caller)
+  if (!scope) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { status: 403 }
+    )
+  }
+
+  const where: any = { ...scope }
   if (state) where.state = state.toUpperCase()
   if (filterPersonId) where.personId = filterPersonId
 

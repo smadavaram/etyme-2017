@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext, getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { sellContractScope } from '@/lib/resolve-client-company'
 
 /**
  * GET /api/timesheets
@@ -9,26 +10,28 @@ import { prisma } from '@/lib/db'
  * against a SellContract.
  */
 export async function GET(request: NextRequest) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const url = request.nextUrl
   const status = url.searchParams.get('status')
   const sellContractId = url.searchParams.get('sellContractId')
-  const companyId = url.searchParams.get('companyId')
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
 
-  const where: any = {}
+  // A client approves hours worked at their sites; a vendor sees the hours
+  // they bill. Both read the same table through their own side of it.
+  const scope = sellContractScope(caller)
+  if (!scope) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { status: 403 }
+    )
+  }
+
+  const where: any = { sellContract: scope }
   if (status) where.status = status.toUpperCase()
   if (sellContractId) where.sellContractId = sellContractId
-  if (companyId) where.sellContract = { companyId }
 
   const [timesheets, total] = await Promise.all([
     prisma.timesheet.findMany({

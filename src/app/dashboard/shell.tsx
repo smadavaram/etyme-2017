@@ -1,37 +1,41 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
 import { Sidebar } from '@/components/shell/sidebar'
+import { useSession } from '@/components/session-provider'
 
 /**
- * Dashboard shell wrapper — detects company type from the route
- * and renders the appropriate sidebar.
+ * Dashboard shell wrapper — renders the sidebar for the caller's
+ * actual company, taken from their active context via /api/me.
  *
- * In production, companyKind would come from the user's active context
- * (stored in the session). For now, we detect it from the URL:
- *   /dashboard/program    → CLIENT sidebar (Terumo BCT)
- *   /dashboard/alumni     → CLIENT sidebar
- *   /dashboard/tenure     → CLIENT sidebar
- *   /dashboard/compliance → CLIENT sidebar
- *   everything else       → VENDOR sidebar (Cloudepa Inc.)
+ * This used to guess from the URL: four paths were "client routes" and
+ * everything else got the vendor sidebar, so a client clicking
+ * "Placements" was thrown back into the vendor nav. The session is the
+ * authority now, so the nav stays put wherever they navigate.
  */
 
-const CLIENT_ROUTES = ['/dashboard/program', '/dashboard/alumni', '/dashboard/tenure', '/dashboard/compliance']
+const KIND_LABEL: Record<string, string> = {
+  VENDOR: 'Vendor',
+  CLIENT: 'Client · Enterprise',
+  MSP: 'MSP · Managed programme',
+  GSI: 'GSI · Delivery',
+}
 
 export function DashboardShell() {
-  const pathname = usePathname()
+  const { company, loading } = useSession()
 
-  const isClientView = CLIENT_ROUTES.some(r => pathname.startsWith(r))
-
-  if (isClientView) {
-    return (
-      <Sidebar
-        companyKind="CLIENT"
-        companyName="Terumo BCT"
-        companyLabel="Client · Medical devices"
-      />
-    )
+  // While the session loads, render the sidebar frame without nav items
+  // rather than flashing the wrong company's navigation.
+  if (loading) {
+    return <Sidebar companyKind="VENDOR" pending />
   }
 
-  return <Sidebar companyKind="VENDOR" />
+  const kind = company?.kind ?? 'VENDOR'
+
+  return (
+    <Sidebar
+      companyKind={kind}
+      companyName={company?.name}
+      companyLabel={KIND_LABEL[kind] ?? 'Vendor'}
+    />
+  )
 }

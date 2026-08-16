@@ -32,6 +32,10 @@ vi.mock('@/lib/db', () => ({
     benchListing: {
       findFirst: vi.fn(),
     },
+    sellContract: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+    },
     accessLog: {
       create: vi.fn(),
     },

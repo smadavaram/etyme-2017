@@ -29,7 +29,7 @@ type NavItem = {
   badge?: number
 }
 
-type CompanyKind = 'VENDOR' | 'CLIENT'
+type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI'
 
 const VENDOR_NAV: NavSection[] = [
   {
@@ -105,9 +105,15 @@ const CLIENT_NAV: NavSection[] = [
   },
 ]
 
+/**
+ * MSP and GSI both sit on the supply side of a placement, so they take
+ * the vendor nav until their own sections are specified (Phase 3/4).
+ */
 function getNavForKind(kind: CompanyKind): NavSection[] {
   switch (kind) {
     case 'CLIENT': return CLIENT_NAV
+    case 'MSP':
+    case 'GSI':
     case 'VENDOR':
     default:       return VENDOR_NAV
   }
@@ -117,14 +123,18 @@ export function Sidebar({
   companyKind = 'VENDOR',
   companyName,
   companyLabel,
+  pending = false,
 }: {
   companyKind?: CompanyKind
   companyName?: string
   companyLabel?: string
+  /** Session still loading — render the frame without nav items so the
+   *  wrong company's navigation never flashes on screen. */
+  pending?: boolean
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const sections = getNavForKind(companyKind)
+  const sections = pending ? [] : getNavForKind(companyKind)
 
   // For client view, the "dashboard" link is /dashboard/program
   const dashboardHref = companyKind === 'CLIENT' ? '/dashboard/program' : '/dashboard'
@@ -187,12 +197,21 @@ export function Sidebar({
 
       {/* Bottom — company info */}
       <div className="px-4 py-3 border-t border-etyme-rule">
-        <div className="text-[11px] font-medium text-etyme-ink truncate">
-          {companyName ?? 'Cloudepa Inc.'}
-        </div>
-        <div className="text-[10px] text-etyme-faint">
-          {companyLabel ?? (companyKind === 'CLIENT' ? 'Client · Enterprise' : 'Vendor · US IT')}
-        </div>
+        {pending ? (
+          <>
+            <div className="h-3 w-24 rounded bg-etyme-rule/60 animate-pulse" />
+            <div className="h-2.5 w-16 rounded bg-etyme-rule/40 animate-pulse mt-1.5" />
+          </>
+        ) : (
+          <>
+            <div className="text-[11px] font-medium text-etyme-ink truncate">
+              {companyName ?? 'Cloudepa Inc.'}
+            </div>
+            <div className="text-[10px] text-etyme-faint">
+              {companyLabel ?? (companyKind === 'CLIENT' ? 'Client · Enterprise' : 'Vendor · US IT')}
+            </div>
+          </>
+        )}
       </div>
     </aside>
   )

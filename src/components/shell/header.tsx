@@ -12,6 +12,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { NotificationBell } from '@/components/notification-bell'
+import { useSession } from '@/components/session-provider'
 
 type HeaderProps = {
   title?: string
@@ -103,6 +104,42 @@ const PLUS_MENU: PlusMenuSection[] = [
   },
 ]
 
+/**
+ * A client does not submit consultants, list a bench, or raise invoices —
+ * those are vendor actions. They open roles, approve work, and message
+ * their vendors.
+ */
+const CLIENT_PLUS_MENU: PlusMenuSection[] = [
+  {
+    label: 'Program',
+    items: [
+      {
+        label: 'New role',
+        description: 'Open a requisition for your vendors',
+        href: '/dashboard/requirements?new=1',
+        icon: '◈',
+      },
+      {
+        label: 'New conversation',
+        description: 'Message a vendor or contractor',
+        href: '/dashboard/conversations?new=1',
+        icon: '💬',
+      },
+    ],
+  },
+  {
+    label: 'Governance',
+    items: [
+      {
+        label: 'Review approvals',
+        description: 'Timesheets and expenses awaiting you',
+        href: '/dashboard/decisions',
+        icon: '⬡',
+      },
+    ],
+  },
+]
+
 // ── Global search results ──
 
 type SearchResult = {
@@ -110,6 +147,13 @@ type SearchResult = {
   type: string
   href: string
 }
+
+/** Pages a client company can actually reach — mirrors CLIENT_NAV. */
+const CLIENT_SEARCH_LABELS = new Set([
+  'Program', 'Requirements', 'Submissions', 'Contracts', 'Rolloff', 'Alumni',
+  'Timesheets', 'Invoices', 'Expenses', 'Compliance', 'Tenure',
+  'Notifications', 'Conversations', 'Decisions',
+])
 
 const SEARCH_SECTIONS: { type: string; label: string; href: string }[] = [
   { type: 'page', label: 'Dashboard', href: '/dashboard' },
@@ -137,8 +181,19 @@ const SEARCH_SECTIONS: { type: string; label: string; href: string }[] = [
   { type: 'page', label: 'Tenure', href: '/dashboard/tenure' },
 ]
 
+/** First letters of the first two words of a name, e.g. "Anita Desai" → "AD". */
+function initials(name: string | undefined): string {
+  if (!name) return '·'
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '·'
+  return parts.slice(0, 2).map(p => p[0]!.toUpperCase()).join('')
+}
+
 export function Header({ title }: HeaderProps) {
   const router = useRouter()
+  const { company, person } = useSession()
+  const isClient = company?.kind === 'CLIENT'
+  const plusMenu = isClient ? CLIENT_PLUS_MENU : PLUS_MENU
   const [plusOpen, setPlusOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
@@ -178,9 +233,13 @@ export function Header({ title }: HeaderProps) {
     return () => document.removeEventListener('keydown', handleKey)
   }, [])
 
-  // Search results — filter pages by query
+  // Search results — filter pages by query, scoped to what this company can reach
+  const reachablePages = isClient
+    ? SEARCH_SECTIONS.filter(s => CLIENT_SEARCH_LABELS.has(s.label))
+    : SEARCH_SECTIONS
+
   const searchResults: SearchResult[] = searchQuery.length >= 1
-    ? SEARCH_SECTIONS
+    ? reachablePages
         .filter(s => s.label.toLowerCase().includes(searchQuery.toLowerCase()))
         .slice(0, 8)
         .map(s => ({ label: s.label, type: s.type, href: s.href }))
@@ -299,7 +358,7 @@ export function Header({ title }: HeaderProps) {
         {plusOpen && (
           <div className="absolute right-0 top-10 w-72 bg-white rounded-lg
                           shadow-lg border border-etyme-rule overflow-hidden z-50">
-            {PLUS_MENU.map((section, si) => (
+            {plusMenu.map((section, si) => (
               <div key={section.label}>
                 {si > 0 && <div className="border-t border-etyme-rule" />}
                 <div className="px-3 py-1.5 mt-1 text-[10px] uppercase tracking-wider text-etyme-faint font-medium">
@@ -332,10 +391,13 @@ export function Header({ title }: HeaderProps) {
       </div>
 
       {/* User avatar */}
-      <button className="w-8 h-8 rounded-full bg-etyme-action/10 text-etyme-action
-                          text-[11px] font-bold flex items-center justify-center
-                          hover:bg-etyme-action/20 transition-colors">
-        SM
+      <button
+        className="w-8 h-8 rounded-full bg-etyme-action/10 text-etyme-action
+                   text-[11px] font-bold flex items-center justify-center
+                   hover:bg-etyme-action/20 transition-colors"
+        title={person?.name ? `${person.name}${company ? ` · ${company.name}` : ''}` : undefined}
+      >
+        {initials(person?.name)}
       </button>
     </header>
   )

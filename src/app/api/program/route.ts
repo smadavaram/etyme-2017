@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { logBulkAccess } from '@/lib/access-log'
 
 /**
  * GET /api/program
@@ -19,25 +21,14 @@ export async function GET(request: NextRequest) {
   if (error) return error
 
   const url = request.nextUrl
-  // For demo, allow specifying a client company — in production this
-  // would be derived from the caller's company context
-  const clientCompanyId = url.searchParams.get('clientCompanyId')
 
-  // Find the client company — use first one if not specified
-  const clientCompany = clientCompanyId
-    ? await prisma.company.findUnique({ where: { id: clientCompanyId } })
-    : await prisma.company.findFirst({ where: { kind: 'CLIENT' } })
-      // Fallback: find any company that appears as a clientCompany on sell contracts
-      ?? await prisma.sellContract.findFirst({
-          select: { clientCompany: true },
-        }).then(r => r?.clientCompany ?? null)
-
-  if (!clientCompany) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No client company found' } },
-      { status: 404 }
-    )
-  }
+  // Entitlement-checked: the caller is either this client, or a vendor
+  // with a real placement there. An unverified ?clientCompanyId= is a 403.
+  const { client: clientCompany, error: clientError } = await resolveClientCompany(
+    caller,
+    url.searchParams.get('clientCompanyId')
+  )
+  if (clientError) return clientError
 
   const now = new Date()
 
@@ -142,12 +133,19 @@ export async function GET(request: NextRequest) {
     c.endDate && c.endDate <= sixtyDaysOut
   )
 
-  // Requirements — find open roles where submissions led to placements at this client
-  // In production, requirements would be linked to the client directly via MSA or
-  // engagement. For now, find requirements that have any contract at this client.
+  // Open roles at THIS client only. A requirement belongs to the client when
+  // the client posted it directly (companyId), or when a vendor raised it under
+  // a master agreement with this client (msa.clientId).
+  //
+  // Without this filter the query returned every OPEN/DRAFT requirement in the
+  // database, so one client's console counted another client's open roles.
   const requirements = await prisma.requirement.findMany({
     where: {
       status: { in: ['OPEN', 'DRAFT'] },
+      OR: [
+        { companyId: clientCompany.id },
+        { msa: { clientId: clientCompany.id } },
+      ],
     },
     include: {
       submissions: {
@@ -159,6 +157,15 @@ export async function GET(request: NextRequest) {
       },
     },
     orderBy: { createdAt: 'desc' },
+  })
+
+  // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
+  const contractorPersonIds = [...new Set(contracts.map(c => c.personId))]
+  logBulkAccess(contractorPersonIds, {
+    actorPersonId: caller.person.id,
+    actorCompanyId: caller.company?.id,
+    action: 'CONTRACT_VIEW',
+    reason: `Program view at ${clientCompany.name}`,
   })
 
   // Spend calculation

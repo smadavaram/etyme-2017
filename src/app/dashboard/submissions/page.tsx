@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
+import { useSession } from '@/components/session-provider'
+import { pageFraming } from '@/lib/page-framing'
 
 /**
  * Submissions working surface — the vendor's outbound pipeline.
@@ -517,6 +519,9 @@ function ConvertToContractModal({
 // ── Page ─────────────────────────────────────────────
 
 export default function SubmissionsPage() {
+  const { company } = useSession()
+  const isClient = company?.kind === 'CLIENT'
+  const framing = pageFraming(company?.kind ?? 'VENDOR', 'submissions')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [submissions, setSubmissions] = useState<Submission[]>([])
@@ -764,20 +769,24 @@ export default function SubmissionsPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + direction toggle */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Sell</p>
-          <h1>Submissions</h1>
+          <p className="eyebrow">{framing.eyebrow}</p>
+          <h1>{framing.title}</h1>
           <p>
-            {direction === 'sent'
-              ? 'Candidates submitted to client requirements. Track from submission through to placement.'
-              : 'Candidates received from other vendors against your requirements.'}
+            {isClient
+              ? framing.subtitle
+              : direction === 'sent'
+                ? 'Candidates submitted to client requirements. Track from submission through to placement.'
+                : 'Candidates received from other vendors against your requirements.'}
           </p>
         </div>
 
         <div className="flex items-center gap-3 mt-3 shrink-0">
-          {/* Submit button */}
-          <button onClick={() => setShowSubmitModal(true)} className="btn-primary">
-            + Submit
-          </button>
+          {/* Submit button — a client receives candidates, never submits them */}
+          {!isClient && (
+            <button onClick={() => setShowSubmitModal(true)} className="btn-primary">
+              + Submit
+            </button>
+          )}
 
           {/* Direction toggle — prototype segmented control */}
           <div className="flex bg-etyme-canvas rounded-md p-0.5">

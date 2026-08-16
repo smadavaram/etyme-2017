@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { Header } from '@/components/shell/header'
 import { DashboardShell } from './shell'
+import { SessionProvider } from '@/components/session-provider'
 
 /**
  * Authenticated dashboard shell — sidebar + header + content.
@@ -27,28 +28,30 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen flex bg-etyme-canvas">
-      {/* Sidebar — desktop only, adapts to route */}
-      <div className="hidden md:block">
-        <Suspense>
-          <DashboardShell />
-        </Suspense>
-      </div>
+    <SessionProvider>
+      <div className="min-h-screen flex bg-etyme-canvas">
+        {/* Sidebar — desktop only, adapts to the caller's company */}
+        <div className="hidden md:block">
+          <Suspense>
+            <DashboardShell />
+          </Suspense>
+        </div>
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <Suspense>
-          <Header />
-        </Suspense>
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          <Suspense>
+            <Header />
+          </Suspense>
 
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          <div className="max-w-[1200px] mx-auto">
-            <Suspense>
-              {children}
-            </Suspense>
-          </div>
-        </main>
+          <main className="flex-1 overflow-y-auto p-6 md:p-8">
+            <div className="max-w-[1200px] mx-auto">
+              <Suspense>
+                {children}
+              </Suspense>
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </SessionProvider>
   )
 }

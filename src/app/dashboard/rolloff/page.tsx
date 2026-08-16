@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useSession } from '@/components/session-provider'
+import { pageFraming } from '@/lib/page-framing'
 
 // ── Types — match API response shape ─────────────────────
 
@@ -119,6 +121,9 @@ function UrgencyBadge({ daysUntilEnd }: { daysUntilEnd: number }) {
 // ── Page ───────────────────────────────────────────────────
 
 export default function RolloffPage() {
+  const { company } = useSession()
+  const isClient = company?.kind === 'CLIENT'
+  const framing = pageFraming(company?.kind ?? 'VENDOR', 'rolloff')
   const [tracked, setTracked] = useState<TrackedRolloff[]>([])
   const [untracked, setUntracked] = useState<UntrackedContract[]>([])
   const [summary, setSummary] = useState<RolloffSummary | null>(null)
@@ -232,9 +237,13 @@ export default function RolloffPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em]">Rolloff console</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.02em]">
+            {isClient ? framing.title : 'Rolloff console'}
+          </h1>
           <p className="text-sm text-etyme-muted mt-1">
-            Upcoming contract endings. Triage, complete checklists, redeploy or bench.
+            {isClient
+              ? framing.subtitle
+              : 'Upcoming contract endings. Triage, complete checklists, redeploy or bench.'}
           </p>
         </div>
       </div>

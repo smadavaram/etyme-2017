@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { sellContractScope } from '@/lib/resolve-client-company'
 
 /**
  * GET /api/rolloff
@@ -11,23 +12,26 @@ import { prisma } from '@/lib/db'
  * sorted by urgency (soonest first).
  */
 export async function GET(request: NextRequest) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const url = request.nextUrl
   const window = parseInt(url.searchParams.get('window') ?? '30', 10)
-  const companyId = url.searchParams.get('companyId')
 
   if (![30, 60, 90].includes(window)) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'window must be 30, 60, or 90', field: 'window' } },
       { status: 422 }
+    )
+  }
+
+  // Scoped to the caller's side of the placement. A client sees people
+  // rolling off their own sites; a vendor sees their own bench exposure.
+  const scope = sellContractScope(caller)
+  if (!scope) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { status: 403 }
     )
   }
 
@@ -39,10 +43,7 @@ export async function GET(request: NextRequest) {
       gte: now,
       lte: windowEnd,
     },
-  }
-
-  if (companyId) {
-    where.sellContract = { companyId }
+    sellContract: scope,
   }
 
   const rolloffs = await prisma.rolloffEvent.findMany({
@@ -63,16 +64,13 @@ export async function GET(request: NextRequest) {
 
   // Also find sell contracts ending within the window that DON'T have rolloff events yet
   const contractWhere: any = {
+    ...scope,
     endDate: {
       gte: now,
       lte: windowEnd,
     },
     state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
     rolloff: null, // no rolloff event yet
-  }
-
-  if (companyId) {
-    contractWhere.companyId = companyId
   }
 
   const untracked = await prisma.sellContract.findMany({

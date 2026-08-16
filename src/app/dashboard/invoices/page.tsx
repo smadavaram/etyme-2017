@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
+import { useSession } from '@/components/session-provider'
+import { pageFraming } from '@/lib/page-framing'
 
 /**
  * Invoices working surface — the Operate section.
@@ -555,6 +557,9 @@ function InvoiceDetailDrawer({
 // ── Page ─────────────────────────────────────────────
 
 export default function InvoicesPage() {
+  const { company } = useSession()
+  const isClient = company?.kind === 'CLIENT'
+  const framing = pageFraming(company?.kind ?? 'VENDOR', 'invoices')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -832,9 +837,9 @@ export default function InvoicesPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Operate</p>
-          <h1>Invoices</h1>
-          <p>Accounts receivable against sell contracts. Generate from approved timesheets, track payments, and monitor aging.</p>
+          <p className="eyebrow">{framing.eyebrow}</p>
+          <h1>{framing.title}</h1>
+          <p>{framing.subtitle}</p>
         </div>
         <button onClick={() => setShowGenerate(true)} className="btn-primary mt-3 shrink-0">
           + Generate

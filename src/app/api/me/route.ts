@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 
@@ -8,10 +8,15 @@ import { prisma } from '@/lib/db'
  * Returns the authenticated person with their credentials, contexts,
  * and active context. Mirrors BUILD.md §3 — Auth and identity.
  *
+ * Honours the same `x-context-id` header as getCallerContext, so the
+ * shell and the data agree on which company the caller is acting as.
+ * Without it a person holding contexts at two companies could see one
+ * company's navigation wrapped around the other company's records.
+ *
  * Field filtering: payRate, billRate, and cost fields are stripped
  * unless the caller holds the required permission (BUILD.md §2).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const email = await getSessionEmail()
 
   if (!email) {
@@ -65,8 +70,13 @@ export async function GET() {
     })
   }
 
-  // Default active context: first context (most recently granted)
-  const activeContext = person.contexts[0] ?? null
+  // Active context: the one named by x-context-id when it belongs to this
+  // person, otherwise the most recently granted. Same rule as getCallerContext.
+  const requestedContextId = request.headers.get('x-context-id')
+  const activeContext =
+    (requestedContextId
+      ? person.contexts.find((c) => c.id === requestedContextId)
+      : null) ?? person.contexts[0] ?? null
 
   return NextResponse.json({
     data: {

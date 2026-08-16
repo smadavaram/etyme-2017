@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { expenseScope } from '@/lib/resolve-client-company'
 
 /**
  * GET /api/expenses
@@ -39,12 +40,17 @@ export async function GET(request: NextRequest) {
   const sellContractId = url.searchParams.get('sellContractId')
   const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') ?? '50', 10)))
 
-  const where: any = {}
-
-  // Scope to caller's company
-  if (caller.company) {
-    where.companyId = caller.company.id
+  // Scope to the caller's side: a vendor owns its expenses; a client sees
+  // only the billable ones raised against work at their own sites.
+  const scope = expenseScope(caller)
+  if (!scope) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { status: 403 }
+    )
   }
+
+  const where: any = { ...scope }
 
   if (status) where.status = status.toUpperCase()
   if (billable !== null && billable !== undefined && billable !== '') {
@@ -72,7 +78,7 @@ export async function GET(request: NextRequest) {
     }),
     prisma.expense.groupBy({
       by: ['status'],
-      where: caller.company ? { companyId: caller.company.id } : undefined,
+      where: scope,
       _sum: { total: true },
       _count: true,
     }),
@@ -95,12 +101,12 @@ export async function GET(request: NextRequest) {
   // Calculate billable vs internal totals
   const [billableSums, internalSums] = await Promise.all([
     prisma.expense.aggregate({
-      where: { ...(caller.company ? { companyId: caller.company.id } : {}), billable: true },
+      where: { ...scope, billable: true },
       _sum: { total: true },
       _count: true,
     }),
     prisma.expense.aggregate({
-      where: { ...(caller.company ? { companyId: caller.company.id } : {}), billable: false },
+      where: { ...scope, billable: false },
       _sum: { total: true },
       _count: true,
     }),

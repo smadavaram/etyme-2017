@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { logBulkAccess } from '@/lib/access-log'
 
 /**
  * GET /api/compliance
@@ -23,22 +25,14 @@ export async function GET(request: NextRequest) {
   if (error) return error
 
   const url = request.nextUrl
-  const clientCompanyId = url.searchParams.get('clientCompanyId')
 
-  // Resolve client company
-  const clientCompany = clientCompanyId
-    ? await prisma.company.findUnique({ where: { id: clientCompanyId } })
-    : await prisma.company.findFirst({ where: { kind: 'CLIENT' } })
-      ?? await prisma.sellContract.findFirst({
-          select: { clientCompany: true },
-        }).then(r => r?.clientCompany ?? null)
-
-  if (!clientCompany) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No client company found' } },
-      { status: 404 }
-    )
-  }
+  // Entitlement-checked: the caller is either this client, or a vendor
+  // with a real placement there. An unverified ?clientCompanyId= is a 403.
+  const { client: clientCompany, error: clientError } = await resolveClientCompany(
+    caller,
+    url.searchParams.get('clientCompanyId')
+  )
+  if (clientError) return clientError
 
   const now = new Date()
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
@@ -97,6 +91,14 @@ export async function GET(request: NextRequest) {
 
   const contractPersonIds = [...new Set(activeContracts.map(c => c.personId))]
   const vendorCompanyIds = [...new Set(activeContracts.map(c => c.companyId))]
+
+  // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
+  logBulkAccess(contractPersonIds, {
+    actorPersonId: caller.person.id,
+    actorCompanyId: caller.company?.id,
+    action: 'COMPLIANCE_CHECK',
+    reason: `Compliance view at ${clientCompany.name}`,
+  })
 
   // Person-level verifications
   const personVerifications = contractPersonIds.length > 0

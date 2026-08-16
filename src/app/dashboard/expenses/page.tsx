@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
+import { useSession } from '@/components/session-provider'
+import { pageFraming } from '@/lib/page-framing'
 
 /**
  * Expenses working surface — reimbursable and company expenses.
@@ -451,6 +453,9 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
 // ── Page ─────────────────────────────────────────────
 
 export default function ExpensesPage() {
+  const { company } = useSession()
+  const isClient = company?.kind === 'CLIENT'
+  const framing = pageFraming(company?.kind ?? 'VENDOR', 'expenses')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [expenses, setExpenses] = useState<Expense[]>([])
@@ -679,9 +684,9 @@ export default function ExpensesPage() {
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + kind toggle */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
-          <p className="eyebrow">Operate</p>
-          <h1>Expenses</h1>
-          <p>Consultant expenses — travel, equipment, training, relocation. Client-billable expenses appear on invoices.</p>
+          <p className="eyebrow">{framing.eyebrow}</p>
+          <h1>{framing.title}</h1>
+          <p>{framing.subtitle}</p>
         </div>
 
         {/* Kind toggle + New button */}
