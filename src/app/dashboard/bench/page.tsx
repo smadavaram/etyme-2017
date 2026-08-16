@@ -45,6 +45,30 @@ interface BenchEntry {
   grantedAt: string
 }
 
+interface BurnData {
+  burn: { daily: number; weekly: number; monthly: number; toDate: number }
+  benchSize: number
+  benchSizeTotal: number
+  retained: { count: number; dailyBurn: number }
+  marketing: { count: number; dailyBurn: number }
+  openRequirements: number
+  entries: Array<{
+    personId: string
+    personName: string
+    headline: string | null
+    skills: string[]
+    tier: string
+    payRate: number
+    dailyCost: number
+    weeklyCost: number
+    monthlyCost: number
+    contractType: string
+    daysOnBench: number
+    totalBurnToDate: number
+    availableFrom: string | null
+  }>
+}
+
 type TierFilter = 'all' | 'RETAINED' | 'MARKETING'
 type AvailFilter = 'all' | 'now' | 'soon' | 'later'
 
@@ -364,6 +388,8 @@ export default function BenchPage() {
   const [availFilter, setAvailFilter] = useState<AvailFilter>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [burnData, setBurnData] = useState<BurnData | null>(null)
+  const [burnLoading, setBurnLoading] = useState(true)
 
   // Open modal from ?new=1 link
   useEffect(() => {
@@ -422,6 +448,28 @@ export default function BenchPage() {
   useEffect(() => {
     fetchBench()
   }, [fetchBench])
+
+  // Fetch bench burn data (separate endpoint — requires cost permission)
+  useEffect(() => {
+    let cancelled = false
+    async function fetchBurn() {
+      setBurnLoading(true)
+      try {
+        const res = await fetch('/api/bench/burn')
+        if (res.ok) {
+          const body = await res.json()
+          if (!cancelled) setBurnData(body.data ?? null)
+        }
+        // 403 = user lacks cost permission — silently hide the panel
+      } catch {
+        // Network error — silently hide
+      } finally {
+        if (!cancelled) setBurnLoading(false)
+      }
+    }
+    fetchBurn()
+    return () => { cancelled = true }
+  }, [])
 
   // ── Filtered data ──────────────────────────────────
 
@@ -584,6 +632,11 @@ export default function BenchPage() {
         </div>
       )}
 
+      {/* Bench burn panel — visible only if the user has cost permission */}
+      {burnData && burnData.benchSize > 0 && (
+        <BenchBurnPanel data={burnData} />
+      )}
+
       {/* DataTable */}
       <DataTable
         columns={columns}
@@ -695,6 +748,166 @@ export default function BenchPage() {
             : 'bg-red-600 text-white'
         }`}>
           {toast.message}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Bench burn panel ────────────────────────────────
+
+/**
+ * Bench burn dashboard — the daily cost of having unplaced consultants.
+ *
+ * CLAUDE.md: "a vendor with 10 bench-paid consultants at $40/hr
+ *             burns $3,200/day. Proactive matching reduces that to near-zero.
+ *             This endpoint turns that abstract cost into a visible number."
+ *
+ * Decision surface: uses serif headline numbers, reasoning on click,
+ * clay/attention tone for cost, verified/green for opportunities.
+ */
+function BenchBurnPanel({ data }: { data: BurnData }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const fmtDollars = (n: number) =>
+    n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${n.toLocaleString()}`
+  const fmtDollarsFull = (n: number) => `$${n.toLocaleString()}`
+
+  // Top 3 highest-cost bench sitters
+  const topBurners = data.entries.slice(0, 3)
+
+  return (
+    <div className="panel mb-6 overflow-hidden">
+      <div className="px-5 py-4">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="stat-label text-[9px] mb-0.5">Bench Cost</div>
+            <h3 className="text-base font-serif font-medium text-etyme-ink">
+              Bench Burn
+            </h3>
+          </div>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-[11px] text-etyme-action hover:underline"
+          >
+            {expanded ? 'Hide details' : 'Show details'}
+          </button>
+        </div>
+
+        {/* Burn stats row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div>
+            <div className="stat-label text-[9px] mb-0.5">Daily Burn</div>
+            <div className="text-2xl font-serif font-medium text-etyme-attention tabular-nums">
+              {fmtDollarsFull(data.burn.daily)}
+            </div>
+            <div className="text-[10px] text-etyme-faint">per working day</div>
+          </div>
+          <div>
+            <div className="stat-label text-[9px] mb-0.5">Weekly</div>
+            <div className="text-xl font-serif font-medium text-etyme-ink tabular-nums">
+              {fmtDollars(data.burn.weekly)}
+            </div>
+            <div className="text-[10px] text-etyme-faint">5-day week</div>
+          </div>
+          <div>
+            <div className="stat-label text-[9px] mb-0.5">Monthly</div>
+            <div className="text-xl font-serif font-medium text-etyme-ink tabular-nums">
+              {fmtDollars(data.burn.monthly)}
+            </div>
+            <div className="text-[10px] text-etyme-faint">22 working days</div>
+          </div>
+          <div>
+            <div className="stat-label text-[9px] mb-0.5">Total to Date</div>
+            <div className="text-xl font-serif font-medium text-etyme-attention tabular-nums">
+              {fmtDollars(data.burn.toDate)}
+            </div>
+            <div className="text-[10px] text-etyme-faint">since bench start</div>
+          </div>
+        </div>
+
+        {/* Tier breakdown */}
+        <div className="flex items-center gap-6 text-[12px]">
+          <div className="flex items-center gap-1.5">
+            <span className="chip chip--verified text-[9px]">Retained</span>
+            <span className="text-etyme-muted">
+              {data.retained.count} · {fmtDollarsFull(data.retained.dailyBurn)}/day
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="chip chip--action text-[9px]">Marketing</span>
+            <span className="text-etyme-muted">
+              {data.marketing.count} · {fmtDollarsFull(data.marketing.dailyBurn)}/day
+            </span>
+          </div>
+          {data.openRequirements > 0 && (
+            <div className="flex items-center gap-1.5 ml-auto">
+              <span className="text-etyme-verified font-medium">
+                {data.openRequirements} open req{data.openRequirements !== 1 ? 's' : ''}
+              </span>
+              <span className="text-etyme-faint">for matching</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Expanded: top bench sitters by cost */}
+      {expanded && topBurners.length > 0 && (
+        <div className="border-t border-etyme-rule">
+          <div className="px-5 py-3">
+            <div className="stat-label text-[9px] mb-2">Highest Daily Cost</div>
+            <div className="space-y-2">
+              {topBurners.map((e, i) => (
+                <div key={e.personId} className="flex items-center gap-3 text-[12px]">
+                  <span className="w-4 text-etyme-faint font-mono text-[10px]">{i + 1}</span>
+                  <div className="w-6 h-6 rounded-full bg-etyme-attention/10 text-etyme-attention
+                                  text-[9px] font-bold flex items-center justify-center flex-shrink-0">
+                    {e.personName.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-medium text-etyme-ink">{e.personName}</span>
+                    {e.headline && (
+                      <span className="text-etyme-faint ml-1.5 hidden md:inline">· {e.headline}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 tabular-nums">
+                    <span className="text-etyme-muted">
+                      ${(e.payRate / 100).toFixed(0)}/hr
+                    </span>
+                    <span className="text-etyme-attention font-medium">
+                      {fmtDollarsFull(e.dailyCost)}/day
+                    </span>
+                    <span className="text-etyme-faint text-[11px] hidden md:inline">
+                      {e.daysOnBench}d on bench
+                    </span>
+                    <span className="text-etyme-attention/70 text-[11px] hidden lg:inline">
+                      {fmtDollars(e.totalBurnToDate)} burned
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Visual burn bar */}
+      {data.burn.daily > 0 && (
+        <div className="border-t border-etyme-rule px-5 py-3">
+          <div className="flex items-center gap-2 text-[10px] text-etyme-faint mb-1">
+            <span>Retained share of daily burn</span>
+          </div>
+          <div className="h-2 rounded-full bg-etyme-canvas overflow-hidden flex">
+            <div
+              className="h-full bg-etyme-verified rounded-l-full transition-all"
+              style={{ width: `${Math.round((data.retained.dailyBurn / data.burn.daily) * 100)}%` }}
+            />
+            <div
+              className="h-full bg-etyme-action rounded-r-full transition-all"
+              style={{ width: `${Math.round((data.marketing.dailyBurn / data.burn.daily) * 100)}%` }}
+            />
+          </div>
         </div>
       )}
     </div>
