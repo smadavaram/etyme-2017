@@ -102,8 +102,10 @@ function extractFields(text: string): Record<string, FieldResult> {
   // Rate — look for "$" followed by numbers
   const rateMatch = text.match(/\$\s*(\d+(?:\.\d+)?)\s*(?:[-–\/to]+\s*\$?\s*(\d+(?:\.\d+)?))?/i)
   if (rateMatch) {
-    const min = parseInt(rateMatch[1], 10)
-    const max = rateMatch[2] ? parseInt(rateMatch[2], 10) : null
+    // Rates are written as dollars in a job description and stored as
+    // cents, like every other money column in the schema.
+    const min = Math.round(parseFloat(rateMatch[1]) * 100)
+    const max = rateMatch[2] ? Math.round(parseFloat(rateMatch[2]) * 100) : null
     fields.billMin = { value: min, confidence: 0.85, flagged: true }
     if (max) {
       fields.billMax = { value: max, confidence: 0.85, flagged: true }

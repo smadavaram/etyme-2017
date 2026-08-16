@@ -98,11 +98,11 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
         conf.location = { confidence: p.location.confidence, flagged: p.location.flagged }
       }
       if (p.billMin?.value) {
-        newForm.billMin = String(p.billMin.value)
+        newForm.billMin = String(Math.round(p.billMin.value / 100))
         conf.billMin = { confidence: p.billMin.confidence, flagged: p.billMin.flagged }
       }
       if (p.billMax?.value) {
-        newForm.billMax = String(p.billMax.value)
+        newForm.billMax = String(Math.round(p.billMax.value / 100))
         conf.billMax = { confidence: p.billMax.confidence, flagged: p.billMax.flagged }
       }
       if (p.months?.value) {
@@ -133,8 +133,9 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
           title: form.title,
           skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
           location: form.location || null,
-          billMin: form.billMin ? parseInt(form.billMin) : null,
-          billMax: form.billMax ? parseInt(form.billMax) : null,
+          // Entered in dollars, stored in cents.
+          billMin: form.billMin ? Math.round(parseFloat(form.billMin) * 100) : null,
+          billMax: form.billMax ? Math.round(parseFloat(form.billMax) * 100) : null,
           months: form.months ? parseInt(form.months) : null,
           marginClass: form.marginClass || null,
           rateVisible: form.rateVisible,

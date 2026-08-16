@@ -44,6 +44,7 @@ const VENDOR_NAV: NavSection[] = [
   {
     label: 'Sell',
     items: [
+      { label: 'Invitations', href: '/dashboard/invitations', icon: '✉' },
       { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Sell Contracts', href: '/dashboard/contracts?side=sell', icon: '▤' },
@@ -86,6 +87,7 @@ const CLIENT_NAV: NavSection[] = [
     label: 'Program',
     items: [
       { label: 'Dashboard', href: '/dashboard/program', icon: '◉' },
+      { label: 'Requisitions', href: '/dashboard/requisitions', icon: '⊞' },
       { label: 'Open roles', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Candidates', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Placements', href: '/dashboard/contracts', icon: '▤' },

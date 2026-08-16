@@ -100,10 +100,12 @@ function statusChip(s: string): { cls: string; text: string } {
   }
 }
 
+/** Rates are stored in cents throughout the schema. */
 function formatRate(min: number | null, max: number | null): string {
   if (min == null && max == null) return 'Not specified'
-  if (min != null && max != null) return `$${min}–$${max}/hr`
-  return `$${min ?? max}/hr`
+  const d = (c: number) => Math.round(c / 100)
+  if (min != null && max != null) return `$${d(min)}–$${d(max)}/hr`
+  return `$${d((min ?? max)!)}/hr`
 }
 
 function formatAvail(date: string | null): string {
@@ -202,7 +204,9 @@ export default function RequirementDetailPage() {
         body: JSON.stringify({
           requirementId: requirement.id,
           personIds: Array.from(selected),
-          rate: requirement.billMin ?? 100, // fallback rate
+          // Cents, matching Submission.rate. Passing dollars here stored
+          // a $1.10/hr submission for a $110/hr requirement.
+          rate: requirement.billMin ?? 10_000,
           fromCompanyId: requirement.company.id, // placeholder
         }),
       })
