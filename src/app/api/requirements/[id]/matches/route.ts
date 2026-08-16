@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { logBulkAccess } from '@/lib/access-log'
 
 /**
  * GET /api/requirements/:id/matches
@@ -49,6 +50,15 @@ export async function GET(
     },
     orderBy: { score: 'desc' },
   })
+
+  // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
+  const matchPersonIds = matches.map((m) => m.consultant.personId)
+  if (matchPersonIds.length > 0) {
+    logBulkAccess(matchPersonIds, {
+      action: 'MATCH_VIEW',
+      reason: `Match scores for "${requirement.title}"`,
+    })
+  }
 
   return NextResponse.json({
     data: {

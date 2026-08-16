@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { logBulkAccess } from '@/lib/access-log'
 
 /**
  * GET /api/tenure
@@ -175,6 +176,17 @@ export async function GET(request: NextRequest) {
       })),
     }
   })
+
+  // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
+  const personIds = people.map((p) => p.personId)
+  if (personIds.length > 0) {
+    logBulkAccess(personIds, {
+      actorPersonId: caller.person.id,
+      actorCompanyId: caller.company?.id ?? undefined,
+      action: 'TENURE_VIEW',
+      reason: `Tenure view at ${clientCompany.name}`,
+    })
+  }
 
   // Sort: BREAK_REQUIRED first, then WARNING, then IN_BREAK, then OK, then ELIGIBLE
   const statusOrder = { BREAK_REQUIRED: 0, WARNING: 1, IN_BREAK: 2, OK: 3, ELIGIBLE: 4 }

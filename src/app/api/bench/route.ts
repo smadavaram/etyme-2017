@@ -6,6 +6,7 @@ import {
   canReadCostAggregates,
   type FieldContext,
 } from '@/lib/permissions'
+import { logBulkAccess } from '@/lib/access-log'
 
 /**
  * GET /api/bench
@@ -172,6 +173,20 @@ export async function GET(request: NextRequest) {
     const tier = l.tier as string
     if (!grouped[tier]) grouped[tier] = []
     grouped[tier].push(item)
+  }
+
+  // CLAUDE.md: "Every read of another person's data writes an AccessLog row"
+  const otherPersonIds = listings
+    .filter((l) => l.consultant.personId !== caller.person.id)
+    .map((l) => l.consultant.personId)
+
+  if (otherPersonIds.length > 0) {
+    logBulkAccess(otherPersonIds, {
+      actorPersonId: caller.person.id,
+      actorCompanyId: companyId ?? undefined,
+      action: 'TALENT_VIEW_ANON',
+      reason: `Bench listing view (scope=${scope})`,
+    })
   }
 
   return NextResponse.json({
