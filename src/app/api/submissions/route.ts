@@ -77,6 +77,29 @@ export async function POST(request: NextRequest) {
   }
 
   const toCompanyId = requirement.companyId
+  // The band this vendor was given, if any. Read once for the whole batch.
+  //
+  // Addendum E lists rate band under WARN, not BLOCK: "WARN, capture a
+  // reason, proceed everywhere else — rate band, headcount plan, vendor
+  // tier." A vendor who has the right person at the wrong price is having a
+  // negotiation, not committing a violation, and a platform that refuses
+  // the submission just sends that conversation back to email.
+  const invitation = await prisma.requirementInvitation.findUnique({
+    where: { requirementId_toCompanyId: { requirementId, toCompanyId: fromCompanyId } },
+    select: { payMin: true, payMax: true },
+  })
+
+  function bandWarning(submittedRate: number): string | null {
+    if (!invitation) return null
+    if (invitation.payMax != null && submittedRate > invitation.payMax) {
+      return `$${Math.round(submittedRate / 100)}/hr is above the $${Math.round(invitation.payMax / 100)}/hr ceiling you were given`
+    }
+    if (invitation.payMin != null && submittedRate < invitation.payMin) {
+      return `$${Math.round(submittedRate / 100)}/hr is below the $${Math.round(invitation.payMin / 100)}/hr floor you were given`
+    }
+    return null
+  }
+
   const results: any[] = []
 
   for (const personId of personIds) {
@@ -163,6 +186,24 @@ export async function POST(request: NextRequest) {
           status: 'SUBMITTED',
         },
       })
+
+      // The band is advisory, so the submission stands and the warning
+      // travels with it — the client sees why it is off-band rather than
+      // never seeing the candidate at all.
+      const warning = bandWarning(rate)
+      if (warning) {
+        item.warning = warning
+        await prisma.automationLog.create({
+          data: {
+            companyId: fromCompanyId,
+            action: 'SUBMISSION_OFF_BAND',
+            summary: `${person.name} submitted to "${requirement.title}" off band`,
+            reason: warning,
+            payload: { submissionId: submission.id, rate, requirementId },
+            reversible: true,
+          },
+        })
+      }
 
       // 6. Write AccessLog — submission is a read of person's data
       await prisma.accessLog.create({
