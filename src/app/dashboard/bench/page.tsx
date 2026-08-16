@@ -605,10 +605,20 @@ export default function BenchPage() {
         exportName="etyme-bench"
         bulkActions={(selected) => (
           <>
-            <button className="chip chip--action text-[10px] hover:opacity-80">
+            <button
+              onClick={() => {
+                const count = selected.size
+                setToast({ message: `Share ${count} consultant${count !== 1 ? 's' : ''} — coming soon`, type: 'success' })
+                setTimeout(() => setToast(null), 3000)
+              }}
+              className="chip chip--action text-[10px] hover:opacity-80"
+            >
               Share ({selected.size})
             </button>
-            <button className="chip chip--verified text-[10px] hover:opacity-80">
+            <button
+              onClick={() => router.push('/dashboard/submissions?new=1')}
+              className="chip chip--verified text-[10px] hover:opacity-80"
+            >
               Submit ({selected.size})
             </button>
           </>
