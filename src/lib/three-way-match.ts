@@ -32,9 +32,45 @@ export type MatchCode =
   | 'PO_STATUS'     // the PO is open and covers the period
   | 'PO_BALANCE'    // the PO has room for this invoice
 
+/**
+ * Which failures a human may wave through.
+ *
+ * Not all of them, and the split is not a matter of taste. Paying twice for
+ * the same work, paying for hours nobody approved, and arithmetic that does
+ * not add up are not judgment calls — no amount of seniority makes them
+ * correct, so no signature unlocks them. Everything else is a commercial
+ * variance that AP resolves every day: a rate amendment not yet keyed, a
+ * timesheet approved after the cut-off, a purchase order being topped up.
+ *
+ * A control with no exception path is not stricter, it is bypassed. Finance
+ * pays those invoices outside the system and the ledger stops being true.
+ */
+export const OVERRIDABLE: Record<MatchCode, boolean> = {
+  RECEIPT: false,      // nobody witnessed the work
+  DUPLICATE: false,    // paying twice is never an option
+  EXTENSION: false,    // arithmetic is not an opinion
+  HEADER_TOTAL: false, // nor is addition
+  QUANTITY: true,      // hours under query
+  PRICE: true,         // rate amendment pending
+  PO_REQUIRED: true,   // PO being raised retrospectively
+  PO_STATUS: true,     // PO being reopened or extended
+  PO_BALANCE: true,    // PO being topped up
+}
+
+export interface MatchOverride {
+  code: MatchCode
+  reason: string
+  byName: string
+  at: Date
+}
+
 export interface MatchCheck {
   code: MatchCode
-  outcome: 'PASS' | 'FAIL'
+  outcome: 'PASS' | 'FAIL' | 'OVERRIDDEN'
+  /** Whether a human may wave this failure through at all. */
+  overridable?: boolean
+  /** Present when somebody has. Never silently permitted. */
+  overriddenBy?: { name: string; reason: string; at: string }
   /** Plain English. An AP clerk reads this, not the code. */
   reason: string
   /** Lines involved, when a failure is line-specific. */
@@ -84,10 +120,15 @@ export interface MatchInput {
   po: PurchaseOrderFacts | null
   /** True when this client requires a PO before anything can be paid. */
   poRequired: boolean
+  /** Exceptions already recorded against this invoice. */
+  overrides?: MatchOverride[]
 }
 
 export interface MatchResult {
+  /** True when nothing is outstanding — including anything overridden. */
   matched: boolean
+  /** True only when it matched on the facts, with no human waiver. */
+  cleanMatch: boolean
   checks: MatchCheck[]
   /** One line for a list view or an approval screen. */
   summary: string
@@ -120,9 +161,11 @@ export function threeWayMatch(input: MatchInput): MatchResult {
   if (lines.length === 0) {
     return {
       matched: false,
+      cleanMatch: false,
       checks: [{
         code: 'RECEIPT',
         outcome: 'FAIL',
+        overridable: false,
         reason: 'This invoice has no lines, so there is nothing to match against',
       }],
       summary: 'No lines to match',
@@ -279,13 +322,36 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     }
   }
 
+  // ── Apply exceptions ──
+  // A recorded override resolves a failure but never erases it: the check
+  // stays visible as OVERRIDDEN, with who and why. Addendum E's rule holds
+  // here too — warn, capture a reason, proceed, but never silently permit.
+  const overrides = input.overrides ?? []
+  for (const check of checks) {
+    check.overridable = OVERRIDABLE[check.code]
+    if (check.outcome !== 'FAIL') continue
+    const waiver = overrides.find(o => o.code === check.code)
+    if (!waiver) continue
+    if (!OVERRIDABLE[check.code]) continue // a waiver on this is not honoured
+    check.outcome = 'OVERRIDDEN'
+    check.overriddenBy = {
+      name: waiver.byName,
+      reason: waiver.reason,
+      at: waiver.at.toISOString(),
+    }
+  }
+
   const failures = checks.filter(c => c.outcome === 'FAIL')
+  const waived = checks.filter(c => c.outcome === 'OVERRIDDEN')
 
   return {
     matched: failures.length === 0,
+    cleanMatch: failures.length === 0 && waived.length === 0,
     checks,
     summary: failures.length === 0
-      ? `Matched — ${lines.length} line(s), ${money(invoice.totalCents)}, every hour approved`
+      ? waived.length === 0
+        ? `Matched — ${lines.length} line(s), ${money(invoice.totalCents)}, every hour approved`
+        : `Matched with ${waived.length} exception(s) — ${waived.map(w => w.code.toLowerCase().replace(/_/g, ' ')).join(', ')}`
       : failures.length === 1
         ? failures[0].reason
         : `${failures.length} checks failed — ${failures[0].reason}`,

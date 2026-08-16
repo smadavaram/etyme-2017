@@ -39,6 +39,7 @@ model Person {
   buyCandidacies BuyContractCandidate[]
   timesheets    Timesheet[]
   invoiceLines  InvoiceLine[]
+  matchOverrides InvoiceMatchOverride[]
   verifications Verification[]
   enrollments   Enrollment[]
   expenses      Expense[]
@@ -871,6 +872,7 @@ model Invoice {
   // write InvoiceLine rows and this stays null.
   lines        Json?
   invoiceLines InvoiceLine[]
+  matchOverrides InvoiceMatchOverride[]
   currency     String
   total        Decimal    @db.Decimal(12, 2)
   paid         Decimal    @default(0) @db.Decimal(12, 2)
@@ -1039,6 +1041,34 @@ model InvoiceLine {
 
   @@index([invoiceId])
   @@index([sellContractId])
+}
+
+// An exception an AP clerk recorded against a failed match.
+//
+// Following the precedent already set by GovernanceEvaluation.overriddenBy:
+// a control without an exception path is not stricter, it is bypassed, and
+// the invoices get paid outside the system where the ledger cannot see them.
+//
+// Which codes may be waived is decided in code (OVERRIDABLE in
+// src/lib/three-way-match.ts), not here — a row asserting a waiver on a
+// duplicate payment is simply not honoured.
+model InvoiceMatchOverride {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  code   String // the MatchCode being waived
+  reason String // required, and shown wherever the invoice is
+  byId   String
+  by     Person @relation(fields: [byId], references: [id])
+
+  // What the invoice was worth when the exception was granted, so a later
+  // reader can tell whether the waiver still describes the same invoice.
+  invoiceTotalCentsAtOverride Int
+  createdAt                   DateTime @default(now())
+
+  @@unique([invoiceId, code]) // one live exception per check
+  @@index([byId])
 }
 
 model PurchaseOrder {

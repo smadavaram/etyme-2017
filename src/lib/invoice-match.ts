@@ -25,6 +25,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
         },
       },
       purchaseOrder: true,
+      matchOverrides: { include: { by: { select: { name: true } } } },
       engagement: {
         select: { sellContracts: { select: { purchaseOrderId: true }, take: 1 } },
       },
@@ -95,6 +96,14 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       : null,
     // A PO is required once the contract being billed was raised against one.
     poRequired: Boolean(invoice.engagement.sellContracts[0]?.purchaseOrderId),
+    // Exceptions an AP clerk has recorded. The engine decides which of them
+    // it will honour; a waiver on a duplicate payment is simply ignored.
+    overrides: invoice.matchOverrides.map(o => ({
+      code: o.code as any,
+      reason: o.reason,
+      byName: o.by.name,
+      at: o.createdAt,
+    })),
   }
 
   return threeWayMatch(input)

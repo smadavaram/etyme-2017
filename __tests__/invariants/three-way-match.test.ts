@@ -353,3 +353,93 @@ describe('The Decimal-to-cents boundary is converted, never assumed', () => {
     expect(decimalToCents({ toString: () => '130' })).toBe(13_000)
   })
 })
+
+// ── What a human may wave through, and what they may not ───
+
+describe('An AP clerk can resolve a variance, but not invent one', () => {
+
+  const waiver = (code: any, reason = 'Rate amendment signed, not yet keyed') => ([{
+    code, reason, byName: 'Joyce Mbeki', at: new Date('2026-08-16T09:00:00Z'),
+  }])
+
+  it('a rate variance can be waived with a reason, and the invoice matches', () => {
+    const r = threeWayMatch(clean({
+      invoice: { id: 'inv1', totalCents: 1_200_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 15_000, amountCents: 1_200_000 }],
+      overrides: waiver('PRICE'),
+    }))
+    expect(r.matched).toBe(true)
+  })
+
+  it('a waived invoice is never reported as a clean match', () => {
+    const r = threeWayMatch(clean({
+      invoice: { id: 'inv1', totalCents: 1_200_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 15_000, amountCents: 1_200_000 }],
+      overrides: waiver('PRICE'),
+    }))
+    expect(r.cleanMatch).toBe(false)
+    expect(r.summary).toContain('exception')
+  })
+
+  it('the waiver keeps the original failure visible, with who and why', () => {
+    const r = threeWayMatch(clean({
+      invoice: { id: 'inv1', totalCents: 1_200_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 15_000, amountCents: 1_200_000 }],
+      overrides: waiver('PRICE'),
+    }))
+    const price = r.checks.find(c => c.code === 'PRICE')!
+    expect(price.outcome).toBe('OVERRIDDEN')
+    expect(price.overriddenBy?.name).toBe('Joyce Mbeki')
+    expect(price.reason).toContain('billed $150.00/hr, contracted $130.00/hr')
+  })
+
+  it('a purchase order overrun can be waived while it is topped up', () => {
+    const r = threeWayMatch(clean({
+      po: { id: 'po1', number: 'TBC-PO-4471', status: 'OPEN', amountCents: 5_000_000,
+            consumedCents: 4_500_000, startDate: new Date('2026-01-01T00:00:00Z'), endDate: null },
+      overrides: waiver('PO_BALANCE', 'PO increase approved, raising tomorrow'),
+    }))
+    expect(r.matched).toBe(true)
+  })
+
+  it('paying twice for the same work cannot be waived by anyone', () => {
+    const r = threeWayMatch(clean({
+      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000,
+                           alreadyBilledOnInvoiceId: 'inv-earlier' } },
+      overrides: waiver('DUPLICATE', 'Client said it is fine'),
+    }))
+    expect(r.matched).toBe(false)
+    expect(r.checks.find(c => c.code === 'DUPLICATE')?.outcome).toBe('FAIL')
+  })
+
+  it('hours nobody approved cannot be waived', () => {
+    const r = threeWayMatch(clean({
+      timesheets: { ts1: { id: 'ts1', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 13_000 } },
+      overrides: waiver('RECEIPT', 'Manager is on leave, we know it is right'),
+    }))
+    expect(r.matched).toBe(false)
+  })
+
+  it('arithmetic cannot be waived', () => {
+    const r = threeWayMatch(clean({
+      invoice: { id: 'inv1', totalCents: 1_050_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
+      lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_050_000 }],
+      overrides: [
+        { code: 'EXTENSION' as any, reason: 'x', byName: 'Y', at: new Date() },
+        { code: 'HEADER_TOTAL' as any, reason: 'x', byName: 'Y', at: new Date() },
+      ],
+    }))
+    expect(r.matched).toBe(false)
+  })
+
+  it('every check says whether it could be waived at all', () => {
+    const r = threeWayMatch(clean())
+    expect(r.checks.find(c => c.code === 'DUPLICATE')?.overridable).toBe(false)
+    expect(r.checks.find(c => c.code === 'PRICE')?.overridable).toBe(true)
+  })
+
+  it('a waiver for a check that passed changes nothing', () => {
+    const r = threeWayMatch(clean({ overrides: waiver('PRICE') }))
+    expect(r.cleanMatch).toBe(true)
+  })
+})
