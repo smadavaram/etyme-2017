@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -353,6 +354,9 @@ function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onC
 // ── Page ─────────────────────────────────────────────
 
 export default function BenchPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [entries, setEntries] = useState<BenchEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -360,6 +364,14 @@ export default function BenchPage() {
   const [availFilter, setAvailFilter] = useState<AvailFilter>('all')
   const [showAddModal, setShowAddModal] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  // Open modal from ?new=1 link
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowAddModal(true)
+      router.replace('/dashboard/bench')
+    }
+  }, [searchParams, router])
 
   const fetchBench = useCallback(async () => {
     setLoading(true)

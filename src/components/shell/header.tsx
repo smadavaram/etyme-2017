@@ -40,6 +40,12 @@ const PLUS_MENU: PlusMenuSection[] = [
         href: '/dashboard/requirements?new=1',
         icon: '◈',
       },
+      {
+        label: 'Submit consultant',
+        description: 'Submit a candidate to a requirement',
+        href: '/dashboard/submissions?new=1',
+        icon: '◇',
+      },
     ],
   },
   {
@@ -52,10 +58,10 @@ const PLUS_MENU: PlusMenuSection[] = [
         icon: '◌',
       },
       {
-        label: 'Import data',
-        description: 'Bulk import from CSV',
-        href: '/dashboard/import',
-        icon: '↓',
+        label: 'Add to bench',
+        description: 'List a consultant as available',
+        href: '/dashboard/bench?new=1',
+        icon: '◎',
       },
     ],
   },
@@ -63,10 +69,22 @@ const PLUS_MENU: PlusMenuSection[] = [
     label: 'Operate',
     items: [
       {
+        label: 'New timesheet',
+        description: 'Log hours against a sell contract',
+        href: '/dashboard/timesheets?new=1',
+        icon: '▦',
+      },
+      {
         label: 'New expense report',
         description: 'Submit travel, equipment, or training',
         href: '/dashboard/expenses?new=1',
         icon: '◫',
+      },
+      {
+        label: 'Generate invoice',
+        description: 'Create an invoice for approved timesheets',
+        href: '/dashboard/invoices?new=1',
+        icon: '▧',
       },
       {
         label: 'New conversation',
@@ -90,8 +108,8 @@ const SEARCH_SECTIONS: { type: string; label: string; href: string }[] = [
   { type: 'page', label: 'Dashboard', href: '/dashboard' },
   { type: 'page', label: 'Requirements', href: '/dashboard/requirements' },
   { type: 'page', label: 'Submissions', href: '/dashboard/submissions' },
-  { type: 'page', label: 'Sell Contracts', href: '/dashboard/contracts' },
-  { type: 'page', label: 'Buy Contracts', href: '/dashboard/contracts' },
+  { type: 'page', label: 'Sell Contracts', href: '/dashboard/contracts?side=sell' },
+  { type: 'page', label: 'Buy Contracts', href: '/dashboard/contracts?side=buy' },
   { type: 'page', label: 'Rolloff', href: '/dashboard/rolloff' },
   { type: 'page', label: 'Bench', href: '/dashboard/bench' },
   { type: 'page', label: 'Candidates', href: '/dashboard/consultants' },

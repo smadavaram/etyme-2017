@@ -25,7 +25,13 @@ export async function GET(request: NextRequest) {
   const sort = url.searchParams.get('sort') ?? 'recent'
   const companyId = url.searchParams.get('companyId') ?? undefined
 
+  const id = url.searchParams.get('id') ?? undefined
+
   const where: any = {}
+
+  if (id) {
+    where.id = id
+  }
 
   if (companyId) {
     where.companyId = companyId
