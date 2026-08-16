@@ -38,6 +38,9 @@ type StatusFilter = 'ALL' | 'DRAFT' | 'OPEN' | 'FILLED' | 'CLOSED'
 // ── New Requirement Modal ──────────────────────────────────
 
 function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [mode, setMode] = useState<'form' | 'paste'>('form')
+  const [pasteText, setPasteText] = useState('')
+  const [parsing, setParsing] = useState(false)
   const [form, setForm] = useState({
     title: '',
     skills: '',
@@ -48,6 +51,68 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [parseConfidence, setParseConfidence] = useState<Record<string, { confidence: number; flagged: boolean }>>({})
+
+  // Parse pasted text into form fields via /api/requirements/parse
+  async function handleParse() {
+    if (pasteText.trim().length < 10) {
+      setError('Paste at least 10 characters of job description text')
+      return
+    }
+    setParsing(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/requirements/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: pasteText }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body.error?.message ?? 'Parse failed')
+        return
+      }
+      const body = await res.json()
+      const p = body.data?.parsed ?? {}
+
+      // Fill form from parsed fields
+      const newForm = { ...form }
+      const conf: Record<string, { confidence: number; flagged: boolean }> = {}
+
+      if (p.title?.value) {
+        newForm.title = p.title.value
+        conf.title = { confidence: p.title.confidence, flagged: p.title.flagged }
+      }
+      if (p.skills?.value?.length) {
+        newForm.skills = p.skills.value.join(', ')
+        conf.skills = { confidence: p.skills.confidence, flagged: p.skills.flagged }
+      }
+      if (p.location?.value) {
+        newForm.location = p.location.value
+        conf.location = { confidence: p.location.confidence, flagged: p.location.flagged }
+      }
+      if (p.billMin?.value) {
+        newForm.billMin = String(p.billMin.value)
+        conf.billMin = { confidence: p.billMin.confidence, flagged: p.billMin.flagged }
+      }
+      if (p.billMax?.value) {
+        newForm.billMax = String(p.billMax.value)
+        conf.billMax = { confidence: p.billMax.confidence, flagged: p.billMax.flagged }
+      }
+      if (p.months?.value) {
+        newForm.months = String(p.months.value)
+        conf.months = { confidence: p.months.confidence, flagged: p.months.flagged }
+      }
+
+      setForm(newForm)
+      setParseConfidence(conf)
+      setMode('form')
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setParsing(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -86,12 +151,30 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">New requirement</h2>
           <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
+          </button>
+        </div>
+
+        {/* Mode toggle — paste or manual */}
+        <div className="flex gap-1.5 mb-4">
+          <button
+            type="button"
+            onClick={() => setMode('paste')}
+            className={`filter-tab ${mode === 'paste' ? 'filter-tab--active' : 'filter-tab--inactive'}`}
+          >
+            Paste &amp; parse
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('form')}
+            className={`filter-tab ${mode === 'form' ? 'filter-tab--active' : 'filter-tab--inactive'}`}
+          >
+            Manual entry
           </button>
         </div>
 
@@ -101,9 +184,58 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
           </div>
         )}
 
+        {/* Paste mode — textarea + parse button */}
+        {mode === 'paste' && (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">
+                Paste job description, email, or VMS export
+              </label>
+              <textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                rows={8}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                           resize-y"
+                placeholder={"Role: Senior SAP BRIM Consultant\nLocation: Remote\nSkills: SAP BRIM, Revenue Accounting, S/4HANA\nRate: $85-$120/hr\nDuration: 12 months\n\nLooking for a consultant with 5+ years of SAP BRIM experience..."}
+              />
+              <p className="text-[10px] text-etyme-faint mt-1">
+                Extracts title, skills, rate, location, duration. Flagged fields show low confidence — review before submitting.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={onClose} className="btn-secondary">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleParse}
+                disabled={parsing || pasteText.trim().length < 10}
+                className="btn-primary disabled:opacity-50"
+              >
+                {parsing ? 'Parsing…' : 'Parse & fill form →'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Form mode — manual entry or post-parse review */}
+        {mode === 'form' && (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {Object.keys(parseConfidence).length > 0 && (
+            <div className="rounded-lg bg-etyme-canvas px-4 py-3 text-[12px] text-etyme-muted mb-2">
+              Parsed from text — {Object.values(parseConfidence).filter(c => c.flagged).length > 0
+                ? <span className="text-etyme-attention font-medium">review flagged fields (marked with ⚠)</span>
+                : <span className="text-etyme-verified font-medium">all fields high confidence ✓</span>
+              }
+            </div>
+          )}
+
           <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Title *</label>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">
+              Title *{parseConfidence.title?.flagged && <span className="text-etyme-attention ml-1" title={`Confidence: ${Math.round((parseConfidence.title.confidence) * 100)}%`}>⚠</span>}
+            </label>
             <input
               type="text"
               required
@@ -116,7 +248,9 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Required skills (comma-separated)</label>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">
+              Required skills (comma-separated){parseConfidence.skills?.flagged && <span className="text-etyme-attention ml-1" title={`Confidence: ${Math.round((parseConfidence.skills.confidence) * 100)}%`}>⚠</span>}
+            </label>
             <input
               type="text"
               value={form.skills}
@@ -184,6 +318,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   )
