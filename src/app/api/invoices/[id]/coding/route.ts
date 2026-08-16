@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { allocateAmount, formatShare, type AllocationShare } from '@/lib/cost-allocation'
+import { poBalance } from '@/lib/purchase-order'
 
 /**
  * GET /api/invoices/:id/coding
@@ -96,7 +97,9 @@ export async function GET(
           },
         },
       },
-      purchaseOrder: { select: { number: true } },
+      purchaseOrder: {
+        select: { id: true, number: true, amount: true, status: true, endDate: true },
+      },
       remitTo: {
         select: {
           legalName: true, addressLines: true, country: true, taxId: true,
@@ -211,6 +214,29 @@ export async function GET(
     }
   }
 
+  // What is left on the PO this invoice draws against. AP checks this before
+  // paying — an invoice that takes the PO past its ceiling needs a change
+  // order, not a payment run.
+  let poState: ReturnType<typeof poBalance> & { number: string } | null = null
+  if (invoice.purchaseOrder) {
+    const drawn = await prisma.invoice.aggregate({
+      where: {
+        purchaseOrderId: invoice.purchaseOrder.id,
+        status: { not: 'CANCELLED' },
+      },
+      _sum: { total: true },
+    })
+    poState = {
+      number: invoice.purchaseOrder.number,
+      ...poBalance({
+        amountCents: Math.round(Number(invoice.purchaseOrder.amount) * 100),
+        invoicedCents: Math.round(Number(drawn._sum.total ?? 0) * 100),
+        status: invoice.purchaseOrder.status as any,
+        endDate: invoice.purchaseOrder.endDate,
+      }),
+    }
+  }
+
   const codedTotal = rows.reduce((sum, r) => sum + r.amount, 0)
   const invoiceTotal = Number(invoice.total)
   // Rounding is handled by largest remainder, so any drift here is a bug.
@@ -240,6 +266,7 @@ export async function GET(
       vendor: invoice.engagement.msa.vendor,
       billTo: invoice.engagement.msa.client,
       purchaseOrder: invoice.purchaseOrder?.number ?? null,
+      purchaseOrderBalance: poState,
       remitTo: invoice.remitTo,
       rows,
       reconciliation: {

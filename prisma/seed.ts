@@ -806,6 +806,45 @@ async function main() {
     buyContracts.push(buyContract)
   }
 
+  // ── A real subcontract: Cloudepa buys Elena's replacement from TechVista ──
+  // This is the one case where a buy contract and a purchase order describe
+  // the same relationship. The buy contract carries the RATE Cloudepa pays
+  // TechVista; the PO carries the CEILING TechVista may bill against. Linked
+  // so the two records cannot drift apart.
+  const poCloudepaToTechVista = await prisma.purchaseOrder.create({
+    data: {
+      number: 'CLD-PO-2211',
+      issuedById: vendor.id,
+      issuedToId: vendor2.id,
+      amount: 180_000,
+      currency: 'USD',
+      startDate: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000),
+      endDate: new Date(Date.now() + 245 * 24 * 60 * 60 * 1000),
+      status: 'OPEN',
+    },
+  })
+
+  const subStart = new Date(now)
+  subStart.setDate(subStart.getDate() - 120)
+  const subEnd = new Date(now)
+  subEnd.setDate(subEnd.getDate() + 245)
+
+  const subcontract = await prisma.buyContract.create({
+    data: {
+      companyId: vendor.id,
+      vendorCompanyId: vendor2.id, // buying FROM TechVista, not employing
+      personId: people[6].id, // Kavitha Nair
+      payRate: 10_500,
+      payCurrency: 'USD',
+      contractType: 'C2C',
+      state: 'IN_PROGRESS',
+      startDate: subStart,
+      endDate: subEnd,
+      purchaseOrderId: poCloudepaToTechVista.id,
+    },
+  })
+  buyContracts.push(subcontract)
+
   // ── Contract Links (sell ↔ buy for profitability) ──
   // First 4 buy contracts link to the 4 sell contracts
   for (let i = 0; i < 4; i++) {

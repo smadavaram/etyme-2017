@@ -303,6 +303,16 @@ interface CodingRow {
 
 interface InvoiceCoding {
   purchaseOrder: string | null
+  purchaseOrderBalance: {
+    number: string
+    amountCents: number
+    invoicedCents: number
+    remainingCents: number
+    consumedPercent: number
+    overdrawn: boolean
+    canInvoice: boolean
+    reason: string
+  } | null
   remitTo: {
     legalName: string
     addressLines: string[]
@@ -487,7 +497,17 @@ function InvoiceDetailDrawer({
                 <div>
                   <p className="eyebrow mb-1">Purchase order</p>
                   {coding.purchaseOrder ? (
-                    <p className="text-sm font-mono">{coding.purchaseOrder}</p>
+                    <>
+                      <p className="text-sm font-mono">{coding.purchaseOrder}</p>
+                      {coding.purchaseOrderBalance && (
+                        <p className={`text-[11px] tabular-nums mt-0.5 ${
+                          coding.purchaseOrderBalance.overdrawn ? 'text-etyme-attention' : 'text-etyme-muted'
+                        }`}>
+                          ${(coding.purchaseOrderBalance.remainingCents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })} left
+                          {' · '}{coding.purchaseOrderBalance.consumedPercent}% drawn
+                        </p>
+                      )}
+                    </>
                   ) : (
                     <p className="text-sm text-etyme-attention">Not referenced</p>
                   )}

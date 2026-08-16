@@ -605,6 +605,16 @@ model BuyContract {
   //   MARGIN_SHARE: basis points (e.g. 2500 = 25%)
   commissionCap  Int? // max total commission in cents (null = uncapped)
 
+  // The PO this company issued to the sub-vendor supplying this person.
+  //
+  // Only meaningful when vendorCompanyId is set — you do not raise a PO to
+  // your own W2 employee. On a subcontract the buy contract and the PO
+  // describe the same commercial relationship from two angles: the buy
+  // contract carries the RATE, the PO carries the CEILING it draws down.
+  // Linking them stops the two records disagreeing.
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -871,6 +881,7 @@ model PurchaseOrder {
   createdAt  DateTime @default(now())
 
   sellContracts SellContract[]
+  buyContracts  BuyContract[] // the issuer's own subcontracts drawing on it
   invoices      Invoice[]
 
   @@unique([issuedById, number])
