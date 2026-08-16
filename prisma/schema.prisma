@@ -34,7 +34,9 @@ model Person {
   visas         VisaPetition[]
   submissions   Submission[]
   sellContracts SellContract[]
-  buyContracts  BuyContract[]
+  // A person sits on a buy contract through a candidate line, because one
+  // agreement can cover several people at their own rates.
+  buyCandidacies BuyContractCandidate[]
   timesheets    Timesheet[]
   verifications Verification[]
   enrollments   Enrollment[]
@@ -578,18 +580,21 @@ enum SellContractState {
 // For subcontracting: vendorCompanyId points to the vendor supplying the talent.
 // For commissions: commissionType + commissionRate define the payout; one buy contract
 //   can link to many sell contracts via ContractLink (the "commission umbrella" pattern).
+// The agreement a company buys talent under. One buy contract may cover
+// MANY candidates — a subcontract with a vendor routinely supplies several
+// people on one agreement, each at their own rate and their own dates.
+// Per-candidate terms live on BuyContractCandidate.
 model BuyContract {
   id              String       @id @default(cuid())
   companyId       String // the company paying
   company         Company      @relation("buyer", fields: [companyId], references: [id])
   vendorCompanyId String? // who they're buying from (null = direct employment)
   vendorCompany   Company?     @relation("buyVendor", fields: [vendorCompanyId], references: [id])
-  personId        String
-  person          Person       @relation(fields: [personId], references: [id])
   entityId        String? // legal entity for payroll (Infosys India vs Infosys US)
   entity          LegalEntity? @relation(fields: [entityId], references: [id])
 
-  payRate      Int // cents per hour (or salary equivalent)
+  candidates BuyContractCandidate[]
+
   payCurrency  String           @default("USD")
   contractType ContractType     @default(W2)
   state        BuyContractState @default(DRAFT)
@@ -624,8 +629,33 @@ model BuyContract {
 
   @@index([companyId, state])
   @@index([vendorCompanyId])
-  @@index([personId])
   @@index([endDate])
+}
+
+// One person on a buy contract, at their own rate and dates.
+//
+// Rates differ per person, and someone can roll off while the agreement
+// continues, so both live here rather than on the agreement. A direct
+// employment contract normally has exactly one of these; a subcontract
+// with a vendor often has several.
+model BuyContractCandidate {
+  id            String      @id @default(cuid())
+  buyContractId String
+  buyContract   BuyContract @relation(fields: [buyContractId], references: [id], onDelete: Cascade)
+  personId      String
+  person        Person      @relation(fields: [personId], references: [id])
+
+  payRate     Int // cents per hour (or salary equivalent)
+  payCurrency String    @default("USD")
+  startDate   DateTime
+  endDate     DateTime?
+  // A person may leave while the agreement runs on for everyone else.
+  state       String    @default("ACTIVE") // ACTIVE · ENDED · REPLACED
+  createdAt   DateTime  @default(now())
+
+  @@unique([buyContractId, personId])
+  @@index([personId])
+  @@index([buyContractId])
 }
 
 enum BuyContractState {

@@ -46,7 +46,9 @@ export async function GET(request: NextRequest) {
       state: { in: ['IN_PROGRESS', 'BENCH_PAID', 'INTERNAL', 'TRAINING'] },
     },
     include: {
-      person: { select: { id: true, name: true, primaryEmail: true } },
+      candidates: {
+        include: { person: { select: { id: true, name: true, primaryEmail: true } } },
+      },
       vendorCompany: { select: { id: true, name: true } },
       entity: { select: { id: true, name: true } },
       sellLinks: {
@@ -57,6 +59,7 @@ export async function GET(request: NextRequest) {
                 where: { status: 'APPROVED' },
                 select: {
                   id: true,
+                  personId: true,
                   totalHours: true,
                   periodStart: true,
                   periodEnd: true,
@@ -79,36 +82,15 @@ export async function GET(request: NextRequest) {
     orderBy: { startDate: 'desc' },
   })
 
-  // Build pay items from buy contracts + linked approved timesheets
-  const payItems = buyContracts.map((bc) => {
-    // Aggregate approved hours across linked sell contracts
-    const linkedTimesheets = bc.sellLinks.flatMap((link) =>
-      link.sellContract.timesheets.map((ts) => ({
-        id: ts.id,
-        totalHours: Number(ts.totalHours),
-        periodStart: ts.periodStart.toISOString(),
-        periodEnd: ts.periodEnd.toISOString(),
-        approvedAt: ts.approvedAt?.toISOString() ?? null,
-        sellContractId: link.sellContractId,
-        clientCompany: link.sellContract.clientCompany,
-        engagement: link.sellContract.engagement,
-        billRate: link.sellContract.billRate,
-      }))
-    )
-
-    // Filter by period if specified
-    const filteredTimesheets = period
-      ? linkedTimesheets.filter((ts) => ts.periodStart.startsWith(period))
-      : linkedTimesheets
-
-    const totalApprovedHours = filteredTimesheets.reduce(
-      (sum, ts) => sum + ts.totalHours, 0
-    )
-
-    // Calculate gross pay: approved hours × buy rate (in cents)
-    const grossPay = Math.round(totalApprovedHours * bc.payRate)
-
-    // Determine pay item status based on cycle completion
+  // One pay item PER CANDIDATE, not per contract. A buy contract may cover
+  // several people at different rates, so a single gross figure for the
+  // agreement would be meaningless — and paying everyone the first person's
+  // rate would be a real financial error.
+  //
+  // Hours are matched to the candidate by personId. The linked sell
+  // contracts carry timesheets for whoever worked them, so the person is
+  // what ties an approved timesheet to the rate it should be paid at.
+  const payItems = buyContracts.flatMap((bc) => {
     const nextSalaryCycle = bc.buyCycles.find(
       (c) => c.kind === 'SALARY_PAY' && !c.completedAt
     )
@@ -116,35 +98,66 @@ export async function GET(request: NextRequest) {
       (c) => c.kind === 'SALARY_CALCULATE' && !c.completedAt
     )
 
-    let payStatus: string
-    if (filteredTimesheets.length === 0) {
-      payStatus = 'NO_HOURS'
-    } else if (nextCalcCycle && !nextCalcCycle.completedAt) {
-      payStatus = 'PENDING'
-    } else if (nextSalaryCycle && !nextSalaryCycle.completedAt) {
-      payStatus = 'CALCULATED'
-    } else {
-      payStatus = 'PROCESSED'
-    }
+    return bc.candidates.map((cand) => {
+      const linkedTimesheets = bc.sellLinks.flatMap((link) =>
+        link.sellContract.timesheets
+          .filter((ts) => ts.personId === cand.personId)
+          .map((ts) => ({
+            id: ts.id,
+            totalHours: Number(ts.totalHours),
+            periodStart: ts.periodStart.toISOString(),
+            periodEnd: ts.periodEnd.toISOString(),
+            approvedAt: ts.approvedAt?.toISOString() ?? null,
+            sellContractId: link.sellContractId,
+            clientCompany: link.sellContract.clientCompany,
+            engagement: link.sellContract.engagement,
+            billRate: link.sellContract.billRate,
+          }))
+      )
 
-    return {
-      buyContractId: bc.id,
-      person: bc.person,
-      contractType: bc.contractType,
-      state: bc.state,
-      payRate: bc.payRate,
-      payCurrency: bc.payCurrency,
-      vendorCompany: bc.vendorCompany,
-      entity: bc.entity,
-      startDate: bc.startDate.toISOString(),
-      endDate: bc.endDate?.toISOString() ?? null,
-      timesheets: filteredTimesheets,
-      totalApprovedHours,
-      grossPay,
-      payStatus,
-      nextPayDate: nextSalaryCycle?.dueOn.toISOString() ?? null,
-      nextCalcDate: nextCalcCycle?.dueOn.toISOString() ?? null,
-    }
+      const filteredTimesheets = period
+        ? linkedTimesheets.filter((ts) => ts.periodStart.startsWith(period))
+        : linkedTimesheets
+
+      const totalApprovedHours = filteredTimesheets.reduce(
+        (sum, ts) => sum + ts.totalHours, 0
+      )
+
+      // Gross pay uses THIS candidate's rate, in cents
+      const grossPay = Math.round(totalApprovedHours * cand.payRate)
+
+      let payStatus: string
+      if (filteredTimesheets.length === 0) {
+        payStatus = 'NO_HOURS'
+      } else if (nextCalcCycle && !nextCalcCycle.completedAt) {
+        payStatus = 'PENDING'
+      } else if (nextSalaryCycle && !nextSalaryCycle.completedAt) {
+        payStatus = 'CALCULATED'
+      } else {
+        payStatus = 'PROCESSED'
+      }
+
+      return {
+        buyContractId: bc.id,
+        buyContractCandidateId: cand.id,
+        person: cand.person,
+        contractType: bc.contractType,
+        state: bc.state,
+        payRate: cand.payRate,
+        payCurrency: cand.payCurrency,
+        vendorCompany: bc.vendorCompany,
+        entity: bc.entity,
+        startDate: cand.startDate.toISOString(),
+        endDate: cand.endDate?.toISOString() ?? null,
+        candidateState: cand.state,
+        timesheets: filteredTimesheets,
+        totalApprovedHours,
+        grossPay,
+        payStatus,
+        nextPayDate: nextSalaryCycle?.dueOn.toISOString() ?? null,
+        nextCalcDate: nextCalcCycle?.dueOn.toISOString() ?? null,
+      }
+    })
   })
 
   // Filter by status if specified

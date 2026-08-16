@@ -61,27 +61,48 @@ export async function GET(
 
   const companyId = caller.company?.id
 
-  // Load buy contracts (pay rates) — these are what the consultant earns
-  const buyContracts = await prisma.buyContract.findMany({
+  // Load this person's candidate lines — the pay rate and dates are theirs,
+  // not the agreement's, because one buy contract can cover several people.
+  const candidacies = await prisma.buyContractCandidate.findMany({
     where: {
       personId: consultant.personId,
-      ...(companyId && !isSelf ? { companyId } : {}),
-      state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
+      buyContract: {
+        ...(companyId && !isSelf ? { companyId } : {}),
+        state: { in: ['IN_PROGRESS', 'ENDED', 'PAUSED'] },
+      },
     },
     select: {
       id: true,
       payRate: true,
       payCurrency: true,
-      contractType: true,
-      state: true,
       startDate: true,
       endDate: true,
-      companyId: true,
-      company: { select: { name: true } },
-      vendorCompany: { select: { name: true } },
+      buyContract: {
+        select: {
+          contractType: true,
+          state: true,
+          companyId: true,
+          company: { select: { name: true } },
+          vendorCompany: { select: { name: true } },
+        },
+      },
     },
     orderBy: { startDate: 'asc' },
   })
+
+  // Flattened to the shape the progression builder below expects
+  const buyContracts = candidacies.map((c) => ({
+    id: c.id,
+    payRate: c.payRate,
+    payCurrency: c.payCurrency,
+    contractType: c.buyContract.contractType,
+    state: c.buyContract.state,
+    startDate: c.startDate,
+    endDate: c.endDate,
+    companyId: c.buyContract.companyId,
+    company: c.buyContract.company,
+    vendorCompany: c.buyContract.vendorCompany,
+  }))
 
   // Load sell contracts (bill rates) — only visible to vendor admins with cost permission
   let sellContracts: Array<{

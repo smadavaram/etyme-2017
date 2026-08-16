@@ -62,14 +62,16 @@ export async function POST(request: NextRequest) {
       companyId,
     },
     include: {
-      person: { select: { id: true, name: true } },
+      candidates: {
+        include: { person: { select: { id: true, name: true } } },
+      },
       sellLinks: {
         include: {
           sellContract: {
             include: {
               timesheets: {
                 where: { status: 'APPROVED' },
-                select: { id: true, totalHours: true },
+                select: { id: true, personId: true, totalHours: true },
               },
             },
           },
@@ -101,6 +103,7 @@ export async function POST(request: NextRequest) {
     const result = await prisma.$transaction(async (tx) => {
       const processed: Array<{
         buyContractId: string
+        buyContractCandidateId: string
         personName: string
         totalHours: number
         grossPay: number
@@ -108,20 +111,8 @@ export async function POST(request: NextRequest) {
       }> = []
 
       for (const bc of contracts) {
-        // Calculate gross from linked approved timesheets
-        const approvedHours = bc.sellLinks.reduce(
-          (sum, link) =>
-            sum +
-            link.sellContract.timesheets.reduce(
-              (s, ts) => s + Number(ts.totalHours),
-              0
-            ),
-          0
-        )
-
-        const grossPay = Math.round(approvedHours * bc.payRate)
-
-        // Mark the appropriate cycle(s) as completed based on action
+        // Cycles sit on the agreement, so completing them is done once per
+        // contract rather than once per person.
         const cycleKind =
           action === 'calculate'
             ? 'SALARY_CALCULATE'
@@ -138,13 +129,28 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        processed.push({
-          buyContractId: bc.id,
-          personName: bc.person.name,
-          totalHours: approvedHours,
-          grossPay,
-          cyclesCompleted: updatedCycles.count,
-        })
+        // Gross is per candidate at their own rate. Hours are matched by
+        // person — paying everyone on the agreement at one rate would be a
+        // real financial error once a contract carries more than one person.
+        for (const cand of bc.candidates) {
+          const approvedHours = bc.sellLinks.reduce(
+            (sum, link) =>
+              sum +
+              link.sellContract.timesheets
+                .filter((ts) => ts.personId === cand.personId)
+                .reduce((s, ts) => s + Number(ts.totalHours), 0),
+            0
+          )
+
+          processed.push({
+            buyContractId: bc.id,
+            buyContractCandidateId: cand.id,
+            personName: cand.person.name,
+            totalHours: approvedHours,
+            grossPay: Math.round(approvedHours * cand.payRate),
+            cyclesCompleted: updatedCycles.count,
+          })
+        }
       }
 
       // Log the payroll run

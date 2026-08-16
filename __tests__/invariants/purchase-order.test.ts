@@ -21,23 +21,41 @@ import { poBalance, canAttachPoToBuyContract } from '@/lib/purchase-order'
 
 describe('A purchase order is not a buy contract', () => {
 
-  it('one purchase order covers many people, a buy contract covers one', () => {
-    // Terumo's PO-2026-4417 spans three contractors. A buy contract has a
-    // required personId and cannot span three.
-    const po = { number: 'PO-2026-4417', contractsCovered: 3 }
-    const buyContract = { personId: 'person-1' }
+  it('both cover many people — cardinality is not what separates them', () => {
+    // An earlier version of this test claimed a buy contract covers one
+    // person. That was the 2017 shape, not the intended model: one
+    // agreement supplies a team, each at their own rate. Cardinality is
+    // therefore NOT a difference between the two objects.
+    const po = { contractsCovered: 3 }
+    const buyContract = { candidates: [{ payRate: 10_500 }, { payRate: 8_800 }, { payRate: 13_200 }] }
 
     expect(po.contractsCovered).toBeGreaterThan(1)
-    expect(buyContract.personId).toBeTruthy()
+    expect(buyContract.candidates.length).toBeGreaterThan(1)
   })
 
-  it('a purchase order carries a ceiling, a buy contract carries a rate', () => {
-    const po = { amountCents: 120_000_000 } // $1.2m authorised
-    const buyContract = { payRate: 10_500 } // $105/hr
+  it('a purchase order carries a ceiling while a contract carries per-person rates', () => {
+    const po = { amountCents: 18_000_000 } // $180k authorised, one number
+    const buyContract = { candidates: [{ payRate: 10_500 }, { payRate: 8_800 }] }
 
-    // Different quantities — neither substitutes for the other
-    expect(po).not.toHaveProperty('payRate')
-    expect(buyContract).not.toHaveProperty('amountCents')
+    // A ceiling is one figure for the whole agreement; rates are per person.
+    // Neither derives from the other — you need both to know what may be
+    // billed and what each person costs.
+    expect(po).not.toHaveProperty('candidates')
+    expect(new Set(buyContract.candidates.map(c => c.payRate)).size).toBeGreaterThan(1)
+  })
+
+  it('people join and leave while the agreement and its ceiling continue', () => {
+    // The depth the 2017 shape could not express: a per-person lifecycle
+    // inside one commercial agreement.
+    const candidates = [
+      { personId: 'p1', state: 'ACTIVE' },
+      { personId: 'p2', state: 'ACTIVE' },
+      { personId: 'p3', state: 'ENDED' },
+    ]
+    const agreementState = 'IN_PROGRESS'
+
+    expect(candidates.filter(c => c.state === 'ENDED')).toHaveLength(1)
+    expect(agreementState).toBe('IN_PROGRESS')
   })
 
   it('a client issues purchase orders while having no buy contracts at all', () => {

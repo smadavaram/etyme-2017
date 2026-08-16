@@ -101,18 +101,27 @@ export async function POST(request: NextRequest) {
       let contractLink = null
 
       if (payRate && typeof payRate === 'number' && payRate > 0) {
+        // The agreement, with this person as its first candidate line.
+        // More candidates can be added to the same agreement later.
         buyContract = await tx.buyContract.create({
           data: {
             companyId,
             vendorCompanyId: vendorCompanyId ?? null,
-            personId,
             entityId: entityId ?? null,
-            payRate,
             payCurrency: payCurrency ?? 'USD',
             contractType: contractType ?? 'W2',
             state: 'DRAFT',
             startDate: start,
             endDate: end,
+            candidates: {
+              create: {
+                personId,
+                payRate,
+                payCurrency: payCurrency ?? 'USD',
+                startDate: start,
+                endDate: end,
+              },
+            },
           },
         })
 
@@ -211,7 +220,7 @@ export async function POST(request: NextRequest) {
         },
         buyContract: result.buyContract ? {
           id: result.buyContract.id,
-          payRate: result.buyContract.payRate,
+          payRate,
           contractType: result.buyContract.contractType,
           state: result.buyContract.state,
         } : null,
@@ -260,13 +269,17 @@ export async function GET(request: NextRequest) {
 
     const where: any = { ...scope }
     if (state) where.state = state.toUpperCase()
-    if (filterPersonId) where.personId = filterPersonId
+    // A person is on a buy contract through a candidate line
+    if (filterPersonId) where.candidates = { some: { personId: filterPersonId } }
 
     const [contracts, total] = await Promise.all([
       prisma.buyContract.findMany({
         where,
         include: {
-          person: { select: { id: true, name: true } },
+          candidates: {
+            include: { person: { select: { id: true, name: true } } },
+            orderBy: { startDate: 'asc' },
+          },
           vendorCompany: { select: { id: true, name: true } },
           _count: { select: { buyCycles: true } },
         },
@@ -279,19 +292,38 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       data: {
-        contracts: contracts.map((c) => ({
-          id: c.id,
-          side: 'buy' as const,
-          person: c.person,
-          vendorCompany: c.vendorCompany,
-          state: c.state,
-          contractType: c.contractType,
-          payRate: c.payRate,
-          payCurrency: c.payCurrency,
-          startDate: c.startDate.toISOString(),
-          endDate: c.endDate?.toISOString() ?? null,
-          cycles: c._count.buyCycles,
-        })),
+        contracts: contracts.map((c) => {
+          const rates = c.candidates.map((cd) => cd.payRate)
+          const single = c.candidates.length === 1 ? c.candidates[0] : null
+          return {
+            id: c.id,
+            side: 'buy' as const,
+            // A one-person agreement keeps the familiar shape; a shared one
+            // reports headcount and a rate range instead of pretending to a
+            // single person or a single rate.
+            person: single?.person ?? null,
+            headcount: c.candidates.length,
+            candidates: c.candidates.map((cd) => ({
+              id: cd.id,
+              person: cd.person,
+              payRate: cd.payRate,
+              payCurrency: cd.payCurrency,
+              startDate: cd.startDate.toISOString(),
+              endDate: cd.endDate?.toISOString() ?? null,
+              state: cd.state,
+            })),
+            vendorCompany: c.vendorCompany,
+            state: c.state,
+            contractType: c.contractType,
+            payRate: single?.payRate ?? null,
+            payRateMin: rates.length > 0 ? Math.min(...rates) : null,
+            payRateMax: rates.length > 0 ? Math.max(...rates) : null,
+            payCurrency: c.payCurrency,
+            startDate: c.startDate.toISOString(),
+            endDate: c.endDate?.toISOString() ?? null,
+            cycles: c._count.buyCycles,
+          }
+        }),
         pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       },
     })

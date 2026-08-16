@@ -92,11 +92,13 @@ export async function GET(
   // For ended contracts, how long until the person got a new placement?
   // Lower = better — the vendor re-places people quickly
 
-  const endedContracts = await prisma.buyContract.findMany({
+  // Re-placement is a fact about a PERSON, so it reads the candidate lines
+  // rather than the agreements — one agreement can end for one person while
+  // continuing for everyone else on it.
+  const endedContracts = await prisma.buyContractCandidate.findMany({
     where: {
-      companyId: vendorId,
-      state: 'ENDED',
-      endDate: { not: null },
+      buyContract: { companyId: vendorId },
+      endDate: { not: null, lte: new Date() },
     },
     select: { personId: true, endDate: true },
     orderBy: { endDate: 'asc' },
@@ -107,13 +109,15 @@ export async function GET(
   for (const ended of endedContracts) {
     if (!ended.endDate) continue
 
-    // Find the next contract for this person at the same vendor
-    const nextContract = await prisma.buyContract.findFirst({
+    // Find this person's next placement at the same vendor
+    const nextContract = await prisma.buyContractCandidate.findFirst({
       where: {
-        companyId: vendorId,
+        buyContract: {
+          companyId: vendorId,
+          state: { in: ['IN_PROGRESS', 'ENDED'] },
+        },
         personId: ended.personId,
         startDate: { gt: ended.endDate },
-        state: { in: ['IN_PROGRESS', 'ENDED'] },
       },
       select: { startDate: true },
       orderBy: { startDate: 'asc' },

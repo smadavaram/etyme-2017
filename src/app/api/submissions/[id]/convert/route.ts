@@ -163,12 +163,18 @@ export async function POST(
         buyContract = await tx.buyContract.create({
           data: {
             companyId: submission.fromCompanyId,
-            personId: submission.personId,
-            payRate,
             contractType: 'W2',
             state: 'DRAFT',
             startDate: start,
             endDate: end,
+            candidates: {
+              create: {
+                personId: submission.personId,
+                payRate,
+                startDate: start,
+                endDate: end,
+              },
+            },
           },
         })
 
@@ -245,7 +251,7 @@ export async function POST(
         },
         buyContract: result.buyContract ? {
           id: result.buyContract.id,
-          payRate: result.buyContract.payRate,
+          payRate,
           contractType: result.buyContract.contractType,
           state: result.buyContract.state,
         } : null,

@@ -71,16 +71,20 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              buyContracts: {
+              // The pay rate lives on the candidate line, since one buy
+              // contract can cover several people at different rates.
+              buyCandidacies: {
                 where: {
-                  state: { in: ['IN_PROGRESS', 'BENCH_PAID'] },
-                  companyId,
+                  state: 'ACTIVE',
+                  buyContract: {
+                    state: { in: ['IN_PROGRESS', 'BENCH_PAID'] },
+                    companyId,
+                  },
                 },
                 select: {
                   id: true,
                   payRate: true,
-                  state: true,
-                  contractType: true,
+                  buyContract: { select: { id: true, state: true, contractType: true } },
                 },
                 take: 1,
               },
@@ -115,10 +119,10 @@ export async function GET(request: NextRequest) {
   const entries: BurnEntry[] = []
 
   for (const l of listings) {
-    const buyContract = l.consultant.person.buyContracts[0]
-    if (!buyContract) continue // no active buy contract = no cost
+    const candidacy = l.consultant.person.buyCandidacies[0]
+    if (!candidacy) continue // no active buy contract = no cost
 
-    const payRate = buyContract.payRate // cents per hour
+    const payRate = candidacy.payRate // cents per hour
     const dailyCost = (payRate * HOURS_PER_DAY) / 100 // dollars
     const weeklyCost = dailyCost * 5
     const monthlyCost = dailyCost * 22
@@ -139,7 +143,7 @@ export async function GET(request: NextRequest) {
       dailyCost,
       weeklyCost,
       monthlyCost,
-      contractType: buyContract.contractType,
+      contractType: candidacy.buyContract.contractType,
       daysOnBench,
       availableFrom: l.consultant.availableFrom?.toISOString() ?? null,
       totalBurnToDate: Math.round(totalBurnToDate),

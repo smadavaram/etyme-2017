@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
             where: { companyId },
             select: {
               id: true,
-              person: { select: { name: true } },
+              // One agreement can cover several people, so the label lists
+              // them rather than assuming a single name.
+              candidates: { select: { person: { select: { name: true } } } },
               vendorCompany: { select: { name: true } },
             },
           })
@@ -73,7 +75,9 @@ export async function GET(request: NextRequest) {
     }
     for (const bc of buyContracts) {
       contractMap.set(`BUY:${bc.id}`, {
-        personName: bc.person.name,
+        personName: bc.candidates.length === 1
+          ? bc.candidates[0].person.name
+          : `${bc.candidates.length} people`,
         contractLabel: `Buy — ${bc.vendorCompany?.name ?? 'Direct'}`,
       })
     }

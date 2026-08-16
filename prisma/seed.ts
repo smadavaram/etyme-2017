@@ -793,14 +793,21 @@ async function main() {
     const buyContract = await prisma.buyContract.create({
       data: {
         companyId: vendor.id,
-        vendorCompanyId: bc.type === 'C2C' ? null : null, // direct employment
-        personId: people[bc.personIdx].id,
-        payRate: bc.payRate,
+        vendorCompanyId: null, // direct employment
         payCurrency: 'USD',
         contractType: bc.type,
         state: bc.state,
         startDate,
         endDate,
+        candidates: {
+          create: {
+            personId: people[bc.personIdx].id,
+            payRate: bc.payRate,
+            payCurrency: 'USD',
+            startDate,
+            endDate,
+          },
+        },
       },
     })
     buyContracts.push(buyContract)
@@ -829,18 +836,44 @@ async function main() {
   const subEnd = new Date(now)
   subEnd.setDate(subEnd.getDate() + 245)
 
+  // ONE agreement, THREE people at three different rates — the shape the
+  // 2017 model could not express. Each carries their own rate and dates, and
+  // one has already rolled off while the agreement runs on for the others.
   const subcontract = await prisma.buyContract.create({
     data: {
       companyId: vendor.id,
       vendorCompanyId: vendor2.id, // buying FROM TechVista, not employing
-      personId: people[6].id, // Kavitha Nair
-      payRate: 10_500,
       payCurrency: 'USD',
       contractType: 'C2C',
       state: 'IN_PROGRESS',
       startDate: subStart,
       endDate: subEnd,
       purchaseOrderId: poCloudepaToTechVista.id,
+      candidates: {
+        create: [
+          {
+            personId: people[6].id, // Kavitha Nair
+            payRate: 10_500,
+            startDate: subStart,
+            endDate: subEnd,
+            state: 'ACTIVE',
+          },
+          {
+            personId: people[3].id, // Vikram Reddy — joined later, cheaper
+            payRate: 8_800,
+            startDate: new Date(subStart.getTime() + 45 * 24 * 60 * 60 * 1000),
+            endDate: subEnd,
+            state: 'ACTIVE',
+          },
+          {
+            personId: people[1].id, // Priya Sharma — rolled off early
+            payRate: 13_200,
+            startDate: subStart,
+            endDate: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000),
+            state: 'ENDED',
+          },
+        ],
+      },
     },
   })
   buyContracts.push(subcontract)

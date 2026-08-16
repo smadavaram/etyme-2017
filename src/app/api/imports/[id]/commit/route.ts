@@ -190,12 +190,18 @@ export async function POST(
             buyContract = await tx.buyContract.create({
               data: {
                 companyId: importRecord.companyId,
-                personId: person.id,
-                payRate: parsed.payRate,
                 contractType: parsed.contractType ?? 'W2',
                 state: isEnded ? 'ENDED' : 'IN_PROGRESS',
                 startDate: contractStart,
                 endDate: contractEnd,
+                candidates: {
+                  create: {
+                    personId: person.id,
+                    payRate: parsed.payRate,
+                    startDate: contractStart,
+                    endDate: contractEnd,
+                  },
+                },
               },
             })
           }
