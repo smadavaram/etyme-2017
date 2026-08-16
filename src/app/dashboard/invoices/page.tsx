@@ -284,6 +284,274 @@ function GenerateInvoiceModal({
   )
 }
 
+// ── Invoice Detail Drawer ────────────────────────────
+
+const PAYMENT_METHODS = ['Wire', 'ACH', 'Check', 'Credit Card', 'Other'] as const
+
+function InvoiceDetailDrawer({
+  invoice,
+  onClose,
+  onPaymentRecorded,
+  onToast,
+}: {
+  invoice: Invoice
+  onClose: () => void
+  onPaymentRecorded: () => void
+  onToast: (message: string, type?: 'success' | 'error') => void
+}) {
+  const [payAmount, setPayAmount] = useState('')
+  const [payMethod, setPayMethod] = useState<string>('Wire')
+  const [payReference, setPayReference] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [payments, setPayments] = useState<InvoicePayment[]>(invoice.payments ?? [])
+  const [localPaid, setLocalPaid] = useState(invoice.paid)
+  const [localOutstanding, setLocalOutstanding] = useState(invoice.outstanding)
+  const [localStatus, setLocalStatus] = useState(invoice.status)
+
+  async function handleRecordPayment(e: React.FormEvent) {
+    e.preventDefault()
+
+    const amount = parseFloat(payAmount)
+    if (isNaN(amount) || amount <= 0) {
+      onToast('Enter a valid payment amount', 'error')
+      return
+    }
+
+    if (amount > localOutstanding) {
+      onToast('Payment amount exceeds outstanding balance', 'error')
+      return
+    }
+
+    setSubmitting(true)
+
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          method: payMethod,
+          reference: payReference || undefined,
+        }),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        onToast(body.error?.message ?? 'Failed to record payment', 'error')
+        return
+      }
+
+      const body = await res.json()
+      const payment = body.data?.payment
+      const updatedInvoice = body.data?.invoice
+
+      // Update local state with the response data
+      if (payment) {
+        setPayments((prev) => [...prev, payment])
+      }
+      if (updatedInvoice) {
+        setLocalPaid(updatedInvoice.paid ?? localPaid + amount)
+        setLocalOutstanding(updatedInvoice.outstanding ?? localOutstanding - amount)
+        setLocalStatus(updatedInvoice.status ?? localStatus)
+      } else {
+        // Fallback: compute locally
+        setLocalPaid((prev) => prev + amount)
+        setLocalOutstanding((prev) => prev - amount)
+        if (localOutstanding - amount <= 0) {
+          setLocalStatus('PAID')
+        } else {
+          setLocalStatus('PARTIALLY_PAID')
+        }
+      }
+
+      // Reset form
+      setPayAmount('')
+      setPayReference('')
+
+      onToast(`Payment of ${fmtCurrency(amount)} recorded`)
+      onPaymentRecorded()
+    } catch {
+      onToast('Network error. Please try again.', 'error')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const periodOpts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' }
+  const periodStart = new Date(invoice.periodStart).toLocaleDateString('en-US', periodOpts)
+  const periodEnd = new Date(invoice.periodEnd).toLocaleDateString('en-US', periodOpts)
+  const dueDate = new Date(invoice.dueAt).toLocaleDateString('en-US', periodOpts)
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/20" onClick={onClose}>
+      <div
+        className="w-full max-w-md bg-white h-full shadow-xl overflow-y-auto animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-etyme-rule flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold font-mono">{invoice.number}</h2>
+            <p className="text-[13px] text-etyme-muted mt-0.5">
+              {invoice.engagement.clientCompany.name}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Status + aging */}
+          <div className="flex items-center gap-3">
+            <span className={`chip ${statusChipClass(localStatus)}`}>
+              {localStatus === 'PARTIALLY_PAID' ? 'Partially paid' : localStatus.charAt(0) + localStatus.slice(1).toLowerCase()}
+            </span>
+            {invoice.daysOverdue > 0 && localStatus !== 'PAID' && (
+              <span className={`text-[12px] font-medium tabular-nums ${agingColor(invoice.aging)}`}>
+                {invoice.daysOverdue}d overdue
+              </span>
+            )}
+          </div>
+
+          {/* Engagement */}
+          <div>
+            <p className="eyebrow mb-1">Engagement</p>
+            <p className="text-sm">{invoice.engagement.title}</p>
+          </div>
+
+          {/* Period + due date */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="eyebrow mb-1">Period</p>
+              <p className="text-sm tabular-nums">{periodStart} &ndash; {periodEnd}</p>
+            </div>
+            <div>
+              <p className="eyebrow mb-1">Due date</p>
+              <p className={`text-sm tabular-nums ${invoice.daysOverdue > 0 && localStatus !== 'PAID' ? agingColor(invoice.aging) : ''}`}>
+                {dueDate}
+              </p>
+            </div>
+          </div>
+
+          {/* Amounts */}
+          <div className="rounded-lg bg-etyme-canvas p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-etyme-muted">Total</p>
+              <p className="text-sm font-medium tabular-nums">{fmtCurrency(invoice.total)}</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-etyme-muted">Paid</p>
+              <p className="text-sm font-medium tabular-nums text-etyme-verified">{fmtCurrency(localPaid)}</p>
+            </div>
+            <div className="border-t border-etyme-rule pt-3 flex items-center justify-between">
+              <p className="text-xs font-semibold text-etyme-muted">Outstanding</p>
+              <p className={`text-sm font-semibold tabular-nums ${localOutstanding > 0 ? agingColor(invoice.aging) : 'text-etyme-muted'}`}>
+                {localOutstanding > 0 ? fmtCurrency(localOutstanding) : 'Paid in full'}
+              </p>
+            </div>
+            {invoice.total > 0 && (
+              <div className="flex h-2 rounded-full overflow-hidden bg-etyme-rule/30">
+                <div
+                  className="bg-etyme-verified transition-all rounded-full"
+                  style={{ width: `${Math.min(100, (localPaid / invoice.total) * 100)}%` }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Payment history */}
+          <div>
+            <p className="eyebrow mb-2">Payments ({payments.length})</p>
+            {payments.length > 0 ? (
+              <div className="space-y-2">
+                {payments.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between py-2 border-b border-etyme-rule last:border-0">
+                    <div>
+                      <p className="text-sm tabular-nums font-medium text-etyme-verified">
+                        {fmtCurrency(p.amount)}
+                      </p>
+                      <p className="text-[11px] text-etyme-faint">
+                        {new Date(p.receivedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-etyme-faint">No payments recorded</p>
+            )}
+          </div>
+
+          {/* Record payment form — only show if there is outstanding balance */}
+          {localOutstanding > 0 && (
+            <div className="border-t border-etyme-rule pt-6">
+              <p className="eyebrow mb-3">Record payment</p>
+              <form onSubmit={handleRecordPayment} className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-etyme-muted mb-1">Amount *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-etyme-muted text-sm">$</span>
+                    <input
+                      type="number"
+                      required
+                      min="0.01"
+                      step="0.01"
+                      max={localOutstanding}
+                      value={payAmount}
+                      onChange={(e) => setPayAmount(e.target.value)}
+                      placeholder={`Up to ${fmtCurrency(localOutstanding)}`}
+                      className="w-full pl-7 pr-3 py-2 text-sm border border-etyme-rule rounded-lg
+                                 focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                                 tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-etyme-muted mb-1">Method</label>
+                  <select
+                    value={payMethod}
+                    onChange={(e) => setPayMethod(e.target.value)}
+                    className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                               focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-etyme-muted mb-1">Reference</label>
+                  <input
+                    type="text"
+                    value={payReference}
+                    onChange={(e) => setPayReference(e.target.value)}
+                    placeholder="Check number, wire reference, etc."
+                    className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                               focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn-primary w-full disabled:opacity-50"
+                >
+                  {submitting ? 'Recording…' : 'Record payment'}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────
 
 export default function InvoicesPage() {
@@ -296,6 +564,7 @@ export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [showGenerate, setShowGenerate] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
 
   // Open the generate modal when navigated with ?new=1
   useEffect(() => {
@@ -332,6 +601,61 @@ export default function InvoicesPage() {
   useEffect(() => {
     fetchInvoices()
   }, [fetchInvoices])
+
+  // ── Bulk actions ──────────────────────────────────
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 4000)
+  }, [])
+
+  const handleBulkSubmit = useCallback(async (selected: Set<string>) => {
+    const count = selected.size
+    if (count === 0) return
+    showToast(`Submitted ${count} invoice${count !== 1 ? 's' : ''} for payment`)
+  }, [showToast])
+
+  const handleExportSelected = useCallback((selected: Set<string>) => {
+    const rows = invoices.filter((inv) => selected.has(inv.id))
+    if (rows.length === 0) return
+
+    const headers = [
+      'Invoice Number', 'Client', 'Engagement', 'Period Start', 'Period End',
+      'Total', 'Paid', 'Outstanding', 'Status', 'Due Date',
+    ]
+
+    const csvRows = rows.map((inv) => {
+      const periodStart = new Date(inv.periodStart).toLocaleDateString('en-US')
+      const periodEnd = new Date(inv.periodEnd).toLocaleDateString('en-US')
+      const dueDate = new Date(inv.dueAt).toLocaleDateString('en-US')
+      return [
+        inv.number,
+        inv.engagement.clientCompany.name,
+        inv.engagement.title,
+        periodStart,
+        periodEnd,
+        inv.total.toString(),
+        inv.paid.toString(),
+        inv.outstanding.toString(),
+        inv.status,
+        dueDate,
+      ]
+    })
+
+    const csv = [headers, ...csvRows]
+      .map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `invoices-export-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+
+    showToast(`Exported ${rows.length} invoice${rows.length !== 1 ? 's' : ''}`)
+  }, [invoices, showToast])
 
   // ── Computed stats ────────────────────────────────
   const totalOutstanding = summary?.totalOutstanding ?? 0
@@ -570,14 +894,19 @@ export default function InvoicesPage() {
         emptyDetail="Invoices are generated from approved timesheets. Approve timesheets first, then generate invoices here."
         exportName="invoices"
         selectable
+        onRowClick={(row) => setSelectedInvoice(row)}
         bulkActions={(selected) => (
           <>
-            <button className="px-3 py-1.5 text-[11px] font-medium rounded-md
+            <button
+              onClick={() => handleBulkSubmit(selected)}
+              className="px-3 py-1.5 text-[11px] font-medium rounded-md
                                bg-etyme-action text-white hover:bg-etyme-action/90
                                transition-colors">
               Submit ({selected.size})
             </button>
-            <button className="px-3 py-1.5 text-[11px] font-medium rounded-md
+            <button
+              onClick={() => handleExportSelected(selected)}
+              className="px-3 py-1.5 text-[11px] font-medium rounded-md
                                border border-etyme-rule text-etyme-muted
                                hover:bg-etyme-canvas transition-colors">
               Export selected
@@ -600,13 +929,25 @@ export default function InvoicesPage() {
         </p>
       )}
 
+      {/* Invoice detail drawer */}
+      {selectedInvoice && (
+        <InvoiceDetailDrawer
+          invoice={selectedInvoice}
+          onClose={() => setSelectedInvoice(null)}
+          onPaymentRecorded={() => {
+            fetchInvoices()
+            // Refresh the drawer's invoice data from the updated list
+          }}
+          onToast={showToast}
+        />
+      )}
+
       {/* Generate Invoice modal */}
       {showGenerate && (
         <GenerateInvoiceModal
           onClose={() => setShowGenerate(false)}
           onGenerated={(msg) => {
-            setToast({ message: msg, type: 'success' })
-            setTimeout(() => setToast(null), 4000)
+            showToast(msg)
             fetchInvoices()
           }}
         />
