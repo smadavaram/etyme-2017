@@ -182,6 +182,11 @@ model Company {
   holidays           Holiday[]
   // End-client contracts (where consultants actually work, when ≠ billing client)
   endClientContracts SellContract[]     @relation("sellEndClient")
+  // Finance dimensions — owned per company, never shared across parties
+  costCenters        CostCenter[]
+  posIssued          PurchaseOrder[]    @relation("poIssuer")
+  posReceived        PurchaseOrder[]    @relation("poRecipient")
+  remitTos           RemitTo[]
 }
 
 enum CompanyKind {
@@ -237,6 +242,7 @@ model OrgUnit {
   kind      String // BU · PRACTICE · ACCOUNT · PROJECT · DEPARTMENT
   contexts  Context[]
   sellContracts SellContract[] // contingent workers charged to this unit
+  costCenters   CostCenter[]   // budgets that fund this unit
 
   @@index([companyId])
 }
@@ -524,6 +530,12 @@ model SellContract {
   orgUnitId       String? // the end client's department / cost centre
   orgUnit         OrgUnit?         @relation(fields: [orgUnitId], references: [id])
 
+  // The PO this contract invoices against, on the vendor→payer leg.
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id])
+  // How the end client splits this cost across their budgets.
+  costAllocations ContractCostAllocation[]
+
   billRate           Int // cents per hour
   billCurrency       String            @default("USD")
   paymentTerms       Int               @default(30) // NET days — cascades from MSA, overridable
@@ -723,7 +735,14 @@ model Invoice {
   submittedAt  DateTime?
   payments     Payment[]
 
+  // AP references — what the payer's finance team needs to post and pay.
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  remitToId       String?
+  remitTo         RemitTo?       @relation(fields: [remitToId], references: [id])
+
   @@index([status, dueAt])
+  @@index([purchaseOrderId])
 }
 
 // Expenses — consolidates 2017 expense, client_expense, expense_account, contract_expense, expense_item.
@@ -771,6 +790,118 @@ model Payment {
 }
 
 // Owed between legal entities of the same company. Derived, never hand maintained.
+// ─────────────────────────────────────────────
+// FINANCE DIMENSIONS
+//
+// The same SellContract is two different things to two parties: a COST to
+// the client whose budget it burns, and REVENUE to the vendor who earns the
+// margin. So the dimensions are owned per company and never shared — the
+// client's GL coding is not the vendor's business, and the vendor's COGS is
+// certainly not the client's.
+//
+// Etyme carries the coding and exports it. The client's ERP stays the system
+// of record for AP; this is not a general ledger.
+// ─────────────────────────────────────────────
+
+model CostCenter {
+  id        String   @id @default(cuid())
+  companyId String // the company whose budget this is
+  company   Company  @relation(fields: [companyId], references: [id])
+  code      String // must match the owner's ERP — "MFG-FIN-4100"
+  name      String
+  glAccount String? // default expense/revenue account, e.g. "6120"
+  orgUnitId String? // the department it funds, when they correspond
+  orgUnit   OrgUnit? @relation(fields: [orgUnitId], references: [id])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  allocations ContractCostAllocation[]
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+}
+
+// How one contract's cost is split across cost centres.
+//
+// A contractor shared between two departments is the normal case, not an
+// edge case. Shares are basis points and must total exactly 10000 — see
+// src/lib/cost-allocation.ts, which also does the largest-remainder split
+// so allocated amounts sum back to the invoice total to the cent.
+//
+// Allocations belong to the contract and reference cost centres owned by
+// the END CLIENT — where the person actually works. In the layer-cake case
+// (vendor bills an MSP, consultant sits at the enterprise) the enterprise
+// still needs to know which of its budgets the person burns, even though
+// the invoice it pays comes from the MSP.
+model ContractCostAllocation {
+  id             String       @id @default(cuid())
+  sellContractId String
+  sellContract   SellContract @relation(fields: [sellContractId], references: [id], onDelete: Cascade)
+  costCenterId   String
+  costCenter     CostCenter   @relation(fields: [costCenterId], references: [id])
+  shareBps       Int // basis points, 0–10000. All shares on a contract total 10000.
+  glAccount      String? // overrides the cost centre default for this contract
+  createdAt      DateTime     @default(now())
+
+  @@unique([sellContractId, costCenterId])
+  @@index([sellContractId])
+}
+
+// A purchase order from a payer to a vendor.
+//
+// Issued along ONE leg of the chain. In the layer-cake case there are two:
+// the enterprise raises a PO to the MSP, and the MSP raises its own to the
+// sub-vendor. A PO hung on the end client would be the wrong PO for the
+// books of whoever actually pays.
+//
+// AP will not pay an invoice without a PO reference and remaining balance,
+// which is why this is Phase 1 and not enterprise scope.
+model PurchaseOrder {
+  id         String   @id @default(cuid())
+  number     String // the payer's PO number
+  issuedById String // payer — raises the PO
+  issuedBy   Company  @relation("poIssuer", fields: [issuedById], references: [id])
+  issuedToId String // vendor — invoices against it
+  issuedTo   Company  @relation("poRecipient", fields: [issuedToId], references: [id])
+  amount     Decimal  @db.Decimal(12, 2) // authorised ceiling
+  currency   String   @default("USD")
+  startDate  DateTime
+  endDate    DateTime?
+  status     String   @default("OPEN") // OPEN · CLOSED · CANCELLED
+  createdAt  DateTime @default(now())
+
+  sellContracts SellContract[]
+  invoices      Invoice[]
+
+  @@unique([issuedById, number])
+  @@index([issuedToId, status])
+}
+
+// Where a vendor is paid. Referenced on invoices so AP can remit.
+//
+// SECURITY: full bank account and routing numbers must NEVER be stored here.
+// Only the last four digits, for human confirmation on a remittance advice.
+// Full credentials belong in a payment provider's vault.
+model RemitTo {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  legalName     String // the entity on the invoice, may differ from trading name
+  addressLines  String[]
+  country       String
+  taxId         String? // EIN / VAT / GST registration
+  paymentMethod String   @default("ACH") // ACH · WIRE · CHECK
+  bankName      String?
+  accountLast4  String? // display only — never the full number
+  routingLast4  String? // display only — never the full number
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  invoices Invoice[]
+
+  @@index([companyId, isDefault])
+}
+
 model IntercompanyPosition {
   id           String    @id @default(cuid())
   fromEntityId String

@@ -290,6 +290,38 @@ function GenerateInvoiceModal({
 
 const PAYMENT_METHODS = ['Wire', 'ACH', 'Check', 'Credit Card', 'Other'] as const
 
+interface CodingRow {
+  personName: string
+  costCenterCode: string | null
+  costCenterName: string | null
+  glAccount: string | null
+  share: string
+  amount: number
+  codingOwner: string
+  codingIsPayers: boolean
+}
+
+interface InvoiceCoding {
+  purchaseOrder: string | null
+  remitTo: {
+    legalName: string
+    addressLines: string[]
+    taxId: string | null
+    paymentMethod: string
+    bankName: string | null
+    accountLast4: string | null
+  } | null
+  billTo: { id: string; name: string }
+  rows: CodingRow[]
+  reconciliation: {
+    invoiceTotal: number
+    codedTotal: number
+    balanced: boolean
+    uncodedLines: number
+    codedForEndClient: boolean
+  }
+}
+
 function InvoiceDetailDrawer({
   invoice,
   onClose,
@@ -301,9 +333,33 @@ function InvoiceDetailDrawer({
   onPaymentRecorded: () => void
   onToast: (message: string, type?: 'success' | 'error') => void
 }) {
+  const [coding, setCoding] = useState<InvoiceCoding | null>(null)
+  const [codingLoading, setCodingLoading] = useState(true)
   const [payAmount, setPayAmount] = useState('')
   const [payMethod, setPayMethod] = useState<string>('Wire')
   const [payReference, setPayReference] = useState('')
+
+  // AP coding — the PO, remit-to and cost-centre split their finance team
+  // needs to post this. Hidden rather than errored if the caller is not a
+  // party to the invoice.
+  useEffect(() => {
+    let cancelled = false
+    async function loadCoding() {
+      setCodingLoading(true)
+      try {
+        const res = await fetch(`/api/invoices/${invoice.id}/coding`)
+        if (!res.ok) throw new Error('not available')
+        const body = await res.json()
+        if (!cancelled) setCoding(body.data)
+      } catch {
+        if (!cancelled) setCoding(null)
+      } finally {
+        if (!cancelled) setCodingLoading(false)
+      }
+    }
+    loadCoding()
+    return () => { cancelled = true }
+  }, [invoice.id])
   const [submitting, setSubmitting] = useState(false)
   const [payments, setPayments] = useState<InvoicePayment[]>(invoice.payments ?? [])
   const [localPaid, setLocalPaid] = useState(invoice.paid)
@@ -423,6 +479,99 @@ function InvoiceDetailDrawer({
             <p className="eyebrow mb-1">Engagement</p>
             <p className="text-sm">{invoice.engagement.title}</p>
           </div>
+
+          {/* AP references — PO and remit-to. Without both, AP has no basis to pay. */}
+          {!codingLoading && coding && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="eyebrow mb-1">Purchase order</p>
+                  {coding.purchaseOrder ? (
+                    <p className="text-sm font-mono">{coding.purchaseOrder}</p>
+                  ) : (
+                    <p className="text-sm text-etyme-attention">Not referenced</p>
+                  )}
+                </div>
+                <div>
+                  <p className="eyebrow mb-1">Remit to</p>
+                  {coding.remitTo ? (
+                    <p className="text-sm">{coding.remitTo.legalName}</p>
+                  ) : (
+                    <p className="text-sm text-etyme-attention">Not set</p>
+                  )}
+                </div>
+              </div>
+
+              {coding.remitTo && (
+                <div className="bg-etyme-canvas rounded-lg px-3 py-2.5 -mt-2">
+                  <p className="text-[11px] text-etyme-muted">
+                    {coding.remitTo.paymentMethod}
+                    {coding.remitTo.bankName && ` · ${coding.remitTo.bankName}`}
+                    {coding.remitTo.accountLast4 && ` ····${coding.remitTo.accountLast4}`}
+                  </p>
+                  {coding.remitTo.taxId && (
+                    <p className="text-[11px] text-etyme-faint mt-0.5">Tax ID {coding.remitTo.taxId}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Cost coding */}
+              {coding.rows.length > 0 && (
+                <div>
+                  <div className="flex items-baseline justify-between mb-2">
+                    <p className="eyebrow">Cost coding</p>
+                    <a
+                      href={`/api/invoices/${invoice.id}/coding?format=csv`}
+                      className="text-[11px] text-etyme-action hover:underline"
+                    >
+                      Export CSV
+                    </a>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {coding.rows.map((r, i) => (
+                      <div key={i} className="bg-etyme-canvas rounded-lg px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[13px] text-etyme-ink truncate">{r.personName}</span>
+                          <span className="text-[13px] tabular-nums font-medium shrink-0">
+                            ${r.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-[11px] text-etyme-muted">
+                          {r.costCenterCode ? (
+                            <>
+                              <span className="font-mono">{r.costCenterCode}</span>
+                              <span className="truncate">{r.costCenterName}</span>
+                              {r.glAccount && <span className="text-etyme-faint">GL {r.glAccount}</span>}
+                              {r.share !== '100%' && <span className="chip chip--passive text-[10px]">{r.share}</span>}
+                            </>
+                          ) : (
+                            <span className="text-etyme-attention">Not coded — AP must code by hand</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Reconciliation — the coded rows must total the invoice */}
+                  <div className="flex items-center justify-between mt-2 text-[11px]">
+                    <span className={coding.reconciliation.balanced ? 'text-etyme-verified' : 'text-etyme-attention'}>
+                      {coding.reconciliation.balanced
+                        ? '✓ Coded total matches the invoice'
+                        : `Coded total is $${coding.reconciliation.codedTotal.toFixed(2)} against $${coding.reconciliation.invoiceTotal.toFixed(2)}`}
+                    </span>
+                  </div>
+
+                  {coding.reconciliation.codedForEndClient && (
+                    <p className="text-[11px] text-etyme-muted mt-1.5 italic">
+                      These are the end client&rsquo;s cost centres. {coding.billTo.name} codes
+                      its own onward invoice separately.
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
 
           {/* Period + due date */}
           <div className="grid grid-cols-2 gap-4">

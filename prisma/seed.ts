@@ -53,6 +53,10 @@ async function main() {
     prisma.requirement.deleteMany(),
     prisma.automationLog.deleteMany(),
     prisma.accessLog.deleteMany(),
+    prisma.contractCostAllocation.deleteMany(),
+    prisma.costCenter.deleteMany(),
+    prisma.remitTo.deleteMany(),
+    prisma.purchaseOrder.deleteMany(),
     prisma.context.deleteMany(),
     prisma.role.deleteMany(),
     prisma.orgUnit.deleteMany(),
@@ -320,6 +324,112 @@ async function main() {
     managers[m.key] = { id: person.id, name: m.name, unitId: orgUnits[m.unit].id }
   }
 
+  // ── Terumo's cost centres (the budgets contingent labour burns) ──
+  // Codes are the client's, and must match what their ERP expects — Etyme
+  // carries them for coding and export, it does not invent them.
+  const costCentreData = [
+    { key: 'ccMfgFin',  code: 'TBC-4100', name: 'Manufacturing Finance', gl: '6120', unit: 'mfgFinance' },
+    { key: 'ccQuality', code: 'TBC-4200', name: 'Quality Systems',       gl: '6120', unit: 'quality' },
+    { key: 'ccSupply',  code: 'TBC-4300', name: 'Supply Chain',          gl: '6120', unit: 'supplyChain' },
+    { key: 'ccData',    code: 'TBC-5100', name: 'Data Platform',         gl: '6140', unit: 'dataPlatform' },
+    { key: 'ccInfra',   code: 'TBC-5200', name: 'Infrastructure',        gl: '6140', unit: 'infra' },
+  ]
+
+  const costCentres: Record<string, { id: string; code: string; name: string }> = {}
+  for (const cc of costCentreData) {
+    const created = await prisma.costCenter.create({
+      data: {
+        companyId: client.id,
+        code: cc.code,
+        name: cc.name,
+        glAccount: cc.gl,
+        orgUnitId: orgUnits[cc.unit].id,
+      },
+    })
+    costCentres[cc.key] = { id: created.id, code: created.code, name: created.name }
+  }
+
+  // ── Purchase orders — one per leg of the chain ──
+  // Terumo raises a PO to each supplier it actually pays. In the layer-cake
+  // case that is the MSP, not the sub-vendor: GlobalStaff then raises its
+  // own PO to Cloudepa. A single PO on the end client would be the wrong
+  // reference for whoever's AP is paying.
+  const poStart = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000)
+  const poEnd = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+
+  const poTerumoToCloudepa = await prisma.purchaseOrder.create({
+    data: {
+      number: 'PO-2026-4417',
+      issuedById: client.id,
+      issuedToId: vendor.id,
+      amount: 1_200_000,
+      currency: 'USD',
+      startDate: poStart,
+      endDate: poEnd,
+      status: 'OPEN',
+    },
+  })
+
+  const poTerumoToTechVista = await prisma.purchaseOrder.create({
+    data: {
+      number: 'PO-2026-4482',
+      issuedById: client.id,
+      issuedToId: vendor2.id,
+      amount: 900_000,
+      currency: 'USD',
+      startDate: poStart,
+      endDate: poEnd,
+      status: 'OPEN',
+    },
+  })
+
+  // The MSP's own PO down to the sub-vendor — the leg Cloudepa invoices.
+  const poMspToCloudepa = await prisma.purchaseOrder.create({
+    data: {
+      number: 'GS-PO-88213',
+      issuedById: msp.id,
+      issuedToId: vendor.id,
+      amount: 400_000,
+      currency: 'USD',
+      startDate: poStart,
+      endDate: poEnd,
+      status: 'OPEN',
+    },
+  })
+
+  // ── Remit-to — where each vendor is paid ──
+  // Only the last four digits are stored. Full account and routing numbers
+  // must never live in this table; they belong in a payment provider vault.
+  const cloudepaRemit = await prisma.remitTo.create({
+    data: {
+      companyId: vendor.id,
+      legalName: 'Cloudepa Inc.',
+      addressLines: ['2100 Ross Avenue, Suite 800', 'Dallas, TX 75201'],
+      country: 'US',
+      taxId: '47-2938471',
+      paymentMethod: 'ACH',
+      bankName: 'Wells Fargo',
+      accountLast4: '4471',
+      routingLast4: '0248',
+      isDefault: true,
+    },
+  })
+
+  await prisma.remitTo.create({
+    data: {
+      companyId: vendor2.id,
+      legalName: 'TechVista Consulting LLC',
+      addressLines: ['500 Boylston Street, Floor 12', 'Boston, MA 02116'],
+      country: 'US',
+      taxId: '81-4417392',
+      paymentMethod: 'WIRE',
+      bankName: 'Bank of America',
+      accountLast4: '9902',
+      routingLast4: '1173',
+      isDefault: true,
+    },
+  })
+
   // ── People & Consultant Profiles ───────────────
   const consultantData = [
     { name: 'Ravi Patel',       email: 'ravi@cloudepa.com',    headline: 'Senior SAP BRIM Consultant',    skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA', 'ABAP'],    location: 'Dallas, TX',     workAuth: 'H1B',        availDays: -30, tier: 'RETAINED' as const,  rateMin: 11000, rateMax: 13000 },
@@ -544,9 +654,22 @@ async function main() {
         workLocationId: c.locId,
         hiringManagerId: c.mgr ? managers[c.mgr].id : null,
         orgUnitId: c.unit ? orgUnits[c.unit].id : null,
+        purchaseOrderId: c.clientId === client.id ? poTerumoToCloudepa.id : null,
       },
     })
     sellContracts.push(sc)
+
+    // Code the contract to the budget that funds the department it sits in.
+    if (c.unit) {
+      const cc = Object.values(costCentres).find(
+        (x) => x.name === orgUnits[c.unit!].name
+      )
+      if (cc) {
+        await prisma.contractCostAllocation.create({
+          data: { sellContractId: sc.id, costCenterId: cc.id, shareBps: 10000 },
+        })
+      }
+    }
   }
 
   // Three-party contract: Cloudepa bills GlobalStaff MSP, consultant works at Terumo BCT
@@ -570,9 +693,21 @@ async function main() {
       workLocationId: locAnnArbor.id,     // works at Ann Arbor site
       hiringManagerId: managers.castellano.id,
       orgUnitId: orgUnits.infra.id,
+      // Cloudepa invoices the MSP against the MSP's PO, not Terumo's.
+      purchaseOrderId: poMspToCloudepa.id,
     },
   })
   sellContracts.push(mspContract)
+
+  // A split contractor — David Chen's time is shared between Infrastructure
+  // and Data Platform. Terumo still needs the coding even though the invoice
+  // it pays comes from GlobalStaff, so it can accrue against both budgets.
+  await prisma.contractCostAllocation.createMany({
+    data: [
+      { sellContractId: mspContract.id, costCenterId: costCentres.ccInfra.id, shareBps: 6000 },
+      { sellContractId: mspContract.id, costCenterId: costCentres.ccData.id,  shareBps: 4000 },
+    ],
+  })
 
   // ── TechVista contractors at Terumo (Addendum E rate variance) ──
   // Different managers sourced the same skills from a second vendor at
@@ -621,9 +756,19 @@ async function main() {
         workLocationId: t.loc,
         hiringManagerId: managers[t.mgr].id,
         orgUnitId: orgUnits[t.unit].id,
+        purchaseOrderId: poTerumoToTechVista.id,
       },
     })
     sellContracts.push(sc)
+
+    const cc = Object.values(costCentres).find(
+      (x) => x.name === orgUnits[t.unit].name
+    )
+    if (cc) {
+      await prisma.contractCostAllocation.create({
+        data: { sellContractId: sc.id, costCenterId: cc.id, shareBps: 10000 },
+      })
+    }
   }
 
   // ── Buy Contracts (payroll side) ────────────────
@@ -826,6 +971,8 @@ async function main() {
     const dueAt = new Date(now)
     dueAt.setDate(dueAt.getDate() + inv.dueDays)
 
+    // Every invoice carries the PO it draws on and where to remit — without
+    // both, AP has no basis to pay it.
     const invoice = await prisma.invoice.create({
       data: {
         engagementId: inv.engId,
@@ -838,9 +985,106 @@ async function main() {
         paid: inv.paid,
         dueAt,
         status: inv.status,
+        purchaseOrderId: inv.engId === eng2.id ? null : poTerumoToCloudepa.id,
+        remitToId: cloudepaRemit.id,
       },
     })
     invoiceRecords.push(invoice)
+  }
+
+  // An invoice on the MSP leg: Cloudepa bills GlobalStaff for David Chen,
+  // who sits at Terumo. Its coding carries TERUMO's cost centres — because
+  // that is whose budget he burns — while the bill-to is GlobalStaff, who
+  // will code their own onward invoice differently. The coding export
+  // labels the owner rather than passing one company's codes off as another's.
+  const mspEngagement = await prisma.engagement.create({
+    data: {
+      msaId: msaMSP.id,
+      title: 'Platform Engineering — via GlobalStaff',
+      invoiceCycle: 'MONTHLY',
+    },
+  })
+
+  await prisma.sellContract.update({
+    where: { id: mspContract.id },
+    data: { engagementId: mspEngagement.id },
+  })
+
+  const mspInvPeriodStart = new Date(now)
+  mspInvPeriodStart.setDate(mspInvPeriodStart.getDate() - 30)
+  const mspInvPeriodEnd = new Date(now)
+  mspInvPeriodEnd.setDate(mspInvPeriodEnd.getDate() - 1)
+  const mspInvDue = new Date(now)
+  mspInvDue.setDate(mspInvDue.getDate() + 29)
+
+  const mspInvoice = await prisma.invoice.create({
+    data: {
+      engagementId: mspEngagement.id,
+      number: 'IN_GS_0041',
+      periodStart: mspInvPeriodStart,
+      periodEnd: mspInvPeriodEnd,
+      lines: [
+        {
+          sellContractId: mspContract.id,
+          personId: people[7].id,
+          personName: people[7].name,
+          billRate: 16500,
+          totalHours: 160,
+          amount: 26400, // 160h x $165/hr
+        },
+      ],
+      currency: 'USD',
+      total: 26400,
+      paid: 0,
+      dueAt: mspInvDue,
+      status: 'ISSUED',
+      purchaseOrderId: poMspToCloudepa.id,
+      remitToId: cloudepaRemit.id,
+    },
+  })
+  invoiceRecords.push(mspInvoice)
+
+  // Invoice lines — one per contract billed in the period. Coding and the
+  // AP export read these, so they reference real contracts rather than
+  // being decorative.
+  const eng1Contracts = sellContracts.filter(
+    (sc) => sc.engagementId === eng1.id && sc.clientCompanyId === client.id
+  )
+  const eng2Contracts = sellContracts.filter((sc) => sc.engagementId === eng2.id)
+
+  for (const invoice of invoiceRecords) {
+    // The MSP invoice already has its line written above
+    if (invoice.engagementId === mspEngagement.id) continue
+    const pool = invoice.engagementId === eng2.id ? eng2Contracts : eng1Contracts
+    if (pool.length === 0) continue
+
+    const totalCents = Math.round(Number(invoice.total) * 100)
+    // Spread the invoice across its contracts, remainder onto the first line
+    const per = Math.floor(totalCents / pool.length)
+    const remainder = totalCents - per * pool.length
+
+    const lines = await Promise.all(
+      pool.map(async (sc: any, i: number) => {
+        const amountCents = per + (i === 0 ? remainder : 0)
+        const person = await prisma.person.findUnique({
+          where: { id: sc.personId },
+          select: { name: true },
+        })
+        return {
+          sellContractId: sc.id,
+          personId: sc.personId,
+          personName: person?.name ?? 'Unknown',
+          billRate: sc.billRate,
+          totalHours: Math.round((amountCents / sc.billRate) * 10) / 10,
+          amount: amountCents / 100,
+        }
+      })
+    )
+
+    await prisma.invoice.update({
+      where: { id: invoice.id },
+      data: { lines },
+    })
   }
 
   // ── Payments ──────────────────────────────────
