@@ -221,6 +221,7 @@ function refusal(code: MatchCode): string {
   const map: Partial<Record<MatchCode, string>> = {
     DUPLICATE: 'This work is already on another invoice. Paying it twice is not something anyone can approve — void the duplicate instead.',
     RECEIPT: 'No approved timesheet stands behind these hours. Get the manager to approve the time; nobody can sign that away.',
+    PRICE: 'The contract carries a different rate for this period. If the rate genuinely changed, amend the contract effective from the date it changed and have that approved — then the invoice matches because it is right, not because somebody signed it off.',
     EXTENSION: 'The line does not multiply out. Correct the figures rather than waiving them.',
     HEADER_TOTAL: 'The invoice total disagrees with its own lines. Correct the invoice rather than waiving it.',
   }

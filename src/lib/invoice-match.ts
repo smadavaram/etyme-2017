@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from '@/lib/three-way-match'
+import { rateInForce } from '@/lib/contract-rate'
 
 /**
  * Load the three records and match them.
@@ -18,7 +19,8 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
           person: { select: { name: true } },
           timesheet: {
             select: {
-              id: true, status: true, totalHours: true,
+              id: true, status: true, totalHours: true, periodStart: true,
+              sellContractId: true,
               sellContract: { select: { billRate: true } },
             },
           },
@@ -49,6 +51,30 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
     consumedCents = others.reduce((s, i) => s + decimalToCents(i.total), 0)
   }
 
+  // The rate the contract carried on the day the work was done. Amendments
+  // are effective-dated and approved, so a rate that genuinely changed is
+  // expressed on the contract rather than argued about on the invoice.
+  const contractIds = [...new Set(invoice.invoiceLines.map(l => l.sellContractId))]
+  const rateRows = contractIds.length
+    ? await prisma.rateHistory.findMany({
+        where: { contractType: 'SELL', contractId: { in: contractIds } },
+        select: { id: true, contractId: true, rate: true, fromDate: true, toDate: true, approvalState: true },
+      })
+    : []
+
+  function contractedRateFor(contractId: string, fallbackCents: number, asOf: Date): number {
+    return rateInForce(
+      fallbackCents,
+      rateRows
+        .filter(r => r.contractId === contractId)
+        .map(r => ({
+          id: r.id, rateCents: r.rate, fromDate: r.fromDate,
+          toDate: r.toDate, approvalState: r.approvalState,
+        })),
+      asOf
+    ).rateCents
+  }
+
   const input: MatchInput = {
     invoice: {
       id: invoice.id,
@@ -73,7 +99,14 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
             id: l.timesheet.id,
             status: l.timesheet.status,
             approvedHours: Number(l.timesheet.totalHours),
-            contractRateCents: l.timesheet.sellContract.billRate,
+            // Resolved as of the work period, not "whatever the contract
+            // says today" — otherwise amending a rate retroactively breaks
+            // every invoice already paid.
+            contractRateCents: contractedRateFor(
+              l.sellContractId,
+              l.timesheet.sellContract.billRate,
+              l.timesheet.periodStart
+            ),
             // The unique constraint on InvoiceLine.timesheetId means a
             // timesheet reachable from THIS invoice cannot also be on
             // another, so this is always self-referential here. It stays in

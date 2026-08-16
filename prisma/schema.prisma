@@ -1149,6 +1149,18 @@ model RateHistory {
   reason           String?    // why the rate changed
   changedById      String     // personId of who made the change
   previousRate     Int?       // the rate before this change (for audit trail)
+
+  // A rate change is an amendment to the agreement, so it is approved
+  // rather than simply written. This is what makes the invoice PRICE check
+  // enforceable: the contract is the authority on price, and an invoice
+  // that disagrees with it is wrong rather than merely unusual.
+  //
+  // Until a change is approved it does not exist for billing purposes — the
+  // rate in force on a given day is resolved from APPROVED rows only
+  // (src/lib/contract-rate.ts).
+  approvalState String    @default("APPROVED") // PROPOSED · APPROVED · REJECTED
+  approvedById  String?
+  approvedAt    DateTime?
   createdAt        DateTime  @default(now())
 
   @@index([contractType, contractId])

@@ -51,7 +51,12 @@ export const OVERRIDABLE: Record<MatchCode, boolean> = {
   EXTENSION: false,    // arithmetic is not an opinion
   HEADER_TOTAL: false, // nor is addition
   QUANTITY: true,      // hours under query
-  PRICE: true,         // rate amendment pending
+  // Not waivable. A rate that has genuinely changed is a contract
+  // amendment, effective from the day it changed and approved by somebody
+  // with authority (src/lib/contract-rate.ts). Waiving it here would record
+  // the real price in a free-text note on one invoice, leave the contract
+  // saying something else, and fail identically next month.
+  PRICE: false,
   PO_REQUIRED: true,   // PO being raised retrospectively
   PO_STATUS: true,     // PO being reopened or extended
   PO_BALANCE: true,    // PO being topped up
