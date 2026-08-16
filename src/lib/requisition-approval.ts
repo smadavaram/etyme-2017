@@ -228,6 +228,116 @@ export function evaluateRequisition(
   }
 }
 
+// ─────────────────────────────────────────────
+// ADVANCING THE CHAIN
+// ─────────────────────────────────────────────
+
+export interface PendingApproval {
+  id: string
+  approverId: string | null
+  rank: number
+  outcome: string
+}
+
+export interface ChainAdvance {
+  /** The approval this decision lands on. Null when there is nothing to decide. */
+  current: PendingApproval | null
+  /** Set when the caller may not decide it. */
+  refusal: 'NOTHING_PENDING' | 'NOT_YOUR_APPROVAL' | null
+  /** True when this decision was the last one needed. */
+  completesChain: boolean
+  /** Ranks still to be asked after this decision. */
+  remaining: PendingApproval[]
+  /** Requirement state after the decision. */
+  nextState: 'APPROVED' | 'REJECTED' | 'PENDING_APPROVAL' | null
+  /** Requirement status after the decision. Only an approved chain opens it. */
+  nextStatus: 'OPEN' | 'CLOSED' | null
+}
+
+/**
+ * Work out what one approve/reject decision does to a chain.
+ *
+ * Ranks clear in order — rank 1 is asked before rank 2, so a chain never
+ * troubles three people with a request the first would have rejected. A
+ * requisition reaches the market only when every rank has approved; that
+ * gate is what makes the approval mean anything.
+ *
+ * Rejection is terminal. Later ranks are never asked, because a request
+ * that has already been refused is not improved by more signatures.
+ */
+export function advanceApprovalChain(
+  approvals: PendingApproval[],
+  action: 'approve' | 'reject',
+  callerPersonId: string
+): ChainAdvance {
+  const pending = approvals
+    .filter(a => a.outcome === 'PENDING')
+    .sort((a, b) => a.rank - b.rank)
+
+  const current = pending[0] ?? null
+
+  if (!current) {
+    return {
+      current: null,
+      refusal: 'NOTHING_PENDING',
+      completesChain: false,
+      remaining: [],
+      nextState: null,
+      nextStatus: null,
+    }
+  }
+
+  // An approval someone else can click is not an approval.
+  if (current.approverId !== callerPersonId) {
+    return {
+      current,
+      refusal: 'NOT_YOUR_APPROVAL',
+      completesChain: false,
+      remaining: pending.slice(1),
+      nextState: null,
+      nextStatus: null,
+    }
+  }
+
+  const remaining = pending.slice(1)
+
+  if (action === 'reject') {
+    return {
+      current,
+      refusal: null,
+      completesChain: true,
+      remaining: [], // nobody else is asked
+      nextState: 'REJECTED',
+      nextStatus: 'CLOSED',
+    }
+  }
+
+  if (remaining.length > 0) {
+    return {
+      current,
+      refusal: null,
+      completesChain: false,
+      remaining,
+      nextState: 'PENDING_APPROVAL',
+      nextStatus: null, // stays where it was — not yet open
+    }
+  }
+
+  return {
+    current,
+    refusal: null,
+    completesChain: true,
+    remaining: [],
+    nextState: 'APPROVED',
+    nextStatus: 'OPEN',
+  }
+}
+
+/** Only an approved requisition may be put in front of vendors. */
+export function mayDistribute(approvalState: string): boolean {
+  return approvalState === 'APPROVED' || approvalState === 'AUTO_APPROVED'
+}
+
 /**
  * Annualised value of a requisition, in cents.
  *

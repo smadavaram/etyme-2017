@@ -20,6 +20,9 @@ import { describe, it, expect } from 'vitest'
 import {
   evaluateRequisition,
   annualisedValueCents,
+  advanceApprovalChain,
+  mayDistribute,
+  type PendingApproval,
   type RequisitionFacts,
   type ApprovalRuleFacts,
 } from '@/lib/requisition-approval'
@@ -253,5 +256,102 @@ describe('Annualised value of a requisition', () => {
   it('an unstated duration is treated as a full year', () => {
     expect(annualisedValueCents({ billMaxCents: 13_000, headcount: 1, months: null }))
       .toBe(249_600_00)
+  })
+})
+
+// ── Advancing the chain ────────────────────────────────
+
+describe('Deciding one approval in a chain', () => {
+  const chain = (): PendingApproval[] => [
+    { id: 'a1', approverId: 'dana', rank: 1, outcome: 'PENDING' },
+    { id: 'a2', approverId: 'joyce', rank: 2, outcome: 'PENDING' },
+  ]
+
+  it('the lowest undecided rank is the one in play', () => {
+    const r = advanceApprovalChain(chain(), 'approve', 'dana')
+    expect(r.current?.id).toBe('a1')
+    expect(r.refusal).toBeNull()
+  })
+
+  it('rank two cannot approve before rank one has', () => {
+    const r = advanceApprovalChain(chain(), 'approve', 'joyce')
+    expect(r.refusal).toBe('NOT_YOUR_APPROVAL')
+    expect(r.nextState).toBeNull()
+  })
+
+  it('somebody with no approval on the requisition cannot decide it', () => {
+    const r = advanceApprovalChain(chain(), 'approve', 'a-stranger')
+    expect(r.refusal).toBe('NOT_YOUR_APPROVAL')
+  })
+
+  it('approving rank one does not open the requisition on its own', () => {
+    const r = advanceApprovalChain(chain(), 'approve', 'dana')
+    expect(r.completesChain).toBe(false)
+    expect(r.nextStatus).toBeNull()
+    expect(r.remaining.map(a => a.approverId)).toEqual(['joyce'])
+  })
+
+  it('a requisition opens only when every rank has approved', () => {
+    const afterDana: PendingApproval[] = [
+      { id: 'a1', approverId: 'dana', rank: 1, outcome: 'APPROVED' },
+      { id: 'a2', approverId: 'joyce', rank: 2, outcome: 'PENDING' },
+    ]
+    const r = advanceApprovalChain(afterDana, 'approve', 'joyce')
+    expect(r.completesChain).toBe(true)
+    expect(r.nextState).toBe('APPROVED')
+    expect(r.nextStatus).toBe('OPEN')
+  })
+
+  it('a single-approver chain opens on that one approval', () => {
+    const solo: PendingApproval[] = [{ id: 'a1', approverId: 'dana', rank: 1, outcome: 'PENDING' }]
+    const r = advanceApprovalChain(solo, 'approve', 'dana')
+    expect(r.nextStatus).toBe('OPEN')
+  })
+
+  it('a rejection at rank one never troubles rank two', () => {
+    const r = advanceApprovalChain(chain(), 'reject', 'dana')
+    expect(r.completesChain).toBe(true)
+    expect(r.remaining).toHaveLength(0)
+    expect(r.nextState).toBe('REJECTED')
+    expect(r.nextStatus).toBe('CLOSED')
+  })
+
+  it('there is nothing to decide once the chain is done', () => {
+    const done: PendingApproval[] = [
+      { id: 'a1', approverId: 'dana', rank: 1, outcome: 'APPROVED' },
+    ]
+    const r = advanceApprovalChain(done, 'approve', 'dana')
+    expect(r.refusal).toBe('NOTHING_PENDING')
+    expect(r.current).toBeNull()
+  })
+
+  it('ranks are asked in order even when stored out of order', () => {
+    const jumbled: PendingApproval[] = [
+      { id: 'a2', approverId: 'joyce', rank: 2, outcome: 'PENDING' },
+      { id: 'a1', approverId: 'dana', rank: 1, outcome: 'PENDING' },
+    ]
+    expect(advanceApprovalChain(jumbled, 'approve', 'dana').current?.rank).toBe(1)
+  })
+})
+
+describe('Only an approved requisition reaches vendors', () => {
+  it('an approved requisition may be distributed', () => {
+    expect(mayDistribute('APPROVED')).toBe(true)
+  })
+
+  it('one that cleared itself may be distributed', () => {
+    expect(mayDistribute('AUTO_APPROVED')).toBe(true)
+  })
+
+  it('a requisition still awaiting approval may not be shown to vendors', () => {
+    expect(mayDistribute('PENDING_APPROVAL')).toBe(false)
+  })
+
+  it('a rejected requisition may not be shown to vendors', () => {
+    expect(mayDistribute('REJECTED')).toBe(false)
+  })
+
+  it('a draft may not be shown to vendors', () => {
+    expect(mayDistribute('DRAFT')).toBe(false)
   })
 })
