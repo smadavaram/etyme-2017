@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
           gte: now,
           lte: windowEnd,
         },
-        rolloffEvents: { none: {} },
+        rolloff: null,
       },
       select: {
         id: true,
@@ -60,12 +60,13 @@ export async function GET(request: NextRequest) {
 
         const event = await tx.rolloffEvent.create({
           data: {
-            contractId: c.id,
-            personId: c.personId,
-            companyId: c.company.id,
-            clientCompanyId: c.clientCompany.id,
+            sellContractId: c.id,
             endDate: c.endDate!,
-            status: 'DETECTED',
+            notified: {
+              vendor: { companyId: c.company.id, name: c.company.name, at: now.toISOString() },
+              client: { companyId: c.clientCompany.id, name: c.clientCompany.name, at: null },
+              consultant: { personId: c.personId, name: c.person.name, at: null },
+            },
             checklist: {
               knowledgeTransfer: false,
               accessRevoked: false,

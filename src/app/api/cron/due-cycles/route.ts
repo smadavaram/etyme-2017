@@ -6,8 +6,8 @@ import { prisma } from '@/lib/db'
  *
  * BUILD.md §5: "dueCycles — scan for cycles due within N days"
  *
- * Runs nightly via Vercel cron. Finds cycles with a due date within 7 days
- * that are still in OPEN state, and sends notifications/updates status.
+ * Runs nightly via Vercel cron. Finds cycles with a dueOn date within 7 days
+ * that haven't been completed yet, and sends notifications.
  *
  * This enables the timesheet → invoice → payroll pipeline to flow
  * automatically without manual intervention.
@@ -22,28 +22,24 @@ export async function GET(request: NextRequest) {
   const windowEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
 
   try {
-    // Find cycles due within the window
+    // Find incomplete cycles due within the window
     const dueCycles = await prisma.cycle.findMany({
       where: {
-        periodEnd: { lte: windowEnd },
-        status: 'OPEN',
+        dueOn: { lte: windowEnd },
+        completedAt: null,
       },
       include: {
-        engagement: {
-          include: {
-            sellContract: {
-              select: {
-                id: true,
-                personId: true,
-                person: { select: { name: true } },
-                company: { select: { id: true, name: true } },
-                clientCompany: { select: { id: true, name: true } },
-              },
-            },
+        sellContract: {
+          select: {
+            id: true,
+            personId: true,
+            person: { select: { name: true } },
+            company: { select: { id: true, name: true } },
+            clientCompany: { select: { id: true, name: true } },
           },
         },
       },
-      orderBy: { periodEnd: 'asc' },
+      orderBy: { dueOn: 'asc' },
     })
 
     if (dueCycles.length === 0) {
@@ -58,25 +54,19 @@ export async function GET(request: NextRequest) {
       byKind.set(c.kind, (byKind.get(c.kind) ?? 0) + 1)
     }
 
-    // Mark past-due cycles
-    const pastDue = dueCycles.filter((c) => c.periodEnd <= now)
-    if (pastDue.length > 0) {
-      await prisma.cycle.updateMany({
-        where: { id: { in: pastDue.map((c) => c.id) } },
-        data: { status: 'DUE' },
-      })
-    }
+    // Identify past-due cycles (dueOn already passed, still not completed)
+    const pastDue = dueCycles.filter((c) => c.dueOn <= now)
 
     // Create notifications for upcoming cycles (due in 1-7 days)
-    const upcoming = dueCycles.filter((c) => c.periodEnd > now)
-    const notificationsCreated = []
+    const upcoming = dueCycles.filter((c) => c.dueOn > now)
+    const notificationsCreated: string[] = []
 
     for (const cycle of upcoming) {
-      const contract = cycle.engagement.sellContract
+      const contract = cycle.sellContract
       if (!contract) continue
 
       const daysUntilDue = Math.ceil(
-        (cycle.periodEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
+        (cycle.dueOn.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
       )
 
       // Only notify at 7, 3, and 1 day marks
@@ -89,11 +79,11 @@ export async function GET(request: NextRequest) {
             companyId: contract.company.id,
             type: 'CYCLE_DUE',
             title: `${cycle.kind} cycle due in ${daysUntilDue} day${daysUntilDue !== 1 ? 's' : ''}`,
-            body: `${contract.person.name} at ${contract.clientCompany.name} — period ending ${cycle.periodEnd.toLocaleDateString()}`,
+            body: `${contract.person.name} at ${contract.clientCompany.name} — due ${cycle.dueOn.toLocaleDateString()}`,
             data: {
               cycleId: cycle.id,
               kind: cycle.kind,
-              periodEnd: cycle.periodEnd.toISOString(),
+              dueOn: cycle.dueOn.toISOString(),
               contractId: contract.id,
             },
           },
@@ -106,7 +96,7 @@ export async function GET(request: NextRequest) {
 
     // AutomationLog
     if (dueCycles.length > 0) {
-      const firstContract = dueCycles.find((c) => c.engagement.sellContract)?.engagement.sellContract
+      const firstContract = dueCycles.find((c) => c.sellContract)?.sellContract
       if (firstContract) {
         await prisma.automationLog.create({
           data: {

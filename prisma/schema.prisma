@@ -177,6 +177,8 @@ model Company {
   blacklists         Blacklist[]
   // Locations
   locations          CompanyLocation[]
+  // Holidays
+  holidays           Holiday[]
   // End-client contracts (where consultants actually work, when ≠ billing client)
   endClientContracts SellContract[]     @relation("sellEndClient")
 }
@@ -1157,4 +1159,23 @@ model ImportRow {
   createdId String? // what it became once committed
 
   @@index([importId])
+}
+
+// Per-company holiday calendar — CLAUDE.md: "Load-bearing for cycle generation."
+// The cycle generator shifts due dates off weekends AND these holidays.
+// Each company defines its own set. A US vendor might have 10 federal holidays;
+// a Japanese client might have different ones. Both sets apply to a cross-border contract.
+model Holiday {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  name        String   // "Independence Day", "Christmas", "Golden Week"
+  isRecurring Boolean  @default(false) // repeats annually (month+day)
+  country     String?  // ISO 3166 alpha-2 if region-specific
+  createdAt   DateTime @default(now())
+
+  @@unique([companyId, date])
+  @@index([companyId])
+  @@index([date])
 }
