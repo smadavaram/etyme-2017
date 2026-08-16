@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -95,14 +96,214 @@ function fmtCurrency(amount: number): string {
   return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
+// ── Generate Invoice Modal ───────────────────────────
+
+interface EngagementOption {
+  id: string
+  title: string
+  clientName: string
+}
+
+function GenerateInvoiceModal({
+  onClose,
+  onGenerated,
+}: {
+  onClose: () => void
+  onGenerated: (msg: string) => void
+}) {
+  const [engagements, setEngagements] = useState<EngagementOption[]>([])
+  const [loadingEngagements, setLoadingEngagements] = useState(true)
+  const [engagementId, setEngagementId] = useState('')
+  const [periodStart, setPeriodStart] = useState('')
+  const [periodEnd, setPeriodEnd] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch active sell contracts to extract engagement options
+  useEffect(() => {
+    setLoadingEngagements(true)
+    fetch('/api/contracts?side=sell&state=IN_PROGRESS&limit=100')
+      .then((r) => r.json())
+      .then((body) => {
+        const contracts = body.data?.contracts ?? []
+        // Extract unique engagements from contracts
+        const seen = new Map<string, EngagementOption>()
+        for (const c of contracts) {
+          if (c.engagement?.id && !seen.has(c.engagement.id)) {
+            seen.set(c.engagement.id, {
+              id: c.engagement.id,
+              title: c.engagement.title,
+              clientName: c.endClientCompany?.name ?? c.clientCompany?.name ?? 'Unknown',
+            })
+          }
+        }
+        const list = Array.from(seen.values())
+        setEngagements(list)
+        if (list.length === 1) setEngagementId(list[0].id)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingEngagements(false))
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+
+    if (!engagementId) {
+      setError('Select an engagement')
+      return
+    }
+
+    setSubmitting(true)
+    setError(null)
+
+    try {
+      const payload: Record<string, string> = { engagementId }
+      if (periodStart) payload.periodStart = periodStart
+      if (periodEnd) payload.periodEnd = periodEnd
+
+      const res = await fetch('/api/invoices/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body.error?.message ?? 'Failed to generate invoice')
+        return
+      }
+
+      const body = await res.json()
+      const msg = body.data?.message ?? 'Invoice generated'
+      onGenerated(msg)
+      onClose()
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Generate invoice</h2>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-etyme-muted mb-1">Engagement *</label>
+            {loadingEngagements ? (
+              <p className="text-sm text-etyme-faint animate-pulse py-2">Loading engagements…</p>
+            ) : engagements.length > 0 ? (
+              <select
+                required
+                value={engagementId}
+                onChange={(e) => setEngagementId(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              >
+                <option value="">Select engagement…</option>
+                {engagements.map((eng) => (
+                  <option key={eng.id} value={eng.id}>
+                    {eng.title} — {eng.clientName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div>
+                <p className="text-[11px] text-etyme-faint mb-1">
+                  No active engagements found. Enter an engagement ID directly.
+                </p>
+                <input
+                  type="text"
+                  required
+                  value={engagementId}
+                  onChange={(e) => setEngagementId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                  placeholder="Engagement ID"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Period start</label>
+              <input
+                type="date"
+                value={periodStart}
+                onChange={(e) => setPeriodStart(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              />
+              <p className="text-[10px] text-etyme-faint mt-1">Optional — filters timesheets</p>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-etyme-muted mb-1">Period end</label>
+              <input
+                type="date"
+                value={periodEnd}
+                onChange={(e) => setPeriodEnd(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+              />
+              <p className="text-[10px] text-etyme-faint mt-1">Optional — filters timesheets</p>
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-etyme-canvas px-4 py-3 text-[12px] text-etyme-muted">
+            Generates an invoice from all approved, uninvoiced timesheets under the selected engagement.
+            {periodStart || periodEnd ? ' Filtered to the specified period.' : ' Covers all available periods.'}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+              {submitting ? 'Generating…' : 'Generate invoice'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ─────────────────────────────────────────────
 
 export default function InvoicesPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [summary, setSummary] = useState<AgingSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
+  const [showGenerate, setShowGenerate] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  // Open the generate modal when navigated with ?new=1
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setShowGenerate(true)
+      router.replace('/dashboard/invoices', { scroll: false })
+    }
+  }, [searchParams, router])
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true)
@@ -271,11 +472,16 @@ export default function InvoicesPage() {
 
   return (
     <>
-      {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle */}
-      <div className="page-head">
-        <p className="eyebrow">Operate</p>
-        <h1>Invoices</h1>
-        <p>Accounts receivable against sell contracts. Generate from approved timesheets, track payments, and monitor aging.</p>
+      {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
+      <div className="flex items-start justify-between mb-6">
+        <div className="page-head">
+          <p className="eyebrow">Operate</p>
+          <h1>Invoices</h1>
+          <p>Accounts receivable against sell contracts. Generate from approved timesheets, track payments, and monitor aging.</p>
+        </div>
+        <button onClick={() => setShowGenerate(true)} className="btn-primary mt-3 shrink-0">
+          + Generate
+        </button>
       </div>
 
       {/* Stats row — prototype Stat component pattern */}
@@ -392,6 +598,29 @@ export default function InvoicesPage() {
           {invoices.length} invoice{invoices.length !== 1 ? 's' : ''}
           {statusFilter !== 'ALL' && ` · ${statusFilter.toLowerCase().replace('_', ' ')}`}
         </p>
+      )}
+
+      {/* Generate Invoice modal */}
+      {showGenerate && (
+        <GenerateInvoiceModal
+          onClose={() => setShowGenerate(false)}
+          onGenerated={(msg) => {
+            setToast({ message: msg, type: 'success' })
+            setTimeout(() => setToast(null), 4000)
+            fetchInvoices()
+          }}
+        />
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up ${
+          toast.type === 'success'
+            ? 'bg-etyme-verified text-white'
+            : 'bg-red-600 text-white'
+        }`}>
+          {toast.message}
+        </div>
       )}
     </>
   )
