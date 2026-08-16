@@ -80,6 +80,8 @@ export async function GET(request: NextRequest) {
         startDate: r.startDate?.toISOString() ?? null,
         status: r.status,
         source: r.source,
+        marginClass: r.marginClass,
+        rateVisible: r.rateVisible,
         company: r.company,
         counts: {
           submissions: r._count.submissions,
@@ -114,7 +116,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { companyId, title, skills, location, billMin, billMax, months, startDate, msaId } = body
+  const { companyId, title, skills, location, billMin, billMax, months, startDate, msaId, marginClass, rateVisible } = body
 
   if (!companyId || typeof companyId !== 'string') {
     return NextResponse.json(
@@ -154,6 +156,8 @@ export async function POST(request: NextRequest) {
       months: months ?? null,
       startDate: startDate ? new Date(startDate) : null,
       msaId: msaId ?? null,
+      marginClass: marginClass ?? null,
+      rateVisible: rateVisible === true,
       status: 'OPEN',
       source: 'MANUAL',
     },

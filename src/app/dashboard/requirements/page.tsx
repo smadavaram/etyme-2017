@@ -30,6 +30,8 @@ interface Requirement {
   status: string
   source: string
   matches: number
+  marginClass: string | null
+  rateVisible: boolean
   createdAt: string
 }
 
@@ -48,6 +50,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
     billMin: '',
     billMax: '',
     months: '',
+    marginClass: '' as '' | 'ARBITRAGE' | 'EXPERTISE',
+    rateVisible: false,
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -130,6 +134,8 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
           billMin: form.billMin ? parseInt(form.billMin) : null,
           billMax: form.billMax ? parseInt(form.billMax) : null,
           months: form.months ? parseInt(form.months) : null,
+          marginClass: form.marginClass || null,
+          rateVisible: form.rateVisible,
         }),
       })
 
@@ -309,6 +315,41 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
             />
           </div>
 
+          {/* Rate transparency — Addendum D §D.3.1 & D.3.2 */}
+          <div className="border-t border-etyme-rule pt-4 mt-2">
+            <div className="stat-label text-[9px] mb-2">Rate Transparency</div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-etyme-muted mb-1">Margin class</label>
+                <select
+                  value={form.marginClass}
+                  onChange={(e) => setForm({ ...form, marginClass: e.target.value as '' | 'ARBITRAGE' | 'EXPERTISE' })}
+                  className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                             focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
+                >
+                  <option value="">Not set</option>
+                  <option value="EXPERTISE">Expertise — capability-based</option>
+                  <option value="ARBITRAGE">Arbitrage — opacity-based</option>
+                </select>
+                <p className="text-[9px] text-etyme-faint mt-0.5">
+                  Distinguishes how margin is earned on this role
+                </p>
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.rateVisible}
+                    onChange={(e) => setForm({ ...form, rateVisible: e.target.checked })}
+                    className="w-4 h-4 rounded border-etyme-rule text-etyme-action
+                               focus:ring-etyme-action/20 focus:ring-2"
+                  />
+                  <span className="text-sm text-etyme-ink">Rate visible to vendors</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
@@ -449,6 +490,31 @@ export default function RequirementsPage() {
         return <span className={`chip ${styles[row.status] ?? 'chip--passive'}`}>{row.status}</span>
       },
       sortValue: (row) => row.status,
+    },
+    {
+      key: 'marginClass',
+      label: 'Rate',
+      render: (row) => (
+        <div className="flex items-center gap-1.5">
+          {row.marginClass && (
+            <span className={`chip text-[9px] ${row.marginClass === 'EXPERTISE' ? 'chip--verified' : 'chip--attention'}`}>
+              {row.marginClass === 'EXPERTISE' ? 'Expertise' : 'Arbitrage'}
+            </span>
+          )}
+          {row.rateVisible && (
+            <span className="text-etyme-verified text-[10px]" title="Rate visible to vendors">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 3C4.5 3 1.5 6 0 8c1.5 2 4.5 5 8 5s6.5-3 8-5c-1.5-2-4.5-5-8-5zm0 8a3 3 0 110-6 3 3 0 010 6z"/>
+              </svg>
+            </span>
+          )}
+          {!row.marginClass && !row.rateVisible && (
+            <span className="text-etyme-faint text-[10px]">—</span>
+          )}
+        </div>
+      ),
+      sortValue: (row) => row.marginClass ?? '',
+      hideOnMobile: true,
     },
     {
       key: 'matchCount',

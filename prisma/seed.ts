@@ -301,12 +301,12 @@ async function main() {
 
   // ── Requirements ───────────────────────────────
   const reqs = [
-    { title: 'Senior SAP BRIM Consultant — Remote',    skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA'],    location: 'Remote',       billMin: 110, billMax: 140, months: 12, status: 'OPEN' },
-    { title: 'Azure Cloud Architect',                   skills: ['Azure', 'Terraform', 'Kubernetes'],              location: 'Denver, CO',   billMin: 130, billMax: 160, months: 6,  status: 'OPEN' },
-    { title: 'Full Stack React Developer',              skills: ['React', 'TypeScript', 'Node.js'],                location: 'Remote',       billMin: 80,  billMax: 110, months: 12, status: 'OPEN' },
-    { title: 'SAP SD/MM Functional Consultant',         skills: ['SAP SD', 'SAP MM'],                              location: 'Chicago, IL',  billMin: 100, billMax: 130, months: 8,  status: 'FILLED' },
-    { title: 'Data Engineer — Snowflake Platform',      skills: ['Snowflake', 'dbt', 'Python'],                    location: 'Remote',       billMin: 120, billMax: 150, months: 12, status: 'DRAFT' },
-    { title: 'ServiceNow ITSM Implementation Lead',    skills: ['ServiceNow', 'ITSM', 'JavaScript'],              location: 'Dallas, TX',   billMin: 90,  billMax: 120, months: 6,  status: 'CLOSED' },
+    { title: 'Senior SAP BRIM Consultant — Remote',    skills: ['SAP BRIM', 'Revenue Accounting', 'S/4HANA'],    location: 'Remote',       billMin: 110, billMax: 140, months: 12, status: 'OPEN',   marginClass: 'EXPERTISE', rateVisible: true },
+    { title: 'Azure Cloud Architect',                   skills: ['Azure', 'Terraform', 'Kubernetes'],              location: 'Denver, CO',   billMin: 130, billMax: 160, months: 6,  status: 'OPEN',   marginClass: 'EXPERTISE', rateVisible: false },
+    { title: 'Full Stack React Developer',              skills: ['React', 'TypeScript', 'Node.js'],                location: 'Remote',       billMin: 80,  billMax: 110, months: 12, status: 'OPEN',   marginClass: 'ARBITRAGE', rateVisible: true },
+    { title: 'SAP SD/MM Functional Consultant',         skills: ['SAP SD', 'SAP MM'],                              location: 'Chicago, IL',  billMin: 100, billMax: 130, months: 8,  status: 'FILLED', marginClass: 'EXPERTISE', rateVisible: false },
+    { title: 'Data Engineer — Snowflake Platform',      skills: ['Snowflake', 'dbt', 'Python'],                    location: 'Remote',       billMin: 120, billMax: 150, months: 12, status: 'DRAFT',  marginClass: null,        rateVisible: false },
+    { title: 'ServiceNow ITSM Implementation Lead',    skills: ['ServiceNow', 'ITSM', 'JavaScript'],              location: 'Dallas, TX',   billMin: 90,  billMax: 120, months: 6,  status: 'CLOSED', marginClass: null,        rateVisible: false },
   ]
 
   const requirementRecords: any[] = []
@@ -323,6 +323,8 @@ async function main() {
         status: r.status,
         source: 'MANUAL',
         msaId: msa.id,
+        marginClass: r.marginClass ?? null,
+        rateVisible: r.rateVisible ?? false,
       },
     })
     requirementRecords.push(req)
