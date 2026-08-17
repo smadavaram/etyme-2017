@@ -1158,7 +1158,7 @@ model RateHistory {
   // Until a change is approved it does not exist for billing purposes — the
   // rate in force on a given day is resolved from APPROVED rows only
   // (src/lib/contract-rate.ts).
-  approvalState String    @default("APPROVED") // PROPOSED · APPROVED · REJECTED
+  approvalState String    @default("PROPOSED") // PROPOSED · APPROVED · REJECTED
   approvedById  String?
   approvedAt    DateTime?
   createdAt        DateTime  @default(now())

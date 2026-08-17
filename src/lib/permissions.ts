@@ -25,6 +25,11 @@ export const PERMISSIONS = [
   'timesheets.approve',
   'invoices.read',
   'invoices.issue',
+  // Price is procurement's to set and to amend. Separate from
+  // assignments.write because the team that owns rates at a client is not
+  // the team that creates contracts.
+  'rates.read',
+  'rates.write',
   'payments.record',
   'payroll.read',
   'payroll.run',

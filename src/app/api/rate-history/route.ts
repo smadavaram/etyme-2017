@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
+import { assessRateChange } from '@/lib/contract-rate'
 import { prisma } from '@/lib/db'
 
 /**
@@ -295,8 +296,28 @@ export async function POST(request: NextRequest) {
     orderBy: { fromDate: 'desc' },
   })
 
+  // A rate change is an amendment to the agreement, so its size decides
+  // whether it takes effect on its own or waits for somebody.
+  //
+  // The previous rate to compare against is the one in force, not merely
+  // the newest row — a proposal sitting unapproved is not the current price.
+  const contractRate = contractType.toUpperCase() === 'SELL'
+    ? (await prisma.sellContract.findUnique({ where: { id: contractId }, select: { billRate: true } }))?.billRate ?? 0
+    : 0
+  const priorApproved = await prisma.rateHistory.findFirst({
+    where: { contractType: contractType.toUpperCase(), contractId, approvalState: 'APPROVED' },
+    orderBy: { fromDate: 'desc' },
+  })
+  const fromCents = priorApproved?.rate ?? contractRate
+
+  const assessment = assessRateChange(fromCents, rate)
+  const approvalState = assessment.needsApproval ? 'PROPOSED' : 'APPROVED'
+
   const entry = await prisma.rateHistory.create({
     data: {
+      approvalState,
+      approvedById: assessment.needsApproval ? null : caller.person.id,
+      approvedAt: assessment.needsApproval ? null : new Date(),
       contractType: contractType.toUpperCase(),
       contractId,
       rate,

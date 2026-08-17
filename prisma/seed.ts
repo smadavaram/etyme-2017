@@ -194,7 +194,8 @@ async function main() {
           'vendors.read', 'vendors.write',
           'requirements.read', 'submissions.read', 'assignments.read',
           'invoices.read', 'invoices.approve',
-          'rates.read', 'governance.read',
+          'rates.read', 'rates.write', // procurement owns price, so it decides amendments
+          'governance.read',
         ],
         isDefault: false,
       },
