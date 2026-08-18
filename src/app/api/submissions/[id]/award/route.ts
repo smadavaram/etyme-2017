@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { evaluateGovernance } from '@/lib/governance'
 import { assessAward, type AwardFacts } from '@/lib/award'
 import { notify } from '@/lib/notify'
+import { checkClassification, type WorkerType } from '@/lib/worker-classification'
 
 /**
  * POST /api/submissions/:id/award   { rate?, startDate?, endDate? }
@@ -131,6 +132,32 @@ export async function POST(
       blocks: governance.evaluations.filter(e => e.outcome === 'BLOCK').map(e => e.reason),
       warnings: governance.evaluations.filter(e => e.outcome === 'WARN').map(e => e.reason),
     },
+  }
+
+  // Which ways of engaging somebody this client accepts. Stored on the
+  // governance rule so it is the client's own policy, not ours.
+  const classRule = await prisma.governanceRule.findFirst({
+    where: {
+      ruleType: 'WORKER_CLASSIFICATION',
+      isActive: true,
+      policy: { companyId: req.companyId, isActive: true },
+    },
+    select: { parameters: true },
+  })
+  const allowedTypes = ((classRule?.parameters as any)?.allowed ?? []) as WorkerType[]
+  const classification = checkClassification(
+    (submission.contractType as WorkerType | null) ?? null,
+    allowedTypes
+  )
+
+  // A refused way of working is a legal position the client has taken, so
+  // it joins the blocks rather than the notes.
+  if (classification.outcome === 'BLOCK') {
+    facts.governance.blocks.push(
+      `${classification.reason}. ${classification.action ?? ''}`.trim()
+    )
+  } else if (classification.outcome === 'WARN') {
+    facts.governance.warnings.push(classification.reason)
   }
 
   const decision = assessAward(facts)

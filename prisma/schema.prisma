@@ -568,6 +568,16 @@ model Submission {
   toCompany     Company        @relation("to", fields: [toCompanyId], references: [id])
   kind          SubmissionKind
   rate          Int
+  // How the vendor engages this person: W2 of the vendor, corp-to-corp with
+  // their own company, or 1099 as a sole trader.
+  //
+  // The vendor declares it because only they know it. The client cannot see
+  // it any other way, and the difference matters: a 1099 sole trader carries
+  // far more co-employment risk for the client than a consultant working
+  // through their own corporation.
+  //
+  // Null on submissions made before this existed.
+  contractType  ContractType?
   status        String         @default("SUBMITTED")
   submittedAt   DateTime       @default(now()) // first timestamp wins on a duplicate
 
@@ -1417,6 +1427,7 @@ enum GovernanceRuleType {
   WORK_AUTHORIZATION // valid work auth required before start
   INSURANCE_REQUIRED // vendor must have current insurance
   SEGREGATION_OF_DUTIES // same person cannot hold conflicting roles
+  WORKER_CLASSIFICATION // which ways of engaging somebody this client accepts
 }
 
 // Which team at the client adjudicates a breach of a rule.
