@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { assessFit } from '@/lib/candidate-fit'
 
 /**
  * GET /api/requisitions/:id
@@ -62,7 +63,12 @@ export async function GET(
       person: {
         select: {
           id: true, name: true,
-          consultant: { select: { headline: true, skills: true } },
+          consultant: {
+            select: {
+              headline: true, skills: true, location: true,
+              availableFrom: true, workAuth: true,
+            },
+          },
         },
       },
       fromCompany: { select: { id: true, name: true } },
@@ -114,6 +120,24 @@ export async function GET(
       })),
       candidates: submissions.map(s => ({
         id: s.id,
+        // Deterministic, instant, and honest about what it cannot judge —
+        // the client is choosing between these people today, not deciding
+        // whether to go looking (src/lib/candidate-fit.ts).
+        fit: assessFit({
+          required: {
+            skills: req.skills,
+            location: req.location,
+            ceilingCents: req.billMax,
+            neededBy: req.neededBy,
+          },
+          candidate: {
+            skills: s.person.consultant?.skills ?? [],
+            headline: s.person.consultant?.headline ?? null,
+            location: s.person.consultant?.location ?? null,
+            availableFrom: s.person.consultant?.availableFrom ?? null,
+          },
+          submittedRateCents: s.rate,
+        }),
         person: {
           id: s.person.id,
           name: s.person.name,

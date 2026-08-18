@@ -29,8 +29,17 @@ interface Invitation {
   message: string | null
   submittedCount: number
 }
+interface FitFactor { label: string; value: number; weight: number; detail: string }
+interface Fit {
+  score: number
+  confidence: 'HIGH' | 'MODERATE' | 'LOW'
+  factors: FitFactor[]
+  basis: string
+  unknowns: string | null
+}
 interface Candidate {
   id: string
+  fit: Fit
   person: { id: string; name: string; headline: string | null; skills: string[] }
   vendor: { id: string; name: string }
   rate: number
@@ -71,6 +80,53 @@ function Panel({ title, count, children }: {
 }
 
 const money = (c: number | null) => (c == null ? '—' : `$${Math.round(c / 100)}`)
+
+/**
+ * The score, and everything behind it on click.
+ *
+ * CLAUDE.md wants progressive explanation and forbids a bare number. The
+ * confidence label sits next to the score rather than under the fold,
+ * because a 74 the system is unsure about must not read like a 74 it is
+ * certain of.
+ */
+function Why({ fit }: { fit: Fit }) {
+  const [open, setOpen] = useState(false)
+  const tone = fit.score >= 75 ? 'text-etyme-verified'
+    : fit.score >= 45 ? 'text-etyme-ink' : 'text-etyme-attention'
+  const conf = fit.confidence === 'HIGH' ? 'confident'
+    : fit.confidence === 'MODERATE' ? 'some gaps' : 'thin data'
+
+  return (
+    <div className="text-right">
+      <button onClick={() => setOpen(o => !o)} className="group">
+        <div className={`font-serif text-2xl tabular-nums ${tone}`}>{fit.score}</div>
+        <div className="text-[10px] uppercase tracking-[0.1em] text-etyme-faint group-hover:text-etyme-action">
+          {conf} · why
+        </div>
+      </button>
+      {open && (
+        <div className="mt-3 text-left border-l-2 border-etyme-rule pl-4 space-y-2 w-full">
+          {fit.factors.map(f => (
+            <div key={f.label}>
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-xs text-etyme-ink">{f.label}</span>
+                <span className="text-xs tabular-nums text-etyme-muted">{f.value}</span>
+              </div>
+              <div className="h-1 bg-etyme-rule rounded mt-0.5">
+                <div className="h-1 bg-etyme-action/50 rounded" style={{ width: `${f.value}%` }} />
+              </div>
+              <p className="text-xs text-etyme-muted mt-0.5">{f.detail}</p>
+            </div>
+          ))}
+          <p className="text-xs text-etyme-faint pt-1">Based on {fit.basis}.</p>
+          {fit.unknowns && (
+            <p className="text-xs text-etyme-attention">Could not judge: {fit.unknowns}.</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 // ── Sending it to vendors ──────────────────────────────────
 
@@ -210,6 +266,31 @@ export default function RequisitionDetail() {
     await load()
   }
 
+  async function award(c: Candidate) {
+    const rate = window.prompt(
+      `Place ${c.person.name}. Rate in dollars per hour:`,
+      String(Math.round(c.rate / 100))
+    )
+    if (rate === null) return
+    const cents = Math.round(parseFloat(rate) * 100)
+    if (!Number.isFinite(cents) || cents <= 0) { alert('That is not a rate'); return }
+
+    const res = await fetch(`/api/submissions/${c.id}/award`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rate: cents }),
+    })
+    const j = await res.json()
+    if (!res.ok) {
+      const checks = (j.error?.checks ?? []).map((x: any) => `· ${x.reason}`).join('\n')
+      alert(`${j.error?.message ?? 'Could not place them'}${checks ? '\n\n' + checks : ''}`)
+      return
+    }
+    const d = j.data
+    const notes = d.notes?.length ? '\n\n' + d.notes.map((n: string) => `· ${n}`).join('\n') : ''
+    alert(`${d.message}${notes}${d.requisitionFilled ? `\n\n${d.vendorsStoodDown} vendor(s) stood down.` : ''}`)
+    await load()
+  }
+
   if (loading) return <div className="text-etyme-muted py-12 text-center">Loading…</div>
   if (error) return (
     <div className="max-w-3xl border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg p-6">
@@ -333,20 +414,34 @@ export default function RequisitionDetail() {
           </div>
         ) : (
           <div className="divide-y divide-etyme-rule">
-            {data.candidates.map((c: Candidate) => (
-              <div key={c.id} className="p-4 flex items-center gap-4">
+            {[...data.candidates]
+              .sort((a: Candidate, b: Candidate) => b.fit.score - a.fit.score)
+              .map((c: Candidate) => (
+              <div key={c.id} className="p-4 flex items-start gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="text-etyme-ink">{c.person.name}</div>
                   <div className="text-xs text-etyme-muted">
                     {c.person.headline ?? c.person.skills.slice(0, 3).join(', ')} · via {c.vendor.name}
                   </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="font-serif text-lg text-etyme-ink tabular-nums">
+                      {money(c.rate)}<span className="text-xs text-etyme-muted font-sans">/hr</span>
+                    </span>
+                    <Chip tone={
+                      c.status === 'PLACED' ? 'verified'
+                      : c.status === 'NOT_SELECTED' ? 'passive' : 'action'
+                    }>
+                      {c.status.toLowerCase().replace(/_/g, ' ')}
+                    </Chip>
+                    {c.status !== 'PLACED' && c.status !== 'NOT_SELECTED' && s.remaining > 0 && (
+                      <button onClick={() => award(c)}
+                        className="px-3 py-1 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
+                        Place
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="font-serif text-lg text-etyme-ink tabular-nums shrink-0">
-                  {money(c.rate)}<span className="text-xs text-etyme-muted font-sans">/hr</span>
-                </div>
-                <div className="w-24 text-right shrink-0">
-                  <Chip tone={c.status === 'PLACED' ? 'verified' : 'passive'}>{c.status.toLowerCase()}</Chip>
-                </div>
+                <div className="shrink-0 w-56"><Why fit={c.fit} /></div>
               </div>
             ))}
           </div>
