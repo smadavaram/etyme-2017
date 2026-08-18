@@ -30,6 +30,8 @@ interface RateHistoryRecord {
   changedById: string
   changedByName: string
   previousRate: number | null  // cents
+  approvalState: string        // PROPOSED · APPROVED · REJECTED
+  approvedAt: string | null
   createdAt: string
   personName: string
   contractLabel: string
@@ -232,6 +234,30 @@ export default function RateHistoryPage() {
     { key: 'decreases', label: 'Decreases', count: stats.decreases },
   ]
 
+  // Amendments still waiting on somebody. These are the ones holding
+  // invoices up, so they are surfaced above the history rather than buried
+  // in it.
+  const pending = records.filter(r => r.approvalState === 'PROPOSED')
+
+  async function decideAmendment(id: string, action: 'approve' | 'reject') {
+    const reason = action === 'reject'
+      ? window.prompt('Why are you rejecting this rate change?')
+      : (window.prompt('Note for the record? (optional)') ?? '')
+    if (action === 'reject' && !reason) return
+
+    const res = await fetch(`/api/rate-history/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, reason }),
+    })
+    const j = await res.json()
+    if (!res.ok) { alert(j.error?.message ?? 'Could not record that'); return }
+    // Say what the decision just unblocked — an approval that quietly makes
+    // three held invoices payable is worth stating.
+    alert(j.data.message)
+    await fetchHistory()
+  }
+
   return (
     <div className="animate-fade-in">
       {/* Head */}
@@ -243,6 +269,50 @@ export default function RateHistoryPage() {
           versioned for audit and timesheet valuation.
         </p>
       </div>
+
+      {/* Waiting on procurement.
+          The invoice match refuses a rate variance and tells the clerk to
+          amend the contract instead. That instruction is only honest if the
+          amendment can actually be decided somewhere, so it is decided
+          here — and until it is approved it does not bill. */}
+      {pending.length > 0 && (
+        <div className="border border-etyme-attention/30 bg-etyme-attention/5 rounded-lg mb-6">
+          <div className="p-4 border-b border-etyme-rule">
+            <p className="stat-label">Waiting on procurement</p>
+            <p className="text-sm text-etyme-muted mt-1">
+              A proposed rate does not bill. Until one of these is approved, invoices
+              at the new rate keep failing the price check.
+            </p>
+          </div>
+          <div className="divide-y divide-etyme-rule">
+            {pending.map(r => (
+              <div key={r.id} className="p-4 flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-etyme-ink">
+                    {r.personName} — {r.previousRate ? `$${Math.round(r.previousRate / 100)}` : '—'}
+                    {' → '}
+                    <span className="font-medium">${Math.round(r.rate / 100)}/hr</span>
+                  </p>
+                  <p className="text-xs text-etyme-muted">
+                    from {r.fromDate.slice(0, 10)} · proposed by {r.changedByName}
+                    {r.reason ? ` · ${r.reason}` : ''}
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button onClick={() => decideAmendment(r.id, 'approve')}
+                    className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
+                    Approve
+                  </button>
+                  <button onClick={() => decideAmendment(r.id, 'reject')}
+                    className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink">
+                    Reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stats row */}
       <div className="flex gap-3 mb-6 flex-wrap">

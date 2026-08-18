@@ -128,6 +128,11 @@ export async function GET(request: NextRequest) {
             changedById: h.changedById,
             changedByName: personNameMap.get(h.changedById) ?? 'Unknown',
             previousRate: h.previousRate,
+            // A proposed amendment does not bill. Without this the UI cannot
+            // tell an agreed rate from one still waiting on procurement,
+            // which is the whole point of putting it behind approval.
+            approvalState: h.approvalState,
+            approvedAt: h.approvedAt?.toISOString() ?? null,
             createdAt: h.createdAt.toISOString(),
             personName: info?.personName ?? 'Unknown',
             contractLabel: info?.contractLabel ?? `${h.contractType} contract`,
@@ -198,6 +203,8 @@ export async function GET(request: NextRequest) {
         reason: h.reason,
         changedById: h.changedById,
         previousRate: h.previousRate,
+        approvalState: h.approvalState,
+        approvedAt: h.approvedAt?.toISOString() ?? null,
         createdAt: h.createdAt.toISOString(),
       })),
       currentRate: history.length > 0 ? history[0].rate : null,
