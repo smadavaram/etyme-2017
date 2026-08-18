@@ -114,3 +114,87 @@ export function tenureConcern(type: WorkerType | null, monthsAccrued: number): s
   }
   return null
 }
+
+// ── Whether the right company is actually covered ──────────
+
+export interface CoverFacts {
+  /** GL and workers' comp certificates on file for the responsible party. */
+  certificates: { type: string; expiresAt: Date | null; status: string }[]
+  /** Set when corp-to-corp and we know which company they work through. */
+  consultantCorpName: string | null
+  /** True when corp-to-corp but no company has been recorded for them. */
+  corpMissing: boolean
+}
+
+export interface CoverVerdict {
+  outcome: 'PASS' | 'WARN' | 'BLOCK'
+  reason: string
+  /** Which company should have been carrying it. */
+  responsible: 'VENDOR' | 'CONSULTANT_ENTITY' | 'NOBODY'
+}
+
+/** The two that must be current before somebody stands on a client's site. */
+const REQUIRED = ['INSURANCE_GL', 'INSURANCE_WC']
+const LIVE = ['CLEAR', 'CONDITIONAL']
+
+/**
+ * Is the party who actually answers for this person insured?
+ *
+ * The gap this closes: the existing rule checks the staffing vendor every
+ * time. On corp-to-corp the vendor is a middleman — the cover that responds
+ * to an injury belongs to the consultant's own company, and nobody was
+ * looking at it.
+ *
+ * A sole trader usually has no company at all behind them. That is not an
+ * administrative gap to chase, it is the arrangement itself, so it is
+ * reported as a fact rather than as a missing document.
+ */
+export function checkCover(type: WorkerType | null, facts: CoverFacts, asOf: Date): CoverVerdict {
+  const responsible = insuranceRestsWith(type ?? 'W2')
+
+  if (responsible === 'NOBODY') {
+    return {
+      outcome: 'WARN',
+      reason: 'A sole trader has no company behind them, so no employer cover answers for this person',
+      responsible,
+    }
+  }
+
+  const who = responsible === 'CONSULTANT_ENTITY'
+    ? (facts.consultantCorpName ?? 'their own company')
+    : 'the vendor'
+
+  if (responsible === 'CONSULTANT_ENTITY' && facts.corpMissing) {
+    return {
+      outcome: 'BLOCK',
+      reason: 'Corp-to-corp, but the company they work through has not been recorded, so nobody knows whose insurance applies',
+      responsible,
+    }
+  }
+
+  const current = facts.certificates.filter(
+    c => LIVE.includes(c.status) && (c.expiresAt === null || c.expiresAt > asOf)
+  )
+  const held = new Set(current.map(c => c.type))
+  const missing = REQUIRED.filter(r => !held.has(r))
+
+  if (missing.length === 0) {
+    return { outcome: 'PASS', reason: `${who} has current cover`, responsible }
+  }
+
+  const names = missing
+    .map(m => (m === 'INSURANCE_GL' ? 'general liability' : "workers' compensation"))
+    .join(' and ')
+
+  // Lapsed cover on the party who answers is legally grounded, so it blocks.
+  const lapsed = facts.certificates.some(
+    c => REQUIRED.includes(c.type) && c.expiresAt !== null && c.expiresAt <= asOf
+  )
+  return {
+    outcome: 'BLOCK',
+    reason: lapsed
+      ? `${who} let ${names} lapse`
+      : `${who} has no ${names} cover on file`,
+    responsible,
+  }
+}

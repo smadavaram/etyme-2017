@@ -194,6 +194,7 @@ model Company {
   posIssued          PurchaseOrder[]    @relation("poIssuer")
   posReceived        PurchaseOrder[]    @relation("poRecipient")
   remitTos           RemitTo[]
+  consultantsBehind  ConsultantProfile[] @relation("consultantCorp")
   approvalRules      ApprovalRule[]
 }
 
@@ -202,6 +203,11 @@ enum CompanyKind {
   CLIENT
   MSP
   GSI
+  // A consultant's own limited company, on corp-to-corp work. It is a real
+  // company — it signs, invoices and carries insurance — but it does not
+  // recruit, so it never appears in vendor lists or requirement
+  // distribution.
+  CONSULTANT_CORP
 }
 
 // Work sites / offices for a company. Clients have locations where consultants work;
@@ -292,7 +298,13 @@ model ConsultantProfile {
   headline      String?
   skills        String[]
   location      String?
-  workAuth      String? // US_CITIZEN · GC · H1B · OPT · GBP_SW · null
+  workAuth      String?
+  // On corp-to-corp, the company the consultant works through. This is the
+  // entity that must carry general liability and workers' compensation —
+  // not the staffing vendor — so without it the insurance check is looking
+  // at the wrong company.
+  ownCompanyId  String?
+  ownCompany    Company? @relation("consultantCorp", fields: [ownCompanyId], references: [id]) // US_CITIZEN · GC · H1B · OPT · GBP_SW · null
   rateFloor     Int? // the consultant sets this; no listing may go below it
   availableFrom DateTime?
   visibility    Visibility     @default(INTERNAL) // progressive enrichment, never a hard gate

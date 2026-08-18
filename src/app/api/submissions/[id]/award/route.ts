@@ -4,7 +4,9 @@ import { prisma } from '@/lib/db'
 import { evaluateGovernance } from '@/lib/governance'
 import { assessAward, type AwardFacts } from '@/lib/award'
 import { notify } from '@/lib/notify'
-import { checkClassification, type WorkerType } from '@/lib/worker-classification'
+import {
+  checkClassification, checkCover, insuranceRestsWith, type WorkerType,
+} from '@/lib/worker-classification'
 
 /**
  * POST /api/submissions/:id/award   { rate?, startDate?, endDate? }
@@ -46,7 +48,17 @@ export async function POST(
   const submission = await prisma.submission.findUnique({
     where: { id },
     include: {
-      person: { select: { id: true, name: true } },
+      person: {
+        select: {
+          id: true, name: true,
+          consultant: {
+            select: {
+              ownCompanyId: true,
+              ownCompany: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
       fromCompany: { select: { id: true, name: true } },
       requirement: {
         include: {
@@ -158,6 +170,40 @@ export async function POST(
     )
   } else if (classification.outcome === 'WARN') {
     facts.governance.warnings.push(classification.reason)
+  }
+
+  // Whose insurance answers for this person, and is it current?
+  //
+  // On corp-to-corp the cover belongs to the consultant's own company, not
+  // the staffing vendor. The existing INSURANCE_REQUIRED rule checks the
+  // vendor every time, which on a C2C placement is the wrong company —
+  // that is the gap this closes.
+  const workerType = (submission.contractType as WorkerType | null) ?? null
+  const responsible = insuranceRestsWith(workerType ?? 'W2')
+  const coverCompanyId = responsible === 'CONSULTANT_ENTITY'
+    ? submission.person.consultant?.ownCompanyId ?? null
+    : submission.fromCompanyId
+
+  const certificates = coverCompanyId
+    ? await prisma.verification.findMany({
+        where: {
+          companyId: coverCompanyId,
+          type: { in: ['INSURANCE_GL', 'INSURANCE_WC'] },
+        },
+        select: { type: true, expiresAt: true, status: true },
+      })
+    : []
+
+  const cover = checkCover(workerType, {
+    certificates,
+    consultantCorpName: submission.person.consultant?.ownCompany?.name ?? null,
+    corpMissing: responsible === 'CONSULTANT_ENTITY' && !coverCompanyId,
+  }, new Date())
+
+  if (cover.outcome === 'BLOCK') {
+    facts.governance.blocks.push(cover.reason)
+  } else if (cover.outcome === 'WARN') {
+    facts.governance.warnings.push(cover.reason)
   }
 
   const decision = assessAward(facts)
