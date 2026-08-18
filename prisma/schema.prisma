@@ -440,6 +440,7 @@ model Requirement {
   approvalState String @default("DRAFT") // DRAFT · PENDING_APPROVAL · APPROVED · REJECTED · AUTO_APPROVED
 
   approvals RequirementApproval[]
+  placements SellContract[]
 
   createdAt   DateTime         @default(now())
 
@@ -632,6 +633,12 @@ model SellContract {
   orgUnit         OrgUnit?         @relation(fields: [orgUnitId], references: [id])
 
   // The PO this contract invoices against, on the vendor→payer leg.
+  // The demand this contract satisfies. Without it a placement cannot be
+  // traced back to the requisition that authorised it, seats cannot be
+  // counted, and spend cannot be reconciled against the budget that was
+  // approved. Null on contracts that did not come from a requisition.
+  requirementId   String?
+  requirement     Requirement?     @relation(fields: [requirementId], references: [id])
   purchaseOrderId String?
   purchaseOrder   PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id])
   // How the end client splits this cost across their budgets.
@@ -663,6 +670,7 @@ model SellContract {
   @@index([endDate])
   @@index([hiringManagerId])
   @@index([orgUnitId])
+  @@index([requirementId])
 }
 
 enum SellContractState {
