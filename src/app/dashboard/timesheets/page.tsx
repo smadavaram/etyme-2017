@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 import { useSession } from '@/components/session-provider'
@@ -241,7 +242,7 @@ function CreateTimesheetModal({
               <option value="">Select a contract…</option>
               {contracts.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.personName} — {c.clientName} (${(c.billRate / 100).toFixed(0)}/hr)
+                  {c.personName} — {c.clientName} ({compact(c.billRate)}/hr)
                 </option>
               ))}
             </select>
@@ -585,7 +586,7 @@ export default function TimesheetsPage() {
       label: 'Bill rate',
       render: (row) => (
         <span className="tabular-nums text-etyme-muted">
-          ${(row.sellContract.billRate / 100).toFixed(0)}<span className="text-etyme-faint">/hr</span>
+          {compact(row.sellContract.billRate)}<span className="text-etyme-faint">/hr</span>
         </span>
       ),
       sortValue: (row) => row.sellContract.billRate,

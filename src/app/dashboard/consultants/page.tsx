@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
@@ -480,7 +481,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
                         {c.clientName ?? 'Unknown'}
                       </span>
                       <span className="text-sm tabular-nums text-etyme-ink">
-                        ${(c.rate / 100).toFixed(0)}/hr
+                        {compact(c.rate)}/hr
                       </span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
@@ -541,13 +542,13 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
                   {rateProgression.summary.firstRate != null && (
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-etyme-faint">First</p>
-                      <p className="text-sm font-serif tabular-nums">${(rateProgression.summary.firstRate / 100).toFixed(0)}/hr</p>
+                      <p className="text-sm font-serif tabular-nums">{compact(rateProgression.summary.firstRate)}/hr</p>
                     </div>
                   )}
                   {rateProgression.summary.currentRate != null && (
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Current</p>
-                      <p className="text-sm font-serif tabular-nums font-medium">${(rateProgression.summary.currentRate / 100).toFixed(0)}/hr</p>
+                      <p className="text-sm font-serif tabular-nums font-medium">{compact(rateProgression.summary.currentRate)}/hr</p>
                     </div>
                   )}
                   <div>
@@ -571,12 +572,12 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
                       </span>
                       {p.payRate != null && (
                         <span className="tabular-nums text-etyme-ink font-medium">
-                          ${(p.payRate / 100).toFixed(0)}/hr
+                          {compact(p.payRate)}/hr
                         </span>
                       )}
                       {p.billRate != null && (
                         <span className="tabular-nums text-etyme-faint">
-                          (bill: ${(p.billRate / 100).toFixed(0)})
+                          (bill: {compact(p.billRate)})
                         </span>
                       )}
                       {p.client && (
@@ -616,7 +617,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
                           </span>
                           {s.rate != null && s.rate > 0 && (
                             <span className="text-[11px] tabular-nums text-etyme-faint">
-                              ${(s.rate / 100).toFixed(0)}/hr
+                              {compact(s.rate)}/hr
                             </span>
                           )}
                         </div>

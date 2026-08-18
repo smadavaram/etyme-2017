@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { compact as money } from '@/lib/money-display'
 
 /**
  * Invitations — demand arriving from a client.
@@ -95,11 +96,6 @@ function Chip({ children, tone = 'passive' }: {
       {children}
     </span>
   )
-}
-
-function money(cents: number | null): string {
-  if (cents == null) return '—'
-  return `$${Math.round(cents / 100)}`
 }
 
 function daysUntil(iso: string): number {

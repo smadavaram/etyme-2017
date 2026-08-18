@@ -76,10 +76,18 @@ interface OrgData {
 
 // ── Formatting ─────────────────────────────────────────
 
-function money(cents: number): string {
-  if (cents >= 1_000_000) return `$${(cents / 1_000_000).toFixed(2)}m`
-  if (cents >= 1_000) return `$${Math.round(cents / 1_000)}k`
-  return `$${cents}`
+/**
+ * Abbreviated spend: "$1.24m", "$840k".
+ *
+ * This receives WHOLE DOLLARS — annualCost() in the org endpoint already
+ * divides. The parameter used to be named `cents`, which is precisely how a
+ * unit mistake survives review: the name said one thing and the arithmetic
+ * did another, and both were plain numbers so neither could complain.
+ */
+function money(dollars: number): string {
+  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(2)}m`
+  if (dollars >= 1_000) return `$${Math.round(dollars / 1_000)}k`
+  return `$${dollars}`
 }
 
 function rate(cents: number): string {

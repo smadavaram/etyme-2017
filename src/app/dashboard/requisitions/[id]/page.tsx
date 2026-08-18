@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import { compact as money } from '@/lib/money-display'
 
 /**
  * One requisition, worked end to end.
@@ -79,7 +80,6 @@ function Panel({ title, count, children }: {
   )
 }
 
-const money = (c: number | null) => (c == null ? '—' : `$${Math.round(c / 100)}`)
 
 /**
  * The score, and everything behind it on click.

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { fromUnits as fmtCurrency } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 import { useSession } from '@/components/session-provider'
@@ -94,9 +95,6 @@ function agingColor(bucket: string): string {
 
 // ── Format currency ─────────────────────────────────
 
-function fmtCurrency(amount: number): string {
-  return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-}
 
 // ── Generate Invoice Modal ───────────────────────────
 

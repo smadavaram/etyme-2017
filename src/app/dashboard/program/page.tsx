@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { compact } from '@/lib/money-display'
 import { useRouter } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
@@ -661,7 +662,7 @@ const CONTRACTOR_COLUMNS: Column<Contractor>[] = [
     align: 'right',
     render: (row) => (
       <span className="tabular-nums">
-        {row.billRate != null ? `$${(row.billRate / 100).toFixed(0)}/hr` : '—'}
+        {row.billRate != null ? `{compact(row.billRate)}/hr` : '—'}
       </span>
     ),
     sortValue: (row) => row.billRate ?? 0,
@@ -790,7 +791,7 @@ function VendorsTab({ vendors }: { vendors: ProgramData['vendors'] }) {
                     Avg rate
                   </p>
                   <p className="text-sm tabular-nums font-medium">
-                    ${(v.avgRate / 100).toFixed(0)}/hr
+                    {compact(v.avgRate)}/hr
                   </p>
                 </div>
                 <div>

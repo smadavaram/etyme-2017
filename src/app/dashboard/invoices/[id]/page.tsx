@@ -2,6 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import { amount } from '@/lib/money-display'
+
+/** This endpoint returns whole currency units, not minor ones. */
+const amountFromUnits = (n: number) => amount(Math.round(n * 100))
 
 /**
  * One invoice, as accounts payable sees it.
@@ -50,8 +54,6 @@ function Chip({ children, tone = 'passive' }: {
   return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>{children}</span>
 }
 
-const cash = (n: number) =>
-  `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 /** Plain-language names. An AP clerk reads these, not the codes. */
 const LABEL: Record<string, string> = {
@@ -204,8 +206,8 @@ export default function InvoiceDetail() {
         </div>
         <div className="text-right shrink-0">
           <Lbl>Total</Lbl>
-          <div className="font-serif text-3xl text-etyme-ink tabular-nums">{cash(inv.total)}</div>
-          {inv.paid > 0 && <div className="text-xs text-etyme-muted">{cash(inv.paid)} paid</div>}
+          <div className="font-serif text-3xl text-etyme-ink tabular-nums">{amountFromUnits(inv.total)}</div>
+          {inv.paid > 0 && <div className="text-xs text-etyme-muted">{amountFromUnits(inv.paid)} paid</div>}
         </div>
       </div>
 
@@ -224,7 +226,7 @@ export default function InvoiceDetail() {
               <p className="font-serif text-lg text-etyme-ink mt-1 text-balance">{m.summary}</p>
               {m.purchaseOrder && (
                 <p className="text-sm text-etyme-muted mt-1 tabular-nums">
-                  {cash(m.purchaseOrder.remaining)} left on the purchase order
+                  {amountFromUnits(m.purchaseOrder.remaining)} left on the purchase order
                   {' · '}{m.purchaseOrder.utilisationPercent}% used
                 </p>
               )}
@@ -267,8 +269,8 @@ export default function InvoiceDetail() {
                 </div>
               </div>
               <div className="text-right shrink-0 tabular-nums">
-                <div className="text-sm text-etyme-ink">{cash(l.amount)}</div>
-                <div className="text-xs text-etyme-muted">{l.hours}h × {cash(l.rate)}</div>
+                <div className="text-sm text-etyme-ink">{amountFromUnits(l.amount)}</div>
+                <div className="text-xs text-etyme-muted">{l.hours}h × {amountFromUnits(l.rate)}</div>
               </div>
               <div className="w-24 text-right shrink-0">
                 {l.receipt
@@ -284,7 +286,7 @@ export default function InvoiceDetail() {
 
       {data.purchaseOrder && (
         <p className="text-xs text-etyme-faint mt-8 pt-6 border-t border-etyme-rule">
-          Raised against purchase order {data.purchaseOrder.number} — {cash(data.purchaseOrder.amount)} authorised,
+          Raised against purchase order {data.purchaseOrder.number} — {amountFromUnits(data.purchaseOrder.amount)} authorised,
           {data.purchaseOrder.endDate ? ` running to ${data.purchaseOrder.endDate}` : ' open ended'}.
           An approved timesheet is the receipt: no receipt, no payment.
         </p>

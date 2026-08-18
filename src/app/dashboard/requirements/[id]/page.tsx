@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { range } from '@/lib/money-display'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 
@@ -100,12 +101,9 @@ function statusChip(s: string): { cls: string; text: string } {
   }
 }
 
-/** Rates are stored in cents throughout the schema. */
 function formatRate(min: number | null, max: number | null): string {
   if (min == null && max == null) return 'Not specified'
-  const d = (c: number) => Math.round(c / 100)
-  if (min != null && max != null) return `$${d(min)}–$${d(max)}/hr`
-  return `$${d((min ?? max)!)}/hr`
+  return range(min, max)
 }
 
 function formatAvail(date: string | null): string {

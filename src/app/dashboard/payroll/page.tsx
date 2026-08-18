@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { compact as formatRate } from '@/lib/money-display'
 import { DataTable, type Column } from '@/components/data-table'
 
 /**
@@ -107,9 +108,6 @@ function formatCents(cents: number): string {
   return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function formatRate(cents: number): string {
-  return `$${(cents / 100).toFixed(0)}`
-}
 
 // ── Page ─────────────────────────────────────────────
 

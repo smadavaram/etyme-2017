@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 import { useSession } from '@/components/session-provider'
@@ -629,7 +630,7 @@ function ContractDetailDrawer({
               <div>
                 <p className="stat-label">{drawerRateLabel}</p>
                 <p className="text-sm font-medium tabular-nums text-etyme-ink mt-0.5">
-                  ${(contract.rate / 100).toFixed(2)}/hr
+                  {compact(contract.rate)}/hr
                   <span className="text-etyme-faint text-[11px] ml-1">{contract.currency}</span>
                 </p>
               </div>
@@ -1043,7 +1044,7 @@ export default function ContractsPage() {
       align: 'right',
       render: (row) => (
         <span className="tabular-nums text-etyme-ink">
-          ${(row.rate / 100).toFixed(0)}<span className="text-etyme-faint">/hr</span>
+          {compact(row.rate)}<span className="text-etyme-faint">/hr</span>
         </span>
       ),
       sortValue: (row) => row.rate,

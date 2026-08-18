@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { fromUnits as fmtCurrency } from '@/lib/money-display'
 
 /**
  * Reports — Grow section (vendor)
@@ -79,9 +80,6 @@ interface ReportData {
 
 // ── Helpers ────────────────────────────────────────────
 
-function fmtCurrency(amount: number): string {
-  return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-}
 
 function fmtPercent(value: number): string {
   return value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%'

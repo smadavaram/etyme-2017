@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { compact } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 
@@ -345,7 +346,7 @@ export default function RolloffPage() {
                       {clientLabel(c.clientCompany, c.endClientCompany)}
                       {locationLabel(c.workLocation)}
                       {c.engagement && ` · ${c.engagement.title}`}
-                      {c.billRate != null && ` · $${(c.billRate / 100).toFixed(2)}/hr`}
+                      {c.billRate != null && ` · {compact(c.billRate)}/hr`}
                     </p>
                   </div>
                   <div className="text-right">
@@ -400,7 +401,7 @@ export default function RolloffPage() {
                         {clientLabel(event.clientCompany, event.endClientCompany)}
                         {locationLabel(event.workLocation)}
                         {event.engagement && ` · ${event.engagement.title}`}
-                        {event.billRate != null && ` · $${(event.billRate / 100).toFixed(2)}/hr`}
+                        {event.billRate != null && ` · {compact(event.billRate)}/hr`}
                       </p>
                     </div>
                     <div className="flex items-start gap-3">

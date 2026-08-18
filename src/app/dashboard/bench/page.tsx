@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
+import { range, compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
@@ -109,10 +110,14 @@ function availabilityStatus(availableFrom: string | null): { text: string; cls: 
   return { text: date.toLocaleDateString(), cls: 'text-etyme-muted', group: 'later' }
 }
 
+/**
+ * Bench rates are stored in cents, and this used to render them raw — a
+ * consultant asking $110/hr appeared on the bench as "$11000". Every other
+ * screen divided by a hundred; this one forgot, and nothing caught it
+ * because a plain number carries no unit.
+ */
 function formatRate(min: number | null, max: number | null): string {
-  if (min == null && max == null) return '—'
-  if (min != null && max != null && min !== max) return `$${min}–$${max}`
-  return `$${min ?? max}`
+  return range(min, max)
 }
 
 // ── Add Bench Listing Modal ─────────────────────────
@@ -873,7 +878,7 @@ function BenchBurnPanel({ data }: { data: BurnData }) {
                   </div>
                   <div className="flex items-center gap-4 tabular-nums">
                     <span className="text-etyme-muted">
-                      ${(e.payRate / 100).toFixed(0)}/hr
+                      {compact(e.payRate)}/hr
                     </span>
                     <span className="text-etyme-attention font-medium">
                       {fmtDollarsFull(e.dailyCost)}/day
