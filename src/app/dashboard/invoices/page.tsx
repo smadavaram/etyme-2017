@@ -887,7 +887,10 @@ export default function InvoicesPage() {
       label: 'Invoice',
       render: (row) => (
         <div>
-          <p className="font-medium text-etyme-ink font-mono text-[12px]">{row.number}</p>
+          <a href={`/dashboard/invoices/${row.id}`}
+            className="font-medium text-etyme-ink font-mono text-[12px] hover:text-etyme-action">
+            {row.number}
+          </a>
           <p className="text-[11px] text-etyme-faint truncate max-w-[140px]">
             {row.engagement.title}
           </p>
