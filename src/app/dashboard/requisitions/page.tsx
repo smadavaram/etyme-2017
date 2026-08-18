@@ -460,9 +460,10 @@ export default function RequisitionsPage() {
               <div key={r.id} className="bg-etyme-surface border border-etyme-rule rounded-lg p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <h3 className="font-serif text-xl text-etyme-ink tracking-[-0.02em] text-balance">
+                    <a href={`/dashboard/requisitions/${r.id}`}
+                      className="font-serif text-xl text-etyme-ink tracking-[-0.02em] text-balance hover:text-etyme-action">
                       {r.title}
-                    </h3>
+                    </a>
                     <div className="text-sm text-etyme-muted mt-1">
                       {r.headcount} position{r.headcount === 1 ? '' : 's'}
                       {r.location && ` · ${r.location}`}
