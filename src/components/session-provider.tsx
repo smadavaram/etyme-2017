@@ -24,7 +24,12 @@ export interface SessionCompany {
   kind: CompanyKind
 }
 
+/** Who the signed-in person is here. A consultant on a vendor's bench has
+ *  a company but is not of it — the type says so, the company does not. */
+export type ContextType = 'CONSULTANT' | 'EMPLOYEE' | 'PARTNER' | 'CLIENT_CONTACT' | 'PLATFORM_ADMIN'
+
 export interface SessionState {
+  contextType: ContextType | null
   person: { id: string | null; name: string; email: string } | null
   company: SessionCompany | null
   roleName: string | null
@@ -36,6 +41,7 @@ export interface SessionState {
 const EMPTY: SessionState = {
   person: null,
   company: null,
+  contextType: null,
   roleName: null,
   permissions: [],
   loading: true,
@@ -69,6 +75,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         const active = body.data?.activeContext ?? null
         const company = active?.company ?? null
+        const contextType = (active?.type ?? null) as ContextType | null
 
         setState({
           person: body.data?.person
@@ -78,6 +85,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
                 email: body.data.person.email ?? '',
               }
             : null,
+          contextType,
           company: company
             ? {
                 id: company.id,

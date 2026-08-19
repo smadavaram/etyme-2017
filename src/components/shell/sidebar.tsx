@@ -82,6 +82,25 @@ const VENDOR_NAV: NavSection[] = [
   },
 ]
 
+// A consultant is a person, not a company. CLAUDE.md gives them
+// "You → Grow" — their own work first, then what they could become.
+const CONSULTANT_NAV: NavSection[] = [
+  {
+    label: 'You',
+    items: [
+      { label: 'Your work', href: '/dashboard/my-work', icon: '◉' },
+      { label: 'Your profile', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
+    ],
+  },
+  {
+    label: 'Grow',
+    items: [
+      { label: 'Training', href: '/dashboard/training', icon: '◪' },
+    ],
+  },
+]
+
 const CLIENT_NAV: NavSection[] = [
   {
     label: 'Program',
@@ -112,7 +131,14 @@ const CLIENT_NAV: NavSection[] = [
  * MSP and GSI both sit on the supply side of a placement, so they take
  * the vendor nav until their own sections are specified (Phase 3/4).
  */
-function getNavForKind(kind: CompanyKind): NavSection[] {
+function getNavForKind(
+  kind: CompanyKind | null | undefined,
+  isConsultant: boolean
+): NavSection[] {
+  // A consultant is a context type, not an absent company. Somebody on a
+  // vendor's bench HAS a company — that is what a bench is — and keying on
+  // the company would show them their agency's payroll and buy contracts.
+  if (isConsultant || !kind) return CONSULTANT_NAV
   switch (kind) {
     case 'CLIENT': return CLIENT_NAV
     case 'MSP':
@@ -123,24 +149,30 @@ function getNavForKind(kind: CompanyKind): NavSection[] {
 }
 
 export function Sidebar({
-  companyKind = 'VENDOR',
+  companyKind,
   companyName,
   companyLabel,
+  isConsultant = false,
   pending = false,
 }: {
-  companyKind?: CompanyKind
+  /** Absent for a consultant, who has no company. */
+  companyKind?: CompanyKind | null
   companyName?: string
   companyLabel?: string
+  /** True when this person is on a bench rather than of the company. */
+  isConsultant?: boolean
   /** Session still loading — render the frame without nav items so the
    *  wrong company's navigation never flashes on screen. */
   pending?: boolean
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const sections = pending ? [] : getNavForKind(companyKind)
+  const sections = pending ? [] : getNavForKind(companyKind, isConsultant)
 
   // For client view, the "dashboard" link is /dashboard/program
-  const dashboardHref = companyKind === 'CLIENT' ? '/dashboard/program' : '/dashboard'
+  const dashboardHref = isConsultant
+    ? '/dashboard/my-work'
+    : companyKind === 'CLIENT' ? '/dashboard/program' : '/dashboard'
 
   return (
     <aside className="w-[220px] flex-shrink-0 h-screen sticky top-0 flex flex-col

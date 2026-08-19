@@ -134,6 +134,33 @@ export async function getCallerContext(
     }
   }
 
+  // ── Record that this access was actually used ──
+  //
+  // The access review reports grants nobody has touched, and a review built
+  // on a signal nothing writes is worse than no review: it says everything
+  // is dormant, so it gets ignored, and then the one real finding is
+  // ignored with it.
+  //
+  // Only grants with a role count. A seat with no permissions is somebody
+  // waiting, not somebody working, and marking their access as used would
+  // hide exactly the queue that needs attention.
+  //
+  // Written at most hourly. Every authenticated request passes through
+  // here, and a write per request to record "still here" is a lot of
+  // traffic for a field read once a quarter.
+  if (context.roleId) {
+    const stale =
+      !context.lastUsedAt ||
+      Date.now() - context.lastUsedAt.getTime() > 60 * 60 * 1000
+    if (stale) {
+      // Deliberately not awaited. Whether this lands is not worth delaying
+      // the caller's request for, and losing one is harmless.
+      prisma.context
+        .update({ where: { id: context.id }, data: { lastUsedAt: new Date() } })
+        .catch(() => {})
+    }
+  }
+
   return {
     caller: {
       person,
