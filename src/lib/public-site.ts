@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { reputationOf, type BuyerReputation } from '@/lib/buyer-reputation'
 import { releasing, summarise, mayShow, type RollingOff } from '@/lib/releasing-soon'
+import { writeFromRules, DEFAULT_HEADINGS, type SiteVoice } from '@/lib/site-voice'
 
 /**
  * What the world sees at cloudepa.etyme.com.
@@ -75,6 +76,12 @@ export interface PublicSite {
   inNetwork: boolean
   liveSince: string
 
+  /** The words on the page. Generated once, editable, never the facts. */
+  tagline: string
+  intro: string
+  headings: Record<string, string>
+  writtenBy: 'MODEL' | 'RULES' | 'PERSON'
+
   /** Buyer page: what a supplier can actually pick up. */
   openPositions: OpenPosition[]
   /** Buyer page: what they are like to work with. */
@@ -146,6 +153,32 @@ export function audienceFor(kind: string): Audience {
   return kind === 'CLIENT' || kind === 'MSP' || kind === 'GSI' ? 'SUPPLIERS' : 'TALENT_AND_BUYERS'
 }
 
+/**
+ * The words for this page.
+ *
+ * Whatever is stored wins, because somebody may have edited it and their
+ * page is theirs. Where nothing is stored — a company that signed up
+ * before this existed, or one whose generation failed — the rules write
+ * something from the same facts rather than leaving a blank.
+ */
+function voiceFor(
+  company: { siteTagline: string | null; siteIntro: string | null; siteHeadings: unknown; siteWrittenBy: string | null },
+  facts: Parameters<typeof writeFromRules>[0]
+): Pick<PublicSite, 'tagline' | 'intro' | 'headings' | 'writtenBy'> {
+  const fallback = writeFromRules(facts)
+  const stored = company.siteHeadings as Record<string, string> | null
+
+  return {
+    tagline: company.siteTagline ?? fallback.tagline,
+    intro: company.siteIntro ?? fallback.intro,
+    headings: { ...DEFAULT_HEADINGS, ...(stored ?? {}) },
+    writtenBy:
+      company.siteTagline === null
+        ? 'RULES'
+        : (company.siteWrittenBy as 'MODEL' | 'RULES' | 'PERSON' | null) ?? 'PERSON',
+  }
+}
+
 /** "3 weeks" reads better than a date somebody has to subtract from today. */
 function howLong(since: Date, now: Date): string {
   const days = Math.floor((now.getTime() - since.getTime()) / 86_400_000)
@@ -172,6 +205,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
     select: {
       id: true, name: true, slug: true, kind: true, supplierPosture: true,
       siteLiveAt: true, networkVerifiedAt: true, domain: true, domainVerified: true,
+      siteTagline: true, siteIntro: true, siteHeadings: true, siteWrittenBy: true,
       locations: {
         where: { isRemote: false },
         orderBy: [{ isPrimary: 'desc' }, { name: 'asc' }],
@@ -271,6 +305,20 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
 
     return {
       ...base,
+      // Computed here rather than earlier, so a company with no stored
+      // voice gets a fallback written from its real numbers rather than
+      // from zeroes.
+      ...voiceFor(company, {
+        name: base.name, kind: base.kind, posture: company.supplierPosture,
+        skills: base.skills.map((s) => s.skill),
+        locations: base.locations,
+        placements: base.track.placements,
+        activeNow: base.track.activeNow,
+        clients: base.track.clients,
+        openPositions: positions.length,
+        comingFree: 0,
+        trainingCourses: 0,
+      }),
       openPositions: positions.map((p) => ({
         id: p.id,
         title: p.title,
@@ -385,6 +433,17 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
 
   return {
     ...base,
+    ...voiceFor(company, {
+      name: base.name, kind: base.kind, posture: company.supplierPosture,
+      skills: base.skills.map((s) => s.skill),
+      locations: base.locations,
+      placements: base.track.placements,
+      activeNow: base.track.activeNow,
+      clients: base.track.clients,
+      openPositions: 0,
+      comingFree: free.length,
+      trainingCourses: courses.length,
+    }),
     openPositions: [],
     reputation: null,
     comingFree: free.map((r) => ({

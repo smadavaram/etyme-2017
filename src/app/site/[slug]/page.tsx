@@ -97,8 +97,14 @@ export default async function CompanySite({ params }: { params: Promise<{ slug: 
           <h1 className="font-serif text-5xl text-etyme-ink mt-3 tracking-[-0.02em] text-balance">
             {site.name}
           </h1>
-          <p className="text-[19px] text-etyme-muted mt-3 max-w-xl leading-relaxed">
-            {site.name} {site.does}.
+          {/* Their words, generated once from their own numbers and
+              editable. The facts further down are never generated — they
+              are read live, so nothing on this page can go stale. */}
+          <p className="text-[19px] text-etyme-ink mt-3 max-w-xl leading-relaxed">
+            {site.tagline}
+          </p>
+          <p className="text-[15px] text-etyme-muted mt-3 max-w-xl leading-relaxed">
+            {site.intro}
           </p>
           {site.verifiedDomain && (
             <p className="text-[13px] text-etyme-verified mt-4">Verified as {site.verifiedDomain}</p>
@@ -142,7 +148,7 @@ function ForSuppliers({ site }: { site: PublicSite }) {
       <Rule />
       <section>
         <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">
-          Open to any supplier
+          {site.headings.openPositions ?? 'Open to any supplier'}
         </h2>
 
         {site.openPositions.length === 0 ? (
@@ -194,7 +200,7 @@ function ForSuppliers({ site }: { site: PublicSite }) {
           <Rule />
           <section>
             <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">
-              What they are like to work with
+              {site.headings.reputation ?? 'What they are like to work with'}
             </h2>
             {/* The thing no VMS publishes, because every VMS is bought by
                 the buyer. It is the buyer's largest cost to a supplier. */}
@@ -234,7 +240,7 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
           <Rule />
           <section>
             <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">
-              Coming free
+              {site.headings.comingFree ?? 'Coming free'}
             </h2>
             <p className="text-[15px] text-etyme-muted mt-1.5 max-w-xl leading-relaxed">
               {site.comingFreeSummary}
@@ -318,7 +324,7 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
         <>
           <Rule />
           <section>
-            <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">What they place</h2>
+            <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">{site.headings.skills ?? 'What they place'}</h2>
             <p className="text-[13px] text-etyme-muted mt-1">
               From the consultants they represent, not from a description.
             </p>
@@ -348,7 +354,7 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
           <Rule />
           <section>
             <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">
-              Training they run
+              {site.headings.training ?? 'Training they run'}
             </h2>
             <p className="text-[13px] text-etyme-muted mt-1 max-w-lg">
               Open to consultants on their bench.
@@ -379,7 +385,7 @@ function Credentials({ site }: { site: PublicSite }) {
     <>
       <Rule />
       <section>
-        <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">What they hold</h2>
+        <h2 className="font-serif text-2xl text-etyme-ink tracking-[-0.02em]">{site.headings.credentials ?? 'What they hold'}</h2>
         <div className="mt-5 space-y-2">
           {site.credentials.map((c) => (
             <div key={c.what} className="flex items-baseline justify-between gap-4 max-w-md">

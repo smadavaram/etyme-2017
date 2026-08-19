@@ -11,6 +11,7 @@ import {
 import { notifyBulk } from '@/lib/notify'
 import { defaultsFor } from '@/lib/company-defaults'
 import { holidaysFor } from '@/lib/holidays'
+import { writeFromRules } from '@/lib/site-voice'
 
 /**
  * GET  /api/onboarding — what happens when this person signs in
@@ -337,6 +338,35 @@ export async function POST(request: NextRequest) {
     },
   })
 
+  // Words for their page, written from what they just told us. A company
+  // with a live address and no words on it is the ninety-second promise
+  // half kept.
+  //
+  // Written by rule at sign-up rather than by model, because sign-up must
+  // not wait on a third party — and because on day one there is almost
+  // nothing to say beyond what they are and where. They can have it
+  // written properly from settings once there is something to write about.
+  const voice = writeFromRules({
+    name: company.name,
+    kind: company.kind,
+    posture: company.supplierPosture,
+    skills: [],
+    locations: [],
+    placements: 0, activeNow: 0, clients: 0,
+    openPositions: 0, comingFree: 0, trainingCourses: 0,
+  })
+
+  await prisma.company.update({
+    where: { id: company.id },
+    data: {
+      siteTagline: voice.tagline,
+      siteIntro: voice.intro,
+      siteHeadings: voice.headings as any,
+      siteWrittenBy: 'RULES',
+      siteWrittenAt: new Date(),
+    },
+  })
+
   // The domain becomes a claim rather than the company's identity. AUTO,
   // because the person creating a company from their work address is
   // saying everybody on it works there — and that is exactly the case the
@@ -450,6 +480,9 @@ export async function POST(request: NextRequest) {
           roles: createdRoles.map((r) => r.name),
           country: kit.country,
           holidaysSeeded: kit.seedHolidays,
+          // What their page says on day one, so they can see it rather
+          // than discover it.
+          siteTagline: voice.tagline,
         },
         // Everything after this is enrichment and skippable (BUILD.md §4A).
         message: `${company.name} is live at ${company.slug}.etyme.com. Anyone else from ${decision.domain} who signs in will join you.`,

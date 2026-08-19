@@ -185,26 +185,42 @@ model AccessLog {
 // ─────────────────────────────────────────────
 
 model Company {
-  id                  String      @id @default(cuid())
-  name                String
-  slug                String      @unique // {slug}.etyme.com — 2017 create_slug, collision numbered
-  domain              String?     @unique
-  domainVerified      Boolean     @default(false) // true when it came from an OAuth tenant
-  kind                CompanyKind
-  entityType          String?
-  templatePack        String? // US_IT · US_SAP · IN_DELIVERY · UK
+  id              String      @id @default(cuid())
+  name            String
+  slug            String      @unique // {slug}.etyme.com — 2017 create_slug, collision numbered
+  domain          String?     @unique
+  domainVerified  Boolean     @default(false) // true when it came from an OAuth tenant
+  kind            CompanyKind
+  entityType      String?
+  templatePack    String? // US_IT · US_SAP · IN_DELIVERY · UK
   // Where a supplier sits in the chain when they sign up: PRIME holds the
   // client agreement, BENCH sells through other suppliers. The same company
   // is often both — Infosys is prime to one client and buys bench from
   // three firms in the same week — so this shapes the first screens and can
   // be changed without migrating anything. Null for clients and MSPs.
-  supplierPosture     String?
-  currency            String      @default("USD")
+  supplierPosture String?
+  currency        String      @default("USD")
   // Where this company's people are already looking. When it is set,
   // business notifications post there; when it is not, they fall back to
   // email, and when there is no email either the notification says so
   // rather than sitting in the app pretending it was sent.
-  teamsWebhookUrl     String?
+  teamsWebhookUrl String?
+
+  /// The words on their public page.
+  ///
+  /// Written once at sign-up from what they actually are, and editable
+  /// afterwards. Only the voice is stored — the facts on the page are read
+  /// live from the same rows the dashboard reads, so nothing here can go
+  /// out of date. A generated sentence about a company is a claim, and a
+  /// claim that outlives its truth is worse than a plain page.
+  siteTagline         String?
+  siteIntro           String?
+  /// Section names in their register rather than ours.
+  siteHeadings        Json?
+  /// MODEL or RULES, so a generated page is never mistaken for one
+  /// somebody wrote.
+  siteWrittenBy       String?
+  siteWrittenAt       DateTime?
   // What this company does by default when no signed agreement says
   // otherwise. Sits under the master agreement in the cascade
   // (src/lib/billing-cascade.ts) and above the platform's own assumption.
@@ -212,10 +228,10 @@ model Company {
   /// Whether invoices to this company must quote a purchase order. Set at
   /// the company because it is an accounts-payable policy, not a
   /// per-supplier negotiation.
-  poRequired          Boolean     @default(false)
+  poRequired          Boolean   @default(false)
   siteLiveAt          DateTime? // the ninety second promise
   networkVerifiedAt   DateTime? // visibility to other companies waits for this
-  createdAt           DateTime    @default(now())
+  createdAt           DateTime  @default(now())
 
   contexts           Context[]
   roles              Role[]
@@ -755,7 +771,7 @@ model Submission {
   /// is the number a supplier cares about most — a candidate waiting on a
   /// decision is a candidate being placed somewhere else — and inferring
   /// it from a row's last write would report every decision as instant.
-  decidedAt     DateTime?
+  decidedAt DateTime?
 
   @@unique([requirementId, personId]) // enforces the duplicate rule
   @@index([fromCompanyId, status])
