@@ -14,6 +14,7 @@ import {
   type Finding,
 } from '@/lib/watch'
 import { packetByKey, resolveItems, itemsToAsk, type HeldDocument } from '@/lib/packets'
+import { sweepExpired } from '@/lib/holds'
 
 /**
  * GET /api/cron/watch
@@ -43,6 +44,12 @@ export async function GET(request: NextRequest) {
   const now = new Date()
   const dry = request.nextUrl.searchParams.get('dry') === '1'
 
+  // Holds that have run their thirty days go back before anything else
+  // runs, so nobody is reported as represented by an agency that stopped
+  // trying a month ago. Reads elsewhere already filter on the clock — this
+  // is what makes the rows themselves honest.
+  const holdsFreed = dry ? 0 : await sweepExpired(undefined, undefined, now)
+
   const findings = ordered([
     ...(await lookAtVerifications(now)),
     ...(await lookAtPurchaseOrders(now)),
@@ -54,7 +61,12 @@ export async function GET(request: NextRequest) {
   // rather than as a cheerful all-clear.
   if (findings.length === 0) {
     return NextResponse.json({
-      data: { found: 0, acted: 0, told: 0, summary: 'Nothing worth anybody’s attention.' },
+      data: {
+        found: 0, acted: 0, told: 0, holdsFreed,
+        summary: holdsFreed > 0
+          ? `${holdsFreed} representation ${holdsFreed === 1 ? 'hold' : 'holds'} went back. Nothing else worth anybody’s attention.`
+          : 'Nothing worth anybody’s attention.',
+      },
     })
   }
 
@@ -82,6 +94,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       found: findings.length,
+      holdsFreed,
       blocking: findings.filter((f) => f.urgency === 'BLOCKING').length,
       acted,
       told,

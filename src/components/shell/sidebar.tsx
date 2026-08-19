@@ -96,6 +96,7 @@ const CONSULTANT_NAV: NavSection[] = [
       { label: 'Your work', href: '/dashboard/my-work', icon: '◉' },
       { label: 'Your profile', href: '/dashboard/consultants', icon: '◌' },
       { label: 'Your page', href: '/dashboard/my-page', icon: '◐' },
+      { label: 'Who has you', href: '/dashboard/my-benches', icon: '◈' },
       { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
     ],
   },

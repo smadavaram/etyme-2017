@@ -26,6 +26,18 @@ describe('the invariants CLAUDE.md puts in the database', () => {
     expect(model('Submission')).toMatch(/@@unique\(\[requirementId,\s*personId\]\)/)
   })
 
+  it('lets one agency represent one person at one client, and no more', () => {
+    // Two vendors submitting the same person to the same client in the
+    // same week gets both rejected and burns the consultant. A route
+    // check would hold until somebody adds a second route or two
+    // recruiters press submit in the same second.
+    expect(model('Representation')).toMatch(/@@unique\(\[personId,\s*holdKey\]\)/)
+  })
+
+  it('keeps a person from being sent to the same client twice on their own list', () => {
+    expect(model('DoNotSubmit')).toMatch(/@@unique\(\[personId,\s*companyId\]\)/)
+  })
+
   it('bills a timesheet at most once, ever', () => {
     // Anti-double-billing lives in the column, not in a check somebody can
     // forget to call.

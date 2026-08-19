@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { clientOf, endHoldsForSubmission } from '@/lib/holds'
+import { notify } from '@/lib/notify'
 
 /**
  * PATCH /api/submissions/:id/status
@@ -47,7 +49,7 @@ export async function PATCH(
     where: { id },
     include: {
       person: { select: { id: true, name: true } },
-      requirement: { select: { id: true, title: true } },
+      requirement: { select: { id: true, title: true, companyId: true, endClientCompanyId: true } },
       fromCompany: { select: { id: true, name: true } },
     },
   })
@@ -104,10 +106,35 @@ export async function PATCH(
     }),
   ])
 
+  // Give the hold back the moment this vendor stops trying.
+  //
+  // A hold is permission to be representing somebody, not a parking space.
+  // Somebody rejected on Monday should be free to be put forward by another
+  // agency on Monday, rather than sitting out the rest of the month because
+  // the vendor who lost still holds them.
+  const freed = await endHoldsForSubmission({
+    personId: submission.personId,
+    companyId: submission.fromCompany.id,
+    clientCompanyId: clientOf(submission.requirement),
+    submissionStatus: status,
+  })
+
+  if (freed) {
+    void notify({
+      personId: submission.personId,
+      type: 'SUBMISSION',
+      title: `${submission.fromCompany.name} no longer holds you here`,
+      body: `${freed} Another agency can put you forward to this client again.`,
+      entityId: id,
+      data: { submissionId: id },
+    })
+  }
+
   return NextResponse.json({
     data: {
       id,
       status,
+      holdReleased: freed,
       message: `Submission ${status.toLowerCase()}`,
     },
   })

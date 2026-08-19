@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-consultant'
 import { getCallerContext } from '@/lib/api-context'
 import {
   hasPermission,
@@ -75,6 +76,13 @@ export async function GET(
         },
       },
       matches: {
+        // Matches against requirements this caller can actually see.
+        //
+        // A match names a role somebody is being considered for. Left
+        // unscoped it tells a rival agency which client is looking at
+        // their shared consultant and how well they scored — the same leak
+        // as the contract list, one relation over.
+        where: matchScopeFor({ isSubject: false, companyId: caller.company?.id }) ?? {},
         select: {
           id: true,
           requirementId: true,
@@ -101,6 +109,11 @@ export async function GET(
   const isSubject = profile.personId === caller.person.id
   const companyId = caller.company?.id
 
+  // A caller with no company is a consultant. They may see their own
+  // matches and nobody else's; the query above could not know whose
+  // profile this was yet.
+  const matches = companyId || isSubject ? profile.matches : []
+
   // Write AccessLog — every read of another person's data
   if (!isSubject) {
     await prisma.accessLog.create({
@@ -124,8 +137,8 @@ export async function GET(
 
   // Filter listings to only those visible to the caller's company
   // (their own company's listings, or listings from the consultant themselves)
-  const visibleListings = profile.listings.filter(
-    (l) => isSubject || l.companyId === companyId
+  const visibleListings = profile.listings.filter((l) =>
+    maySeeListing({ isSubject, companyId }, l.companyId)
   )
 
   // Active sell contracts for this consultant (if caller has assignments.read)
@@ -135,6 +148,10 @@ export async function GET(
       where: {
         personId: profile.personId,
         state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
+        // Only contracts this caller is actually party to. A consultant is
+        // on several benches at once, and this read used to hand every
+        // placement they have ever had to any of them.
+        ...contractScopeFor({ isSubject, companyId }),
       },
       select: {
         id: true,
@@ -194,7 +211,7 @@ export async function GET(
           rateMax: showCost ? l.rateMax : undefined,
           grantedAt: l.grantedAt.toISOString(),
         })),
-        matches: profile.matches.map((m) => ({
+        matches: matches.map((m) => ({
           id: m.id,
           requirementId: m.requirementId,
           score: m.score,

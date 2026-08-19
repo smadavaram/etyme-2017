@@ -57,6 +57,8 @@ model Person {
   packetItemsReviewed    PacketItem[]           @relation("packetItemReviewer")
   serviceAccountsCreated ServiceAccount[]       @relation("serviceAccountCreator")
   customDomainsAdded     CustomDomain[]         @relation("customDomainAdder")
+  representations        Representation[]
+  doNotSubmit            DoNotSubmit[]
 }
 
 model Credential {
@@ -274,6 +276,10 @@ model Company {
   holidays           Holiday[]
   // End-client contracts (where consultants actually work, when ≠ billing client)
   endClientContracts SellContract[]          @relation("sellEndClient")
+  endClientRequirements Requirement[]        @relation("requirementEndClient")
+  representationsHeld   Representation[]     @relation("representingVendor")
+  representationsAt     Representation[]     @relation("representedAtClient")
+  doNotSubmitTo         DoNotSubmit[]        @relation("doNotSubmitCompany")
   // Finance dimensions — owned per company, never shared across parties
   costCenters        CostCenter[]
   posIssued          PurchaseOrder[]         @relation("poIssuer")
@@ -474,6 +480,15 @@ model BenchListing {
   /// they can say no without withdrawing the listing.
   showBeforeFree Boolean @default(true)
 
+  /// Whether this company must ask before putting them in front of a client.
+  ///
+  /// Off by default: somebody who grants a bench listing is asking to be
+  /// marketed, and making every submission wait on a reply would send the
+  /// vendor back to email. On, it turns each new client into a question the
+  /// person answers — which is what somebody with a current client to
+  /// protect, or one bad experience behind them, will want.
+  askFirst Boolean @default(false)
+
   @@unique([consultantId, companyId])
   @@index([companyId, revokedAt])
 }
@@ -585,6 +600,15 @@ model Requirement {
   /// band, and a public page is the most public recipient there is.
   openToNetwork Boolean @default(false)
 
+  /// Where the work actually is, when it is not the company posting it.
+  ///
+  /// An MSP or a prime posts a requirement for somebody else's site. Two
+  /// primes feeding the same end client is exactly the case where the same
+  /// consultant gets submitted twice and loses the role, so the hold has to
+  /// key on the end client where it is known.
+  endClientCompanyId String?
+  endClientCompany   Company? @relation("requirementEndClient", fields: [endClientCompanyId], references: [id])
+
   // ── Demand side (Addendum E) ──
   // A requisition raised by the client, as opposed to a requirement a vendor
   // records against demand it heard about. Same object, two origins: the
@@ -621,6 +645,9 @@ model Requirement {
   @@index([raisedById])
   @@index([orgUnitId])
   @@index([costCenterId])
+  representations Representation[]
+
+  @@index([endClientCompanyId])
 }
 
 // ─────────────────────────────────────────────
@@ -811,6 +838,83 @@ model Submission {
   @@unique([requirementId, personId]) // enforces the duplicate rule
   @@index([fromCompanyId, status])
   @@index([toCompanyId, status])
+}
+
+/// One vendor representing one person at one client.
+///
+/// The 2017 answer to a consultant being on several benches was to forbid
+/// it: accepting one bench invitation auto-rejected every other pending one
+/// (`job_invitation.rb` reject_request), so somebody belonged to whichever
+/// recruiter asked first. People kept their other benches off the platform
+/// instead, which left the data wrong about the one thing it needed to be
+/// right about.
+///
+/// Benches are not exclusive here. This is, because this is where sharing
+/// actually costs somebody: two vendors submitting the same person to the
+/// same client in the same week gets both rejected and the consultant never
+/// finds out why.
+///
+/// Taken automatically at submission — no form, no signature — and given
+/// back the moment the vendor stops trying.
+model Representation {
+  id              String  @id @default(cuid())
+  personId        String
+  person          Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  /// The vendor doing the representing.
+  companyId       String
+  company         Company @relation("representingVendor", fields: [companyId], references: [id], onDelete: Cascade)
+  /// The client they are held at. The end client where that is known,
+  /// because two primes feeding one site is the case this exists for.
+  clientCompanyId String
+  clientCompany   Company @relation("representedAtClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+  /// The role it started with. Context for the person, not a constraint —
+  /// the hold covers the client, not one requisition.
+  requirementId   String?
+  requirement     Requirement? @relation(fields: [requirementId], references: [id])
+
+  state       String    @default("HELD") // HELD · REQUESTED · RELEASED · EXPIRED · DECLINED
+  takenAt     DateTime  @default(now())
+  expiresAt   DateTime
+  endedAt     DateTime?
+  /// Said in plain English, because the person reads this.
+  endedReason String?
+  /// Who gave it back: the vendor, the person, or the system on expiry.
+  endedBy     String?
+
+  /// Set to clientCompanyId while the hold is live, null once it is not.
+  ///
+  /// The uniqueness below is the whole invariant, and it has to be the
+  /// database's rather than the route's — a second route, an import, or a
+  /// retry under load would otherwise put two vendors on the same person at
+  /// the same client, which is the exact thing this prevents.
+  holdKey String?
+
+  @@unique([personId, holdKey])
+  @@index([companyId, state])
+  @@index([personId, state])
+  @@index([clientCompanyId, state])
+  @@index([requirementId])
+}
+
+/// A client this person will not be put in front of.
+///
+/// Theirs, and no vendor may see the reason. Most of them are "that is my
+/// current client" and the rest are nobody's business. A vendor is told the
+/// submission cannot be made and nothing else, because "they have blocked
+/// you" and "they have blocked somebody" are both more than a vendor needs
+/// and enough to start an argument the person should not have to have.
+model DoNotSubmit {
+  id        String  @id @default(cuid())
+  personId  String
+  person    Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  companyId String
+  company   Company @relation("doNotSubmitCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  /// Their own note to themselves. Never leaves their own screen.
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([personId, companyId])
+  @@index([personId])
 }
 
 // Computed from ownership, never chosen by the user. 2017 console_controller.

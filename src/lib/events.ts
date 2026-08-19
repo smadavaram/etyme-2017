@@ -46,6 +46,11 @@ export const EVENT_TYPES = [
   'submission.awarded',
   'submission.rejected',
 
+  // Representation — who may put a person in front of a client
+  'representation.requested',
+  'representation.taken',
+  'representation.released',
+
   // Contracts
   'contract.created',
   'contract.extended',

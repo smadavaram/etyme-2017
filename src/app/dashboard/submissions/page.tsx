@@ -221,6 +221,13 @@ function SubmitToRequirementModal({
         setError(firstResult.error)
         return
       }
+      // Somebody else is already representing them at this client. Not an
+      // error anybody made — the recruiter may well want to wait for the
+      // hold to lapse, and the message says how long that is.
+      if (firstResult?.status === 'held') {
+        setError(firstResult.error)
+        return
+      }
 
       onCreated()
       onClose()

@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
-import { notifyBulk, type NotifyParams } from '@/lib/notify'
+import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
+import { clientOf, maySubmit, askFor, takeHold } from '@/lib/holds'
+import { tellThem } from '@/lib/representation'
 
 /**
  * POST /api/submissions
@@ -67,7 +69,12 @@ export async function POST(request: NextRequest) {
   // Verify requirement exists and is open
   const requirement = await prisma.requirement.findUnique({
     where: { id: requirementId },
-    select: { id: true, companyId: true, status: true, title: true },
+    select: {
+      id: true, companyId: true, status: true, title: true,
+      endClientCompanyId: true,
+      company: { select: { name: true } },
+      endClientCompany: { select: { name: true } },
+    },
   })
 
   if (!requirement) {
@@ -85,6 +92,20 @@ export async function POST(request: NextRequest) {
   }
 
   const toCompanyId = requirement.companyId
+
+  // Who the hold is against. The end client where it is known, because an
+  // MSP and a prime feeding the same site is exactly the case where one
+  // person gets submitted twice and loses the role.
+  const clientCompanyId = clientOf(requirement)
+  const clientName = requirement.endClientCompany?.name ?? requirement.company.name
+
+  // The submitting company, by name. Said to the consultant, never to
+  // another vendor.
+  const fromCompany = await prisma.company.findUnique({
+    where: { id: fromCompanyId },
+    select: { name: true },
+  })
+  const vendorName = fromCompany?.name ?? 'An agency'
   // The band this vendor was given, if any. Read once for the whole batch.
   //
   // Addendum E lists rate band under WARN, not BLOCK: "WARN, capture a
@@ -156,6 +177,71 @@ export async function POST(request: NextRequest) {
         continue
       }
 
+      // 2b. May this vendor put this person in front of this client at all?
+      //
+      // A listing is permission to market somebody. It is not permission to
+      // send them anywhere, and the difference is what stops a consultant
+      // being burned: two vendors submitting the same name to the same
+      // client in the same week gets both rejected, and the person never
+      // finds out why.
+      //
+      // The refusal never says who else is involved. A consultant is on ten
+      // benches and that is nobody's business but theirs.
+      const verdict = await maySubmit({
+        personId,
+        companyId: fromCompanyId,
+        clientCompanyId,
+      })
+
+      if (!verdict.ok) {
+        item.status = verdict.code === 'HELD_ELSEWHERE' ? 'held' : 'error'
+        item.code = verdict.code
+        item.error = verdict.message
+
+        // Somebody who wants to be asked gets asked, here, once.
+        if (verdict.code === 'ASK_FIRST') {
+          const asked = await askFor({
+            personId,
+            companyId: fromCompanyId,
+            clientCompanyId,
+            requirementId,
+          })
+          if (asked) {
+            void emit({
+              type: 'representation.requested',
+              companyId: fromCompanyId,
+              subjectType: 'Representation',
+              subjectId: asked.id,
+              actorPersonId: submitter?.id ?? null,
+              payload: { personId, clientCompanyId, requirementId },
+            })
+            void notify({
+              personId,
+              type: 'SUBMISSION',
+              title: 'An agency wants to put you forward',
+              body: `${vendorName} would like to submit you to ${clientName} for ${requirement.title}. They cannot until you say yes.`,
+              entityId: asked.id,
+              data: { representationId: asked.id, clientCompanyId, requirementId },
+            })
+          }
+        }
+
+        // A refused submission is still a read of somebody's data, and
+        // CLAUDE.md says refusals are logged too.
+        await prisma.accessLog.create({
+          data: {
+            subjectId: personId,
+            actorCompanyId: fromCompanyId,
+            action: 'SUBMIT',
+            allowed: false,
+            reason: verdict.message,
+          },
+        })
+
+        results.push(item)
+        continue
+      }
+
       // 3. Check for duplicate — unique on (requirementId, personId)
       const existing = await prisma.submission.findUnique({
         where: {
@@ -194,6 +280,57 @@ export async function POST(request: NextRequest) {
           status: 'SUBMITTED',
         },
       })
+
+      // 5b. Take the hold, now that there is something to hold for.
+      //
+      // After the submission rather than before: a hold taken for a
+      // submission that then failed would keep somebody out of a client's
+      // pipeline for a month for nothing.
+      const held = await takeHold({
+        personId,
+        companyId: fromCompanyId,
+        clientCompanyId,
+        requirementId,
+      })
+
+      if (held) {
+        item.heldUntil = held.expiresAt.toISOString().slice(0, 10)
+        item.note = verdict.ok ? verdict.note : undefined
+
+        void emit({
+          type: 'representation.taken',
+          companyId: fromCompanyId,
+          subjectType: 'Representation',
+          subjectId: held.id,
+          actorPersonId: submitter?.id ?? null,
+          payload: { personId, clientCompanyId, requirementId, expiresAt: held.expiresAt.toISOString() },
+        })
+
+        // Told, every time, with the client named. The vendor's
+        // competitors are kept in the dark; the person never is. Being
+        // marketed somewhere you did not know about is the complaint all
+        // of this exists to answer.
+        void notify({
+          personId,
+          type: 'SUBMISSION',
+          title: `${vendorName} put you forward to ${clientName}`,
+          body: tellThem({
+            vendorName,
+            clientName,
+            roleTitle: requirement.title,
+            hold: {
+              companyId: fromCompanyId,
+              clientCompanyId,
+              state: 'HELD',
+              takenAt: new Date(),
+              expiresAt: held.expiresAt,
+            },
+            now: new Date(),
+          }),
+          entityId: submission.id,
+          data: { submissionId: submission.id, clientCompanyId, requirementId },
+        })
+      }
 
       // The band is advisory, so the submission stands and the warning
       // travels with it — the client sees why it is off-band rather than
@@ -262,6 +399,10 @@ export async function POST(request: NextRequest) {
   const created = results.filter((r) => r.status === 'created')
   const errors = results.filter((r) => r.status === 'error')
   const duplicates = results.filter((r) => r.status === 'duplicate')
+  // Stopped because another agency is already representing them there.
+  // Counted apart from errors: nobody did anything wrong, and the vendor
+  // may well want to wait for the hold to lapse.
+  const held = results.filter((r) => r.status === 'held')
 
   // Notify the requirement owner about new submissions
   if (created.length > 0) {
@@ -308,10 +449,16 @@ export async function POST(request: NextRequest) {
       summary: {
         submitted: created.length,
         duplicates: duplicates.length,
+        heldElsewhere: held.length,
         errors: errors.length,
         total: personIds.length,
       },
-      message: `${created.length} submitted, ${duplicates.length} duplicates, ${errors.length} errors`,
+      message: [
+        `${created.length} submitted`,
+        `${duplicates.length} duplicates`,
+        held.length > 0 ? `${held.length} already represented elsewhere` : null,
+        `${errors.length} errors`,
+      ].filter(Boolean).join(', '),
     },
   })
 }

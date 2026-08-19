@@ -67,6 +67,8 @@ async function main() {
     prisma.sellContract.deleteMany(),
     prisma.buyContract.deleteMany(),
     prisma.engagement.deleteMany(),
+    prisma.representation.deleteMany(),
+    prisma.doNotSubmit.deleteMany(),
     prisma.benchListing.deleteMany(),
     prisma.consultantProfile.deleteMany(),
     prisma.requirement.deleteMany(),
@@ -748,6 +750,11 @@ async function main() {
     const req = await prisma.requirement.create({
       data: {
         companyId: vendor.id,
+        // Demand the vendor heard about, recorded against the client whose
+        // site the work is actually at. Without this the requirement says
+        // only who wrote it down, and everything that keys on the client —
+        // the representation hold above all — keys on the wrong company.
+        endClientCompanyId: client.id,
         title: r.title,
         skills: r.skills,
         location: r.location,
@@ -913,6 +920,101 @@ async function main() {
       },
     })
   }
+
+  // ── Representation holds ───────────────────────
+  //
+  // One agency represents one person at one client while they are actually
+  // working it. Written from the submissions above rather than invented, so
+  // the holds and the pipeline agree with each other.
+  //
+  // A submission that has been answered leaves no hold: the vendor has
+  // stopped trying and the person is free the same day.
+  const stillTrying = ['SUBMITTED', 'SHORTLISTED', 'INTERVIEW']
+  const heldAlready = new Set<string>()
+
+  for (const s of submissionData) {
+    if (!stillTrying.includes(s.status)) continue
+    const personId = people[s.personIdx].id
+    // Keyed the same way the running system keys it: the end client where
+    // the work is, not whoever wrote the requirement down.
+    const req = requirementRecords[s.reqIdx]
+    const clientCompanyId = req.endClientCompanyId ?? req.companyId
+    // One hold per person per client — the database enforces it, and the
+    // seed should not be the thing that discovers that.
+    const key = `${personId}:${clientCompanyId}`
+    if (heldAlready.has(key)) continue
+    heldAlready.add(key)
+
+    const takenAt = new Date(now)
+    takenAt.setDate(takenAt.getDate() - s.daysAgo)
+
+    await prisma.representation.create({
+      data: {
+        personId,
+        companyId: vendor.id,
+        clientCompanyId,
+        requirementId: req.id,
+        state: 'HELD',
+        takenAt,
+        expiresAt: new Date(takenAt.getTime() + 30 * 86_400_000),
+        holdKey: clientCompanyId,
+      },
+    })
+  }
+
+  // A second agency marketing the same person, which is the ordinary case
+  // and the one 2017 forbade outright. Neither agency can see the other.
+  const secondVendor = await prisma.company.create({
+    data: {
+      name: 'Northwind Talent',
+      slug: 'northwind-talent',
+      kind: 'VENDOR',
+      supplierPosture: 'PRIME',
+      currency: 'USD',
+      siteLiveAt: new Date(),
+    },
+  })
+
+  await prisma.benchListing.create({
+    data: {
+      consultantId: profiles[2].id, // Anita Desai
+      companyId: secondVendor.id,
+      tier: 'MARKETING',
+      rateMin: 10500,
+      rateMax: 12000,
+      // She wants to be asked before this one sends her anywhere new.
+      askFirst: true,
+    },
+  })
+
+  // A recruiter there, so the other side of the story can be opened and
+  // looked at: what a rival agency sees of a consultant they share. It
+  // should be their own listing and nothing else.
+  const secondVendorRole = await prisma.role.create({
+    data: {
+      companyId: secondVendor.id,
+      name: 'Recruiter',
+      permissions: [
+        'consultants.read', 'consultants.write',
+        'requirements.read', 'submissions.read', 'submissions.create',
+        'assignments.read',
+      ],
+      isDefault: true,
+    },
+  })
+
+  const secondVendorOwner = await prisma.person.create({
+    data: { name: 'Dana Whitfield', primaryEmail: 'dana@northwindtalent.com' },
+  })
+
+  await prisma.context.create({
+    data: {
+      personId: secondVendorOwner.id,
+      type: 'EMPLOYEE',
+      companyId: secondVendor.id,
+      roleId: secondVendorRole.id,
+    },
+  })
 
   // ── Engagements ────────────────────────────────
   const eng1 = await prisma.engagement.create({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { clientOf, releaseAllAt } from '@/lib/holds'
 import { emit } from '@/lib/events'
 import { resolveBillingTerms } from '@/lib/billing-cascade'
 import { evaluateGovernance } from '@/lib/governance'
@@ -332,6 +333,19 @@ export async function POST(
     }
 
     return { contract, standDown, passedOver }
+  })
+
+  // The hold has done its job. Ending it matters as much as taking it:
+  // a placed consultant who is still held cannot be put forward by
+  // anybody for a second role at the same client, including by the agency
+  // that placed them under a different listing.
+  //
+  // Everybody who was holding them here, not only the winner — the ones
+  // who lost have plainly stopped trying.
+  await releaseAllAt({
+    personId: submission.personId,
+    clientCompanyId: clientOf(req),
+    reason: 'They were placed at this client, so every hold here went back.',
   })
 
   await prisma.automationLog.create({
