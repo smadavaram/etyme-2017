@@ -521,6 +521,19 @@ model Requirement {
   marginClass String? // ARBITRAGE · EXPERTISE — distinguishes opacity-based vs capability-based margin
   rateVisible Boolean          @default(false) // vendor rate visibility setting, inherited by contracts
 
+  /// Whether any supplier may see this, or only the ones invited.
+  ///
+  /// Invite-only by default, because a client's hiring plan is commercially
+  /// sensitive and publishing it should be a decision rather than a
+  /// surprise. Set true and it appears on the company's public page, where
+  /// a supplier they have never met can find it — which is how the demand
+  /// side pulls the supply side in.
+  ///
+  /// Rates are never published with it. What each supplier may charge lives
+  /// on RequirementInvitation precisely so no recipient reads another's
+  /// band, and a public page is the most public recipient there is.
+  openToNetwork Boolean @default(false)
+
   // ── Demand side (Addendum E) ──
   // A requisition raised by the client, as opposed to a requirement a vendor
   // records against demand it heard about. Same object, two origins: the
@@ -552,6 +565,7 @@ model Requirement {
   submissions Submission[]
 
   @@index([companyId, status])
+  @@index([openToNetwork, status])
   @@index([msaId])
   @@index([raisedById])
   @@index([orgUnitId])
@@ -734,6 +748,14 @@ model Submission {
   contractType  ContractType?
   status        String         @default("SUBMITTED")
   submittedAt   DateTime       @default(now()) // first timestamp wins on a duplicate
+
+  /// When the buyer said yes or no. Null while they still have not.
+  ///
+  /// A real column rather than a proxy. How long a client takes to decide
+  /// is the number a supplier cares about most — a candidate waiting on a
+  /// decision is a candidate being placed somewhere else — and inferring
+  /// it from a row's last write would report every decision as instant.
+  decidedAt     DateTime?
 
   @@unique([requirementId, personId]) // enforces the duplicate rule
   @@index([fromCompanyId, status])

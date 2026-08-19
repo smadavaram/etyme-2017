@@ -32,6 +32,8 @@ async function main() {
     prisma.documentShareAccess.deleteMany(),
     prisma.documentShareItem.deleteMany(),
     prisma.documentShare.deleteMany(),
+    prisma.enrollment.deleteMany(),
+    prisma.course.deleteMany(),
     prisma.governanceRule.deleteMany(),
     prisma.governancePolicy.deleteMany(),
     prisma.verificationDoc.deleteMany(),
@@ -752,6 +754,72 @@ async function main() {
       },
     })
     requirementRecords.push(req)
+  }
+
+  // ── Training the vendor runs ─────────────────────────────────────
+  //
+  // The BRD's thesis made visible: automate the commodity work so a
+  // recruiter becomes somebody who develops people. A vendor's public
+  // page showing what they actually teach is the only evidence a
+  // consultant has of whether that is true of them.
+  //
+  // Public ones appear on their page; internal ones do not. That is
+  // already a per-course choice, which is the right default for anything
+  // that leaves the building.
+  const courses = [
+    { title: 'SAP S/4HANA for experienced ECC consultants', category: 'CERTIFICATION', duration: 40, price: null,   isPublic: true },
+    { title: 'Prompt engineering for functional consultants', category: 'AI_UPSKILLING', duration: 12, price: null,  isPublic: true },
+    { title: 'Moving from ABAP to RAP and CDS',              category: 'TECH',          duration: 24, price: null,   isPublic: true },
+    { title: 'Client-site conduct and escalation',           category: 'SOFT_SKILLS',   duration: 4,  price: null,   isPublic: true },
+    { title: 'Internal: rate negotiation playbook',          category: 'SOFT_SKILLS',   duration: 3,  price: null,   isPublic: false },
+  ]
+
+  for (const c of courses) {
+    await prisma.course.create({
+      data: {
+        companyId: vendor.id,
+        title: c.title,
+        category: c.category,
+        duration: c.duration,
+        price: c.price,
+        isPublic: c.isPublic,
+      },
+    })
+  }
+
+  // ── Positions the client has opened to any supplier ──────────────
+  //
+  // The demand side of the network. Everything above belongs to the
+  // vendor; these belong to Terumo BCT and are the reason a supplier who
+  // has never met them would find their page at all.
+  //
+  // openToNetwork is off by default because a hiring plan is commercially
+  // sensitive, so publishing one is a decision. These are the ones they
+  // decided to publish.
+  const openToNetwork = [
+    { title: 'SAP FICO Consultant — Lakewood',   skills: ['SAP FICO', 'S/4HANA'],            location: 'Lakewood, CO',  heads: 2, months: 12 },
+    { title: 'Validation Engineer — Medical Devices', skills: ['CSV', 'GAMP 5', 'FDA 21 CFR Part 11'], location: 'Lakewood, CO', heads: 1, months: 9 },
+    { title: 'Workday Integrations Analyst',     skills: ['Workday', 'Studio', 'EIB'],       location: 'Remote',        heads: 1, months: 6 },
+  ]
+
+  for (const r of openToNetwork) {
+    await prisma.requirement.create({
+      data: {
+        companyId: client.id,
+        title: r.title,
+        skills: r.skills,
+        location: r.location,
+        headcount: r.heads,
+        months: r.months,
+        status: 'OPEN',
+        approvalState: 'APPROVED',
+        source: 'MANUAL',
+        openToNetwork: true,
+        // Rates are agreed per supplier on the invitation. A public page
+        // is the most public recipient there is.
+        rateVisible: false,
+      },
+    })
   }
 
   // ── Matches ────────────────────────────────────

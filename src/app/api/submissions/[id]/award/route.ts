@@ -304,7 +304,9 @@ export async function POST(
       })
     }
 
-    await tx.submission.update({ where: { id }, data: { status: 'PLACED' } })
+    // Stamped here, not inferred later. How long a client takes to decide
+    // is the number a supplier cares about most.
+    await tx.submission.update({ where: { id }, data: { status: 'PLACED', decidedAt: new Date() } })
 
     let standDown = 0
     let passedOver = 0
@@ -316,7 +318,9 @@ export async function POST(
 
       const others = await tx.submission.updateMany({
         where: { requirementId: req.id, status: { notIn: ['PLACED', 'REJECTED', 'WITHDRAWN'] } },
-        data: { status: 'NOT_SELECTED' },
+        // Being stood down is a decision too, and the slowest ones are
+        // exactly the cases a supplier wants counted.
+        data: { status: 'NOT_SELECTED', decidedAt: new Date() },
       })
       passedOver = others.count
 

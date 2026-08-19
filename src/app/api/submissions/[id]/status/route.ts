@@ -76,7 +76,15 @@ export async function PATCH(
   await prisma.$transaction([
     prisma.submission.update({
       where: { id },
-      data: { status },
+      data: {
+        status,
+        // Stamped the moment a decision lands, and only for the statuses
+        // that are decisions. Moving to INTERVIEWING is progress, not an
+        // answer, and counting it would flatter every slow buyer.
+        ...(['PLACED', 'REJECTED', 'NOT_SELECTED', 'WITHDRAWN'].includes(status)
+          ? { decidedAt: new Date() }
+          : {}),
+      },
     }),
     prisma.automationLog.create({
       data: {
