@@ -172,6 +172,14 @@ model Company {
   // email, and when there is no email either the notification says so
   // rather than sitting in the app pretending it was sent.
   teamsWebhookUrl   String?
+  // What this company does by default when no signed agreement says
+  // otherwise. Sits under the master agreement in the cascade
+  // (src/lib/billing-cascade.ts) and above the platform's own assumption.
+  defaultPaymentTerms Int?
+  /// Whether invoices to this company must quote a purchase order. Set at
+  /// the company because it is an accounts-payable policy, not a
+  /// per-supplier negotiation.
+  poRequired        Boolean   @default(false)
   siteLiveAt        DateTime? // the ninety second promise
   networkVerifiedAt DateTime? // visibility to other companies waits for this
   createdAt         DateTime    @default(now())

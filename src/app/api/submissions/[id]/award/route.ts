@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
+import { resolveBillingTerms } from '@/lib/billing-cascade'
 import { evaluateGovernance } from '@/lib/governance'
 import { assessAward, type AwardFacts } from '@/lib/award'
 import { notify } from '@/lib/notify'
@@ -241,6 +242,38 @@ export async function POST(
       ? new Date(new Date(start).setMonth(start.getMonth() + req.months))
       : null
 
+  // Payment terms and currency, resolved down the cascade rather than
+  // defaulted. The schema said terms "cascade from the MSA, overridable"
+  // and nothing read the agreement — so every contract got net 30 and a
+  // client whose signed agreement said net 60 was invoiced on net 30
+  // forever. src/lib/billing-cascade.ts
+  const [vendorCompany, agreement] = await Promise.all([
+    prisma.company.findUnique({
+      where: { id: submission.fromCompanyId },
+      select: { name: true, currency: true, defaultPaymentTerms: true },
+    }),
+    prisma.masterAgreement.findFirst({
+      where: { vendorId: submission.fromCompanyId, clientId: req.companyId },
+      select: { paymentTerms: true, currency: true, client: { select: { name: true } } },
+    }),
+  ])
+
+  const terms = resolveBillingTerms({
+    company: {
+      name: vendorCompany?.name ?? 'your company',
+      paymentTermsDays: vendorCompany?.defaultPaymentTerms ?? null,
+      currency: vendorCompany?.currency ?? null,
+    },
+    agreement: agreement
+      ? {
+          paymentTermsDays: agreement.paymentTerms,
+          currency: agreement.currency,
+          counterpartyName: agreement.client.name,
+        }
+      : null,
+    contract: null,
+  })
+
   const result = await prisma.$transaction(async (tx) => {
     // The contract carries the demand-side coding forward. This is the
     // whole point: an invoice raised in four months matches a purchase
@@ -256,6 +289,8 @@ export async function POST(
         hiringManagerId: req.raisedById,
         orgUnitId: req.orgUnitId,
         billRate: awardedRate,
+        billCurrency: terms.currency.value,
+        paymentTerms: terms.paymentTermsDays.value,
         state: 'DRAFT',
         startDate: start,
         endDate: end,
@@ -330,6 +365,11 @@ export async function POST(
       rateCents: awardedRate,
       seatsAfter: decision.seatsAfter,
       costCenterCode: req.costCenter?.code ?? null,
+      paymentTermsDays: terms.paymentTermsDays.value,
+      // Where the terms came from, so a query about an invoice due date
+      // names the level to fix rather than the invoice.
+      paymentTermsFrom: terms.paymentTermsDays.source,
+      currency: terms.currency.value,
     },
   })
 
@@ -375,6 +415,15 @@ export async function POST(
         vendorsStoodDown: result.standDown,
         candidatesPassedOver: result.passedOver,
         costCenter: req.costCenter?.code ?? null,
+        // Not just the number — where it came from. "Net 60, from your
+        // agreement with Terumo BCT" names the document to read when
+        // somebody queries a due date.
+        paymentTerms: {
+          days: terms.paymentTermsDays.value,
+          from: terms.paymentTermsDays.source,
+          because: terms.paymentTermsDays.because,
+        },
+        currency: terms.currency.value,
         checks: decision.checks,
         notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
         message: decision.summary,

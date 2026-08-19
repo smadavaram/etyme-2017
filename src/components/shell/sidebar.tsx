@@ -65,6 +65,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧' },
+      { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫' },
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩' },
       { label: 'Automation', href: '/dashboard/automation', icon: '⚙' },
@@ -122,6 +123,7 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Org view', href: '/dashboard/program/org', icon: '⬢' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧' },
+      { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
       { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
