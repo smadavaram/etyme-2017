@@ -55,6 +55,7 @@ model Person {
   packetsCreated   DocumentPacket[] @relation("packetCreator")
   packetsAbout     DocumentPacket[] @relation("packetSubjectPerson")
   packetItemsReviewed PacketItem[]  @relation("packetItemReviewer")
+  serviceAccountsCreated ServiceAccount[] @relation("serviceAccountCreator")
 }
 
 model Credential {
@@ -239,6 +240,8 @@ model Company {
   events             Event[]
   packets            DocumentPacket[]
   packetsAbout       DocumentPacket[] @relation("packetSubjectCompany")
+  serviceAccounts    ServiceAccount[]
+  webhooks           WebhookSubscription[]
 }
 
 enum CompanyKind {
@@ -1845,6 +1848,8 @@ model Event {
 
   occurredAt DateTime @default(now())
 
+  deliveries WebhookDelivery[]
+
   @@index([companyId, seq])
   @@index([type, occurredAt])
   @@index([subjectType, subjectId])
@@ -1950,4 +1955,123 @@ model PacketItem {
   verificationId String?
 
   @@index([packetId, position])
+}
+
+/// A machine that calls the API.
+///
+/// Integrations need an identity, and giving one a person's account is how
+/// a leaver's departure breaks the nightly ERP feed — or worse, does not,
+/// and their access outlives them.
+///
+/// Same posture as a person's access: scoped, expiring by default, and its
+/// last use recorded, because a key nobody has used in three months is
+/// exposure rather than integration.
+model ServiceAccount {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  name        String // "SAP AP feed", "Workday joiner sync"
+  description String?
+
+  /// Only the hash is stored. The key itself is shown once, at creation,
+  /// and cannot be recovered — a system that can show you a key again is
+  /// one that can be made to show it to somebody else.
+  keyHash   String @unique
+  /// The first characters, so somebody can tell two keys apart in a list
+  /// without either being usable.
+  keyPrefix String
+
+  /// What it may do. The same permission strings a role uses, so there is
+  /// one vocabulary rather than two.
+  permissions String[]
+
+  /// Access ends by default. Null is permitted for read-only and argued
+  /// for otherwise.
+  expiresAt  DateTime?
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  revokedById String?
+
+  createdById String
+  createdBy   Person   @relation("serviceAccountCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  webhooks WebhookSubscription[]
+
+  @@index([companyId, revokedAt])
+  @@index([keyPrefix])
+}
+
+/// Somewhere to send events as they happen.
+///
+/// The alternative is every integration polling tables and guessing what
+/// changed, which is what the event log exists to end.
+model WebhookSubscription {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  /// Which service account owns it, so revoking the account stops the
+  /// deliveries too rather than leaving a mouth still talking.
+  serviceAccountId String?
+  serviceAccount   ServiceAccount? @relation(fields: [serviceAccountId], references: [id])
+
+  name String
+  url  String
+
+  /// Event names from EVENT_TYPES. Empty means everything, which is
+  /// allowed but rarely what somebody means.
+  eventTypes String[]
+
+  /// Payloads are signed with this so the receiver can tell our delivery
+  /// from anybody else's POST. Never returned after creation.
+  signingSecret String
+
+  isActive Boolean @default(true)
+
+  /// Where this subscriber has got to. A delivery that fails is retried
+  /// from here rather than lost.
+  lastDeliveredSeq BigInt @default(0)
+
+  /// Switched off automatically after repeated failure, with the reason
+  /// kept — a webhook silently dropping events is the failure mode that
+  /// costs the most trust.
+  disabledAt     DateTime?
+  disabledReason String?
+
+  createdAt DateTime @default(now())
+
+  deliveries WebhookDelivery[]
+
+  @@index([companyId, isActive])
+}
+
+/// One attempt to deliver one event.
+///
+/// Kept per attempt rather than per event, because "it was sent" and "it
+/// was sent on the fourth try after two timeouts" are different facts and
+/// only the second explains a support conversation.
+model WebhookDelivery {
+  id             String              @id @default(cuid())
+  subscriptionId String
+  subscription   WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  /// PENDING · SENT · FAILED · ABANDONED
+  state       String @default("PENDING")
+  attempt     Int    @default(1)
+  statusCode  Int?
+  /// What went wrong, in words rather than a stack trace.
+  note        String?
+  /// When to try again. Null once it succeeded or was given up on.
+  nextAttemptAt DateTime?
+
+  createdAt   DateTime  @default(now())
+  deliveredAt DateTime?
+
+  @@index([subscriptionId, state])
+  @@index([state, nextAttemptAt])
 }

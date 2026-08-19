@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { looksLikeKey, hashKey, keyMatches, checkKey } from '@/lib/service-accounts'
 
 /**
  * Caller context — resolved once per request, used by every endpoint
@@ -30,6 +31,23 @@ export interface CallerContext {
     kind: string
   } | null
   permissions: readonly string[]
+  /**
+   * True when the caller is a machine holding an API key rather than a
+   * person holding a session. Its `person.id` is not a real Person row, so
+   * anything writing a foreign key must use realPersonId() instead.
+   */
+  isService?: boolean
+}
+
+/**
+ * The caller's person id, or null when the caller is a machine.
+ *
+ * A service account's id is not a Person row. Writing it into a field that
+ * references one is a foreign-key error at best and, where the column is
+ * nullable and unchecked, a dangling reference nobody notices for months.
+ */
+export function realPersonId(caller: CallerContext): string | null {
+  return caller.isService ? null : caller.person.id
 }
 
 /**
@@ -59,6 +77,14 @@ export async function getCallerContext(
   | { caller: CallerContext; error: null }
   | { caller: null; error: NextResponse }
 > {
+  // ── A machine calling in ────────────────────────────────────────────
+  //
+  // Checked before any person is looked up, because a service account is
+  // not a person and giving an integration somebody's login is how a
+  // leaver's departure breaks the nightly ERP feed — or worse, does not.
+  const machine = await callerFromApiKey(request)
+  if (machine) return machine
+
   // ── Dev bypass — resolve founder context without OAuth ──
   // Set DEV_BYPASS_AUTH=email in .env.local for development screenshots.
   // NEVER enable in production. Removed before deploy.
@@ -172,6 +198,91 @@ export async function getCallerContext(
       },
       company: context.company,
       permissions: (context.role?.permissions as string[]) ?? [],
+    },
+    error: null,
+  }
+}
+
+/**
+ * A caller holding an API key rather than a session.
+ *
+ * Returns null when there is no key at all, so the ordinary session path
+ * carries on. Returns an error when there is a key and it is not usable —
+ * a bad key must never fall through to "not authenticated", because the
+ * two lead to completely different debugging.
+ */
+async function callerFromApiKey(
+  request?: NextRequest
+): Promise<
+  | { caller: CallerContext; error: null }
+  | { caller: null; error: NextResponse }
+  | null
+> {
+  const header = request?.headers.get('authorization') ?? ''
+  const presented = header.startsWith('Bearer ') ? header.slice(7).trim() : ''
+  if (!presented || !looksLikeKey(presented)) return null
+
+  const account = await prisma.serviceAccount.findUnique({
+    where: { keyHash: hashKey(presented) },
+    select: {
+      id: true, name: true, permissions: true, revokedAt: true, expiresAt: true,
+      company: { select: { id: true, name: true, slug: true, kind: true } },
+    },
+  })
+
+  if (!account || !keyMatches(presented, hashKey(presented))) {
+    return {
+      caller: null,
+      error: NextResponse.json(
+        { error: { code: 'BAD_KEY', message: 'That API key is not one of ours.' } },
+        { status: 401 }
+      ),
+    }
+  }
+
+  const verdict = checkKey(
+    { revokedAt: account.revokedAt, expiresAt: account.expiresAt, permissions: account.permissions },
+    new Date()
+  )
+  if (!verdict.usable) {
+    return {
+      caller: null,
+      error: NextResponse.json(
+        { error: { code: 'KEY_UNUSABLE', message: verdict.reason } },
+        { status: 401 }
+      ),
+    }
+  }
+
+  // Last use, for the same reason a person's is recorded: a key nobody has
+  // used in three months is exposure rather than integration, and the only
+  // way to know is to write it down.
+  void prisma.serviceAccount
+    .update({ where: { id: account.id }, data: { lastUsedAt: new Date() } })
+    .catch(() => {})
+
+  return {
+    caller: {
+      // A service account is not a person. It is given a person-shaped
+      // record so every route can read caller.person.name for a log line,
+      // and the name says plainly what it is.
+      person: {
+        id: `service:${account.id}`,
+        name: `${account.name} (integration)`,
+        primaryEmail: `service+${account.id}@etyme.local`,
+      },
+      // Shaped like a person's context so nothing has to special-case a
+      // machine, but honestly labelled. Nothing reads this today; leaving
+      // a null here would be a crash waiting for the first route that does.
+      context: {
+        id: `service:${account.id}`,
+        type: 'SERVICE',
+        companyId: account.company.id,
+        roleId: null,
+      },
+      company: account.company,
+      permissions: account.permissions,
+      isService: true,
     },
     error: null,
   }
