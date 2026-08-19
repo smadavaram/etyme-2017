@@ -19,6 +19,7 @@ export type AccessAction =
   | 'TIMESHEET_VIEW'      // viewed a person's timesheet
   | 'PAYROLL_VIEW'        // viewed a person's payroll data
   | 'MATCH_VIEW'          // viewed match scores for a person
+  | 'RELEASING_SOON_VIEW' // saw somebody listed as coming free before they are
 
 interface LogAccessParams {
   /** The person whose data was accessed */

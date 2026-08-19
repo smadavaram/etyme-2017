@@ -412,6 +412,16 @@ model BenchListing {
   grantedAt    DateTime          @default(now()) // by the consultant, not the company
   revokedAt    DateTime?
 
+  /// Whether they agree to be shown before their current contract ends.
+  ///
+  /// Separate from the listing itself, because being sold two weeks before
+  /// you finish is a different thing from being on a bench list, and a
+  /// person may reasonably want one and not the other. Defaults to on —
+  /// somebody granting a listing while on assignment is agreeing to be
+  /// placed, and asking twice for the same permission is friction — but
+  /// they can say no without withdrawing the listing.
+  showBeforeFree Boolean @default(true)
+
   @@unique([consultantId, companyId])
   @@index([companyId, revokedAt])
 }
