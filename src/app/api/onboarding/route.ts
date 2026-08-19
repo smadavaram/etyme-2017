@@ -3,9 +3,11 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { getSessionEmail } from '@/lib/api-context'
 import {
-  decideEntry, typeByKey, slugFromDomain, guessCompanyName,
-  domainOf, COMPANY_TYPES,
+  typeByKey, slugFromDomain, guessCompanyName, COMPANY_TYPES,
 } from '@/lib/onboarding'
+import {
+  decideEntry, domainOfEmail, type ClaimedDomain,
+} from '@/lib/company-domains'
 import { notifyBulk } from '@/lib/notify'
 import { defaultsFor } from '@/lib/company-defaults'
 import { holidaysFor } from '@/lib/holidays'
@@ -20,6 +22,28 @@ import { holidaysFor } from '@/lib/holidays'
  * both are ways of getting the answer wrong, and the duplicate company is
  * the failure that costs support conversations for months.
  */
+
+/**
+ * Every domain any company has claimed.
+ *
+ * Loaded whole because the decision needs to consider near matches as well
+ * as exact ones, and there are far fewer claimed domains than companies.
+ */
+async function allClaims(): Promise<ClaimedDomain[]> {
+  const rows = await prisma.companyDomain.findMany({
+    select: {
+      domain: true, companyId: true, verifiedAt: true, joinPolicy: true,
+      company: { select: { name: true } },
+    },
+  })
+  return rows.map((r) => ({
+    domain: r.domain,
+    companyId: r.companyId,
+    companyName: r.company.name,
+    verified: r.verifiedAt !== null,
+    joinPolicy: r.joinPolicy as ClaimedDomain['joinPolicy'],
+  }))
+}
 
 export async function GET(request: NextRequest) {
   const email = await getSessionEmail()
@@ -48,31 +72,19 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  const domain = domainOf(email)
-  const existing = domain
-    ? await prisma.company.findFirst({
-        where: { domain, domainVerified: true },
-        select: {
-          id: true, name: true, kind: true,
-          _count: { select: { contexts: true } },
-        },
-      })
-    : null
-
-  const decision = decideEntry(
-    email,
-    existing
-      ? { id: existing.id, name: existing.name, kind: existing.kind, memberCount: existing._count.contexts }
-      : null
-  )
+  const decision = decideEntry(email, await allClaims())
 
   return NextResponse.json({
     data: {
       email,
       ...decision,
-      // Only asked when a company is actually being created.
-      companyTypes: decision.action === 'CREATE' ? COMPANY_TYPES : undefined,
-      suggestedName: decision.action === 'CREATE' ? guessCompanyName(decision.domain) : undefined,
+      // Only asked when a company is actually being created — including
+      // after somebody answers a SUGGEST by saying they are separate.
+      companyTypes: decision.action === 'CREATE' || decision.action === 'SUGGEST' ? COMPANY_TYPES : undefined,
+      suggestedName:
+        decision.action === 'CREATE' ? guessCompanyName(decision.domain)
+          : decision.action === 'SUGGEST' ? guessCompanyName(decision.domain)
+            : undefined,
     },
   })
 }
@@ -87,21 +99,8 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const domain = domainOf(email)
-
-  const existing = domain
-    ? await prisma.company.findFirst({
-        where: { domain, domainVerified: true },
-        select: { id: true, name: true, kind: true, _count: { select: { contexts: true } } },
-      })
-    : null
-
-  const decision = decideEntry(
-    email,
-    existing
-      ? { id: existing.id, name: existing.name, kind: existing.kind, memberCount: existing._count.contexts }
-      : null
-  )
+  const domain = domainOfEmail(email)
+  const decision = decideEntry(email, await allClaims())
 
   if (decision.action === 'REFUSE') {
     return NextResponse.json(
@@ -141,13 +140,80 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Joining a company that is already here. ──
-  if (decision.action === 'JOIN') {
+  // ── A near match. Answered, never assumed. ──────────────────────────
+  //
+  // Somebody on us.infosys.com may be part of Infosys or a separate entity
+  // that shares the name, and DNS cannot tell you which. So the question
+  // is put to them, and their answer arrives here as joinExisting.
+  if (decision.action === 'SUGGEST') {
+    if (body.joinExisting === true) {
+      // They said they are part of it. Their domain is claimed for that
+      // company so nobody has to answer this again.
+      await prisma.companyDomain.create({
+        data: {
+          companyId: decision.companyId,
+          domain: decision.domain,
+          verifiedAt: new Date(),
+          verifiedVia: 'OAUTH_TENANT',
+          joinPolicy: 'REQUEST',
+        },
+      })
+
+      const already = await prisma.context.findFirst({
+        where: { personId: person.id, companyId: decision.companyId, revokedAt: null },
+      })
+      if (!already) {
+        await prisma.context.create({
+          data: { personId: person.id, type: 'EMPLOYEE', companyId: decision.companyId },
+        })
+      }
+
+      await prisma.automationLog.create({
+        data: {
+          companyId: decision.companyId,
+          action: 'DOMAIN_CLAIMED',
+          summary: `${decision.domain} was claimed for ${decision.companyName} by ${person.name}`,
+          reason: 'They signed in on a subdomain and confirmed they are part of the company',
+          payload: { domain: decision.domain, personId: person.id },
+          reversible: true,
+        },
+      })
+
+      return NextResponse.json({
+        data: {
+          action: 'JOIN',
+          companyId: decision.companyId,
+          companyName: decision.companyName,
+          message: `You are in ${decision.companyName}, and ${decision.domain} is now theirs so nobody else has to answer that.`,
+          needsRole: true,
+        },
+      })
+    }
+
+    if (body.joinExisting !== false) {
+      // Unanswered. Returning the question rather than picking for them.
+      return NextResponse.json(
+        {
+          error: {
+            code: 'ANSWER_NEEDED',
+            message: decision.message,
+            field: 'joinExisting',
+            suggested: { companyId: decision.companyId, companyName: decision.companyName },
+          },
+        },
+        { status: 409 }
+      )
+    }
+    // Said no. Falls through to creating their own company below.
+  }
+
+  if (decision.action === 'JOIN' || decision.action === 'REQUEST') {
     const already = await prisma.context.findFirst({
-      where: { personId: person.id, companyId: decision.company.id, revokedAt: null },
+      where: { personId: person.id, companyId: decision.companyId, revokedAt: null },
     })
     if (already) {
       return NextResponse.json({
-        data: { action: 'JOIN', companyId: decision.company.id, message: `You are already in ${decision.company.name}.` },
+        data: { action: 'JOIN', companyId: decision.companyId, message: `You are already in ${decision.companyName}.` },
       })
     }
 
@@ -155,12 +221,12 @@ export async function POST(request: NextRequest) {
     // this person may do — an unrecognised colleague getting Owner because
     // they share a domain is how a tenant is lost.
     await prisma.context.create({
-      data: { personId: person.id, type: 'EMPLOYEE', companyId: decision.company.id },
+      data: { personId: person.id, type: 'EMPLOYEE', companyId: decision.companyId },
     })
 
     await prisma.automationLog.create({
       data: {
-        companyId: decision.company.id,
+        companyId: decision.companyId,
         action: 'COLLEAGUE_JOINED',
         summary: `${person.name} joined from ${domain}`,
         reason: 'Verified work email on a domain this company already owns',
@@ -171,11 +237,11 @@ export async function POST(request: NextRequest) {
 
     void emit({
       type: 'company.member_joined',
-      companyId: decision.company.id,
+      companyId: decision.companyId,
       subjectType: 'Person',
       subjectId: person.id,
       actorPersonId: person.id,
-      payload: { email, domain, companyName: decision.company.name, hasRole: false },
+      payload: { email, domain, companyName: decision.companyName, hasRole: false },
     })
 
     // Somebody has to be told, or the new colleague sits with no role and
@@ -183,7 +249,7 @@ export async function POST(request: NextRequest) {
     // people who can grant a role are the ones who get the message.
     const admins = await prisma.context.findMany({
       where: {
-        companyId: decision.company.id,
+        companyId: decision.companyId,
         revokedAt: null,
         personId: { not: person.id },
         role: { permissions: { hasSome: ['*', 'roles.write', 'company.write'] } },
@@ -194,10 +260,10 @@ export async function POST(request: NextRequest) {
       void notifyBulk(
         admins.map(a => ({
           personId: a.personId,
-          companyId: decision.company.id,
+          companyId: decision.companyId,
           type: 'SYSTEM' as const,
           title: `${person.name} is waiting for access`,
-          body: `${person.name} (${email}) signed in from ${domain} and joined ${decision.company.name}. They cannot see anything until somebody gives them a role.`,
+          body: `${person.name} (${email}) signed in from ${domain} and joined ${decision.companyName}. They cannot see anything until somebody gives them a role.`,
           entityId: person.id,
         }))
       )
@@ -206,9 +272,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       data: {
         action: 'JOIN',
-        companyId: decision.company.id,
-        companyName: decision.company.name,
-        message: `You are in ${decision.company.name}. An administrator there decides what you can see.`,
+        companyId: decision.companyId,
+        companyName: decision.companyName,
+        message: `You are in ${decision.companyName}. An administrator there decides what you can see.`,
         needsRole: true,
         // Said plainly, because "waiting for approval" with nobody named is
         // the moment a new user gives up.
@@ -233,25 +299,30 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Both CREATE and a SUGGEST answered "we are separate" land here.
+  const newCompanyDomain =
+    decision.action === 'CREATE' || decision.action === 'SUGGEST' ? decision.domain : domain!
+
   const takenSlugs = new Set(
     (await prisma.company.findMany({ select: { slug: true } })).map(c => c.slug)
   )
-  const slug = slugFromDomain(decision.domain, takenSlugs)
-  const name = String(body.name ?? '').trim() || guessCompanyName(decision.domain)
+  const slug = slugFromDomain(newCompanyDomain, takenSlugs)
+  const name = String(body.name ?? '').trim() || guessCompanyName(newCompanyDomain)
 
   // Everything the company starts with, decided from what it is and where
   // it is. A default is a starting point, never a decision taken away —
   // all of this is editable in settings. What it must not do is leave the
   // company unable to start, which is what an empty setup produced.
-  const kit = defaultsFor(type.kind as any, name, decision.domain)
+  const kit = defaultsFor(type.kind as any, name, newCompanyDomain)
 
   const company = await prisma.company.create({
     data: {
       name,
       slug,
-      domain: decision.domain,
-      // It came from the OAuth tenant. Asking them to confirm an address
-      // the identity provider already proved is theatre that costs a step.
+      // Kept for display. The company's identity is its id, and the
+      // domains it admits people through live in CompanyDomain — a
+      // conglomerate holds several and a subsidiary holds its own.
+      domain: newCompanyDomain,
       domainVerified: true,
       kind: type.kind as any,
       supplierPosture: type.posture,
@@ -263,6 +334,24 @@ export async function POST(request: NextRequest) {
       // The network stays closed until somebody vouches. Public site,
       // private network.
       networkVerifiedAt: null,
+    },
+  })
+
+  // The domain becomes a claim rather than the company's identity. AUTO,
+  // because the person creating a company from their work address is
+  // saying everybody on it works there — and that is exactly the case the
+  // policy exists for.
+  await prisma.companyDomain.create({
+    data: {
+      companyId: company.id,
+      domain: newCompanyDomain,
+      // The identity provider already proved it. Asking them to confirm an
+      // address it asserted is theatre that costs a step.
+      verifiedAt: new Date(),
+      verifiedVia: 'OAUTH_TENANT',
+      joinPolicy: 'AUTO',
+      isPrimary: true,
+      addedById: person.id,
     },
   })
 

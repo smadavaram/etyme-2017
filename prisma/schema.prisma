@@ -273,6 +273,7 @@ model Company {
   webhooks           WebhookSubscription[]
   subdomainAliases   SubdomainAlias[]
   customDomains      CustomDomain[]
+  claimedDomains     CompanyDomain[]
 }
 
 enum CompanyKind {
@@ -2173,6 +2174,55 @@ model WebhookDelivery {
 /// A released name is never handed to another company. A subdomain that
 /// used to be one firm's address, given to somebody else, means old links
 /// land on a stranger's data.
+/// A domain a company has claimed.
+///
+/// Not its identity. `Company.domain` used to be a single unique string
+/// and the company *was* that domain, which is a common pattern and wrong
+/// in ways that only appear once real companies arrive: a conglomerate
+/// holds dozens, subsidiaries share a family and are deliberately separate
+/// tenants, a merger needs two tenants to become one, and a rebrand should
+/// not cost a company its identity.
+///
+/// Exact domains, never reduced. `us.infosys.com` is its own claim — if
+/// Infosys wants it under the same tenant they add it, and if they do not
+/// it stays separate. The company decides, not DNS.
+model CompanyDomain {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Exactly as claimed. Unique across the platform, because two companies
+  /// admitting people through the same domain is a tenancy leak.
+  domain String @unique
+
+  /// Unverified until proved. A claim can admit people to a tenant, so it
+  /// is never taken on somebody's word — except where an identity provider
+  /// already asserted it, which is proof enough.
+  verifiedAt  DateTime?
+  /// OAUTH_TENANT · DNS_TXT · MANUAL — how it was proved, because "who
+  /// vouched for this" is the question an audit asks.
+  verifiedVia String?
+  /// The record we asked for, when it needs one.
+  proofToken  String?
+
+  /// What happens when somebody signs in on it.
+  ///   AUTO     they are in
+  ///   REQUEST  they get a seat, somebody is asked — the default
+  ///   NONE     claimed so nobody else takes it; admits nobody
+  ///
+  /// REQUEST rather than AUTO by default, because letting strangers in is
+  /// a decision somebody should make rather than inherit.
+  joinPolicy String @default("REQUEST")
+
+  /// The one shown as the company's own address.
+  isPrimary Boolean @default(false)
+
+  addedById String?
+  createdAt DateTime @default(now())
+
+  @@index([companyId, verifiedAt])
+}
+
 model SubdomainAlias {
   id        String  @id @default(cuid())
   companyId String
