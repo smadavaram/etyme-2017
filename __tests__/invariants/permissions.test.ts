@@ -25,7 +25,7 @@ import {
 
 describe('Permissions (BUILD.md §2)', () => {
   describe('The flat permission list', () => {
-    it('has exactly 29 permissions', () => {
+    it('has exactly 31 permissions', () => {
       // Deliberately a canary. Permission lists grow by accident, and every
       // addition is a new thing somebody can be granted without anyone
       // deciding they should be. Changing this number should be a decision.
@@ -33,7 +33,12 @@ describe('Permissions (BUILD.md §2)', () => {
       // 27 → 29: rates.read and rates.write, so a client's procurement team
       // can decide a contract rate amendment without also being able to
       // create contracts (assignments.write).
-      expect(PERMISSIONS).toHaveLength(29)
+      //
+      // 29 → 31: governance.read and governance.write. Whoever edits the
+      // approval chain decides what everyone else needs permission for,
+      // which is a larger power than any single approval and belongs to
+      // fewer people than settings.manage.
+      expect(PERMISSIONS).toHaveLength(31)
     })
 
     it('every permission follows the resource.action pattern', () => {

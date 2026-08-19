@@ -41,6 +41,12 @@ export const PERMISSIONS = [
   'pnl.read',
   'team.manage',
   'settings.manage',
+  // Who may change the rules everyone else is measured against. Held
+  // apart from settings.manage because editing the approval chain is not
+  // the same job as changing the company address, and apart from
+  // rates.write because writing the rule is not approving the spend.
+  'governance.read',
+  'governance.write',
 ] as const
 
 export type Permission = (typeof PERMISSIONS)[number]

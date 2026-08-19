@@ -7,6 +7,8 @@ import {
   domainOf, COMPANY_TYPES,
 } from '@/lib/onboarding'
 import { notifyBulk } from '@/lib/notify'
+import { defaultsFor } from '@/lib/company-defaults'
+import { usFederalHolidays } from '@/lib/holidays'
 
 /**
  * GET  /api/onboarding — what happens when this person signs in
@@ -237,6 +239,12 @@ export async function POST(request: NextRequest) {
   const slug = slugFromDomain(decision.domain, takenSlugs)
   const name = String(body.name ?? '').trim() || guessCompanyName(decision.domain)
 
+  // Everything the company starts with, decided from what it is and where
+  // it is. A default is a starting point, never a decision taken away —
+  // all of this is editable in settings. What it must not do is leave the
+  // company unable to start, which is what an empty setup produced.
+  const kit = defaultsFor(type.kind as any, name, decision.domain)
+
   const company = await prisma.company.create({
     data: {
       name,
@@ -247,6 +255,9 @@ export async function POST(request: NextRequest) {
       domainVerified: true,
       kind: type.kind as any,
       supplierPosture: type.posture,
+      // The cycle calendar. Without a pack a contract generates no due
+      // dates at all, so nothing is ever owed and nothing is ever chased.
+      templatePack: kit.templatePack,
       // BUILD.md §4A: the ninety second promise is satisfied here.
       siteLiveAt: new Date(),
       // The network stays closed until somebody vouches. Public site,
@@ -255,14 +266,58 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  // The person who sets it up owns it. Everyone after them waits for a role.
-  const owner = await prisma.role.create({
-    data: { companyId: company.id, name: 'Owner', permissions: ['*'], isDefault: false },
-  })
+  // Roles for what this company actually is. A client gets Hiring Manager
+  // and no Recruiter; a supplier gets the reverse. One role called Owner
+  // meant the access screen could offer a new colleague total control or
+  // nothing, which is not a choice anybody should have to make.
+  const createdRoles = await Promise.all(
+    kit.roles.map((r) =>
+      prisma.role.create({
+        data: {
+          companyId: company.id,
+          name: r.name,
+          permissions: [...r.permissions],
+          isDefault: true,
+        },
+        select: { id: true, name: true },
+      })
+    )
+  )
+  const owner = createdRoles.find((r) => r.name === 'Owner')!
 
   await prisma.context.create({
     data: { personId: person.id, type: 'EMPLOYEE', companyId: company.id, roleId: owner.id },
   })
+
+  // Somewhere to work. A location picker with nothing in it reads as
+  // broken, and an assignment with no location cannot be reasoned about
+  // for tenure or for tax.
+  await prisma.companyLocation.create({
+    data: {
+      companyId: company.id,
+      name: kit.primaryLocationName,
+      country: kit.country,
+      isPrimary: true,
+    },
+  })
+
+  // Public holidays, so business-day shifting has something real to shift
+  // against. An empty calendar silently computes every cycle date against
+  // weekends only — and cycle arithmetic is one of the three things
+  // CLAUDE.md names as hardest to get right.
+  if (kit.seedHolidays) {
+    const thisYear = new Date().getFullYear()
+    const dates = [thisYear, thisYear + 1].flatMap((y) => usFederalHolidays(y))
+    await prisma.holiday.createMany({
+      data: dates.map((h) => ({
+        companyId: company.id,
+        date: new Date(h.date + 'T00:00:00Z'),
+        name: h.name,
+        country: kit.country,
+      })),
+      skipDuplicates: true,
+    })
+  }
 
   await prisma.automationLog.create({
     data: {
@@ -299,6 +354,14 @@ export async function POST(request: NextRequest) {
         slug: company.slug,
         kind: company.kind,
         posture: company.supplierPosture,
+        // Said out loud, because a default nobody knows about is a
+        // surprise later rather than a head start now.
+        setUpForYou: {
+          templatePack: kit.templatePack,
+          roles: createdRoles.map((r) => r.name),
+          country: kit.country,
+          holidaysSeeded: kit.seedHolidays,
+        },
         // Everything after this is enrichment and skippable (BUILD.md §4A).
         message: `${company.name} is live at ${company.slug}.etyme.com. Anyone else from ${decision.domain} who signs in will join you.`,
       },

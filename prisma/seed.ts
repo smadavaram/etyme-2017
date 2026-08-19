@@ -15,6 +15,8 @@
  */
 
 import { PrismaClient } from '@prisma/client'
+import { rolesFor } from '../src/lib/company-defaults'
+import { usFederalHolidays } from '../src/lib/holidays'
 import { PERMISSIONS } from '../src/lib/permissions'
 
 const prisma = new PrismaClient()
@@ -25,6 +27,11 @@ async function main() {
   // Clean slate
   await prisma.$transaction([
     prisma.governanceEvaluation.deleteMany(),
+    // Shares reference both the person who made them and the person they
+    // are about, so they clear before anybody does.
+    prisma.documentShareAccess.deleteMany(),
+    prisma.documentShareItem.deleteMany(),
+    prisma.documentShare.deleteMany(),
     prisma.governanceRule.deleteMany(),
     prisma.governancePolicy.deleteMany(),
     prisma.verificationDoc.deleteMany(),
@@ -45,6 +52,8 @@ async function main() {
     prisma.cycle.deleteMany(),
     prisma.contractLink.deleteMany(),
     prisma.companyLocation.deleteMany(),
+    prisma.holiday.deleteMany(),
+    prisma.event.deleteMany(),
     prisma.sellContract.deleteMany(),
     prisma.buyContract.deleteMany(),
     prisma.engagement.deleteMany(),
@@ -114,13 +123,46 @@ async function main() {
   // features: /api/decisions skipped its contract queue, the consultant
   // drawer hid contracts, and rolloff-scan found nobody to notify, all
   // because they look for assignments.read / assignments.write.
-  const adminRole = await prisma.role.create({
+  // The same set a real vendor gets at sign-up (src/lib/company-defaults.ts),
+  // so the demo shows what a new company actually receives rather than a
+  // hand-written role that exists nowhere else.
+  const vendorRoles = await Promise.all(
+    rolesFor('VENDOR').map((r) =>
+      prisma.role.create({
+        data: {
+          companyId: vendor.id,
+          name: r.name,
+          permissions: [...r.permissions],
+          isDefault: true,
+        },
+      })
+    )
+  )
+  const adminRole = vendorRoles.find((r) => r.name === 'Owner')!
+
+  // Where this vendor is, and the days its cycle dates shift off.
+  await prisma.companyLocation.create({
     data: {
       companyId: vendor.id,
-      name: 'Company Admin',
-      permissions: [...PERMISSIONS],
-      isDefault: false,
+      name: 'Cloudepa Inc. — head office',
+      city: 'Edison',
+      state: 'NJ',
+      country: 'US',
+      isPrimary: true,
     },
+  })
+
+  const seedYear = new Date().getFullYear()
+  await prisma.holiday.createMany({
+    data: [seedYear, seedYear + 1]
+      .flatMap((y) => usFederalHolidays(y))
+      .map((h) => ({
+        companyId: vendor.id,
+        date: new Date(h.date + 'T00:00:00Z'),
+        name: h.name,
+        country: 'US',
+      })),
+    skipDuplicates: true,
   })
 
   // ── Founder / demo user ────────────────────────
@@ -1886,9 +1928,9 @@ async function main() {
   const automationData = [
     {
       action: 'COMPANY_CREATED',
-      summary: `Company Cloudepa Inc. created with 7 default roles`,
+      summary: `Company Cloudepa Inc. created with ${vendorRoles.length} default roles`,
       reason: 'Onboarding: new company created via OAuth sign-in',
-      payload: { companyId: vendor.id, slug: 'cloudepa', roles: 7 },
+      payload: { companyId: vendor.id, slug: 'cloudepa', roles: vendorRoles.length },
       reversible: false,
       daysAgo: 45,
     },
