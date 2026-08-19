@@ -76,6 +76,7 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Companies', href: '/dashboard/companies', icon: '▣' },
       { label: 'Who can do what', href: '/dashboard/access', icon: '⚿' },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙' },
+      { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓' },
     ],
   },
   {
@@ -131,6 +132,7 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
       { label: 'Who can do what', href: '/dashboard/access', icon: '⚿' },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙' },
+      { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓' },
     ],
   },
 ]
