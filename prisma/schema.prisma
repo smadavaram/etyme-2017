@@ -106,6 +106,28 @@ model Context {
   // never — held but unused, which is exposure rather than access.
   lastUsedAt  DateTime?
 
+  /// Paused, reversibly. Not a soft delete: this is for a leave of
+  /// absence, a lapsed visa, an investigation — where the person is coming
+  /// back and their history must stay attached to them. Using revocation
+  /// for that loses the thread; using this for a leaver leaves a
+  /// live-looking seat.
+  suspendedAt   DateTime?
+  suspendedById String?
+  suspendReason String?
+
+  /// Who ended it, and why. revokedAt alone says a seat closed; these say
+  /// who decided and what they were thinking, which is the pair an audit
+  /// asks for.
+  revokedById  String?
+  revokeReason String?
+
+  /// Set when somebody was given a seat before ever signing in. Cleared on
+  /// their first sign-in, so "invited" and "working" are never the same
+  /// number reported upward.
+  invitedAt   DateTime?
+  invitedById String?
+
+  @@index([companyId, suspendedAt])
   @@index([personId, revokedAt])
   @@index([companyId])
   @@index([companyId, expiresAt])

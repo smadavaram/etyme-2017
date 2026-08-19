@@ -126,23 +126,21 @@ export async function getCallerContext(
   // Prefer explicit context from header; otherwise most recent active context
   const contextId = request?.headers.get('x-context-id') ?? undefined
 
+  // A pause has to actually stop somebody. Recording a suspension and
+  // still letting them in is a control worse than none, because everybody
+  // believes it worked.
+  const usable = { revokedAt: null, suspendedAt: null }
+
   const context = contextId
     ? await prisma.context.findFirst({
-        where: {
-          id: contextId,
-          personId: person.id,
-          revokedAt: null,
-        },
+        where: { id: contextId, personId: person.id, ...usable },
         include: {
           company: { select: { id: true, name: true, slug: true, kind: true } },
           role: { select: { id: true, name: true, permissions: true } },
         },
       })
     : await prisma.context.findFirst({
-        where: {
-          personId: person.id,
-          revokedAt: null,
-        },
+        where: { personId: person.id, ...usable },
         include: {
           company: { select: { id: true, name: true, slug: true, kind: true } },
           role: { select: { id: true, name: true, permissions: true } },
@@ -151,6 +149,29 @@ export async function getCallerContext(
       })
 
   if (!context) {
+    // Tell a suspended person that they are suspended. "No active context"
+    // reads as a fault, and somebody who thinks the product is broken
+    // files a ticket rather than asking their manager.
+    const paused = await prisma.context.findFirst({
+      where: { personId: person.id, revokedAt: null, suspendedAt: { not: null } },
+      select: { suspendReason: true, company: { select: { name: true } } },
+    })
+
+    if (paused) {
+      return {
+        caller: null,
+        error: NextResponse.json(
+          {
+            error: {
+              code: 'SUSPENDED',
+              message: `Your access at ${paused.company?.name ?? 'this company'} is paused${paused.suspendReason ? `: ${paused.suspendReason}` : ''}. Somebody there can lift it.`,
+            },
+          },
+          { status: 403 }
+        ),
+      }
+    }
+
     return {
       caller: null,
       error: NextResponse.json(

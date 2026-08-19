@@ -13,6 +13,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { NotificationBell } from '@/components/notification-bell'
 import { useSession } from '@/components/session-provider'
+import { signOut } from 'next-auth/react'
 
 type HeaderProps = {
   title?: string
@@ -196,11 +197,26 @@ export function Header({ title }: HeaderProps) {
   const isClient = company?.kind === 'CLIENT'
   const plusMenu = isClient ? CLIENT_PLUS_MENU : PLUS_MENU
   const [plusOpen, setPlusOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const accountRef = useRef<HTMLDivElement>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const plusRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Close the account menu on an outside click, the same way the plus menu
+  // does. A menu that stays open while you click elsewhere feels stuck.
+  useEffect(() => {
+    if (!accountOpen) return
+    function onClick(e: MouseEvent) {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) {
+        setAccountOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [accountOpen])
 
   // Close plus menu on outside click
   useEffect(() => {
@@ -391,15 +407,65 @@ export function Header({ title }: HeaderProps) {
         )}
       </div>
 
-      {/* User avatar */}
-      <button
-        className="w-8 h-8 rounded-full bg-etyme-action/10 text-etyme-action
-                   text-[11px] font-bold flex items-center justify-center
-                   hover:bg-etyme-action/20 transition-colors"
-        title={person?.name ? `${person.name}${company ? ` · ${company.name}` : ''}` : undefined}
-      >
-        {initials(person?.name)}
-      </button>
+      {/* Account menu.
+          The avatar used to be a button that did nothing at all, which
+          meant there was no way to sign out anywhere in the product —
+          somebody on a shared machine simply stayed signed in. */}
+      <div className="relative" ref={accountRef}>
+        <button
+          onClick={() => setAccountOpen(!accountOpen)}
+          aria-haspopup="menu"
+          aria-expanded={accountOpen}
+          className="w-8 h-8 rounded-full bg-etyme-action/10 text-etyme-action
+                     text-[11px] font-bold flex items-center justify-center
+                     hover:bg-etyme-action/20 transition-colors"
+          title={person?.name ? `${person.name}${company ? ` · ${company.name}` : ''}` : undefined}
+        >
+          {initials(person?.name)}
+        </button>
+
+        {accountOpen && (
+          <div className="absolute right-0 top-10 w-64 bg-etyme-raised border border-etyme-rule
+                          rounded-lg shadow-lg z-50 overflow-hidden">
+            <div className="px-4 py-3 border-b border-etyme-rule">
+              <p className="text-[13px] text-etyme-ink font-medium truncate">
+                {person?.name ?? 'Signed in'}
+              </p>
+              {person?.email && (
+                <p className="text-[12px] text-etyme-muted truncate">{person.email}</p>
+              )}
+              {company && (
+                <p className="text-[12px] text-etyme-faint truncate mt-0.5">
+                  {company.name}
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={() => { setAccountOpen(false); router.push('/dashboard/settings') }}
+              className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-ink
+                         hover:bg-etyme-canvas transition-colors"
+            >
+              Settings
+            </button>
+            <button
+              onClick={() => { setAccountOpen(false); router.push('/dashboard/access') }}
+              className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-ink
+                         hover:bg-etyme-canvas transition-colors"
+            >
+              Who can do what
+            </button>
+
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-attention
+                         hover:bg-etyme-canvas transition-colors border-t border-etyme-rule"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
+      </div>
     </header>
   )
 }
