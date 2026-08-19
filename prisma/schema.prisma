@@ -56,6 +56,7 @@ model Person {
   packetsAbout     DocumentPacket[] @relation("packetSubjectPerson")
   packetItemsReviewed PacketItem[]  @relation("packetItemReviewer")
   serviceAccountsCreated ServiceAccount[] @relation("serviceAccountCreator")
+  customDomainsAdded     CustomDomain[]   @relation("customDomainAdder")
 }
 
 model Credential {
@@ -242,6 +243,8 @@ model Company {
   packetsAbout       DocumentPacket[] @relation("packetSubjectCompany")
   serviceAccounts    ServiceAccount[]
   webhooks           WebhookSubscription[]
+  subdomainAliases   SubdomainAlias[]
+  customDomains      CustomDomain[]
 }
 
 enum CompanyKind {
@@ -2078,4 +2081,67 @@ model WebhookDelivery {
   @@unique([subscriptionId, eventId])
   @@index([subscriptionId, state])
   @@index([state, nextAttemptAt])
+}
+
+/// An address a company used to have.
+///
+/// When a company changes its Etyme address the old one is kept and
+/// redirects, rather than being released. Every link anybody saved — an
+/// invitation email, a document request sent to a supplier's office
+/// manager, an invoice footer — keeps working, and that is the whole
+/// reason changing an address is safe to offer at all.
+///
+/// A released name is never handed to another company. A subdomain that
+/// used to be one firm's address, given to somebody else, means old links
+/// land on a stranger's data.
+model SubdomainAlias {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  /// The old address, still resolving.
+  subdomain String @unique
+
+  /// Why it stopped being the main one, for whoever asks in two years.
+  reason      String?
+  releasedAt  DateTime @default(now())
+  releasedById String?
+
+  @@index([companyId])
+}
+
+/// A domain the company owns, pointed at us.
+///
+/// Unverified until a DNS record only its owner could publish is visible,
+/// and it serves nothing until then — anybody can type google.com into a
+/// form.
+model CustomDomain {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  domain String @unique
+
+  /// PENDING · VERIFIED · FAILED — where proving ownership has got to.
+  state String @default("PENDING")
+
+  /// Per company and per domain, so a record copied from another
+  /// company's screen proves nothing here.
+  verificationToken String
+
+  verifiedAt    DateTime?
+  lastCheckedAt DateTime?
+  /// What the last check actually saw, so "it is not working" has an
+  /// answer rather than a shrug.
+  lastCheckNote String?
+
+  /// Only one domain serves the company at a time. The others stay
+  /// verified and redirect, the same way old subdomains do.
+  isPrimary Boolean @default(false)
+
+  addedById String
+  addedBy   Person   @relation("customDomainAdder", fields: [addedById], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([companyId, state])
 }

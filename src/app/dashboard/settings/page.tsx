@@ -105,7 +105,7 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-[13px] text-etyme-faint py-3">{children}</p>
 }
 
-const TABS = ['Company', 'Roles', 'Approvals', 'Locations', 'Holidays', 'Cost centres', 'Cycles'] as const
+const TABS = ['Company', 'Address', 'Roles', 'Approvals', 'Locations', 'Holidays', 'Cost centres', 'Cycles'] as const
 type Tab = (typeof TABS)[number]
 
 // ── Page ─────────────────────────────────────────────
@@ -215,6 +215,7 @@ export default function SettingsPage() {
       </div>
 
       {tab === 'Company' && <CompanyTab data={data} send={send} busy={busy} />}
+      {tab === 'Address' && <AddressTab send={send} busy={busy} />}
       {tab === 'Roles' && <RolesTab data={data} send={send} busy={busy} />}
       {tab === 'Approvals' && <ApprovalsTab send={send} busy={busy} />}
       {tab === 'Locations' && <LocationsTab data={data} send={send} busy={busy} />}
@@ -748,5 +749,215 @@ function ApprovalsTab({ send, busy }: { send: SendFn; busy: boolean }) {
         </div>
       )}
     </Panel>
+  )
+}
+
+// ── Address ──────────────────────────────────────────
+
+interface DnsRecord {
+  type: string
+  name: string
+  value: string
+  instruction?: string
+  note?: string
+}
+interface CustomDomain {
+  id: string
+  domain: string
+  state: string
+  isPrimary: boolean
+  addedBy: string
+  verifiedAt: string | null
+  lastCheckNote: string | null
+  records: DnsRecord[]
+}
+interface Previous {
+  id: string
+  subdomain: string
+  url: string
+  releasedAt: string
+  note: string
+}
+interface Address {
+  subdomain: string
+  url: string
+  previousAddresses: Previous[]
+  customDomains: CustomDomain[]
+  canEdit: boolean
+}
+
+function Record({ r }: { r: DnsRecord }) {
+  return (
+    <div className="bg-etyme-canvas rounded p-3 mt-2">
+      <div className="grid sm:grid-cols-[70px_1fr] gap-x-3 gap-y-1 text-[12px]">
+        <span className="text-etyme-faint">Type</span>
+        <span className="font-mono text-etyme-ink">{r.type}</span>
+        <span className="text-etyme-faint">Name</span>
+        <span className="font-mono text-etyme-ink break-all">{r.name}</span>
+        <span className="text-etyme-faint">Value</span>
+        <span className="font-mono text-etyme-ink break-all">{r.value}</span>
+      </div>
+      {(r.instruction || r.note) && (
+        <p className="text-[12px] text-etyme-muted mt-2">{r.instruction ?? r.note}</p>
+      )}
+    </div>
+  )
+}
+
+function AddressTab({ send, busy }: { send: SendFn; busy: boolean }) {
+  const [data, setData] = useState<Address | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [sub, setSub] = useState('')
+  const [domain, setDomain] = useState('')
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings/address')
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      setData(body.data)
+      setSub(body.data.subdomain)
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  if (err && !data) {
+    return <Panel title="Your address"><p className="text-[13px] text-etyme-attention">{err}</p></Panel>
+  }
+  if (!data) return <Panel title="Your address"><Empty>Loading…</Empty></Panel>
+
+  return (
+    <>
+      <Panel
+        title="Your Etyme address"
+        subtitle="Guessed from your email domain when you signed up. Changing it is safe — the old address keeps working and sends people to the new one, so nothing you have already sent breaks."
+      >
+        <div className="flex items-center gap-2">
+          <input
+            value={sub}
+            onChange={(e) => setSub(e.target.value.toLowerCase())}
+            disabled={!data.canEdit}
+            className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono disabled:opacity-60"
+          />
+          <span className="text-[14px] text-etyme-muted font-mono">.etyme.com</span>
+        </div>
+
+        {data.canEdit && (
+          <button
+            onClick={async () => {
+              const r = await send('/api/settings/address', 'PATCH', { subdomain: sub })
+              if (r) load()
+            }}
+            disabled={busy || !sub.trim() || sub === data.subdomain}
+            className="mt-3 px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+          >
+            Change my address
+          </button>
+        )}
+
+        {data.previousAddresses.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-etyme-rule">
+            <Lbl>Addresses you used before</Lbl>
+            <div className="mt-2 space-y-1.5">
+              {data.previousAddresses.map((p) => (
+                <div key={p.id} className="flex items-baseline justify-between gap-3">
+                  <span className="text-[13px] font-mono text-etyme-muted">{p.subdomain}.etyme.com</span>
+                  <span className="text-[12px] text-etyme-verified shrink-0">still works</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[12px] text-etyme-muted mt-2">
+              These are kept forever and never given to another company, so an old link can never
+              land on somebody else&rsquo;s data.
+            </p>
+          </div>
+        )}
+      </Panel>
+
+      <Panel
+        title="A domain you own"
+        subtitle="Point your own address here — talent.yourcompany.com, or your bare domain. Nothing serves until we can see a DNS record only you could have published, because anybody can type a domain into a form."
+      >
+        {data.customDomains.length === 0 ? (
+          <Empty>None yet. Your Etyme address is the only way in.</Empty>
+        ) : (
+          <div className="space-y-4 mb-5">
+            {data.customDomains.map((d) => (
+              <div key={d.id} className="border border-etyme-rule rounded-lg p-4 bg-etyme-raised">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div>
+                    <span className="text-[14px] font-mono text-etyme-ink">{d.domain}</span>
+                    {d.isPrimary && <span className="ml-2 text-[11px] text-etyme-verified">serving</span>}
+                  </div>
+                  <span className={`text-[12px] shrink-0 ${
+                    d.state === 'VERIFIED' ? 'text-etyme-verified' : 'text-etyme-attention'
+                  }`}>
+                    {d.state === 'VERIFIED' ? 'verified' : 'waiting on DNS'}
+                  </span>
+                </div>
+
+                {d.lastCheckNote && (
+                  <p className="text-[12px] text-etyme-muted mt-1">{d.lastCheckNote}</p>
+                )}
+
+                {d.records.map((r, i) => <Record key={i} r={r} />)}
+
+                {data.canEdit && (
+                  <div className="flex gap-3 mt-3">
+                    <button
+                      onClick={async () => {
+                        await send('/api/settings/address', 'POST', { checkId: d.id })
+                        load()
+                      }}
+                      disabled={busy}
+                      className="px-3 py-1.5 rounded border border-etyme-rule text-[12px] text-etyme-ink disabled:opacity-50"
+                    >
+                      Check it now
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await send(`/api/settings/address?id=${d.id}`, 'DELETE')
+                        load()
+                      }}
+                      disabled={busy}
+                      className="text-[12px] text-etyme-attention"
+                    >
+                      Stop using it
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {data.canEdit && (
+          <div className="border-t border-etyme-rule pt-4">
+            <Lbl>Add a domain</Lbl>
+            <div className="flex gap-2 mt-2">
+              <input
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+                placeholder="talent.yourcompany.com"
+                className="flex-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono"
+              />
+              <button
+                onClick={async () => {
+                  const r = await send('/api/settings/address', 'POST', { domain })
+                  if (r) { setDomain(''); load() }
+                }}
+                disabled={busy || !domain.trim()}
+                className="px-4 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        )}
+      </Panel>
+    </>
   )
 }
