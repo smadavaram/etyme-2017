@@ -387,20 +387,55 @@ model Partnership {
 // ─────────────────────────────────────────────
 
 model ConsultantProfile {
-  id            String         @id @default(cuid())
-  personId      String         @unique
-  person        Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
-  headline      String?
-  skills        String[]
-  location      String?
-  workAuth      String?
+  id           String   @id @default(cuid())
+  personId     String   @unique
+  person       Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  headline     String?
+  skills       String[]
+  location     String?
+  workAuth     String?
   // On corp-to-corp, the company the consultant works through. This is the
   // entity that must carry general liability and workers' compensation —
   // not the staffing vendor — so without it the insurance check is looking
   // at the wrong company.
-  ownCompanyId  String?
-  ownCompany    Company?       @relation("consultantCorp", fields: [ownCompanyId], references: [id]) // US_CITIZEN · GC · H1B · OPT · GBP_SW · null
-  rateFloor     Int? // the consultant sets this; no listing may go below it
+  ownCompanyId String?
+  ownCompany   Company? @relation("consultantCorp", fields: [ownCompanyId], references: [id]) // US_CITIZEN · GC · H1B · OPT · GBP_SW · null
+  rateFloor    Int? // the consultant sets this; no listing may go below it
+
+  /// Their own address, and their own page.
+  ///
+  /// A consultant had no public presence at all. Every agency they work
+  /// through has a page; the person doing the work had nothing, which is
+  /// backwards in a market where the person is the product.
+  ///
+  /// It belongs to them rather than to whichever agency currently
+  /// represents them, and it travels — that is the whole point. Null until
+  /// they ask for one, because a page nobody chose is a page nobody
+  /// maintains.
+  slug String? @unique
+
+  /// Addresses they used before.
+  ///
+  /// Changing an address has to keep the old links working, or a portfolio
+  /// somebody put on a CV two years ago becomes a dead page. The old one is
+  /// held here forever: never reissued to anybody else, and redirected to
+  /// wherever they are now.
+  previousSlugs String[] @default([])
+
+  /// When they turned the page on, and null until they do.
+  ///
+  /// Deliberately not `visibility`. That field says whether an agency may
+  /// show them to clients inside the platform, it is usually set by the
+  /// agency, and it is not consent to be named on the open internet.
+  /// Conflating the two would have published people who agreed to a bench
+  /// listing and nothing more.
+  pageLiveAt DateTime?
+
+  /// The words on it. Same rule as a company: written from what they have
+  /// actually done, editable, and never covering the facts.
+  bioHeadline   String?
+  bioIntro      String?
+  bioWrittenBy  String?
   availableFrom DateTime?
   visibility    Visibility     @default(INTERNAL) // progressive enrichment, never a hard gate
   listings      BenchListing[]
