@@ -173,12 +173,23 @@ describe('the whole starting kit', () => {
     expect(d.primaryLocationName).toContain('Cloudepa Inc.')
   })
 
-  it('does not seed US holidays for a company that is not in the US', () => {
-    // Seeding the wrong country's public holidays is worse than seeding
-    // none: the dates look deliberate and nobody checks them again.
+  it('seeds the right country’s calendar, not America’s', () => {
+    // An Indian company used to get no calendar at all, so every cycle
+    // date was computed against weekends only. It now gets India's three
+    // national days — the rest of that calendar is state and religion
+    // specific and moves each year, so guessing it would put confident
+    // wrong dates in front of somebody who would trust them.
     const d = defaultsFor('GSI', 'Infosys', 'infosys.in')
     expect(d.country).toBe('IN')
-    expect(d.seedHolidays).toBe(false)
+    expect(d.seedHolidays).toBe(true)
     expect(d.templatePack).toBe('IN_DELIVERY')
+  })
+
+  it('seeds nothing for a country with no calendar, rather than the wrong one', () => {
+    // Seeding another country's public holidays is worse than seeding
+    // none: the dates look deliberate and nobody checks them again.
+    const d = defaultsFor('VENDOR', 'Muster GmbH', 'muster.de')
+    expect(d.country).toBe('DE')
+    expect(d.seedHolidays).toBe(false)
   })
 })

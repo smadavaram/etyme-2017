@@ -8,7 +8,7 @@ import {
 } from '@/lib/onboarding'
 import { notifyBulk } from '@/lib/notify'
 import { defaultsFor } from '@/lib/company-defaults'
-import { usFederalHolidays } from '@/lib/holidays'
+import { holidaysFor } from '@/lib/holidays'
 
 /**
  * GET  /api/onboarding — what happens when this person signs in
@@ -307,7 +307,7 @@ export async function POST(request: NextRequest) {
   // CLAUDE.md names as hardest to get right.
   if (kit.seedHolidays) {
     const thisYear = new Date().getFullYear()
-    const dates = [thisYear, thisYear + 1].flatMap((y) => usFederalHolidays(y))
+    const dates = [thisYear, thisYear + 1].flatMap((y) => holidaysFor(kit.country, y) ?? [])
     await prisma.holiday.createMany({
       data: dates.map((h) => ({
         companyId: company.id,

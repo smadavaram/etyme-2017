@@ -40,9 +40,15 @@ describe('Who is signing in', () => {
     expect(classifyEmail('@nothing.com')).toBe('INVALID')
   })
 
-  it('a subdomain is still corporate', () => {
+  it('a mail subdomain is the same company, not a second one', () => {
+    // This used to keep contractors.nike.com as the domain, so somebody at
+    // nike.com matched nothing and created a second tenant for the same
+    // organisation — neither able to see the other's requisitions,
+    // invoices or people. Reducing to the registrable domain is what makes
+    // join-beats-create actually hold.
     expect(classifyEmail('j.smith@contractors.nike.com')).toBe('CORPORATE')
-    expect(domainOf('j.smith@contractors.nike.com')).toBe('contractors.nike.com')
+    expect(domainOf('j.smith@contractors.nike.com')).toBe('nike.com')
+    expect(domainOf('other@nike.com')).toBe('nike.com')
   })
 
   it('case and spacing do not change the answer', () => {

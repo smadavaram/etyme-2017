@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
-import { usFederalHolidays } from '@/lib/holidays'
+import { holidaysFor } from '@/lib/holidays'
 
 /**
  * POST   /api/settings/holidays        — add a day, or seed a country's year
@@ -60,20 +60,19 @@ export async function POST(request: NextRequest) {
       )
     }
     const country = String(body.country ?? 'US').toUpperCase()
-    if (country !== 'US') {
+    const days = holidaysFor(country, year)
+    if (!days) {
       return NextResponse.json(
         {
           error: {
             code: 'NOT_AVAILABLE',
-            message: `Only the US calendar is built in so far. Add ${country} holidays one at a time, or send them as a list.`,
+            message: `No built-in calendar for ${country}. Add its days one at a time — seeding another country's dates would look deliberate and nobody would check them again.`,
             field: 'country',
           },
         },
         { status: 422 }
       )
     }
-
-    const days = usFederalHolidays(year)
     const result = await prisma.holiday.createMany({
       data: days.map((h) => ({
         companyId,

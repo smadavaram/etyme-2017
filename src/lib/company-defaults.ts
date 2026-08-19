@@ -313,8 +313,9 @@ export function defaultsFor(
     country,
     roles: rolesFor(kind),
     primaryLocationName: primaryLocationName(companyName),
-    // Only the US calendar is built in today. Elsewhere the company adds
-    // its own, and saying so beats seeding the wrong country's holidays.
-    seedHolidays: country === 'US',
+    // US, UK and India are built in. Elsewhere the company adds its own —
+    // seeding another country's dates would look deliberate and nobody
+    // would check them again.
+    seedHolidays: ['US', 'GB', 'IN'].includes(country),
   }
 }

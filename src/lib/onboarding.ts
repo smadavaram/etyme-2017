@@ -28,6 +28,8 @@
  *   change later.
  */
 
+import { registrableDomain, registrableLabel } from '@/lib/registrable-domain'
+
 export type CompanyKind = 'CLIENT' | 'VENDOR' | 'MSP' | 'GSI'
 
 /**
@@ -119,6 +121,23 @@ export type EmailKind = 'CORPORATE' | 'CONSUMER' | 'INVALID'
 export function domainOf(email: string): string | null {
   const at = email.lastIndexOf('@')
   if (at < 1 || at === email.length - 1) return null
+  const raw = email.slice(at + 1).trim().toLowerCase()
+  if (!raw.includes('.')) return null
+
+  // Reduced to the domain somebody actually registered, so that
+  // user@mail.corp.com and user@corp.com are the same company.
+  //
+  // Without this they were not: the first stored mail.corp.com, the second
+  // matched nothing and created a second tenant for the same organisation.
+  // Neither could see the other's requisitions, invoices or people, and
+  // the join-beats-create promise was broken by a mail subdomain.
+  return registrableDomain(raw) ?? raw
+}
+
+/** The raw domain as typed, for the rare caller that wants exactly that. */
+export function rawDomainOf(email: string): string | null {
+  const at = email.lastIndexOf('@')
+  if (at < 1 || at === email.length - 1) return null
   const d = email.slice(at + 1).trim().toLowerCase()
   return d.includes('.') ? d : null
 }
@@ -129,9 +148,16 @@ export function domainOf(email: string): string | null {
  * do not get a company.
  */
 export function classifyEmail(email: string): EmailKind {
-  const d = domainOf(email.trim().toLowerCase())
-  if (!d) return 'INVALID'
-  return CONSUMER_DOMAINS.has(d) ? 'CONSUMER' : 'CORPORATE'
+  const lower = email.trim().toLowerCase()
+  const raw = rawDomainOf(lower)
+  if (!raw) return 'INVALID'
+  // Checked against both. googlemail.com reduces to itself, but a consumer
+  // provider on a multi-part suffix would otherwise slip through as
+  // corporate.
+  const reduced = domainOf(lower)
+  return CONSUMER_DOMAINS.has(raw) || (reduced !== null && CONSUMER_DOMAINS.has(reduced))
+    ? 'CONSUMER'
+    : 'CORPORATE'
 }
 
 // ── Join, or create ────────────────────────────────────────
@@ -207,10 +233,10 @@ const RESERVED = new Set([
  * another name is a poor first minute.
  */
 export function slugFromDomain(domain: string, taken: Set<string>): string {
-  const base = domain
-    .toLowerCase()
-    .replace(/^www\./, '')
-    .split('.')[0]
+  // The registrable label, not the first one. A company on
+  // mail.corp.com used to become "mail" — which is reserved, so it fell
+  // through to "mail-2.etyme.com" and nobody could tell why.
+  const base = (registrableLabel(domain) ?? domain.toLowerCase().replace(/^www\./, '').split('.')[0])
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
