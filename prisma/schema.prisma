@@ -145,6 +145,12 @@ model Company {
   kind              CompanyKind
   entityType        String?
   templatePack      String? // US_IT · US_SAP · IN_DELIVERY · UK
+  // Where a supplier sits in the chain when they sign up: PRIME holds the
+  // client agreement, BENCH sells through other suppliers. The same company
+  // is often both — Infosys is prime to one client and buys bench from
+  // three firms in the same week — so this shapes the first screens and can
+  // be changed without migrating anything. Null for clients and MSPs.
+  supplierPosture   String?
   currency          String      @default("USD")
   siteLiveAt        DateTime? // the ninety second promise
   networkVerifiedAt DateTime? // visibility to other companies waits for this
