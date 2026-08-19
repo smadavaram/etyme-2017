@@ -66,6 +66,24 @@ export function middleware(request: NextRequest) {
   headers.set('x-etyme-host-kind', kind)
   headers.set('x-etyme-host-value', value)
 
+  // A company's own address serves their public page rather than the
+  // marketing site. siteLiveAt has been set at sign-up since the
+  // beginning and nothing was ever served on it — the subdomain a company
+  // was given led nowhere, which is the ninety-second promise recorded
+  // and not kept.
+  //
+  // Rewritten rather than redirected, so the address in the bar stays
+  // theirs. A company sending somebody to cloudepa.etyme.com should not
+  // watch it turn into an etyme.com URL in front of them.
+  const path = request.nextUrl.pathname
+  const isTenantRoot = path === '/' && kind !== 'PLATFORM'
+
+  if (isTenantRoot) {
+    const url = request.nextUrl.clone()
+    url.pathname = `/site/${encodeURIComponent(value)}`
+    return NextResponse.rewrite(url, { request: { headers } })
+  }
+
   return NextResponse.next({ request: { headers } })
 }
 
