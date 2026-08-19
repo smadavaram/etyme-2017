@@ -12,7 +12,15 @@ import {
   itemsToAsk,
   progressOf,
   type HeldDocument,
+  type PacketSpec,
 } from '@/lib/packets'
+import {
+  deriveSupplierPacket,
+  deriveStartPacket,
+  explainDerivation,
+  differenceFromStatic,
+  type Circumstances,
+} from '@/lib/packet-derivation'
 
 /**
  * GET  /api/packets — what has been asked for, and how far along
@@ -129,7 +137,59 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const spec = packetByKey(String(body.packetKey ?? ''))
+  // ── Derived, where the circumstances are known ──────────────────────
+  //
+  // A static list is right for the case somebody typed it for and quietly
+  // wrong for every other: a UK supplier asked for a W-9, an H-1B holder
+  // not asked for their approval notice, a corp-to-corp contractor asked
+  // for an I-9 that does not apply to them.
+  //
+  // Given circumstances, the list is worked out instead. The static packs
+  // remain for the case where nothing is known, which is honest rather
+  // than lazy — a guess presented as a derivation is worse than a list.
+  let spec: PacketSpec | null = null
+  let derivedFrom: Circumstances | null = null
+  let explanation: string | null = null
+  let versusStatic: ReturnType<typeof differenceFromStatic> | null = null
+
+  if (body.circumstances) {
+    const c = body.circumstances as Circumstances
+    if (!c.country) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION',
+            message: 'Deriving a list needs to know where the work happens — it decides the whole legal frame.',
+            field: 'circumstances.country',
+          },
+        },
+        { status: 422 }
+      )
+    }
+    const derived = String(body.for ?? 'SUPPLIER').toUpperCase() === 'START'
+      ? deriveStartPacket(c)
+      : deriveSupplierPacket(c)
+
+    spec = {
+      key: `DERIVED_${derived.purpose}`,
+      label: derived.label,
+      purpose: derived.purpose,
+      subject: derived.subject,
+      preamble: derived.preamble,
+      items: derived.items,
+    }
+    derivedFrom = c
+    explanation = explainDerivation(derived, c)
+
+    // Shown so somebody can check the derivation rather than trust it.
+    const comparable = packetByKey(
+      derived.purpose === 'CONTRACT_START' ? 'CONTRACT_START_W2' : 'VENDOR_ONBOARDING_US'
+    )
+    if (comparable) versusStatic = differenceFromStatic(derived.items, comparable.items)
+  } else {
+    spec = packetByKey(String(body.packetKey ?? ''))
+  }
+
   if (!spec) {
     return NextResponse.json(
       {
@@ -214,6 +274,7 @@ export async function POST(request: NextRequest) {
       data: {
         created: false,
         alreadyHeld: resolved.map((r) => ({ label: r.label, note: r.note })),
+        explanation,
         message: `Nothing to ask for — everything in "${spec.label}" is already on file and current.`,
       },
     })
@@ -313,7 +374,17 @@ export async function POST(request: NextRequest) {
         // sending it on.
         link: `/packet/${packet.token}`,
         expiresAt: packet.expiresAt.toISOString().slice(0, 10),
-        asking: asking.map((a) => ({ label: a.label, required: a.required, why: a.note })),
+        asking: asking.map((a) => ({
+          label: a.label,
+          required: a.required,
+          why: a.note,
+          // Which rule wanted it. "The system requires it" is the answer
+          // that makes somebody phone you.
+          becauseOf: (a as any).becauseOf ?? null,
+        })),
+        derivedFrom,
+        explanation,
+        versusStatic,
         skipped: resolved
           .filter((r) => r.state === 'ALREADY_HELD')
           .map((r) => ({ label: r.label, note: r.note })),
