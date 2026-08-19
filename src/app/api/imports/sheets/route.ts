@@ -11,6 +11,7 @@ import {
   type EntitySpec,
   type RowResult,
 } from '@/lib/importable'
+import { extractWithModel, modelAvailable, reviewOf, toRows } from '@/lib/extract'
 
 /**
  * GET  /api/imports/sheets — what this person may load
@@ -111,7 +112,67 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const rows: Record<string, string>[] = Array.isArray(body.rows) ? body.rows : []
+  // ── Read it, rather than match column headings ──────────────────────
+  //
+  // Given raw content — a pasted table, an email, the text of a document —
+  // it is read by the model, which returns values with a confidence and a
+  // quote of where each came from. The header matcher stays as the
+  // fallback and says so, because a degraded result presented as a good
+  // one is worse than a refusal.
+  let rows: Record<string, string>[] = Array.isArray(body.rows) ? body.rows : []
+  let readBy: 'MODEL' | 'HEADERS' = 'HEADERS'
+  let readNote: string | null = null
+  let review: ReturnType<typeof reviewOf> | null = null
+
+  if (typeof body.content === 'string' && body.content.trim()) {
+    if (!modelAvailable()) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NO_READER',
+            message:
+              'Reading a document needs ANTHROPIC_API_KEY. Without it only a spreadsheet with recognisable column headings can be loaded — send rows instead of content.',
+          },
+        },
+        { status: 422 }
+      )
+    }
+
+    const extracted = await extractWithModel(spec, body.content)
+    if (!extracted || extracted.records.length === 0) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOTHING_READ',
+            message: extracted?.note ?? 'Nothing could be read out of that.',
+            unread: extracted?.unread ?? [],
+          },
+        },
+        { status: 422 }
+      )
+    }
+
+    rows = toRows(extracted.records, spec)
+    readBy = 'MODEL'
+    readNote = extracted.note
+    review = reviewOf(extracted.records)
+
+    // Anything inferred rather than read is confirmed before it is
+    // written. Writing a guess is how an import silently changes a rate.
+    if (body.commit && review.toConfirm > 0 && !body.confirmedGuesses) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NEEDS_CONFIRMING',
+            message: `${review.toConfirm} value(s) were inferred rather than read. Look at them, then send confirmedGuesses: true.`,
+            review,
+          },
+        },
+        { status: 409 }
+      )
+    }
+  }
+
   if (rows.length === 0) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'The file has no rows in it', field: 'rows' } },
@@ -155,6 +216,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       data: {
         committed: false,
+        // Which reader ran. Never silently one when it looks like the other.
+        readBy,
+        readNote,
+        review,
         mapping,
         preview: {
           ...preview,
@@ -195,6 +260,9 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     data: {
       committed: true,
+      readBy,
+      readNote,
+      review,
       created: written.created,
       updated: written.updated,
       skipped: parsed.length - good.length,
