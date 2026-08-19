@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 import { hasPermission } from '@/lib/permissions'
 import { assessRateChange } from '@/lib/contract-rate'
 
@@ -132,6 +133,21 @@ export async function POST(
       },
       // An approval can be withdrawn while nothing has been paid against it.
       reversible: action === 'approve',
+    },
+  })
+
+  void emit({
+    type: action === 'approve' ? 'rate.amendment_approved' : 'rate.amendment_rejected',
+    companyId: caller.company?.id ?? null,
+    subjectType: 'RateHistory',
+    subjectId: id,
+    actorPersonId: caller.person.id,
+    payload: {
+      contractId: amendment.contractId,
+      fromCents: amendment.previousRate,
+      toCents: amendment.rate,
+      effectiveFrom: amendment.fromDate.toISOString(),
+      invoiceLinesAffected: affected,
     },
   })
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 
 /**
@@ -24,6 +25,13 @@ export async function POST(request: NextRequest) {
       { status: 401 }
     )
   }
+
+  // Who is submitting. Needed for the event log — "a submission happened"
+  // without a name in it is not much of an audit record.
+  const submitter = await prisma.person.findUnique({
+    where: { primaryEmail: email },
+    select: { id: true },
+  })
 
   const body = await request.json()
   const { requirementId, personIds, rate, fromCompanyId } = body
@@ -204,6 +212,22 @@ export async function POST(request: NextRequest) {
           },
         })
       }
+
+      // 6. Write AccessLog — submission is a read of person's data
+      void emit({
+        type: 'submission.created',
+        companyId: fromCompanyId,
+        subjectType: 'Submission',
+        subjectId: submission.id,
+        actorPersonId: submitter?.id ?? null,
+        payload: {
+          requirementId,
+          personId: person.id,
+          rateCents: rate,
+          toCompanyId: requirement.companyId,
+          offBand: Boolean(item.warning),
+        },
+      })
 
       // 6. Write AccessLog — submission is a read of person's data
       await prisma.accessLog.create({

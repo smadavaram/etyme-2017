@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { mayDistribute } from '@/lib/requisition-approval'
 
@@ -181,6 +182,22 @@ export async function POST(
         expiresAt: expiresAt.toISOString(),
       },
       reversible: true,
+    },
+  })
+
+  // Vendor list only — never the bands. This event is readable by an
+  // integration, and a rate band belongs to one recipient.
+  void emit({
+    type: 'invitation.sent',
+    companyId: requisition.companyId,
+    subjectType: 'Requirement',
+    subjectId: id,
+    actorPersonId: caller.person.id,
+    payload: {
+      title: requisition.title,
+      vendorCompanyIds: vendors.map(v => v.companyId),
+      sentCount: sent.length,
+      expiresAt: expiresAt.toISOString(),
     },
   })
 

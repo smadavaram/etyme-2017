@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 import { evaluateGovernance } from '@/lib/governance'
 import { assessAward, type AwardFacts } from '@/lib/award'
 import { notify } from '@/lib/notify'
@@ -311,6 +312,38 @@ export async function POST(
       },
       // Reversible only until the person actually starts.
       reversible: true,
+    },
+  })
+
+  void emit({
+    type: 'submission.awarded',
+    companyId: req.companyId,
+    subjectType: 'Submission',
+    subjectId: id,
+    actorPersonId: caller.person.id,
+    payload: {
+      requirementId: req.id,
+      contractId: result.contract.id,
+      personId: submission.personId,
+      personName: submission.person.name,
+      vendorCompanyId: submission.fromCompanyId,
+      rateCents: awardedRate,
+      seatsAfter: decision.seatsAfter,
+      costCenterCode: req.costCenter?.code ?? null,
+    },
+  })
+
+  void emit({
+    type: 'contract.created',
+    companyId: req.companyId,
+    subjectType: 'SellContract',
+    subjectId: result.contract.id,
+    actorPersonId: caller.person.id,
+    payload: {
+      fromSubmissionId: id,
+      requirementId: req.id,
+      personId: submission.personId,
+      rateCents: awardedRate,
     },
   })
 

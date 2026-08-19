@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { hasPermission } from '@/lib/permissions'
 import { assessGrant, reviewAccess, sensitivityOf } from '@/lib/access-grant'
@@ -193,6 +194,21 @@ export async function POST(request: NextRequest) {
         notes: decision.checks.filter(c => c.outcome === 'WARN').map(c => c.reason),
       },
       reversible: true,
+    },
+  })
+
+  void emit({
+    type: 'access.granted',
+    companyId: caller.company.id,
+    subjectType: 'Context',
+    subjectId: target.id,
+    actorPersonId: caller.person.id,
+    payload: {
+      personId: target.person.id,
+      roleId: role.id,
+      roleName: role.name,
+      sensitivity: decision.sensitivity,
+      expiresAt: expiresAt?.toISOString() ?? null,
     },
   })
 

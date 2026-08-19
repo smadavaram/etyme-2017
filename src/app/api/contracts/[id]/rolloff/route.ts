@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 
 /**
  * POST /api/contracts/:id/rolloff
@@ -25,6 +26,12 @@ export async function POST(
       { status: 401 }
     )
   }
+
+  // Who did it, for the event log.
+  const actor = await prisma.person.findUnique({
+    where: { primaryEmail: email },
+    select: { id: true },
+  })
 
   const { id } = await params
 
@@ -96,6 +103,20 @@ export async function POST(
       },
     }),
   ])
+
+  void emit({
+    type: 'contract.rolled_off',
+    companyId: contract.clientCompany.id,
+    subjectType: 'SellContract',
+    subjectId: id,
+    actorPersonId: actor?.id ?? null,
+    payload: {
+      personId: contract.person.id,
+      vendorCompanyId: contract.company.id,
+      endClientCompanyId: contract.endClientCompany?.id ?? contract.clientCompany.id,
+      endDate: endDate.toISOString(),
+    },
+  })
 
   return NextResponse.json({
     data: {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 import { evaluateGovernance } from '@/lib/governance'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
 
@@ -23,6 +24,12 @@ export async function POST(
       { status: 401 }
     )
   }
+
+  // Who did it, for the event log.
+  const actor = await prisma.person.findUnique({
+    where: { primaryEmail: email },
+    select: { id: true },
+  })
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
@@ -118,6 +125,24 @@ export async function POST(
       },
     }),
   ])
+
+  void emit({
+    type: 'contract.extended',
+    companyId: contract.clientCompany.id,
+    subjectType: 'SellContract',
+    subjectId: id,
+    actorPersonId: actor?.id ?? null,
+    payload: {
+      personId: contract.person.id,
+      vendorCompanyId: contract.company.id,
+      // The end client, not the payer. Tenure accrues where the person
+      // works, so this is the id that matters downstream.
+      endClientCompanyId: contract.endClientCompany?.id ?? contract.clientCompany.id,
+      oldEndDate: oldEnd?.toISOString() ?? null,
+      newEndDate: newEnd.toISOString(),
+      months,
+    },
+  })
 
   const warnings = governance.evaluations.filter((e) => e.outcome === 'WARN')
 

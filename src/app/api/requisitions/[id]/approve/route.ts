@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import { advanceApprovalChain } from '@/lib/requisition-approval'
 
@@ -143,6 +144,21 @@ export async function POST(
       // An approval can be withdrawn before anyone is placed; a rejection
       // is reversed by raising a fresh requisition, not by undoing this one.
       reversible: action === 'approve',
+    },
+  })
+
+  void emit({
+    type: action === 'approve' ? 'requisition.approved' : 'requisition.rejected',
+    companyId: requisition.companyId,
+    subjectType: 'Requirement',
+    subjectId: id,
+    actorPersonId: caller.person.id,
+    payload: {
+      title: requisition.title,
+      rank: current.rank,
+      fullyApproved: result.fullyApproved,
+      remainingRanks: result.remaining,
+      reason: decisionReason,
     },
   })
 

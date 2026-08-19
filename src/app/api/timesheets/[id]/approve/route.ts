@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 
 /**
@@ -82,6 +83,24 @@ export async function POST(
       },
     }),
   ])
+
+  // The goods receipt. Everything downstream — the match, the invoice,
+  // the payment — dates from this moment, so it is the event an ERP
+  // integration cares about most.
+  void emit({
+    type: 'timesheet.approved',
+    companyId: timesheet.sellContract.companyId,
+    subjectType: 'Timesheet',
+    subjectId: id,
+    actorPersonId: person?.id ?? null,
+    payload: {
+      personId: timesheet.personId,
+      sellContractId: timesheet.sellContractId,
+      hours,
+      billRateCents: timesheet.sellContract.billRate,
+      billAmount,
+    },
+  })
 
   // Notify the timesheet owner that their timesheet was approved
   notify({

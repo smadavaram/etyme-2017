@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 
 /**
  * POST /api/invoices/:id/payments
@@ -127,6 +128,27 @@ export async function POST(
             newStatus,
           },
           reversible: true,
+        },
+      })
+
+      void emit({
+        type: 'invoice.paid',
+        companyId: caller.company?.id ?? null,
+        subjectType: 'Invoice',
+        subjectId: id,
+        actorPersonId: caller.person.id,
+        payload: {
+          invoiceNumber: invoice.number,
+          paymentId: payment.id,
+          amount,
+          method,
+          reference,
+          paidToDate: newPaid,
+          status: newStatus,
+          // Whether this closed it. A part payment and a final payment are
+          // the same event type with a different answer here, and an ERP
+          // consumer needs to tell them apart.
+          settled: newStatus === 'PAID',
         },
       })
 

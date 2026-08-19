@@ -49,6 +49,7 @@ model Person {
   documentSharesCreated DocumentShare[] @relation("shareCreator")
   documentSharesAbout   DocumentShare[] @relation("shareSubject")
   managedContracts SellContract[] @relation("hiringManager") // Addendum E: contracts this person owns at the client
+  eventsCaused     Event[]        @relation("eventActor")
 }
 
 model Credential {
@@ -222,6 +223,7 @@ model Company {
   consultantsBehind  ConsultantProfile[] @relation("consultantCorp")
   documentShares     DocumentShare[]
   approvalRules      ApprovalRule[]
+  events             Event[]
 }
 
 enum CompanyKind {
@@ -1731,4 +1733,63 @@ model Holiday {
   @@unique([companyId, date])
   @@index([companyId])
   @@index([date])
+}
+
+/// ─────────────────────────────────────────────────────────────────────
+/// The event log.
+///
+/// Append-only. Nothing updates a row here and nothing deletes one; the
+/// only operation is insert. That is what makes it worth anything — an
+/// audit trail somebody can edit is a story, not a record.
+///
+/// Three jobs, which is why it earns its place before any integration:
+///
+///   1. Audit. What happened, in order, with who did it. The automation
+///      log says what the system did unprompted; this says what happened
+///      at all.
+///   2. Replay. Rebuilding a view, or answering "what did the approval
+///      chain look like in March", needs the sequence, not the current
+///      state.
+///   3. Integration. Every outbound webhook and every ERP file is a
+///      reader of this stream. Without it each connector has to poll
+///      tables and guess what changed.
+///
+/// `seq` is a database-assigned running number, so consumers can say
+/// "everything after 40213" and get an answer that does not depend on
+/// clocks agreeing.
+model Event {
+  id  String @id @default(cuid())
+  seq BigInt @default(autoincrement())
+
+  /// The tenant. Null only for platform-level events that belong to
+  /// nobody — a company being created is the main one.
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id])
+
+  /// Dotted and past tense: "requisition.approved", "invoice.paid".
+  /// Past tense because an event is something that already happened;
+  /// naming one "invoice.pay" invites somebody to treat it as a command.
+  type String
+
+  /// What it happened to, so a subject's whole history is one query.
+  subjectType String
+  subjectId   String
+
+  /// Who did it. Null when nobody did — a cycle falling due has no actor.
+  actorPersonId String?
+  actorPerson   Person? @relation("eventActor", fields: [actorPersonId], references: [id])
+  /// PERSON · AUTOMATION · SERVICE — a service account is not a person
+  /// and an auditor needs to see which one moved the money.
+  actorKind String @default("PERSON")
+
+  /// The facts of the event, enough to act on without reading the row it
+  /// came from. Deliberately a blob: this is a log, and the shape of an
+  /// event from 2026 must stay readable in 2030 without a migration.
+  payload Json
+
+  occurredAt DateTime @default(now())
+
+  @@index([companyId, seq])
+  @@index([type, occurredAt])
+  @@index([subjectType, subjectId])
 }

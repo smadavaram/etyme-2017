@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import {
@@ -281,6 +282,26 @@ export async function POST(request: NextRequest) {
     })
 
     return req
+  })
+
+  // Emitted after the transaction, not inside it. An event describing a
+  // requisition that then failed to commit is a lie an integration would
+  // act on.
+  void emit({
+    type: 'requisition.raised',
+    companyId: client.id,
+    subjectType: 'Requirement',
+    subjectId: requisition.id,
+    actorPersonId: caller.person.id,
+    payload: {
+      title: title.trim(),
+      heads,
+      annualValueCents,
+      // Whether it needed a human at all. The headline number for any
+      // programme is the share that cleared without one.
+      autoCleared: decision.state === 'AUTO_APPROVED',
+      approverCount: decision.route.length,
+    },
   })
 
   // Tell the approvers there is something waiting.

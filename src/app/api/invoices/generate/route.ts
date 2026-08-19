@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 
 /**
  * POST /api/invoices/generate
@@ -256,6 +257,25 @@ export async function POST(request: NextRequest) {
       })
 
       return invoice
+    })
+
+    // After the transaction. An invoice event for an invoice that rolled
+    // back would have an AP team chasing a number that does not exist.
+    void emit({
+      type: 'invoice.generated',
+      companyId: caller.company?.id ?? null,
+      subjectType: 'Invoice',
+      subjectId: result.id,
+      actorPersonId: caller.person.id,
+      payload: {
+        number: result.number,
+        engagementId,
+        lineCount: lines.length,
+        timesheetCount: lines.flatMap((l) => l.timesheetIds).length,
+        total,
+        currency,
+        dueAt: dueAt.toISOString(),
+      },
     })
 
     return NextResponse.json({

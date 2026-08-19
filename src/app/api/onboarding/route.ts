@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { emit } from '@/lib/events'
 import { getSessionEmail } from '@/lib/api-context'
 import {
   decideEntry, typeByKey, slugFromDomain, guessCompanyName,
@@ -166,6 +167,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    void emit({
+      type: 'company.member_joined',
+      companyId: decision.company.id,
+      subjectType: 'Person',
+      subjectId: person.id,
+      actorPersonId: person.id,
+      payload: { email, domain, companyName: decision.company.name, hasRole: false },
+    })
+
     // Somebody has to be told, or the new colleague sits with no role and
     // no way to say so — waiting on a decision nobody knows they owe. The
     // people who can grant a role are the ones who get the message.
@@ -262,6 +272,21 @@ export async function POST(request: NextRequest) {
       reason: `First sign-in from ${decision.domain}`,
       payload: { companyId: company.id, kind: type.kind, posture: type.posture, slug },
       reversible: false,
+    },
+  })
+
+  void emit({
+    type: 'company.created',
+    companyId: company.id,
+    subjectType: 'Company',
+    subjectId: company.id,
+    actorPersonId: person.id,
+    payload: {
+      name: company.name,
+      slug: company.slug,
+      kind: company.kind,
+      posture: company.supplierPosture,
+      domain: decision.domain,
     },
   })
 
