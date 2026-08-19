@@ -46,6 +46,8 @@ model Person {
   requisitionsRaised Requirement[]        @relation("requisitionRaiser")
   approvalRules      ApprovalRule[]       @relation("approvalRuleApprover")
   requirementApprovals RequirementApproval[] @relation("requirementApprover")
+  documentSharesCreated DocumentShare[] @relation("shareCreator")
+  documentSharesAbout   DocumentShare[] @relation("shareSubject")
   managedContracts SellContract[] @relation("hiringManager") // Addendum E: contracts this person owns at the client
 }
 
@@ -195,6 +197,7 @@ model Company {
   posReceived        PurchaseOrder[]    @relation("poRecipient")
   remitTos           RemitTo[]
   consultantsBehind  ConsultantProfile[] @relation("consultantCorp")
+  documentShares     DocumentShare[]
   approvalRules      ApprovalRule[]
 }
 
@@ -1524,6 +1527,91 @@ model Enrollment {
 // ─────────────────────────────────────────────
 // DOCUMENTS  — five 2017 library models and six doc set models, collapsed
 // ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// SHARING DOCUMENTS OUTSIDE THE COMPANY
+//
+// An immigration lawyer preparing an H1B petition, an accountant filing a
+// franchise registration, an auditor sampling contracts. They need a
+// specific set of documents, once, and they must not need an account here
+// to read them — a lawyer asked to create a login will ask you to email the
+// files instead, and then the files are in an inbox forever.
+//
+// So a share is a package with a link, and three properties that make it
+// safe to send: it expires, it can be killed, and every time somebody opens
+// it that is recorded.
+// ─────────────────────────────────────────────
+
+model DocumentShare {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Who it is for. An email address rather than a user, deliberately.
+  recipientEmail String
+  recipientName  String?
+  recipientRole  String? // "Immigration attorney" · "CPA" · "Auditor"
+
+  // What it is for, in words the subject would recognise if they asked why
+  // their passport was sent to a stranger.
+  purpose String
+
+  // The person these documents are about, when they are about somebody.
+  // Present so the subject can see who has been reading their file — the
+  // AccessLog invariant applies to outsiders too.
+  subjectPersonId String?
+  subjectPerson   Person? @relation("shareSubject", fields: [subjectPersonId], references: [id])
+
+  // The link. Long and random; the only credential.
+  token String @unique
+
+  // Always set. A share with no end date is a leak with a delay on it.
+  expiresAt DateTime
+  revokedAt DateTime?
+  revokedById String?
+
+  createdById String
+  createdBy   Person   @relation("shareCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  items    DocumentShareItem[]
+  accesses DocumentShareAccess[]
+
+  @@index([companyId, expiresAt])
+  @@index([subjectPersonId])
+}
+
+// One document in the package. Documents live in three different models in
+// this schema, so the reference is by kind and id rather than a foreign key.
+model DocumentShareItem {
+  id      String        @id @default(cuid())
+  shareId String
+  share   DocumentShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+
+  kind  String // VERIFICATION_DOC · VISA_DOCUMENT · DOC_INSTANCE
+  refId String
+  // What the recipient sees. A lawyer should not have to open six files to
+  // find the I-797.
+  label String
+
+  @@index([shareId])
+}
+
+// Every open, recorded. Not for the company's comfort — so the person whose
+// documents these are can see who read them and when.
+model DocumentShareAccess {
+  id      String        @id @default(cuid())
+  shareId String
+  share   DocumentShare @relation(fields: [shareId], references: [id], onDelete: Cascade)
+
+  at        DateTime @default(now())
+  ipAddress String?
+  userAgent String?
+  // Which document was opened, when they opened one rather than the index.
+  itemId    String?
+
+  @@index([shareId, at])
+}
 
 model DocTemplate {
   id             String        @id @default(cuid())
