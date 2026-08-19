@@ -87,8 +87,20 @@ model Context {
   grantedAt   DateTime    @default(now())
   revokedAt   DateTime?
 
+  // Access ends by default. Null means it genuinely does not — permitted
+  // for read-only, argued for otherwise. Renewing is a click; forgetting is
+  // safe, which is the opposite of how this normally works.
+  expiresAt   DateTime?
+  // Why this person has this. The reviewer in six months is rarely the
+  // granter today, and "they asked" tells them nothing.
+  grantReason String?
+  // When they last did something this access was needed for. Null means
+  // never — held but unused, which is exposure rather than access.
+  lastUsedAt  DateTime?
+
   @@index([personId, revokedAt])
   @@index([companyId])
+  @@index([companyId, expiresAt])
 }
 
 enum ContextType {
