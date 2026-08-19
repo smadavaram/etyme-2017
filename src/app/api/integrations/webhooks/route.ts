@@ -109,14 +109,24 @@ export async function POST(request: NextRequest) {
       { status: 422 }
     )
   }
-  // https only. A signed payload sent over plain http is still readable by
-  // anything on the path, which defeats most of the point of signing it.
-  if (!/^https:\/\/.+/i.test(url)) {
+  // https only, with one carve-out: a loopback address in development, so
+  // somebody can point this at a receiver on their own machine and watch a
+  // delivery arrive before they trust it. Nothing leaves the machine, so
+  // there is no path to read it from.
+  //
+  // A signed payload sent over plain http to anywhere else is still
+  // readable by anything in between, which defeats most of the point of
+  // signing it.
+  const loopback = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(url)
+  const localOnly = loopback && process.env.NODE_ENV === 'development'
+  if (!localOnly && !/^https:\/\/.+/i.test(url)) {
     return NextResponse.json(
       {
         error: {
           code: 'VALIDATION',
-          message: 'An https address. Events carry rates and names, so they do not travel over plain http.',
+          message: loopback
+            ? 'A loopback address is only allowed in development. This build is not one.'
+            : 'An https address. Events carry rates and names, so they do not travel over plain http.',
           field: 'url',
         },
       },

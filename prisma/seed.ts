@@ -53,6 +53,14 @@ async function main() {
     prisma.contractLink.deleteMany(),
     prisma.companyLocation.deleteMany(),
     prisma.holiday.deleteMany(),
+    // Deliveries reference events; subscriptions and keys reference the
+    // company. All three clear before anything they point at.
+    prisma.webhookDelivery.deleteMany(),
+    prisma.webhookSubscription.deleteMany(),
+    prisma.serviceAccount.deleteMany(),
+    prisma.packetItem.deleteMany(),
+    prisma.documentPacket.deleteMany(),
+    prisma.approvalRuleVersion.deleteMany(),
     prisma.event.deleteMany(),
     prisma.sellContract.deleteMany(),
     prisma.buyContract.deleteMany(),
@@ -188,23 +196,23 @@ async function main() {
   // written SQL: pass its id as x-context-id, or make it the active context.
   // Program Manager is a demand-side role — it reads placements, approves
   // hours, and reviews governance, but never sees vendor cost or margin.
-  const clientRole = await prisma.role.create({
-    data: {
-      companyId: client.id,
-      name: 'Program Manager',
-      permissions: [
-        'consultants.read',
-        'requirements.read',
-        'submissions.read',
-        'assignments.read',
-        'timesheets.read',
-        'timesheets.approve',
-        'invoices.read',
-        'vendors.read',
-      ],
-      isDefault: false,
-    },
-  })
+  // The same set a real client gets at sign-up (src/lib/company-defaults.ts),
+  // so the demo shows what a new company actually receives. Without this the
+  // client had no role holding team.manage at all, which meant nobody there
+  // could grant access or set up an integration.
+  const clientRoles = await Promise.all(
+    rolesFor('CLIENT').map((r) =>
+      prisma.role.create({
+        data: {
+          companyId: client.id,
+          name: r.name,
+          permissions: [...r.permissions],
+          isDefault: true,
+        },
+      })
+    )
+  )
+  const clientRole = clientRoles.find((r) => r.name === 'Owner')!
 
   // ── The client's three teams ──
   // A client is not one person. Each team decides different things and sees
@@ -212,30 +220,26 @@ async function main() {
   // (src/lib/governance-horizon.ts). Routing everything to one "approver"
   // is what makes governance feel like a queue rather than somebody's job.
   const clientTeams = {
-    hiringManager: await prisma.role.create({
-      data: {
-        companyId: client.id,
-        name: 'Hiring Manager',
-        // Needs people. Sees their own unit, not the whole programme, and
-        // never sees what a vendor pays or earns.
-        permissions: [
-          'requirements.read', 'requirements.write',
-          'submissions.read', 'assignments.read',
-          'timesheets.read', 'timesheets.approve',
-        ],
-        isDefault: false,
-      },
-    }),
+    // Hiring Manager comes from the default set, so it carries the control
+    // that matters: raising a requisition without being able to choose
+    // which suppliers compete for it.
+    hiringManager: clientRoles.find((r) => r.name === 'Hiring Manager')!,
+
     procurement: await prisma.role.create({
       data: {
         companyId: client.id,
         name: 'Indirect Procurement',
         // Owns vendors, rates, contracts and spend. Sees money across the
         // whole programme; does not adjudicate co-employment.
+        //
+        // Every name here is checked against PERMISSIONS. This role used to
+        // carry vendors.write and invoices.approve, neither of which any
+        // hasPermission() call looks for — so it silently granted nothing,
+        // which is indistinguishable from working until somebody tries.
         permissions: [
-          'vendors.read', 'vendors.write',
+          'vendors.read', 'vendors.manage',
           'requirements.read', 'submissions.read', 'assignments.read',
-          'invoices.read', 'invoices.approve',
+          'invoices.read', 'invoices.issue',
           'rates.read', 'rates.write', // procurement owns price, so it decides amendments
           'governance.read',
         ],
@@ -248,10 +252,13 @@ async function main() {
         name: 'HR — Workforce Compliance',
         // Owns co-employment, tenure, classification and work authorisation.
         // Sees people and their exposure; has no reason to see rates.
+        //
+        // tenure.read, compliance.read and compliance.write were invented
+        // here and are checked nowhere. Tenure and compliance read through
+        // consultants.read and assignments.read, which are real.
         permissions: [
           'consultants.read', 'assignments.read',
           'governance.read', 'governance.write',
-          'tenure.read', 'compliance.read', 'compliance.write',
         ],
         isDefault: false,
       },

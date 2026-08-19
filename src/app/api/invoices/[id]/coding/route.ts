@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { allocateAmount, formatShare, type AllocationShare } from '@/lib/cost-allocation'
 import { poBalance } from '@/lib/purchase-order'
+import { PROFILES, profileById, render, type CodedLine } from '@/lib/erp-profiles'
 
 /**
  * GET /api/invoices/:id/coding
@@ -251,6 +252,69 @@ export async function GET(
     })
   }
 
+  // ── The same rows, written the way one ERP wants them ───────────────
+  //
+  // Not four integrations — four ways of writing down the same coded
+  // lines, because each system disagrees about column names, date formats
+  // and delimiters. Etyme is not the general ledger; this hands their
+  // ledger something it will accept.
+  const profileId = request.nextUrl.searchParams.get('profile')
+  if (profileId) {
+    const profile = profileById(profileId.toUpperCase())
+    if (!profile) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'UNKNOWN_PROFILE',
+            message: `No profile called ${profileId}`,
+            options: PROFILES.map((p) => ({ id: p.id, label: p.label })),
+          },
+        },
+        { status: 422 }
+      )
+    }
+
+    const lines: CodedLine[] = rows.map((r) => ({
+      invoiceNumber: r.invoiceNumber,
+      invoiceDate: r.invoiceDate,
+      dueDate: r.dueDate,
+      vendor: r.vendor,
+      billTo: r.billTo,
+      poNumber: r.poNumber,
+      personName: r.personName,
+      costCenterCode: r.costCenterCode,
+      glAccount: r.glAccount,
+      amount: r.amount,
+      currency: r.currency,
+    }))
+
+    const written = render(profile, lines, invoiceTotal)
+
+    // Refused rather than written. An AP team that finds a one-cent gap or
+    // an unmapped line rejects the whole file and asks for it again
+    // tomorrow, so the problem is worth naming here.
+    if (!written.ok) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'CANNOT_EXPORT',
+            message: written.problems[0].problem,
+            problems: written.problems,
+            profile: { id: profile.id, label: profile.label, howItLands: profile.howItLands },
+          },
+        },
+        { status: 409 }
+      )
+    }
+
+    return new NextResponse(written.result.content, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${written.result.fileName}"`,
+      },
+    })
+  }
+
   return NextResponse.json({
     data: {
       invoice: {
@@ -269,6 +333,14 @@ export async function GET(
       purchaseOrderBalance: poState,
       remitTo: invoice.remitTo,
       rows,
+      // How to hand these rows to a ledger. Said here so an AP team finds
+      // it on the screen they are already looking at.
+      exportProfiles: PROFILES.map((p) => ({
+        id: p.id,
+        label: p.label,
+        howItLands: p.howItLands,
+        href: `/api/invoices/${invoice.id}/coding?profile=${p.id}`,
+      })),
       reconciliation: {
         invoiceTotal,
         codedTotal: Math.round(codedTotal * 100) / 100,

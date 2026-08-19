@@ -2072,6 +2072,10 @@ model WebhookDelivery {
   createdAt   DateTime  @default(now())
   deliveredAt DateTime?
 
+  /// One delivery per event per subscription. Without this, a crash
+  /// between queueing deliveries and advancing the cursor sends the same
+  /// event twice — and skipDuplicates on the insert would be decoration.
+  @@unique([subscriptionId, eventId])
   @@index([subscriptionId, state])
   @@index([state, nextAttemptAt])
 }
