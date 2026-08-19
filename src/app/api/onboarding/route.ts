@@ -5,6 +5,7 @@ import {
   decideEntry, typeByKey, slugFromDomain, guessCompanyName,
   domainOf, COMPANY_TYPES,
 } from '@/lib/onboarding'
+import { notifyBulk } from '@/lib/notify'
 
 /**
  * GET  /api/onboarding — what happens when this person signs in
@@ -118,8 +119,21 @@ export async function POST(request: NextRequest) {
     await prisma.context.create({
       data: { personId: person.id, type: 'CONSULTANT' },
     })
+
+    // The profile is created empty rather than waiting for the first edit.
+    // Without a row there is nothing for the consultant portal to open, and
+    // "add your skills next" leads to a screen that cannot save.
+    await prisma.consultantProfile.upsert({
+      where: { personId: person.id },
+      update: {},
+      create: { personId: person.id, skills: [], visibility: 'INTERNAL' },
+    })
+
     return NextResponse.json({
-      data: { action: 'CONSULTANT', message: 'You are set up. Add your skills and availability next.' },
+      data: {
+        action: 'CONSULTANT',
+        message: 'You are set up. Add your skills and availability next.',
+      },
     })
   }
 
@@ -152,6 +166,31 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Somebody has to be told, or the new colleague sits with no role and
+    // no way to say so — waiting on a decision nobody knows they owe. The
+    // people who can grant a role are the ones who get the message.
+    const admins = await prisma.context.findMany({
+      where: {
+        companyId: decision.company.id,
+        revokedAt: null,
+        personId: { not: person.id },
+        role: { permissions: { hasSome: ['*', 'roles.write', 'company.write'] } },
+      },
+      select: { personId: true },
+    })
+    if (admins.length > 0) {
+      void notifyBulk(
+        admins.map(a => ({
+          personId: a.personId,
+          companyId: decision.company.id,
+          type: 'SYSTEM' as const,
+          title: `${person.name} is waiting for access`,
+          body: `${person.name} (${email}) signed in from ${domain} and joined ${decision.company.name}. They cannot see anything until somebody gives them a role.`,
+          entityId: person.id,
+        }))
+      )
+    }
+
     return NextResponse.json({
       data: {
         action: 'JOIN',
@@ -159,6 +198,9 @@ export async function POST(request: NextRequest) {
         companyName: decision.company.name,
         message: `You are in ${decision.company.name}. An administrator there decides what you can see.`,
         needsRole: true,
+        // Said plainly, because "waiting for approval" with nobody named is
+        // the moment a new user gives up.
+        waitingOn: admins.length,
       },
     })
   }

@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from 'next-auth'
-import type { Adapter } from 'next-auth/adapters'
+import type { Provider } from 'next-auth/providers/index'
+import AzureADProvider from 'next-auth/providers/azure-ad'
 import GoogleProvider from 'next-auth/providers/google'
 import EmailProvider from 'next-auth/providers/email'
 
@@ -34,25 +35,56 @@ export function isExcludedDomain(email: string): boolean {
   return !domain || EXCLUDED_DOMAINS.has(domain)
 }
 
+/**
+ * Only the ways in that actually work.
+ *
+ * Microsoft used to be commented out while the sign-in page still offered
+ * a Microsoft button. Clicking it took an enterprise user — the population
+ * this product is for — to an error page. A provider registered with empty
+ * credentials is the same failure wearing a suit: the button renders, the
+ * redirect happens, and the provider rejects it.
+ *
+ * So a provider appears here when its credentials do, and the sign-in page
+ * asks NextAuth what is present rather than assuming.
+ */
+export function configuredProviders(): Provider[] {
+  const providers: Provider[] = []
+
+  if (process.env.AZURE_AD_CLIENT_ID && process.env.AZURE_AD_CLIENT_SECRET) {
+    providers.push(
+      AzureADProvider({
+        clientId: process.env.AZURE_AD_CLIENT_ID,
+        clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+        // 'common' lets any Microsoft tenant in, which is what a platform
+        // wants — Terumo BCT and Nike are different tenants.
+        tenantId: process.env.AZURE_AD_TENANT_ID || 'common',
+      })
+    )
+  }
+
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    providers.push(
+      GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      })
+    )
+  }
+
+  if (process.env.EMAIL_SERVER) {
+    providers.push(
+      EmailProvider({
+        server: process.env.EMAIL_SERVER,
+        from: process.env.EMAIL_FROM || 'noreply@etyme.com',
+      })
+    )
+  }
+
+  return providers
+}
+
 export const authOptions: NextAuthOptions = {
-  providers: [
-    // Microsoft Azure AD — uncomment when credentials are configured
-    // AzureADProvider({
-    //   clientId: process.env.AZURE_AD_CLIENT_ID!,
-    //   clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-    //   tenantId: process.env.AZURE_AD_TENANT_ID || 'common',
-    // }),
-
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
-
-    EmailProvider({
-      server: process.env.EMAIL_SERVER || '',
-      from: process.env.EMAIL_FROM || 'noreply@etyme.com',
-    }),
-  ],
+  providers: configuredProviders(),
 
   session: {
     strategy: 'jwt',

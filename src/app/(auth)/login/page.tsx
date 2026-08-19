@@ -1,11 +1,53 @@
+'use client'
+
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
+import { signIn, getProviders } from 'next-auth/react'
 import { EtymeLogo } from '@/components/logo'
 
-export const metadata = {
-  title: 'Sign in',
-}
+/**
+ * Signing in.
+ *
+ * There is no separate sign-up. Whether a company already exists for your
+ * email domain is something the system can work out, so both buttons land
+ * on /start, which either joins you to your colleagues or sets the company
+ * up (src/lib/onboarding.ts).
+ *
+ * The buttons used to render and do nothing at all — the page looked
+ * finished and was a picture of itself.
+ *
+ * They now also ask NextAuth which ways in exist before offering them. A
+ * Microsoft button that redirects to an error page because nobody set the
+ * tenant credentials is worse than no Microsoft button: the person cannot
+ * tell whether they are locked out or the product is broken, and an
+ * enterprise buyer only tries once.
+ */
 
 export default function LoginPage() {
+  const [available, setAvailable] = useState<Set<string> | null>(null)
+  const [email, setEmail] = useState('')
+  const [sent, setSent] = useState(false)
+  const [devEmail, setDevEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    getProviders()
+      .then((p) => setAvailable(new Set(Object.keys(p ?? {}))))
+      // If we cannot ask, offer everything rather than locking the door.
+      .catch(() => setAvailable(null))
+
+    // The bypass already decides who the app thinks you are in development.
+    // Saying so here is the difference between a preview somebody can open
+    // and a front door that is honest and shut.
+    fetch('/api/auth/dev-session')
+      .then((r) => r.json())
+      .then((b) => setDevEmail(b?.data?.active ? b.data.email : null))
+      .catch(() => setDevEmail(null))
+  }, [])
+
+  // Null means we do not know yet, so nothing is hidden on that basis.
+  const has = (id: string) => available === null || available.has(id)
+  const nothingWorks = available !== null && available.size === 0
+
   return (
     <div className="min-h-screen bg-etyme-navy flex">
       {/* Left — Branding */}
@@ -43,12 +85,41 @@ export default function LoginPage() {
 
           <h1 className="text-xl font-semibold mb-1">Sign in to Etyme</h1>
           <p className="text-sm text-etyme-muted mb-8">
-            Use your company Microsoft or Google account.
+            Your work address decides where you land — your colleagues&rsquo; company
+            if it is already here, a new one if it is not.
           </p>
+
+          {devEmail && (
+            <div className="mb-6 rounded-lg border border-etyme-rule bg-etyme-canvas p-3">
+              <p className="text-[13px] text-etyme-ink mb-2">
+                This build is running with a development session as{' '}
+                <span className="font-medium">{devEmail}</span>. No sign-in is needed.
+              </p>
+              <Link
+                href="/dashboard"
+                className="inline-block px-4 py-2 rounded-lg bg-etyme-navy text-white
+                           text-[13px] font-medium hover:bg-etyme-ink transition-colors"
+              >
+                Continue to Etyme
+              </Link>
+            </div>
+          )}
+
+          {nothingWorks && !devEmail && (
+            <div className="mb-6 rounded-lg border border-etyme-rule bg-etyme-canvas p-3">
+              <p className="text-[13px] text-etyme-ink">
+                No sign-in method is switched on for this deployment yet. Set the Microsoft,
+                Google, or email credentials and this page will offer them.
+              </p>
+            </div>
+          )}
 
           {/* OAuth buttons */}
           <div className="space-y-3 mb-6">
+            {has('azure-ad') && (
             <button
+              type="button"
+              onClick={() => signIn('azure-ad', { callbackUrl: '/start' })}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg
                          border border-etyme-rule hover:border-etyme-action/30
                          hover:bg-blue-50/50 transition-all text-sm font-medium"
@@ -61,8 +132,12 @@ export default function LoginPage() {
               </svg>
               Continue with Microsoft
             </button>
+            )}
 
+            {has('google') && (
             <button
+              type="button"
+              onClick={() => signIn('google', { callbackUrl: '/start' })}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-lg
                          border border-etyme-rule hover:border-etyme-action/30
                          hover:bg-blue-50/50 transition-all text-sm font-medium"
@@ -87,24 +162,38 @@ export default function LoginPage() {
               </svg>
               Continue with Google
             </button>
+            )}
           </div>
 
           {/* Divider */}
+          {has('email') && (
           <div className="flex items-center gap-3 mb-6">
             <div className="flex-1 h-px bg-etyme-rule" />
             <span className="text-xs text-etyme-muted">or</span>
             <div className="flex-1 h-px bg-etyme-rule" />
           </div>
+          )}
 
           {/* Email sign in */}
-          <form className="space-y-4">
+          {has('email') && (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (!email.trim()) return
+              setSent(true)
+              signIn('email', { email: email.trim(), callbackUrl: '/start' })
+            }}
+          >
             <div>
               <label htmlFor="email" className="block text-xs font-medium text-etyme-muted mb-1.5">
-                Work email
+                Email
               </label>
               <input
                 id="email"
                 type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
                 className="w-full px-3.5 py-2.5 rounded-lg border border-etyme-rule
                            text-sm placeholder:text-etyme-muted/50
@@ -114,17 +203,21 @@ export default function LoginPage() {
             </div>
             <button
               type="submit"
+              disabled={sent || !email.trim()}
               className="w-full px-4 py-2.5 rounded-lg bg-etyme-navy text-white
-                         text-sm font-medium hover:bg-etyme-ink transition-colors"
+                         text-sm font-medium hover:bg-etyme-ink transition-colors
+                         disabled:opacity-50"
             >
-              Send magic link
+              {sent ? 'Check your email' : 'Send magic link'}
             </button>
           </form>
+          )}
 
           <p className="text-xs text-etyme-muted/60 mt-6 text-center">
             By signing in, you agree to the Etyme Terms of Service.
             <br />
-            Personal email domains (gmail, yahoo) are not accepted.
+            A personal address signs you in as a consultant. Setting a company up
+            takes a work address.
           </p>
         </div>
       </div>

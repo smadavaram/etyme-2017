@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { deliverySummary } from '@/lib/notification-delivery'
 
 /**
  * GET /api/notifications
@@ -58,10 +59,20 @@ export async function GET(request: NextRequest) {
         entityId: n.entityId,
         channel: n.channel,
         status: n.status,
+        // Whether it left is a separate fact from whether it was read, and
+        // the person looking at this list is entitled to both.
+        deliveryState: n.deliveryState,
+        deliveryNote: n.deliveryNote,
+        deliveredAt: n.deliveredAt?.toISOString() ?? null,
         readAt: n.readAt?.toISOString() ?? null,
         createdAt: n.createdAt.toISOString(),
       })),
       unreadCount,
+      // The honest header line. A pile of NOT_CONFIGURED is a setup job;
+      // a pile of FAILED needs somebody to look at an address.
+      delivery: deliverySummary(
+        notifications.map((n) => ({ deliveryState: n.deliveryState }))
+      ),
     },
   })
 }

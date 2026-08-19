@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { notify } from '@/lib/notify'
 import { hasPermission } from '@/lib/permissions'
 import { assessGrant, reviewAccess, sensitivityOf } from '@/lib/access-grant'
 
@@ -193,6 +194,20 @@ export async function POST(request: NextRequest) {
       },
       reversible: true,
     },
+  })
+
+  // The other half of the join notification. Somebody has been waiting,
+  // and an access grant they are never told about is one they find by
+  // trying the page again on a hunch.
+  void notify({
+    personId: target.person.id,
+    companyId: caller.company.id,
+    type: 'SYSTEM',
+    title: `You can now work as ${role.name}`,
+    body: expiresAt
+      ? `${caller.person.name} gave you ${role.name} at ${caller.company.name}. It runs until ${expiresAt.toISOString().slice(0, 10)}.`
+      : `${caller.person.name} gave you ${role.name} at ${caller.company.name}.`,
+    entityId: target.id,
   })
 
   return NextResponse.json(

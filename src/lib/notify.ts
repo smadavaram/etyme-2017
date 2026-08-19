@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/db'
+import { routeFor, attemptDelivery, type Recipient } from '@/lib/notification-delivery'
+import { configuredSenders } from '@/lib/senders'
 
 /**
  * Central notification creator. Used by APIs and cron jobs to create
@@ -10,6 +12,13 @@ import { prisma } from '@/lib/db'
  *
  * Fire-and-forget pattern — matches logAccess in src/lib/access-log.ts.
  * Never blocks the caller. Failures log to console, never throw.
+ *
+ * The in-app row is written first and always. If the caller asked for the
+ * message to leave the building as well, delivery is attempted afterwards
+ * and the outcome is written back to the same row — so a notification is
+ * never left claiming a channel it did not travel on. See
+ * src/lib/notification-delivery.ts for why that distinction is worth the
+ * extra write.
  */
 
 export type NotificationType =
@@ -87,8 +96,22 @@ export function notify(params: NotifyParams): Promise<{ id: string } | null> {
         data: (data as any) ?? undefined,
         channel,
         status: 'UNREAD',
+        // In-app is delivered by being written. Anything else is a claim
+        // until something proves it, so it starts as PENDING.
+        deliveryState: channel === 'IN_APP' ? 'SENT' : 'PENDING',
+        deliveryNote: channel === 'IN_APP' ? 'Shown in the app' : null,
+        deliveredAt: channel === 'IN_APP' ? new Date() : null,
       },
       select: { id: true },
+    })
+    .then((created) => {
+      if (channel !== 'IN_APP') {
+        // Not awaited: the caller wanted a notification written, not a
+        // round trip to an email provider. The row already exists, so a
+        // slow or dead sender delays only the delivery status.
+        void deliver(created.id, personId, companyId ?? null, title, body)
+      }
+      return created
     })
     .catch((err) => {
       console.error(
@@ -97,6 +120,95 @@ export function notify(params: NotifyParams): Promise<{ id: string } | null> {
       )
       return null
     })
+}
+
+/**
+ * Send one already-written notification and record what happened.
+ *
+ * Whether somebody is a consultant is decided by their contexts, not by
+ * whether they have a company — a bench consultant belongs to a vendor and
+ * still has no Teams tenant of their own.
+ */
+async function deliver(
+  notificationId: string,
+  personId: string,
+  companyId: string | null,
+  title: string,
+  body: string
+): Promise<void> {
+  try {
+    const person = await prisma.person.findUnique({
+      where: { id: personId },
+      select: {
+        primaryEmail: true,
+        contexts: {
+          where: { revokedAt: null },
+          select: { type: true, company: { select: { teamsWebhookUrl: true } } },
+        },
+      },
+    })
+    if (!person) return
+
+    const isConsultant = person.contexts.every((c) => c.type === 'CONSULTANT')
+
+    // The company the notification was raised under wins, because that is
+    // the channel the message belongs on; otherwise any company this
+    // person works through that has one.
+    const named = companyId
+      ? await prisma.company.findUnique({
+          where: { id: companyId },
+          select: { teamsWebhookUrl: true },
+        })
+      : null
+    const teamsWebhookUrl =
+      named?.teamsWebhookUrl ??
+      person.contexts.find((c) => c.company?.teamsWebhookUrl)?.company
+        ?.teamsWebhookUrl ??
+      null
+
+    const recipient: Recipient = {
+      isConsultant,
+      email: person.primaryEmail,
+      teamsWebhookUrl,
+    }
+    const route = routeFor(recipient)
+    const destination =
+      route.channel === 'TEAMS' ? teamsWebhookUrl : recipient.email
+
+    const outcome = await attemptDelivery(
+      route,
+      destination,
+      title,
+      body,
+      configuredSenders(),
+      new Date()
+    )
+
+    await prisma.notification.update({
+      where: { id: notificationId },
+      data: {
+        // The channel is corrected to the one actually used. A business
+        // user with no Teams channel gets an email, and the row should say
+        // email rather than the channel somebody hoped for.
+        channel: route.channel,
+        deliveryState: outcome.state,
+        deliveryNote: outcome.note,
+        deliveredAt: outcome.deliveredAt,
+      },
+    })
+  } catch (err) {
+    console.error(`[Notify] Delivery attempt failed for ${notificationId}:`, err)
+    await prisma.notification
+      .update({
+        where: { id: notificationId },
+        data: {
+          deliveryState: 'FAILED',
+          deliveryNote:
+            err instanceof Error ? err.message.slice(0, 200) : 'Delivery failed',
+        },
+      })
+      .catch(() => {})
+  }
 }
 
 /**
@@ -127,6 +239,12 @@ export function notifyBulk(
     data: (n.data as any) ?? undefined,
     channel: n.channel ?? 'IN_APP',
     status: 'UNREAD' as const,
+    // Bulk is used for fan-out to a working team, which is in-app. Any row
+    // asking for an outside channel is left PENDING rather than marked
+    // sent, so it shows up as undelivered instead of disappearing.
+    deliveryState: (n.channel ?? 'IN_APP') === 'IN_APP' ? 'SENT' : 'PENDING',
+    deliveryNote: (n.channel ?? 'IN_APP') === 'IN_APP' ? 'Shown in the app' : null,
+    deliveredAt: (n.channel ?? 'IN_APP') === 'IN_APP' ? new Date() : null,
   }))
 
   return prisma.notification

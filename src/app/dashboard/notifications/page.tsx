@@ -31,8 +31,19 @@ interface Notification {
   entityId: string | null
   channel: string
   status: string
+  deliveryState: string
+  deliveryNote: string | null
+  deliveredAt: string | null
   readAt: string | null
   createdAt: string
+}
+
+interface DeliveryHealth {
+  sent: number
+  failed: number
+  notConfigured: number
+  pending: number
+  healthy: boolean
 }
 
 type StatusFilter = 'all' | 'UNREAD' | 'READ'
@@ -89,6 +100,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [delivery, setDelivery] = useState<DeliveryHealth | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
@@ -109,9 +121,11 @@ export default function NotificationsPage() {
       const body = await res.json()
       setNotifications(body.data?.notifications ?? [])
       setUnreadCount(body.data?.unreadCount ?? 0)
+      setDelivery(body.data?.delivery ?? null)
     } catch (err: any) {
       setError(err.message)
       setNotifications([])
+      setDelivery(null)
     } finally {
       setLoading(false)
     }
@@ -193,6 +207,31 @@ export default function NotificationsPage() {
           </button>
         </div>
       </div>
+
+      {/* What did not leave the building. Only shown when something did
+          not, because a healthy system should not narrate itself. */}
+      {delivery && !delivery.healthy && (
+        <div className="mb-5 rounded-md border border-etyme-rule bg-etyme-surface p-3">
+          <p className="text-[13px] text-etyme-ink">
+            {delivery.notConfigured > 0 && (
+              <>
+                <span className="tabular-nums font-medium">{delivery.notConfigured}</span>{' '}
+                of these were only shown here — email and Teams are not set up yet, so nothing
+                was sent outside the app.
+              </>
+            )}
+            {delivery.notConfigured > 0 && delivery.failed > 0 && ' '}
+            {delivery.failed > 0 && (
+              <>
+                <span className="tabular-nums font-medium text-etyme-attention">
+                  {delivery.failed}
+                </span>{' '}
+                could not be sent. The address or the channel needs a look.
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Status toggle */}
       <div className="flex items-center gap-4 mb-5">
@@ -290,6 +329,15 @@ export default function NotificationsPage() {
                   <span className={`chip text-[10px] ${typeChipClass(n.type)}`}>{n.type}</span>
                 </div>
                 <p className="text-[12px] text-etyme-faint truncate">{n.body}</p>
+                {n.deliveryState !== 'SENT' && (
+                  <p className="text-[11px] text-etyme-attention mt-0.5">
+                    {n.deliveryState === 'FAILED'
+                      ? `Not sent — ${n.deliveryNote ?? 'delivery failed'}`
+                      : n.deliveryState === 'NOT_CONFIGURED'
+                        ? `Shown here only — ${n.deliveryNote ?? 'that channel is not set up'}`
+                        : 'Waiting to send'}
+                  </p>
+                )}
               </div>
 
               {/* Time */}

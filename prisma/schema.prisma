@@ -164,6 +164,11 @@ model Company {
   // be changed without migrating anything. Null for clients and MSPs.
   supplierPosture   String?
   currency          String      @default("USD")
+  // Where this company's people are already looking. When it is set,
+  // business notifications post there; when it is not, they fall back to
+  // email, and when there is no email either the notification says so
+  // rather than sitting in the app pretending it was sent.
+  teamsWebhookUrl   String?
   siteLiveAt        DateTime? // the ninety second promise
   networkVerifiedAt DateTime? // visibility to other companies waits for this
   createdAt         DateTime    @default(now())
@@ -1297,12 +1302,30 @@ model Notification {
   entityId  String?  // the thing this is about
   data      Json?    // structured metadata (petitionId, cycleId, etc.)
   channel   String   @default("IN_APP") // IN_APP · EMAIL · TEAMS
+
+  // Whether it LEFT, which is a different question from whether it was
+  // read. A notification marked EMAIL that nothing ever sent used to sit
+  // here as UNREAD — indistinguishable from one delivered and ignored, so
+  // the system appeared to have told somebody when it had not.
+  //
+  //   PENDING         queued, not yet attempted
+  //   SENT            actually left the building
+  //   FAILED          attempted and did not
+  //   NOT_CONFIGURED  this channel has nowhere to send to
+  //
+  // NOT_CONFIGURED is the important one: it makes an absent integration
+  // visible instead of silent.
+  deliveryState String  @default("PENDING")
+  deliveryNote  String?
+  deliveredAt   DateTime?
+
   status    String   @default("UNREAD") // UNREAD · READ
   readAt    DateTime?
   createdAt DateTime @default(now())
 
   @@index([personId, status])
   @@index([companyId, createdAt])
+  @@index([deliveryState, createdAt])
 }
 
 // ─────────────────────────────────────────────

@@ -72,6 +72,7 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Blacklist', href: '/dashboard/blacklist', icon: '⊘' },
       { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻' },
       { label: 'Companies', href: '/dashboard/companies', icon: '▣' },
+      { label: 'Who can do what', href: '/dashboard/access', icon: '⚿' },
     ],
   },
   {
@@ -123,6 +124,7 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
       { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
+      { label: 'Who can do what', href: '/dashboard/access', icon: '⚿' },
     ],
   },
 ]
