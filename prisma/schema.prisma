@@ -52,6 +52,9 @@ model Person {
   eventsCaused     Event[]        @relation("eventActor")
   rulesAuthored    ApprovalRule[] @relation("ruleAuthor")
   ruleVersions     ApprovalRuleVersion[] @relation("ruleVersionAuthor")
+  packetsCreated   DocumentPacket[] @relation("packetCreator")
+  packetsAbout     DocumentPacket[] @relation("packetSubjectPerson")
+  packetItemsReviewed PacketItem[]  @relation("packetItemReviewer")
 }
 
 model Credential {
@@ -234,6 +237,8 @@ model Company {
   documentShares     DocumentShare[]
   approvalRules      ApprovalRule[]
   events             Event[]
+  packets            DocumentPacket[]
+  packetsAbout       DocumentPacket[] @relation("packetSubjectCompany")
 }
 
 enum CompanyKind {
@@ -1843,4 +1848,106 @@ model Event {
   @@index([companyId, seq])
   @@index([type, occurredAt])
   @@index([subjectType, subjectId])
+}
+
+/// A request for documents, or an offer of them.
+///
+/// The same object in both directions. Collecting and sending are one
+/// thing seen from two ends — whether you are asking or answering is a
+/// property of this row, not of the list it was built from.
+///
+/// The counterparty needs no account. Delivery reuses the expiring-link
+/// mechanism already built for sharing files with a lawyer, because a
+/// supplier's office manager will not create a login to upload a W-9, and
+/// a system that requires one simply does not get the W-9.
+model DocumentPacket {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  /// Which list this was built from (src/lib/packets.ts).
+  packetKey String
+  label     String
+  purpose   String
+
+  /// COLLECT — we are asking them. SEND — we are giving them ours.
+  direction String @default("COLLECT")
+
+  /// Who it is about. A company for supplier onboarding, a person for a
+  /// submission or an immigration filing.
+  subjectCompanyId String?
+  subjectCompany   Company? @relation("packetSubjectCompany", fields: [subjectCompanyId], references: [id])
+  subjectPersonId  String?
+  subjectPerson    Person?  @relation("packetSubjectPerson", fields: [subjectPersonId], references: [id])
+
+  /// Where it is going. An address rather than a user, deliberately.
+  recipientEmail String
+  recipientName  String?
+
+  /// The link. Long and random; the only credential.
+  token String @unique
+
+  /// Always set. A request with no end is a link that outlives the reason
+  /// it was sent.
+  expiresAt   DateTime
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  /// Why this was reopened, when it was. Insurance lapsing reopens a
+  /// packet automatically, and the recipient deserves to know why they
+  /// are being asked again.
+  reopenedReason String?
+
+  createdById String
+  createdBy   Person   @relation("packetCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  items PacketItem[]
+
+  @@index([companyId, completedAt])
+  @@index([subjectCompanyId])
+  @@index([subjectPersonId])
+}
+
+/// One thing being asked for, and whether it arrived.
+model PacketItem {
+  id       String         @id @default(cuid())
+  packetId String
+  packet   DocumentPacket @relation(fields: [packetId], references: [id], onDelete: Cascade)
+
+  /// Matches ItemSpec.key in src/lib/packets.ts.
+  key      String
+  label    String
+  hint     String
+  required Boolean @default(true)
+
+  /// Where it sits in the list. Without this the order comes back from
+  /// the database however it likes, so a recipient's checklist rearranges
+  /// itself every time they upload something — which reads as the page
+  /// losing their work.
+  position Int @default(0)
+
+  /// PENDING · RECEIVED · ACCEPTED · REJECTED
+  ///
+  /// Received and accepted are different: a file arriving is not the same
+  /// as somebody having looked at it, and treating them as one is how an
+  /// expired certificate passes for a current one.
+  state String @default("PENDING")
+
+  fileUrl    String?
+  fileName   String?
+  receivedAt DateTime?
+  /// When the document itself stops counting, not when the request does.
+  validUntil DateTime?
+
+  reviewedById String?
+  reviewedBy   Person?   @relation("packetItemReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  /// The verification row this became, where it maps onto one. Keeps the
+  /// compliance checks reading from one place rather than two.
+  verificationId String?
+
+  @@index([packetId, position])
 }
