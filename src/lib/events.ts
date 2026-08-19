@@ -66,6 +66,12 @@ export const EVENT_TYPES = [
   'purchase_order.raised',
   'purchase_order.closed',
 
+  // Governance. The rules themselves change, and a control that can be
+  // changed without trace is not a control.
+  'governance.rule_created',
+  'governance.rule_changed',
+  'governance.rule_deactivated',
+
   // Compliance
   'verification.recorded',
   'verification.expired',

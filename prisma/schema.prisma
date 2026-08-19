@@ -50,6 +50,8 @@ model Person {
   documentSharesAbout   DocumentShare[] @relation("shareSubject")
   managedContracts SellContract[] @relation("hiringManager") // Addendum E: contracts this person owns at the client
   eventsCaused     Event[]        @relation("eventActor")
+  rulesAuthored    ApprovalRule[] @relation("ruleAuthor")
+  ruleVersions     ApprovalRuleVersion[] @relation("ruleVersionAuthor")
 }
 
 model Credential {
@@ -520,6 +522,40 @@ model HeadcountPlan {
 
 // Who may approve what, at a client. Thresholds are the delegation of
 // authority: below them a requisition clears itself.
+/// What an approval rule used to say.
+///
+/// A rule is not a setting; it is a control, and a control that can be
+/// changed without trace is not one. The question an auditor asks is what
+/// the chain looked like in March, and the current row cannot answer it.
+///
+/// Written on every change, including the first. Nothing here is ever
+/// updated — a correction is another row.
+model ApprovalRuleVersion {
+  id     String       @id @default(cuid())
+  ruleId String
+  rule   ApprovalRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  /// What it said at this point.
+  name            String
+  thresholdAmount Decimal? @db.Decimal(12, 2)
+  approverIds     String[]
+  orgUnitId       String?
+  isActive        Boolean
+
+  /// CREATED · CHANGED · DEACTIVATED — what kind of moment this was.
+  action      String
+  changedById String
+  changedBy   Person   @relation("ruleVersionAuthor", fields: [changedById], references: [id])
+  /// Why. A rule change with no reason is the one an auditor stops on.
+  reason      String?
+  /// Warnings accepted at the time, so "they were told" is a fact rather
+  /// than a recollection.
+  notes       String[]
+  changedAt   DateTime @default(now())
+
+  @@index([ruleId, changedAt])
+}
+
 model ApprovalRule {
   id         String   @id @default(cuid())
   companyId  String
@@ -535,6 +571,13 @@ model ApprovalRule {
   rank       Int      @default(1) // ascending: rank 1 approves before rank 2
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
+
+  /// Who wrote it. Needed to refuse a rule whose only approver is its
+  /// author — the same control already applied to rate rises.
+  authoredById String?
+  authoredBy   Person? @relation("ruleAuthor", fields: [authoredById], references: [id])
+
+  versions ApprovalRuleVersion[]
 
   @@index([companyId, isActive])
 }

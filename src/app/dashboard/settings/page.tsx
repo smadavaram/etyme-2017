@@ -105,7 +105,7 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-[13px] text-etyme-faint py-3">{children}</p>
 }
 
-const TABS = ['Company', 'Roles', 'Locations', 'Holidays', 'Cost centres', 'Cycles'] as const
+const TABS = ['Company', 'Roles', 'Approvals', 'Locations', 'Holidays', 'Cost centres', 'Cycles'] as const
 type Tab = (typeof TABS)[number]
 
 // ── Page ─────────────────────────────────────────────
@@ -216,6 +216,7 @@ export default function SettingsPage() {
 
       {tab === 'Company' && <CompanyTab data={data} send={send} busy={busy} />}
       {tab === 'Roles' && <RolesTab data={data} send={send} busy={busy} />}
+      {tab === 'Approvals' && <ApprovalsTab send={send} busy={busy} />}
       {tab === 'Locations' && <LocationsTab data={data} send={send} busy={busy} />}
       {tab === 'Holidays' && <HolidaysTab data={data} send={send} busy={busy} />}
       {tab === 'Cost centres' && <CostCentersTab data={data} send={send} busy={busy} />}
@@ -616,6 +617,135 @@ function CyclesTab({ data }: { data: Settings }) {
             ))}
           </div>
         </>
+      )}
+    </Panel>
+  )
+}
+
+// ── Approvals ────────────────────────────────────────
+
+interface Rule {
+  id: string
+  name: string
+  thresholdDollars: number | null
+  rank: number
+  isActive: boolean
+  approver: { id: string; name: string; primaryEmail: string }
+  authoredBy: { id: string; name: string } | null
+  history: {
+    id: string
+    action: string
+    reason: string | null
+    notes: string[]
+    changedBy: string
+    changedAt: string
+  }[]
+}
+
+function ApprovalsTab({ send, busy }: { send: SendFn; busy: boolean }) {
+  const [rules, setRules] = useState<Rule[] | null>(null)
+  const [summary, setSummary] = useState('')
+  const [canEdit, setCanEdit] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings/approval-rules')
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      setRules(body.data.rules)
+      setSummary(body.data.summary)
+      setCanEdit(body.data.canEdit)
+    } catch (e: any) {
+      setErr(e.message)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  if (err) {
+    return (
+      <Panel title="Who has to say yes" subtitle="">
+        <p className="text-[13px] text-etyme-attention">{err}</p>
+      </Panel>
+    )
+  }
+  if (!rules) return <Panel title="Who has to say yes"><Empty>Loading…</Empty></Panel>
+
+  const active = rules.filter((r) => r.isActive)
+
+  return (
+    <Panel
+      title="Who has to say yes"
+      subtitle="Above what value a requisition waits for a person. Most should clear without one — governance slower than the workaround produces the workaround. Every change here is recorded with a name against it."
+    >
+      <p className="text-[13px] text-etyme-ink mb-4">{summary}</p>
+
+      {active.length === 0 ? (
+        <Empty>No rules. Every requisition clears without approval.</Empty>
+      ) : (
+        <div className="divide-y divide-etyme-rule">
+          {active.map((r) => (
+            <div key={r.id} className="py-3">
+              <div className="flex items-baseline justify-between gap-3">
+                <div>
+                  <span className="text-[14px] text-etyme-ink">{r.name}</span>
+                  <p className="text-[12px] text-etyme-muted">
+                    {r.thresholdDollars === null
+                      ? 'applies to everything'
+                      : `above $${r.thresholdDollars.toLocaleString()}`}{' '}
+                    · goes to {r.approver.name}
+                    {r.authoredBy ? ` · written by ${r.authoredBy.name}` : ''}
+                  </p>
+                </div>
+                <span className="flex items-center gap-3 shrink-0">
+                  {r.history.length > 0 && (
+                    <button onClick={() => setOpen(open === r.id ? null : r.id)} className="text-[12px] text-etyme-action">
+                      {open === r.id ? 'Hide' : `${r.history.length} change${r.history.length === 1 ? '' : 's'}`}
+                    </button>
+                  )}
+                  {canEdit && (
+                    <button
+                      onClick={async () => {
+                        const last = active.length === 1
+                        const reason = last
+                          ? window.prompt('This is your last rule. Everything will clear without approval. Why?')
+                          : ''
+                        if (last && !reason) return
+                        await send(`/api/settings/approval-rules?id=${r.id}&reason=${encodeURIComponent(reason ?? '')}`, 'DELETE')
+                        load()
+                      }}
+                      disabled={busy}
+                      className="text-[12px] text-etyme-attention"
+                    >
+                      Switch off
+                    </button>
+                  )}
+                </span>
+              </div>
+
+              {open === r.id && (
+                <div className="mt-2 pl-3 border-l-2 border-etyme-rule">
+                  {r.history.map((h) => (
+                    <div key={h.id} className="py-1.5">
+                      <p className="text-[12px] text-etyme-ink">
+                        {h.action.toLowerCase()} by {h.changedBy}
+                        <span className="text-etyme-faint tabular-nums ml-2">
+                          {h.changedAt.slice(0, 10)}
+                        </span>
+                      </p>
+                      {h.reason && <p className="text-[12px] text-etyme-muted">{h.reason}</p>}
+                      {h.notes.map((n, i) => (
+                        <p key={i} className="text-[11px] text-etyme-attention">{n}</p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       )}
     </Panel>
   )
