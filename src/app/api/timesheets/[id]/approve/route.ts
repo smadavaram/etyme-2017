@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
+import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
@@ -16,27 +17,20 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const { id } = await params
-
-  const person = await prisma.person.findUnique({
-    where: { primaryEmail: email },
-    select: { id: true, name: true },
-  })
+  const person = { id: caller.person.id, name: caller.person.name }
 
   const timesheet = await prisma.timesheet.findUnique({
     where: { id },
     include: {
       sellContract: {
-        select: { id: true, billRate: true, billCurrency: true, companyId: true },
+        select: {
+          id: true, billRate: true, billCurrency: true, companyId: true,
+          clientCompanyId: true, endClientCompanyId: true,
+        },
       },
     },
   })
@@ -45,6 +39,35 @@ export async function POST(
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Timesheet not found' } },
       { status: 404 }
+    )
+  }
+
+  // An approved timesheet is the goods receipt: the invoice, the
+  // three-way match, the payment and the margin all rest on it. This
+  // required nothing but a session, so any account on the platform could
+  // approve any timesheet at any company.
+  const parties = {
+    personId: timesheet.personId,
+    vendorCompanyId: timesheet.sellContract.companyId,
+    clientCompanyId: timesheet.sellContract.clientCompanyId,
+    endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+  }
+
+  if (approvingOwnHours({ personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions }, parties)) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'Nobody approves their own hours.' } },
+      { status: 403 }
+    )
+  }
+
+  const allowed = mayApprove(
+    { personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions },
+    parties
+  )
+  if (!allowed.ok) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: allowed.reason } },
+      { status: 403 }
     )
   }
 
@@ -63,7 +86,7 @@ export async function POST(
       where: { id },
       data: {
         status: 'APPROVED',
-        approvedById: person?.id ?? null,
+        approvedById: person.id,
         approvedAt: new Date(),
       },
     }),
@@ -72,7 +95,7 @@ export async function POST(
         companyId: timesheet.sellContract.companyId,
         action: 'TIMESHEET_APPROVED',
         summary: `Timesheet approved: ${hours}h × $${(timesheet.sellContract.billRate / 100).toFixed(2)}/hr = $${billAmount.toFixed(2)} billable`,
-        reason: `Approved by ${person?.name ?? email}`,
+        reason: `Approved by ${person.name} — ${allowed.reason}`,
         payload: {
           timesheetId: id,
           hours,
@@ -108,9 +131,13 @@ export async function POST(
     companyId: timesheet.sellContract.companyId,
     type: 'TIMESHEET',
     title: 'Timesheet approved',
-    body: `Your timesheet for ${timesheet.periodStart.toISOString().slice(0, 10)} – ${timesheet.periodEnd.toISOString().slice(0, 10)} (${hours}h, $${billAmount.toFixed(2)}) was approved`,
+    // Hours, not the amount billed. What the client is charged is the
+    // vendor's number, and Addendum D makes disclosing it a per-requirement
+    // decision the vendor takes — not something a notification does for
+    // them.
+    body: `Your timesheet for ${timesheet.periodStart.toISOString().slice(0, 10)} – ${timesheet.periodEnd.toISOString().slice(0, 10)} (${hours}h) was approved`,
     entityId: id,
-    data: { hours, billAmount, approvedBy: person?.name ?? email },
+    data: { hours, approvedBy: person.name },
   })
 
   return NextResponse.json({
@@ -119,7 +146,7 @@ export async function POST(
       status: 'APPROVED',
       totalHours: hours,
       billAmount,
-      approvedBy: person?.name ?? email,
+      approvedBy: person.name,
       message: `Approved ${hours}h — $${billAmount.toFixed(2)} billable`,
     },
   })

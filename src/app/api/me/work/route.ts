@@ -51,6 +51,18 @@ export async function GET(request: NextRequest) {
 
   const live = contracts.filter(c => c.state === 'IN_PROGRESS' || c.state === 'VERIFIED')
 
+  // What they are actually paid, from the agreement that pays them.
+  //
+  // This screen showed billRate — what the vendor charges the client. It
+  // is not their rate, and showing it hands them the markup regardless of
+  // what the vendor decided about disclosure, which Addendum D makes a
+  // per-requirement choice for the vendor to make.
+  const payLines = await prisma.buyContractCandidate.findMany({
+    where: { personId: caller.person.id, state: 'ACTIVE' },
+    select: { payRate: true, payCurrency: true, startDate: true, buyContract: { select: { companyId: true } } },
+  })
+  const payByCompany = new Map(payLines.map(l => [l.buyContract.companyId, l]))
+
   return NextResponse.json({
     data: {
       person: { id: caller.person.id, name: caller.person.name },
@@ -61,7 +73,14 @@ export async function GET(request: NextRequest) {
         // difference matters to the person standing in the building.
         site: c.endClientCompany?.name ?? c.company.name,
         location: c.workLocation ? (c.workLocation.city ?? c.workLocation.name) : null,
-        rate: c.billRate,
+        // Their pay, or nothing. A blank with a reason beats the wrong
+        // number: somebody planning around a rate that is not theirs is
+        // worse off than somebody who knows it is not recorded here.
+        payRate: payByCompany.get(c.companyId)?.payRate ?? null,
+        payCurrency: payByCompany.get(c.companyId)?.payCurrency ?? null,
+        rateNote: payByCompany.has(c.companyId)
+          ? null
+          : 'Your rate is not recorded on Etyme for this placement. Your agency has it.',
         state: c.state,
         startDate: c.startDate.toISOString().slice(0, 10),
         endDate: c.endDate?.toISOString().slice(0, 10) ?? null,

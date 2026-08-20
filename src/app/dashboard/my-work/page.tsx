@@ -21,7 +21,8 @@ interface Placement {
   payer: string
   site: string
   location: string | null
-  rate: number
+  payRate: number | null
+  rateNote: string | null
   state: string
   startDate: string
   endDate: string | null
@@ -160,8 +161,19 @@ export default function MyWorkPage() {
                   paid by {p.payer} · from {p.startDate}
                 </div>
               </div>
-              <div className="font-serif text-lg text-etyme-ink tabular-nums shrink-0">
-                {fmtRate(p.rate)}
+              <div className="shrink-0 text-right">
+                {p.payRate != null ? (
+                  <div className="font-serif text-lg text-etyme-ink tabular-nums">
+                    {fmtRate(p.payRate)}
+                  </div>
+                ) : (
+                  // A blank with a reason beats the wrong number. This used
+                  // to show what the client is billed, which is not their
+                  // rate and is not theirs to see.
+                  <div className="text-[12px] text-etyme-faint max-w-[10rem] leading-snug">
+                    {p.rateNote}
+                  </div>
+                )}
               </div>
               <div className="w-28 text-right shrink-0">
                 {p.daysLeft != null && p.daysLeft <= 60 && p.daysLeft >= 0

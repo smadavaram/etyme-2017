@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
+import { mayEnter } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
 
 /**
@@ -11,26 +12,43 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const { id } = await params
 
   const timesheet = await prisma.timesheet.findUnique({
     where: { id },
-    select: { id: true, status: true, totalHours: true },
+    select: {
+      id: true, status: true, totalHours: true, personId: true,
+      sellContract: {
+        select: { companyId: true, clientCompanyId: true, endClientCompanyId: true },
+      },
+    },
   })
 
   if (!timesheet) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Timesheet not found' } },
       { status: 404 }
+    )
+  }
+
+  // Whose hours these are. Anybody signed in could submit anybody's week,
+  // which is somebody else's word about what they did.
+  const allowed = mayEnter(
+    { personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions },
+    {
+      personId: timesheet.personId,
+      vendorCompanyId: timesheet.sellContract.companyId,
+      clientCompanyId: timesheet.sellContract.clientCompanyId,
+      endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+    }
+  )
+  if (!allowed.ok) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: allowed.reason } },
+      { status: 403 }
     )
   }
 

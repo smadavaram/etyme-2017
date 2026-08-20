@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { mayApprove } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
 
 /**
@@ -37,7 +38,10 @@ export async function POST(
     include: {
       person: { select: { id: true, name: true } },
       sellContract: {
-        select: { id: true, companyId: true, billRate: true, billCurrency: true },
+        select: {
+          id: true, companyId: true, billRate: true, billCurrency: true,
+          clientCompanyId: true, endClientCompanyId: true,
+        },
       },
     },
   })
@@ -46,6 +50,24 @@ export async function POST(
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Timesheet not found' } },
       { status: 404 }
+    )
+  }
+
+  // Same authority as approving. Sending somebody's week back is a
+  // decision about their pay, and it was open to anybody signed in.
+  const allowed = mayApprove(
+    { personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions },
+    {
+      personId: timesheet.personId,
+      vendorCompanyId: timesheet.sellContract.companyId,
+      clientCompanyId: timesheet.sellContract.clientCompanyId,
+      endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+    }
+  )
+  if (!allowed.ok) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: allowed.reason } },
+      { status: 403 }
     )
   }
 
