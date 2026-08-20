@@ -65,7 +65,14 @@ interface Pack {
   cycleCount: number
   cycles: { kind: string; label: string; frequency: string }[]
 }
+interface Wall {
+  outsideAccess: string
+  accountWalls: boolean
+  explanation: string
+  canSeeOutside: { role: string; heldBy: number }[]
+}
 interface Settings {
+  wall?: Wall
   company: Company
   roles: Role[]
   locations: Location[]
@@ -105,7 +112,7 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-[13px] text-etyme-faint py-3">{children}</p>
 }
 
-const TABS = ['Company', 'Address', 'Roles', 'Approvals', 'Locations', 'Holidays', 'Cost centres', 'Cycles'] as const
+const TABS = ['Company', 'Walls', 'Address', 'Roles', 'Approvals', 'Locations', 'Holidays', 'Cost centres', 'Cycles'] as const
 type Tab = (typeof TABS)[number]
 
 // ── Page ─────────────────────────────────────────────
@@ -215,6 +222,7 @@ export default function SettingsPage() {
       </div>
 
       {tab === 'Company' && <CompanyTab data={data} send={send} busy={busy} />}
+      {tab === 'Walls' && <WallsTab data={data} send={send} busy={busy} />}
       {tab === 'Address' && <AddressTab send={send} busy={busy} />}
       {tab === 'Roles' && <RolesTab data={data} send={send} busy={busy} />}
       {tab === 'Approvals' && <ApprovalsTab send={send} busy={busy} />}
@@ -227,6 +235,98 @@ export default function SettingsPage() {
 }
 
 type SendFn = (path: string, method: string, payload?: unknown) => Promise<any>
+
+// ── Walls ────────────────────────────────────────────
+//
+// A staffing vendor lives in the market. A delivery firm with thirty
+// thousand employees and a contractor desk of nine is the opposite, and
+// the difference cannot be a product decision — it is this screen.
+
+function WallsTab({ data, send, busy }: { data: Settings; send: SendFn; busy: boolean }) {
+  const w = data.wall
+  if (!w) return <Empty>Nothing to show.</Empty>
+
+  const options: { value: string; label: string; blurb: string }[] = [
+    {
+      value: 'ALLOWED',
+      label: 'Anybody who can read consultants',
+      blurb: 'Right for a staffing firm, where looking outward is the job.',
+    },
+    {
+      value: 'NAMED_ONLY',
+      label: 'Only the roles below',
+      blurb: 'Right for a delivery firm or an enterprise, where a handful of people hire contractors and the rest have no reason to see the market.',
+    },
+    {
+      value: 'CLOSED',
+      label: 'Nobody, whatever their role',
+      blurb: 'Shuts the door without auditing every role. No role can reopen it.',
+    },
+  ]
+
+  return (
+    <>
+      <Panel
+        title="Who here can see outside this company"
+        subtitle={w.explanation}
+      >
+        <div className="space-y-3">
+          {options.map((o) => (
+            <label key={o.value} className="flex gap-3 items-start cursor-pointer">
+              <input
+                type="radio"
+                name="outsideAccess"
+                className="mt-1"
+                checked={w.outsideAccess === o.value}
+                disabled={busy || !data.canEdit}
+                onChange={() => send('/api/settings', 'PATCH', { outsideAccess: o.value })}
+              />
+              <span>
+                <span className="text-[14px] text-etyme-ink">{o.label}</span>
+                <span className="block text-[13px] text-etyme-muted max-w-prose">{o.blurb}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        {w.outsideAccess !== 'CLOSED' && (
+          <div className="mt-5 pt-4 border-t border-etyme-rule">
+            <Lbl>Roles that can</Lbl>
+            {w.canSeeOutside.length === 0 ? (
+              <Empty>Nobody. Give a role network access and it appears here.</Empty>
+            ) : (
+              <div className="mt-2 space-y-1.5">
+                {w.canSeeOutside.map((r) => (
+                  <div key={r.role} className="flex items-baseline justify-between max-w-sm">
+                    <span className="text-[14px] text-etyme-ink">{r.role}</span>
+                    <span className="text-[12px] text-etyme-muted tabular-nums">
+                      {r.heldBy} {r.heldBy === 1 ? 'person' : 'people'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </Panel>
+
+      <Panel
+        title="One client account seeing another"
+        subtitle="Whether somebody attached to a client account can read the staffing, rates and rolloffs of the accounts next door. Attaching people to accounts is what builds the wall; anybody attached to none still sees the whole firm."
+      >
+        <label className="flex items-center gap-2 text-[14px] text-etyme-ink cursor-pointer">
+          <input
+            type="checkbox"
+            checked={w.accountWalls}
+            disabled={busy || !data.canEdit}
+            onChange={() => send('/api/settings', 'PATCH', { accountWalls: !w.accountWalls })}
+          />
+          Keep each account&rsquo;s work to that account
+        </label>
+      </Panel>
+    </>
+  )
+}
 
 // ── Company ──────────────────────────────────────────
 

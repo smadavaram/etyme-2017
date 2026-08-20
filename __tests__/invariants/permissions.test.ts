@@ -38,7 +38,12 @@ describe('Permissions (BUILD.md §2)', () => {
       // approval chain decides what everyone else needs permission for,
       // which is a larger power than any single approval and belongs to
       // fewer people than settings.manage.
-      expect(PERMISSIONS).toHaveLength(31)
+      //
+      // 31 → 32: network.read. At a delivery firm, reading the contractors
+      // you already have and browsing the outside market are different
+      // jobs — thirty thousand engineers need the first and none of them
+      // need the second, and one permission could not say that.
+      expect(PERMISSIONS).toHaveLength(32)
     })
 
     it('every permission follows the resource.action pattern', () => {

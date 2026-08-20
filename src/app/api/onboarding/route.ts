@@ -9,6 +9,7 @@ import {
   decideEntry, domainOfEmail, type ClaimedDomain,
 } from '@/lib/company-domains'
 import { notifyBulk } from '@/lib/notify'
+import { defaultPostureFor } from '@/lib/walls'
 import { defaultsFor } from '@/lib/company-defaults'
 import { holidaysFor } from '@/lib/holidays'
 import { writeFromRules } from '@/lib/site-voice'
@@ -327,6 +328,12 @@ export async function POST(request: NextRequest) {
       domainVerified: true,
       kind: type.kind as any,
       supplierPosture: type.posture,
+      // Who here may look at the market outside. Open for a staffing firm,
+      // whose business is outside; named people only for a delivery firm or
+      // an enterprise, where a handful hire contractors and the rest have
+      // no reason to see the market at all. Changeable in settings, and
+      // the default is the safe direction rather than the convenient one.
+      outsideAccess: defaultPostureFor(type.kind),
       // The cycle calendar. Without a pack a contract generates no due
       // dates at all, so nothing is ever owed and nothing is ever chased.
       templatePack: kit.templatePack,

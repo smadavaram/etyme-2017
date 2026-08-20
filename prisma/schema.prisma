@@ -194,6 +194,25 @@ model Company {
   domainVerified  Boolean     @default(false) // true when it came from an OAuth tenant
   kind            CompanyKind
   entityType      String?
+
+  /// Who here may see the market outside this company.
+  ///
+  /// ALLOWED for a staffing vendor, whose business is outside. NAMED_ONLY
+  /// for a delivery firm or an enterprise, where a handful of people hire
+  /// contractors and thirty thousand do not. CLOSED shuts it for everybody
+  /// regardless of role, which is the setting an owner reaches for without
+  /// wanting to audit every role in the company.
+  outsideAccess String @default("NAMED_ONLY")
+
+  /// Whether one client account here may see another.
+  ///
+  /// A delivery manager on one client's account has no business seeing who
+  /// is staffed at another, at what rate, or rolling off when — that is the
+  /// client's data rather than the firm's, and the contract usually says so.
+  /// Expressed by attaching people to org units rather than by another
+  /// permission: on a unit means that unit and everything under it, on no
+  /// unit means the firm.
+  accountWalls Boolean @default(false)
   templatePack    String? // US_IT · US_SAP · IN_DELIVERY · UK
   // Where a supplier sits in the chain when they sign up: PRIME holds the
   // client agreement, BENCH sells through other suppliers. The same company
@@ -356,6 +375,7 @@ model OrgUnit {
   kind          String // BU · PRACTICE · ACCOUNT · PROJECT · DEPARTMENT
   contexts      Context[]
   sellContracts SellContract[] // contingent workers charged to this unit
+  deliveredHere SellContract[] @relation("deliveryUnit") // accounts this unit delivers
   costCenters   CostCenter[] // budgets that fund this unit
   requisitions  Requirement[]
   approvalRules ApprovalRule[]
@@ -608,6 +628,14 @@ model Requirement {
   /// key on the end client where it is known.
   endClientCompanyId String?
   endClientCompany   Company? @relation("requirementEndClient", fields: [endClientCompanyId], references: [id])
+
+  /// Whether an invited supplier may be told which end client this is for.
+  ///
+  /// Off by default. A prime putting work out to sub-vendors is telling
+  /// them what to staff, not who they are staffing for — naming the client
+  /// hands a supplier the relationship, and hands a competitor the account.
+  /// The same reasoning as rateVisible, one field over.
+  endClientVisible Boolean @default(false)
 
   // ── Demand side (Addendum E) ──
   // A requisition raised by the client, as opposed to a requirement a vendor
@@ -973,6 +1001,17 @@ model SellContract {
   orgUnitId       String? // the end client's department / cost centre
   orgUnit         OrgUnit? @relation(fields: [orgUnitId], references: [id])
 
+  /// Which account or practice inside the SELLING firm this belongs to.
+  ///
+  /// A contract has two org sides and they belong to different companies:
+  /// whose budget pays for it at the client (orgUnitId above), and which
+  /// account owns the delivery at the supplier (this). A prime running
+  /// thirty client accounts needs the second to keep one account from
+  /// reading another's staffing — the first is the client's own structure
+  /// and says nothing about the supplier's.
+  deliveryUnitId  String?
+  deliveryUnit    OrgUnit? @relation("deliveryUnit", fields: [deliveryUnitId], references: [id])
+
   // The PO this contract invoices against, on the vendor→payer leg.
   // The demand this contract satisfies. Without it a placement cannot be
   // traced back to the requisition that authorised it, seats cannot be
@@ -1017,6 +1056,7 @@ model SellContract {
   @@index([workLocationId])
   /// the three-way match reads every contract on a PO
   @@index([purchaseOrderId])
+  @@index([deliveryUnitId])
 }
 
 enum SellContractState {

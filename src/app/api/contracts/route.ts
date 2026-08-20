@@ -5,6 +5,8 @@ import { generateCycles } from '@/lib/cycle-generator'
 import type { CycleDefinition } from '@/lib/cycle-generator'
 import { getTemplatePack } from '@/lib/template-packs'
 import { sellContractScope, buyContractScope } from '@/lib/resolve-client-company'
+import { accountFilterFor } from '@/lib/account-walls'
+import { andAll } from '@/lib/walls'
 
 /**
  * POST /api/contracts
@@ -340,7 +342,21 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const where: any = { ...scope }
+  // Inside a firm that separates its accounts, somebody attached to one
+  // sees that account and anything under it. Attached to none means the
+  // whole firm, which is how a CFO keeps working after the wall goes up.
+  // Which side of the contract this caller owns. A buyer's structure is
+  // their departments; a supplier's is their accounts, and they are
+  // different companies' org charts.
+  const wall = await accountFilterFor(
+    caller,
+    caller.company?.kind === 'CLIENT' ? 'orgUnitId' : 'deliveryUnitId'
+  )
+
+  // AND, never a spread. Both fragments express themselves as OR, and
+  // spreading one over the other keeps only the second — which is how a
+  // walled manager briefly saw every contract on the platform.
+  const where: any = andAll(scope, wall.where)
   if (state) where.state = state.toUpperCase()
   if (filterPersonId) where.personId = filterPersonId
 
@@ -383,6 +399,10 @@ export async function GET(request: NextRequest) {
         rolloff: c.rolloff ? { id: c.rolloff.id, endDate: c.rolloff.endDate.toISOString(), outcome: c.rolloff.outcome } : null,
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      // Said plainly when somebody is seeing less than the whole firm. A
+      // total that silently excludes half the company is worse than a
+      // smaller one somebody understands.
+      scopedTo: wall.note,
     },
   })
 }

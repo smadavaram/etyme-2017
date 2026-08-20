@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCallerContext } from '@/lib/api-context'
+import { maySeeOutside } from '@/lib/walls'
+import { emit } from '@/lib/events'
 import {
   hasPermission,
   canReadCostAggregates,
@@ -75,6 +77,31 @@ export async function GET(request: NextRequest) {
     }
     where.companyId = companyId
   } else if (scope === 'network') {
+    // Everything below this line is other companies' people. At a delivery
+    // firm that is the contractor desk's business and nobody else's, so
+    // the wall is checked before the query rather than after it.
+    const outside = maySeeOutside({
+      posture: caller.company?.outsideAccess ?? 'NAMED_ONLY',
+      permissions: caller.permissions,
+    })
+    if (!outside.ok) {
+      // Recorded. An owner who has closed the door should be able to see
+      // who keeps trying it, and a refusal nobody can count is a control
+      // nobody can review.
+      void emit({
+        type: 'network.refused',
+        companyId: caller.company?.id ?? null,
+        subjectType: 'Market',
+        subjectId: caller.company?.id ?? 'unknown',
+        actorPersonId: caller.person.id,
+        payload: { surface: 'bench.network', reason: outside.reason },
+      })
+      return NextResponse.json(
+        { error: { code: 'OUTSIDE_CLOSED', message: outside.reason } },
+        { status: 403 }
+      )
+    }
+
     if (!companyId) {
       return NextResponse.json(
         { error: { code: 'NO_COMPANY', message: 'Active context must be associated with a company' } },

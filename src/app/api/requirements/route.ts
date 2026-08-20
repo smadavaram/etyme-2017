@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getSessionEmail, getCallerContext } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
+import { maySeeOutside } from '@/lib/walls'
 import { prisma } from '@/lib/db'
 
 /**
@@ -8,12 +10,13 @@ import { prisma } from '@/lib/db'
  * List requirements. BUILD.md: scope=mine|network, sort=priority|recent, q, page
  */
 export async function GET(request: NextRequest) {
-  const email = await getSessionEmail()
+  const { caller, error: contextError } = await getCallerContext(request)
+  if (contextError) return contextError
 
-  if (!email) {
+  if (!hasPermission(caller.permissions, 'requirements.read')) {
     return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
+      { error: { code: 'FORBIDDEN', message: 'Reading open roles needs requirements.read' } },
+      { status: 403 }
     )
   }
 
@@ -27,7 +30,31 @@ export async function GET(request: NextRequest) {
 
   const id = url.searchParams.get('id') ?? undefined
 
-  const where: any = {}
+  const mineId = caller.company?.id ?? '__none__'
+
+  // Who may see which demand.
+  //
+  // This listed every requirement on the platform to anybody signed in —
+  // title, skills, location and both ends of the rate band — with no
+  // company filter at all. A competitor could read the whole demand side
+  // of somebody else's business, and an employee could read their own
+  // firm's client work from the next desk.
+  //
+  // Three legitimate readers: the company that raised it, a supplier who
+  // was invited to it, and — where the raiser deliberately opened it —
+  // anybody who is allowed to look outside their own company at all.
+  const canLookOutside = maySeeOutside({
+    posture: caller.company?.outsideAccess ?? 'NAMED_ONLY',
+    permissions: caller.permissions,
+  }).ok
+
+  const visible: any[] = [
+    { companyId: mineId },
+    { invitations: { some: { toCompanyId: mineId } } },
+  ]
+  if (canLookOutside) visible.push({ openToNetwork: true, status: 'OPEN' })
+
+  const where: any = { OR: visible }
 
   if (id) {
     where.id = id
@@ -42,9 +69,15 @@ export async function GET(request: NextRequest) {
   }
 
   if (q) {
-    where.OR = [
-      { title: { contains: q, mode: 'insensitive' } },
-      { skills: { hasSome: q.split(',').map((s) => s.trim()) } },
+    // AND, not OR. Assigning to where.OR here would have replaced the
+    // visibility clause above with a search clause and shown everything.
+    where.AND = [
+      {
+        OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { skills: { hasSome: q.split(',').map((s) => s.trim()) } },
+        ],
+      },
     ]
   }
 
@@ -58,6 +91,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         company: { select: { id: true, name: true } },
+        endClientCompany: { select: { id: true, name: true } },
         _count: { select: { submissions: true, matches: true, invitations: true } },
       },
       orderBy,
@@ -74,8 +108,11 @@ export async function GET(request: NextRequest) {
         title: r.title,
         skills: r.skills,
         location: r.location,
-        billMin: r.billMin,
-        billMax: r.billMax,
+        // The buyer's own band. What a supplier may charge lives on their
+        // invitation precisely so no recipient reads another's number, and
+        // this is the buyer's ceiling rather than anybody's offer.
+        billMin: r.companyId === mineId ? r.billMin : undefined,
+        billMax: r.companyId === mineId ? r.billMax : undefined,
         months: r.months,
         startDate: r.startDate?.toISOString() ?? null,
         status: r.status,
@@ -83,6 +120,11 @@ export async function GET(request: NextRequest) {
         marginClass: r.marginClass,
         rateVisible: r.rateVisible,
         company: r.company,
+        // Naming the end client hands a supplier the relationship and a
+        // competitor the account. Off unless the firm that holds it said
+        // otherwise, exactly like the rate band above.
+        endClientCompany:
+          r.companyId === mineId || r.endClientVisible ? r.endClientCompany : null,
         counts: {
           submissions: r._count.submissions,
           matches: r._count.matches,

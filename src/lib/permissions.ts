@@ -36,6 +36,13 @@ export const PERMISSIONS = [
   'payroll.approve',
   'vendors.read',
   'vendors.manage',
+  // Seeing anything outside your own company: other firms' consultants,
+  // who is coming free, which suppliers exist. Held apart from
+  // consultants.read because at a delivery firm those are different jobs —
+  // reading the contractors you already have is not the same as browsing
+  // the market, and thirty thousand engineers need the first and none of
+  // the second.
+  'network.read',
   'utilization.read',
   'margin.read',
   'pnl.read',

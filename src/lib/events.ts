@@ -51,6 +51,10 @@ export const EVENT_TYPES = [
   'representation.taken',
   'representation.released',
 
+  // The wall around a firm that both delivers and buys
+  'network.viewed',
+  'network.refused',
+
   // Contracts
   'contract.created',
   'contract.extended',

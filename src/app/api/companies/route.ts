@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { isExcludedDomain } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { defaultPostureFor } from '@/lib/walls'
 
 /**
  * POST /api/companies
@@ -212,6 +213,9 @@ export async function POST(request: NextRequest) {
           domain,
           domainVerified: true, // came from OAuth
           kind: kind as 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI',
+          // Same rule as onboarding: a delivery firm or an enterprise
+          // starts closed to all but named people.
+          outsideAccess: defaultPostureFor(kind),
           siteLiveAt: new Date(),
         },
       })

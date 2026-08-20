@@ -49,7 +49,10 @@ function caller(overrides: {
     person: { id: 'person-1', name: 'Test Caller', primaryEmail: 'caller@example.com' },
     context: { id: 'ctx-1', type: 'EMPLOYEE', companyId: hasCompany ? companyId : null, roleId: 'role-1' },
     company: hasCompany
-      ? { id: companyId, name: companyName, slug: 'test-co', kind: companyKind }
+      ? {
+          id: companyId, name: companyName, slug: 'test-co', kind: companyKind,
+          outsideAccess: 'ALLOWED', accountWalls: false,
+        }
       : null,
     permissions,
   }

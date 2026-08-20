@@ -47,6 +47,15 @@ const RUN_PAYROLL: Permission[] = ['payroll.read', 'payroll.run', 'payroll.appro
 const OWN_PRICE: Permission[] = ['rates.read', 'rates.write']
 const OWN_RULES: Permission[] = ['governance.read', 'governance.write']
 const SEE_RULES: Permission[] = ['governance.read']
+/**
+ * Looking outside the company at all: other firms' consultants, who is
+ * coming free, which suppliers exist.
+ *
+ * Only where it is somebody's actual job. At a delivery firm that is the
+ * contractor desk and the supplier manager — never the delivery managers,
+ * who between them are most of the company.
+ */
+const SEE_OUTSIDE: Permission[] = ['network.read']
 
 /** Everything. Only the owner set uses it. */
 function everything(): Permission[] {
@@ -66,7 +75,7 @@ const ALL: string[] = [
   'rates.read', 'rates.write',
   'payments.record',
   'payroll.read', 'payroll.run', 'payroll.approve',
-  'vendors.read', 'vendors.manage',
+  'vendors.read', 'vendors.manage', 'network.read',
   'utilization.read', 'margin.read', 'pnl.read',
   'team.manage', 'settings.manage',
   'governance.read', 'governance.write',
@@ -126,7 +135,7 @@ const CLIENT_ROLES: RoleSeed[] = [
   {
     name: 'Programme Manager',
     blurb: 'Runs the contingent workforce programme. Sets the rules.',
-    permissions: uniq(SEE_PEOPLE, RUN_DEMAND, SEE_SUPPLY, SEE_WORK, ['assignments.write'], OWN_PRICE, OWN_RULES, SEE_MONEY, ['vendors.read', 'vendors.manage', 'utilization.read']),
+    permissions: uniq(SEE_PEOPLE, RUN_DEMAND, SEE_SUPPLY, SEE_WORK, ['assignments.write'], OWN_PRICE, OWN_RULES, SEE_MONEY, SEE_OUTSIDE, ['vendors.read', 'vendors.manage', 'utilization.read']),
   },
   {
     name: 'Hiring Manager',
@@ -227,12 +236,21 @@ export function rolesFor(kind: CompanyKind): RoleSeed[] {
         {
           name: 'Delivery Manager',
           blurb: 'Owns a practice: what it delivers and who staffs it.',
+          // No network.read, deliberately. A delivery manager staffs their
+          // own practice from people already engaged; browsing the outside
+          // market is the contractor desk's job, and at a firm this size
+          // the delivery managers are most of the company.
           permissions: uniq(SEE_PEOPLE, RUN_DEMAND, SEE_SUPPLY, SEE_WORK, ['assignments.write', 'utilization.read', 'vendors.read']),
         },
         {
           name: 'Supplier Manager',
           blurb: 'Owns the firms you buy bench from.',
-          permissions: uniq(['vendors.read', 'vendors.manage'], SEE_DEMAND, SEE_SUPPLY, ['assignments.read', 'rates.read']),
+          permissions: uniq(['vendors.read', 'vendors.manage'], SEE_DEMAND, SEE_SUPPLY, SEE_OUTSIDE, ['assignments.read', 'rates.read']),
+        },
+        {
+          name: 'Contractor Desk',
+          blurb: 'Hires contractors from outside. The only people here who see the market.',
+          permissions: uniq(SEE_PEOPLE, ['consultants.write'], SEE_DEMAND, SEND_SUPPLY, SEE_WORK, SEE_OUTSIDE, ['vendors.read']),
         },
       ]
     case 'VENDOR':

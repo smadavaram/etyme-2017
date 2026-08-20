@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { sellContractScope } from '@/lib/resolve-client-company'
+import { accountFilterFor } from '@/lib/account-walls'
+import { andAll } from '@/lib/walls'
 
 /**
  * GET /api/rolloff
@@ -38,12 +40,20 @@ export async function GET(request: NextRequest) {
   const now = new Date()
   const windowEnd = new Date(now.getTime() + window * 24 * 60 * 60 * 1000)
 
+  // And, inside a firm that separates its accounts, to the accounts this
+  // reader belongs to. Who is rolling off another client's account is that
+  // client's business, not the whole firm's.
+  const wall = await accountFilterFor(
+    caller,
+    caller.company?.kind === 'CLIENT' ? 'orgUnitId' : 'deliveryUnitId'
+  )
+
   const where: any = {
     endDate: {
       gte: now,
       lte: windowEnd,
     },
-    sellContract: scope,
+    sellContract: andAll(scope, wall.where),
   }
 
   const rolloffs = await prisma.rolloffEvent.findMany({

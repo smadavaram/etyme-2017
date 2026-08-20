@@ -3,6 +3,8 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { accountFilterFor } from '@/lib/account-walls'
+import { andAll } from '@/lib/walls'
 import { logBulkAccess } from '@/lib/access-log'
 
 /**
@@ -34,11 +36,15 @@ export async function GET(request: NextRequest) {
 
   // Active contracts placed at this end client
   // Uses endClientFilter to include contracts where the paying customer differs
+  // Inside a firm that separates its accounts, this is also filtered to
+  // the accounts the reader belongs to. A delivery manager on one client's
+  // account has no business reading who is staffed at another.
+  const wall = await accountFilterFor(caller)
+
   const contracts = await prisma.sellContract.findMany({
-    where: {
-      ...endClientFilter(clientCompany.id),
+    where: andAll(endClientFilter(clientCompany.id), wall.where, {
       state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
-    },
+    }),
     include: {
       person: {
         select: {

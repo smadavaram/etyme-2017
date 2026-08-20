@@ -29,7 +29,19 @@ export interface CallerContext {
     name: string
     slug: string
     kind: string
+    /** ALLOWED · NAMED_ONLY · CLOSED — who here may see outside the company. */
+    outsideAccess: string
+    /** Whether one client account here may see another. */
+    accountWalls: boolean
   } | null
+  /**
+   * The org unit this person sits on, if any.
+   *
+   * Null means firm-wide, which is the deliberate act — a CFO or a head of
+   * delivery. Set means they see that unit and everything under it, where
+   * the company has turned account walls on.
+   */
+  orgUnitId?: string | null
   permissions: readonly string[]
   /**
    * True when the caller is a machine holding an API key rather than a
@@ -135,14 +147,14 @@ export async function getCallerContext(
     ? await prisma.context.findFirst({
         where: { id: contextId, personId: person.id, ...usable },
         include: {
-          company: { select: { id: true, name: true, slug: true, kind: true } },
+          company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true } },
           role: { select: { id: true, name: true, permissions: true } },
         },
       })
     : await prisma.context.findFirst({
         where: { personId: person.id, ...usable },
         include: {
-          company: { select: { id: true, name: true, slug: true, kind: true } },
+          company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true } },
           role: { select: { id: true, name: true, permissions: true } },
         },
         orderBy: { grantedAt: 'desc' },
@@ -219,6 +231,9 @@ export async function getCallerContext(
       },
       company: context.company,
       permissions: (context.role?.permissions as string[]) ?? [],
+      // Where they sit in the firm. Null is firm-wide, and that absence is
+      // the deliberate act rather than an oversight.
+      orgUnitId: context.orgUnitId,
     },
     error: null,
   }
@@ -247,7 +262,7 @@ async function callerFromApiKey(
     where: { keyHash: hashKey(presented) },
     select: {
       id: true, name: true, permissions: true, revokedAt: true, expiresAt: true,
-      company: { select: { id: true, name: true, slug: true, kind: true } },
+      company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true } },
     },
   })
 

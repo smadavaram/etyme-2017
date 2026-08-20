@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
         id: true, name: true, slug: true, domain: true, domainVerified: true,
         kind: true, supplierPosture: true, currency: true, templatePack: true,
         teamsWebhookUrl: true, networkVerifiedAt: true, siteLiveAt: true,
+        outsideAccess: true, accountWalls: true,
       },
     }),
     prisma.role.findMany({
@@ -80,6 +81,24 @@ export async function GET(request: NextRequest) {
         // Named separately from the raw value so the screen can say
         // "nobody has a Teams channel yet" rather than showing a blank.
         teamsConfigured: Boolean(company.teamsWebhookUrl),
+      },
+      // The wall, said as who is actually behind it rather than as a
+      // setting. An owner asking "who here can see the outside market"
+      // wants names, and a permission list is not an answer.
+      wall: company && {
+        outsideAccess: company.outsideAccess,
+        accountWalls: company.accountWalls,
+        explanation:
+          company.outsideAccess === 'CLOSED'
+            ? 'Nobody here can see the outside market, whatever their role.'
+            : company.outsideAccess === 'ALLOWED'
+              ? 'Anybody here who can read consultants can also see the outside market.'
+              : 'Only the roles below can see people and suppliers outside this company.',
+        // Roles rather than headcount alone, because the fix for a wrong
+        // answer is editing a role.
+        canSeeOutside: roles
+          .filter((r) => r.permissions.includes('network.read') || r.permissions.includes('*'))
+          .map((r) => ({ role: r.name, heldBy: heldBy.get(r.id) ?? 0 })),
       },
       roles: roles.map((r) => ({
         ...r,
@@ -148,6 +167,30 @@ export async function PATCH(request: NextRequest) {
     changed.push('name')
   }
 
+  // ── The wall ───────────────────────────────────────────────────────
+  if (typeof body.outsideAccess === 'string') {
+    const v = body.outsideAccess.trim().toUpperCase()
+    if (!['ALLOWED', 'NAMED_ONLY', 'CLOSED'].includes(v)) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION',
+            message: 'Outside access is one of: ALLOWED, NAMED_ONLY, CLOSED',
+            field: 'outsideAccess',
+          },
+        },
+        { status: 422 }
+      )
+    }
+    data.outsideAccess = v
+    changed.push('outsideAccess')
+  }
+
+  if (typeof body.accountWalls === 'boolean') {
+    data.accountWalls = body.accountWalls
+    changed.push('accountWalls')
+  }
+
   if (typeof body.currency === 'string') {
     const c = body.currency.trim().toUpperCase()
     if (!/^[A-Z]{3}$/.test(c)) {
@@ -190,7 +233,10 @@ export async function PATCH(request: NextRequest) {
   const updated = await prisma.company.update({
     where: { id: caller.company.id },
     data,
-    select: { id: true, name: true, currency: true, teamsWebhookUrl: true },
+    select: {
+      id: true, name: true, currency: true, teamsWebhookUrl: true,
+      outsideAccess: true, accountWalls: true,
+    },
   })
 
   await prisma.automationLog.create({

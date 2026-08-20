@@ -31,8 +31,22 @@ export interface RollingOff {
   /** The vendor who employs them and would be selling them on. */
   vendorCompanyId: string
   vendorName: string
-  /** Where they are working now — for "done this before" credibility. */
+  /**
+   * Where they are working now — for "done this before" credibility.
+   *
+   * Null to everybody but the firm that placed them. The consultant agreed
+   * to be listed as coming free; they did not agree on behalf of the
+   * client, whose competitors read this same list.
+   */
   endClientName: string | null
+  /**
+   * The kind of place, when the name may not be said.
+   *
+   * "Finishing at an enterprise" carries most of the credibility and none
+   * of the relationship. Better than a blank, which reads as somebody with
+   * nothing to show.
+   */
+  endClientSector?: string | null
   endDate: Date
   /** Whether they have agreed to be shown before they are free. */
   consented: boolean
@@ -105,7 +119,11 @@ export function releasing(rows: RollingOff[], now: Date, horizonDays = 90): Rele
       freeOn: r.endDate.toISOString().slice(0, 10),
       window: days <= 7 ? 'THIS_WEEK' : days <= 31 ? 'THIS_MONTH' : 'NEXT_QUARTER',
       // What they have actually been doing beats any claim on a profile.
-      proven: r.endClientName ? `Finishing at ${r.endClientName}` : null,
+      proven: r.endClientName
+        ? `Finishing at ${r.endClientName}`
+        : r.endClientSector
+          ? `Finishing at ${r.endClientSector}`
+          : null,
       rateFloorCents: r.rateFloorCents,
       // The one thing that would waste a buyer's time if it were hidden.
       caveat: r.extensionLikely

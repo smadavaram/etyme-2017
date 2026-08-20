@@ -128,6 +128,31 @@ async function main() {
     },
   })
 
+  // ── A delivery firm, with the wall up ──────────
+  //
+  // Thirty thousand employees, a contractor desk of nine. The interesting
+  // thing about this company is not what it can do but what almost nobody
+  // in it can see: the outside market is closed to every role except the
+  // desk that hires contractors, and one client account cannot read
+  // another's staffing.
+  const gsi = await prisma.company.create({
+    data: {
+      name: 'Ravensbourne Systems',
+      slug: 'ravensbourne',
+      domain: 'ravensbourne.com',
+      domainVerified: true,
+      kind: 'GSI',
+      supplierPosture: 'PRIME',
+      currency: 'USD',
+      templatePack: 'US_SAP',
+      siteLiveAt: new Date(),
+      // Named people only, which is what a GSI gets at sign-up.
+      outsideAccess: 'NAMED_ONLY',
+      // One client account cannot read another's.
+      accountWalls: true,
+    },
+  })
+
   // ── Roles ──────────────────────────────────────
   // Permissions come from PERMISSIONS in src/lib/permissions.ts — that list
   // is what every hasPermission() call in the API checks against. Inventing
@@ -431,6 +456,64 @@ async function main() {
       },
     })
     managers[m.key] = { id: person.id, name: m.name, unitId: orgUnits[m.unit].id }
+  }
+
+  // ── The delivery firm's own accounts, and the wall between them ──
+  //
+  // Ravensbourne runs two client accounts. A delivery manager on one can
+  // read their own account and nothing of the other's staffing, rates or
+  // rolloffs — the client's data rather than the firm's, and their master
+  // agreement says as much. The contractor desk sits on no account, which
+  // is what firm-wide looks like, and is the only role here that can see
+  // the outside market at all.
+  const gsiRoles: Record<string, { id: string; name: string }> = {}
+  for (const r of rolesFor('GSI')) {
+    const created = await prisma.role.create({
+      data: {
+        companyId: gsi.id,
+        name: r.name,
+        permissions: [...r.permissions],
+        isDefault: Boolean(r.isOwner),
+      },
+    })
+    gsiRoles[r.name] = { id: created.id, name: created.name }
+  }
+
+  const gsiAccounts: Record<string, { id: string; name: string }> = {}
+  for (const a of [
+    { key: 'retail', name: 'Retail account' },
+    { key: 'medical', name: 'Medical devices account' },
+  ]) {
+    const unit = await prisma.orgUnit.create({
+      data: { companyId: gsi.id, name: a.name, kind: 'ACCOUNT' },
+    })
+    gsiAccounts[a.key] = { id: unit.id, name: unit.name }
+  }
+
+  const gsiPeople = [
+    // Two delivery managers, each walled to their own account and neither
+    // able to see the outside market.
+    { name: 'Priya Anand',  email: 'p.anand@ravensbourne.com',  role: 'Delivery Manager', unit: 'retail' },
+    { name: 'Tom Rhys',     email: 't.rhys@ravensbourne.com',   role: 'Delivery Manager', unit: 'medical' },
+    // The contractor desk. Firm-wide, and the only people here who can.
+    { name: 'Aisha Bello',  email: 'a.bello@ravensbourne.com',  role: 'Contractor Desk',  unit: null },
+  ]
+
+  const gsiStaff: Record<string, { id: string }> = {}
+  for (const p of gsiPeople) {
+    const person = await prisma.person.create({
+      data: { name: p.name, primaryEmail: p.email },
+    })
+    await prisma.context.create({
+      data: {
+        personId: person.id,
+        type: 'EMPLOYEE',
+        companyId: gsi.id,
+        roleId: gsiRoles[p.role]?.id ?? null,
+        orgUnitId: p.unit ? gsiAccounts[p.unit].id : null,
+      },
+    })
+    gsiStaff[p.email] = { id: person.id }
   }
 
   // ── Terumo's cost centres (the budgets contingent labour burns) ──
@@ -1004,7 +1087,7 @@ async function main() {
   })
 
   const secondVendorOwner = await prisma.person.create({
-    data: { name: 'Dana Whitfield', primaryEmail: 'dana@northwindtalent.com' },
+    data: { name: 'Marisa Kelly', primaryEmail: 'marisa@northwindtalent.com' },
   })
 
   await prisma.context.create({
@@ -1111,6 +1194,40 @@ async function main() {
     },
   })
   sellContracts.push(mspContract)
+
+  // ── The delivery firm's own placements, one per account ────────
+  //
+  // Two contractors, two client accounts, one wall. Priya Anand on the
+  // retail account can read the first and not the second; Tom Rhys on the
+  // medical account can read the second and not the first. Aisha Bello on
+  // the contractor desk sits on no account and reads both, which is what
+  // firm-wide looks like.
+  for (const g of [
+    { unit: 'retail',  clientId: client2.id, personIdx: 4, billRate: 15500, days: 200 },
+    { unit: 'medical', clientId: client.id,  personIdx: 6, billRate: 14000, days: 150 },
+  ]) {
+    const start = new Date(now)
+    start.setDate(start.getDate() - 90)
+    const end = new Date(now)
+    end.setDate(end.getDate() + g.days)
+
+    sellContracts.push(
+      await prisma.sellContract.create({
+        data: {
+          companyId: gsi.id,
+          clientCompanyId: g.clientId,
+          personId: people[g.personIdx].id,
+          billRate: g.billRate,
+          state: 'IN_PROGRESS',
+          startDate: start,
+          endDate: end,
+          // The account inside the delivery firm. Not the client's
+          // department — that is a different company's org chart.
+          deliveryUnitId: gsiAccounts[g.unit].id,
+        },
+      })
+    )
+  }
 
   // A split contractor — David Chen's time is shared between Infrastructure
   // and Data Platform. Terumo still needs the coding even though the invoice
