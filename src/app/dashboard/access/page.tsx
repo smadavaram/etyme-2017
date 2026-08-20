@@ -63,6 +63,145 @@ function until(iso: string | null): string {
   return `until ${iso.slice(0, 10)}`
 }
 
+/**
+ * Can they see it?
+ *
+ * The question an administrator actually has, and the one no system
+ * answers: somebody says "I cannot see the Nike contract", and the only
+ * way to find out why is to read four sets of rules and guess.
+ *
+ * Paste the link they were on. It says why, in their terms, and what to
+ * change — or that there is nothing to change, which is just as often the
+ * answer and is worth saying out loud.
+ */
+function CanTheySee({ people }: { people: Person[] }) {
+  const [personId, setPersonId] = useState('')
+  const [ref, setRef] = useState('')
+  const [answer, setAnswer] = useState<any>(null)
+  const [asking, setAsking] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  // A URL, or a bare id. Somebody debugging access has a link in their
+  // hand, not an identifier.
+  function readRef(raw: string): { type: string; id: string } | null {
+    const v = raw.trim()
+    const known: Record<string, string> = {
+      contracts: 'contract',
+      consultants: 'consultant',
+      requirements: 'requirement',
+    }
+    const m = v.match(/\/(contracts|consultants|requirements)\/([A-Za-z0-9_-]+)/)
+    if (m) return { type: known[m[1]], id: m[2] }
+    const q = v.match(/[?&]id=([A-Za-z0-9_-]+)/)
+    if (q) {
+      const t = Object.keys(known).find((k) => v.includes(`/${k}`))
+      if (t) return { type: known[t], id: q[1] }
+    }
+    return null
+  }
+
+  async function ask() {
+    const parsed = readRef(ref)
+    setErr(null)
+    setAnswer(null)
+    if (!parsed) {
+      setErr('Paste the link they were on — a contract, a consultant or an open role.')
+      return
+    }
+    setAsking(true)
+    try {
+      const res = await fetch(`/api/why/${parsed.type}/${parsed.id}?person=${personId}`)
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      setAnswer(body.data)
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setAsking(false)
+    }
+  }
+
+  return (
+    <section className="mb-10 pb-10 border-b border-etyme-rule">
+      <h2 className="font-serif text-xl text-etyme-ink tracking-[-0.02em]">Can they see it?</h2>
+      <p className="text-[13px] text-etyme-muted mt-1 max-w-prose">
+        Somebody says they cannot see something. Pick them, paste the link they were on, and
+        this says why — and which of the two things to change.
+      </p>
+
+      <div className="flex flex-wrap gap-2 mt-4">
+        <select
+          value={personId}
+          onChange={(e) => setPersonId(e.target.value)}
+          className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm"
+        >
+          <option value="">Who?</option>
+          {people.map((p) => (
+            <option key={p.contextId} value={p.person.id}>
+              {p.person.name} — {p.role}
+            </option>
+          ))}
+        </select>
+        <input
+          value={ref}
+          onChange={(e) => setRef(e.target.value)}
+          placeholder="Paste the link they were on"
+          className="flex-1 min-w-[16rem] px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm"
+        />
+        <button
+          onClick={ask}
+          disabled={asking || !personId || !ref.trim()}
+          className="px-3 py-2 rounded bg-etyme-action text-white text-[13px] font-medium disabled:opacity-40"
+        >
+          {asking ? 'Checking…' : 'Check'}
+        </button>
+      </div>
+
+      {err && <p className="text-[13px] text-etyme-attention mt-3">{err}</p>}
+
+      {answer && (
+        <div className="mt-4 bg-etyme-surface border border-etyme-rule rounded-lg p-4">
+          <div className="flex items-baseline gap-2">
+            <Chip tone={answer.visible ? 'verified' : 'attention'}>
+              {answer.visible ? 'can see it' : 'cannot see it'}
+            </Chip>
+            <span className="text-[13px] text-etyme-muted">{answer.subject}</span>
+          </div>
+
+          <p className="text-[15px] text-etyme-ink mt-3">{answer.because}</p>
+          {answer.fix && <p className="text-[14px] text-etyme-muted mt-1.5">{answer.fix}</p>}
+
+          {/* The working, not just the verdict. An administrator who cannot
+              see which rule decided is left trusting a black box. */}
+          <div className="mt-4 pt-3 border-t border-etyme-rule space-y-1.5">
+            {answer.checks.map((c: any) => (
+              <div key={c.rule} className="flex gap-2 text-[13px]">
+                <span className={c.passed ? 'text-etyme-verified' : 'text-etyme-attention'}>
+                  {c.passed ? '✓' : '✗'}
+                </span>
+                <span className="text-etyme-muted">{c.said}</span>
+              </div>
+            ))}
+          </div>
+
+          {answer.visible && answer.hidden.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-etyme-rule">
+              <Lbl>Hidden from them on it</Lbl>
+              <div className="mt-1.5 space-y-1">
+                {answer.hidden.map((h: any) => (
+                  <div key={h.field} className="text-[13px] text-etyme-muted">
+                    <span className="text-etyme-ink">{h.field}</span> — {h.because}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
 export default function AccessPage() {
   const [data, setData] = useState<any>(null)
   const [roles, setRoles] = useState<{ id: string; name: string }[]>([])
@@ -238,6 +377,8 @@ export default function AccessPage() {
           </div>
         </section>
       )}
+
+      <CanTheySee people={data.people} />
 
       <section>
         <h2 className="font-serif text-lg text-etyme-ink mb-3">Everyone with access</h2>

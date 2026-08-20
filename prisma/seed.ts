@@ -491,6 +491,9 @@ async function main() {
   }
 
   const gsiPeople = [
+    // Somebody has to own the walls, or the settings screen is read-only
+    // for everybody and the demo shows a company nobody administers.
+    { name: 'Elena Marsh',  email: 'e.marsh@ravensbourne.com',  role: 'Owner',            unit: null },
     // Two delivery managers, each walled to their own account and neither
     // able to see the outside market.
     { name: 'Priya Anand',  email: 'p.anand@ravensbourne.com',  role: 'Delivery Manager', unit: 'retail' },
