@@ -23,7 +23,17 @@ interface Item {
   shows: string
 }
 
+interface Maybe {
+  id: string
+  title: string
+  postedBy: string | null
+  asks: string
+  because: string[]
+  likeOpening: { id: string; title: string; location: string | null } | null
+}
+
 interface Queue {
+  maybes: Maybe[]
   sample: Item[]
   waiting: number
   agreement: { percent: number | null; says: string; worrying: boolean; reviewed: number }
@@ -82,6 +92,25 @@ export default function ChecksPage() {
   useEffect(() => { load() }, [load])
 
   const item = q?.sample[at]
+
+  async function settle(leadId: string, same: boolean) {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/leads/${leadId}/same-seat`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ same }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      load()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function answer(agreed: boolean) {
     if (!item) return
@@ -175,6 +204,46 @@ export default function ChecksPage() {
             fills up as submissions get checked — the skill-evidence check
             is the one that lands here.
           </p>
+        </div>
+      )}
+
+      {/* Two adverts the collapse would not settle itself.
+          SAME joins a seat on its own; LIKELY never does, because a
+          wrongly merged seat loses a live role and nobody notices. This
+          is where a person settles it in ten seconds. */}
+      {q && q.maybes.length > 0 && (
+        <div className="panel">
+          <p className="eyebrow mb-3">Same seat?</p>
+          {q.maybes.map((m) => (
+            <div key={m.id} className="mb-4 border-b border-etyme-rule pb-4 last:mb-0 last:border-0 last:pb-0">
+              <h3 className="headline-serif text-[18px] leading-snug">{m.asks}</h3>
+              <p className="mt-1 text-[12px] text-etyme-muted">
+                <span className="font-medium text-etyme-ink">{m.title}</span>
+                {m.postedBy && <> · posted by {m.postedBy}</>}
+              </p>
+              {m.because.length > 0 && (
+                <p className="mt-1 text-[12px] text-etyme-muted">
+                  Because {m.because.join(', ')}.
+                </p>
+              )}
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={() => settle(m.id, true)}
+                  disabled={busy}
+                  className="rounded-md bg-etyme-action px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-50"
+                >
+                  Same seat
+                </button>
+                <button
+                  onClick={() => settle(m.id, false)}
+                  disabled={busy}
+                  className="rounded-md border border-etyme-rule px-3 py-1.5 text-[12px] font-medium text-etyme-ink"
+                >
+                  Different
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

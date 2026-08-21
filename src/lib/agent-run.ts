@@ -31,6 +31,22 @@ import { prisma } from '@/lib/db'
 export type Verdict = 'PASS' | 'FAIL' | 'ERROR'
 
 /**
+ * What an agent can run on.
+ *
+ * One vocabulary, defined here because the ledger is the thing that has
+ * to group by it. A second list somewhere else drifts, and then two
+ * screens disagree about what a run was about.
+ */
+export type RecordType =
+  | 'REQUIREMENT'
+  | 'SUBMISSION'
+  | 'CONSULTANT'
+  | 'OPENING'
+  | 'INVOICE'
+  | 'TIMESHEET'
+  | 'LEAD'
+
+/**
  * Dollars per million tokens, as of the pricing table this was written
  * against. Model prices move; re-check quarterly, because the difference
  * between a good margin and a bad one lives here.
@@ -95,7 +111,7 @@ export function showMicros(micros: number | null | undefined): string {
 export interface RunInput {
   companyId: string
   agent: string
-  recordType: 'REQUIREMENT' | 'SUBMISSION' | 'CONSULTANT' | 'OPENING'
+  recordType: RecordType
   recordId: string
   attempt?: number
   verdict: Verdict

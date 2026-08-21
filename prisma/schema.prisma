@@ -746,6 +746,15 @@ model Requirement {
   submissions     Submission[]
   representations Representation[]
 
+  /// How much of this role is going to go wrong, out of a hundred.
+  ///
+  /// Not a grade on whoever wrote it. A shorthand for "will this be
+  /// filled", and only ever shown next to the reasons — a number alone
+  /// tells nobody what to change.
+  ///
+  /// Null until the check has been run once.
+  qualityScore Int?
+
   @@index([companyId, status])
   @@index([openToNetwork, status])
   @@index([msaId])
@@ -1108,6 +1117,7 @@ model Opening {
   lastSeen  DateTime @default(now())
 
   leads           Lead[]
+  suspectedBy     Lead[]           @relation("suspectedSeat")
   requirements    Requirement[]
   representations Representation[]
 
@@ -1145,16 +1155,26 @@ model Lead {
 
   /// The seat this advert is for, once somebody or something decided.
   openingId     String?
-  opening       Opening?  @relation(fields: [openingId], references: [id])
+  opening       Opening? @relation(fields: [openingId], references: [id])
   /// SAME collapses on its own; LIKELY waits for a person. Nothing merges
   /// silently — the same rule CLAUDE.md sets for resolving people.
   matchStrength String?
   matchBecause  String[]
+
+  /// The seat this might be, where the matching would not commit.
+  ///
+  /// Separate from openingId, which is the seat this advert actually
+  /// belongs to — a LIKELY lead gets its own, because nothing merges
+  /// silently. Without this the question put to a person pointed at the
+  /// lead's own opening, which is to say at itself.
+  likeOpeningId String?
+  likeOpening   Opening?  @relation("suspectedSeat", fields: [likeOpeningId], references: [id])
   confirmedById String?
   confirmedAt   DateTime?
 
   @@index([companyId, seenAt])
   @@index([openingId])
+  @@index([likeOpeningId])
   @@index([postedByCompanyId])
 }
 

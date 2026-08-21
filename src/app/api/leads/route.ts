@@ -149,6 +149,10 @@ export async function POST(request: NextRequest) {
         openingId,
         matchStrength: best?.strength ?? null,
         matchBecause: best?.because ?? [],
+        // Where the question points. Only set when the matching would not
+        // commit — without it the person is asked "is this the same seat
+        // as itself".
+        likeOpeningId: !joins && best?.strength === 'LIKELY' ? best.openingId : null,
       },
     })
 
