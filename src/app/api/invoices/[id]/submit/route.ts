@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
-import { matchInvoice } from '@/lib/invoice-match'
+import { matchAndRecord } from '@/lib/invoice-loop'
 
 /**
  * POST /api/invoices/:id/submit
@@ -39,6 +39,7 @@ export async function POST(
       total: true,
       currency: true,
       engagementId: true,
+      matchAttempt: true,
       engagement: {
         select: {
           msa: {
@@ -80,7 +81,13 @@ export async function POST(
   // historic invoices helps nobody.
   const lineCount = await prisma.invoiceLine.count({ where: { invoiceId: id } })
   if (lineCount > 0) {
-    const match = await matchInvoice(id)
+    // Through the harness, so the run is counted and its verdicts kept.
+    // The match itself is unchanged — it was correct, it just answered to
+    // nobody.
+    const attempt = invoice.matchAttempt + 1
+    const { result: match } = await matchAndRecord(id, caller.company!.id, attempt)
+    await prisma.invoice.update({ where: { id }, data: { matchAttempt: attempt } })
+
     if (match && !match.matched) {
       return NextResponse.json(
         {

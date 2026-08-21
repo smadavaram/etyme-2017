@@ -1681,6 +1681,13 @@ model Invoice {
   remitToId       String?
   remitTo         RemitTo?       @relation(fields: [remitToId], references: [id])
 
+  /// How many times this invoice has been put up for submission.
+  ///
+  /// The three-way match was the least accountable check in the build:
+  /// it blocked payments and nothing anywhere counted whether it had ever
+  /// been right, how often it needed a second go, or what it cost.
+  matchAttempt Int @default(0)
+
   @@index([status, dueAt])
   @@index([purchaseOrderId])
   @@index([engagementId])
