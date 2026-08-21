@@ -1,0 +1,749 @@
+<title>The Hybrid Crew</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,400;100,500;100,600;100,700;112,700;112,800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:    #EDF1F1;
+    --surface:   #F8FAFA;
+    --surface-2: #E3E9E9;
+    --ink:       #101718;
+    --ink-2:     #4B5A5C;
+    --ink-3:     #77878A;
+    --rule:      #CCD6D6;
+    --rule-soft: #DDE4E4;
+    --accent:    #0F5C61;
+    --signal:    #B85A16;
+    --signal-bg: #F6E7DA;
+    --good:      #2C6E49;
+    --good-bg:   #DDE9E0;
+    --crit:      #9C3626;
+    --crit-bg:   #F2DFDB;
+
+    --c-human:  #C9962B;
+    --c-agent:  #2C7A80;
+    --c-margin: #C2611F;
+
+    --measure: 66ch;
+    --step-0:  1.09rem;
+    --step-1:  1.36rem;
+    --step-2:  1.78rem;
+    --step-3:  2.4rem;
+    --step-4:  3.5rem;
+
+    --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:    #0B1011;
+      --surface:   #141B1C;
+      --surface-2: #1C2526;
+      --ink:       #E5EBEB;
+      --ink-2:     #9BABAC;
+      --ink-3:     #748587;
+      --rule:      #2C3739;
+      --rule-soft: #222C2E;
+      --accent:    #58BEC4;
+      --signal:    #E38B4B;
+      --signal-bg: #33231A;
+      --good:      #6BBF8E;
+      --good-bg:   #1B2C22;
+      --crit:      #DE7B66;
+      --crit-bg:   #2F1D19;
+      --c-human:   #D2A64B;
+      --c-agent:   #4FB2B9;
+      --c-margin:  #E38B4B;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:    #0B1011;
+    --surface:   #141B1C;
+    --surface-2: #1C2526;
+    --ink:       #E5EBEB;
+    --ink-2:     #9BABAC;
+    --ink-3:     #748587;
+    --rule:      #2C3739;
+    --rule-soft: #222C2E;
+    --accent:    #58BEC4;
+    --signal:    #E38B4B;
+    --signal-bg: #33231A;
+    --good:      #6BBF8E;
+    --good-bg:   #1B2C22;
+    --crit:      #DE7B66;
+    --crit-bg:   #2F1D19;
+    --c-human:   #D2A64B;
+    --c-agent:   #4FB2B9;
+    --c-margin:  #E38B4B;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: var(--step-0);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px 110px; }
+
+  /* ---------- masthead ---------- */
+
+  .mast { padding: 76px 0 0; }
+  .eyebrow {
+    font-family: var(--sans);
+    font-size: 0.73rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-variation-settings: "wdth" 112;
+    font-weight: 800;
+    font-size: var(--step-4);
+    line-height: 0.98;
+    letter-spacing: -0.028em;
+    text-wrap: balance;
+    margin: 0 0 26px;
+    max-width: 15ch;
+  }
+  .deck {
+    font-size: var(--step-1);
+    line-height: 1.48;
+    color: var(--ink-2);
+    max-width: 58ch;
+    margin: 0;
+  }
+  .deck strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- answer block ---------- */
+
+  .answer {
+    margin: 44px 0 0;
+    padding: 28px 32px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--signal);
+    border-radius: 4px;
+    max-width: 860px;
+  }
+  .answer h2 {
+    font-family: var(--sans);
+    font-size: 0.73rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin: 0 0 14px;
+    max-width: none;
+  }
+  .answer p { font-size: var(--step-1); line-height: 1.45; margin: 0 0 14px; max-width: 62ch; }
+  .answer p:last-child { margin-bottom: 0; }
+
+  /* ---------- sections ---------- */
+
+  section { padding-top: 84px; }
+
+  .sec-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 10px; max-width: var(--measure); }
+  .sec-tag {
+    font-family: var(--mono);
+    font-size: 0.73rem;
+    color: var(--signal);
+    white-space: nowrap;
+  }
+  .sec-line { flex: 1; height: 1px; background: var(--rule); }
+
+  h2 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: var(--step-3);
+    line-height: 1.08;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+    margin: 0 0 22px;
+    max-width: 22ch;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: var(--step-1);
+    line-height: 1.25;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+    margin: 38px 0 12px;
+  }
+
+  p { margin: 0 0 18px; max-width: var(--measure); }
+  p.lead { font-size: var(--step-1); line-height: 1.48; color: var(--ink-2); }
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+
+  ul { max-width: var(--measure); margin: 0 0 18px; padding-left: 1.15em; }
+  li { margin-bottom: 10px; }
+  li::marker { color: var(--ink-3); }
+
+  .pull {
+    border-left: 3px solid var(--signal);
+    padding: 4px 0 4px 22px;
+    margin: 32px 0;
+    max-width: var(--measure);
+    font-size: var(--step-1);
+    line-height: 1.45;
+  }
+
+  .note {
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin: 30px 0;
+    max-width: var(--measure);
+  }
+  .note > :last-child { margin-bottom: 0; }
+  .note-label {
+    font-family: var(--sans);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--crit);
+    display: block;
+    margin-bottom: 9px;
+  }
+  .note.ok .note-label { color: var(--good); }
+
+  /* ---------- figures ---------- */
+
+  figure { margin: 40px 0; max-width: 980px; }
+  .figframe {
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-radius: 5px;
+    padding: 24px 26px 16px;
+    overflow-x: auto;
+  }
+  figure svg {
+    display: block;
+    width: 100%;
+    min-width: 640px;
+    height: auto;
+    color: var(--ink-2);
+  }
+  figcaption {
+    font-family: var(--sans);
+    font-size: 0.79rem;
+    line-height: 1.5;
+    color: var(--ink-3);
+    margin-top: 12px;
+    max-width: 74ch;
+  }
+  figcaption b { font-weight: 600; color: var(--ink-2); }
+
+  .svg-box   { fill: var(--surface); stroke: currentColor; stroke-width: 1.25; }
+  .svg-lbl   { font-family: "IBM Plex Mono", monospace; font-size: 11px; fill: currentColor; }
+  .svg-node  { font-family: "Archivo", sans-serif; font-size: 12.5px; font-weight: 600; fill: var(--ink); }
+  .svg-big   { font-family: "Archivo", sans-serif; font-size: 15px; font-weight: 700; fill: var(--ink); }
+  .svg-arrow { stroke: currentColor; stroke-width: 1.25; fill: none; }
+  .svg-hot   { stroke: var(--signal); stroke-width: 2; }
+  .svg-hot-t { fill: var(--signal); }
+  .svg-human { stroke: var(--c-human); stroke-width: 1.6; }
+  .svg-eyebrow {
+    font-family: "Archivo", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    fill: currentColor;
+  }
+
+  /* ---------- rungs ---------- */
+
+  .rungs { max-width: 980px; margin: 34px 0 0; }
+  .rung {
+    display: grid;
+    grid-template-columns: 74px 1fr 210px;
+    gap: 0 26px;
+    padding: 26px 0;
+    border-top: 1px solid var(--rule);
+    align-items: start;
+  }
+  .rung:last-child { border-bottom: 1px solid var(--rule); }
+  .rung.now { background: linear-gradient(90deg, var(--signal-bg), transparent 60%); }
+  .rung-n {
+    font-family: var(--sans);
+    font-variation-settings: "wdth" 112;
+    font-weight: 800;
+    font-size: 1.9rem;
+    line-height: 1;
+    color: var(--signal);
+    padding-left: 6px;
+  }
+  .rung-when {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--ink-3);
+    margin-top: 6px;
+    padding-left: 6px;
+    white-space: nowrap;
+  }
+  .rung h3 { margin: -3px 0 8px; }
+  .rung p { margin: 0; font-size: 0.98rem; }
+  .rung-pay {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--ink-2);
+    border-left: 2px solid var(--rule);
+    padding-left: 16px;
+  }
+  .rung-pay b { color: var(--ink); font-weight: 600; display: block; margin-bottom: 4px; }
+
+  /* ---------- buyer table ---------- */
+
+  .tablewrap {
+    overflow-x: auto;
+    margin: 30px 0;
+    border: 1px solid var(--rule-soft);
+    border-radius: 5px;
+    background: var(--surface);
+    max-width: 980px;
+  }
+  table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 0.93rem; }
+  th {
+    font-family: var(--sans);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    text-align: left;
+    color: var(--ink-3);
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  td { padding: 13px 18px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; line-height: 1.45; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.k { font-family: var(--sans); font-weight: 600; white-space: nowrap; }
+  td.no { color: var(--crit); }
+
+  /* ---------- roles ---------- */
+
+  .roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: 980px; margin: 32px 0; }
+  .role {
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-top: 3px solid var(--c-human);
+    border-radius: 4px;
+    padding: 20px 22px;
+  }
+  .role h4 {
+    font-family: var(--sans);
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .role .when { font-family: var(--mono); font-size: 0.72rem; color: var(--signal); margin: 0 0 12px; }
+  .role p { font-size: 0.93rem; margin: 0; max-width: none; }
+
+  footer {
+    margin-top: 90px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-3);
+    max-width: var(--measure);
+  }
+
+  @media (max-width: 820px) {
+    .roles { grid-template-columns: 1fr; }
+    .rung { grid-template-columns: 60px 1fr; }
+    .rung-pay { grid-column: 1 / -1; border-left: none; border-top: 1px solid var(--rule-soft); padding: 12px 0 0; margin-top: 14px; }
+  }
+  @media (max-width: 640px) {
+    :root { --step-4: 2.4rem; --step-3: 1.78rem; --step-1: 1.18rem; }
+    .wrap { padding-left: 18px; padding-right: 18px; }
+    .mast { padding-top: 46px; }
+    section { padding-top: 56px; }
+    .answer { padding: 22px 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow">Follow-up · who pays, and the people-plus-agents version</p>
+    <h1>The hybrid crew</h1>
+    <p class="deck">You asked whether you'd be Stripe or an MSP, and who actually writes the cheque. Short version: <strong>neither, not yet — and the mixed crew of people and agents is the better business anyway.</strong></p>
+
+    <div class="answer">
+      <h2>The short answer</h2>
+      <p>For the first three years you are a <strong>staffing firm</strong>. You get paid exactly the way your old customers got paid: a company hands you work, you deliver it, you invoice.</p>
+      <p>Stripe is a rail. Rails need enormous volume before they earn anything, and Stripe itself didn't start as one — it started as the easiest way for a single developer to take a card. The rail came later. Same here. <strong>Volume first, rail later.</strong></p>
+    </div>
+  </header>
+
+  <!-- ============ WHO PAYS ============ -->
+  <section id="pays">
+    <div class="sec-head"><span class="sec-tag">01</span><span class="sec-line"></span></div>
+    <h2>Four ways to get paid, in the order you can have them</h2>
+
+    <p class="lead">Each one is only possible because of the one before it. You cannot skip a rung — every company that tried to start at the top died waiting for volume that never came.</p>
+
+    <div class="rungs">
+
+      <div class="rung now">
+        <div>
+          <div class="rung-n">01</div>
+          <div class="rung-when">now → year 3</div>
+        </div>
+        <div>
+          <h3>You are a staffing firm</h3>
+          <p>A company sends you a pile of work. You get it done with a crew of agents and people. You charge per finished piece of work. They never see your software.</p>
+        </div>
+        <div class="rung-pay">
+          <b>Who pays</b>
+          The company, from money it already spends on an outsourcing vendor. You take 40–80% gross margin.
+        </div>
+      </div>
+
+      <div class="rung">
+        <div>
+          <div class="rung-n">02</div>
+          <div class="rung-when">year 1 → 3</div>
+        </div>
+        <div>
+          <h3>You are the record-keeper</h3>
+          <p>Companies already running their own agents have no idea what they cost or whether they work. You sell them the ledger and the scorecard — the thing you built for yourself in rung 1.</p>
+        </div>
+        <div class="rung-pay">
+          <b>Who pays</b>
+          The same company, from its software budget. A subscription plus a small fee per piece of work measured.
+        </div>
+      </div>
+
+      <div class="rung">
+        <div>
+          <div class="rung-n">03</div>
+          <div class="rung-when">year 3 → 6</div>
+        </div>
+        <div>
+          <h3>You are the MSP</h3>
+          <p>Other people's agents get listed, tested and hired through you. You run the marketplace and take a cut of everything hired through it.</p>
+        </div>
+        <div class="rung-pay">
+          <b>Who pays</b>
+          Companies pay 3–8% of what they spend on agents. Agent builders pay a small fee to be verified.
+        </div>
+      </div>
+
+      <div class="rung">
+        <div>
+          <div class="rung-n">04</div>
+          <div class="rung-when">year 6 →</div>
+        </div>
+        <div>
+          <h3>You are the rail — the Stripe answer</h3>
+          <p>Everyone settles agent work through you because you set the standard for what "finished" means. You also insure the outcome and finance the gap between paying your suppliers fast and getting paid slow.</p>
+        </div>
+        <div class="rung-pay">
+          <b>Who pays</b>
+          Everyone, a thin slice. Plus insurance premiums, which is where the real money is by then.
+        </div>
+      </div>
+
+    </div>
+
+    <div class="pull">Rung 4 is worth the most and is worth nothing without rungs 1 to 3. Sell services now; the rail is built out of the receipts.</div>
+  </section>
+
+  <!-- ============ WHO SIGNS ============ -->
+  <section id="signs">
+    <div class="sec-head"><span class="sec-tag">02</span><span class="sec-line"></span></div>
+    <h2>Who literally signs the cheque</h2>
+
+    <p>This is the part most AI companies get wrong, and it decides whether you have a business in twelve months.</p>
+
+    <p>You are <strong>not</strong> asking anyone for new budget. You are taking over a line that already exists — the money a company already pays an outsourcing firm or a temp agency to get boring work done. That budget has a number attached, a cost per transaction, and a person whose job is to make it smaller.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Sell to</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="k">VP of Operations</td>
+            <td>Owns the outsourcing contract. Measured on cost per transaction. Will switch vendors for a better number and an SLA.</td>
+          </tr>
+          <tr>
+            <td class="k">Head of Shared Services</td>
+            <td>Runs the back office. Already buys work by the unit. Understands your pricing immediately.</td>
+          </tr>
+          <tr>
+            <td class="k">Controller / Revenue Cycle lead</td>
+            <td>Drowning in exceptions, has overtime spend they'd love to kill.</td>
+          </tr>
+          <tr>
+            <td class="k no">Not the CTO</td>
+            <td>Buys pilots. Pilots die. No recurring budget line, no operational pain of their own.</td>
+          </tr>
+          <tr>
+            <td class="k no">Not the Head of AI</td>
+            <td>Buys experiments and platforms, is measured on innovation rather than cost, and their budget vanishes in a downturn.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note ok">
+      <span class="note-label">Your warmest first customer</span>
+      <p>Staffing companies themselves — the people who bought Etyme. They have huge volumes of onboarding paperwork, timesheet chasing, compliance checks and invoice exceptions. They know you. They are frightened about AI and have no idea what to do. And you already speak their language fluently, which no competitor does.</p>
+    </div>
+  </section>
+
+  <!-- ============ THE HYBRID LOOP ============ -->
+  <section id="hybrid">
+    <div class="sec-head"><span class="sec-tag">03</span><span class="sec-line"></span></div>
+    <h2>The hybrid crew, as a loop</h2>
+
+    <p class="lead">Yes — and it's stronger than the pure-agent version. Here's the whole thing in one picture, then in words.</p>
+
+    <p>No real business is 100% automatable today. Agents get somewhere between 40% and 80% of real work right first time. So a person has to be in the loop whether you sell it that way or not. Once you accept that, you may as well <strong>sell the whole crew</strong> — people and agents together, one price, one promise.</p>
+
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 920 430" role="img" aria-label="A work item arrives and is routed either to an agent or to a person. Both paths feed a check step; work that passes is billed to the client. Failed work loops back to the agent to retry. A person spot-checks a sample of finished work and coaches the agent, which sends more work down the agent path next month.">
+          <defs>
+            <marker id="h1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+            </marker>
+            <marker id="h2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--signal)"/>
+            </marker>
+            <marker id="h3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--c-human)"/>
+            </marker>
+          </defs>
+
+          <!-- retry loop over the top -->
+          <path class="svg-arrow" d="M 634 88 L 634 52 L 442 52 L 442 84" marker-end="url(#h1)"/>
+          <text class="svg-lbl" x="538" y="44" text-anchor="middle">not ok — agent tries again</text>
+
+          <!-- row 1 -->
+          <rect class="svg-box" x="20" y="88" width="112" height="46" rx="3"/>
+          <text class="svg-node" x="76" y="116" text-anchor="middle">Work arrives</text>
+
+          <rect class="svg-box" x="196" y="88" width="96" height="46" rx="3"/>
+          <text class="svg-node" x="244" y="116" text-anchor="middle">Route it</text>
+
+          <rect class="svg-box" x="376" y="88" width="132" height="46" rx="3"/>
+          <text class="svg-node" x="442" y="116" text-anchor="middle">Agent does it</text>
+
+          <rect class="svg-box" x="572" y="88" width="124" height="46" rx="3"/>
+          <text class="svg-node" x="634" y="116" text-anchor="middle">Check it</text>
+
+          <rect class="svg-box svg-hot" x="760" y="88" width="140" height="46" rx="3"/>
+          <text class="svg-node" x="830" y="110" text-anchor="middle">Done — bill</text>
+          <text class="svg-node" x="830" y="126" text-anchor="middle">the client</text>
+
+          <line class="svg-arrow" x1="132" y1="111" x2="192" y2="111" marker-end="url(#h1)"/>
+          <line class="svg-arrow" x1="292" y1="111" x2="372" y2="111" marker-end="url(#h1)"/>
+          <text class="svg-lbl" x="332" y="103" text-anchor="middle">most of it</text>
+          <line class="svg-arrow" x1="508" y1="111" x2="568" y2="111" marker-end="url(#h1)"/>
+          <line class="svg-arrow" x1="696" y1="111" x2="756" y2="111" marker-end="url(#h1)"/>
+          <text class="svg-lbl" x="726" y="103" text-anchor="middle">ok</text>
+
+          <!-- human doer branch -->
+          <path class="svg-arrow svg-human" d="M 268 134 L 268 219 L 372 219" marker-end="url(#h3)"/>
+          <text class="svg-lbl" x="276" y="166">the rest</text>
+
+          <rect class="svg-box svg-human" x="376" y="196" width="132" height="46" rx="3"/>
+          <text class="svg-node" x="442" y="224" text-anchor="middle">A person does it</text>
+
+          <path class="svg-arrow svg-human" d="M 508 219 L 612 219 L 612 138" marker-end="url(#h3)"/>
+
+          <!-- oversight row -->
+          <rect class="svg-box svg-human" x="596" y="310" width="268" height="46" rx="3"/>
+          <text class="svg-node" x="730" y="332" text-anchor="middle">A person spot-checks a sample</text>
+          <text class="svg-node" x="730" y="348" text-anchor="middle">of the finished work</text>
+
+          <rect class="svg-box svg-human" x="286" y="310" width="268" height="46" rx="3"/>
+          <text class="svg-node" x="420" y="332" text-anchor="middle">A person fixes what went wrong</text>
+          <text class="svg-node" x="420" y="348" text-anchor="middle">and adds it to the test set</text>
+
+          <path class="svg-arrow" d="M 830 134 L 830 306" marker-end="url(#h1)"/>
+          <text class="svg-lbl" x="840" y="224">a sample</text>
+
+          <line class="svg-arrow svg-human" x1="596" y1="333" x2="558" y2="333" marker-end="url(#h3)"/>
+
+          <!-- the money arrow -->
+          <path class="svg-arrow svg-hot" d="M 286 333 L 232 333 L 232 138" marker-end="url(#h2)"/>
+          <text class="svg-lbl svg-hot-t" x="222" y="222" text-anchor="end">next month, more</text>
+          <text class="svg-lbl svg-hot-t" x="222" y="238" text-anchor="end">work goes to the agent</text>
+
+          <text class="svg-eyebrow svg-hot-t" x="20" y="400">THE ONLY ARROW THAT MATTERS COMMERCIALLY IS THE AMBER ONE</text>
+          <text class="svg-lbl" x="20" y="418" opacity="0.8">Yellow = a person. Every yellow box gets smaller each month, and none of them ever disappears.</text>
+        </svg>
+      </div>
+      <figcaption><b>Figure 1.</b> The hybrid crew. People appear in three different places, not one — doing the work the agent can't, checking a sample of what it claims, and fixing what went wrong. The amber arrow is the business: every correction sends a little more work down the cheap path next month.</figcaption>
+    </figure>
+
+    <h3>The same thing in words</h3>
+
+    <ul>
+      <li><strong>Work arrives.</strong> An invoice to reconcile, a document to check, a claim to review.</li>
+      <li><strong>You route it.</strong> Work the agent handles well goes to the agent. The rest goes to a person. You decide the split, not the client.</li>
+      <li><strong>It gets checked.</strong> If it fails, the agent tries again. If it keeps failing, a person finishes it.</li>
+      <li><strong>You bill for finished work.</strong> One price, whoever did it. The client doesn't know the mix and doesn't care.</li>
+      <li><strong>A person spot-checks a sample</strong> of what came out, so you find out when the agent is quietly wrong.</li>
+      <li><strong>A person fixes the cause</strong> and adds that case to the test set — so the same mistake can't happen twice.</li>
+      <li><strong>The split moves.</strong> More work goes to the agent next month. Your price stays the same. Your cost drops.</li>
+    </ul>
+
+    <div class="pull">The client buys a finished job. You quietly change who does it. That gap is the entire business.</div>
+  </section>
+
+  <!-- ============ THREE ROLES ============ -->
+  <section id="roles">
+    <div class="sec-head"><span class="sec-tag">04</span><span class="sec-line"></span></div>
+    <h2>People do three different jobs here</h2>
+
+    <p class="lead">This is the part worth getting right. "Human in the loop" is usually one vague idea. It's actually three separate jobs at three points in the loop, and they behave completely differently over time.</p>
+
+    <div class="roles">
+      <div class="role">
+        <h4>The Doer</h4>
+        <p class="when">shrinks fastest</p>
+        <p>Does the work the agent couldn't. Expensive — this is a full unit of human labour. Year one this is most of your cost. By year four it's a small team handling genuinely hard cases.</p>
+      </div>
+      <div class="role">
+        <h4>The Checker</h4>
+        <p class="when">shrinks slowly</p>
+        <p>Looks at a sample of finished work to catch quiet mistakes. Cheap, because checking is faster than doing. Never goes to zero — this is the job that keeps you honest.</p>
+      </div>
+      <div class="role">
+        <h4>The Coach</h4>
+        <p class="when">stays or grows</p>
+        <p>Turns failures into fixes and test cases. Your highest-value people. This is the job that shrinks the other two, so you want more of it, not less.</p>
+      </div>
+    </div>
+
+    <p>Over four years the same headcount covers many times the volume, because your people move up: mostly Doers at the start, mostly Coaches by the end. Nobody gets fired; the work changes shape. That is also, incidentally, the honest version of this story to tell a customer.</p>
+
+    <div class="note">
+      <span class="note-label">Do not skip this</span>
+      <p>The Checker must be a person, and the Checker must not be the same agent that did the work. An agent checking its own work agrees with itself. You will get a beautiful dashboard saying 96% correct while the client's complaints go up. Keep a small, permanent, paid human sample from day one.</p>
+    </div>
+  </section>
+
+  <!-- ============ THE ECONOMICS ============ -->
+  <section id="money">
+    <div class="sec-head"><span class="sec-tag">05</span><span class="sec-line"></span></div>
+    <h2>Why the hybrid makes more money than either half</h2>
+
+    <p>Say the client currently pays an outsourcing firm $14 to get one job done. You offer $10 — they save 29% and sign. Now watch what happens to <em>your</em> side of that $10 over four years, with the price never changing.</p>
+
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 880 340" role="img" aria-label="A flat price line at ten dollars over four years, with a cost line falling from five dollars fifty to one dollar sixty as the agent share of work rises from thirty to eighty-eight percent. The widening gap between them is gross margin, rising from forty-five to eighty-four percent.">
+          <defs>
+            <marker id="m1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- margin area -->
+          <polygon points="140,95 800,95 800,242 580,233 360,212 140,174" fill="var(--c-margin)" opacity="0.22"/>
+
+          <!-- axis -->
+          <line x1="90" y1="270" x2="830" y2="270" stroke="currentColor" stroke-width="1" opacity="0.35"/>
+          <text class="svg-lbl" x="82" y="99" text-anchor="end">$10</text>
+          <text class="svg-lbl" x="82" y="274" text-anchor="end">$0</text>
+
+          <!-- price line -->
+          <line x1="140" y1="95" x2="800" y2="95" stroke="currentColor" stroke-width="2"/>
+          <text class="svg-big" x="140" y="80">What the client pays — $10, never changes</text>
+
+          <!-- cost line -->
+          <polyline class="svg-arrow" points="140,174 360,212 580,233 800,242" stroke="var(--c-human)" stroke-width="2.5"/>
+          <circle cx="140" cy="174" r="4" fill="var(--c-human)"/>
+          <circle cx="360" cy="212" r="4" fill="var(--c-human)"/>
+          <circle cx="580" cy="233" r="4" fill="var(--c-human)"/>
+          <circle cx="800" cy="242" r="4" fill="var(--c-human)"/>
+          <text class="svg-lbl" x="140" y="192">$5.50</text>
+          <text class="svg-lbl" x="360" y="230">$3.30</text>
+          <text class="svg-lbl" x="580" y="251">$2.10</text>
+          <text class="svg-lbl" x="800" y="260" text-anchor="end">$1.60</text>
+          <text class="svg-big" x="140" y="163" fill="var(--c-human)">What it costs you</text>
+
+          <!-- margin callout -->
+          <text class="svg-big svg-hot-t" x="470" y="145" text-anchor="middle">YOUR MARGIN</text>
+          <text class="svg-lbl svg-hot-t" x="140" y="120">45%</text>
+          <text class="svg-lbl svg-hot-t" x="360" y="120">67%</text>
+          <text class="svg-lbl svg-hot-t" x="580" y="120">79%</text>
+          <text class="svg-lbl svg-hot-t" x="800" y="120" text-anchor="end">84%</text>
+
+          <!-- x labels -->
+          <text class="svg-lbl" x="140" y="290" text-anchor="middle">Year 1</text>
+          <text class="svg-lbl" x="360" y="290" text-anchor="middle">Year 2</text>
+          <text class="svg-lbl" x="580" y="290" text-anchor="middle">Year 3</text>
+          <text class="svg-lbl" x="800" y="290" text-anchor="middle">Year 4</text>
+          <text class="svg-lbl" x="140" y="308" text-anchor="middle" opacity="0.75">30% agent</text>
+          <text class="svg-lbl" x="360" y="308" text-anchor="middle" opacity="0.75">60% agent</text>
+          <text class="svg-lbl" x="580" y="308" text-anchor="middle" opacity="0.75">80% agent</text>
+          <text class="svg-lbl" x="800" y="308" text-anchor="middle" opacity="0.75">88% agent</text>
+
+          <text class="svg-lbl" x="90" y="332" opacity="0.8">Same contract. Same price. No renegotiation. You just get better at your own job.</text>
+        </svg>
+      </div>
+      <figcaption><b>Figure 2.</b> The hybrid crew is a machine for turning labour cost into software margin, slowly and without the customer noticing. Year one looks like a services business at 45%; year four looks like software at 84% — on the same signed contract.</figcaption>
+    </figure>
+
+    <h3>Why this beats the pure-agent version</h3>
+    <ul>
+      <li><strong>You can start on Monday.</strong> Day one can be 80% people. You don't have to wait for the agents to be good — you just have to be cheaper than the incumbent vendor, which people alone can already manage offshore.</li>
+      <li><strong>The client isn't betting on AI.</strong> They're buying a finished job with an SLA. If the agent fails, that's your problem, not theirs. This removes the single biggest objection in the room.</li>
+      <li><strong>Your margin grows without a price rise.</strong> A software company has to sell more seats or charge more. You just improve the mix. There is no awkward renewal conversation.</li>
+      <li><strong>Every model release helps you.</strong> Better models push the agent share up, which drops your cost while the price stays put. You benefit from other people's R&amp;D.</li>
+      <li><strong>It survives being wrong about AI.</strong> If agents plateau at 60%, you're still a profitable outsourcing business with unusually good tooling. The pure-agent version has no floor.</li>
+    </ul>
+
+    <div class="pull">This is the version I'd actually build. The pure-agent marketplace is where it ends up in year six — not where it starts.</div>
+  </section>
+
+  <!-- ============ WHAT YOU SELL ============ -->
+  <section id="sell">
+    <div class="sec-head"><span class="sec-tag">06</span><span class="sec-line"></span></div>
+    <h2>What you sell on day one</h2>
+
+    <p>One sentence, and it should not contain the word AI:</p>
+
+    <div class="answer" style="margin-top:26px;">
+      <h2>The pitch</h2>
+      <p>"You pay $14 a packet today and wait four days. We'll do it for $10 and get it back to you same day. Same accuracy, guaranteed in the contract. Start with 10% of your volume and check our work."</p>
+    </div>
+
+    <p style="margin-top:26px;">That's it. No demo, no platform, no pilot. A price, a turnaround, and a guarantee — the three things an operations buyer has been comparing vendors on for thirty years. Whether a person or an agent does the work is your business, not theirs, and it is the thing you get to change quietly every month.</p>
+
+    <p>The software you build to run this crew is the thing you sell at rung 2, the marketplace you build on rung 3, and the rail you become at rung 4. But none of that is what a customer buys in year one, and building it before you have customers is how this goes wrong.</p>
+  </section>
+
+  <footer>
+    Companion to the successor design document · Etyme 2017 → hybrid crew model
+  </footer>
+
+</div>
