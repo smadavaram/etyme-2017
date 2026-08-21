@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { invoiceScope } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 import { matchInvoice } from '@/lib/invoice-match'
 import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
@@ -20,13 +21,24 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await getCallerContext(request)
+  const { caller, error } = await getCallerContext(request)
   if (error) return error
 
   const { id } = await params
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
+  // Both parties to the bill, and nobody else. This route took the id and
+  // returned the invoice — number, total, purchase order and its ceiling —
+  // to any authenticated caller, which on a marketplace means competitors.
+  const scope = invoiceScope(caller)
+  if (!scope) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
+      { status: 404 }
+    )
+  }
+
+  const invoice = await prisma.invoice.findFirst({
+    where: { id, ...scope },
     include: {
       purchaseOrder: { select: { id: true, number: true, amount: true, status: true, endDate: true } },
       engagement: {

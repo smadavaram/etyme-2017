@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { emit } from '@/lib/events'
@@ -19,6 +20,9 @@ import { getTemplatePack, TEMPLATE_PACKS } from '@/lib/template-packs'
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+
+  const notStaff = staffOnly(caller, 'Company settings')
+  if (notStaff) return notStaff
 
   if (!caller.company) {
     return NextResponse.json(

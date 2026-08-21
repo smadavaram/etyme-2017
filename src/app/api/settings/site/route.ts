@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
+import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import {
@@ -82,6 +83,9 @@ async function factsFor(companyId: string): Promise<SiteFacts> {
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+
+  const notStaff = staffOnly(caller, 'The public site editor')
+  if (notStaff) return notStaff
   if (!caller.company) {
     return NextResponse.json(
       { error: { code: 'NO_COMPANY', message: 'A site belongs to a company' } },

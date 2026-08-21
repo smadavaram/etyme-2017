@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 
 /**
@@ -35,7 +36,14 @@ export async function GET(request: NextRequest) {
   if (topic) where.topic = topic.toUpperCase()
   if (topicId) where.topicId = topicId
 
-  const conversations = await prisma.conversation.findMany({
+  // A consultant is in some of the agency's threads and in none of the
+  // rest. Participants live in a JSON column, so the narrowing happens in
+  // code — the row count on one company's threads is small, and a wrong
+  // JSON path predicate that silently matches nothing is worse than a
+  // filter you can read.
+  const onlyMine = isConsultantSeat(caller)
+
+  const conversations = (await prisma.conversation.findMany({
     where,
     include: {
       messages: {
@@ -49,6 +57,10 @@ export async function GET(request: NextRequest) {
     },
     orderBy: { updatedAt: 'desc' },
     take: limit,
+  })).filter((c) => {
+    if (!onlyMine) return true
+    const people = Array.isArray(c.participants) ? (c.participants as any[]) : []
+    return people.some((p) => p?.personId === caller.person.id)
   })
 
   return NextResponse.json({

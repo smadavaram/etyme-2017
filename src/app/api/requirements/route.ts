@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
-import { maySeeOutside } from '@/lib/walls'
+import { requirementScope } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 
 /**
@@ -43,18 +43,16 @@ export async function GET(request: NextRequest) {
   // Three legitimate readers: the company that raised it, a supplier who
   // was invited to it, and — where the raiser deliberately opened it —
   // anybody who is allowed to look outside their own company at all.
-  const canLookOutside = maySeeOutside({
-    posture: caller.company?.outsideAccess ?? 'NAMED_ONLY',
-    permissions: caller.permissions,
-  }).ok
+  // Composed once, in resolve-client-company, so the single-role surfaces
+  // inherit the same rule rather than reassembling four fifths of it.
+  const scope = requirementScope(caller)
+  if (!scope) {
+    return NextResponse.json({
+      data: { requirements: [], pagination: { page, limit, total: 0, totalPages: 0 } },
+    })
+  }
 
-  const visible: any[] = [
-    { companyId: mineId },
-    { invitations: { some: { toCompanyId: mineId } } },
-  ]
-  if (canLookOutside) visible.push({ openToNetwork: true, status: 'OPEN' })
-
-  const where: any = { OR: visible }
+  const where: any = { ...scope }
 
   if (id) {
     where.id = id

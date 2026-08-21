@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { sellContractScope } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
@@ -16,6 +17,9 @@ import { andAll } from '@/lib/walls'
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
+
+  const notStaff = staffOnly(caller, 'The rolloff board')
+  if (notStaff) return notStaff
 
   const url = request.nextUrl
   const window = parseInt(url.searchParams.get('window') ?? '30', 10)

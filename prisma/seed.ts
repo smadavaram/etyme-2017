@@ -15,6 +15,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
+import { defaultPostureFor } from '../src/lib/walls'
 import { rolesFor } from '../src/lib/company-defaults'
 import { usFederalHolidays } from '../src/lib/holidays'
 import { PERMISSIONS } from '../src/lib/permissions'
@@ -98,6 +99,7 @@ async function main() {
       domain: 'cloudepa.com',
       domainVerified: true,
       kind: 'VENDOR',
+      outsideAccess: defaultPostureFor('VENDOR'),
       templatePack: 'US_SAP',
       currency: 'USD',
       siteLiveAt: new Date(),
@@ -112,6 +114,7 @@ async function main() {
       domain: 'terumobct.com',
       domainVerified: true,
       kind: 'CLIENT',
+      outsideAccess: defaultPostureFor('CLIENT'),
       currency: 'USD',
       siteLiveAt: new Date(),
     },
@@ -124,6 +127,7 @@ async function main() {
       domain: 'nike.com',
       domainVerified: true,
       kind: 'CLIENT',
+      outsideAccess: defaultPostureFor('CLIENT'),
       currency: 'USD',
     },
   })
@@ -334,6 +338,7 @@ async function main() {
       domain: 'techvista.com',
       domainVerified: true,
       kind: 'VENDOR',
+      outsideAccess: defaultPostureFor('VENDOR'),
       templatePack: 'US_SAP',
       currency: 'USD',
       siteLiveAt: new Date(),
@@ -358,6 +363,7 @@ async function main() {
       domain: 'globalstaff.com',
       domainVerified: true,
       kind: 'MSP',
+      outsideAccess: defaultPostureFor('MSP'),
       currency: 'USD',
       siteLiveAt: new Date(),
       networkVerifiedAt: new Date(),
@@ -1055,6 +1061,7 @@ async function main() {
       name: 'Northwind Talent',
       slug: 'northwind-talent',
       kind: 'VENDOR',
+      outsideAccess: defaultPostureFor('VENDOR'),
       supplierPosture: 'PRIME',
       currency: 'USD',
       siteLiveAt: new Date(),
@@ -2155,6 +2162,7 @@ async function main() {
       domain: 'unreliable-staffing.com',
       domainVerified: false,
       kind: 'VENDOR',
+      outsideAccess: defaultPostureFor('VENDOR'),
       currency: 'USD',
     },
   })

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { isConsultantSeat, staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 
 /**
@@ -28,11 +29,29 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  if (view !== 'instances') {
+    // The template library is a company's own paperwork, and its contents
+    // name the clients it was drafted for.
+    const notStaff = staffOnly(caller, 'The document library')
+    if (notStaff) return notStaff
+  }
+
   if (view === 'instances') {
     const subjectId = url.searchParams.get('subjectId')
     const status = url.searchParams.get('status')
 
-    const where: any = { template: { companyId } }
+    // Somebody on the bench sees the papers that are about them — their
+    // signed contract, their W-9 — and none of the agency's other files.
+    const where: any = isConsultantSeat(caller)
+      ? {
+          template: { companyId },
+          OR: [
+            { subjectType: 'PERSON', subjectId: caller.person.id },
+            { sellContract: { personId: caller.person.id } },
+            { buyContract: { candidates: { some: { personId: caller.person.id } } } },
+          ],
+        }
+      : { template: { companyId } }
     if (subjectId) where.subjectId = subjectId
     if (status) where.status = status.toUpperCase()
 

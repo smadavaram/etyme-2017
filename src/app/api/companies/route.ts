@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getSessionEmail, getCallerContext } from '@/lib/api-context'
+import { isConsultantSeat } from '@/lib/seat'
 import { isExcludedDomain } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { defaultPostureFor } from '@/lib/walls'
+import { defaultPostureFor, maySeeOutside } from '@/lib/walls'
 
 /**
  * POST /api/companies
@@ -364,15 +365,25 @@ export async function GET(request: NextRequest) {
   }
 
   // ── List companies ──────────────────────────────────
-  const email = await getSessionEmail()
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  //
+  // This handed every authenticated caller the whole platform directory —
+  // every company, its domain, its type. Harmless-looking and not: a
+  // consultant on somebody's bench got the client list, and a walled
+  // delivery firm's engineers got the supplier list, which is precisely
+  // what the outside-access setting exists to stop.
+  //
+  // Three answers now, by who is asking:
+  //
+  //   a consultant   — the benches they are on, and nothing else
+  //   a walled firm  — their own company
+  //   a vendor       — the directory, which is their market
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const visible = await directoryScope(caller)
 
   const companies = await prisma.company.findMany({
+    where: visible,
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
@@ -406,4 +417,50 @@ export async function GET(request: NextRequest) {
       })),
     },
   })
+}
+
+/**
+ * Which companies this caller may see in the directory.
+ *
+ * A consultant sees the benches they have joined and the places they are
+ * placed — the companies they already have dealings with. Not the market.
+ * They are in it, they do not shop it.
+ *
+ * A firm whose outside access is shut sees itself. Everybody else sees the
+ * directory, because for a staffing vendor that directory IS the business.
+ */
+async function directoryScope(
+  caller: import('@/lib/api-context').CallerContext
+): Promise<Record<string, unknown> | undefined> {
+  if (isConsultantSeat(caller)) {
+    const [benches, placements] = await Promise.all([
+      prisma.benchListing.findMany({
+        where: { consultant: { personId: caller.person.id }, revokedAt: null },
+        select: { companyId: true },
+      }),
+      prisma.sellContract.findMany({
+        where: { personId: caller.person.id },
+        select: { companyId: true, clientCompanyId: true, endClientCompanyId: true },
+      }),
+    ])
+
+    const ids = new Set<string>()
+    for (const b of benches) ids.add(b.companyId)
+    for (const c of placements) {
+      ids.add(c.companyId)
+      ids.add(c.clientCompanyId)
+      if (c.endClientCompanyId) ids.add(c.endClientCompanyId)
+    }
+
+    return { id: { in: [...ids] } }
+  }
+
+  if (!caller.company) return { id: { in: [] } }
+
+  const outside = maySeeOutside({
+    posture: caller.company.outsideAccess,
+    permissions: caller.permissions,
+  })
+
+  return outside.ok ? undefined : { id: caller.company.id }
 }

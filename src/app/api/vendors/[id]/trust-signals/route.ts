@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { maySeeOutside } from '@/lib/walls'
 
 /**
  * GET /api/vendors/:id/trust-signals
@@ -42,6 +43,49 @@ export async function GET(
       { status: 404 }
     )
   }
+
+  // ── Who may look up a vendor's record ────────────────────────────────
+  //
+  // These signals exist to be seen — that is the whole argument of
+  // Addendum D: a vendor who will not show markup shows tenure instead.
+  // Hiding them would defeat the mechanism.
+  //
+  // But two things are true at once. Reputation is public; inventory is
+  // not. A rival reading "8 consultants on bench" learns the size of the
+  // book they are bidding against, which is not reputation, it is a
+  // stock count. So the record shows and the bench count is withheld
+  // unless the caller is the vendor or has actually dealt with them.
+  //
+  // And a firm that has shut its outside access has shut it for this too.
+  // An engineer at a delivery firm browsing supplier records is the exact
+  // thing that setting exists to stop.
+  const own = caller.company?.id === vendorId
+
+  if (!own && caller.company) {
+    const outside = maySeeOutside({
+      posture: caller.company.outsideAccess,
+      permissions: caller.permissions,
+    })
+    if (!outside.ok) {
+      return NextResponse.json(
+        { error: { code: 'OUTSIDE_WALL', message: outside.reason } },
+        { status: 403 }
+      )
+    }
+  }
+
+  const dealings =
+    own ||
+    (caller.company
+      ? (await prisma.submission.count({
+          where: {
+            OR: [
+              { fromCompanyId: vendorId, toCompanyId: caller.company.id },
+              { fromCompanyId: caller.company.id, toCompanyId: vendorId },
+            ],
+          },
+        })) > 0
+      : false)
 
   const now = new Date()
 
@@ -222,10 +266,17 @@ export async function GET(
             ? `${avgRateGrowth > 0 ? '+' : ''}${avgRateGrowth}% avg rate growth`
             : 'No rate history',
         },
-        activeBench: {
-          count: activeBenchCount,
-          label: `${activeBenchCount} consultant${activeBenchCount !== 1 ? 's' : ''} on bench`,
-        },
+        // Inventory, not reputation. Shown to the vendor and to anybody
+        // they have actually traded with; withheld from a stranger.
+        activeBench: dealings
+          ? {
+              count: activeBenchCount,
+              label: `${activeBenchCount} consultant${activeBenchCount !== 1 ? 's' : ''} on bench`,
+            }
+          : {
+              count: null,
+              label: 'Bench size shown once you have worked together',
+            },
         disclosureRate: {
           percent: disclosureRate,
           label: disclosureRate != null

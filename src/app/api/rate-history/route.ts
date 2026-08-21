@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { isConsultantSeat } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { assessRateChange } from '@/lib/contract-rate'
 import { prisma } from '@/lib/db'
@@ -39,10 +40,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Collect all contract IDs belonging to the company
-    const canSeeBuy = hasPermission(caller.permissions, 'consultants.cost')
+    // A consultant on the bench has a context pointing at the agency. Read
+    // as employment it showed them six other people's rate movements — the
+    // one number in this business nobody shares sideways.
+    const own = isConsultantSeat(caller)
+    const canSeeBuy = !own && hasPermission(caller.permissions, 'consultants.cost')
     const [sellContracts, buyContracts] = await Promise.all([
       prisma.sellContract.findMany({
-        where: { companyId },
+        where: own ? { personId: caller.person.id } : { companyId },
         select: {
           id: true,
           person: { select: { name: true } },
@@ -158,10 +163,15 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Verify contract belongs to caller's company
+  // Verify the contract is the caller's to read — their company's, or, for
+  // somebody on a bench, their own.
+  const ownScope = isConsultantSeat(caller)
+    ? { personId: caller.person.id }
+    : { companyId: caller.company?.id }
+
   if (contractType === 'SELL') {
     const sc = await prisma.sellContract.findFirst({
-      where: { id: contractId, companyId: caller.company?.id },
+      where: { id: contractId, ...ownScope },
     })
     if (!sc) {
       return NextResponse.json(
@@ -171,7 +181,9 @@ export async function GET(request: NextRequest) {
     }
   } else {
     const bc = await prisma.buyContract.findFirst({
-      where: { id: contractId, companyId: caller.company?.id },
+      where: isConsultantSeat(caller)
+        ? { id: contractId, candidates: { some: { personId: caller.person.id } } }
+        : { id: contractId, companyId: caller.company?.id },
     })
     if (!bc) {
       return NextResponse.json(

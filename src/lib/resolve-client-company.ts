@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { isConsultantSeat } from '@/lib/seat'
+import { maySeeOutside } from '@/lib/walls'
 import type { CallerContext } from '@/lib/api-context'
 
 /**
@@ -95,6 +97,11 @@ async function hasPlacementRelationship(
 export function sellContractScope(
   caller: CallerContext
 ): Record<string, unknown> | null {
+  // A consultant's context points at the agency whose bench they are on.
+  // That is true and it is not employment — read as employment it handed a
+  // contractor the agency's whole book. Theirs, and only theirs.
+  if (isConsultantSeat(caller)) return { personId: caller.person.id }
+
   if (!caller.company) return null
 
   const id = caller.company.id
@@ -118,6 +125,11 @@ export function sellContractScope(
 export function buyContractScope(
   caller: CallerContext
 ): Record<string, unknown> | null {
+  // What the agency pays for talent is the agency's business. A consultant
+  // sees the line that names them — their own pay rate — and no other.
+  if (isConsultantSeat(caller)) {
+    return { candidates: { some: { personId: caller.person.id } } }
+  }
   if (!caller.company) return null
   return { companyId: caller.company.id }
 }
@@ -134,6 +146,8 @@ export function buyContractScope(
 export function expenseScope(
   caller: CallerContext
 ): Record<string, unknown> | null {
+  if (isConsultantSeat(caller)) return { personId: caller.person.id }
+
   if (!caller.company) return null
 
   if (caller.company.kind === 'CLIENT') {
@@ -216,4 +230,79 @@ export async function resolveClientCompany(
   }
 
   return { client: fallback, error: null }
+}
+
+/**
+ * Prisma WHERE fragment for Invoice reads.
+ *
+ * An invoice is between two companies — the vendor who raised it and the
+ * customer being asked to pay — and both sit on the master agreement behind
+ * the engagement, not on the invoice row itself.
+ *
+ * The list route composed this by hand; the two single-invoice routes never
+ * composed it at all. They authenticated the caller and threw them away, so
+ * a competitor with the id read the number, the total, the purchase order
+ * and its ceiling. Same rule, one place, used by all three.
+ *
+ * Returns null for a consultant seat: an invoice is a bill between
+ * companies, and the person whose hours are on it is not a party to it.
+ * Their hours are on their own timesheet, which is theirs to read.
+ */
+export function invoiceScope(
+  caller: CallerContext
+): Record<string, unknown> | null {
+  if (isConsultantSeat(caller)) return null
+  if (!caller.company) return null
+
+  const id = caller.company.id
+  return {
+    engagement: { msa: { OR: [{ vendorId: id }, { clientId: id }] } },
+  }
+}
+
+/**
+ * Prisma WHERE fragment for Requirement reads.
+ *
+ * Three legitimate readers: the company that raised it, a supplier who was
+ * invited to it, and — where the raiser deliberately opened it to the
+ * network — anybody permitted to look outside their own company.
+ *
+ * Note what this does NOT cover. Being able to see a role is not the same
+ * as being able to see who the raiser has lined up for it: the match list
+ * is the raiser's shortlist of named people, and it belongs to them alone.
+ * Use requirementOwnerOnly for that.
+ */
+export function requirementScope(
+  caller: CallerContext
+): Record<string, unknown> | null {
+  if (isConsultantSeat(caller) || !caller.company) return null
+
+  const id = caller.company.id
+
+  const outside = maySeeOutside({
+    posture: caller.company.outsideAccess,
+    permissions: caller.permissions,
+  })
+
+  const visible: Record<string, unknown>[] = [
+    { companyId: id },
+    { invitations: { some: { toCompanyId: id } } },
+  ]
+  if (outside.ok) visible.push({ openToNetwork: true, status: 'OPEN' })
+
+  return { OR: visible }
+}
+
+/**
+ * Whether this caller raised this requirement.
+ *
+ * The gate on anything derived from a role that is the raiser's own working
+ * material — the match list above all. A competitor with the id read the
+ * shortlist: names, headlines, skills, scores. Which is the bench.
+ */
+export function raisedIt(
+  caller: CallerContext,
+  requirement: { companyId: string }
+): boolean {
+  return !isConsultantSeat(caller) && caller.company?.id === requirement.companyId
 }

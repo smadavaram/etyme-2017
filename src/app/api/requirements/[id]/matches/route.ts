@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { logBulkAccess } from '@/lib/access-log'
 import { runMatchEngine } from '@/lib/match-engine'
+import { raisedIt } from '@/lib/resolve-client-company'
 
 /**
  * GET /api/requirements/:id/matches
@@ -22,10 +23,18 @@ export async function GET(
 
   const requirement = await prisma.requirement.findUnique({
     where: { id: requirementId },
-    select: { id: true, title: true },
+    select: { id: true, title: true, companyId: true },
   })
 
-  if (!requirement) {
+  // The raiser, and nobody else. Seeing a role is one thing — a supplier
+  // invited to it should. The shortlist behind it is another: names,
+  // headlines, skills and scores, which is somebody's bench with the prices
+  // taken off. This route checked neither, so a competitor holding the id
+  // read the lot.
+  //
+  // 404 rather than 403 on purpose. "You may not see this requirement's
+  // matches" confirms the requirement exists.
+  if (!requirement || !raisedIt(caller, requirement)) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Requirement not found' } },
       { status: 404 }
@@ -110,7 +119,7 @@ export async function POST(
     select: { id: true, title: true, status: true, companyId: true, skills: true },
   })
 
-  if (!requirement) {
+  if (!requirement || !raisedIt(caller, requirement)) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Requirement not found' } },
       { status: 404 }
