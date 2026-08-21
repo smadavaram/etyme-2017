@@ -1,0 +1,601 @@
+<title>Etyme Homepage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,400;100,500;100,600;100,700;112,700;112,800&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:#F2F5F5; --surface:#FFFFFF; --surface-2:#E7EDED;
+    --ink:#0E1516; --ink-2:#445456; --ink-3:#78888A;
+    --rule:#D2DCDC; --rule-soft:#E2E9E9;
+    --brand:#0F5C61; --brand-2:#14777E;
+    --act:#B85A16; --act-hover:#9E4C11; --act-bg:#F7E9DC; --on-act:#FFF6EF;
+    --vend:#5B4A94; --vend-bg:#E6E2F1;
+    --ok:#2C6E49; --ok-bg:#DEEAE2;
+    --flag:#9C3626; --flag-bg:#F4E1DD;
+
+    /* hero band: deliberately dark in every theme */
+    --hero:#0B3B3E; --hero-2:#0E4A4E;
+    --hero-ink:#EAF3F3; --hero-ink-2:#9FC2C3; --hero-rule:#1B5A5E;
+
+    --sans:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --serif:"Source Serif 4",Georgia,serif;
+    --mono:"IBM Plex Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0A0F10; --surface:#131A1B; --surface-2:#1B2425;
+      --ink:#E7EDED; --ink-2:#9FAFB0; --ink-3:#78888A;
+      --rule:#2B3637; --rule-soft:#212B2C;
+      --brand:#58BEC4; --brand-2:#7FD3D7;
+      --act:#E38B4B; --act-hover:#EFA067; --act-bg:#33231A; --on-act:#2A1708;
+      --vend:#A99AD8; --vend-bg:#221E33;
+      --ok:#6BBF8E; --ok-bg:#1B2C22;
+      --flag:#DE7B66; --flag-bg:#2F1D19;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0A0F10; --surface:#131A1B; --surface-2:#1B2425;
+    --ink:#E7EDED; --ink-2:#9FAFB0; --ink-3:#78888A;
+    --rule:#2B3637; --rule-soft:#212B2C;
+    --brand:#58BEC4; --brand-2:#7FD3D7;
+    --act:#E38B4B; --act-hover:#EFA067; --act-bg:#33231A; --on-act:#2A1708;
+    --vend:#A99AD8; --vend-bg:#221E33;
+    --ok:#6BBF8E; --ok-bg:#1B2C22;
+    --flag:#DE7B66; --flag-bg:#2F1D19;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--serif); font-size:1.08rem; line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .in { max-width:1140px; margin:0 auto; padding:0 26px; }
+
+  h1,h2,h3,h4,.ui { font-family:var(--sans); }
+
+  /* ---------- nav ---------- */
+  nav {
+    background:var(--hero); border-bottom:1px solid var(--hero-rule);
+  }
+  .nav-in {
+    max-width:1140px; margin:0 auto; padding:0 26px;
+    height:62px; display:flex; align-items:center; gap:30px;
+  }
+  .logo {
+    font-family:var(--sans); font-variation-settings:"wdth" 112;
+    font-weight:800; font-size:1.28rem; letter-spacing:-0.03em; color:var(--hero-ink);
+  }
+  .nav-links { display:flex; gap:24px; margin-left:8px; }
+  .nav-links a {
+    font-family:var(--sans); font-size:0.9rem; font-weight:500;
+    color:var(--hero-ink-2); text-decoration:none;
+  }
+  .nav-links a:hover, .nav-links a:focus-visible { color:var(--hero-ink); }
+  .nav-right { margin-left:auto; display:flex; align-items:center; gap:16px; }
+  .nav-right a.sign {
+    font-family:var(--sans); font-size:0.9rem; font-weight:500;
+    color:var(--hero-ink-2); text-decoration:none;
+  }
+  .nav-right a.sign:hover { color:var(--hero-ink); }
+
+  .btn {
+    font-family:var(--sans); font-weight:700; font-size:0.94rem;
+    padding:11px 20px; border-radius:5px; text-decoration:none;
+    display:inline-block; border:2px solid transparent; cursor:pointer;
+    letter-spacing:-0.005em;
+  }
+  .btn-act { background:var(--act); color:var(--on-act); border-color:var(--act); }
+  .btn-act:hover { background:var(--act-hover); border-color:var(--act-hover); }
+  .btn-ghost { background:transparent; color:var(--hero-ink); border-color:var(--hero-rule); }
+  .btn-ghost:hover { border-color:var(--hero-ink-2); }
+  .btn-sm { padding:8px 15px; font-size:0.87rem; }
+  .btn-line { background:transparent; color:var(--act); border-color:var(--act); }
+  .btn-line:hover { background:var(--act-bg); }
+  .btn:focus-visible { outline:3px solid var(--act); outline-offset:3px; }
+
+  /* ---------- hero ---------- */
+  .hero {
+    background:linear-gradient(170deg, var(--hero) 0%, var(--hero-2) 100%);
+    color:var(--hero-ink); padding:74px 0 84px;
+  }
+  .hero-grid {
+    display:grid; grid-template-columns:1.02fr 0.98fr; gap:56px; align-items:center;
+  }
+  .eyebrow {
+    font-family:var(--sans); font-size:0.75rem; font-weight:700;
+    letter-spacing:0.17em; text-transform:uppercase; color:var(--act);
+    margin:0 0 20px;
+  }
+  .hero h1 {
+    font-variation-settings:"wdth" 112; font-weight:800;
+    font-size:3.5rem; line-height:0.98; letter-spacing:-0.032em;
+    margin:0 0 22px; max-width:13ch; text-wrap:balance; color:var(--hero-ink);
+  }
+  .hero p.lede {
+    font-size:1.28rem; line-height:1.46; color:var(--hero-ink-2);
+    max-width:44ch; margin:0 0 30px;
+  }
+  .hero-cta { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:18px; }
+  .hero small {
+    font-family:var(--mono); font-size:0.79rem; color:var(--hero-ink-2); opacity:0.85;
+  }
+
+  /* bench panel */
+  .panel {
+    background:var(--surface); border-radius:9px;
+    box-shadow:0 18px 44px rgba(0,0,0,0.26); overflow:hidden;
+  }
+  .panel-top {
+    background:var(--surface-2); padding:13px 18px; border-bottom:1px solid var(--rule);
+  }
+  .panel-top .lab {
+    font-family:var(--sans); font-size:0.63rem; font-weight:700;
+    letter-spacing:0.13em; text-transform:uppercase; color:var(--ink-3);
+    display:block; margin-bottom:5px;
+  }
+  .panel-top .req { font-family:var(--sans); font-size:0.95rem; font-weight:700; color:var(--ink); }
+  .panel-top .meta { font-family:var(--mono); font-size:0.76rem; color:var(--ink-2); margin-top:3px; }
+
+  .cand {
+    display:grid; grid-template-columns:1fr auto; gap:4px 12px;
+    padding:13px 18px; border-bottom:1px solid var(--rule-soft); align-items:center;
+  }
+  .cand-name { font-family:var(--sans); font-size:0.95rem; font-weight:600; }
+  .cand-sub { font-family:var(--mono); font-size:0.74rem; color:var(--ink-3); grid-column:1; }
+  .score {
+    font-family:var(--sans); font-weight:800; font-size:1.18rem;
+    grid-row:1 / span 2; align-self:center; letter-spacing:-0.02em;
+  }
+  .score.hi { color:var(--ok); }
+  .score.mid { color:var(--ink-2); }
+  .score.lo { color:var(--flag); }
+  .ev {
+    grid-column:1 / -1; margin-top:6px;
+    font-family:var(--mono); font-size:0.73rem; line-height:1.5;
+    background:var(--ok-bg); color:var(--ok);
+    padding:6px 9px; border-radius:4px;
+  }
+  .ev.bad { background:var(--flag-bg); color:var(--flag); }
+  .panel-foot {
+    padding:11px 18px; display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center;
+    font-family:var(--mono); font-size:0.73rem; color:var(--ink-3);
+  }
+  .tick { color:var(--ok); font-weight:600; }
+
+  /* ---------- generic section ---------- */
+  section { padding:86px 0; }
+  .band { background:var(--surface); border-top:1px solid var(--rule-soft); border-bottom:1px solid var(--rule-soft); }
+  h2 {
+    font-weight:700; font-size:2.5rem; line-height:1.06; letter-spacing:-0.028em;
+    margin:0 0 18px; max-width:20ch; text-wrap:balance;
+  }
+  .sec-lede { font-size:1.24rem; line-height:1.48; color:var(--ink-2); max-width:46ch; margin:0 0 8px; }
+  .center { text-align:center; }
+  .center h2, .center .sec-lede { margin-left:auto; margin-right:auto; }
+
+  /* two doors */
+  .doors { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:44px; }
+  .door {
+    background:var(--surface); border:1px solid var(--rule); border-radius:9px;
+    padding:34px 32px 32px; display:flex; flex-direction:column;
+  }
+  .door.v { border-top:5px solid var(--vend); }
+  .door.c { border-top:5px solid var(--brand); }
+  .door .who {
+    font-family:var(--sans); font-size:0.7rem; font-weight:700;
+    letter-spacing:0.14em; text-transform:uppercase; margin:0 0 12px;
+  }
+  .door.v .who { color:var(--vend); }
+  .door.c .who { color:var(--brand); }
+  .door h3 { font-size:1.72rem; font-weight:700; line-height:1.14; letter-spacing:-0.022em; margin:0 0 14px; }
+  .door p { font-size:1.06rem; color:var(--ink-2); margin:0 0 18px; }
+  .door ul { list-style:none; padding:0; margin:0 0 26px; }
+  .door li {
+    font-family:var(--sans); font-size:0.97rem; padding:9px 0 9px 25px;
+    position:relative; border-top:1px solid var(--rule-soft); color:var(--ink);
+  }
+  .door li::before {
+    content:"›"; position:absolute; left:6px; top:8px;
+    font-weight:800; font-size:1.05rem;
+  }
+  .door.v li::before { color:var(--vend); }
+  .door.c li::before { color:var(--brand); }
+  .door .foot { margin-top:auto; }
+  .door .note { font-family:var(--mono); font-size:0.76rem; color:var(--ink-3); margin:11px 0 0; }
+
+  /* steps */
+  .steps { display:grid; grid-template-columns:repeat(4,1fr); gap:22px; margin-top:46px; }
+  .step { position:relative; padding-top:20px; border-top:3px solid var(--rule); }
+  .step.key { border-top-color:var(--act); }
+  .step .n {
+    font-family:var(--mono); font-size:0.76rem; color:var(--ink-3); margin:0 0 8px;
+  }
+  .step.key .n { color:var(--act); font-weight:500; }
+  .step h4 { font-size:1.14rem; font-weight:700; margin:0 0 8px; letter-spacing:-0.012em; }
+  .step p { font-size:0.98rem; color:var(--ink-2); margin:0; }
+
+  /* trust */
+  .trust-grid { display:grid; grid-template-columns:1fr 1fr; gap:52px; align-items:start; }
+  .quote-card {
+    background:var(--surface); border:1px solid var(--rule); border-radius:8px;
+    padding:26px 28px;
+  }
+  .quote-card .lab {
+    font-family:var(--sans); font-size:0.66rem; font-weight:700; letter-spacing:0.13em;
+    text-transform:uppercase; color:var(--ink-3); display:block; margin-bottom:14px;
+  }
+  .claim {
+    display:grid; grid-template-columns:auto 1fr; gap:12px;
+    padding:12px 0; border-bottom:1px solid var(--rule-soft);
+    font-family:var(--sans); font-size:0.95rem;
+  }
+  .claim:last-child { border-bottom:none; }
+  .claim .m { font-weight:700; color:var(--ok); font-family:var(--mono); font-size:0.86rem; }
+  .claim .m.no { color:var(--flag); }
+  .claim em { font-style:normal; color:var(--ink-3); font-family:var(--mono); font-size:0.82rem; display:block; margin-top:3px; }
+
+  /* benefits */
+  .bens { display:grid; grid-template-columns:repeat(3,1fr); gap:26px; margin-top:40px; }
+  .ben h4 { font-size:1.16rem; font-weight:700; margin:0 0 8px; letter-spacing:-0.012em; }
+  .ben p { font-size:1rem; color:var(--ink-2); margin:0; }
+  .ben .k {
+    font-family:var(--mono); font-size:0.72rem; letter-spacing:0.06em;
+    text-transform:uppercase; margin:0 0 10px;
+  }
+  .bens.v .k { color:var(--vend); }
+  .bens.c .k { color:var(--brand); }
+
+  /* early access */
+  .early {
+    background:var(--hero); color:var(--hero-ink);
+    border-radius:10px; padding:46px 44px; margin:0 auto;
+    display:grid; grid-template-columns:1.15fr 0.85fr; gap:44px; align-items:center;
+  }
+  .early h2 { color:var(--hero-ink); font-size:2.1rem; margin-bottom:14px; max-width:18ch; }
+  .early p { color:var(--hero-ink-2); font-size:1.1rem; margin:0 0 8px; max-width:44ch; }
+  .early .facts { list-style:none; padding:0; margin:0; }
+  .early .facts li {
+    font-family:var(--mono); font-size:0.87rem; color:var(--hero-ink-2);
+    padding:11px 0 11px 24px; border-top:1px solid var(--hero-rule); position:relative;
+  }
+  .early .facts li:last-child { border-bottom:1px solid var(--hero-rule); }
+  .early .facts li::before { content:"—"; position:absolute; left:0; color:var(--act); }
+
+  /* final */
+  .final { text-align:center; padding:88px 0 96px; }
+  .final h2 { font-size:2.7rem; margin-left:auto; margin-right:auto; max-width:17ch; }
+  .final p { font-size:1.2rem; color:var(--ink-2); max-width:44ch; margin:0 auto 30px; }
+  .final .hero-cta { justify-content:center; }
+
+  footer {
+    background:var(--surface); border-top:1px solid var(--rule);
+    padding:40px 0; font-family:var(--sans); font-size:0.9rem; color:var(--ink-3);
+  }
+  .foot-in { display:flex; flex-wrap:wrap; gap:18px 30px; align-items:center; }
+  footer a { color:var(--ink-2); text-decoration:none; }
+  footer a:hover { color:var(--ink); }
+  .foot-in .sp { margin-left:auto; font-family:var(--mono); font-size:0.8rem; }
+
+  @media (max-width:940px) {
+    .hero-grid, .trust-grid, .early { grid-template-columns:1fr; gap:38px; }
+    .doors { grid-template-columns:1fr; }
+    .steps { grid-template-columns:1fr 1fr; }
+    .bens { grid-template-columns:1fr; }
+    .nav-links { display:none; }
+  }
+  @media (max-width:600px) {
+    .hero h1 { font-size:2.5rem; }
+    h2 { font-size:1.9rem; }
+    .final h2 { font-size:2rem; }
+    .steps { grid-template-columns:1fr; }
+    section { padding:60px 0; }
+    .early { padding:34px 26px; }
+    .in, .nav-in { padding:0 18px; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<nav>
+  <div class="nav-in">
+    <span class="logo">etyme</span>
+    <div class="nav-links">
+      <a href="#vendors">For vendors</a>
+      <a href="#clients">For clients</a>
+      <a href="#how">How it works</a>
+    </div>
+    <div class="nav-right">
+      <a class="sign" href="#signin">Sign in</a>
+      <a class="btn btn-act btn-sm" href="#start">Get early access</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<div class="hero">
+  <div class="in hero-grid">
+    <div>
+      <p class="eyebrow">For contract staffing teams</p>
+      <h1>The first good submission wins</h1>
+      <p class="lede">Etyme scores every requirement against your bench in seconds, builds the submission, and checks it before it leaves. Clients get people who actually fit — deduplicated, scored, and evidenced.</p>
+      <div class="hero-cta">
+        <a class="btn btn-act" href="#vendor-start">I have a bench →</a>
+        <a class="btn btn-ghost" href="#client-start">I'm hiring →</a>
+      </div>
+      <small>No card. Start with ten consultants, or one requirement.</small>
+    </div>
+
+    <div class="panel" role="img" aria-label="Product panel: a Senior Java Developer requirement in Dallas at seventy-five to eighty-five dollars an hour, scored against three bench consultants. The top match scores ninety-four percent with the evidence quoted from page two of the CV. A third candidate is flagged because the rate is above the range.">
+      <div class="panel-top">
+        <span class="lab">Requirement · scored against your bench</span>
+        <div class="req">Senior Java Developer</div>
+        <div class="meta">Dallas, hybrid · $75–85/hr · starts in 2 weeks · needs work permit</div>
+      </div>
+
+      <div class="cand">
+        <div class="cand-name">R. Menon</div>
+        <div class="score hi">94</div>
+        <div class="cand-sub">on bench 22 days · free now · $78/hr</div>
+        <div class="ev">✓ Spring Boot 7 yrs, AWS, Dallas-based — CV p.2</div>
+      </div>
+
+      <div class="cand">
+        <div class="cand-name">J. Whitfield</div>
+        <div class="score mid">81</div>
+        <div class="cand-sub">rolls off 4 Mar · $80/hr</div>
+        <div class="ev">✓ Java 9 yrs — CV p.1 · no AWS mentioned anywhere</div>
+      </div>
+
+      <div class="cand">
+        <div class="cand-name">A. Okafor</div>
+        <div class="score lo">62</div>
+        <div class="cand-sub">free now · $96/hr</div>
+        <div class="ev bad">✕ Rate is $11 above the range — do not submit</div>
+      </div>
+
+      <div class="panel-foot">
+        <span class="tick">✓ rate checked</span>
+        <span class="tick">✓ right to work</span>
+        <span class="tick">✓ skills evidenced</span>
+        <span>· ready to send in 40s</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TWO DOORS ============ -->
+<section class="in" id="how">
+  <h2>Two sides. Each one works on its own.</h2>
+  <p class="sec-lede">You don't have to wait for the other side to show up. Vendors get value from day one with nothing but their own bench. Clients get value from their first requirement.</p>
+
+  <div class="doors">
+    <div class="door v" id="vendors">
+      <p class="who">If you supply people</p>
+      <h3>Put your bench to work</h3>
+      <p>Every requirement that lands in your inbox, scored against your own people in seconds — before your competitor has finished reading it.</p>
+      <ul>
+        <li>Know instantly who fits, and whether to bid at all</li>
+        <li>Submissions built for you, then checked before they go out</li>
+        <li>Rate, right-to-work and document expiry checked automatically</li>
+        <li>See how long each person has sat idle, and what that costs</li>
+        <li>Find out why you lost — recorded, not guessed</li>
+      </ul>
+      <div class="foot">
+        <a class="btn btn-act" href="#vendor-start" id="vendor-start">Add your bench</a>
+        <p class="note">Upload ten CVs. See them scored against a live requirement in under an hour.</p>
+      </div>
+    </div>
+
+    <div class="door c" id="clients">
+      <p class="who">If you're hiring</p>
+      <h3>Stop reading bad submissions</h3>
+      <p>Write a requirement that can actually be filled, send it to the right vendors, and get back a shortlist you can trust — with the proof attached.</p>
+      <ul>
+        <li>Your requirement checked before it goes out — realistic rate, no contradictions</li>
+        <li>The same person submitted by four vendors, merged into one</li>
+        <li>Every match scored, with the line from the CV that backs it</li>
+        <li>Off-budget and unauthorised candidates filtered before you see them</li>
+        <li>Vendor scorecards built from what actually got hired</li>
+      </ul>
+      <div class="foot">
+        <a class="btn btn-line" href="#client-start" id="client-start">Post one requirement</a>
+        <p class="note">Try it with a role you're struggling to fill. Keep using your current vendors.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STEPS ============ -->
+<section class="band">
+  <div class="in">
+    <h2>How a submission actually moves</h2>
+    <p class="sec-lede">Four steps. The third one is the whole point, and it's the one nobody else does.</p>
+
+    <div class="steps">
+      <div class="step">
+        <p class="n">01</p>
+        <h4>Scored</h4>
+        <p>A requirement arrives. Every person on your bench is ranked against it, with a reason for each score.</p>
+      </div>
+      <div class="step">
+        <p class="n">02</p>
+        <h4>Built</h4>
+        <p>Pick someone. The CV, summary, rate and compliance documents are assembled into a submission.</p>
+      </div>
+      <div class="step key">
+        <p class="n">03 · the check</p>
+        <h4>Checked</h4>
+        <p>Before it leaves: is the rate in range, are the documents valid, is every skill claim actually in the CV? Anything failing comes back to be fixed.</p>
+      </div>
+      <div class="step">
+        <p class="n">04</p>
+        <h4>Learned</h4>
+        <p>The outcome comes back — hired, or rejected and why. Next month the scoring is sharper because of it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TRUST ============ -->
+<section class="in">
+  <div class="trust-grid">
+    <div>
+      <h2>Every match shows its working</h2>
+      <p class="sec-lede">You've seen "AI matching" before. Usually it's a keyword search with a percentage bolted on the front.</p>
+      <p style="font-size:1.1rem;color:var(--ink-2);max-width:46ch;">Etyme never gives you a score without the evidence behind it. Every point of a match is tied to a line in the CV. If it can't be found, it isn't claimed.</p>
+      <p style="font-size:1.1rem;color:var(--ink-2);max-width:46ch;">The dull checks — rate ranges, permit expiry, missing documents — are done by plain rules, not by a model. They're right every time, and they're free.</p>
+      <p style="font-size:1.1rem;color:var(--ink-2);max-width:46ch;"><strong>And a real person reviews a sample every week.</strong> Software that grades its own homework will tell you it's brilliant while your clients quietly stop calling.</p>
+    </div>
+
+    <div class="quote-card">
+      <span class="lab">What a 94% is made of</span>
+      <div class="claim">
+        <span class="m">✓ 40/40</span>
+        <div>Spring Boot, 7 years<em>"Spring Boot microservices, 2018–present" — CV p.2</em></div>
+      </div>
+      <div class="claim">
+        <span class="m">✓ 25/25</span>
+        <div>AWS production experience<em>"EKS, RDS, migrated 40 services" — CV p.2</em></div>
+      </div>
+      <div class="claim">
+        <span class="m">✓ 15/15</span>
+        <div>Located in Dallas<em>Address on file · hybrid acceptable</em></div>
+      </div>
+      <div class="claim">
+        <span class="m">✓ 14/15</span>
+        <div>Available in the window<em>Free now, client wants a 2-week start</em></div>
+      </div>
+      <div class="claim">
+        <span class="m no">✕ 0/5</span>
+        <div>Kafka — nice to have<em>Not found anywhere in the CV</em></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VENDOR DEPTH ============ -->
+<section class="band">
+  <div class="in">
+    <p class="eyebrow" style="color:var(--vend);">For vendors</p>
+    <h2>Your bench is the most expensive thing you own</h2>
+    <p class="sec-lede">Every idle day is money you've already spent. Etyme treats the bench as the thing that matters, not an afterthought behind the ATS.</p>
+
+    <div class="bens v">
+      <div class="ben">
+        <p class="k">Triage</p>
+        <h4>Read forty requirements in the time it takes to read one</h4>
+        <p>Each one scored against your people, with a straight answer on whether it's worth bidding. Skip the ones you'd lose anyway.</p>
+      </div>
+      <div class="ben">
+        <p class="k">Speed</p>
+        <h4>Submit while it's still worth submitting</h4>
+        <p>The package assembles itself — tailored CV, rate, availability, documents. You review and send.</p>
+      </div>
+      <div class="ben">
+        <p class="k">Compliance</p>
+        <h4>Nothing goes out incomplete</h4>
+        <p>Permits, certificates and insurance checked for expiry before submission, not after the client asks.</p>
+      </div>
+      <div class="ben">
+        <p class="k">Idle cost</p>
+        <h4>See exactly who is sitting still</h4>
+        <p>Days on bench, upcoming roll-offs, and who to redeploy first. The number nobody wants to look at, in one place.</p>
+      </div>
+      <div class="ben">
+        <p class="k">Feedback</p>
+        <h4>Learn why you lost</h4>
+        <p>Rate, skills, timing or speed — recorded against every submission, so next quarter you bid better.</p>
+      </div>
+      <div class="ben">
+        <p class="k">Your data</p>
+        <h4>It stays yours</h4>
+        <p>Your bench, your rates and your client relationships are not shared with other vendors. Export everything whenever you want.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CLIENT DEPTH ============ -->
+<section class="in">
+  <p class="eyebrow" style="color:var(--brand);">For clients</p>
+  <h2>The problem was never too few submissions</h2>
+  <p class="sec-lede">A hard role gets a hundred CVs and most are noise. The work isn't finding people — it's finding the four worth an interview.</p>
+
+  <div class="bens c">
+    <div class="ben">
+      <p class="k">Before it goes out</p>
+      <h4>Requirements that can be filled</h4>
+      <p>Rate checked against what people in that skill and city actually cost. Contradictions flagged before vendors waste a week.</p>
+    </div>
+    <div class="ben">
+      <p class="k">Duplicates</p>
+      <h4>One person, one entry</h4>
+      <p>The same consultant submitted by four vendors at four rates, merged into a single record — with every rate visible.</p>
+    </div>
+    <div class="ben">
+      <p class="k">Screening</p>
+      <h4>A shortlist with its reasoning attached</h4>
+      <p>Four names, ranked, each with the lines from the CV that justify it. Read the proof, not just the number.</p>
+    </div>
+    <div class="ben">
+      <p class="k">Budget</p>
+      <h4>Off-budget filtered out</h4>
+      <p>Rate above range, wrong location, no work permit — held back before they reach the hiring manager.</p>
+    </div>
+    <div class="ben">
+      <p class="k">Vendors</p>
+      <h4>Know who actually delivers</h4>
+      <p>Scorecards built from real outcomes — submitted, shortlisted, hired — not from who emails you most.</p>
+    </div>
+    <div class="ben">
+      <p class="k">No switch</p>
+      <h4>Keep the vendors you have</h4>
+      <p>Etyme sits in front of your existing supply chain. Nobody has to be replaced for this to work.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EARLY ACCESS ============ -->
+<section class="in">
+  <div class="early" id="start">
+    <div>
+      <h2>We're taking on a first group now</h2>
+      <p>Etyme has run contract staffing back-office — contracts, timesheets, invoicing, compliance — for years. The scoring and checking layer is new, and we're building it with a small number of firms rather than launching at everyone.</p>
+      <p>If you run a bench, or you're drowning in submissions, this is the useful time to be involved.</p>
+      <div class="hero-cta" style="margin-top:24px;">
+        <a class="btn btn-act" href="#vendor-form">Add your bench</a>
+        <a class="btn btn-ghost" href="#client-form">Post a requirement</a>
+      </div>
+    </div>
+    <ul class="facts">
+      <li>Set-up takes an afternoon, not a quarter</li>
+      <li>Start with ten consultants or one open role</li>
+      <li>Keep your current ATS, VMS and vendors</li>
+      <li>Your data exports in full, any time</li>
+      <li>You talk to the people building it</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ FINAL ============ -->
+<section class="in final">
+  <h2>Start with one requirement</h2>
+  <p>Bring a role you're struggling to fill, or a bench that's been quiet. You'll know within an hour whether this is worth your time.</p>
+  <div class="hero-cta">
+    <a class="btn btn-act" href="#vendor-form">I have a bench →</a>
+    <a class="btn btn-line" href="#client-form">I'm hiring →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="in foot-in">
+    <span class="logo" style="color:var(--ink);font-size:1.1rem;">etyme</span>
+    <a href="#vendors">For vendors</a>
+    <a href="#clients">For clients</a>
+    <a href="#how">How it works</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#contact">Contact</a>
+    <span class="sp">Contract staffing, end to end.</span>
+  </div>
+</footer>
