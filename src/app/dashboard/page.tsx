@@ -48,6 +48,11 @@ interface Bar {
     filtered: { kept: number; considered: number; percent: number | null }
     worst: { agent: string; micros: number } | null
   }
+  recurring: {
+    headline: string | null
+    submissionsChecked: number
+    patterns: { code: string; hits: number; outOf: number; percent: number; says: string; reallyFix: string }[]
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────
@@ -123,7 +128,7 @@ function TheBar() {
   const [b, setB] = useState<Bar | null>(null)
 
   useEffect(() => {
-    fetch('/api/bar?days=7')
+    fetch('/api/bar?days=30')
       .then((r) => (r.ok ? r.json() : null))
       .then((body) => body && setB(body.data))
       .catch(() => {})
@@ -172,6 +177,27 @@ function TheBar() {
           )}
         </div>
       </div>
+
+      {/* Step four of the loop: the fix that should not have to happen
+          twice. The check tells somebody Ravi has no CV and they attach
+          one; tomorrow it says Kavitha. Nothing noticed that the answer
+          was never "attach a CV".
+
+          Silent when there is no pattern, because a panel that always has
+          something in it is a panel nobody reads. */}
+      {b.recurring?.headline && (
+        <div className="mt-5 border-t border-etyme-rule pt-4">
+          <p className="eyebrow mb-2">Keeps coming back</p>
+          {b.recurring.patterns.map((p) => (
+            <div key={p.code} className="mb-3 last:mb-0">
+              <p className="text-[13px] text-etyme-ink">
+                <strong className="font-semibold">{p.says}</strong>
+              </p>
+              <p className="mt-0.5 max-w-[62ch] text-[12px] text-etyme-muted">{p.reallyFix}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

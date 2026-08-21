@@ -1241,6 +1241,117 @@ async function main() {
   const agentRunCount = runs.length + submissionsForChecks.length
   const checkCount = checkRows.length
 
+  // ── History, so the loops have something to turn on ────────────────
+  //
+  // The outcome loop is the slow one — weeks, not minutes — and it cannot
+  // say anything useful about a rate until it has watched a few dozen
+  // submissions live and die. A demo with seven submissions has no
+  // benchmark and no pattern, which makes the two screens that matter
+  // most look like they do nothing.
+  //
+  // So: six months of a small vendor's real shape. Rates clustered around
+  // what the market bears with a tail of optimistic ones that got rejected
+  // on rate, and a CV problem that keeps coming back — because the
+  // recruiter is asking for CVs at submission time instead of at
+  // onboarding, which is exactly the upstream fix step four is for.
+  const historyRoles = [
+    { title: 'SAP FICO Consultant', skills: ['SAP FICO', 'S/4HANA'], location: 'Denver, CO', mid: 12500 },
+    { title: 'Java Developer', skills: ['Java', 'Spring Boot'], location: 'Austin, TX', mid: 10500 },
+    { title: 'Workday Analyst', skills: ['Workday'], location: 'Remote', mid: 9500 },
+  ]
+
+  let historyCount = 0
+  const historyChecks: any[] = []
+
+  // Several roles per skill over the six months, a handful of people
+  // against each — because a submission is unique on (role, person) and
+  // that is the rule that stops one name reaching a client twice.
+  for (const [roleIdx, role] of historyRoles.entries()) {
+    for (let round = 0; round < 4; round++) {
+      const openedDaysAgo = 150 - round * 35
+
+      const req = await prisma.requirement.create({
+        data: {
+          companyId: vendor.id,
+          title: `${role.title} — ${['Q1', 'Q2', 'Q3', 'Q4'][round]}`,
+          skills: role.skills,
+          location: role.location,
+          billMin: role.mid - 2000,
+          billMax: role.mid + 2500,
+          status: 'CLOSED',
+          approvalState: 'AUTO_APPROVED',
+          source: 'DICE',
+          createdAt: new Date(now.getTime() - openedDaysAgo * 86_400_000),
+        },
+      })
+
+      const howMany = Math.min(4, people.length)
+      for (let i = 0; i < howMany; i++) {
+        const person = people[(roleIdx * 3 + round * 4 + i) % people.length]
+        const n = round * 4 + i
+        const daysAgo = openedDaysAgo - 5
+
+        // Two thirds cluster around the middle and clear. The rest are the
+        // optimistic ones, and they are the reason the band knows where
+        // the ceiling is.
+        const optimistic = n % 3 === 2
+        const rate = optimistic
+          ? role.mid + 3500 + (n % 4) * 500
+          : role.mid - 1500 + (n % 7) * 500
+
+        // The CV problem. One vendor, one habit, on most of everything —
+        // a process fault rather than forty separate ones.
+        const noCv = n % 5 !== 0
+        const placed = n % 4 === 0
+
+        const sub = await prisma.submission.create({
+          data: {
+            requirementId: req.id,
+            personId: person.id,
+            fromCompanyId: vendor.id,
+            toCompanyId: client.id,
+            kind: 'BENCH',
+            rate,
+            status: placed && !optimistic ? 'PLACED' : 'REJECTED',
+            submittedAt: new Date(now.getTime() - daysAgo * 86_400_000),
+            checkState: 'SENT',
+            checkAttempt: 1,
+            ...(optimistic
+              ? {
+                  rejectReason: 'RATE',
+                  rejectNote: 'Above what they would pay.',
+                  rejectedAt: new Date(now.getTime() - (daysAgo - 4) * 86_400_000),
+                }
+              : placed
+                ? {}
+                : {
+                    rejectReason: 'INTERVIEW',
+                    rejectNote: 'Went with another candidate.',
+                    rejectedAt: new Date(now.getTime() - (daysAgo - 6) * 86_400_000),
+                  }),
+          },
+        })
+
+        historyChecks.push({
+          companyId: vendor.id,
+          recordType: 'SUBMISSION',
+          recordId: sub.id,
+          checker: 'RULE',
+          code: 'CV_ATTACHED',
+          verdict: noCv ? 'FAIL' : 'PASS',
+          reason: noCv
+            ? `${person.name} has no CV on this submission. The client reads the CV, not the row.`
+            : 'CV attached.',
+          at: new Date(now.getTime() - daysAgo * 86_400_000),
+        })
+
+        historyCount++
+      }
+    }
+  }
+
+  await prisma.check.createMany({ data: historyChecks })
+
   // ── Representation holds ───────────────────────
   //
   // One agency represents one person at one client while they are actually
@@ -2941,6 +3052,7 @@ async function main() {
   console.log(`   Governance:   1 policy, ${governanceRulesData.length} rules, ${evalCount} evaluations`)
   console.log(`   Verifications: ${verificationCount}`)
   console.log(`   Agent runs:   ${agentRunCount} (ledger), ${checkCount} checks`)
+  console.log(`   History:      ${historyCount} closed submissions, for the benchmark and the patterns`)
 }
 
 main()

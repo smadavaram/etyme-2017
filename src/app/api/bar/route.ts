@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { bar, whatIsStopping, TARGET_PER_DAY, type Sub } from '@/lib/outcomes'
 import { costPerSubmission, trend, filterRate, worstOffender, showMicros } from '@/lib/agent-run'
+import { patterns, headline, type Failure } from '@/lib/recurring'
 
 /**
  * GET /api/bar?days=14
@@ -35,10 +36,19 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
   const since = new Date(now.getTime() - days * 86400000)
+
+  // The pattern window is its own, and longer.
+  //
+  // The bar is a daily rate over whatever window somebody is looking at.
+  // "Does this keep happening" is the slow loop, and asking it over seven
+  // days answers a different question — one where three CV failures in a
+  // quiet week look like a crisis and forty over a quarter look like
+  // nothing. Ninety days either way.
+  const patternSince = new Date(now.getTime() - 90 * 86400000)
   const lastWeekStart = new Date(now.getTime() - 14 * 86400000)
   const thisWeekStart = new Date(now.getTime() - 7 * 86400000)
 
-  const [submissions, runs, lastWeekSubs, thisWeekSubs] = await Promise.all([
+  const [submissions, runs, lastWeekSubs, thisWeekSubs, repeats, checked] = await Promise.all([
     prisma.submission.findMany({
       where: { fromCompanyId: companyId, submittedAt: { gte: since } },
       select: {
@@ -59,6 +69,16 @@ export async function GET(request: NextRequest) {
     prisma.submission.count({
       where: { fromCompanyId: companyId, submittedAt: { gte: thisWeekStart } },
     }),
+    // Step four of the loop. The check tells somebody Ravi has no CV and
+    // they attach one; tomorrow it says Kavitha. Nothing noticed that the
+    // answer was never "attach a CV" — it was "collect CVs at onboarding".
+    prisma.check.findMany({
+      where: { companyId, recordType: 'SUBMISSION', verdict: 'FAIL', at: { gte: patternSince } },
+      select: { code: true, recordId: true, at: true },
+    }),
+    prisma.submission.count({
+      where: { fromCompanyId: companyId, checkAttempt: { gt: 0 }, submittedAt: { gte: patternSince } },
+    }),
   ])
 
   const subs: Sub[] = submissions.map((s) => ({
@@ -77,9 +97,17 @@ export async function GET(request: NextRequest) {
   const costNow = costPerSubmission(thisWeekRuns, thisWeekSubs)
   const costBefore = costPerSubmission(lastWeekRuns, lastWeekSubs)
 
+  const found = patterns(
+    repeats.map((r): Failure => ({ code: r.code, recordId: r.recordId, at: r.at })),
+    checked
+  )
+
   return NextResponse.json({
     data: {
       target: TARGET_PER_DAY,
+      // Silence here means the loop is working. A panel that always has
+      // something in it is a panel nobody reads.
+      recurring: { patterns: found, headline: headline(found), submissionsChecked: checked },
       window: days,
       bar: theBar,
       stopping: whatIsStopping(subs),

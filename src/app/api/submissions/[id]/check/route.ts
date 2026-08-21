@@ -6,9 +6,10 @@ import { staffOnly } from '@/lib/seat'
 import { record } from '@/lib/agent-run'
 import {
   ruleChecks, decide, maySend, next as nextState,
-  evidencePrompt, evidenceCheck, MAX_ATTEMPTS,
+  evidencePrompt, evidenceCheck, marketCheck, MAX_ATTEMPTS,
   type Finding, type Package, type Evidenced,
 } from '@/lib/checks'
+import { band, warnAbout, WINDOW_DAYS, type Observation } from '@/lib/benchmark'
 
 /**
  * POST /api/submissions/:id/check
@@ -54,7 +55,7 @@ export async function POST(
       resume: { select: { id: true, textExtract: true } },
       requirement: {
         select: {
-          id: true, title: true, skills: true,
+          id: true, title: true, skills: true, location: true,
           billMin: true, billMax: true, startDate: true,
         },
       },
@@ -140,6 +141,43 @@ export async function POST(
     verdict: findings.some((f) => f.verdict === 'FAIL') ? 'FAIL' : 'PASS',
     ms: Date.now() - ruleStarted,
   })
+
+  // ── What has actually cleared, for work like this ───────────────────
+  //
+  // The outcome loop turning. Rate is the commonest reason a submission
+  // dies and the one reason knowable in advance, because we watched other
+  // people get rejected above this number for work like this.
+  //
+  // Never a failure — a benchmark describes the past, it does not rule on
+  // the present, and a vendor bidding above it may have a reason. It puts
+  // the number in front of somebody while they can still change it.
+  const since = new Date(now.getTime() - WINDOW_DAYS * 86400000)
+  const past = await prisma.submission.findMany({
+    where: { fromCompanyId: companyId, submittedAt: { gte: since }, id: { not: submission.id } },
+    select: {
+      rate: true, rejectReason: true, submittedAt: true,
+      requirement: { select: { skills: true, location: true } },
+    },
+    take: 2000,
+  })
+
+  const observations: Observation[] = past.map((p) => ({
+    rateCents: p.rate,
+    survived: p.rejectReason !== 'RATE',
+    skills: p.requirement.skills,
+    location: p.requirement.location,
+    at: p.submittedAt,
+  }))
+
+  if (submission.rate != null) {
+    const market = band(
+      observations,
+      { skills: submission.requirement.skills, location: submission.requirement.location },
+      now
+    )
+    const advice = marketCheck(warnAbout(submission.rate, market))
+    if (advice) findings.push(advice)
+  }
 
   // ── The one model judgement ─────────────────────────────────────────
   //

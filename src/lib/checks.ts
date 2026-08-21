@@ -58,6 +58,8 @@ export type Code =
   | 'CONSENT'
   /** The skills claimed are actually in the CV. The one model judgement. */
   | 'SKILLS_EVIDENCED'
+  /** The rate against what has actually cleared for work like this. */
+  | 'RATE_VS_MARKET'
 
 export interface Finding {
   code: Code
@@ -261,6 +263,35 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
   )
 
   return out
+}
+
+/**
+ * The rate against what has actually cleared, for work like this.
+ *
+ * This is the outcome loop turning. Rate is the commonest reason a
+ * submission dies, and it is the one reason knowable in advance — because
+ * we watched other people get rejected above this number at this kind of
+ * client.
+ *
+ * Always a PASS. It is advice built from a description of the past, and a
+ * check that blocks on advice gets overridden until nobody reads any of
+ * them. What it does is put the number in front of somebody at the moment
+ * they can still change it.
+ */
+export function marketCheck(warning: {
+  say: boolean
+  where: 'ABOVE' | 'BELOW' | null
+  text: string
+}): Finding | null {
+  if (!warning.say) return null
+
+  return {
+    code: 'RATE_VS_MARKET',
+    checker: 'RULE',
+    verdict: 'PASS',
+    reason: warning.text,
+    evidence: warning.where,
+  }
 }
 
 function cents(n: number): string {
