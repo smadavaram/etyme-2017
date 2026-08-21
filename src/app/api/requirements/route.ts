@@ -190,6 +190,22 @@ export async function POST(request: NextRequest) {
   const requirement = await prisma.requirement.create({
     data: {
       companyId,
+      // A vendor answering somebody else's advert is not raising a
+      // requisition against their own budget. Approval belongs to whoever
+      // owns the demand, and on most of these roles that is not them.
+      //
+      // Left DRAFT — which is what happened — every award against it was
+      // blocked forever. The requisition path set this; the vendor path
+      // never did, so the vendor's own roles could never be filled.
+      approvalState: 'AUTO_APPROVED',
+      // Where the work is, when it is known. Usually it is not: a prime
+      // hides the client so their NDA holds.
+      endClientCompanyId:
+        typeof body.endClientCompanyId === 'string' ? body.endClientCompanyId : null,
+      // Who it is worked through — the prime who posted it, or the client
+      // direct. Without it there is nobody to submit to.
+      payerCompanyId:
+        typeof body.payerCompanyId === 'string' ? body.payerCompanyId : null,
       title: title.trim(),
       skills: Array.isArray(skills) ? skills : [],
       location: location ?? null,

@@ -254,10 +254,32 @@ export async function POST(
       select: { name: true, currency: true, defaultPaymentTerms: true },
     }),
     prisma.masterAgreement.findFirst({
-      where: { vendorId: submission.fromCompanyId, clientId: req.companyId },
-      select: { paymentTerms: true, currency: true, client: { select: { name: true } } },
+      where: { vendorId: submission.fromCompanyId, clientId: submission.toCompanyId },
+      select: { id: true, paymentTerms: true, currency: true, client: { select: { name: true } } },
     }),
   ])
+
+  // Who gets the invoice.
+  //
+  // The company they submitted to — not the company that wrote the role
+  // down. On a client requisition those are the same. On a vendor's own
+  // record of somebody else's advert they are not, and using the second
+  // produced a contract where Cloudepa sold to Cloudepa: no counterparty,
+  // no approver, nothing to bill.
+  const payerId = submission.toCompanyId
+
+  if (payerId === submission.fromCompanyId) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NO_COUNTERPARTY',
+          message:
+            'This was submitted to your own company, so there is nobody to bill. Send it on to the client first, or record the role against the company paying for it.',
+        },
+      },
+      { status: 409 }
+    )
+  }
 
   const terms = resolveBillingTerms({
     company: {
@@ -275,6 +297,42 @@ export async function POST(
     contract: null,
   })
 
+  // ── Something to bill under ──
+  //
+  // An invoice is raised per engagement, and an engagement hangs off an
+  // agreement. An award created neither, so work done through the platform
+  // could never be invoiced — the money chain simply stopped.
+  //
+  // Paper often lags the start date in this business. Recording the
+  // relationship that plainly exists, and marking it unsigned, is honest;
+  // refusing the placement until somebody uploads a contract is not how
+  // anybody actually works.
+  const msa =
+    agreement ??
+    (await prisma.masterAgreement.create({
+      data: {
+        vendorId: submission.fromCompanyId,
+        clientId: payerId,
+        paymentTerms: vendorCompany?.defaultPaymentTerms ?? 30,
+        currency: vendorCompany?.currency ?? 'USD',
+        // Nobody has signed anything. Said in the column rather than
+        // assumed away, so "three placements running on a handshake" is a
+        // number somebody can pull.
+        signedAt: null,
+      },
+      select: { id: true, paymentTerms: true, currency: true, client: { select: { name: true } } },
+    }))
+
+  const engagement =
+    (await prisma.engagement.findFirst({
+      where: { msaId: msa.id, title: req.title },
+      select: { id: true },
+    })) ??
+    (await prisma.engagement.create({
+      data: { msaId: msa.id, title: req.title, invoiceCycle: 'BIWEEKLY' },
+      select: { id: true },
+    }))
+
   const result = await prisma.$transaction(async (tx) => {
     // The contract carries the demand-side coding forward. This is the
     // whole point: an invoice raised in four months matches a purchase
@@ -283,8 +341,13 @@ export async function POST(
     const contract = await tx.sellContract.create({
       data: {
         companyId: submission.fromCompanyId,   // the vendor supplying
-        clientCompanyId: req.companyId,        // who pays
-        endClientCompanyId: req.companyId,     // where the work happens
+        clientCompanyId: payerId,              // who gets the invoice
+        // Where the work actually is, when anybody knows. Null means the
+        // payer's own site; it used to be set to the payer unconditionally,
+        // which made every three-party placement look direct.
+        endClientCompanyId: req.endClientCompanyId,
+        engagementId: engagement.id,
+        msaId: msa.id,
         personId: submission.personId,
         requirementId: req.id,
         hiringManagerId: req.raisedById,

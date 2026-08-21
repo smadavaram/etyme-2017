@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     where: { id: requirementId },
     select: {
       id: true, companyId: true, status: true, title: true,
-      endClientCompanyId: true,
+      endClientCompanyId: true, payerCompanyId: true,
       company: { select: { name: true } },
       endClientCompany: { select: { name: true } },
     },
@@ -91,7 +91,27 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const toCompanyId = requirement.companyId
+  // Who the candidate is actually being submitted to.
+  //
+  // A client's own requisition: the client. A vendor's record of somebody
+  // else's advert: the prime who posted it, or the client direct. Using the
+  // company that wrote the role down meant a vendor submitted to
+  // themselves, and everything downstream inherited a contract with no
+  // counterparty.
+  const toCompanyId = requirement.payerCompanyId ?? requirement.companyId
+
+  if (toCompanyId === fromCompanyId) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NO_RECIPIENT',
+          message:
+            'This role has nobody to submit to. Name the prime or the client it is worked through, then submit.',
+        },
+      },
+      { status: 409 }
+    )
+  }
 
   // Who the hold is against. The end client where it is known, because an
   // MSP and a prime feeding the same site is exactly the case where one

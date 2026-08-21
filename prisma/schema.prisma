@@ -296,6 +296,7 @@ model Company {
   // End-client contracts (where consultants actually work, when ≠ billing client)
   endClientContracts SellContract[]          @relation("sellEndClient")
   endClientRequirements Requirement[]        @relation("requirementEndClient")
+  payerRequirements     Requirement[]        @relation("requirementPayer")
   openings              Opening[]            @relation("openingOwner")
   openingsAsClient      Opening[]            @relation("openingClient")
   leads                 Lead[]               @relation("leadOwner")
@@ -578,6 +579,11 @@ model MasterAgreement {
   client       Company  @relation("client", fields: [clientId], references: [id])
   paymentTerms Int      @default(30)
   currency     String   @default("USD")
+  /// When it was actually signed. Null means work is running on a
+  /// handshake — which is the ordinary state of this industry between an
+  /// offer and a start date, and worth being able to count rather than
+  /// pretend away.
+  signedAt     DateTime?
   minMarginPct Int? // the floor a recruiter may not price below without approval
   rateCard     Json? // condition records: client + skill + level + location
   capacity     Int? // max resources for GSA global contracts (null = unlimited)
@@ -641,6 +647,20 @@ model Requirement {
   /// The same reasoning as rateVisible, one field over.
   endClientVisible Boolean @default(false)
 
+  /// Who this role is worked through — the prime who posted it, or the
+  /// client direct.
+  ///
+  /// Null on a client's own requisition: they are the recipient. On a
+  /// vendor's record of somebody else's advert it is the party the
+  /// candidate is actually submitted to, and therefore the party who gets
+  /// the invoice.
+  ///
+  /// Without it a vendor submitting against their own record submitted to
+  /// themselves, and the award produced a contract where they sold to
+  /// themselves — no counterparty, no approver, nothing to bill.
+  payerCompanyId String?
+  payerCompany   Company? @relation("requirementPayer", fields: [payerCompanyId], references: [id])
+
   /// The role this was mirrored from, one hop down the chain.
   ///
   /// A prime forwarding a candidate to their client needs the client to
@@ -701,6 +721,7 @@ model Requirement {
   @@index([endClientCompanyId])
   @@index([openingId])
   @@index([mirroredFromId])
+  @@index([payerCompanyId])
 }
 
 // ─────────────────────────────────────────────
