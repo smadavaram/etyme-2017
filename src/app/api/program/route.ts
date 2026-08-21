@@ -198,7 +198,8 @@ export async function GET(request: NextRequest) {
       person: exp.sellContract.person.name,
       vendor: exp.sellContract.company.name,
       detail: `${exp.category} · ${exp.billable ? 'Billable' : 'Internal'}`,
-      amount: exp.total ? Number(exp.total) / 100 : null,
+      // Whole currency, not cents. See decisions/route.ts.
+      amount: exp.total ? Number(exp.total) : null,
       submittedAt: exp.submittedAt?.toISOString() ?? null,
       daysWaiting: exp.submittedAt
         ? Math.floor((now.getTime() - exp.submittedAt.getTime()) / (24 * 60 * 60 * 1000))

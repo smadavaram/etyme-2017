@@ -106,13 +106,17 @@ export async function GET(request: NextRequest) {
       decisions.push({
         type: 'EXPENSE_APPROVAL',
         title: `Review expense — ${exp.person.name}`,
-        subtitle: `$${(Number(exp.total) / 100).toFixed(2)} · ${exp.category} · ${exp.billable ? 'Billable' : 'Internal'} · ${exp.sellContract?.clientCompany?.name ?? ''}`,
+        // Expense.total is a Decimal in whole currency, not cents — the
+        // schema says so where InvoiceLine is defined. Dividing by a
+        // hundred turned a $149.98 expense into "$1.50" on the founder's
+        // main screen, and an $1,801 one into "$18.01".
+        subtitle: `$${Number(exp.total).toFixed(2)} · ${exp.category} · ${exp.billable ? 'Billable' : 'Internal'} · ${exp.sellContract?.clientCompany?.name ?? ''}`,
         urgency: daysSinceSubmit >= 5 ? 'HIGH' : 'MEDIUM',
         entityType: 'EXPENSE',
         entityId: exp.id,
         dueDate: null,
         actionUrl: '/dashboard/expenses',
-        amount: Number(exp.total) / 100,
+        amount: Number(exp.total),
         createdAt: exp.submittedAt?.toISOString() ?? exp.createdAt.toISOString(),
       })
     }
@@ -239,13 +243,15 @@ export async function GET(request: NextRequest) {
       decisions.push({
         type: 'INVOICE_OVERDUE',
         title: `Overdue invoice — ${inv.number}`,
-        subtitle: `${inv.engagement.msa.client.name} · $${(outstanding / 100).toFixed(2)} outstanding · ${daysOverdue}d overdue`,
+        // Same again, and worse here: a $7,600 overdue invoice read
+        // "$76.00 outstanding", which is an amount nobody chases.
+        subtitle: `${inv.engagement.msa.client.name} · $${outstanding.toFixed(2)} outstanding · ${daysOverdue}d overdue`,
         urgency: daysOverdue >= 60 ? 'HIGH' : daysOverdue >= 30 ? 'MEDIUM' : 'LOW',
         entityType: 'INVOICE',
         entityId: inv.id,
         dueDate: inv.dueAt!.toISOString(),
         actionUrl: '/dashboard/invoices',
-        amount: outstanding / 100,
+        amount: outstanding,
         createdAt: inv.dueAt!.toISOString(),
       })
     }

@@ -97,3 +97,35 @@ describe('the margin line under the rate box', () => {
       .toBe('That is $10/hr below what you were quoted.')
   })
 })
+
+// ── Two money columns that are not cents ─────────────────────────────
+
+describe('the two Decimal columns that are dollars, not cents', () => {
+  /**
+   * Almost every money column here is an integer in minor units. Two are
+   * not: Invoice.total and Expense.total are Decimals in whole currency,
+   * and the schema says so where InvoiceLine is defined.
+   *
+   * The decisions feed divided both by a hundred, so a $6,300 overdue
+   * invoice read "$63.00 outstanding" on the founder's main screen — an
+   * amount nobody chases — and a $149.98 expense read "$1.50".
+   */
+
+  it('shows an overdue invoice at what is actually owed', () => {
+    const invoice = { total: 12600, paid: 5000 } // dollars, Decimal
+    const outstanding = invoice.total - invoice.paid
+    expect(`$${outstanding.toFixed(2)}`).toBe('$7600.00')
+    expect(`$${(outstanding / 100).toFixed(2)}`).toBe('$76.00') // the bug
+  })
+
+  it('shows an expense at what was spent', () => {
+    const expense = { total: 149.98 }
+    expect(`$${expense.total.toFixed(2)}`).toBe('$149.98')
+  })
+
+  it('leaves the cents columns alone, because they really are cents', () => {
+    // Submission.rate, billMin, billMax, billRate, payRate — all integers
+    // in minor units, and all still divided by a hundred to display.
+    expect(showRate(13000)).toBe('$130/hr')
+  })
+})

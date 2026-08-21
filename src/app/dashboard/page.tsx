@@ -35,6 +35,21 @@ interface DashboardData {
   recentAutomation: { summary: string; at: string }[]
 }
 
+/** Good submissions per day per requirement, and what one costs. */
+interface Bar {
+  target: number
+  window: number
+  bar: { rate: number | null; good: number; sent: number; requirements: number; says: string; hit: boolean }
+  stopping: { reason: string; count: number; label: string }[]
+  cost: {
+    perSubmission: number | null
+    shown: string
+    trend: string | null
+    filtered: { kept: number; considered: number; percent: number | null }
+    worst: { agent: string; micros: number } | null
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────
 
 function urgencyDot(urgency: string): string {
@@ -91,6 +106,75 @@ function todayLabel(): string {
 }
 
 // ── Page ─────────────────────────────────────────────
+
+
+/**
+ * The one number, and what it costs.
+ *
+ * Good submissions per day, per requirement. Not users, not logins, not
+ * model accuracy, not requirements processed. Five and there is a
+ * business; two and something is wrong that no further feature will fix.
+ *
+ * Meant to be looked at with the customer in the room — both sides read
+ * the same screen, which turns pricing day into arithmetic instead of an
+ * argument. So it sits at the top, not in a reports tab.
+ */
+function TheBar() {
+  const [b, setB] = useState<Bar | null>(null)
+
+  useEffect(() => {
+    fetch('/api/bar?days=7')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => body && setB(body.data))
+      .catch(() => {})
+  }, [])
+
+  if (!b) return null
+
+  const { bar, cost, stopping, target } = b
+
+  return (
+    <div className="panel mb-8">
+      <div className="flex flex-wrap items-start justify-between gap-6">
+        <div className="min-w-0">
+          <p className="eyebrow mb-1">The number · last {b.window} days</p>
+          <div className="flex items-baseline gap-3">
+            <span
+              className="headline-serif text-[42px] leading-none tabular-nums"
+              style={{ color: bar.hit ? 'var(--color-verified)' : 'var(--color-ink)' }}
+            >
+              {bar.rate ?? '—'}
+            </span>
+            <span className="text-[13px] text-etyme-faint">
+              good submissions a day, per role · target {target}
+            </span>
+          </div>
+          <p className="mt-2 max-w-[52ch] text-[13px] text-etyme-muted">{bar.says}</p>
+
+          {stopping.length > 0 && (
+            <p className="mt-1 text-[12px] text-etyme-attention">
+              What is stopping it:{' '}
+              {stopping.map((s) => `${s.count} on ${s.label.toLowerCase()}`).join(', ')}.
+            </p>
+          )}
+        </div>
+
+        <div className="shrink-0 border-l border-etyme-rule pl-6">
+          <p className="stat-label">Cost per submission</p>
+          <p className="stat-value">{cost.shown}</p>
+          <p className="mt-0.5 text-[11px] text-etyme-faint">
+            {cost.trend ?? 'no week to compare yet'}
+          </p>
+          {cost.filtered.percent !== null && (
+            <p className="mt-2 text-[11px] text-etyme-faint">
+              Rules removed {cost.filtered.percent}% before anything was paid for
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -225,6 +309,8 @@ export default function DashboardPage() {
           {d && d.contracts.ending > 0 && ` ${d.contracts.ending} contract${d.contracts.ending !== 1 ? 's' : ''} ending within 28 days.`}
         </p>
       </div>
+
+      <TheBar />
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

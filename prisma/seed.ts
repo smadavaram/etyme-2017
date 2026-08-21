@@ -1013,6 +1013,17 @@ async function main() {
         rate: s.rate,
         status: s.status,
         submittedAt,
+        // Anything that reached a client cleared the checks on the way out.
+        // A submission still sitting at SUBMITTED may or may not have been
+        // through the loop; left at DRAFT it reads honestly as unchecked.
+        checkState: s.status === 'SUBMITTED' ? 'READY' : 'SENT',
+        checkAttempt: 1,
+        // Why the ones that ended, ended. This is the only data here that
+        // compounds — every feature can be rebuilt in a quarter and twelve
+        // months of real rejection reasons cannot be bought.
+        ...(s.status === 'REJECTED'
+          ? { rejectReason: 'RATE', rejectNote: 'Two other vendors came in under $110.', rejectedAt: submittedAt }
+          : {}),
       },
     })
   }

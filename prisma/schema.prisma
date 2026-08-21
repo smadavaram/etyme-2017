@@ -941,6 +941,23 @@ model Submission {
   resumeId String?
   resume   Resume? @relation(fields: [resumeId], references: [id])
 
+  // ── How it ended, and why ──────────────────────────────────────────
+  //
+  // `status` says where it got to. This says why it stopped, and it is the
+  // only thing here that compounds: every feature in this product can be
+  // rebuilt by somebody else in a quarter, and twelve months of real
+  // rejection reasons across a vendor chain cannot be bought at any price.
+  //
+  // A closed list, because free text is what a recruiter types at eight at
+  // night and nobody can count afterwards.
+
+  /// RATE · SKILLS · WORK_AUTH · AVAILABILITY · INTERVIEW · TIMING ·
+  /// CANDIDATE_WITHDREW · NO_REPLY
+  rejectReason String?
+  /// What they actually said, where somebody bothered to write it down.
+  rejectNote   String?
+  rejectedAt   DateTime?
+
   // ── The check loop ─────────────────────────────────────────────────
   //
   // Deliberately not `status`. That field is the pipeline — submitted,

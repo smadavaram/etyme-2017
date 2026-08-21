@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkOutcome } from '@/lib/outcomes'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { clientOf, endHoldsForSubmission } from '@/lib/holds'
@@ -36,6 +37,8 @@ export async function PATCH(
   const { id } = await params
   const body = await request.json()
   const { status } = body
+  const rejectReason: string | null = typeof body.reason === 'string' ? body.reason : null
+  const rejectNote: string | null = typeof body.note === 'string' ? body.note.trim() || null : null
 
   const validStatuses = ['SHORTLISTED', 'PLACED', 'REJECTED', 'WITHDRAWN']
   if (!status || !validStatuses.includes(status)) {
@@ -67,6 +70,21 @@ export async function PATCH(
     SHORTLISTED: ['PLACED', 'REJECTED', 'WITHDRAWN'],
   }
 
+  // A rejection with no reason is a state change with no information in
+  // it. "Rejected" tells a recruiter to try again; "rejected on rate,
+  // third time this month at this client" tells them to stop bidding at
+  // that number — and twelve months of these is the only asset here that
+  // cannot be rebuilt by somebody else in a quarter.
+  if (status === 'REJECTED' || status === 'WITHDRAWN') {
+    const verdict = checkOutcome({ reason: rejectReason, note: rejectNote })
+    if (!verdict.ok) {
+      return NextResponse.json(
+        { error: { code: 'NEEDS_REASON', message: verdict.reason, field: 'reason' } },
+        { status: 422 }
+      )
+    }
+  }
+
   const allowed = transitions[submission.status]
   if (!allowed || !allowed.includes(status)) {
     return NextResponse.json(
@@ -85,6 +103,9 @@ export async function PATCH(
         // answer, and counting it would flatter every slow buyer.
         ...(['PLACED', 'REJECTED', 'NOT_SELECTED', 'WITHDRAWN'].includes(status)
           ? { decidedAt: new Date() }
+          : {}),
+        ...(rejectReason
+          ? { rejectReason, rejectNote, rejectedAt: new Date() }
           : {}),
       },
     }),
