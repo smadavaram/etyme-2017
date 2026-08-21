@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
+import { rate as showRate } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 
@@ -33,6 +34,9 @@ interface Submission {
   rate: number
   status: string
   submittedAt: string
+  forwardedAt: string | null
+  forwardedVia: string | null
+  forwardedToEmail: string | null
 }
 
 type StatusFilter = 'ALL' | 'SUBMITTED' | 'SHORTLISTED' | 'INTERVIEW' | 'OFFERED' | 'PLACED' | 'REJECTED' | 'WITHDRAWN'
@@ -419,6 +423,186 @@ function SubmitToRequirementModal({
 
 // ── Convert to Contract Modal ────────────────────────
 
+
+// ── Send on ────────────────────────────────────────────────
+
+/**
+ * Sending a candidate onward.
+ *
+ * The route was built and nothing in the product could reach it, which is
+ * the same as not having built it. This is the state 2017 called
+ * client_submission: a sub-vendor puts somebody forward to a prime, and
+ * the prime either sends them to the client or sits on them. Without the
+ * button nobody can answer the question every consultant asks — have they
+ * actually submitted me, or am I in a spreadsheet.
+ *
+ * Two ways out, exactly as 2017 had them. The next party is on Etyme, so
+ * the hop becomes a real submission with its own rate and its own
+ * decision. Or they are not, and it is recorded as emailed, to whom and
+ * when — which is worth as much, because the consultant can be told.
+ */
+function SendOnModal({
+  submission,
+  onClose,
+  onSent,
+}: {
+  submission: Submission
+  onClose: () => void
+  onSent: (said: string) => void
+}) {
+  const [via, setVia] = useState<'ONWARD' | 'EMAIL'>('ONWARD')
+  const [companies, setCompanies] = useState<{ id: string; name: string; kind: string }[]>([])
+  const [toCompanyId, setToCompanyId] = useState('')
+  const [email, setEmail] = useState('')
+  // Shown and typed in dollars; sent in cents.
+  const [rate, setRate] = useState(String(submission.rate / 100))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/companies')
+      .then((r) => r.json())
+      .then((b) => {
+        const all = b.data?.companies ?? []
+        setCompanies(
+          all.filter(
+            (c: any) =>
+              c.id !== submission.toCompany.id && c.id !== submission.fromCompany.id
+          )
+        )
+      })
+      .catch(() => {})
+  }, [submission.toCompany.id, submission.fromCompany.id])
+
+  const onwardCents = Math.round(Number(rate) * 100)
+  const marginCents = onwardCents - submission.rate
+
+  async function send() {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/submissions/${submission.id}/forward`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          via,
+          toCompanyId: via === 'ONWARD' ? toCompanyId : null,
+          email: via === 'EMAIL' ? email : null,
+          rate: onwardCents,
+        }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      onSent(
+        body.data?.message ??
+          `${submission.person.name} sent on to ${body.data?.to ?? 'them'}.`
+      )
+    } catch (err: any) {
+      setError(err.message)
+      setBusy(false)
+    }
+  }
+
+  const ready = via === 'ONWARD' ? toCompanyId !== '' : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <h3 className="headline-serif mb-1 text-[18px] text-etyme-ink">Send on</h3>
+        <p className="mb-4 text-[12px] text-etyme-muted">
+          {submission.fromCompany.name} put {submission.person.name} in front of
+          you at {showRate(submission.rate)}. Where does it go next?
+        </p>
+
+        <div className="mb-4 flex rounded-md bg-etyme-canvas p-0.5">
+          {(['ONWARD', 'EMAIL'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setVia(v)}
+              className={`flex-1 rounded px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                via === v ? 'bg-white text-etyme-ink shadow-sm' : 'text-etyme-muted'
+              }`}
+            >
+              {v === 'ONWARD' ? 'They are on Etyme' : 'By email'}
+            </button>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          {via === 'ONWARD' ? (
+            <div>
+              <label className="eyebrow mb-1 block">Send to</label>
+              <select
+                value={toCompanyId}
+                onChange={(e) => setToCompanyId(e.target.value)}
+                className="w-full rounded-md border border-etyme-rule px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
+              >
+                <option value="">Pick a company…</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} · {c.kind.toLowerCase()}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="eyebrow mb-1 block">Their email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="hiring.manager@client.com"
+                className="w-full rounded-md border border-etyme-rule px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
+              />
+              <p className="mt-1 text-[11px] text-etyme-faint">
+                Recorded as sent, to whom and when — so the consultant can be
+                told, and so it is not your word against theirs later.
+              </p>
+            </div>
+          )}
+
+          <div>
+            <label className="eyebrow mb-1 block">Rate you send it on at ($/hr)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              className="w-full rounded-md border border-etyme-rule px-3 py-2 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-etyme-action/20"
+            />
+            {/* Said out loud, because the onward rate never travels back
+                down the chain and the person who sent it to you will never
+                see this number. */}
+            <p className="mt-1 text-[11px] text-etyme-faint">
+              {marginCents > 0
+                ? `${showRate(marginCents)} yours. ${submission.fromCompany.name} does not see this.`
+                : marginCents === 0
+                  ? 'Passed on at the same rate — nothing in it for you.'
+                  : `That is ${showRate(Math.abs(marginCents))} below what you were quoted.`}
+            </p>
+          </div>
+        </div>
+
+        {error && <p className="mt-3 text-[12px] text-etyme-attention">{error}</p>}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onClose} className="px-3 py-2 text-[13px] text-etyme-muted hover:text-etyme-ink">
+            Cancel
+          </button>
+          <button
+            onClick={send}
+            disabled={busy || !ready}
+            className="rounded-md bg-etyme-action px-4 py-2 text-[13px] font-medium text-white disabled:opacity-50"
+          >
+            {busy ? 'Sending…' : 'Send on'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ConvertToContractModal({
   submission,
   converting,
@@ -430,7 +614,10 @@ function ConvertToContractModal({
   onClose: () => void
   onConvert: (billRate: number, startDate: string, payRate?: number) => void
 }) {
-  const [billRate, setBillRate] = useState(submission.rate)
+  // Dollars, because that is what the field says and what onConvert
+  // multiplies back up. Seeded from cents, one click made a $130/hr
+  // submission into a $13,000/hr contract.
+  const [billRate, setBillRate] = useState(submission.rate / 100)
   const [payRate, setPayRate] = useState('')
   const [startDate, setStartDate] = useState(
     new Date().toISOString().slice(0, 10)
@@ -448,6 +635,8 @@ function ConvertToContractModal({
             <span className="font-medium text-etyme-ink">{submission.person.name}</span>
             {' → '}
             {submission.toCompany.name}
+            {' · '}
+            {showRate(submission.rate)}
           </p>
           <p className="text-[11px] text-etyme-faint mt-0.5">
             {submission.requirement.title}
@@ -540,6 +729,8 @@ export default function SubmissionsPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [showSubmitModal, setShowSubmitModal] = useState(false)
   const [convertSubmission, setConvertSubmission] = useState<Submission | null>(null)
+  const [sendOn, setSendOn] = useState<Submission | null>(null)
+  const [said, setSaid] = useState<string | null>(null)
   const [converting, setConverting] = useState(false)
 
   const [companyId, setCompanyId] = useState<string | null>(null)
@@ -706,9 +897,10 @@ export default function SubmissionsPage() {
       key: 'rate',
       label: 'Rate',
       render: (row) => (
-        <span className="tabular-nums">
-          ${row.rate}<span className="text-etyme-faint">/hr</span>
-        </span>
+        // Stored in cents like every other money column. Printed raw it
+        // read $13000/hr for a $130 submission — and the convert button
+        // then multiplied that by a hundred again.
+        <span className="tabular-nums">{showRate(row.rate)}</span>
       ),
       sortValue: (row) => row.rate,
       align: 'right' as const,
@@ -731,6 +923,39 @@ export default function SubmissionsPage() {
             >
               → Contract
             </button>
+          )}
+
+          {/* Only on what was sent to you, and only while it is still
+              undecided. A candidate already answered has nowhere to go,
+              and sending one twice puts the same name in front of the
+              client twice. */}
+          {direction === 'received' &&
+            row.forwardedAt === null &&
+            !['PLACED', 'REJECTED', 'WITHDRAWN'].includes(row.status) && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSendOn(row)
+                }}
+                className="text-[10px] font-medium text-etyme-action hover:text-etyme-action/80
+                           border border-etyme-action/30 rounded px-2 py-0.5 hover:bg-etyme-action/5
+                           transition-colors whitespace-nowrap"
+              >
+                Send on →
+              </button>
+            )}
+
+          {row.forwardedAt !== null && (
+            <span
+              className="chip chip--verified"
+              title={
+                row.forwardedToEmail
+                  ? `Emailed to ${row.forwardedToEmail} on ${new Date(row.forwardedAt).toLocaleDateString()}`
+                  : `Sent on ${new Date(row.forwardedAt).toLocaleDateString()}`
+              }
+            >
+              Sent on
+            </span>
           )}
         </div>
       ),
@@ -864,6 +1089,12 @@ export default function SubmissionsPage() {
         ))}
       </div>
 
+      {said && (
+        <div className="mb-4 rounded-md border border-etyme-rule bg-etyme-canvas px-4 py-3 text-[13px] text-etyme-ink">
+          {said}
+        </div>
+      )}
+
       {/* Data table */}
       <DataTable<Submission>
         columns={columns}
@@ -932,6 +1163,18 @@ export default function SubmissionsPage() {
       )}
 
       {/* Convert to Contract modal */}
+      {sendOn && (
+        <SendOnModal
+          submission={sendOn}
+          onClose={() => setSendOn(null)}
+          onSent={(text) => {
+            setSaid(text)
+            setSendOn(null)
+            fetchSubmissions()
+          }}
+        />
+      )}
+
       {convertSubmission && (
         <ConvertToContractModal
           submission={convertSubmission}

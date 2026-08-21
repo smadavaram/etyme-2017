@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { range as showRange } from '@/lib/money-display'
 
 /**
  * Requirements working surface — open demand.
@@ -469,13 +470,10 @@ export default function RequirementsPage() {
       key: 'billRange',
       label: 'Bill range',
       render: (row) => (
+        // Cents, like every other money column. Printed raw a $58–$68
+        // band read "$5780–$6800/hr".
         row.billMin != null || row.billMax != null ? (
-          <span className="tabular-nums">
-            {row.billMin != null && `$${row.billMin}`}
-            {row.billMin != null && row.billMax != null && '–'}
-            {row.billMax != null && `$${row.billMax}`}
-            <span className="text-etyme-faint">/hr</span>
-          </span>
+          <span className="tabular-nums">{showRange(row.billMin, row.billMax)}</span>
         ) : (
           <span className="text-etyme-faint">—</span>
         )

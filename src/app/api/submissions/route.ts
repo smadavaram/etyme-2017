@@ -577,6 +577,12 @@ export async function GET(request: NextRequest) {
         rate: s.rate,
         status: s.status,
         submittedAt: s.submittedAt.toISOString(),
+        // Whether it has been sent on, so the list can offer the button
+        // — and, once used, say plainly that it was used. The route was
+        // built and nothing in the product could reach it.
+        forwardedAt: s.forwardedAt?.toISOString() ?? null,
+        forwardedVia: s.forwardedVia,
+        forwardedToEmail: s.forwardedToEmail,
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     },

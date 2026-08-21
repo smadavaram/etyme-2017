@@ -44,6 +44,7 @@ const VENDOR_NAV: NavSection[] = [
   {
     label: 'Sell',
     items: [
+      { label: 'Leads', href: '/dashboard/leads', icon: '⌁' },
       { label: 'Invitations', href: '/dashboard/invitations', icon: '✉' },
       { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
