@@ -297,6 +297,8 @@ export interface WhoHasMe {
     role: string
     when: string
     status: string
+    /** Where it went next, or null while it is still with whoever has it. */
+    sentOnTo: string | null
   }[]
 }
 
@@ -344,6 +346,13 @@ export async function whoHasMe(personId: string, now: Date = new Date()): Promis
       where: { personId },
       select: {
         submittedAt: true, status: true,
+        forwardedAt: true, forwardedVia: true, forwardedToEmail: true,
+        forwardedOn: {
+          select: {
+            submittedAt: true, status: true,
+            toCompany: { select: { name: true } },
+          },
+        },
         fromCompany: { select: { name: true } },
         toCompany: { select: { name: true } },
         requirement: { select: { title: true, endClientCompany: { select: { name: true } } } },
@@ -412,13 +421,28 @@ export async function whoHasMe(personId: string, now: Date = new Date()): Promis
       company: b.company.name,
       note: b.note,
     })),
-    history: submissions.map((s) => ({
-      company: s.fromCompany.name,
-      client: s.requirement.endClientCompany?.name ?? s.toCompany.name,
-      role: s.requirement.title,
-      when: s.submittedAt.toISOString().slice(0, 10),
-      status: s.status,
-    })),
+    history: submissions.map((s) => {
+      // How far it actually got. A status word says what the agency
+      // recorded; this says whether the name reached the person who
+      // decides, which is the question they are actually asking.
+      const onward = s.forwardedOn[0]
+      const wentOn = onward
+        ? `${onward.toCompany.name} on ${onward.submittedAt.toISOString().slice(0, 10)}`
+        : s.forwardedAt
+          ? `emailed to ${s.forwardedToEmail ?? 'the client'} on ${s.forwardedAt.toISOString().slice(0, 10)}`
+          : null
+
+      return {
+        company: s.fromCompany.name,
+        client: s.requirement.endClientCompany?.name ?? s.toCompany.name,
+        role: s.requirement.title,
+        when: s.submittedAt.toISOString().slice(0, 10),
+        status: s.status,
+        // Null means it is still sitting with whoever received it — which
+        // is a fact worth showing rather than hiding behind "submitted".
+        sentOnTo: wentOn,
+      }
+    }),
   }
 }
 

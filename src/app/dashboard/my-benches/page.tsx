@@ -37,7 +37,10 @@ interface Data {
   benches: Bench[]
   asking: { id: string; company: string; client: string; role: string | null; askedAt: string }[]
   notThese: { id: string; company: string; companyId: string; note: string | null }[]
-  history: { company: string; client: string; role: string; when: string; status: string }[]
+  history: {
+    company: string; client: string; role: string; when: string
+    status: string; sentOnTo: string | null
+  }[]
   note: string
 }
 
@@ -310,6 +313,13 @@ export default function MyBenchesPage() {
                     {h.client}
                     <span className="text-etyme-muted"> · {h.role}</span>
                     <span className="text-etyme-faint"> · by {h.company}</span>
+                    {/* Whether it actually went on, which is the question
+                        behind "have they submitted me yet". */}
+                    <span className="block text-[12px] text-etyme-muted mt-0.5">
+                      {h.sentOnTo
+                        ? `sent on to ${h.sentOnTo}`
+                        : 'still with them — not sent on yet'}
+                    </span>
                   </span>
                   <span className="flex items-center gap-3 shrink-0">
                     <Chip

@@ -45,6 +45,7 @@ export const EVENT_TYPES = [
   'submission.withdrawn',
   'submission.awarded',
   'submission.rejected',
+  'submission.forwarded',
 
   // Representation — who may put a person in front of a client
   'representation.requested',

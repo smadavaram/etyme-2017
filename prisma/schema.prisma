@@ -641,6 +641,17 @@ model Requirement {
   /// The same reasoning as rateVisible, one field over.
   endClientVisible Boolean @default(false)
 
+  /// The role this was mirrored from, one hop down the chain.
+  ///
+  /// A prime forwarding a candidate to their client needs the client to
+  /// have a record of the role, because a submission is unique on
+  /// (requirement, person) and reusing the sender's row would collide with
+  /// the rule that stops one name reaching a client twice. 2017 called
+  /// these sub-jobs and pointed them at a parent.
+  mirroredFromId String?
+  mirroredFrom   Requirement?  @relation("mirror", fields: [mirroredFromId], references: [id])
+  mirrors        Requirement[] @relation("mirror")
+
   /// The seat this is a working record of.
   ///
   /// A requirement is what a vendor writes down about a role they are
@@ -689,6 +700,7 @@ model Requirement {
 
   @@index([endClientCompanyId])
   @@index([openingId])
+  @@index([mirroredFromId])
 }
 
 // ─────────────────────────────────────────────
@@ -868,6 +880,29 @@ model Submission {
   status        String         @default("SUBMITTED")
   submittedAt   DateTime       @default(now()) // first timestamp wins on a duplicate
 
+  /// The hop this one came from.
+  ///
+  /// Submitting somebody to you and you sending them onward to the client
+  /// are two events days apart, and each is its own submission with its own
+  /// rate and its own decision. Cloudepa → Vertex at $62 and Vertex →
+  /// Terumo at $95 are two rows, one chain: the layer cake as it is.
+  ///
+  /// A flag could not carry the prime's rate, the prime's decision date, or
+  /// the fact that a client rejected the prime's submission while the
+  /// sub-vendor's still reads as live.
+  parentSubmissionId String?
+  parentSubmission   Submission?  @relation("forwardChain", fields: [parentSubmissionId], references: [id])
+  forwardedOn        Submission[] @relation("forwardChain")
+
+  /// When it went onward, and how. Null means it is still with whoever
+  /// received it — which is the answer to the question a consultant
+  /// actually asks.
+  forwardedAt      DateTime?
+  forwardedVia     String? // ONWARD · EMAIL
+  /// Where it went when the next party is not on Etyme.
+  forwardedToEmail String?
+  forwardedById    String?
+
   /// When the buyer said yes or no. Null while they still have not.
   ///
   /// A real column rather than a proxy. How long a client takes to decide
@@ -879,6 +914,7 @@ model Submission {
   @@unique([requirementId, personId]) // enforces the duplicate rule
   @@index([fromCompanyId, status])
   @@index([toCompanyId, status])
+  @@index([parentSubmissionId])
 }
 
 /// The seat itself — one real job at one client, however many adverts it wears.
