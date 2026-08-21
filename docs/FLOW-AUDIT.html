@@ -1,0 +1,585 @@
+<title>Where the Loops Break</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,400;100,500;100,600;100,700;112,800&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:#EFF1F1; --surface:#F9FBFB; --surface-2:#E4EAEA;
+    --ink:#0F1516; --ink-2:#465455; --ink-3:#78878A;
+    --rule:#CDD7D7; --rule-soft:#DEE5E5;
+    --ok:#2C6E49; --ok-bg:#DFEAE3;
+    --act:#B85A16; --act-bg:#F8EADD;
+    --bad:#9C3626; --bad-bg:#F5E2DE;
+    --sev1:#8E2B1C; --sev1-bg:#F4DED9;
+    --sev2:#8E6510; --sev2-bg:#F5EBD6;
+    --sev3:#4C5D5F; --sev3-bg:#E3E9E9;
+    --sans:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --serif:"Source Serif 4",Georgia,serif;
+    --mono:"IBM Plex Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0A0F10; --surface:#131A1B; --surface-2:#1E2728;
+      --ink:#E7EDED; --ink-2:#9FAFB0; --ink-3:#77878A;
+      --rule:#2B3536; --rule-soft:#212A2B;
+      --ok:#6BBF8E; --ok-bg:#18291F;
+      --act:#E38B4B; --act-bg:#33231A;
+      --bad:#E08065; --bad-bg:#2F1C17;
+      --sev1:#E68166; --sev1-bg:#331B16;
+      --sev2:#D6AA52; --sev2-bg:#2E2718;
+      --sev3:#93A3A5; --sev3-bg:#1E2728;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0A0F10; --surface:#131A1B; --surface-2:#1E2728;
+    --ink:#E7EDED; --ink-2:#9FAFB0; --ink-3:#77878A;
+    --rule:#2B3536; --rule-soft:#212A2B;
+    --ok:#6BBF8E; --ok-bg:#18291F;
+    --act:#E38B4B; --act-bg:#33231A;
+    --bad:#E08065; --bad-bg:#2F1C17;
+    --sev1:#E68166; --sev1-bg:#331B16;
+    --sev2:#D6AA52; --sev2-bg:#2E2718;
+    --sev3:#93A3A5; --sev3-bg:#1E2728;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--serif); font-size:1.09rem; line-height:1.58;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1180px; margin:0 auto; padding:0 24px 100px; }
+
+  .mast { padding:56px 0 0; max-width:64ch; }
+  .kicker {
+    font-family:var(--sans); font-size:0.74rem; font-weight:700;
+    letter-spacing:0.16em; text-transform:uppercase; color:var(--bad); margin:0 0 16px;
+  }
+  h1 {
+    font-family:var(--sans); font-variation-settings:"wdth" 112; font-weight:800;
+    font-size:3.2rem; line-height:0.98; letter-spacing:-0.03em; margin:0 0 18px;
+    max-width:15ch; text-wrap:balance;
+  }
+  .sub { font-size:1.3rem; line-height:1.42; color:var(--ink-2); max-width:48ch; margin:0 0 12px; }
+  .sub b { color:var(--ink); font-weight:600; font-family:var(--sans); }
+
+  section { padding-top:64px; }
+  .num {
+    font-family:var(--sans); font-variation-settings:"wdth" 112; font-weight:800;
+    font-size:2rem; line-height:1; color:var(--bad); margin:0 0 6px;
+  }
+  h2 {
+    font-family:var(--sans); font-weight:700; font-size:2.1rem; line-height:1.08;
+    letter-spacing:-0.025em; margin:0 0 18px; max-width:24ch; text-wrap:balance;
+  }
+  h3 { font-family:var(--sans); font-weight:700; font-size:1.26rem; margin:34px 0 10px; letter-spacing:-0.014em; }
+  p { margin:0 0 15px; max-width:46ch; }
+  .say { font-size:1.2rem; line-height:1.48; max-width:44ch; }
+  .say b { font-weight:600; }
+  code { font-family:var(--mono); font-size:0.86em; background:var(--surface-2); padding:0.1em 0.36em; border-radius:3px; }
+
+  .big {
+    font-family:var(--sans); font-weight:800; font-size:1.6rem; line-height:1.2;
+    color:var(--bad); max-width:30ch; margin:26px 0; letter-spacing:-0.02em;
+  }
+
+  /* what broken means */
+  .kinds { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:32px 0 0; }
+  .kind {
+    background:var(--surface); border:1px solid var(--rule-soft); border-radius:7px;
+    padding:16px 18px; border-top:3px solid var(--bad);
+  }
+  .kind h4 { font-family:var(--sans); font-size:1rem; font-weight:700; margin:0 0 6px; }
+  .kind p { font-size:0.94rem; color:var(--ink-2); margin:0; max-width:none; }
+
+  /* figures */
+  figure { margin:30px 0 0; max-width:1080px; }
+  .fig {
+    background:var(--surface); border:1px solid var(--rule-soft);
+    border-radius:6px; padding:24px 22px 16px; overflow-x:auto;
+  }
+  figure svg { display:block; width:100%; min-width:700px; height:auto; color:var(--ink-3); }
+  figcaption {
+    font-family:var(--sans); font-size:0.86rem; line-height:1.5;
+    color:var(--ink-3); margin-top:11px; max-width:68ch;
+  }
+  .b-box { fill:var(--surface); stroke:currentColor; stroke-width:1.4; }
+  .b-ok  { stroke:var(--ok); stroke-width:1.6; }
+  .b-hot { stroke:var(--act); stroke-width:2; }
+  .b-bad { stroke:var(--bad); stroke-width:2; }
+  .b-t   { font-family:"Archivo",sans-serif; font-size:12.5px; font-weight:600; fill:var(--ink); }
+  .b-sm  { font-family:"Archivo",sans-serif; font-size:11px; font-weight:500; fill:var(--ink); }
+  .b-l   { font-family:"IBM Plex Mono",monospace; font-size:11px; fill:currentColor; }
+  .b-cap { font-family:"Archivo",sans-serif; font-size:10.5px; font-weight:700; letter-spacing:0.13em; }
+  .b-arr { stroke:currentColor; stroke-width:1.4; fill:none; }
+  .b-arr-hot { stroke:var(--act); stroke-width:2; fill:none; }
+  .b-arr-bad { stroke:var(--bad); stroke-width:2; fill:none; stroke-dasharray:6 4; }
+  .t-bad { fill:var(--bad); } .t-act { fill:var(--act); } .t-ok { fill:var(--ok); }
+  .badge { fill:var(--bad); }
+  .badge-t { fill:var(--surface); font-family:"Archivo",sans-serif; font-size:11px; font-weight:800; }
+
+  /* scorecard */
+  .tw {
+    overflow-x:auto; margin:28px 0; border:1px solid var(--rule-soft);
+    border-radius:6px; background:var(--surface); max-width:1080px;
+  }
+  table { border-collapse:collapse; width:100%; min-width:760px; font-size:0.93rem; }
+  th {
+    font-family:var(--sans); font-size:0.65rem; font-weight:700; letter-spacing:0.11em;
+    text-transform:uppercase; text-align:left; color:var(--ink-3);
+    padding:11px 14px; border-bottom:1px solid var(--rule); white-space:nowrap;
+  }
+  td { padding:11px 14px; border-bottom:1px solid var(--rule-soft); vertical-align:top; line-height:1.42; }
+  tbody tr:last-child td { border-bottom:none; }
+  td.n { font-family:var(--mono); font-size:0.82rem; color:var(--ink-3); white-space:nowrap; }
+  td.k { font-family:var(--sans); font-weight:600; }
+  .sev {
+    font-family:var(--sans); font-size:0.63rem; font-weight:700; letter-spacing:0.07em;
+    text-transform:uppercase; padding:3px 8px; border-radius:3px; white-space:nowrap; display:inline-block;
+  }
+  .sev.a { background:var(--sev1-bg); color:var(--sev1); }
+  .sev.b { background:var(--sev2-bg); color:var(--sev2); }
+  .sev.c { background:var(--sev3-bg); color:var(--sev3); }
+
+  /* break cards */
+  .breaks { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:28px; }
+  .brk {
+    background:var(--surface); border:1px solid var(--rule); border-radius:7px;
+    padding:20px 22px; border-left:4px solid var(--bad);
+  }
+  .brk.b2 { border-left-color:var(--sev2); }
+  .brk.b3 { border-left-color:var(--sev3); }
+  .brk .no {
+    font-family:var(--mono); font-size:0.72rem; color:var(--ink-3); margin:0 0 5px;
+  }
+  .brk h4 { font-family:var(--sans); font-size:1.1rem; font-weight:700; margin:0 0 9px; letter-spacing:-0.012em; }
+  .brk p { font-size:0.98rem; margin:0 0 10px; max-width:none; color:var(--ink-2); }
+  .brk .fix {
+    font-family:var(--sans); font-size:0.94rem; line-height:1.45;
+    background:var(--ok-bg); color:var(--ok); border-radius:5px; padding:10px 12px; margin:0;
+  }
+  .brk .fix b { font-weight:700; }
+
+  .warn {
+    background:var(--surface); border:1px solid var(--rule);
+    border-left:4px solid var(--bad); border-radius:5px;
+    padding:20px 24px; margin:28px 0; max-width:52ch;
+  }
+  .warn.good { border-left-color:var(--ok); }
+  .warn p { margin:0; font-size:1.07rem; max-width:none; }
+  .warn p + p { margin-top:11px; }
+  .warn b { font-family:var(--sans); }
+
+  .first { max-width:1080px; margin:30px 0 0; }
+  .f-row {
+    display:grid; grid-template-columns:56px 1fr; gap:0 22px;
+    padding:22px 0; border-top:1px solid var(--rule);
+  }
+  .f-row:last-child { border-bottom:1px solid var(--rule); }
+  .f-n {
+    font-family:var(--sans); font-variation-settings:"wdth" 112; font-weight:800;
+    font-size:1.7rem; color:var(--bad); line-height:1;
+  }
+  .f-row h4 { font-family:var(--sans); font-size:1.2rem; font-weight:700; margin:-3px 0 7px; }
+  .f-row p { margin:0; max-width:58ch; font-size:1.02rem; }
+
+  footer {
+    margin-top:64px; padding-top:20px; border-top:1px solid var(--rule);
+    font-family:var(--mono); font-size:0.78rem; color:var(--ink-3);
+  }
+
+  @media (max-width:900px) {
+    .kinds { grid-template-columns:1fr 1fr; }
+    .breaks { grid-template-columns:1fr; }
+  }
+  @media (max-width:600px) {
+    h1 { font-size:2.2rem; } h2 { font-size:1.62rem; }
+    .sub { font-size:1.12rem; } .say { font-size:1.08rem; }
+    .kinds { grid-template-columns:1fr; }
+    .wrap { padding-left:18px; padding-right:18px; }
+    .f-row { grid-template-columns:1fr; gap:8px; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="kicker">Adversarial review of my own design</p>
+    <h1>Where the loops break</h1>
+    <p class="sub">I traced every flow in the build spec looking for loops that don't close. <b>Twelve are broken.</b> Three of them badly enough to matter before anyone writes code.</p>
+  </header>
+
+  <!-- 1 -->
+  <section>
+    <p class="num">1</p>
+    <h2>What "broken" means for a loop</h2>
+
+    <p class="say">A loop is broken when it cannot run a second time and come out better. Four ways that happens:</p>
+
+    <div class="kinds">
+      <div class="kind">
+        <h4>It never closes</h4>
+        <p>The feedback arrow is drawn but the data never actually arrives.</p>
+      </div>
+      <div class="kind">
+        <h4>It has a dead end</h4>
+        <p>Work reaches a human or a final state and nothing goes back.</p>
+      </div>
+      <div class="kind">
+        <h4>It collects rubbish</h4>
+        <p>No exit rule, so bad records accumulate and poison the numbers.</p>
+      </div>
+      <div class="kind">
+        <h4>It's a hope, not a mechanism</h4>
+        <p>The picture shows improvement. Nothing in the design causes it.</p>
+      </div>
+    </div>
+
+    <div class="warn">
+      <p><b>The fourth one is the dangerous kind</b> — and it is the one I got wrong in the most expensive place.</p>
+      <p>A drawn arrow feels like a solved problem. It isn't until something specific, scheduled and owned makes it move.</p>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section>
+    <p class="num">2</p>
+    <h2>All twelve, worst first</h2>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>#</th><th>Flow</th><th>What breaks</th><th>Severity</th></tr></thead>
+        <tbody>
+          <tr><td class="n">01</td><td class="k">Mix shift over 4 years</td><td>Nothing in the design actually makes the agent better. Improvement is assumed, not caused.</td><td><span class="sev a">Fatal</span></td></tr>
+          <tr><td class="n">02</td><td class="k">Outcome → learning</td><td>Clients often never say why. The arrow every learning loop depends on arrives less than half the time.</td><td><span class="sev a">Fatal</span></td></tr>
+          <tr><td class="n">03</td><td class="k">Five submissions a day</td><td>One number with no breakdown. When it stalls you cannot tell which stage is failing.</td><td><span class="sev a">Fatal</span></td></tr>
+          <tr><td class="n">04</td><td class="k">Escalation after 3 fixes</td><td>A person fixes it and nothing is recorded. The same failure returns next week.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">05</td><td class="k">Consultant freshness</td><td>Unconfirmed people never leave the bench. Idle-days inflates with ghosts.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">06</td><td class="k">Requirement changes</td><td>No flow handles rate, location or cancellation changing mid-flight. Scores silently go stale.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">07</td><td class="k">Requirement quality check</td><td>Asks a coordinator to fix a rate they have no authority to change. Override becomes reflex.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">08</td><td class="k">Human sample review</td><td>"Ten a week" with no rule for which ten. Rare failures never get sampled.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">09</td><td class="k">Consent — the NO branch</td><td>Design says what happens on YES. Says nothing at all on NO.</td><td><span class="sev c">Fixable</span></td></tr>
+          <tr><td class="n">10</td><td class="k">Deduplication</td><td>A human corrects a wrong merge and the rule never learns. Same false merge recurs.</td><td><span class="sev c">Fixable</span></td></tr>
+          <tr><td class="n">11</td><td class="k">Rate benchmark</td><td>Built from your own submissions, then used to judge client rates. Circular until volume is real.</td><td><span class="sev c">Fixable</span></td></tr>
+          <tr><td class="n">12</td><td class="k">Submission check</td><td>Confirms the CV says a thing, not that the thing is true. Catches sloppiness, never lying.</td><td><span class="sev c">Known limit</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section>
+    <p class="num">3</p>
+    <h2>The vendor loop, honestly drawn</h2>
+
+    <p class="say">Same flow as the build spec, with the breaks marked. Solid lines are real. <b>The dashed red one is the arrow I drew as if it were reliable.</b></p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 1000 470" role="img" aria-label="The vendor submission loop with three breaks marked. The outcome feedback arrow back to triage is dashed because it arrives less than half the time. The escalation path after three fix attempts ends in a dead stop with no cause recorded. The consultant freshness strip ends in an unconfirmed state with no archive rule.">
+          <defs>
+            <marker id="va" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="currentColor"/></marker>
+            <marker id="vh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--act)"/></marker>
+            <marker id="vb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--bad)"/></marker>
+          </defs>
+
+          <!-- main row -->
+          <rect class="b-box" x="14" y="86" width="112" height="54" rx="4"/>
+          <text class="b-t" x="70" y="110" text-anchor="middle">Requirement</text>
+          <text class="b-t" x="70" y="126" text-anchor="middle">arrives</text>
+
+          <rect class="b-box b-ok" x="166" y="86" width="112" height="54" rx="4"/>
+          <text class="b-t" x="222" y="118" text-anchor="middle">Triage</text>
+
+          <rect class="b-box b-ok" x="318" y="86" width="112" height="54" rx="4"/>
+          <text class="b-t" x="374" y="118" text-anchor="middle">Build package</text>
+
+          <rect class="b-box b-hot" x="470" y="86" width="112" height="54" rx="4"/>
+          <text class="b-t t-act" x="526" y="118" text-anchor="middle">Check</text>
+
+          <rect class="b-box b-ok" x="668" y="86" width="112" height="54" rx="4"/>
+          <text class="b-t" x="724" y="118" text-anchor="middle">Send</text>
+
+          <rect class="b-box" x="820" y="86" width="130" height="54" rx="4"/>
+          <text class="b-t" x="885" y="110" text-anchor="middle">Outcome</text>
+          <text class="b-sm" x="885" y="127" text-anchor="middle">hired? why not?</text>
+
+          <line class="b-arr" x1="126" y1="113" x2="162" y2="113" marker-end="url(#va)"/>
+          <line class="b-arr" x1="278" y1="113" x2="314" y2="113" marker-end="url(#va)"/>
+          <line class="b-arr" x1="430" y1="113" x2="466" y2="113" marker-end="url(#va)"/>
+          <line class="b-arr" x1="582" y1="113" x2="664" y2="113" marker-end="url(#va)"/>
+          <text class="b-l" x="623" y="105" text-anchor="middle">pass</text>
+          <line class="b-arr" x1="780" y1="113" x2="816" y2="113" marker-end="url(#va)"/>
+
+          <!-- fix loop: works -->
+          <path class="b-arr-hot" d="M 526 86 L 526 50 L 374 50 L 374 82" marker-end="url(#vh)"/>
+          <text class="b-l t-act" x="450" y="42" text-anchor="middle">fix · max 3 · this one works</text>
+
+          <!-- BREAK 4: escalation dead end -->
+          <path class="b-arr" d="M 526 140 L 526 176" marker-end="url(#va)"/>
+          <rect class="b-box b-bad" x="452" y="180" width="148" height="48" rx="4"/>
+          <text class="b-t" x="526" y="203" text-anchor="middle">A person fixes it</text>
+          <text class="b-sm" x="526" y="219" text-anchor="middle">by hand</text>
+          <path class="b-arr-bad" d="M 526 228 L 526 258" stroke-dasharray="0"/>
+          <line x1="498" y1="258" x2="554" y2="258" stroke="var(--bad)" stroke-width="3"/>
+          <text class="b-l t-bad" x="566" y="252">nothing recorded — same failure next week</text>
+          <circle class="badge" cx="614" cy="204" r="11"/>
+          <text class="badge-t" x="614" y="208" text-anchor="middle">04</text>
+
+          <!-- BREAK 2: outcome return -->
+          <path class="b-arr-bad" d="M 885 140 L 885 300 L 222 300 L 222 144" marker-end="url(#vb)"/>
+          <text class="b-l t-bad" x="553" y="292" text-anchor="middle">arrives less than half the time — every learning loop starves</text>
+          <circle class="badge" cx="885" cy="166" r="11"/>
+          <text class="badge-t" x="885" y="170" text-anchor="middle">02</text>
+
+          <!-- BREAK 5: consultant freshness -->
+          <text class="b-cap t-bad" x="14" y="352">CONSULTANT FRESHNESS — SEPARATE LOOP, SAME PROBLEM</text>
+          <rect class="b-box" x="14" y="366" width="110" height="44" rx="4"/>
+          <text class="b-sm" x="69" y="393" text-anchor="middle">Ping every 14d</text>
+          <rect class="b-box" x="164" y="366" width="110" height="44" rx="4"/>
+          <text class="b-sm" x="219" y="393" text-anchor="middle">No reply, twice</text>
+          <rect class="b-box b-bad" x="314" y="366" width="126" height="44" rx="4"/>
+          <text class="b-sm t-bad" x="377" y="393" text-anchor="middle">Marked unconfirmed</text>
+          <line class="b-arr" x1="124" y1="388" x2="160" y2="388" marker-end="url(#va)"/>
+          <line class="b-arr" x1="274" y1="388" x2="310" y2="388" marker-end="url(#va)"/>
+          <path class="b-arr-bad" d="M 440 388 L 478 388" stroke-dasharray="0"/>
+          <line x1="478" y1="368" x2="478" y2="408" stroke="var(--bad)" stroke-width="3"/>
+          <text class="b-l t-bad" x="492" y="384">no archive rule — they stay on the bench forever,</text>
+          <text class="b-l t-bad" x="492" y="399">inflating the one number the whole screen leads with</text>
+          <circle class="badge" cx="452" cy="358" r="11"/>
+          <text class="badge-t" x="452" y="362" text-anchor="middle">05</text>
+        </svg>
+      </div>
+      <figcaption>The orange fix loop is genuinely closed and works. Everything red is a place I drew an arrow that does not carry data, or a path that stops without feeding anything back.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 4 -->
+  <section>
+    <p class="num">4</p>
+    <h2>The worst one: improvement was never designed</h2>
+
+    <p class="say">The business plan says the agent share goes from 30% to 88% over four years. That single line carries the entire margin story — 45% gross margin becomes 84% because of it.</p>
+    <p class="say"><b>Nothing in the design makes it happen.</b></p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 1000 330" role="img" aria-label="What was drawn versus what actually exists. The drawn version shows failures leading to a coach, then to a better agent and a higher agent share. What exists stops at adding a test case, which measures the problem but does not fix it. The missing link between test cases and a better agent has no trigger, no owner and no schedule.">
+          <defs>
+            <marker id="ia" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="currentColor"/></marker>
+            <marker id="ib" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--bad)"/></marker>
+            <marker id="ig" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--ok)"/></marker>
+          </defs>
+
+          <text class="b-cap" x="14" y="26" fill="var(--ink-3)">WHAT I DREW</text>
+          <rect class="b-box" x="14" y="40" width="122" height="46" rx="4"/>
+          <text class="b-sm" x="75" y="68" text-anchor="middle">Something fails</text>
+          <rect class="b-box" x="176" y="40" width="122" height="46" rx="4"/>
+          <text class="b-sm" x="237" y="68" text-anchor="middle">A person coaches</text>
+          <rect class="b-box" x="338" y="40" width="122" height="46" rx="4"/>
+          <text class="b-sm" x="399" y="68" text-anchor="middle">Add a test case</text>
+          <rect class="b-box b-ok" x="500" y="40" width="122" height="46" rx="4"/>
+          <text class="b-sm t-ok" x="561" y="68" text-anchor="middle">Agent gets better</text>
+          <rect class="b-box b-ok" x="662" y="40" width="150" height="46" rx="4"/>
+          <text class="b-sm t-ok" x="737" y="62" text-anchor="middle">Agent share rises</text>
+          <text class="b-sm t-ok" x="737" y="78" text-anchor="middle">30% → 88%</text>
+
+          <line class="b-arr" x1="136" y1="63" x2="172" y2="63" marker-end="url(#ia)"/>
+          <line class="b-arr" x1="298" y1="63" x2="334" y2="63" marker-end="url(#ia)"/>
+          <line class="b-arr" x1="460" y1="63" x2="496" y2="63" marker-end="url(#ia)"/>
+          <line class="b-arr" x1="622" y1="63" x2="658" y2="63" marker-end="url(#ia)"/>
+
+          <line x1="14" y1="112" x2="986" y2="112" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+
+          <text class="b-cap t-bad" x="14" y="146">WHAT ACTUALLY EXISTS</text>
+          <rect class="b-box" x="14" y="160" width="122" height="46" rx="4"/>
+          <text class="b-sm" x="75" y="188" text-anchor="middle">Something fails</text>
+          <rect class="b-box" x="176" y="160" width="122" height="46" rx="4"/>
+          <text class="b-sm" x="237" y="188" text-anchor="middle">A person coaches</text>
+          <rect class="b-box" x="338" y="160" width="122" height="46" rx="4"/>
+          <text class="b-sm" x="399" y="188" text-anchor="middle">Add a test case</text>
+
+          <line class="b-arr" x1="136" y1="183" x2="172" y2="183" marker-end="url(#ia)"/>
+          <line class="b-arr" x1="298" y1="183" x2="334" y2="183" marker-end="url(#ia)"/>
+
+          <path class="b-arr-bad" d="M 460 183 L 496 183" stroke-dasharray="0"/>
+          <line x1="500" y1="160" x2="500" y2="206" stroke="var(--bad)" stroke-width="3"/>
+          <text class="b-l t-bad" x="516" y="176">a test case measures the problem.</text>
+          <text class="b-l t-bad" x="516" y="192">It does not fix it. Somebody has to change</text>
+          <text class="b-l t-bad" x="516" y="208">the prompt, the tools or the routing —</text>
+          <text class="b-l t-bad" x="516" y="224">and no trigger, owner or schedule says who.</text>
+
+          <line x1="14" y1="252" x2="986" y2="252" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+
+          <text class="b-cap t-ok" x="14" y="284">THE FIX — MAKE IT A SCHEDULED LOOP WITH A NAME ON IT</text>
+          <text class="b-l" x="14" y="306">Every Friday · take the top failure cause by volume · make one change · re-run the frozen eval set ·</text>
+          <text class="b-l" x="14" y="322">keep it if first-pass yield went up, revert if not · write the number down. One hour, one person, every week.</text>
+        </svg>
+      </div>
+      <figcaption>The gap between the two rows is the whole margin story. Adding test cases tells you how bad things are; it never makes them better. Until a named person changes something on a schedule and measures the result, the mix does not shift.</figcaption>
+    </figure>
+
+    <div class="big">A drawn arrow is not a mechanism. This one is worth four points of margin a year.</div>
+  </section>
+
+  <!-- 5 -->
+  <section>
+    <p class="num">5</p>
+    <h2>The metric can't tell you what's wrong</h2>
+
+    <p class="say">I told you to watch one number: good submissions per day, per requirement. Target five. That advice is right and the instrumentation behind it is useless.</p>
+    <p class="say">If it stalls at two, <b>five completely different things could be causing it</b> — and each needs an opposite fix.</p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 1000 300" role="img" aria-label="A funnel breaking the single metric into six stages: forty-one requirements arrive, twelve pass triage, nine have a bench match, seven get consultant consent, five pass the check, and two are sent. The biggest drop is at consent, showing that the bottleneck is consultants not replying rather than the agent scoring badly.">
+          <text class="b-cap t-ok" x="14" y="26">REPLACE ONE NUMBER WITH SIX — THE DROP TELLS YOU THE CAUSE</text>
+
+          <rect x="14" y="46" width="960" height="40" rx="4" fill="var(--ok)" opacity="0.72"/>
+          <text class="b-t" x="28" y="71" fill="var(--surface)">41</text>
+          <text class="b-sm" x="62" y="71" fill="var(--surface)">requirements arrived</text>
+
+          <rect x="14" y="94" width="281" height="40" rx="4" fill="var(--ok)" opacity="0.6"/>
+          <text class="b-t" x="28" y="119" fill="var(--surface)">12</text>
+          <text class="b-sm" x="62" y="119" fill="var(--surface)">passed triage</text>
+          <text class="b-l" x="307" y="119">29 skipped — are we too fussy, or is the bench wrong for this market?</text>
+
+          <rect x="14" y="142" width="211" height="40" rx="4" fill="var(--ok)" opacity="0.5"/>
+          <text class="b-t" x="28" y="167" fill="var(--surface)">9</text>
+          <text class="b-sm" x="56" y="167" fill="var(--surface)">had a bench match</text>
+          <text class="b-l" x="237" y="167">3 had nobody — a bench gap, not a software problem</text>
+
+          <rect x="14" y="190" width="164" height="40" rx="4" fill="var(--act)" opacity="0.85"/>
+          <text class="b-t" x="28" y="215" fill="var(--surface)">7</text>
+          <text class="b-sm" x="56" y="215" fill="var(--surface)">consent given</text>
+          <text class="b-l t-act" x="190" y="209">2 never replied — THE BIGGEST DROP. Fix the SMS,</text>
+          <text class="b-l t-act" x="190" y="224">not the scoring. You would never have seen this.</text>
+
+          <rect x="14" y="238" width="117" height="40" rx="4" fill="var(--bad)" opacity="0.8"/>
+          <text class="b-t" x="28" y="263" fill="var(--surface)">2</text>
+          <text class="b-sm" x="56" y="263" fill="var(--surface)">sent</text>
+          <text class="b-l" x="143" y="263">5 failed the check three times and escalated — check is too strict, or the packages are genuinely bad</text>
+        </svg>
+      </div>
+      <figcaption>Same headline number, six places it can fail. In this example the bottleneck is consultants not replying to a text — and no amount of work on the matching agent would have moved it.</figcaption>
+    </figure>
+
+    <div class="warn good">
+      <p><b>This is the cheapest fix on the page.</b></p>
+      <p>It is six counters on data you are already storing. Build it in week one and month three becomes a diagnosis instead of a guess.</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section>
+    <p class="num">6</p>
+    <h2>The other nine, with fixes</h2>
+
+    <div class="breaks">
+      <div class="brk">
+        <p class="no">Break 04 · serious</p>
+        <h4>Escalation is a dead end</h4>
+        <p>Three failed checks send it to a person. They fix it by hand and move on. Nothing records why it failed, so the identical failure arrives again next week — forever.</p>
+        <p class="fix"><b>Fix:</b> Every escalation must close with a cause from a short list. Causes aggregate. When one hits ten, it becomes a work item against the agent. That is the improvement loop from section 4, fed automatically.</p>
+      </div>
+
+      <div class="brk">
+        <p class="no">Break 05 · serious</p>
+        <h4>Ghosts never leave the bench</h4>
+        <p>Two pings, no reply, marked unconfirmed — and then nothing. After a year a large share of the bench is people who left the market, still counted in the idle-days number on the front screen.</p>
+        <p class="fix"><b>Fix:</b> Unconfirmed for 30 days raises one call task for a recruiter. Still nothing at 60 days, archive automatically and drop them from every count. One click restores them.</p>
+      </div>
+
+      <div class="brk">
+        <p class="no">Break 06 · serious</p>
+        <h4>Requirements change and nothing notices</h4>
+        <p>Rates move, locations change, roles get put on hold. Every flow assumes the requirement is frozen. Twenty scored submissions silently become wrong, and cancelled roles keep burning compute.</p>
+        <p class="fix"><b>Fix:</b> Version the requirement. Stamp every score with the version it was scored against. On change, re-score what is in flight and flag stale shortlists. On cancel, stop everything downstream immediately.</p>
+      </div>
+
+      <div class="brk">
+        <p class="no">Break 07 · serious</p>
+        <h4>The quality check asks the wrong person</h4>
+        <p>"Rate below market" is shown to whoever typed the requirement — usually a coordinator with no authority over pay. They cannot fix it, so they override. Within a month overriding is automatic and the check is theatre.</p>
+        <p class="fix"><b>Fix:</b> Route each problem to whoever can act on it — rate goes to the hiring manager with the market data attached. And watch the override rate: above half, the check is failing, not the user.</p>
+      </div>
+
+      <div class="brk">
+        <p class="no">Break 08 · serious</p>
+        <h4>Ten a week, but which ten?</h4>
+        <p>Left to a person, they will review the easy ones. Left to "most recent", you will never see the rare failures. Either way the agreement rate looks great and means nothing.</p>
+        <p class="fix"><b>Fix:</b> Assign the sample, never let it be chosen. Mix it: some random, some from the 70–80 score band where errors cluster, some shortlisted, and every case where the rules and the model disagreed.</p>
+      </div>
+
+      <div class="brk b3">
+        <p class="no">Break 09 · fixable</p>
+        <h4>Nobody designed the word "no"</h4>
+        <p>The consent text asks yes or no. The spec only says what happens on yes. A no leaves the submission in limbo and throws away the most valuable reply of all — "someone already put me forward there".</p>
+        <p class="fix"><b>Fix:</b> No cancels the submission, tells the recruiter, and asks one follow-up: already submitted, rate too low, or not interested. That third answer is free deduplication and free market data.</p>
+      </div>
+
+      <div class="brk b3">
+        <p class="no">Break 10 · fixable</p>
+        <h4>Dedup never learns</h4>
+        <p>A person judges "not the same person" in the check queue. The verdict corrects that one record and vanishes. The rule that made the mistake is unchanged, so it makes it again.</p>
+        <p class="fix"><b>Fix:</b> Same shape as break 04 — the human verdict is training data, not just a correction. Feed disagreements back into the matching thresholds monthly.</p>
+      </div>
+
+      <div class="brk b3">
+        <p class="no">Break 11 · fixable</p>
+        <h4>The benchmark judges itself</h4>
+        <p>Market rates are built from your own submissions, then used to tell clients their rate is below market. Early on your bench <em>is</em> the sample, so an expensive bench makes every client look underpriced.</p>
+        <p class="fix"><b>Fix:</b> Do not use the benchmark below a minimum sample per skill and city, and show the sample size beside every figure. Sanity-check the first year against published survey data.</p>
+      </div>
+
+      <div class="brk b3">
+        <p class="no">Break 12 · known limit</p>
+        <h4>The check cannot catch a liar</h4>
+        <p>It confirms the CV says seven years of Spring Boot. It cannot confirm the seven years happened. A well-written fake passes every check cleanly.</p>
+        <p class="fix"><b>Fix:</b> None available, and pretending otherwise is worse than admitting it. The check catches sloppiness; interviews catch lying. Never sell it as fraud detection — that promise is the one that ends the relationship.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section>
+    <p class="num">7</p>
+    <h2>Fix these three before any code</h2>
+
+    <p class="say">The other nine can be fixed as you go. These three change what you build.</p>
+
+    <div class="first">
+      <div class="f-row">
+        <div class="f-n">01</div>
+        <div>
+          <h4>Put a name and a Friday on the improvement loop</h4>
+          <p>One person, one hour a week, one change, measured against a frozen eval set, kept or reverted on the number. Without this the margin curve in the business plan is decoration and year four looks like year one.</p>
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-n">02</div>
+        <div>
+          <h4>Assume outcomes will not arrive, and infer them</h4>
+          <p>Treat silence as a label, not missing data. "Not viewed in 14 days" and "requirement closed with nobody hired" are both real signals. Design for them now — retrofitting inferred outcomes into a schema that assumed clean feedback is a rewrite.</p>
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-n">03</div>
+        <div>
+          <h4>Build the funnel, not the number</h4>
+          <p>Six counters instead of one. It is a day of work on data you already have, and it is the difference between diagnosing month three and guessing at it.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="warn">
+      <p><b>What this review does not change.</b></p>
+      <p>The shape is still right. The submission check loop, the screening check loop and the human sample are sound, and they are the parts that make this different from an ATS.</p>
+      <p>What is wrong is that I drew several arrows as though drawing them made them work. Six of the twelve breaks are the same mistake: <b>a loop that ends at a human and stops there.</b> Every one of those needs the human's verdict to become an input.</p>
+    </div>
+  </section>
+
+  <footer>Flow audit · twelve breaks found across the vendor, client and business loops</footer>
+</div>
