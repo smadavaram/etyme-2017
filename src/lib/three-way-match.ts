@@ -27,6 +27,7 @@ export type MatchCode =
   | 'PRICE'         // billed rate equals the contracted rate
   | 'EXTENSION'     // hours × rate equals the line amount
   | 'DUPLICATE'     // no timesheet billed more than once
+  | 'PERIOD'        // the work was done in the period being billed
   | 'HEADER_TOTAL'  // the invoice header equals the sum of its lines
   | 'PO_REQUIRED'   // an invoice against a PO-mandated contract has one
   | 'PO_STATUS'     // the PO is open and covers the period
@@ -51,6 +52,11 @@ export const OVERRIDABLE: Record<MatchCode, boolean> = {
   EXTENSION: false,    // arithmetic is not an opinion
   HEADER_TOTAL: false, // nor is addition
   QUANTITY: true,      // hours under query
+  // A timesheet approved after the cut-off is legitimately billed on the
+  // next invoice, which is a commercial variance AP resolves daily rather
+  // than an arithmetic fault. The reason says how far out it is, so
+  // somebody can tell a late timesheet from a mistake.
+  PERIOD: true,
   // Not waivable. A rate that has genuinely changed is a contract
   // amendment, effective from the day it changed and approved by somebody
   // with authority (src/lib/contract-rate.ts). Waiving it here would record
@@ -97,6 +103,17 @@ export interface TimesheetFacts {
   approvedHours: number
   /** The rate on the contract this timesheet belongs to. */
   contractRateCents: number
+  /**
+   * When the work was actually done.
+   *
+   * The engine had every other fact about a timesheet and not this one, so
+   * an August invoice could carry a July timesheet and pass every check.
+   * The hours were approved, they matched, the rate was right, the
+   * arithmetic added up and nothing was billed twice — and the work was
+   * done in a month nobody was billing for.
+   */
+  periodStart: Date
+  periodEnd: Date
   /** True when some other invoice already has a line for this timesheet. */
   alreadyBilledOnInvoiceId?: string | null
 }
@@ -152,6 +169,10 @@ const EXTENSION_TOLERANCE_CENTS = 1
 /** Hours are recorded to two decimals; compare at that precision. */
 function hoursEqual(a: number, b: number): boolean {
   return Math.abs(a - b) < 0.005
+}
+
+function day(d: Date): string {
+  return d.toISOString().slice(0, 10)
 }
 
 function money(cents: number): string {
@@ -218,6 +239,49 @@ export function threeWayMatch(input: MatchInput): MatchResult {
           : `${billedElsewhere.length} timesheet(s) were already billed on another invoice`,
         lines: billedElsewhere.map(l => l.id),
       })
+
+  // ── PERIOD — was the work done in the period being billed? ──
+  //
+  // Overlap, not containment. A weekly timesheet running Monday 27 July to
+  // Sunday 2 August is ordinary and correct on an August invoice, and a
+  // check that failed it would be switched off by the second month. What
+  // is wrong is work that falls entirely outside the period — that is
+  // revenue in the wrong month, and a purchase order paying for work it
+  // never covered.
+  const outsidePeriod = lines.filter(l => {
+    const ts = l.timesheetId ? timesheets[l.timesheetId] : null
+    if (!ts) return false // RECEIPT already said this line has no witness
+    return ts.periodEnd < invoice.periodStart || ts.periodStart > invoice.periodEnd
+  })
+
+  const straddling = lines.filter(l => {
+    const ts = l.timesheetId ? timesheets[l.timesheetId] : null
+    if (!ts) return false
+    if (ts.periodEnd < invoice.periodStart || ts.periodStart > invoice.periodEnd) return false
+    return ts.periodStart < invoice.periodStart || ts.periodEnd > invoice.periodEnd
+  })
+
+  // Nothing to say where no line has a timesheet behind it. RECEIPT has
+  // already failed and a second failure about the same absence is noise.
+  if (lines.some(l => l.timesheetId && timesheets[l.timesheetId])) {
+    checks.push(outsidePeriod.length === 0
+      ? {
+          code: 'PERIOD',
+          outcome: 'PASS',
+          reason: straddling.length > 0
+            ? `Work falls in this period, with ${straddling.length} timesheet(s) that straddle the boundary`
+            : 'All work was done in the period being billed',
+        }
+      : {
+          code: 'PERIOD',
+          outcome: 'FAIL',
+          reason: outsidePeriod.map(l => {
+            const ts = timesheets[l.timesheetId!]
+            return `${l.personName}: worked ${day(ts.periodStart)} to ${day(ts.periodEnd)}, billed on a ${day(invoice.periodStart)}–${day(invoice.periodEnd)} invoice`
+          }).join('; '),
+          lines: outsidePeriod.map(l => l.id),
+        })
+  }
 
   // ── QUANTITY — do billed hours equal approved hours? ──
   const wrongHours = lines.filter(l => {
@@ -290,18 +354,46 @@ export function threeWayMatch(input: MatchInput): MatchResult {
   } else {
     checks.push({ code: 'PO_REQUIRED', outcome: 'PASS', reason: `Raised against PO ${po.number}` })
 
-    // PO_STATUS — open, and covering the period being billed.
+    // PO_STATUS — open, and covering the work, not just the header.
+    //
+    // This compared the invoice's own period to the PO. An invoice headed
+    // August against a PO starting in August passed, while the work being
+    // billed was done in July and nobody had authorised it — the same hole
+    // as PERIOD, from the other side.
+    //
+    // A purchase order authorises spend over a window. What matters is
+    // when the work was done, so the window is tested against the earliest
+    // and latest work on the invoice, and falls back to the header period
+    // only where no line has a timesheet behind it to ask.
+    const worked = lines
+      .map(l => (l.timesheetId ? timesheets[l.timesheetId] : null))
+      .filter((ts): ts is TimesheetFacts => ts != null)
+
+    const firstDay = worked.length
+      ? new Date(Math.min(...worked.map(ts => ts.periodStart.getTime())))
+      : invoice.periodStart
+    const lastDay = worked.length
+      ? new Date(Math.max(...worked.map(ts => ts.periodEnd.getTime())))
+      : invoice.periodEnd
+
     const open = po.status === 'OPEN'
-    const coversStart = invoice.periodStart >= po.startDate
-    const coversEnd = po.endDate === null || invoice.periodEnd <= po.endDate
+    const coversStart = firstDay >= po.startDate
+    const coversEnd = po.endDate === null || lastDay <= po.endDate
+
     checks.push(open && coversStart && coversEnd
-      ? { code: 'PO_STATUS', outcome: 'PASS', reason: `PO ${po.number} is open and covers this period` }
+      ? {
+          code: 'PO_STATUS',
+          outcome: 'PASS',
+          reason: `PO ${po.number} is open and covers the work from ${day(firstDay)} to ${day(lastDay)}`,
+        }
       : {
           code: 'PO_STATUS',
           outcome: 'FAIL',
           reason: !open
             ? `PO ${po.number} is ${po.status.toLowerCase()}`
-            : `PO ${po.number} does not cover ${invoice.periodStart.toISOString().slice(0, 10)} to ${invoice.periodEnd.toISOString().slice(0, 10)}`,
+            : !coversStart
+              ? `Work starts ${day(firstDay)}, before PO ${po.number} opens on ${day(po.startDate)}`
+              : `Work runs to ${day(lastDay)}, past PO ${po.number} ending ${day(po.endDate!)}`,
         })
 
     // PO_BALANCE — is there room left?

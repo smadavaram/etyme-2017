@@ -30,6 +30,14 @@ import { assessAward } from '@/lib/award'
 import { threeWayMatch } from '@/lib/three-way-match'
 import { rateInForce, assessRateChange } from '@/lib/contract-rate'
 
+// When the work was done, per billing period. Inside the period each case
+// bills — the wrong-period cases live in invoice-period.test.ts, and a
+// single shared pair here quietly billed October work in August.
+const OCT_FROM = new Date('2026-10-05T00:00:00Z')
+const OCT_TO = new Date('2026-10-11T00:00:00Z')
+const NOV_FROM = new Date('2026-11-02T00:00:00Z')
+const NOV_TO = new Date('2026-11-08T00:00:00Z')
+
 // ── The engagement this file walks ─────────────────────────
 // Terumo BCT needs two SAP MM analysts in Lakewood at up to $130/hr.
 
@@ -261,7 +269,7 @@ describe('5 · They work, and the invoice must match the hours approved', () => 
   it('hours a manager approved, at the contracted rate, are paid', () => {
     const m = threeWayMatch({
       invoice, lines, po, poRequired: true,
-      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 11_200 } },
+      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 11_200, periodStart: OCT_FROM, periodEnd: OCT_TO } },
     })
     expect(m.matched).toBe(true)
     expect(m.cleanMatch).toBe(true)
@@ -270,7 +278,7 @@ describe('5 · They work, and the invoice must match the hours approved', () => 
   it('hours nobody approved are not paid', () => {
     const m = threeWayMatch({
       invoice, lines, po, poRequired: true,
-      timesheets: { ts1: { id: 'ts1', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 11_200 } },
+      timesheets: { ts1: { id: 'ts1', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 11_200, periodStart: OCT_FROM, periodEnd: OCT_TO } },
     })
     expect(m.matched).toBe(false)
   })
@@ -280,7 +288,7 @@ describe('5 · They work, and the invoice must match the hours approved', () => 
       invoice: { ...invoice, totalCents: 1_120_000 },
       lines: [{ ...lines[0], hours: 100, amountCents: 1_120_000 }],
       po, poRequired: true,
-      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 11_200 } },
+      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 11_200, periodStart: OCT_FROM, periodEnd: OCT_TO } },
     })
     expect(m.checks.find(c => c.code === 'QUANTITY')?.reason).toContain('billed 100h, approved 80h')
   })
@@ -288,7 +296,7 @@ describe('5 · They work, and the invoice must match the hours approved', () => 
   it('the same week cannot be billed twice, and nobody can wave that through', () => {
     const m = threeWayMatch({
       invoice, lines, po, poRequired: true,
-      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 11_200, alreadyBilledOnInvoiceId: 'inv-000' } },
+      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 11_200, periodStart: OCT_FROM, periodEnd: OCT_TO, alreadyBilledOnInvoiceId: 'inv-000' } },
       overrides: [{ code: 'DUPLICATE', reason: 'client says it is fine', byName: 'Anyone', at: new Date() }],
     })
     expect(m.matched).toBe(false)
@@ -297,7 +305,7 @@ describe('5 · They work, and the invoice must match the hours approved', () => 
   it('an invoice with no purchase order behind it is not paid', () => {
     const m = threeWayMatch({
       invoice, lines, po: null, poRequired: true,
-      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 11_200 } },
+      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 11_200, periodStart: OCT_FROM, periodEnd: OCT_TO } },
     })
     expect(m.matched).toBe(false)
   })
@@ -307,7 +315,7 @@ describe('5 · They work, and the invoice must match the hours approved', () => 
       invoice: { ...invoice, totalCents: 1_120_000 },
       lines: [{ ...lines[0], hours: 100, amountCents: 1_120_000 }],
       po, poRequired: true,
-      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 11_200 } },
+      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 11_200, periodStart: OCT_FROM, periodEnd: OCT_TO } },
       overrides: [{ code: 'QUANTITY', reason: 'Twenty hours under query with the manager', byName: 'Joyce Mbeki', at: new Date() }],
     })
     expect(m.matched).toBe(true)
@@ -355,7 +363,7 @@ describe('6 · A rate that really changed is amended, never waived', () => {
         periodEnd: new Date('2026-11-15T00:00:00Z'),
       },
       lines: [{ id: 'l1', timesheetId: 'ts2', personName: 'Vikram Reddy', hours: 80, rateCents: 14_000, amountCents: 1_120_000 }],
-      timesheets: { ts2: { id: 'ts2', status: 'APPROVED', approvedHours: 80, contractRateCents: 14_000 } },
+      timesheets: { ts2: { id: 'ts2', status: 'APPROVED', approvedHours: 80, contractRateCents: 14_000, periodStart: NOV_FROM, periodEnd: NOV_TO } },
       po: {
         id: 'po1', number: 'TBC-PO-4471', status: 'OPEN',
         amountCents: 5_000_000, consumedCents: 896_000,

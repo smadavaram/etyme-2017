@@ -16,6 +16,12 @@ import { threeWayMatch, decimalToCents, type MatchInput } from '@/lib/three-way-
 const PERIOD_START = new Date('2026-08-01T00:00:00Z')
 const PERIOD_END = new Date('2026-08-15T00:00:00Z')
 
+// When the work was actually done. Inside the billed period, which is the
+// ordinary case — invoice-period.test.ts is where the wrong-period cases
+// live.
+const WORKED_FROM = new Date('2026-08-03T00:00:00Z')
+const WORKED_TO = new Date('2026-08-14T00:00:00Z')
+
 /** A clean invoice: 80 hours at $130/hr against a $50,000 PO. */
 function clean(overrides: Partial<MatchInput> = {}): MatchInput {
   return {
@@ -25,7 +31,7 @@ function clean(overrides: Partial<MatchInput> = {}): MatchInput {
       hours: 80, rateCents: 13_000, amountCents: 1_040_000,
     }],
     timesheets: {
-      ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000 },
+      ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000, periodStart: WORKED_FROM, periodEnd: WORKED_TO },
     },
     po: {
       id: 'po1', number: 'TBC-PO-4471', status: 'OPEN',
@@ -77,7 +83,7 @@ describe('Nobody is paid for hours nobody approved', () => {
 
   it('a timesheet still awaiting approval is not a receipt', () => {
     const r = threeWayMatch(clean({
-      timesheets: { ts1: { id: 'ts1', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 13_000 } },
+      timesheets: { ts1: { id: 'ts1', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 13_000, periodStart: WORKED_FROM, periodEnd: WORKED_TO } },
     }))
     expect(r.matched).toBe(false)
     expect(failed(r, 'RECEIPT')).toBeDefined()
@@ -85,7 +91,7 @@ describe('Nobody is paid for hours nobody approved', () => {
 
   it('a rejected timesheet is not a receipt either', () => {
     const r = threeWayMatch(clean({
-      timesheets: { ts1: { id: 'ts1', status: 'REJECTED', approvedHours: 0, contractRateCents: 13_000 } },
+      timesheets: { ts1: { id: 'ts1', status: 'REJECTED', approvedHours: 0, contractRateCents: 13_000, periodStart: WORKED_FROM, periodEnd: WORKED_TO } },
     }))
     expect(r.matched).toBe(false)
   })
@@ -98,8 +104,8 @@ describe('Nobody is paid for hours nobody approved', () => {
         { id: 'l2', timesheetId: 'ts2', personName: 'Marcus Webb', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
       ],
       timesheets: {
-        ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000 },
-        ts2: { id: 'ts2', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 13_000 },
+        ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000, periodStart: WORKED_FROM, periodEnd: WORKED_TO },
+        ts2: { id: 'ts2', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 13_000, periodStart: WORKED_FROM, periodEnd: WORKED_TO },
       },
     }))
     expect(failed(r, 'RECEIPT')?.reason).toContain('1 of 2 lines')
@@ -131,7 +137,7 @@ describe('The same work is never billed twice', () => {
   it('a timesheet already billed on another invoice fails', () => {
     const r = threeWayMatch(clean({
       timesheets: {
-        ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000,
+        ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000, periodStart: WORKED_FROM, periodEnd: WORKED_TO,
                alreadyBilledOnInvoiceId: 'inv-earlier' },
       },
     }))
@@ -143,7 +149,7 @@ describe('The same work is never billed twice', () => {
     // Re-running the match on an existing invoice must not accuse itself.
     const r = threeWayMatch(clean({
       timesheets: {
-        ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000,
+        ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000, periodStart: WORKED_FROM, periodEnd: WORKED_TO,
                alreadyBilledOnInvoiceId: 'inv1' },
       },
     }))
@@ -210,7 +216,7 @@ describe('The arithmetic has to hold', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 97_731, periodStart: PERIOD_START, periodEnd: PERIOD_END },
       lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 7.33, rateCents: 13_333, amountCents: 97_731 }],
-      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 7.33, contractRateCents: 13_333 } },
+      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 7.33, contractRateCents: 13_333, periodStart: WORKED_FROM, periodEnd: WORKED_TO } },
     }))
     expect(r.matched).toBe(true)
   })
@@ -219,7 +225,7 @@ describe('The arithmetic has to hold', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 97_733, periodStart: PERIOD_START, periodEnd: PERIOD_END },
       lines: [{ id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 7.33, rateCents: 13_333, amountCents: 97_733 }],
-      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 7.33, contractRateCents: 13_333 } },
+      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 7.33, contractRateCents: 13_333, periodStart: WORKED_FROM, periodEnd: WORKED_TO } },
     }))
     expect(failed(r, 'EXTENSION')).toBeDefined()
   })
@@ -283,7 +289,12 @@ describe('A purchase order is a ceiling, and it is enforced', () => {
       },
     }))
     expect(r.matched).toBe(false)
-    expect(failed(r, 'PO_STATUS')?.reason).toContain('does not cover')
+    // Names which end is wrong and both dates. "Does not cover 1 Aug to
+    // 15 Aug" left an AP clerk to work out whether the PO started too
+    // late or ended too early, on a screen that had the answer.
+    expect(failed(r, 'PO_STATUS')?.reason).toBe(
+      'Work runs to 2026-08-14, past PO TBC-PO-4471 ending 2026-07-31'
+    )
   })
 
   it('an open-ended purchase order covers any period after it starts', () => {
@@ -317,7 +328,7 @@ describe('A failed match explains itself to whoever has to fix it', () => {
   it('several failures are counted, with the first one named', () => {
     const r = threeWayMatch(clean({
       invoice: { id: 'inv1', totalCents: 9_999_999, periodStart: PERIOD_START, periodEnd: PERIOD_END },
-      timesheets: { ts1: { id: 'ts1', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 13_000 } },
+      timesheets: { ts1: { id: 'ts1', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 13_000, periodStart: WORKED_FROM, periodEnd: WORKED_TO } },
     }))
     expect(r.summary).toMatch(/^\d+ checks failed/)
   })
@@ -414,7 +425,7 @@ describe('An AP clerk can resolve a variance, but not invent one', () => {
 
   it('paying twice for the same work cannot be waived by anyone', () => {
     const r = threeWayMatch(clean({
-      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000,
+      timesheets: { ts1: { id: 'ts1', status: 'APPROVED', approvedHours: 80, contractRateCents: 13_000, periodStart: WORKED_FROM, periodEnd: WORKED_TO,
                            alreadyBilledOnInvoiceId: 'inv-earlier' } },
       overrides: waiver('DUPLICATE', 'Client said it is fine'),
     }))
@@ -424,7 +435,7 @@ describe('An AP clerk can resolve a variance, but not invent one', () => {
 
   it('hours nobody approved cannot be waived', () => {
     const r = threeWayMatch(clean({
-      timesheets: { ts1: { id: 'ts1', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 13_000 } },
+      timesheets: { ts1: { id: 'ts1', status: 'SUBMITTED', approvedHours: 80, contractRateCents: 13_000, periodStart: WORKED_FROM, periodEnd: WORKED_TO } },
       overrides: waiver('RECEIPT', 'Manager is on leave, we know it is right'),
     }))
     expect(r.matched).toBe(false)

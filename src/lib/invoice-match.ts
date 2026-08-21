@@ -19,7 +19,10 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
           person: { select: { name: true } },
           timesheet: {
             select: {
-              id: true, status: true, totalHours: true, periodStart: true,
+              id: true, status: true, totalHours: true,
+              // Both ends. The engine needs to know when the work was
+              // done, not just when to price it from.
+              periodStart: true, periodEnd: true,
               sellContractId: true,
               sellContract: { select: { billRate: true } },
             },
@@ -99,6 +102,8 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
             id: l.timesheet.id,
             status: l.timesheet.status,
             approvedHours: Number(l.timesheet.totalHours),
+            periodStart: l.timesheet.periodStart,
+            periodEnd: l.timesheet.periodEnd,
             // Resolved as of the work period, not "whatever the contract
             // says today" — otherwise amending a rate retroactively breaks
             // every invoice already paid.

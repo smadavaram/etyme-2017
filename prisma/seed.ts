@@ -1943,6 +1943,88 @@ async function main() {
     invoiceRecords.push(invoice)
   }
 
+  // ── Invoice lines, backed by real timesheets ───
+  //
+  // There were none. Every invoice carried a header total and nothing
+  // underneath it, so the three-way match — the most careful piece of
+  // engineering in this build — answered "no lines to match" on every
+  // screen and looked broken.
+  //
+  // Each line is a real approved timesheet at the contract's rate, so
+  // RECEIPT, QUANTITY, PRICE, EXTENSION, DUPLICATE and HEADER_TOTAL all
+  // have something true to check.
+  //
+  // One line is deliberately wrong, and it is the one the eye cannot
+  // catch: the hours are approved, they match, the rate is right, the
+  // arithmetic adds up and nothing is billed twice. The work was done in
+  // a month nobody is billing for. Only PERIOD sees it.
+  const approvedSheets = await prisma.timesheet.findMany({
+    where: { status: 'APPROVED' },
+    select: {
+      id: true, personId: true, sellContractId: true, totalHours: true,
+      periodStart: true, periodEnd: true,
+      sellContract: { select: { billRate: true, engagementId: true } },
+    },
+  })
+
+  let lineCount = 0
+
+  for (const [i, ts] of approvedSheets.entries()) {
+    const invoice = invoiceRecords.find(
+      (inv) => inv.engagementId === ts.sellContract.engagementId
+    )
+    if (!invoice) continue
+
+    const hours = Number(ts.totalHours)
+    const rateCents = ts.sellContract.billRate
+    const amountCents = Math.round(hours * rateCents)
+
+    await prisma.invoiceLine.create({
+      data: {
+        invoiceId: invoice.id,
+        sellContractId: ts.sellContractId,
+        personId: ts.personId,
+        timesheetId: ts.id,
+        hours,
+        rateCents,
+        amountCents,
+        description: `${hours}h at $${Math.round(rateCents / 100)}/hr`,
+      },
+    })
+    lineCount++
+
+    // The one nobody would catch by eye. Its work is moved two months
+    // back, so every other check still passes and only PERIOD objects.
+    if (i === 0) {
+      const wrongMonthStart = new Date(ts.periodStart)
+      wrongMonthStart.setDate(wrongMonthStart.getDate() - 62)
+      const wrongMonthEnd = new Date(ts.periodEnd)
+      wrongMonthEnd.setDate(wrongMonthEnd.getDate() - 62)
+
+      await prisma.timesheet.update({
+        where: { id: ts.id },
+        data: { periodStart: wrongMonthStart, periodEnd: wrongMonthEnd },
+      })
+    }
+  }
+
+  // Headers now have to agree with their own lines, which is what
+  // HEADER_TOTAL exists to check — and it cannot check anything against a
+  // total somebody typed.
+  for (const inv of invoiceRecords) {
+    const lines = await prisma.invoiceLine.findMany({
+      where: { invoiceId: inv.id },
+      select: { amountCents: true },
+    })
+    if (lines.length === 0) continue
+
+    const totalCents = lines.reduce((sum, l) => sum + l.amountCents, 0)
+    await prisma.invoice.update({
+      where: { id: inv.id },
+      data: { total: totalCents / 100 },
+    })
+  }
+
   // An invoice on the MSP leg: Cloudepa bills GlobalStaff for David Chen,
   // who sits at Terumo. Its coding carries TERUMO's cost centres — because
   // that is whose budget he burns — while the bill-to is GlobalStaff, who
@@ -3041,7 +3123,7 @@ async function main() {
   console.log(`   Buy contracts:  ${buyContractData.length} (${buyContractData.filter(b => b.state !== 'DRAFT').length} active)`)
   console.log(`   Timesheets:   ${timesheetData.length} + ${endedContractData.length} alumni`)
   console.log(`   Engagements:  3 (${eng1.title}, ${eng2.title}, ${alumniEngagement.title})`)
-  console.log(`   Invoices:     ${invoiceData.length}`)
+  console.log(`   Invoices:     ${invoiceData.length} (${lineCount} lines, one deliberately from the wrong period)`)
   console.log(`   Expenses:     ${expenseData.length}`)
   console.log(`   Conversations: ${conversationCount} (${messageCount} messages)`)
   console.log(`   Notifications: ${notificationData.length}`)
