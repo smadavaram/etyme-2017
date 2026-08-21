@@ -27,6 +27,10 @@ async function main() {
 
   // Clean slate
   await prisma.$transaction([
+    // The ledger and the checks clear first: a Check points at a run, and
+    // a run points at a company.
+    prisma.check.deleteMany(),
+    prisma.agentRun.deleteMany(),
     prisma.governanceEvaluation.deleteMany(),
     // Shares reference both the person who made them and the person they
     // are about, so they clear before anybody does.
@@ -1012,6 +1016,185 @@ async function main() {
       },
     })
   }
+
+  // ── The ledger, and what a person made of it ───
+  //
+  // What every agent did and what it cost, plus the sample a human has
+  // been through. Seeded because the check queue is the one screen that
+  // means nothing empty — an empty queue reads as "nothing to worry
+  // about", which is the exact false comfort it exists to prevent.
+  //
+  // The numbers are the shape a real week has: the rules do most of the
+  // work for nothing, the model is called once per submission, and the
+  // person disagrees with roughly one in six.
+  const submissionsForChecks = await prisma.submission.findMany({
+    where: { fromCompanyId: vendor.id },
+    select: { id: true, requirementId: true },
+    take: 6,
+  })
+
+  const ledgerRows: any[] = []
+  const checkRows: any[] = []
+
+  for (const [i, sub] of submissionsForChecks.entries()) {
+    const at = new Date(now)
+    at.setDate(at.getDate() - (i % 5))
+
+    // The sift: two hundred considered, fifteen scored, nothing paid for.
+    ledgerRows.push({
+      companyId: vendor.id,
+      agent: 'match.sift',
+      recordType: 'REQUIREMENT',
+      recordId: sub.requirementId,
+      verdict: 'PASS',
+      ms: 12,
+      costMicros: 0,
+      consideredCount: 40,
+      scoredCount: 15,
+      at,
+    })
+
+    // The scoring call itself.
+    ledgerRows.push({
+      companyId: vendor.id,
+      agent: 'match.score',
+      recordType: 'REQUIREMENT',
+      recordId: sub.requirementId,
+      verdict: 'PASS',
+      model: 'claude-opus-5',
+      inputTokens: 4200,
+      outputTokens: 900,
+      cacheReadTokens: i === 0 ? 0 : 3800,
+      costMicros: i === 0 ? 43_500 : 25_400,
+      ms: 2100 + i * 90,
+      consideredCount: 40,
+      scoredCount: 15,
+      at,
+    })
+
+    // The rule checks on the package. Free, and a row all the same.
+    ledgerRows.push({
+      companyId: vendor.id,
+      agent: 'submission.check.rules',
+      recordType: 'SUBMISSION',
+      recordId: sub.id,
+      verdict: i % 3 === 0 ? 'FAIL' : 'PASS',
+      ms: 1,
+      costMicros: 0,
+      at,
+    })
+  }
+
+  const runs = await prisma.agentRun.createManyAndReturn({ data: ledgerRows })
+
+  // The one model judgement, and its verdict, per submission.
+  const evidence = [
+    {
+      verdict: 'PASS',
+      reason: 'All 3 claimed skills are in the CV.',
+      evidence: 'SAP BRIM: "six years across three S/4HANA rollouts" · Revenue Accounting: "led the revenue accounting workstream"',
+      agreed: true,
+      note: null,
+    },
+    {
+      verdict: 'FAIL',
+      reason: 'Kubernetes is claimed but not in the CV. Either take the claim off or update the CV.',
+      evidence: 'Java: "eight years of Java"',
+      agreed: true,
+      note: null,
+    },
+    {
+      verdict: 'PASS',
+      reason: 'All 2 claimed skills are in the CV.',
+      evidence: 'Workday: "Workday HCM configuration" · Integrations: "built the payroll integration"',
+      agreed: false,
+      note: 'It read "payroll integration" as evidence of integration platform work. Different thing.',
+    },
+    {
+      verdict: 'PASS',
+      reason: 'All 4 claimed skills are in the CV.',
+      evidence: 'ServiceNow: "ServiceNow ITSM implementation"',
+      agreed: null,
+      note: null,
+    },
+    {
+      verdict: 'FAIL',
+      reason: 'Terraform is claimed but not in the CV. Either take the claim off or update the CV.',
+      evidence: 'AWS: "AWS infrastructure across two regions"',
+      agreed: null,
+      note: null,
+    },
+    {
+      verdict: 'PASS',
+      reason: 'All 3 claimed skills are in the CV.',
+      evidence: 'SAP FICO: "SAP FICO lead on two rollouts"',
+      agreed: null,
+      note: null,
+    },
+  ]
+
+  for (const [i, sub] of submissionsForChecks.entries()) {
+    const e = evidence[i % evidence.length]
+    const at = new Date(now)
+    at.setDate(at.getDate() - (i % 5))
+
+    const run = await prisma.agentRun.create({
+      data: {
+        companyId: vendor.id,
+        agent: 'submission.check.evidence',
+        recordType: 'SUBMISSION',
+        recordId: sub.id,
+        verdict: e.verdict === 'PASS' ? 'PASS' : 'FAIL',
+        failReason: e.verdict === 'FAIL' ? e.reason : null,
+        model: 'claude-opus-5',
+        inputTokens: 1800,
+        outputTokens: 320,
+        costMicros: 17_000,
+        ms: 1400,
+        at,
+      },
+    })
+
+    checkRows.push({
+      companyId: vendor.id,
+      runId: run.id,
+      recordType: 'SUBMISSION',
+      recordId: sub.id,
+      checker: 'MODEL',
+      code: 'SKILLS_EVIDENCED',
+      verdict: e.verdict,
+      reason: e.reason,
+      evidence: e.evidence,
+      agreed: e.agreed,
+      disagreedNote: e.note,
+      checkedById: e.agreed === null ? null : founder.id,
+      at,
+    })
+
+    // The rule verdicts alongside, so the submission builder has something
+    // to show. Rules are never put in the review queue — a rule cannot be
+    // wrong in an interesting way.
+    for (const [code, verdict, reason] of [
+      ['RATE_IN_RANGE', 'PASS', 'Inside the range.'],
+      ['CV_ATTACHED', i % 3 === 0 ? 'FAIL' : 'PASS', i % 3 === 0 ? 'No CV on this submission. The client reads the CV, not the row.' : 'CV attached.'],
+      ['CONSENT', 'PASS', 'They said yes to this one.'],
+    ] as const) {
+      checkRows.push({
+        companyId: vendor.id,
+        recordType: 'SUBMISSION',
+        recordId: sub.id,
+        checker: 'RULE',
+        code,
+        verdict,
+        reason,
+        at,
+      })
+    }
+  }
+
+  await prisma.check.createMany({ data: checkRows })
+  const agentRunCount = runs.length + submissionsForChecks.length
+  const checkCount = checkRows.length
 
   // ── Representation holds ───────────────────────
   //
@@ -2712,6 +2895,7 @@ async function main() {
   console.log(`   Payments:     3`)
   console.log(`   Governance:   1 policy, ${governanceRulesData.length} rules, ${evalCount} evaluations`)
   console.log(`   Verifications: ${verificationCount}`)
+  console.log(`   Agent runs:   ${agentRunCount} (ledger), ${checkCount} checks`)
 }
 
 main()

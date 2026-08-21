@@ -941,6 +941,26 @@ model Submission {
   resumeId String?
   resume   Resume? @relation(fields: [resumeId], references: [id])
 
+  // ── The check loop ─────────────────────────────────────────────────
+  //
+  // Deliberately not `status`. That field is the pipeline — submitted,
+  // shortlisted, placed — and it belongs to the client's decision. This
+  // one is ours: whether the package is fit to leave the building.
+  //
+  // Modelled as a field rather than a running process, so each call moves
+  // it exactly one step and a crash halfway leaves a record somebody can
+  // look at instead of a job nobody can find.
+
+  /// DRAFT · CHECKING · NEEDS_FIX · READY · SENT
+  checkState     String    @default("DRAFT")
+  /// Three, then it stops asking the machine and asks a person.
+  checkAttempt   Int       @default(0)
+  /// Set when somebody sent it anyway. A gate nobody can pass gets worked
+  /// around outside the product, which is worse than a gate with a log.
+  overriddenById String?
+  overriddenAt   DateTime?
+  overrideReason String?
+
   /// The hop this one came from.
   ///
   /// Submitting somebody to you and you sending them onward to the client
@@ -1160,14 +1180,28 @@ model Representation {
   requirementId String?
   requirement   Requirement? @relation(fields: [requirementId], references: [id])
 
-  state       String    @default("HELD") // HELD · REQUESTED · RELEASED · EXPIRED · DECLINED
-  takenAt     DateTime  @default(now())
-  expiresAt   DateTime
-  endedAt     DateTime?
+  state   String   @default("HELD") // HELD · REQUESTED · RELEASED · EXPIRED · DECLINED
+  takenAt DateTime @default(now())
+
+  /// When the person themselves agreed to be put forward for this.
+  ///
+  /// Separate from the hold, and the difference matters. The hold is a
+  /// claim against other vendors. This is the consultant saying yes.
+  /// Holding somebody who never agreed is exactly the blind submission
+  /// that makes consultants stop answering the phone — and when two
+  /// vendors put the same person forward, the client rejects both.
+  consentedAt    DateTime?
+  /// SMS · EMAIL · PORTAL · VERBAL — how they said yes, for when somebody
+  /// asks six months later.
+  consentVia     String?
+  /// When they were asked. Asked and not answered is its own state.
+  consentAskedAt DateTime?
+  expiresAt      DateTime
+  endedAt        DateTime?
   /// Said in plain English, because the person reads this.
-  endedReason String?
+  endedReason    String?
   /// Who gave it back: the vendor, the person, or the system on expiry.
-  endedBy     String?
+  endedBy        String?
 
   /// Set to clientCompanyId while the hold is live, null once it is not.
   ///

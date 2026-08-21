@@ -69,6 +69,7 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫' },
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩' },
+      { label: 'Check the checker', href: '/dashboard/checks', icon: '⊙' },
       { label: 'Automation', href: '/dashboard/automation', icon: '⚙' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
       { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱' },
