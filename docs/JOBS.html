@@ -1,0 +1,650 @@
+<title>A Hundred Jobs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,400;100,500;100,600;100,700;112,700;112,800&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:  #EDF1F1;
+    --surface: #F8FAFA;
+    --surface-2:#E3E9E9;
+    --ink:     #101718;
+    --ink-2:   #465658;
+    --ink-3:   #7A8A8C;
+    --rule:    #CCD6D6;
+    --rule-soft:#DDE4E4;
+    --accent:  #0F5C61;
+    --signal:  #B85A16;
+    --signal-bg:#F6E7DA;
+    --go:      #2C6E49;
+    --go-bg:   #DDE9E0;
+    --mid:     #8A6A1E;
+    --mid-bg:  #F1E8D2;
+    --late:    #6C7A7C;
+    --late-bg: #E1E7E7;
+    --no:      #9C3626;
+
+    --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --serif: "Source Serif 4", Georgia, serif;
+    --mono: "IBM Plex Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:  #0B1011;
+      --surface: #141B1C;
+      --surface-2:#1C2526;
+      --ink:     #E6ECEC;
+      --ink-2:   #9EAEAF;
+      --ink-3:   #77878A;
+      --rule:    #2C3739;
+      --rule-soft:#222C2E;
+      --accent:  #58BEC4;
+      --signal:  #E38B4B;
+      --signal-bg:#33231A;
+      --go:      #6BBF8E;
+      --go-bg:   #1B2C22;
+      --mid:     #D2A64B;
+      --mid-bg:  #2E2718;
+      --late:    #8B9A9C;
+      --late-bg: #1E2728;
+      --no:      #DE7B66;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:  #0B1011;
+    --surface: #141B1C;
+    --surface-2:#1C2526;
+    --ink:     #E6ECEC;
+    --ink-2:   #9EAEAF;
+    --ink-3:   #77878A;
+    --rule:    #2C3739;
+    --rule-soft:#222C2E;
+    --accent:  #58BEC4;
+    --signal:  #E38B4B;
+    --signal-bg:#33231A;
+    --go:      #6BBF8E;
+    --go-bg:   #1B2C22;
+    --mid:     #D2A64B;
+    --mid-bg:  #2E2718;
+    --late:    #8B9A9C;
+    --late-bg: #1E2728;
+    --no:      #DE7B66;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.12rem;
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 24px 100px; }
+
+  /* ---- head ---- */
+  .mast { padding: 60px 0 0; }
+  .kicker {
+    font-family: var(--sans); font-size: 0.76rem; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--signal); margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--sans); font-variation-settings: "wdth" 112;
+    font-weight: 800; font-size: 3.4rem; line-height: 0.97; letter-spacing: -0.03em;
+    margin: 0 0 20px; max-width: 14ch; text-wrap: balance;
+  }
+  .sub { font-size: 1.4rem; line-height: 1.4; color: var(--ink-2); max-width: 40ch; margin: 0; }
+
+  section { padding-top: 66px; }
+  .num {
+    font-family: var(--sans); font-variation-settings: "wdth" 112;
+    font-weight: 800; font-size: 2.2rem; line-height: 1; color: var(--signal); margin: 0 0 6px;
+  }
+  h2 {
+    font-family: var(--sans); font-weight: 700; font-size: 2.2rem; line-height: 1.08;
+    letter-spacing: -0.025em; margin: 0 0 20px; max-width: 22ch; text-wrap: balance;
+  }
+  p { margin: 0 0 15px; max-width: 42ch; }
+  .say { font-size: 1.28rem; line-height: 1.48; max-width: 40ch; }
+  .say b { font-weight: 600; }
+  .big {
+    font-family: var(--sans); font-weight: 800; font-size: 1.7rem; line-height: 1.2;
+    color: var(--signal); max-width: 28ch; margin: 26px 0; letter-spacing: -0.02em;
+  }
+
+  /* ---- figures ---- */
+  figure { margin: 30px 0 0; max-width: 1000px; }
+  .fig {
+    background: var(--surface); border: 1px solid var(--rule-soft);
+    border-radius: 6px; padding: 24px 22px 16px; overflow-x: auto;
+  }
+  figure svg { display: block; width: 100%; min-width: 600px; height: auto; color: var(--ink-2); }
+  figcaption {
+    font-family: var(--sans); font-size: 0.86rem; line-height: 1.5;
+    color: var(--ink-3); margin-top: 11px; max-width: 62ch;
+  }
+  .svg-box { fill: var(--surface); stroke: currentColor; stroke-width: 1.4; }
+  .svg-t   { font-family: "Archivo", sans-serif; font-size: 13.5px; font-weight: 600; fill: var(--ink); }
+  .svg-sm  { font-family: "Archivo", sans-serif; font-size: 11.5px; font-weight: 500; fill: var(--ink); }
+  .svg-lbl { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; fill: currentColor; }
+  .svg-cap { font-family: "Archivo", sans-serif; font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; fill: currentColor; }
+  .svg-arrow { stroke: currentColor; stroke-width: 1.5; fill: none; }
+  .svg-hot { stroke: var(--signal); stroke-width: 2.2; }
+  .svg-hot-t { fill: var(--signal); }
+  .svg-no { stroke: var(--no); stroke-width: 1.6; }
+  .svg-no-t { fill: var(--no); }
+  .svg-go { stroke: var(--go); stroke-width: 1.6; }
+  .svg-go-t { fill: var(--go); }
+
+  .warn {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-left: 4px solid var(--signal); border-radius: 4px;
+    padding: 18px 22px; margin: 28px 0; max-width: 46ch;
+  }
+  .warn p { margin: 0; font-size: 1.1rem; max-width: none; }
+  .warn p + p { margin-top: 10px; }
+  .warn b { font-family: var(--sans); }
+
+  /* ---- tool ---- */
+  .tool { margin-top: 34px; }
+  .controls {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--ground) 93%, transparent);
+    backdrop-filter: blur(8px);
+    padding: 14px 0 12px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 4px;
+  }
+  .ctl-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-bottom: 9px; }
+  .ctl-label {
+    font-family: var(--sans); font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3);
+    margin-right: 4px; min-width: 62px;
+  }
+  button.chip {
+    font-family: var(--sans); font-size: 0.83rem; font-weight: 600;
+    padding: 5px 12px; border-radius: 20px; cursor: pointer;
+    border: 1px solid var(--rule); background: var(--surface); color: var(--ink-2);
+    transition: none;
+  }
+  button.chip:hover { border-color: var(--ink-3); color: var(--ink); }
+  button.chip:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+  button.chip[aria-pressed="true"] {
+    background: var(--signal); border-color: var(--signal); color: var(--ground);
+  }
+  input[type="search"] {
+    font-family: var(--sans); font-size: 0.9rem;
+    padding: 6px 12px; border-radius: 20px; min-width: 200px; flex: 1; max-width: 320px;
+    border: 1px solid var(--rule); background: var(--surface); color: var(--ink);
+  }
+  input[type="search"]:focus-visible { outline: 2px solid var(--signal); outline-offset: 1px; }
+  .count {
+    font-family: var(--mono); font-size: 0.82rem; color: var(--ink-3);
+    padding-top: 2px;
+  }
+  .count b { color: var(--signal); font-weight: 500; }
+
+  .rows { margin-top: 6px; }
+  .row {
+    display: grid;
+    grid-template-columns: 30px minmax(190px, 1.25fr) minmax(150px, 1fr) minmax(190px, 1.35fr) 96px;
+    gap: 0 18px;
+    padding: 14px 10px 14px 4px;
+    border-bottom: 1px solid var(--rule-soft);
+    align-items: start;
+    font-size: 0.96rem;
+    line-height: 1.42;
+  }
+  .row:hover { background: var(--surface); }
+  .r-id { font-family: var(--mono); font-size: 0.76rem; color: var(--ink-3); padding-top: 2px; }
+  .r-job { font-family: var(--sans); font-weight: 600; color: var(--ink); }
+  .r-ind {
+    font-family: var(--sans); font-size: 0.7rem; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent);
+    display: block; margin-top: 4px;
+  }
+  .r-pay, .r-chk { color: var(--ink-2); font-size: 0.92rem; }
+  .r-fit { text-align: right; }
+  .fit {
+    font-family: var(--sans); font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 3px; white-space: nowrap; display: inline-block;
+  }
+  .fit.f3 { background: var(--go-bg);   color: var(--go); }
+  .fit.f2 { background: var(--mid-bg);  color: var(--mid); }
+  .fit.f1 { background: var(--late-bg); color: var(--late); }
+
+  .head-row {
+    display: grid;
+    grid-template-columns: 30px minmax(190px, 1.25fr) minmax(150px, 1fr) minmax(190px, 1.35fr) 96px;
+    gap: 0 18px;
+    padding: 10px 10px 10px 4px;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--sans); font-size: 0.66rem; font-weight: 700;
+    letter-spacing: 0.11em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .head-row div:last-child { text-align: right; }
+  .empty { padding: 40px 4px; color: var(--ink-3); font-family: var(--sans); }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 16px;
+    margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--rule-soft);
+    font-family: var(--sans); font-size: 0.85rem; color: var(--ink-3);
+  }
+  .legend span { display: flex; align-items: center; gap: 7px; }
+
+  footer {
+    margin-top: 70px; padding-top: 20px; border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 0.8rem; color: var(--ink-3);
+  }
+
+  @media (max-width: 860px) {
+    .head-row { display: none; }
+    .row { grid-template-columns: 1fr; gap: 4px; padding: 16px 4px; }
+    .r-id { display: none; }
+    .r-pay::before { content: "Paid today: "; font-weight: 600; color: var(--ink-3); }
+    .r-chk::before { content: "Check by: "; font-weight: 600; color: var(--ink-3); }
+    .r-fit { text-align: left; margin-top: 4px; }
+    h1 { font-size: 2.4rem; }
+    h2 { font-size: 1.7rem; }
+    .sub { font-size: 1.18rem; }
+    .say { font-size: 1.14rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="kicker">Answers to three hard questions</p>
+    <h1>A hundred jobs</h1>
+    <p class="sub">Is staffing dead? Where does demand come from? Where does supply come from? And 100 real jobs you could sell.</p>
+  </header>
+
+  <!-- 0 -->
+  <section>
+    <p class="num">0</p>
+    <h2>Is IT staffing dead?</h2>
+
+    <p class="say"><b>No. I did not say that, and I don't believe it.</b></p>
+    <p class="say">Placing senior engineers, cleared staff, on-site roles and regulated work is not going away. Companies will hire contract people for a long time yet.</p>
+    <p class="say">Two narrower things are true:</p>
+    <p class="say">One — <b>commodity IT contract roles are shrinking.</b> Junior dev, manual QA, basic support. That end gets squeezed.</p>
+    <p class="say">Two — <b>Etyme the software product is finished.</b> Not because of AI. Because it's on a dead stack against Bullhorn, Ceipal and JobDiva who have 100 times your engineers. That fight was lost before AI arrived.</p>
+
+    <p class="big">The staffing business isn't dead. Your software business is. Those are different problems.</p>
+
+    <p class="say">So this isn't "replace staffing with robots." It's: you own a working back-office engine and 15 years of knowing how work turns into cash. Point it at a job that has budget today.</p>
+  </section>
+
+  <!-- 1 -->
+  <section>
+    <p class="num">1</p>
+    <h2>"There is zero demand"</h2>
+
+    <p class="say">You're right — and it doesn't matter. <b>Nobody has a budget line called "AI agents."</b> If that's what you sell, you get a pilot, then silence.</p>
+    <p class="say">But the demand already exists under a different name. Every company you'd call is <b>already paying someone</b> to do this work.</p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 900 336" role="img" aria-label="There is no budget line called AI agents. But four budget lines already exist and are funded: outsourcing and BPO, an offshore team, temporary staff, and overtime. Your money comes out of those four.">
+          <!-- the dead line -->
+          <rect class="svg-box svg-no" x="24" y="46" width="300" height="66" rx="4" stroke-dasharray="5 4"/>
+          <text class="svg-t svg-no-t" x="174" y="74" text-anchor="middle">Budget for "AI agents"</text>
+          <text class="svg-sm svg-no-t" x="174" y="95" text-anchor="middle">does not exist anywhere</text>
+          <line class="svg-no" x1="44" y1="79" x2="304" y2="79"/>
+
+          <text class="svg-cap svg-no-t" x="24" y="34">WHAT EVERYONE ELSE IS SELLING INTO</text>
+          <text class="svg-cap svg-go-t" x="24" y="160">WHAT IS ALREADY FUNDED, TODAY</text>
+
+          <!-- funded lines -->
+          <rect class="svg-box svg-go" x="24" y="176" width="200" height="60" rx="4"/>
+          <text class="svg-t" x="124" y="201" text-anchor="middle">Outsourcing / BPO</text>
+          <text class="svg-sm" x="124" y="221" text-anchor="middle">priced per transaction</text>
+
+          <rect class="svg-box svg-go" x="240" y="176" width="200" height="60" rx="4"/>
+          <text class="svg-t" x="340" y="201" text-anchor="middle">Offshore team</text>
+          <text class="svg-sm" x="340" y="221" text-anchor="middle">priced per seat</text>
+
+          <rect class="svg-box svg-go" x="456" y="176" width="200" height="60" rx="4"/>
+          <text class="svg-t" x="556" y="201" text-anchor="middle">Temp staff</text>
+          <text class="svg-sm" x="556" y="221" text-anchor="middle">priced per hour</text>
+
+          <rect class="svg-box svg-go" x="672" y="176" width="200" height="60" rx="4"/>
+          <text class="svg-t" x="772" y="201" text-anchor="middle">Overtime</text>
+          <text class="svg-sm" x="772" y="221" text-anchor="middle">everyone wants it gone</text>
+
+          <!-- converge -->
+          <path class="svg-arrow svg-hot" d="M 124 236 L 124 262 L 448 262"/>
+          <path class="svg-arrow svg-hot" d="M 340 236 L 340 262"/>
+          <path class="svg-arrow svg-hot" d="M 556 236 L 556 262"/>
+          <path class="svg-arrow svg-hot" d="M 772 236 L 772 262 L 448 262"/>
+          <path class="svg-arrow svg-hot" d="M 448 262 L 448 288"/>
+          <polygon points="448,300 442,286 454,286" fill="var(--signal)"/>
+
+          <text class="svg-t svg-hot-t" x="448" y="322" text-anchor="middle">Your money comes out of these four. You are not asking for new budget.</text>
+        </svg>
+      </div>
+      <figcaption>This is why the pitch never mentions AI. It's a cheaper vendor bid against a line that already has a number on it.</figcaption>
+    </figure>
+
+    <h2 style="margin-top:44px;">So how do you get the first jobs?</h2>
+
+    <p class="say"><b>Start with people who already know you.</b> Your old Etyme customers are staffing firms. They drown in onboarding paperwork, timesheet chasing, compliance checks and invoice disputes. You know their pain exactly. No discovery calls needed.</p>
+    <p class="say"><b>Bid against a vendor, don't pitch a project.</b> "You pay $14 and wait four days. I'll do it for $10, same day." That's a procurement conversation. Procurement people say yes to those.</p>
+    <p class="say"><b>Ask for 10% of the volume, not all of it.</b> Run beside their current vendor. If you're worse, they lose nothing. This kills the risk objection dead.</p>
+    <p class="say"><b>Get paid per finished job.</b> No setup fee, no licence, no project plan. They pay for output, so there's nothing to approve upfront.</p>
+    <p class="say"><b>Go mid-market, not enterprise.</b> A big company takes 12–18 months to buy. A 200-person staffing firm decides in two weeks. You need cash before you need logos.</p>
+  </section>
+
+  <!-- 2 -->
+  <section>
+    <p class="num">2</p>
+    <h2>"There is zero supply"</h2>
+
+    <p class="say">Also true, and this one is easier than you think. <b>You don't source agents. You build them.</b></p>
+    <p class="say">In staffing, supply is the hard part. Good people are scarce, take weeks to find, cost a lot, and leave.</p>
+    <p class="say">An agent is not scarce. You build it once for one job type. It runs forever and never resigns. <b>It's a build problem, not a sourcing problem</b> — and a much smaller one.</p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 900 300" role="img" aria-label="Human staffing supply means searching for a scarce person over four to eight weeks, who then may leave. Agent supply means building once over two to six weeks, after which it repeats forever and never leaves.">
+          <text class="svg-cap" x="24" y="28">HUMAN SUPPLY — HARD</text>
+          <text class="svg-cap svg-go-t" x="472" y="28">AGENT SUPPLY — DIFFERENT PROBLEM</text>
+          <line x1="440" y1="10" x2="440" y2="284" stroke="currentColor" stroke-width="1" stroke-dasharray="4 5" opacity="0.4"/>
+
+          <rect class="svg-box" x="24" y="48" width="182" height="56" rx="4"/>
+          <text class="svg-t" x="115" y="72" text-anchor="middle">Search for a person</text>
+          <text class="svg-sm" x="115" y="92" text-anchor="middle">who may not exist</text>
+
+          <rect class="svg-box" x="24" y="122" width="182" height="56" rx="4"/>
+          <text class="svg-t" x="115" y="146" text-anchor="middle">Convince them</text>
+          <text class="svg-sm" x="115" y="166" text-anchor="middle">and pay market rate</text>
+
+          <rect class="svg-box" x="24" y="196" width="182" height="56" rx="4"/>
+          <text class="svg-t" x="115" y="220" text-anchor="middle">They leave</text>
+          <text class="svg-sm" x="115" y="240" text-anchor="middle">start again</text>
+
+          <path class="svg-arrow" d="M 115 104 L 115 118"/>
+          <polygon points="115,122 110,112 120,112" fill="currentColor"/>
+          <path class="svg-arrow" d="M 115 178 L 115 192"/>
+          <polygon points="115,196 110,186 120,186" fill="currentColor"/>
+
+          <text class="svg-lbl" x="222" y="80">4–8 weeks</text>
+          <text class="svg-lbl" x="222" y="154">every single time</text>
+          <text class="svg-lbl" x="222" y="228">18 months average</text>
+
+          <!-- agent side -->
+          <rect class="svg-box svg-go" x="472" y="48" width="200" height="56" rx="4"/>
+          <text class="svg-t" x="572" y="72" text-anchor="middle">Write down the rules</text>
+          <text class="svg-sm" x="572" y="92" text-anchor="middle">for one job type</text>
+
+          <rect class="svg-box svg-go" x="472" y="122" width="200" height="56" rx="4"/>
+          <text class="svg-t" x="572" y="146" text-anchor="middle">Build it once</text>
+          <text class="svg-sm" x="572" y="166" text-anchor="middle">2–6 weeks of work</text>
+
+          <rect class="svg-box svg-go" x="472" y="196" width="200" height="56" rx="4"/>
+          <text class="svg-t" x="572" y="220" text-anchor="middle">It runs forever</text>
+          <text class="svg-sm" x="572" y="240" text-anchor="middle">and never resigns</text>
+
+          <path class="svg-arrow svg-go" d="M 572 104 L 572 118"/>
+          <polygon points="572,122 567,112 577,112" fill="var(--go)"/>
+          <path class="svg-arrow svg-go" d="M 572 178 L 572 192"/>
+          <polygon points="572,196 567,186 577,186" fill="var(--go)"/>
+
+          <path class="svg-arrow svg-hot" d="M 690 224 L 730 224 L 730 76 L 690 76"/>
+          <polygon points="678,76 692,70 692,82" fill="var(--signal)"/>
+          <text class="svg-lbl svg-hot-t" x="744" y="150">reuse for</text>
+          <text class="svg-lbl svg-hot-t" x="744" y="166">every</text>
+          <text class="svg-lbl svg-hot-t" x="744" y="182">customer</text>
+        </svg>
+      </div>
+      <figcaption>You build one agent for one job type, then sell that same job to every customer with the same problem. The second customer costs you almost nothing.</figcaption>
+    </figure>
+
+    <div class="warn">
+      <p><b>The trap to avoid.</b></p>
+      <p>Do not build a marketplace. A marketplace with no buyers and no sellers is the classic way to die.</p>
+      <p>Be one-sided. You are the supply. The customer is the demand. Other people's agents show up in year three, once there is money on the table worth showing up for.</p>
+    </div>
+
+    <p class="big">Zero supply is fine when you are the supply.</p>
+  </section>
+
+  <!-- 3 -->
+  <section>
+    <p class="num">3</p>
+    <h2>100 jobs you could sell</h2>
+
+    <p class="say">All of these are real, repeated, boring, and <b>already paid for today</b>. Each one names who pays now and — most important — <b>how you check the work is right.</b></p>
+    <p class="say">If you can't check it, you can't sell it. That column is the filter.</p>
+
+    <div class="tool">
+      <div class="controls">
+        <div class="ctl-row">
+          <span class="ctl-label">Industry</span>
+          <button class="chip" data-ind="all" aria-pressed="true">All</button>
+          <button class="chip" data-ind="staffing" aria-pressed="false">Staffing</button>
+          <button class="chip" data-ind="health" aria-pressed="false">Healthcare</button>
+          <button class="chip" data-ind="finance" aria-pressed="false">Finance</button>
+          <button class="chip" data-ind="insurance" aria-pressed="false">Insurance</button>
+          <button class="chip" data-ind="legal" aria-pressed="false">Legal</button>
+          <button class="chip" data-ind="logistics" aria-pressed="false">Logistics</button>
+          <button class="chip" data-ind="hr" aria-pressed="false">HR &amp; Payroll</button>
+          <button class="chip" data-ind="revops" aria-pressed="false">Sales &amp; Support</button>
+        </div>
+        <div class="ctl-row">
+          <span class="ctl-label">When</span>
+          <button class="chip" data-fit="all" aria-pressed="true">Any</button>
+          <button class="chip" data-fit="3" aria-pressed="false">Start here</button>
+          <button class="chip" data-fit="2" aria-pressed="false">Year 2</button>
+          <button class="chip" data-fit="1" aria-pressed="false">Later</button>
+          <input type="search" id="q" placeholder="Search jobs…" aria-label="Search jobs">
+        </div>
+        <p class="count" id="count"></p>
+      </div>
+
+      <div class="head-row">
+        <div>#</div><div>The job</div><div>Who pays today</div><div>How you check it</div><div>When</div>
+      </div>
+      <div class="rows" id="rows"></div>
+
+      <div class="legend">
+        <span><b class="fit f3">Start here</b> easy to check, big volume, clear price</span>
+        <span><b class="fit f2">Year 2</b> needs a person to approve</span>
+        <span><b class="fit f1">Later</b> slow or risky to check</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section>
+    <p class="num">4</p>
+    <h2>How to pick your one</h2>
+
+    <p class="say">Don't pick the biggest market. Pick the one where <b>you already know what "done right" means</b> without asking anyone.</p>
+    <p class="say">For you that's almost certainly the staffing rows — timesheet chasing, invoice matching, onboarding packets, insurance certificates, compliance checks. You've watched people do those for 15 years.</p>
+    <p class="say">Your customers for those jobs are staffing firms. You already have their phone numbers.</p>
+
+    <p class="big">Pick one row. Call three old customers. Ask what they pay for it today.</p>
+
+    <p class="say">That's the whole next step. Not a build, not a deck. Three phone calls to find out the price you have to beat.</p>
+  </section>
+
+  <footer>
+    100 jobs · answers to demand, supply, and whether staffing is dead
+  </footer>
+</div>
+
+<script>
+(function () {
+  var D = [
+    // [job, industry, whoPaysToday, howYouCheckIt, fit]
+    ["Resume parsing into structured fields","staffing","Parsing vendor per document, or offshore data entry","Compare each field to the source document; audit a sample",3],
+    ["Candidate shortlist for an open role","staffing","Recruiter sourcing hours","Recruiter accepts or rejects each name; track accept rate",2],
+    ["Right-to-work / I-9 document check","staffing","Compliance clerk or vendor per packet","Document type, expiry and name match are fixed rules",3],
+    ["Visa status and expiry tracking","staffing","Immigration coordinator salary","Date arithmetic against the document; nothing to judge",3],
+    ["Background check package assembly","staffing","Vendor fee plus coordinator time","Checklist: every required field present or not",3],
+    ["Reference check outreach and summary","staffing","Coordinator time per check","Person reads the summary against the transcript",2],
+    ["Chasing missing timesheets","staffing","Back-office clerk hours","Did the timesheet arrive? Yes or no",3],
+    ["Timesheet against contract rate check","staffing","Payroll clerk hours","Recompute from the contract; exact match or not",3],
+    ["Invoice generation from approved time","staffing","Billing clerk, usually inside a BPO contract","Recompute the total; must reconcile to hours",3],
+    ["Invoice dispute triage and reply draft","staffing","Accounts receivable clerk","A person approves before it sends",2],
+    ["Purchase order and rate card compliance","staffing","Contract admin hours","Compare each line to the PO; fixed rules",3],
+    ["Onboarding paperwork packet assembly","staffing","HR coordinator per hire","Checklist: every document present and signed",3],
+    ["Licence and certification expiry monitoring","staffing","Compliance clerk salary","Check the issuing body; date maths",3],
+    ["Insurance certificate collection and check","staffing","Compliance clerk per vendor","Coverage limits and dates against requirement",3],
+    ["Subcontractor compliance packet review","staffing","Compliance analyst hours","Document checklist plus fixed rules",3],
+    ["Job description writing from intake notes","staffing","Recruiter time per role","Hiring manager approves; track how much they edit",2],
+    ["Job posting distribution and dedup","staffing","Coordinator time plus board fees","Posted or not; duplicates are detectable",3],
+    ["Screening question scoring","staffing","Recruiter screening hours","Recruiter agrees or disagrees on a sample",2],
+    ["Bench redeployment matching","staffing","Bench manager salary","Only measurable by placements months later",1],
+    ["Commission calculation reconciliation","staffing","Finance analyst hours","Recompute from the contract; exact match",3],
+
+    ["Prior authorisation packet assembly","health","Outsourcing firm per packet","The payer accepts or rejects it. Hard signal",3],
+    ["Insurance eligibility verification","health","Outsourcing firm per check","The payer's own response is the truth",3],
+    ["Claim scrubbing before submission","health","Clearinghouse fee plus biller time","Rejection rate at the clearinghouse",3],
+    ["Denial reason coding","health","Biller hours","Certified coder checks a sample",3],
+    ["Denial appeal letter drafting","health","Appeals specialist per appeal","Overturn rate; a person approves before sending",2],
+    ["Medical coding audit","health","Certified coder hours","Second certified coder on a sample; high stakes",1],
+    ["Charge capture reconciliation","health","Revenue integrity analyst","Recompute against the encounter record",3],
+    ["Payment posting from remittance files","health","Outsourcing firm per transaction","The ledger balances or it doesn't",3],
+    ["Underpayment detection against contract","health","Revenue integrity analyst","Recompute what the contract says you're owed",3],
+    ["Payer enrolment and credentialing forms","health","Credentialing specialist per application","Payer accepts or returns it; completeness checklist",2],
+    ["Provider directory data validation","health","Data clerk or vendor","Compare to the licence board and NPI registry",3],
+    ["Referral tracking and follow-up","health","Coordinator hours","Referral closed or not closed",3],
+    ["Medical records request fulfilment","health","Records clerk or release-of-information vendor","Completeness against the request; audit a sample",2],
+    ["Chart abstraction for quality measures","health","Abstractor per chart","Second abstractor on a sample; already standard practice",2],
+    ["Patient statement error checking","health","Billing clerk hours","Recompute the balance",3],
+
+    ["Invoice to purchase order matching","finance","Accounts payable outsourcer per invoice","Amounts and quantities match or they don't",3],
+    ["Accounts payable exception handling","finance","AP analyst hours","Exception cleared and posted; the ledger confirms",3],
+    ["Vendor master data cleanup","finance","One-off data project or offshore team","Each duplicate pair is verifiable; audit a sample",3],
+    ["Expense report policy checking","finance","Finance clerk per report","The policy is written down. Fixed rules",3],
+    ["Receipt extraction and categorising","finance","OCR vendor plus clerk","Compare to the receipt image; audit a sample",3],
+    ["Bank reconciliation exceptions","finance","Accountant hours","It reconciles to zero or it doesn't",3],
+    ["Collections chase sequences","finance","Collections clerk hours","Did the money arrive? Hard outcome",2],
+    ["Cash application to open invoices","finance","Outsourcer per item","The ledger balances",3],
+    ["Sales tax rate and nexus checking","finance","Tax analyst or tax software fees","Compare to the tax authority's own rate table",3],
+    ["Month-end close checklist execution","finance","Accounting team overtime","Controller signs off each item",2],
+    ["Intercompany reconciliation","finance","Accountant hours","Balances must net to zero",3],
+    ["Fixed asset register updates","finance","Accountant hours","Recompute the depreciation",3],
+    ["Credit application review","finance","Credit analyst hours","Only proven by default rates years later",1],
+    ["Purchase requisition policy check","finance","Procurement analyst hours","The policy is explicit. Fixed rules",3],
+    ["Duplicate payment detection","finance","Recovery audit firm taking 20–30% of what they find","The ledger proves the duplicate. Very hard signal",3],
+
+    ["First notice of loss intake","insurance","Call centre or outsourcer per claim","Required fields present; the adjuster confirms",3],
+    ["Claim document completeness check","insurance","Claims clerk hours","A checklist. Fixed rules",3],
+    ["Policy endorsement processing","insurance","Policy admin outsourcer per item","The policy system accepts it; recompute the premium",3],
+    ["Certificate of insurance issuance","insurance","Account manager hours","Template plus fixed rules",3],
+    ["Subrogation opportunity spotting","insurance","Subrogation analyst salary","Only proven when money is recovered months later",1],
+    ["Premium audit data collection","insurance","Auditor hours","Payroll and records must reconcile",2],
+    ["Loss run analysis and summary","insurance","Underwriting assistant hours","Recompute the totals from the loss run",3],
+    ["Submission triage and clearance","insurance","Underwriting assistant per submission","Duplicate and appetite rules are written down",3],
+    ["Broker commission reconciliation","insurance","Finance analyst hours","Recompute against the commission schedule",3],
+    ["Claim reserve adequacy flagging","insurance","Claims lead or actuary","Only proven as the claim develops. Very slow",1],
+
+    ["Contract clause extraction to a summary","legal","Paralegal per contract, or legal outsourcer","Compare each clause to the source text; audit a sample",3],
+    ["NDA review against a playbook","legal","Junior counsel or legal outsourcer","The playbook is written down; counsel spot-checks",2],
+    ["Obligation and key date extraction","legal","Paralegal hours","Every date is verifiable in the document",3],
+    ["Lease abstraction","legal","Legal outsourcer per lease","Field by field against the source; QC is standard here",3],
+    ["Redline comparison and change summary","legal","Associate hours","The diff itself is exact; the summary is spot-checked",3],
+    ["Contract renewal date alerting","legal","Contract admin salary","Date arithmetic. Nothing to judge",3],
+    ["Discovery first-pass relevance tagging","legal","Contract attorneys by the hour","Sampling and overturn rates; heavily regulated",1],
+    ["Company filing status checks","legal","Paralegal or registered agent fees","The public registry is the truth",3],
+    ["Trademark watch monitoring","legal","Watch service subscription","The registry is the truth",3],
+    ["Policy gap check against a regulation","legal","Compliance counsel hours","Counsel must review. High stakes",1],
+
+    ["Bill of lading data extraction","logistics","Data entry outsourcer per document","Compare to the document image; audit a sample",3],
+    ["Freight invoice audit against rate card","logistics","Audit firm taking a share of savings","Recompute from the rate card. Exact",3],
+    ["Customs document completeness","logistics","Broker or clerk hours","Customs accepts or rejects. Hard signal",3],
+    ["Purchase order acknowledgement matching","logistics","Buyer or clerk hours","Fields match or they don't",3],
+    ["Shipment exception triage and notify","logistics","Operations coordinator hours","Exception resolved or not",3],
+    ["Carrier performance scorecards","logistics","Analyst hours","Recompute from the shipment data",3],
+    ["Proof of delivery collection and filing","logistics","Clerk hours","The document is there or it isn't",3],
+    ["Inventory discrepancy investigation","logistics","Inventory analyst hours","The physical count reconciles",2],
+    ["Supplier onboarding document collection","logistics","Procurement coordinator hours","Checklist complete or not",3],
+    ["Demurrage and detention charge validation","logistics","Operations analyst hours","Recompute from timestamps and the tariff",3],
+
+    ["New hire data entry across systems","hr","HR operations clerk per hire","Field by field match across the systems",3],
+    ["Payroll input validation before the run","hr","Payroll specialist hours","Recompute; compare variance to last period",3],
+    ["Benefits enrolment exceptions","hr","Benefits admin or outsourcer","The carrier file is accepted or rejected",3],
+    ["Leave and PTO balance reconciliation","hr","HR operations hours","Recompute from the policy and the records",3],
+    ["Employment verification letters","hr","HR operations or a verification vendor","Template plus a record match",3],
+    ["Offboarding checklist execution","hr","HR operations hours","Every item closed or not",3],
+    ["Garnishment order processing","hr","Payroll specialist hours","Recompute the withholding; legally high stakes",2],
+    ["Multi-state tax registration checks","hr","Tax or HR analyst hours","The state registry is the truth",2],
+    ["Employee data change auditing","hr","HR operations or internal audit","Compare to the approved change requests",3],
+    ["Training compliance tracking and chasing","hr","Learning coordinator salary","Completion records. Yes or no",3],
+
+    ["CRM data enrichment and dedup","revops","Data vendor per record plus ops time","Verified against the source; audit a sample",3],
+    ["Lead routing and qualification scoring","revops","Sales development rep hours","Sales accepts or rejects; conversion rate",2],
+    ["RFP answer drafting from a knowledge base","revops","Proposal manager per RFP","An expert approves every answer",2],
+    ["Competitor pricing page monitoring","revops","Analyst hours","Compare to the live page. Exact",3],
+    ["Product catalogue data normalising","revops","Offshore data team","Compare to the source spec; audit a sample",3],
+    ["Translation and localisation QA","revops","Language vendor per word","Native reviewer checks a sample",2],
+    ["Support ticket triage and routing","revops","Tier-one support per ticket","How often it gets re-routed measures accuracy",3],
+    ["Help article drafting from solved tickets","revops","Support engineer hours","An expert approves; deflection rate follows",2],
+    ["Churn risk signal compilation","revops","Customer success analyst salary","Only proven when customers do or don't leave",1],
+    ["Renewal quote preparation","revops","Deal desk or CS hours","Recompute against the price book",3]
+  ];
+
+  var IND = {
+    staffing:"Staffing", health:"Healthcare", finance:"Finance", insurance:"Insurance",
+    legal:"Legal", logistics:"Logistics", hr:"HR & Payroll", revops:"Sales & Support"
+  };
+  var FIT = { 3:"Start here", 2:"Year 2", 1:"Later" };
+
+  var state = { ind:"all", fit:"all", q:"" };
+  var rowsEl = document.getElementById("rows");
+  var countEl = document.getElementById("count");
+
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
+
+  function render() {
+    var q = state.q.toLowerCase();
+    var out = [];
+    for (var i = 0; i < D.length; i++) {
+      var d = D[i];
+      if (state.ind !== "all" && d[1] !== state.ind) continue;
+      if (state.fit !== "all" && String(d[4]) !== state.fit) continue;
+      if (q && (d[0] + " " + d[2] + " " + d[3] + " " + IND[d[1]]).toLowerCase().indexOf(q) === -1) continue;
+      out.push(
+        '<div class="row">' +
+          '<div class="r-id">' + (i + 1) + '</div>' +
+          '<div><span class="r-job">' + esc(d[0]) + '</span>' +
+            '<span class="r-ind">' + esc(IND[d[1]]) + '</span></div>' +
+          '<div class="r-pay">' + esc(d[2]) + '</div>' +
+          '<div class="r-chk">' + esc(d[3]) + '</div>' +
+          '<div class="r-fit"><span class="fit f' + d[4] + '">' + FIT[d[4]] + '</span></div>' +
+        '</div>'
+      );
+    }
+    rowsEl.innerHTML = out.length ? out.join("") :
+      '<p class="empty">Nothing matches those filters. Try clearing the search.</p>';
+    countEl.innerHTML = "Showing <b>" + out.length + "</b> of 100 jobs";
+  }
+
+  function wire(attr, key) {
+    var btns = document.querySelectorAll("button.chip[data-" + attr + "]");
+    Array.prototype.forEach.call(btns, function (b) {
+      b.addEventListener("click", function () {
+        state[key] = b.getAttribute("data-" + attr);
+        Array.prototype.forEach.call(btns, function (o) {
+          o.setAttribute("aria-pressed", o === b ? "true" : "false");
+        });
+        render();
+      });
+    });
+  }
+  wire("ind", "ind");
+  wire("fit", "fit");
+  document.getElementById("q").addEventListener("input", function (e) {
+    state.q = e.target.value; render();
+  });
+
+  render();
+})();
+</script>
