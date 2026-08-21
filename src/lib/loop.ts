@@ -62,10 +62,17 @@ export interface Step<T> {
   code: string
   checker: 'RULE' | 'MODEL'
   /**
-   * Return null to say nothing. A step with nothing to add should be
-   * silent rather than emitting a cheerful pass nobody reads.
+   * One finding, several, or null to say nothing.
+   *
+   * Several because a single question often has several answers that
+   * belong together — the rules on a submission package are six verdicts
+   * from one pass over the same facts, and splitting them into six steps
+   * would read the same facts six times.
+   *
+   * Null because a step with nothing to add should be silent rather than
+   * emitting a cheerful pass nobody reads.
    */
-  run: (subject: T) => Finding | null | Promise<Finding | null>
+  run: (subject: T) => Finding | Finding[] | null | Promise<Finding | Finding[] | null>
   /** What to say when a MODEL step throws. Ignored for rules. */
   whenItCannotRun?: string
 }
@@ -81,7 +88,14 @@ export interface Spec<T> {
 
 export const DEFAULT_MAX_ATTEMPTS = 3
 
-export type State = 'DRAFT' | 'CHECKING' | 'NEEDS_FIX' | 'READY' | 'SENT'
+/**
+ * Where a record stands.
+ *
+ * There is deliberately no CHECKING. A run is one synchronous call, so
+ * nothing ever rests mid-check, and a state the code cannot produce is a
+ * state somebody will one day write a screen for.
+ */
+export type State = 'DRAFT' | 'NEEDS_FIX' | 'READY' | 'SENT'
 
 export interface Outcome {
   state: State
@@ -122,7 +136,7 @@ export async function runLoop<T>(
   for (const step of rules) {
     try {
       const f = await step.run(subject)
-      if (f) findings.push(f)
+      if (f) findings.push(...(Array.isArray(f) ? f : [f]))
     } catch (err: any) {
       // A rule that throws is a bug in the rule, not a failure of the
       // thing being checked. Say so plainly rather than failing somebody's
@@ -161,21 +175,27 @@ export async function runLoop<T>(
       const started = Date.now()
       try {
         const f = await step.run(subject)
-        if (f) {
-          findings.push(f)
-          runIds.set(
-            f.code,
-            await record({
-              companyId: ctx.companyId,
-              agent: `${spec.name}.${step.code.toLowerCase()}`,
-              recordType: spec.recordType,
-              recordId: ctx.recordId,
-              attempt: ctx.attempt,
-              verdict: f.verdict === 'PASS' ? 'PASS' : 'FAIL',
-              failReason: f.verdict === 'FAIL' ? f.reason : null,
-              ms: Date.now() - started,
-            })
-          )
+
+        // Recorded whether or not it had anything to say. A step that
+        // called a model and then decided to stay quiet has already spent
+        // the money, and a cost that never reaches the ledger is the one
+        // thing the ledger exists to prevent.
+        const runId = await record({
+          companyId: ctx.companyId,
+          agent: `${spec.name}.${step.code.toLowerCase()}`,
+          recordType: spec.recordType,
+          recordId: ctx.recordId,
+          attempt: ctx.attempt,
+          verdict: anyFailed(f) ? 'FAIL' : 'PASS',
+          failReason: f
+            ? firstFailure(f)
+            : 'ran and had nothing to say',
+          ms: Date.now() - started,
+        })
+
+        for (const one of f ? (Array.isArray(f) ? f : [f]) : []) {
+          findings.push(one)
+          runIds.set(one.code, runId)
         }
       } catch (err: any) {
         // Not a failed check. The check did not run, and saying it passed
@@ -256,7 +276,10 @@ export function decide(
       toFix: [],
       passed,
       unverified,
-      summary: `All ${passed.length} checks passed.${note}`,
+      summary:
+        passed.length === 0
+          ? `Nothing failed.${note || ' Nothing was checked either.'}`
+          : `All ${passed.length} checks passed.${note}`,
       mayRetry: false,
       attempt,
       attemptsLeft,
@@ -319,10 +342,14 @@ export function mayProceed(
 export async function lastVerdict(
   spec: { recordType: RecordType; maxAttempts?: number },
   recordId: string,
-  attempt: number
+  attempt: number,
+  companyId: string
 ): Promise<Outcome> {
   const rows = await prisma.check.findMany({
-    where: { recordType: spec.recordType, recordId },
+    // Scoped, like every other read path here. This one was not, and a
+    // record id is the only thing that stood between one vendor and
+    // another vendor's verdicts.
+    where: { companyId, recordType: spec.recordType, recordId },
     orderBy: { at: 'desc' },
   })
 
@@ -338,4 +365,18 @@ export async function lastVerdict(
   }))
 
   return decide(findings, attempt, spec.maxAttempts ?? DEFAULT_MAX_ATTEMPTS)
+}
+
+// ── Small readers, so the run loop stays about the loop ──────────────
+
+function asMany(f: Finding | Finding[] | null): Finding[] {
+  return f ? (Array.isArray(f) ? f : [f]) : []
+}
+
+function anyFailed(f: Finding | Finding[] | null): boolean {
+  return asMany(f).some((one) => one.verdict === 'FAIL')
+}
+
+function firstFailure(f: Finding | Finding[] | null): string | null {
+  return asMany(f).find((one) => one.verdict === 'FAIL')?.reason ?? null
 }

@@ -36,7 +36,8 @@ export async function POST(
     where: { id, companyId },
     select: {
       id: true, title: true, skills: true, location: true,
-      billMin: true, billMax: true, startDate: true, qualityScore: true,
+      billMin: true, billMax: true, startDate: true,
+      qualityScore: true, qualityAttempt: true,
     },
   })
 
@@ -90,7 +91,7 @@ export async function POST(
     now,
   }
 
-  const attempt = (requirement.qualityScore === null ? 0 : 1) + 1
+  const attempt = requirement.qualityAttempt + 1
 
   const outcome = await runLoop(SPEC, subject, {
     companyId,
@@ -102,7 +103,7 @@ export async function POST(
 
   await prisma.requirement.update({
     where: { id: requirement.id },
-    data: { qualityScore: n },
+    data: { qualityScore: n, qualityAttempt: attempt },
   })
 
   return NextResponse.json({
@@ -134,7 +135,7 @@ export async function GET(
 
   const requirement = await prisma.requirement.findFirst({
     where: { id, companyId: caller.company!.id },
-    select: { id: true, qualityScore: true },
+    select: { id: true, qualityScore: true, qualityAttempt: true },
   })
 
   if (!requirement) {
@@ -144,7 +145,7 @@ export async function GET(
     )
   }
 
-  const outcome = await lastVerdict(SPEC, requirement.id, requirement.qualityScore === null ? 0 : 1)
+  const outcome = await lastVerdict(SPEC, requirement.id, requirement.qualityAttempt, caller.company!.id)
 
   return NextResponse.json({
     data: {

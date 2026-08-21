@@ -146,3 +146,45 @@ describe('foreign keys are indexed', () => {
     expect(missing, `unindexed foreign keys: ${missing.join(', ')}`).toEqual([])
   })
 })
+
+// ── Every read of a Check is scoped to a company ─────────────────────
+
+import { readFileSync as readSrc } from 'node:fs'
+import { globSync } from 'node:fs'
+
+describe('nothing reads a verdict across companies', () => {
+  /**
+   * `lastVerdict` shipped with `where: { recordType, recordId }` and no
+   * companyId — the exact leak class closed across the rest of the build
+   * that morning, reintroduced in a shared helper that afternoon.
+   *
+   * A record id is a cuid and hard to guess, which is not a control.
+   */
+  it('scopes every prisma.check read to a companyId', () => {
+    const files = [
+      'src/lib/loop.ts',
+      'src/app/api/bar/route.ts',
+      'src/app/api/checks/queue/route.ts',
+      'src/app/api/checks/[id]/review/route.ts',
+    ]
+
+    const unscoped: string[] = []
+
+    for (const file of files) {
+      const src = readSrc(file, 'utf8')
+      // Each `prisma.check.find*` call, with the ~6 lines that follow it —
+      // far enough to reach the where clause, short enough not to bleed
+      // into the next query.
+      const calls = [...src.matchAll(/prisma\.check\.(findMany|findFirst|findUnique)\(/g)]
+      for (const m of calls) {
+        const window = src.slice(m.index!, m.index! + 400)
+        const where = window.match(/where:\s*\{[\s\S]{0,200}?\}/)
+        if (!where || !where[0].includes('companyId')) {
+          unscoped.push(`${file} — ${window.slice(0, 60).replace(/\s+/g, ' ')}`)
+        }
+      }
+    }
+
+    expect(unscoped).toEqual([])
+  })
+})

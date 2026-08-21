@@ -1,5 +1,13 @@
 /**
- * The loop. Check, fix, check again.
+ * What a submission package is checked for.
+ *
+ * The declaration, not the engine. Running the checks, writing the ledger
+ * row, keeping the Check rows, counting the attempts, deciding the state
+ * and feeding the human sample all belong to loop.ts — this file only says
+ * what is true of a package that is fit to send.
+ *
+ * It used to hold a second copy of the loop as well, which is how the
+ * harness built to stop drift ended up with two versions of decide().
  *
  * A submission leaves this building and lands in front of a client. If the
  * rate is above their ceiling, or the visa expires inside the contract, or
@@ -41,7 +49,7 @@
  * anybody notices the ledger has been lying for months.
  */
 
-export type Checker = 'RULE' | 'MODEL' | 'HUMAN'
+import type { Finding, Step } from '@/lib/loop'
 
 export type Code =
   /** The rate we are asking is inside what the role will pay. */
@@ -60,18 +68,6 @@ export type Code =
   | 'SKILLS_EVIDENCED'
   /** The rate against what has actually cleared for work like this. */
   | 'RATE_VS_MARKET'
-
-export interface Finding {
-  code: Code
-  checker: Checker
-  verdict: 'PASS' | 'FAIL'
-  /** What to do about it, in words a recruiter would use. */
-  reason: string
-  /** What it read to decide. A claim with no evidence can only be believed. */
-  evidence?: string | null
-}
-
-export type State = 'DRAFT' | 'CHECKING' | 'NEEDS_FIX' | 'READY' | 'SENT'
 
 /** Three, then ask a person. */
 export const MAX_ATTEMPTS = 3
@@ -299,89 +295,6 @@ function cents(n: number): string {
 }
 
 // ── The loop ──────────────────────────────────────────────────────────
-
-export interface Verdict {
-  state: State
-  /** Only the failures, in the order somebody should work through them. */
-  toFix: Finding[]
-  passed: Finding[]
-  /** One sentence for the top of the panel. */
-  summary: string
-  /** Whether another attempt is worth making. */
-  mayRetry: boolean
-}
-
-/**
- * What the loop does with a set of findings.
- *
- * READY when nothing failed. NEEDS_FIX while there is something to fix and
- * attempts left. After three, it stops asking the machine and says so —
- * because the fourth attempt costs the same as the first and has never
- * once worked.
- */
-export function decide(findings: Finding[], attempt: number): Verdict {
-  const toFix = findings.filter((f) => f.verdict === 'FAIL')
-  const passed = findings.filter((f) => f.verdict === 'PASS')
-
-  if (toFix.length === 0) {
-    return {
-      state: 'READY',
-      toFix: [],
-      passed,
-      summary: `All ${passed.length} checks passed. Fit to send.`,
-      mayRetry: false,
-    }
-  }
-
-  const exhausted = attempt >= MAX_ATTEMPTS
-
-  return {
-    state: 'NEEDS_FIX',
-    toFix,
-    passed,
-    summary: exhausted
-      ? `${toFix.length} still wrong after ${attempt} tries. Somebody needs to look at this one.`
-      : `${toFix.length} to fix before this can go.`,
-    mayRetry: !exhausted,
-  }
-}
-
-/**
- * Whether the send button works.
- *
- * Disabled while anything is red — and overridable, because a recruiter
- * who knows something the checker does not should not be stopped by it.
- * The override is recorded. A gate nobody can pass gets worked around
- * outside the product, which is worse than a gate with a log.
- */
-export function maySend(v: Verdict, override: boolean): { ok: boolean; reason: string } {
-  if (v.state === 'READY') return { ok: true, reason: 'Every check passed.' }
-
-  if (override) {
-    return {
-      ok: true,
-      reason: `Sent with ${v.toFix.length} check${v.toFix.length === 1 ? '' : 's'} failing. Recorded against whoever pressed it.`,
-    }
-  }
-
-  return {
-    ok: false,
-    reason: v.toFix.map((f) => f.reason).join(' '),
-  }
-}
-
-/**
- * How the state moves, given where it is and what happened.
- *
- * One step per call, so a crash leaves a record rather than a process
- * nobody can find.
- */
-export function next(current: State, v: Verdict): State {
-  if (current === 'SENT') return 'SENT'
-  return v.state
-}
-
-// ── The one model judgement ───────────────────────────────────────────
 
 /**
  * The prompt for the only question here worth paying for.

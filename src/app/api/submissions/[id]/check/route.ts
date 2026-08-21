@@ -5,10 +5,10 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { record } from '@/lib/agent-run'
 import {
-  ruleChecks, decide, maySend, next as nextState,
-  evidencePrompt, evidenceCheck, marketCheck, MAX_ATTEMPTS,
-  type Finding, type Package, type Evidenced,
+  ruleChecks, evidencePrompt, evidenceCheck, marketCheck, MAX_ATTEMPTS,
+  type Package, type Evidenced,
 } from '@/lib/checks'
+import { runLoop, lastVerdict, mayProceed, type Finding, type Step } from '@/lib/loop'
 import { band, warnAbout, WINDOW_DAYS, type Observation } from '@/lib/benchmark'
 
 /**
@@ -128,29 +128,18 @@ export async function POST(
     consented: hold?.consentedAt != null,
   }
 
-  // ── The rules ───────────────────────────────────────────────────────
-  const ruleStarted = Date.now()
-  const findings: Finding[] = ruleChecks(pkg, now)
-
-  await record({
-    companyId,
-    agent: 'submission.check.rules',
-    recordType: 'SUBMISSION',
-    recordId: submission.id,
-    attempt,
-    verdict: findings.some((f) => f.verdict === 'FAIL') ? 'FAIL' : 'PASS',
-    ms: Date.now() - ruleStarted,
-  })
-
-  // ── What has actually cleared, for work like this ───────────────────
+  // ── What a package fit to send looks like ───────────────────────────
   //
-  // The outcome loop turning. Rate is the commonest reason a submission
-  // dies and the one reason knowable in advance, because we watched other
-  // people get rejected above this number for work like this.
+  // A declaration. Running these, writing the ledger row, keeping the
+  // Check rows, counting the attempts, deciding the state and feeding the
+  // human sample all belong to the harness — this route only says what is
+  // true of a submission that may leave the building.
   //
-  // Never a failure — a benchmark describes the past, it does not rule on
-  // the present, and a vendor bidding above it may have a reason. It puts
-  // the number in front of somebody while they can still change it.
+  // It used to do all of that by hand, which is how a second copy of
+  // decide() came to exist alongside the one in loop.ts.
+  const cvText = submission.resume?.textExtract ?? null
+
+  // What has cleared before, for the market check below.
   const since = new Date(now.getTime() - WINDOW_DAYS * 86400000)
   const past = await prisma.submission.findMany({
     where: { fromCompanyId: companyId, submittedAt: { gte: since }, id: { not: submission.id } },
@@ -169,105 +158,78 @@ export async function POST(
     at: p.submittedAt,
   }))
 
-  if (submission.rate != null) {
-    const market = band(
-      observations,
-      { skills: submission.requirement.skills, location: submission.requirement.location },
-      now
-    )
-    const advice = marketCheck(warnAbout(submission.rate, market))
-    if (advice) findings.push(advice)
-  }
-
-  // ── The one model judgement ─────────────────────────────────────────
-  //
-  // Only when the rules are clean. Paying to be told a skill is missing on
-  // a package that also has no CV attached is paying twice for the same
-  // answer.
-  const rulesClean = !findings.some((f) => f.verdict === 'FAIL')
-  const cvText = submission.resume?.textExtract ?? null
-  let modelRunId: string | null = null
-
-  if (rulesClean && cvText && pkg.claimedSkills.length > 0 && process.env.ANTHROPIC_API_KEY) {
-    const started = Date.now()
-    try {
-      const response = await anthropic.messages.create({
-        model: MODEL,
-        max_tokens: 4000,
-        thinking: { type: 'adaptive' },
-        output_config: { effort: 'low' },
-        messages: [
-          { role: 'user', content: evidencePrompt(pkg.claimedSkills, cvText) },
-        ],
-      })
-
-      const text = response.content.find((b) => b.type === 'text')
-      const raw = text && text.type === 'text' ? text.text : ''
-      const json = raw.match(/\[[\s\S]*\]/)
-      const answers: Evidenced[] = json ? JSON.parse(json[0]) : []
-
-      const finding = evidenceCheck(pkg.claimedSkills, answers, cvText)
-      findings.push(finding)
-
-      modelRunId = await record({
-        companyId,
-        agent: 'submission.check.evidence',
-        recordType: 'SUBMISSION',
-        recordId: submission.id,
-        attempt,
-        verdict: finding.verdict === 'PASS' ? 'PASS' : 'FAIL',
-        failReason: finding.verdict === 'FAIL' ? finding.reason : null,
-        model: MODEL,
-        usage: response.usage,
-        ms: Date.now() - started,
-      })
-    } catch (err: any) {
-      // Not a failed check. The check did not run, and saying it passed
-      // would be the worst of the three possible answers.
-      await record({
-        companyId,
-        agent: 'submission.check.evidence',
-        recordType: 'SUBMISSION',
-        recordId: submission.id,
-        attempt,
-        verdict: 'ERROR',
-        failReason: String(err?.message ?? err).slice(0, 300),
-        model: MODEL,
-        ms: Date.now() - started,
-      })
-      findings.push({
-        code: 'SKILLS_EVIDENCED',
-        checker: 'MODEL',
-        verdict: 'PASS',
-        reason: 'Could not check the CV against the claimed skills this time. Nobody has verified them.',
-      })
-    }
-  } else if (rulesClean && !cvText && submission.resumeId) {
-    findings.push({
+  const steps: Step<Package>[] = [
+    {
+      code: 'RULES',
+      checker: 'RULE',
+      run: (p) => ruleChecks(p, now),
+    },
+    {
+      // What has actually cleared, for work like this. The outcome loop
+      // turning, and never a failure — a benchmark describes the past, it
+      // does not rule on the present.
+      code: 'RATE_VS_MARKET',
+      checker: 'RULE',
+      run: (p) =>
+        p.rateCents == null
+          ? null
+          : marketCheck(
+              warnAbout(
+                p.rateCents,
+                band(
+                  observations,
+                  { skills: submission.requirement.skills, location: submission.requirement.location },
+                  now
+                )
+              )
+            ),
+    },
+    {
+      // The one question worth paying for.
       code: 'SKILLS_EVIDENCED',
       checker: 'MODEL',
-      verdict: 'PASS',
-      reason: 'The CV could not be read as text, so the skill claims are unchecked.',
-    })
-  }
+      whenItCannotRun:
+        'Could not check the CV against the claimed skills this time. Nobody has verified them.',
+      run: async (p): Promise<Finding | null> => {
+        if (!cvText) {
+          return submission.resumeId
+            ? {
+                code: 'SKILLS_EVIDENCED',
+                checker: 'MODEL',
+                verdict: 'PASS',
+                unverified: true,
+                reason: 'The CV could not be read as text, so the skill claims are unchecked.',
+              }
+            : null
+        }
 
-  // ── Write down every verdict, with who decided ──────────────────────
-  await prisma.check.createMany({
-    data: findings.map((f) => ({
-      companyId,
-      runId: f.checker === 'MODEL' ? modelRunId : null,
-      recordType: 'SUBMISSION',
-      recordId: submission.id,
-      checker: f.checker,
-      code: f.code,
-      verdict: f.verdict,
-      reason: f.reason,
-      evidence: f.evidence ?? null,
-    })),
-  })
+        if (p.claimedSkills.length === 0 || !process.env.ANTHROPIC_API_KEY) return null
 
-  const verdict = decide(findings, attempt)
-  const state = nextState(submission.checkState as any, verdict)
+        const response = await anthropic.messages.create({
+          model: MODEL,
+          max_tokens: 4000,
+          thinking: { type: 'adaptive' },
+          output_config: { effort: 'low' },
+          messages: [{ role: 'user', content: evidencePrompt(p.claimedSkills, cvText) }],
+        })
+
+        const text = response.content.find((b) => b.type === 'text')
+        const raw = text && text.type === 'text' ? text.text : ''
+        const json = raw.match(/\[[\s\S]*\]/)
+        const answers: Evidenced[] = json ? JSON.parse(json[0]) : []
+
+        return evidenceCheck(p.claimedSkills, answers, cvText)
+      },
+    },
+  ]
+
+  const outcome = await runLoop(
+    { name: 'submission.check', recordType: 'SUBMISSION', steps, maxAttempts: MAX_ATTEMPTS },
+    pkg,
+    { companyId, recordId: submission.id, attempt }
+  )
+
+  const state = outcome.state
 
   await prisma.submission.update({
     where: { id: submission.id },
@@ -277,13 +239,9 @@ export async function POST(
   return NextResponse.json({
     data: {
       submissionId: submission.id,
+      ...outcome,
       state,
-      attempt,
-      attemptsLeft: Math.max(0, MAX_ATTEMPTS - attempt),
-      summary: verdict.summary,
-      toFix: verdict.toFix,
-      passed: verdict.passed,
-      maySend: maySend(verdict, false),
+      maySend: mayProceed(outcome, false),
     },
   })
 }
@@ -319,37 +277,24 @@ export async function GET(
     )
   }
 
-  // The latest verdict per code. A check run three times has three rows,
-  // and only the last one is the answer.
-  const rows = await prisma.check.findMany({
-    where: { recordType: 'SUBMISSION', recordId: id },
-    orderBy: { at: 'desc' },
-  })
-
-  const latest = new Map<string, (typeof rows)[number]>()
-  for (const r of rows) if (!latest.has(r.code)) latest.set(r.code, r)
-
-  const findings: Finding[] = Array.from(latest.values()).map((r) => ({
-    code: r.code as Finding['code'],
-    checker: r.checker as Finding['checker'],
-    verdict: r.verdict as 'PASS' | 'FAIL',
-    reason: r.reason,
-    evidence: r.evidence,
-  }))
-
-  const verdict = decide(findings, submission.checkAttempt)
+  // Read back through the harness, which knows how to find the newest
+  // verdict per code — and scopes the read to this company, which this
+  // route's own copy of the query did not.
+  const outcome = await lastVerdict(
+    { recordType: 'SUBMISSION', maxAttempts: MAX_ATTEMPTS },
+    submission.id,
+    submission.checkAttempt,
+    caller.company!.id
+  )
 
   return NextResponse.json({
     data: {
       submissionId: submission.id,
+      ...outcome,
       state: submission.checkState,
-      attempt: submission.checkAttempt,
-      attemptsLeft: Math.max(0, MAX_ATTEMPTS - submission.checkAttempt),
       neverRun: submission.checkAttempt === 0,
-      summary: submission.checkAttempt === 0 ? 'Not checked yet.' : verdict.summary,
-      toFix: verdict.toFix,
-      passed: verdict.passed,
-      maySend: maySend(verdict, submission.overriddenAt !== null),
+      summary: submission.checkAttempt === 0 ? 'Not checked yet.' : outcome.summary,
+      maySend: mayProceed(outcome, submission.overriddenAt !== null),
       override: submission.overriddenAt
         ? { at: submission.overriddenAt.toISOString(), reason: submission.overrideReason }
         : null,

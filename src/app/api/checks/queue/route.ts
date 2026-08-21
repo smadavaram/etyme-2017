@@ -15,8 +15,12 @@ import { drawSample, agreement, thisWeek, question, SAMPLE_SIZE } from '@/lib/re
  * behind it: leads were flagged "might be a duplicate — have a look" and
  * there was nowhere to look.
  *
- * Still only machine checks. A rule cannot be wrong in an interesting way
- * and putting rules in here would bury the ones worth reading.
+ * Still only model checks and the leads. A rule cannot be wrong in an
+ * interesting way, so a loop made entirely of rules — requirement quality
+ * is one — has nothing to sample here, and that is correct rather than a
+ * gap. The response says so, because an empty queue that means "nothing
+ * to review" and an empty queue that means "this surface is never sampled"
+ * look identical otherwise.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -96,6 +100,10 @@ export async function GET(request: NextRequest) {
         ...question(c),
       })),
       waiting: candidates.length,
+      // Which loops have anything here to sample at all. A loop made of
+      // rules is not being neglected; it has nothing a person could
+      // usefully second-guess.
+      sampledSurfaces: [...new Set(candidates.map((c) => c.recordType))],
       agreement: agreement(reviewed),
       week: thisWeek(reviewed, now),
     },

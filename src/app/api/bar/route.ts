@@ -73,11 +73,19 @@ export async function GET(request: NextRequest) {
     // they attach one; tomorrow it says Kavitha. Nothing noticed that the
     // answer was never "attach a CV" — it was "collect CVs at onboarding".
     prisma.check.findMany({
-      where: { companyId, recordType: 'SUBMISSION', verdict: 'FAIL', at: { gte: patternSince } },
+      // Every record type, not only submissions. The pattern detector was
+      // filtered to SUBMISSION, so a requirement quality check failing the
+      // same way on forty roles was invisible — which is exactly the
+      // upstream problem it exists to name.
+      where: { companyId, verdict: 'FAIL', at: { gte: patternSince } },
       select: { code: true, recordId: true, at: true },
     }),
-    prisma.submission.count({
-      where: { fromCompanyId: companyId, checkAttempt: { gt: 0 }, submittedAt: { gte: patternSince } },
+    // How many records any loop has actually checked, which is what the
+    // share is out of.
+    prisma.check.findMany({
+      where: { companyId, at: { gte: patternSince } },
+      select: { recordType: true, recordId: true },
+      distinct: ['recordType', 'recordId'],
     }),
   ])
 
@@ -99,7 +107,7 @@ export async function GET(request: NextRequest) {
 
   const found = patterns(
     repeats.map((r): Failure => ({ code: r.code, recordId: r.recordId, at: r.at })),
-    checked
+    checked.length
   )
 
   return NextResponse.json({
@@ -107,7 +115,7 @@ export async function GET(request: NextRequest) {
       target: TARGET_PER_DAY,
       // Silence here means the loop is working. A panel that always has
       // something in it is a panel nobody reads.
-      recurring: { patterns: found, headline: headline(found), submissionsChecked: checked },
+      recurring: { patterns: found, headline: headline(found), recordsChecked: checked.length },
       window: days,
       bar: theBar,
       stopping: whatIsStopping(subs),

@@ -755,6 +755,14 @@ model Requirement {
   /// Null until the check has been run once.
   qualityScore Int?
 
+  /// How many times the quality check has run.
+  ///
+  /// A real counter, because the attempt was derived from whether
+  /// qualityScore was null — so it read 1, then 2, then 2 forever. Fix
+  /// the role, re-check, and it still said "still wrong after 2 tries".
+  /// The cap was decoration.
+  qualityAttempt Int @default(0)
+
   @@index([companyId, status])
   @@index([openToNetwork, status])
   @@index([msaId])

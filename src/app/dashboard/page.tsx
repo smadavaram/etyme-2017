@@ -50,7 +50,7 @@ interface Bar {
   }
   recurring: {
     headline: string | null
-    submissionsChecked: number
+    recordsChecked: number
     patterns: { code: string; hits: number; outOf: number; percent: number; says: string; reallyFix: string }[]
   }
 }

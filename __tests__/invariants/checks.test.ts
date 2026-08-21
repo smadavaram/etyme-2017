@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
-  ruleChecks, decide, maySend, next, evidenceCheck, evidencePrompt,
-  MAX_ATTEMPTS, type Package, type Finding,
+  ruleChecks, evidenceCheck, evidencePrompt, MAX_ATTEMPTS, type Package,
 } from '@/lib/checks'
+// The engine lives in one place now. This file tests what a submission is
+// checked for; loop.test.ts tests what the loop does with the answers.
+import { decide, mayProceed, type Finding } from '@/lib/loop'
 
 /**
  * A submission leaves this building and lands in front of a client. If the
@@ -172,14 +174,18 @@ describe('the loop', () => {
   it('is ready when nothing failed', () => {
     const v = decide([ok, ok], 1)
     expect(v.state).toBe('READY')
-    expect(v.summary).toBe('All 2 checks passed. Fit to send.')
+    // Wording is the harness's now, not this surface's. The two copies
+    // of decide() had already drifted apart on exactly this sentence,
+    // which is what a shared engine is for. The domain phrase lives in
+    // mayProceed, which the route surfaces as maySend.
+    expect(v.summary).toBe('All 2 checks passed.')
   })
 
   it('asks for fixes and says how many', () => {
     const v = decide([ok, bad], 1)
     expect(v.state).toBe('NEEDS_FIX')
     expect(v.toFix).toHaveLength(1)
-    expect(v.summary).toBe('1 to fix before this can go.')
+    expect(v.summary).toBe('1 to fix.')
     expect(v.mayRetry).toBe(true)
   })
 
@@ -191,10 +197,12 @@ describe('the loop', () => {
     expect(v.summary).toBe('1 still wrong after 3 tries. Somebody needs to look at this one.')
   })
 
-  it('moves one step per call, and never moves back out of sent', () => {
-    expect(next('DRAFT', decide([ok], 1))).toBe('READY')
-    expect(next('CHECKING', decide([bad], 1))).toBe('NEEDS_FIX')
-    expect(next('SENT', decide([bad], 1))).toBe('SENT')
+  it('moves one step per call', () => {
+    // There is no CHECKING any more. A run is one synchronous call, so
+    // nothing ever rested there, and a state the code cannot produce is
+    // one somebody will eventually build a screen for.
+    expect(decide([ok], 1).state).toBe('READY')
+    expect(decide([bad], 1).state).toBe('NEEDS_FIX')
   })
 })
 
@@ -202,11 +210,11 @@ describe('the send button', () => {
   const bad: Finding = { code: 'CV_ATTACHED', checker: 'RULE', verdict: 'FAIL', reason: 'No CV.' }
 
   it('works when everything passed', () => {
-    expect(maySend(decide([], 1), false).ok).toBe(true)
+    expect(mayProceed(decide([], 1), false).ok).toBe(true)
   })
 
   it('is disabled while anything is red, and says what', () => {
-    const v = maySend(decide([bad], 1), false)
+    const v = mayProceed(decide([bad], 1), false)
     expect(v.ok).toBe(false)
     expect(v.reason).toBe('No CV.')
   })
@@ -214,7 +222,7 @@ describe('the send button', () => {
   it('can be overridden, and says the override was recorded', () => {
     // A gate nobody can pass gets worked around outside the product,
     // which is worse than a gate with a log.
-    const v = maySend(decide([bad], 1), true)
+    const v = mayProceed(decide([bad], 1), true)
     expect(v.ok).toBe(true)
     expect(v.reason).toMatch(/Recorded against whoever pressed it/)
   })
