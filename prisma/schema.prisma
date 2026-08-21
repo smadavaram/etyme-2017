@@ -296,6 +296,10 @@ model Company {
   // End-client contracts (where consultants actually work, when ≠ billing client)
   endClientContracts SellContract[]          @relation("sellEndClient")
   endClientRequirements Requirement[]        @relation("requirementEndClient")
+  openings              Opening[]            @relation("openingOwner")
+  openingsAsClient      Opening[]            @relation("openingClient")
+  leads                 Lead[]               @relation("leadOwner")
+  leadsPosted           Lead[]               @relation("leadPoster")
   representationsHeld   Representation[]     @relation("representingVendor")
   representationsAt     Representation[]     @relation("representedAtClient")
   doNotSubmitTo         DoNotSubmit[]        @relation("doNotSubmitCompany")
@@ -637,6 +641,14 @@ model Requirement {
   /// The same reasoning as rateVisible, one field over.
   endClientVisible Boolean @default(false)
 
+  /// The seat this is a working record of.
+  ///
+  /// A requirement is what a vendor writes down about a role they are
+  /// working. The opening is the seat itself, which several requirements —
+  /// and several primes — may point at.
+  openingId String?
+  opening   Opening? @relation(fields: [openingId], references: [id])
+
   // ── Demand side (Addendum E) ──
   // A requisition raised by the client, as opposed to a requirement a vendor
   // records against demand it heard about. Same object, two origins: the
@@ -676,6 +688,7 @@ model Requirement {
   representations Representation[]
 
   @@index([endClientCompanyId])
+  @@index([openingId])
 }
 
 // ─────────────────────────────────────────────
@@ -868,6 +881,92 @@ model Submission {
   @@index([toCompanyId, status])
 }
 
+/// The seat itself — one real job at one client, however many adverts it wears.
+///
+/// A sub-vendor's demand does not arrive as a requisition. It arrives as an
+/// advert on Dice posted by a prime who is hiding the client so their NDA
+/// holds, and the same seat is posted by three other primes the same
+/// morning with the title reworded and the rate shaved.
+///
+/// So the client is nullable, and that is not a gap to fill in later — it
+/// is the normal state, and the hiding is somebody's contract working as
+/// intended. What can honestly be said instead goes in inferredClient.
+model Opening {
+  id     String   @id @default(cuid())
+  /// The company working this seat. Openings are private: two vendors
+  /// chasing the same seat each have their own row, because neither can
+  /// see the other's pipeline.
+  companyId String
+  company   Company @relation("openingOwner", fields: [companyId], references: [id], onDelete: Cascade)
+
+  title    String
+  skills   String[]
+  location String?
+
+  /// Null while the prime is still hiding it, which is most of the time.
+  clientCompanyId String?
+  clientCompany   Company? @relation("openingClient", fields: [clientCompanyId], references: [id])
+  /// What can honestly be said instead: "a medical device firm, Denver".
+  inferredClient  String?
+  /// How the name finally arrived — at interview, on the first day, never.
+  clientLearnedAt DateTime?
+
+  headcount Int      @default(1)
+  status    String   @default("LIVE") // LIVE · FILLED · COLD
+  firstSeen DateTime @default(now())
+  lastSeen  DateTime @default(now())
+
+  leads           Lead[]
+  requirements    Requirement[]
+  representations Representation[]
+
+  @@index([companyId, status])
+  @@index([clientCompanyId])
+}
+
+/// One advert, email or portal row, exactly as it arrived.
+///
+/// Kept whole and unedited. The fingerprint that collapses leads into a
+/// seat may need rebuilding when the matching improves, and an advert
+/// somebody has already normalised cannot be re-read.
+model Lead {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation("leadOwner", fields: [companyId], references: [id], onDelete: Cascade)
+
+  source   String // DICE · LINKEDIN · EMAIL · DIRECT · VMS · OTHER
+  /// The prime who posted it, as text. Usually a name with no company row
+  /// behind it, and pretending otherwise would invent a counterparty.
+  postedBy String?
+  /// Their company row, once there is one to point at.
+  postedByCompanyId String?
+  postedByCompany   Company? @relation("leadPoster", fields: [postedByCompanyId], references: [id])
+
+  title    String
+  skills   String[]
+  location String?
+  /// Cents per hour as posted — a ceiling to bid under, not an offer.
+  rateCents Int?
+  contact   String?
+  /// The advert, whole.
+  text      String?
+  seenAt    DateTime @default(now())
+
+  /// The seat this advert is for, once somebody or something decided.
+  openingId String?
+  opening   Opening? @relation(fields: [openingId], references: [id])
+  /// SAME collapses on its own; LIKELY waits for a person. Nothing merges
+  /// silently — the same rule CLAUDE.md sets for resolving people.
+  matchStrength String?
+  matchBecause  String[]
+  confirmedById String?
+  confirmedAt   DateTime?
+
+  @@index([companyId, seenAt])
+  @@index([openingId])
+  @@index([postedByCompanyId])
+}
+
 /// One vendor representing one person at one client.
 ///
 /// The 2017 answer to a consultant being on several benches was to forbid
@@ -893,8 +992,17 @@ model Representation {
   company         Company @relation("representingVendor", fields: [companyId], references: [id], onDelete: Cascade)
   /// The client they are held at. The end client where that is known,
   /// because two primes feeding one site is the case this exists for.
-  clientCompanyId String
-  clientCompany   Company @relation("representedAtClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+  ///
+  /// Nullable now: most demand is blind, and a hold that needs the client's
+  /// name protects nobody on exactly the roles where it matters most.
+  clientCompanyId String?
+  clientCompany   Company? @relation("representedAtClient", fields: [clientCompanyId], references: [id], onDelete: Cascade)
+
+  /// The seat, when the client has no name yet. holdKey is built from the
+  /// client where it is known and from this where it is not, so a blind
+  /// role is still held against everybody else.
+  openingId String?
+  opening   Opening? @relation(fields: [openingId], references: [id])
   /// The role it started with. Context for the person, not a constraint —
   /// the hold covers the client, not one requisition.
   requirementId   String?
@@ -922,6 +1030,7 @@ model Representation {
   @@index([personId, state])
   @@index([clientCompanyId, state])
   @@index([requirementId])
+  @@index([openingId])
 }
 
 /// A client this person will not be put in front of.

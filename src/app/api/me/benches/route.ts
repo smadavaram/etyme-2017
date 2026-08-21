@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { whoHasMe, endHold } from '@/lib/holds'
+import { clientLabel } from '@/lib/openings'
 import { notify } from '@/lib/notify'
 import { emit } from '@/lib/events'
 
@@ -141,6 +142,7 @@ export async function PATCH(request: NextRequest) {
         companyId: true,
         company: { select: { name: true } },
         clientCompany: { select: { name: true } },
+        opening: { select: { inferredClient: true } },
       },
     })
     if (!hold) {
@@ -153,6 +155,12 @@ export async function PATCH(request: NextRequest) {
     // Their career, so no cool-off and no permission needed. A vendor who
     // submitted somebody a month ago and has said nothing since does not
     // get to keep them off the market at that client.
+    // Most demand is blind, so the client often has no name to print.
+    const heldAt = clientLabel({
+      clientName: hold.clientCompany?.name,
+      inferredClient: hold.opening?.inferredClient,
+    })
+
     await endHold(hold.id, 'They asked for it back.', 'PERSON')
 
     void emit({
@@ -181,15 +189,15 @@ export async function PATCH(request: NextRequest) {
         personId: r.personId,
         companyId: hold.companyId,
         type: 'SUBMISSION',
-        title: `${person.name} is no longer held at ${hold.clientCompany.name}`,
-        body: `${person.name} took back your representation at ${hold.clientCompany.name}. Another agency can put them forward there now.`,
+        title: `${person.name} is no longer held at ${heldAt}`,
+        body: `${person.name} took back your representation at ${heldAt}. Another agency can put them forward there now.`,
         entityId: hold.id,
       })
     }
 
     return NextResponse.json({
       data: {
-        message: `${hold.company.name} no longer represents you at ${hold.clientCompany.name}. They have been told, without a reason.`,
+        message: `${hold.company.name} no longer represents you at ${heldAt}. They have been told, without a reason.`,
       },
     })
   }
@@ -202,6 +210,7 @@ export async function PATCH(request: NextRequest) {
         id: true, companyId: true, clientCompanyId: true,
         company: { select: { name: true } },
         clientCompany: { select: { name: true } },
+        opening: { select: { inferredClient: true } },
       },
     })
     if (!asked) {
@@ -210,6 +219,11 @@ export async function PATCH(request: NextRequest) {
         { status: 404 }
       )
     }
+
+    const askedAbout = clientLabel({
+      clientName: asked.clientCompany?.name,
+      inferredClient: asked.opening?.inferredClient,
+    })
 
     if (!body.yes) {
       await prisma.representation.update({
@@ -247,11 +261,11 @@ export async function PATCH(request: NextRequest) {
         companyId: asked.companyId,
         type: 'SUBMISSION',
         title: body.yes
-          ? `${person.name} said yes to ${asked.clientCompany.name}`
-          : `${person.name} said no to ${asked.clientCompany.name}`,
+          ? `${person.name} said yes to ${askedAbout}`
+          : `${person.name} said no to ${askedAbout}`,
         body: body.yes
-          ? `You can submit ${person.name} to ${asked.clientCompany.name} now. You represent them there for the next 30 days.`
-          : `${person.name} does not want to be put forward to ${asked.clientCompany.name}.`,
+          ? `You can submit ${person.name} to ${askedAbout} now. You represent them there for the next 30 days.`
+          : `${person.name} does not want to be put forward to ${askedAbout}.`,
         entityId: asked.id,
       })
     }
@@ -259,7 +273,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       data: {
         message: body.yes
-          ? `${asked.company.name} can put you forward to ${asked.clientCompany.name}.`
+          ? `${asked.company.name} can put you forward to ${askedAbout}.`
           : `${asked.company.name} has been told no. No reason was given.`,
       },
     })

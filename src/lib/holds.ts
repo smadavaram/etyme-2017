@@ -3,6 +3,7 @@ import {
   decideSubmission, holdExpiry, live, endBecauseOf, tellThem,
   type Hold, type Verdict,
 } from '@/lib/representation'
+import { clientLabel } from '@/lib/openings'
 
 /**
  * Taking and giving back a representation hold, against the database.
@@ -36,14 +37,17 @@ export function clientOf(r: { companyId: string; endClientCompanyId?: string | n
 
 function toHold(row: {
   companyId: string
-  clientCompanyId: string
+  clientCompanyId: string | null
+  openingId?: string | null
   state: string
   takenAt: Date
   expiresAt: Date
 }): Hold {
   return {
     companyId: row.companyId,
-    clientCompanyId: row.clientCompanyId,
+    // Blind demand has no client to key on, so the seat stands in for it.
+    // The pair is what matters, not which of the two named it.
+    clientCompanyId: row.clientCompanyId ?? `opening:${row.openingId ?? 'unknown'}`,
     state: row.state as Hold['state'],
     takenAt: row.takenAt,
     expiresAt: row.expiresAt,
@@ -332,6 +336,7 @@ export async function whoHasMe(personId: string, now: Date = new Date()): Promis
         clientCompanyId: true,
         company: { select: { name: true } },
         clientCompany: { select: { name: true } },
+        opening: { select: { inferredClient: true } },
         requirement: { select: { title: true } },
       },
     }),
@@ -359,7 +364,12 @@ export async function whoHasMe(personId: string, now: Date = new Date()): Promis
     const list = heldByCompany.get(r.companyId) ?? []
     list.push({
       id: r.id,
-      client: r.clientCompany.name,
+      // Blind demand is the ordinary case, so this says what it can rather
+      // than showing the person a blank where their client should be.
+      client: clientLabel({
+        clientName: r.clientCompany?.name,
+        inferredClient: r.opening?.inferredClient,
+      }),
       role: r.requirement?.title ?? null,
       daysLeft: Math.max(0, Math.ceil((r.expiresAt.getTime() - now.getTime()) / 86_400_000)),
     })
@@ -389,7 +399,10 @@ export async function whoHasMe(personId: string, now: Date = new Date()): Promis
       .map((r) => ({
         id: r.id,
         company: r.company.name,
-        client: r.clientCompany.name,
+        client: clientLabel({
+          clientName: r.clientCompany?.name,
+          inferredClient: r.opening?.inferredClient,
+        }),
         role: r.requirement?.title ?? null,
         askedAt: r.takenAt.toISOString().slice(0, 10),
       })),
