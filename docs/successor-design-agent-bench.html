@@ -1,0 +1,1143 @@
+<title>The Agent Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,400;100,500;100,600;100,700;112,700;112,800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:    #EDF1F1;
+    --surface:   #F8FAFA;
+    --surface-2: #E3E9E9;
+    --ink:       #101718;
+    --ink-2:     #4B5A5C;
+    --ink-3:     #77878A;
+    --rule:      #CCD6D6;
+    --rule-soft: #DDE4E4;
+    --accent:    #0F5C61;
+    --accent-2:  #14777E;
+    --signal:    #B85A16;
+    --signal-bg: #F6E7DA;
+    --good:      #2C6E49;
+    --good-bg:   #DDE9E0;
+    --warn:      #96690E;
+    --warn-bg:   #F1E8D2;
+    --crit:      #9C3626;
+    --crit-bg:   #F2DFDB;
+
+    --c-compute: #2C7A80;
+    --c-verify:  #97C8CB;
+    --c-esc:     #C9962B;
+    --c-reserve: #B5533F;
+    --c-margin:  #C2611F;
+
+    --measure: 68ch;
+    --step--1: 0.813rem;
+    --step-0:  1.0625rem;
+    --step-1:  1.32rem;
+    --step-2:  1.72rem;
+    --step-3:  2.3rem;
+    --step-4:  3.4rem;
+
+    --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:    #0B1011;
+      --surface:   #141B1C;
+      --surface-2: #1C2526;
+      --ink:       #E5EBEB;
+      --ink-2:     #9BABAC;
+      --ink-3:     #748587;
+      --rule:      #2C3739;
+      --rule-soft: #222C2E;
+      --accent:    #58BEC4;
+      --accent-2:  #7FD3D7;
+      --signal:    #E38B4B;
+      --signal-bg: #33231A;
+      --good:      #6BBF8E;
+      --good-bg:   #1B2C22;
+      --warn:      #D2A64B;
+      --warn-bg:   #2E2718;
+      --crit:      #DE7B66;
+      --crit-bg:   #2F1D19;
+
+      --c-compute: #4FB2B9;
+      --c-verify:  #2C6468;
+      --c-esc:     #D2A64B;
+      --c-reserve: #C4614C;
+      --c-margin:  #E38B4B;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:    #0B1011;
+    --surface:   #141B1C;
+    --surface-2: #1C2526;
+    --ink:       #E5EBEB;
+    --ink-2:     #9BABAC;
+    --ink-3:     #748587;
+    --rule:      #2C3739;
+    --rule-soft: #222C2E;
+    --accent:    #58BEC4;
+    --accent-2:  #7FD3D7;
+    --signal:    #E38B4B;
+    --signal-bg: #33231A;
+    --good:      #6BBF8E;
+    --good-bg:   #1B2C22;
+    --warn:      #D2A64B;
+    --warn-bg:   #2E2718;
+    --crit:      #DE7B66;
+    --crit-bg:   #2F1D19;
+
+    --c-compute: #4FB2B9;
+    --c-verify:  #2C6468;
+    --c-esc:     #D2A64B;
+    --c-reserve: #C4614C;
+    --c-margin:  #E38B4B;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: var(--step-0);
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- shell ---------- */
+
+  .rail {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--ground) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .rail-in {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+  }
+  .rail-mark {
+    font-family: var(--sans);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  .rail-nav {
+    display: flex;
+    gap: 18px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .rail-nav::-webkit-scrollbar { display: none; }
+  .rail-nav a {
+    font-family: var(--sans);
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--ink-3);
+    text-decoration: none;
+    white-space: nowrap;
+    padding: 2px 0;
+    border-bottom: 1.5px solid transparent;
+  }
+  .rail-nav a:hover,
+  .rail-nav a:focus-visible { color: var(--ink); border-bottom-color: var(--signal); }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px 120px;
+  }
+
+  .col { max-width: var(--measure); }
+
+  /* ---------- masthead ---------- */
+
+  .mast { padding: 72px 0 0; }
+  .eyebrow {
+    font-family: var(--sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-variation-settings: "wdth" 112;
+    font-weight: 800;
+    font-size: var(--step-4);
+    line-height: 0.98;
+    letter-spacing: -0.028em;
+    text-wrap: balance;
+    margin: 0 0 26px;
+    max-width: 16ch;
+  }
+  .deck {
+    font-size: var(--step-1);
+    line-height: 1.5;
+    color: var(--ink-2);
+    max-width: 60ch;
+    margin: 0 0 34px;
+  }
+  .deck strong { color: var(--ink); font-weight: 600; }
+
+  .mast-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 34px;
+    padding: 18px 0 0;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-3);
+    max-width: var(--measure);
+  }
+  .mast-meta span strong {
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+
+  /* ---------- sections ---------- */
+
+  section { padding-top: 76px; scroll-margin-top: 62px; }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 8px;
+  }
+  .sec-tag {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--signal);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .sec-line { flex: 1; height: 1px; background: var(--rule); }
+
+  h2 {
+    font-family: var(--sans);
+    font-variation-settings: "wdth" 100;
+    font-weight: 700;
+    font-size: var(--step-3);
+    line-height: 1.1;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+    margin: 0 0 22px;
+    max-width: 24ch;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: var(--step-1);
+    line-height: 1.24;
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+    margin: 40px 0 12px;
+  }
+  h4 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: var(--step-0);
+    letter-spacing: -0.005em;
+    margin: 28px 0 8px;
+  }
+
+  p { margin: 0 0 18px; max-width: var(--measure); }
+  p.lead { font-size: var(--step-1); line-height: 1.5; color: var(--ink-2); }
+
+  a { color: var(--accent); text-underline-offset: 2px; }
+
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+
+  code, .m {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--surface-2);
+    padding: 0.1em 0.36em;
+    border-radius: 3px;
+  }
+
+  ul, ol { max-width: var(--measure); margin: 0 0 18px; padding-left: 1.2em; }
+  li { margin-bottom: 9px; }
+  li::marker { color: var(--ink-3); }
+
+  /* ---------- pull / callout ---------- */
+
+  .pull {
+    border-left: 3px solid var(--signal);
+    padding: 4px 0 4px 22px;
+    margin: 30px 0;
+    max-width: var(--measure);
+    font-size: var(--step-1);
+    line-height: 1.45;
+    color: var(--ink);
+  }
+
+  .note {
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin: 28px 0;
+    max-width: var(--measure);
+  }
+  .note > :last-child { margin-bottom: 0; }
+  .note-label {
+    font-family: var(--sans);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--crit);
+    display: block;
+    margin-bottom: 9px;
+  }
+  .note.ok .note-label { color: var(--good); }
+
+  /* ---------- figures ---------- */
+
+  figure {
+    margin: 40px 0;
+    max-width: 1000px;
+  }
+  .figframe {
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-radius: 5px;
+    padding: 22px 24px 16px;
+    overflow-x: auto;
+  }
+  figure svg {
+    display: block;
+    width: 100%;
+    min-width: 620px;
+    max-width: 100%;
+    height: auto;
+    color: var(--ink-2);
+  }
+  figcaption {
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    line-height: 1.5;
+    color: var(--ink-3);
+    margin-top: 12px;
+    max-width: 74ch;
+  }
+  figcaption b {
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+
+  .svg-box   { fill: var(--surface); stroke: currentColor; stroke-width: 1.25; }
+  .svg-band  { fill: none; stroke: currentColor; stroke-width: 1; stroke-dasharray: 5 4; opacity: 0.5; }
+  .svg-lbl   { font-family: "IBM Plex Mono", monospace; font-size: 11px; fill: currentColor; }
+  .svg-node  { font-family: "Archivo", sans-serif; font-size: 12.5px; font-weight: 600; fill: var(--ink); }
+  .svg-arrow { stroke: currentColor; stroke-width: 1.25; fill: none; }
+  .svg-dead  { opacity: 0.42; }
+  .svg-hot   { stroke: var(--signal); stroke-width: 1.9; }
+  .svg-hot-t { fill: var(--signal); }
+  .svg-crit-t { fill: var(--crit); }
+  .svg-crit-s { stroke: var(--crit); }
+  .b-compute  { fill: var(--c-compute); }
+  .b-verify   { fill: var(--c-verify); }
+  .b-esc      { fill: var(--c-esc); }
+  .b-reserve  { fill: var(--c-reserve); }
+  .b-margin   { fill: var(--c-margin); }
+  .svg-eyebrow {
+    font-family: "Archivo", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    fill: currentColor;
+  }
+
+  /* ---------- tables ---------- */
+
+  .tablewrap {
+    overflow-x: auto;
+    margin: 32px 0;
+    border: 1px solid var(--rule-soft);
+    border-radius: 5px;
+    background: var(--surface);
+    max-width: 1000px;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 660px;
+    font-size: 0.9rem;
+  }
+  th {
+    font-family: var(--sans);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    text-align: left;
+    color: var(--ink-3);
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  td {
+    padding: 13px 18px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+    line-height: 1.45;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.was { color: var(--ink-2); }
+  td.now { font-weight: 600; }
+
+  .pill {
+    font-family: var(--sans);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+  .pill.dies  { background: var(--crit-bg);   color: var(--crit); }
+  .pill.keep  { background: var(--good-bg);   color: var(--good); }
+  .pill.amp   { background: var(--signal-bg); color: var(--signal); }
+  .pill.morph { background: var(--warn-bg);   color: var(--warn); }
+
+  /* ---------- stages (the one real sequence) ---------- */
+
+  .stages { max-width: 1000px; margin: 36px 0 0; }
+  .stage {
+    display: grid;
+    grid-template-columns: 86px 1fr;
+    gap: 0 28px;
+    padding: 30px 0;
+    border-top: 1px solid var(--rule);
+  }
+  .stage:last-child { border-bottom: 1px solid var(--rule); }
+  .stage-n {
+    font-family: var(--sans);
+    font-variation-settings: "wdth" 112;
+    font-weight: 800;
+    font-size: 2.1rem;
+    line-height: 1;
+    color: var(--signal);
+    letter-spacing: -0.03em;
+  }
+  .stage-yrs {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--ink-3);
+    margin-top: 7px;
+    white-space: nowrap;
+  }
+  .stage-body h3 { margin: -4px 0 10px; }
+  .stage-body p { margin-bottom: 12px; }
+  .stage-metric {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    color: var(--ink-2);
+    border-top: 1px dashed var(--rule);
+    padding-top: 10px;
+    margin-top: 14px;
+  }
+  .stage-metric b { color: var(--signal); font-weight: 600; }
+
+  /* ---------- build list ---------- */
+
+  .build { max-width: var(--measure); margin: 26px 0; padding: 0; list-style: none; }
+  .build li {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    margin: 0;
+  }
+  .build li:first-child { border-top: 1px solid var(--rule-soft); }
+  .build .chk {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--signal);
+    padding-top: 2px;
+  }
+  .build b { font-family: var(--sans); font-weight: 600; }
+  .build span { color: var(--ink-2); }
+
+  footer {
+    margin-top: 90px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--ink-3);
+    max-width: var(--measure);
+  }
+
+  @media (max-width: 700px) {
+    :root { --step-4: 2.35rem; --step-3: 1.72rem; --step-2: 1.4rem; }
+    .wrap, .rail-in { padding-left: 18px; padding-right: 18px; }
+    .mast { padding-top: 44px; }
+    section { padding-top: 54px; }
+    .stage { grid-template-columns: 1fr; gap: 12px; }
+    .stage-yrs { margin-top: 2px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+
+<div class="rail">
+  <div class="rail-in">
+    <div class="rail-mark">Agent Bench</div>
+    <nav class="rail-nav">
+      <a href="#thesis">Thesis</a>
+      <a href="#objection">The pricing trap</a>
+      <a href="#transfers">What transfers</a>
+      <a href="#loops">Loop graph</a>
+      <a href="#ledger">The ledger</a>
+      <a href="#schema">Schema</a>
+      <a href="#stages">15 years</a>
+      <a href="#moat">Moat</a>
+      <a href="#build">Build order</a>
+    </nav>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow">Product design · successor to Etyme 2017</p>
+    <h1>Hiring the machine</h1>
+    <p class="deck">Contingent staffing was never a sourcing business. It is a <strong>risk-transfer business with a metering layer</strong> — and when the worker is an agent, sourcing goes to zero while risk transfer becomes the whole product. The staffing structure doesn't die. It gets more valuable.</p>
+    <div class="mast-meta">
+      <span><strong>Domain carried forward</strong> — contracts, timesheets, invoices, multi-tier vendors</span>
+      <span><strong>Code carried forward</strong> — none</span>
+    </div>
+  </header>
+
+  <!-- ================= THESIS ================= -->
+  <section id="thesis">
+    <div class="sec-head col"><span class="sec-tag">01</span><span class="sec-line"></span></div>
+    <h2>What actually dies, and what you were really selling</h2>
+
+    <p class="lead">Etyme 2017 is a Rails 5.2 app on an end-of-life Ruby, 136 models deep in staffing operations. The code is a liability. The domain model is the only thing worth carrying across, and it's worth more than you think.</p>
+
+    <p>Look at what that schema knows how to do. <code>company_customer_vendor</code>, <code>buy_contract</code>, <code>contract_cycle</code>, <code>commission_queue</code>, W2 versus corp-to-corp expense flows through a prime vendor to a sub-vendor to a worker. That is a multi-tier labor supply chain with metering, approval, invoicing, and margin split at every hop. Almost nobody models this correctly, because almost nobody has had to.</p>
+
+    <p>That structure maps one-to-one onto agent labor supply: <strong>platform → agent supplier → agent</strong>, with a spread at each hop and a settlement obligation at the end. You already built the hard part once. You built it for the wrong worker.</p>
+
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 970 306" role="img" aria-label="A five-stage staffing spine compared across human and agent labor: sourcing dies, vetting and acceptance amplify, contracting hardens, metering changes unit from hours to attempts, and settlement is unchanged.">
+          <defs>
+            <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+            </marker>
+            <marker id="a1h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--signal)"/>
+            </marker>
+          </defs>
+
+          <!-- column headers -->
+          <text class="svg-eyebrow" x="185" y="34" text-anchor="middle">SOURCE</text>
+          <text class="svg-eyebrow" x="357" y="34" text-anchor="middle">VET</text>
+          <text class="svg-eyebrow" x="529" y="34" text-anchor="middle">CONTRACT</text>
+          <text class="svg-eyebrow" x="701" y="34" text-anchor="middle">METER</text>
+          <text class="svg-eyebrow" x="873" y="34" text-anchor="middle">SETTLE</text>
+          <line x1="110" y1="46" x2="948" y2="46" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+
+          <!-- row labels -->
+          <text class="svg-lbl" x="96" y="110" text-anchor="end">HUMAN</text>
+          <text class="svg-lbl" x="96" y="124" text-anchor="end" opacity="0.65">2017</text>
+          <text class="svg-lbl" x="96" y="222" text-anchor="end">AGENT</text>
+          <text class="svg-lbl" x="96" y="236" text-anchor="end" opacity="0.65">2030</text>
+
+          <!-- HUMAN ROW  y 86..142 -->
+          <g class="svg-dead">
+            <rect class="svg-box" x="110" y="86" width="150" height="56" rx="3"/>
+            <text class="svg-node" x="185" y="110" text-anchor="middle">Recruiters,</text>
+            <text class="svg-node" x="185" y="126" text-anchor="middle">resume database</text>
+            <line x1="126" y1="114" x2="244" y2="114" class="svg-crit-s" stroke-width="1.6"/>
+          </g>
+          <rect class="svg-box" x="282" y="86" width="150" height="56" rx="3"/>
+          <text class="svg-node" x="357" y="110" text-anchor="middle">Interview,</text>
+          <text class="svg-node" x="357" y="126" text-anchor="middle">background check</text>
+
+          <rect class="svg-box" x="454" y="86" width="150" height="56" rx="3"/>
+          <text class="svg-node" x="529" y="110" text-anchor="middle">SOW, rate card,</text>
+          <text class="svg-node" x="529" y="126" text-anchor="middle">W2 / 1099</text>
+
+          <rect class="svg-box" x="626" y="86" width="150" height="56" rx="3"/>
+          <text class="svg-node" x="701" y="110" text-anchor="middle">Timesheet</text>
+          <text class="svg-node" x="701" y="126" text-anchor="middle">— billable hours</text>
+
+          <rect class="svg-box" x="798" y="86" width="150" height="56" rx="3"/>
+          <text class="svg-node" x="873" y="110" text-anchor="middle">Invoice, terms,</text>
+          <text class="svg-node" x="873" y="126" text-anchor="middle">margin</text>
+
+          <line class="svg-arrow" x1="260" y1="114" x2="278" y2="114" marker-end="url(#a1)"/>
+          <line class="svg-arrow" x1="432" y1="114" x2="450" y2="114" marker-end="url(#a1)"/>
+          <line class="svg-arrow" x1="604" y1="114" x2="622" y2="114" marker-end="url(#a1)"/>
+          <line class="svg-arrow" x1="776" y1="114" x2="794" y2="114" marker-end="url(#a1)"/>
+
+          <!-- AGENT ROW  y 198..254 -->
+          <g class="svg-dead">
+            <rect class="svg-box" x="110" y="198" width="150" height="56" rx="3" stroke-dasharray="4 3"/>
+            <text class="svg-node" x="185" y="222" text-anchor="middle">no scarcity,</text>
+            <text class="svg-node" x="185" y="238" text-anchor="middle">no rent</text>
+          </g>
+
+          <rect class="svg-box svg-hot" x="282" y="198" width="150" height="56" rx="3"/>
+          <text class="svg-node" x="357" y="222" text-anchor="middle">Eval suite run,</text>
+          <text class="svg-node" x="357" y="238" text-anchor="middle">attestation</text>
+
+          <rect class="svg-box svg-hot" x="454" y="198" width="150" height="56" rx="3"/>
+          <text class="svg-node" x="529" y="222" text-anchor="middle">Outcome spec,</text>
+          <text class="svg-node" x="529" y="238" text-anchor="middle">liability cap</text>
+
+          <rect class="svg-box svg-hot" x="626" y="198" width="150" height="56" rx="3"/>
+          <text class="svg-node" x="701" y="222" text-anchor="middle">Attempt ledger</text>
+          <text class="svg-node" x="701" y="238" text-anchor="middle">— accepted units</text>
+
+          <rect class="svg-box" x="798" y="198" width="150" height="56" rx="3"/>
+          <text class="svg-node" x="873" y="222" text-anchor="middle">Invoice, terms,</text>
+          <text class="svg-node" x="873" y="238" text-anchor="middle">margin</text>
+
+          <line class="svg-arrow" x1="260" y1="226" x2="278" y2="226" marker-end="url(#a1)" opacity="0.4"/>
+          <line class="svg-arrow" x1="432" y1="226" x2="450" y2="226" marker-end="url(#a1)"/>
+          <line class="svg-arrow" x1="604" y1="226" x2="622" y2="226" marker-end="url(#a1)"/>
+          <line class="svg-arrow" x1="776" y1="226" x2="794" y2="226" marker-end="url(#a1)"/>
+
+          <!-- fate annotations -->
+          <text x="185" y="172" text-anchor="middle" class="svg-lbl svg-crit-t">collapses</text>
+          <text class="svg-lbl svg-hot-t" x="357" y="172" text-anchor="middle">amplifies</text>
+          <text class="svg-lbl svg-hot-t" x="529" y="172" text-anchor="middle">hardens</text>
+          <text class="svg-lbl svg-hot-t" x="701" y="172" text-anchor="middle">new unit</text>
+          <text class="svg-lbl" x="873" y="172" text-anchor="middle">unchanged</text>
+
+          <text class="svg-lbl" x="110" y="288" opacity="0.75">Amber = the value moves here. The spine survives; one vertebra dies.</text>
+        </svg>
+      </div>
+      <figcaption><b>Figure 1.</b> The staffing spine, run twice. Sourcing — the thing everyone thinks staffing is — is the one stage that collapses. Vetting, contracting and metering absorb the value it releases; settlement is untouched, which is why the Etyme billing model ports over intact.</figcaption>
+    </figure>
+
+    <div class="pull">In human staffing, insurance is a cost line. In agent staffing, it is the product.</div>
+  </section>
+
+  <!-- ================= OBJECTION ================= -->
+  <section id="objection">
+    <div class="sec-head col"><span class="sec-tag">02</span><span class="sec-line"></span></div>
+    <h2>The pricing trap in "hire an agent"</h2>
+
+    <p>Before the design, one real problem with the premise as you stated it — worth resolving now because everything downstream depends on it.</p>
+
+    <p>"Hire agents instead of people" is an excellent marketplace metaphor and a fatal pricing model. A contractor is billed by the hour because their time is scarce and their week is bounded. An agent has neither property. Price a seat or an hour and you are selling software wearing a staffing costume — and you will be undercut, within a quarter, by whoever ships a comparable agent at $20 a month.</p>
+
+    <div class="note">
+      <span class="note-label">The failure mode</span>
+      <p>Every "AI employee" and "agent seat" company is priced on a fiction. They charge for a capability the buyer can increasingly get anywhere, and they carry none of the risk that would justify the price. When the underlying model gets cheaper, their pricing power evaporates instead of their cost.</p>
+    </div>
+
+    <p>The resolution is to split the metaphor from the meter:</p>
+
+    <ul>
+      <li><strong>Hire agents like people</strong> in the surface — requisitions, interviews, contracts, performance reviews, replacement. That vocabulary is how a procurement org already thinks, and it's why you can sell to them at all.</li>
+      <li><strong>Bill them unlike people</strong> in the ledger — per accepted outcome, with you carrying the cost of everything that wasn't accepted.</li>
+    </ul>
+
+    <p>That second half is not a pricing preference. It is the entire defensibility argument, and it produces a property worth stating plainly:</p>
+
+    <div class="pull">At a fixed price per accepted outcome, every model improvement lands in <em>your</em> margin, not the client's. You are structurally long model progress — an unusually good place to stand for fifteen years.</div>
+  </section>
+
+  <!-- ================= TRANSFERS ================= -->
+  <section id="transfers">
+    <div class="sec-head col"><span class="sec-tag">03</span><span class="sec-line"></span></div>
+    <h2>Contingent staffing, primitive by primitive</h2>
+
+    <p class="lead">You said the mechanics of contingent staffing are the key. They are. Here is every primitive, and what happens to it.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Staffing primitive</th>
+            <th>Fate</th>
+            <th>Agent-native form</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="was">Sourcing, resume database</td>
+            <td><span class="pill dies">Dies</span></td>
+            <td class="now">Agents are replicable. There is no scarcity to rent.</td>
+          </tr>
+          <tr>
+            <td class="was">Recruiter relationships</td>
+            <td><span class="pill dies">Dies</span></td>
+            <td class="now">No one to persuade.</td>
+          </tr>
+          <tr>
+            <td class="was">Payroll, W2 / 1099 classification, co-employment</td>
+            <td><span class="pill dies">Dies</span></td>
+            <td class="now">Replaced entirely by liability apportionment.</td>
+          </tr>
+          <tr>
+            <td class="was">Background check, references</td>
+            <td><span class="pill amp">Amplifies</span></td>
+            <td class="now">Provenance, model and tool dependencies, security posture, signed eval history. Far more load-bearing, because anyone can spin up an agent claiming anything.</td>
+          </tr>
+          <tr>
+            <td class="was">Interview</td>
+            <td><span class="pill amp">Amplifies</span></td>
+            <td class="now">Sandboxed run against a held-out eval suite. Cheap, repeatable, and it produces a number instead of an impression.</td>
+          </tr>
+          <tr>
+            <td class="was">SOW, rate card, contract terms</td>
+            <td><span class="pill amp">Amplifies</span></td>
+            <td class="now">Outcome spec with machine-checkable acceptance criteria, SLA, and a liability cap. The acceptance criteria <em>are</em> the quality threshold in the loop.</td>
+          </tr>
+          <tr>
+            <td class="was">Timesheet</td>
+            <td><span class="pill morph">Transforms</span></td>
+            <td class="now">Attempt ledger. Meters cost-of-quality, not elapsed time.</td>
+          </tr>
+          <tr>
+            <td class="was">Timesheet approval</td>
+            <td><span class="pill amp">Amplifies</span></td>
+            <td class="now">The acceptance loop — automated verifier with bounded human escalation. Runs per work item instead of per fortnight.</td>
+          </tr>
+          <tr>
+            <td class="was">Bench management</td>
+            <td><span class="pill morph">Transforms</span></td>
+            <td class="now">Warm qualified capacity per category. No idle cost, so bench economics invert.</td>
+          </tr>
+          <tr>
+            <td class="was">Performance review, replacement</td>
+            <td><span class="pill morph">Transforms</span></td>
+            <td class="now">Continuous scoring with automatic demotion and re-routing. A quarterly process becomes a nightly job.</td>
+          </tr>
+          <tr>
+            <td class="was">Multi-tier vendor chain</td>
+            <td><span class="pill keep">Transfers</span></td>
+            <td class="now">Platform → agent supplier → agent. Etyme's model ports directly.</td>
+          </tr>
+          <tr>
+            <td class="was">Invoice, payment terms, float</td>
+            <td><span class="pill keep">Transfers</span></td>
+            <td class="now">Unchanged. Still a working-capital business: pay supply fast, get paid slow, finance the gap.</td>
+          </tr>
+          <tr>
+            <td class="was">Insurance, indemnity</td>
+            <td><span class="pill amp">Amplifies</span></td>
+            <td class="now">Loss reserve against accepted work. Moves from a cost line to the core revenue engine.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Read the column of fates and the shape of the company falls out. You are not building a marketplace that happens to have quality control bolted on. You are building <strong>a quality-controlled outcome loop that happens to have a marketplace around it</strong>.</p>
+  </section>
+
+  <!-- ================= LOOPS ================= -->
+  <section id="loops">
+    <div class="sec-head col"><span class="sec-tag">04</span><span class="sec-line"></span></div>
+    <h2>The loop graph is the company</h2>
+
+    <p class="lead">You asked for this designed as a loop graph engineer would. Taken literally, that is the correct architecture — not because loops are fashionable, but because the loop is what a staffing firm has always been, running too slowly to see.</p>
+
+    <p>Place a contractor, watch them for a probation period, review at a quarter, replace if they fail. That is a control loop with a three-month period. Compress it to seconds and it stops being a process and becomes a product. Three of them, nested, at three timescales:</p>
+
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 920 578" role="img" aria-label="Three nested control loops. The inner task loop runs intake, execute, verify, accept, with a repair cycle governed by a dollar budget that escalates to a human when spent. The engagement loop reads yield and cost per accepted unit and promotes, re-prices or replaces the agent. The outer market loop reads supplier win rates and production failures and re-ranks suppliers and hardens the eval suite.">
+          <defs>
+            <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+            </marker>
+            <marker id="a2h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--signal)"/>
+            </marker>
+          </defs>
+
+          <!-- outer band: market loop -->
+          <rect class="svg-band" x="20" y="20" width="880" height="540" rx="16"/>
+          <text class="svg-eyebrow" x="38" y="44">MARKET LOOP · WEEKS TO QUARTERS · vendor management</text>
+
+          <!-- middle band: engagement loop -->
+          <rect class="svg-band" x="64" y="76" width="792" height="390" rx="14"/>
+          <text class="svg-eyebrow" x="82" y="100">ENGAGEMENT LOOP · DAYS TO WEEKS · performance management</text>
+
+          <!-- inner: task loop -->
+          <rect x="110" y="134" width="700" height="250" rx="12" fill="none" stroke="currentColor" stroke-width="1.25" opacity="0.75"/>
+          <text class="svg-eyebrow svg-hot-t" x="128" y="158">TASK LOOP · SECONDS TO MINUTES · the unit of work</text>
+
+          <!-- task nodes -->
+          <rect class="svg-box" x="130" y="186" width="96" height="44" rx="3"/>
+          <text class="svg-node" x="178" y="213" text-anchor="middle">Intake</text>
+
+          <rect class="svg-box" x="252" y="186" width="96" height="44" rx="3"/>
+          <text class="svg-node" x="300" y="213" text-anchor="middle">Execute</text>
+
+          <rect class="svg-box" x="374" y="186" width="96" height="44" rx="3"/>
+          <text class="svg-node" x="422" y="213" text-anchor="middle">Verify</text>
+
+          <rect class="svg-box svg-hot" x="560" y="186" width="150" height="44" rx="3"/>
+          <text class="svg-node" x="635" y="213" text-anchor="middle">Accept &amp; meter</text>
+
+          <line class="svg-arrow" x1="226" y1="208" x2="248" y2="208" marker-end="url(#a2)"/>
+          <line class="svg-arrow" x1="348" y1="208" x2="370" y2="208" marker-end="url(#a2)"/>
+          <line class="svg-arrow" x1="470" y1="208" x2="556" y2="208" marker-end="url(#a2)"/>
+          <text class="svg-lbl" x="513" y="200" text-anchor="middle">pass</text>
+
+          <!-- repair + escalate -->
+          <rect class="svg-box" x="252" y="296" width="96" height="44" rx="3"/>
+          <text class="svg-node" x="300" y="323" text-anchor="middle">Repair</text>
+
+          <rect class="svg-box" x="560" y="296" width="150" height="44" rx="3"/>
+          <text class="svg-node" x="635" y="323" text-anchor="middle">Escalate to human</text>
+
+          <path class="svg-arrow" d="M 422 230 L 422 318"/>
+          <text class="svg-lbl" x="430" y="262">fail</text>
+          <circle cx="422" cy="318" r="3.5" fill="currentColor"/>
+
+          <line class="svg-arrow" x1="422" y1="318" x2="352" y2="318" marker-end="url(#a2)"/>
+          <text class="svg-lbl" x="387" y="310" text-anchor="middle">budget left</text>
+
+          <line class="svg-arrow svg-hot" x1="422" y1="318" x2="556" y2="318" marker-end="url(#a2h)"/>
+          <text class="svg-lbl svg-hot-t" x="489" y="310" text-anchor="middle">budget spent</text>
+
+          <path class="svg-arrow" d="M 300 296 L 300 234" marker-end="url(#a2)"/>
+          <text class="svg-lbl" x="308" y="270">revise</text>
+
+          <!-- governor badge -->
+          <rect x="130" y="350" width="452" height="22" rx="11" fill="var(--signal)" opacity="0.13"/>
+          <text class="svg-lbl svg-hot-t" x="144" y="365">GOVERNOR — every attempt debits the work item's dollar budget</text>
+
+          <!-- engagement bar -->
+          <rect class="svg-box" x="110" y="400" width="640" height="50" rx="3"/>
+          <text class="svg-lbl" x="126" y="421">reads → first-pass yield · cost per accepted unit · escalation rate</text>
+          <text class="svg-lbl" x="126" y="439">writes → promote · retrain · re-price · replace the agent</text>
+          <path class="svg-arrow" d="M 750 425 L 830 425 L 830 208 L 814 208" marker-end="url(#a2)"/>
+          <text class="svg-lbl" x="806" y="197" text-anchor="end">applies</text>
+
+          <!-- market bar -->
+          <rect class="svg-box" x="64" y="486" width="690" height="50" rx="3"/>
+          <text class="svg-lbl" x="80" y="507">reads → supplier win rates · category price discovery · production failures</text>
+          <text class="svg-lbl" x="80" y="525">writes → re-rank suppliers · adjust rate cards · harden the eval suite</text>
+          <path class="svg-arrow" d="M 754 511 L 874 511 L 874 160 L 860 160" marker-end="url(#a2)"/>
+          <text class="svg-lbl" x="852" y="149" text-anchor="end">applies</text>
+        </svg>
+      </div>
+      <figcaption><b>Figure 2.</b> The three loops are the same control structure at three periods, and each one writes the configuration the loop inside it runs on. Amber marks the governor: the escalation branch fires on a spent dollar budget, not a retry count.</figcaption>
+    </figure>
+
+    <h3>Loop 1 — the task loop</h3>
+    <p>One work item. Intake, execute, verify against the contract's acceptance criteria, accept and meter. On failure, repair and re-execute. This is the loop from your notes, with the "defined quality threshold" supplied by the contract rather than invented by the engineer — which is the part that makes it a business rather than a prompt technique.</p>
+
+    <h3>Loop 2 — the engagement loop</h3>
+    <p>Every work item under one agent on one contract, aggregated nightly. Rolling first-pass yield, cost per accepted unit, escalation rate, measured against the SLA that was signed. Output: promote to higher-value work, retrain, re-price, or replace. This is performance management, and it is the reason the surface can honestly use the vocabulary of hiring.</p>
+
+    <h3>Loop 3 — the market loop</h3>
+    <p>Every engagement across every supplier. Which suppliers win requisitions in which categories, what the clearing price is, and — critically — <strong>every failure that reached production becomes a new case in the eval suite</strong>. That ratchet is the compounding asset. Your interview gets harder every time somebody fails in the field, and nobody who starts later can reconstruct it.</p>
+
+    <h3>Where the diamond belongs</h3>
+    <p>Fan-out has exactly one honest job here: <strong>redundant verification on high-stakes items</strong>. Run N independent verifiers, accept on quorum, and scale N to the size of the loss reserve on that item. That is a sellable feature — the client picks an assurance tier, and you spend proportionally more compute where being wrong costs more. Fan-out for throughput is a scaling detail; fan-out for assurance is a product.</p>
+
+    <h3>Why there is no branch tree</h3>
+    <p>The pitfall in your notes is over-engineering with branches, and it has a precise remedy here. You never hand-author routing — no <code>if doc_type == X then agent Y</code>. Routing is an <em>output</em> of the market loop: agents win work because their measured accept-rate in a category is highest. Branches are derived from data and continuously repriced, so the graph never rots into an unmaintainable decision forest. One queue and one verifier per work type until the numbers say otherwise.</p>
+  </section>
+
+  <!-- ================= LEDGER ================= -->
+  <section id="ledger">
+    <div class="sec-head col"><span class="sec-tag">05</span><span class="sec-line"></span></div>
+    <h2>The attempt is the new timesheet line</h2>
+
+    <p class="lead">This is the single most important schema decision in the product, so it's worth being exact about it.</p>
+
+    <p>A timesheet line meters elapsed time because time is what you bought from a human. An <strong>attempt</strong> meters one pass through the task loop: which agent, what it cost in compute and tools, how long it took, and what the verifier ruled. A work item accumulates attempts until it is accepted or escalated.</p>
+
+    <p>Bill the client per accepted work item. Pay the supplier per accepted work item. Absorb every attempt in between. Which means:</p>
+
+    <div class="pull">Your gross margin is a direct function of the loop's convergence rate. The P&amp;L <em>is</em> the graph's efficiency — measured, per work type, per agent, every night.</div>
+
+    <p>Take a concrete unit: a prior-authorization packet, priced at $9.00 accepted, against a BPO alternative around $14. First pass costs $0.55 in compute; verification $0.30; a human completing an escalated packet costs $7.00. Hold the price fixed and vary only first-pass yield:</p>
+
+    <figure>
+      <div class="figframe">
+        <svg viewBox="0 0 880 376" role="img" aria-label="Stacked cost bars at four first-pass yield levels against a fixed nine dollar price. Gross margin falls from 87 percent at 95 percent yield to 14 percent at 20 percent yield, driven mainly by human escalation cost.">
+          <text class="svg-eyebrow" x="190" y="30">COST STACK AGAINST A FIXED $9.00 PRICE PER ACCEPTED PACKET</text>
+          <line x1="190" y1="46" x2="790" y2="46" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+          <text class="svg-lbl" x="190" y="62">$0</text>
+          <text class="svg-lbl" x="790" y="62" text-anchor="end">$9.00</text>
+
+          <!-- row 1: FPY 95 -->
+          <text class="svg-lbl" x="176" y="97" text-anchor="end">first-pass 95%</text>
+          <rect x="190"    y="78" width="38.7"  height="34" class="b-compute"/>
+          <rect x="228.7"  y="78" width="20"    height="34" class="b-verify"/>
+          <rect x="248.7"  y="78" width="9.3"   height="34" class="b-esc"/>
+          <rect x="258"    y="78" width="9.3"   height="34" class="b-reserve"/>
+          <rect x="267.3"  y="78" width="522.7" height="34" class="b-margin"/>
+          <text class="svg-lbl" x="800" y="99">87%</text>
+
+          <!-- row 2: FPY 70 -->
+          <text class="svg-lbl" x="176" y="141" text-anchor="end">first-pass 70%</text>
+          <rect x="190"    y="122" width="52.7"  height="34" class="b-compute"/>
+          <rect x="242.7"  y="122" width="22.7"  height="34" class="b-verify"/>
+          <rect x="265.4"  y="122" width="42"    height="34" class="b-esc"/>
+          <rect x="307.4"  y="122" width="18"    height="34" class="b-reserve"/>
+          <rect x="325.4"  y="122" width="464.6" height="34" class="b-margin"/>
+          <text class="svg-lbl" x="800" y="143">77%</text>
+
+          <!-- row 3: FPY 40 -->
+          <text class="svg-lbl" x="176" y="185" text-anchor="end">first-pass 40%</text>
+          <rect x="190"    y="166" width="92"    height="34" class="b-compute"/>
+          <rect x="282"    y="166" width="30"    height="34" class="b-verify"/>
+          <rect x="312"    y="166" width="130.7" height="34" class="b-esc"/>
+          <rect x="442.7"  y="166" width="42"    height="34" class="b-reserve"/>
+          <rect x="484.7"  y="166" width="305.3" height="34" class="b-margin"/>
+          <text class="svg-lbl" x="800" y="187">51%</text>
+
+          <!-- row 4: FPY 20 -->
+          <text class="svg-lbl" x="176" y="229" text-anchor="end">first-pass 20%</text>
+          <rect x="190"    y="210" width="146.7" height="34" class="b-compute"/>
+          <rect x="336.7"  y="210" width="40"    height="34" class="b-verify"/>
+          <rect x="376.7"  y="210" width="256.7" height="34" class="b-esc"/>
+          <rect x="633.4"  y="210" width="72"    height="34" class="b-reserve"/>
+          <rect x="705.4"  y="210" width="84.6"  height="34" class="b-margin"/>
+          <text class="svg-lbl" x="800" y="231">14%</text>
+
+          <line x1="190" y1="262" x2="790" y2="262" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+
+          <!-- legend -->
+          <rect x="190" y="286" width="12" height="12" class="b-compute"/>
+          <text class="svg-lbl" x="208" y="296">compute across all attempts</text>
+          <rect x="392" y="286" width="12" height="12" class="b-verify"/>
+          <text class="svg-lbl" x="410" y="296">verification</text>
+          <rect x="530" y="286" width="12" height="12" class="b-esc"/>
+          <text class="svg-lbl" x="548" y="296">human escalation</text>
+          <rect x="190" y="310" width="12" height="12" class="b-reserve"/>
+          <text class="svg-lbl" x="208" y="320">loss reserve</text>
+          <rect x="392" y="310" width="12" height="12" class="b-margin"/>
+          <text class="svg-lbl" x="410" y="320">gross margin</text>
+
+          <text class="svg-lbl" x="190" y="358" opacity="0.75">Human escalation, not compute, is what destroys the unit. Compute is rounding error until yield collapses.</text>
+        </svg>
+      </div>
+      <figcaption><b>Figure 3.</b> One number moves — first-pass yield — and gross margin travels from 87% to 14% at an unchanged price. Note which band grows: escalation to a human is six to twelve times the cost of another machine attempt, which is why the governor is a dollar ceiling and why verification quality matters more than model choice.</figcaption>
+    </figure>
+
+    <p>Two consequences fall straight out of that chart, and both are load-bearing.</p>
+
+    <p><strong>The infinite-loop pitfall governs itself.</strong> Because you bill on outcomes, runaway retries eat your own margin the same night they happen. You don't need a config value to catch it — you need an alert on cost per accepted unit, which is a business metric your finance team already understands. Incentive alignment is structural rather than administrative. Still set the hard dollar ceiling per work item; just know that the ceiling is a backstop, not the control.</p>
+
+    <p><strong>Your operating metric is first-pass yield per work type.</strong> Not accuracy, not model benchmarks, not tokens. Everything the company does — better prompts, better tools, better agents, better suppliers, better acceptance criteria — is worth exactly what it moves that number, and the chart tells you what it's worth in dollars.</p>
+  </section>
+
+  <!-- ================= SCHEMA ================= -->
+  <section id="schema">
+    <div class="sec-head col"><span class="sec-tag">06</span><span class="sec-line"></span></div>
+    <h2>Carrying the Etyme schema across</h2>
+
+    <p>Most of the entity model survives the translation, which is why this is a rewrite of the product rather than an invention of a new domain.</p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Etyme 2017</th>
+            <th>Successor</th>
+            <th>What changes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">Company</td><td class="now">Client / Supplier</td><td class="was">Nothing. Multi-tenant company and vendor modelling ports as-is.</td></tr>
+          <tr><td class="num">Candidate</td><td class="now">AgentProfile</td><td class="was">Skills become declared capabilities plus measured eval scores. Resume becomes provenance and model dependencies.</td></tr>
+          <tr><td class="num">Job</td><td class="now">Requisition</td><td class="was">Description becomes an outcome spec with machine-checkable acceptance criteria.</td></tr>
+          <tr><td class="num">Contract</td><td class="now">Engagement</td><td class="was">Adds SLA, assurance tier, and liability cap. Rate card becomes price per accepted unit.</td></tr>
+          <tr><td class="num">Timesheet</td><td class="now">WorkItem + Attempt</td><td class="was">The core rewrite. Meters loop iterations and their cost, not hours.</td></tr>
+          <tr><td class="num">Timesheet approval</td><td class="now">Acceptance</td><td class="was">Verifier verdict plus evidence, with human override recorded as a distinct, costed event.</td></tr>
+          <tr><td class="num">ClientBill / Invoice</td><td class="now">Invoice</td><td class="was">Nothing meaningful. Line items reference accepted units.</td></tr>
+          <tr><td class="num">ContractSaleCommission</td><td class="now">Spread</td><td class="was">Nothing. Multi-hop margin split is the same computation.</td></tr>
+          <tr><td class="num">—</td><td class="now">EvalSuite / EvalRun</td><td class="was">New. The interview, and the ratchet that hardens with every production failure.</td></tr>
+          <tr><td class="num">—</td><td class="now">Attestation</td><td class="was">New. Provenance, security posture, certifications — the background check.</td></tr>
+          <tr><td class="num">—</td><td class="now">Incident / Reserve</td><td class="was">New. The failure, its remedy, and the draw against reserve. This table is the future underwriting business.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Three tables you do not have and cannot borrow — <code>Attempt</code>, <code>EvalRun</code>, <code>Reserve</code> — are the whole company. Everything above them you have already built once and can build faster the second time.</p>
+  </section>
+
+  <!-- ================= STAGES ================= -->
+  <section id="stages">
+    <div class="sec-head col"><span class="sec-tag">07</span><span class="sec-line"></span></div>
+    <h2>Fifteen years, five stages</h2>
+
+    <p class="lead">Each stage's exhaust is the next stage's raw material. That chain — not the market size — is the argument for why this compounds rather than plateaus.</p>
+
+    <div class="stages">
+
+      <div class="stage">
+        <div>
+          <div class="stage-n">01</div>
+          <div class="stage-yrs">Year 0–1</div>
+        </div>
+        <div class="stage-body">
+          <h3>Be the agency, not the marketplace</h3>
+          <p>Pick one back-office function that is already outsourced, already priced, and machine-verifiable. Sell it as an outcome with an SLA. Run it with your own agents on your own loop engine. You are a staffing firm whose workers are agents; the software is internal and nobody outside sees it.</p>
+          <p>Marketplaces die of cold-start. Services businesses generate the one thing that cannot be bought: a corpus of real accept and reject decisions under real contracts. Candidates that fit what you already know — contractor onboarding and compliance packets, timesheet and invoice reconciliation, credential verification, AP/AR exception handling.</p>
+          <div class="stage-metric">Metric that matters — <b>first-pass yield per work type.</b> Nothing else.</div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div>
+          <div class="stage-n">02</div>
+          <div class="stage-yrs">Year 1–3</div>
+        </div>
+        <div class="stage-body">
+          <h3>The agent employment record</h3>
+          <p>Externalise the loop engine. Any agent — yours or the customer's — gets enrolled, evaluated, contracted, metered, and paid. You become the system of record for agent work, sold to companies already running agents who cannot answer what those agents cost or whether they work.</p>
+          <p>This is the ADP moment: boring, sticky, and where the data starts compounding. It is also the stage most competitors will skip, because it looks like plumbing rather than a story.</p>
+          <div class="stage-metric">Metric that matters — <b>accepted units metered per month</b>, and how many were not yours.</div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div>
+          <div class="stage-n">03</div>
+          <div class="stage-yrs">Year 3–6</div>
+        </div>
+        <div class="stage-body">
+          <h3>Open the supply — the VMS for agents</h3>
+          <p>Third-party suppliers list against your eval suites. Clients post requisitions. You take the spread and run the trust layer. Now it is genuinely a marketplace — but the cold-start problem was solved two stages ago: Stage 1 is the seed supply, Stage 2 is the seed demand, and both arrive pre-instrumented.</p>
+          <p>This is the moment the "hire an agent" surface becomes literal, and the moment Etyme's multi-tier vendor model earns its keep.</p>
+          <div class="stage-metric">Metric that matters — <b>suppliers per category who clear the eval bar.</b> Liquidity, not listings.</div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div>
+          <div class="stage-n">04</div>
+          <div class="stage-yrs">Year 6–10</div>
+        </div>
+        <div class="stage-body">
+          <h3>Underwriting and float</h3>
+          <p>By now you hold longitudinal, per-agent, per-task-type performance data that nobody else can reconstruct. Sell what only you can price: <strong>guaranteed outcomes</strong>. The reserve stops being a prudence buffer and becomes an actuarial product.</p>
+          <p>Simultaneously, finance the working-capital gap — pay suppliers in seven days, collect from clients in forty-five. That is the oldest trick in staffing, and it runs at software scale here. Revenue shifts from take-rate to underwriting spread plus float.</p>
+          <div class="stage-metric">Metric that matters — <b>loss ratio against reserve</b>, priced by category. You are an insurer now.</div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div>
+          <div class="stage-n">05</div>
+          <div class="stage-yrs">Year 10–15</div>
+        </div>
+        <div class="stage-body">
+          <h3>The exchange</h3>
+          <p>Once capacity in a category is measured, warranted, and settled the same way every time, it becomes fungible — and fungible things trade forward. "Ten thousand accepted claim reviews in Q3 at $8.20." You clear it, because you wrote the standard, hold the ratings, and run the settlement.</p>
+          <p>Nobody starts here. You arrive here because Stages 1 through 4 quietly made you the definition of what an accepted unit is.</p>
+          <div class="stage-metric">Metric that matters — <b>share of category volume cleared through your settlement.</b></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= MOAT ================= -->
+  <section id="moat">
+    <div class="sec-head col"><span class="sec-tag">08</span><span class="sec-line"></span></div>
+    <h2>Why the model providers don't eat this</h2>
+
+    <p>The obvious objection is that Anthropic, OpenAI or AWS ships this as a feature and the company evaporates. Four reasons it doesn't, in descending order of how much I'd bet on them.</p>
+
+    <h4>They sell capability; you sell accountability</h4>
+    <p>A frontier lab will never indemnify your claim-review error. Doing so would wreck their margin structure and their legal posture simultaneously, at a scale that dwarfs the revenue. Carrying other people's operational risk is a fundamentally different business, and the people who do it well are structured like insurers, not like labs.</p>
+
+    <h4>The data accrues; it cannot be bought</h4>
+    <p>Longitudinal performance per agent, per task type, under real contracts, with real acceptance decisions and real remediation costs. There is no dataset to license and nothing to scrape. Every month you operate, the gap widens, and a new entrant starts at zero regardless of how much capital they have.</p>
+
+    <h4>The precedent is exact</h4>
+    <p>LinkedIn made sourcing free and contingent staffing grew through it, because the job was never finding people — it was carrying the risk of them, and running the messy middle where work becomes an invoice. The same substitution is about to run again with the same result.</p>
+
+    <h4>You are long the thing that threatens you</h4>
+    <p>At a fixed price per accepted outcome, every model improvement raises first-pass yield, which cuts your COGS at unchanged revenue. Look again at Figure 3 and read it right to left: model progress moves you <em>up</em> that chart. Most AI companies have to outrun the labs. This one compounds with them.</p>
+  </section>
+
+  <!-- ================= PITFALLS ================= -->
+  <section id="pitfalls">
+    <div class="sec-head col"><span class="sec-tag">09</span><span class="sec-line"></span></div>
+    <h2>Three governors, one of them unobvious</h2>
+
+    <p>Your notes name two pitfalls. Both have clean answers here. The third is the one that will actually bite you, and it is not in the notes.</p>
+
+    <h4>Infinite loops</h4>
+    <p>Every work item carries a dollar budget; every attempt debits it; exhaustion escalates rather than retries. Denominate the ceiling in money, not attempts — attempts are not fungible and money is. The business model does most of the enforcement on its own, as covered above.</p>
+
+    <h4>Over-engineering with branches</h4>
+    <p>No hand-authored routing. One queue and one verifier per work type until measured accept-rates justify a split, and then let the market loop derive the split. Every branch you write by hand is a branch you have to maintain by hand forever; every branch the data derives repriced itself last night.</p>
+
+    <div class="note">
+      <span class="note-label">The one that will bite you</span>
+      <p><strong>Verifier capture.</strong> If the verifier shares a model family with the executor, it agrees with itself — and you will ship a beautiful dashboard reporting 96% first-pass yield while the client's actual rejection rate climbs. Independent verification demands independent failure modes: a different provider, deterministic rule checks where the domain permits them, and a continuous human audit sample you pay for and never switch off.</p>
+      <p>Build the audit sample in Stage 1, when it is cheap and the volume is small. Retrofitting trust into a ledger that has been lying for two years is not a fix; it is a restatement.</p>
+    </div>
+  </section>
+
+  <!-- ================= BUILD ================= -->
+  <section id="build">
+    <div class="sec-head col"><span class="sec-tag">10</span><span class="sec-line"></span></div>
+    <h2>What to build first</h2>
+
+    <p class="lead">Not the marketplace. Not the platform. Not the agent framework — use whatever exists and expect to replace it twice.</p>
+
+    <ul class="build">
+      <li><span class="chk">01</span><span><b>Work item and attempt ledger.</b> The timesheet, reborn. Every attempt records agent, cost, duration, tools touched, and verdict. Get this schema right before anything else touches it — everything downstream reads from it, and it is the one table you cannot refactor later without losing history.</span></li>
+      <li><span class="chk">02</span><span><b>Acceptance loop runner with a dollar governor.</b> Execute, verify, repair, escalate. Bounded by budget. Roughly two hundred lines of real logic; the difficulty is entirely in the acceptance criteria, not the orchestration.</span></li>
+      <li><span class="chk">03</span><span><b>Eval suite runner.</b> The interview. Held-out cases, scored, versioned, with a hard rule from day one: any production failure becomes a case. This is the ratchet.</span></li>
+      <li><span class="chk">04</span><span><b>One vertical's acceptance criteria, written down.</b> The genuinely hard artefact. If you cannot state what "accepted" means for a single work type in checkable terms, you do not yet have a product — you have a demo.</span></li>
+      <li><span class="chk">05</span><span><b>A human audit sample.</b> Small, continuous, and independent of the verifier. Cheap insurance against the failure mode that ends companies like this one.</span></li>
+    </ul>
+
+    <p>Everything else — requisitions, supplier onboarding, the marketplace surface, the underwriting model — is Stage 2 and beyond. Those five things, run against one paying customer in one vertical, are the whole of year one.</p>
+
+    <div class="note ok">
+      <span class="note-label">Where the old company helps</span>
+      <p>The single biggest advantage you carry out of Etyme is not code and not customers. It is that you already know, in operational detail, how work becomes an approved unit becomes an invoice becomes cash across a multi-tier vendor chain. Almost every team attacking agent labour is learning that from scratch, and it is the part that takes years and produces no demos.</p>
+    </div>
+  </section>
+
+  <footer>
+    Design document · successor architecture to Etyme 2017 · <span style="opacity:0.7">"Agent Bench" is a working name, not a decision.</span>
+  </footer>
+
+</div>
