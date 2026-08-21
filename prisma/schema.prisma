@@ -188,13 +188,13 @@ model AccessLog {
 // ─────────────────────────────────────────────
 
 model Company {
-  id              String      @id @default(cuid())
-  name            String
-  slug            String      @unique // {slug}.etyme.com — 2017 create_slug, collision numbered
-  domain          String?     @unique
-  domainVerified  Boolean     @default(false) // true when it came from an OAuth tenant
-  kind            CompanyKind
-  entityType      String?
+  id             String      @id @default(cuid())
+  name           String
+  slug           String      @unique // {slug}.etyme.com — 2017 create_slug, collision numbered
+  domain         String?     @unique
+  domainVerified Boolean     @default(false) // true when it came from an OAuth tenant
+  kind           CompanyKind
+  entityType     String?
 
   /// Who here may see the market outside this company.
   ///
@@ -213,7 +213,7 @@ model Company {
   /// Expressed by attaching people to org units rather than by another
   /// permission: on a unit means that unit and everything under it, on no
   /// unit means the firm.
-  accountWalls Boolean @default(false)
+  accountWalls    Boolean @default(false)
   templatePack    String? // US_IT · US_SAP · IN_DELIVERY · UK
   // Where a supplier sits in the chain when they sign up: PRIME holds the
   // client agreement, BENCH sells through other suppliers. The same company
@@ -221,7 +221,7 @@ model Company {
   // three firms in the same week — so this shapes the first screens and can
   // be changed without migrating anything. Null for clients and MSPs.
   supplierPosture String?
-  currency        String      @default("USD")
+  currency        String  @default("USD")
   // Where this company's people are already looking. When it is set,
   // business notifications post there; when it is not, they fall back to
   // email, and when there is no email either the notification says so
@@ -255,73 +255,75 @@ model Company {
   networkVerifiedAt   DateTime? // visibility to other companies waits for this
   createdAt           DateTime  @default(now())
 
-  contexts           Context[]
-  roles              Role[]
-  orgUnits           OrgUnit[]
-  entities           LegalEntity[]
-  docTemplates       DocTemplate[]
-  msasAsVendor       MasterAgreement[]       @relation("vendor")
-  msasAsClient       MasterAgreement[]       @relation("client")
-  requirements       Requirement[]
-  invitationsOut     RequirementInvitation[] @relation("from")
-  invitationsIn      RequirementInvitation[] @relation("to")
-  benchListings      BenchListing[]
-  submissionsOut     Submission[]            @relation("from")
-  submissionsIn      Submission[]            @relation("to")
-  automationLog      AutomationLog[]
-  accessLogs         AccessLog[]
-  delegationsOut     Delegation[]            @relation("grantor")
-  delegationsIn      Delegation[]            @relation("grantee")
-  partnersA          Partnership[]           @relation("a")
-  partnersB          Partnership[]           @relation("b")
+  contexts              Context[]
+  roles                 Role[]
+  orgUnits              OrgUnit[]
+  entities              LegalEntity[]
+  docTemplates          DocTemplate[]
+  msasAsVendor          MasterAgreement[]       @relation("vendor")
+  msasAsClient          MasterAgreement[]       @relation("client")
+  requirements          Requirement[]
+  invitationsOut        RequirementInvitation[] @relation("from")
+  invitationsIn         RequirementInvitation[] @relation("to")
+  benchListings         BenchListing[]
+  submissionsOut        Submission[]            @relation("from")
+  submissionsIn         Submission[]            @relation("to")
+  automationLog         AutomationLog[]
+  accessLogs            AccessLog[]
+  delegationsOut        Delegation[]            @relation("grantor")
+  delegationsIn         Delegation[]            @relation("grantee")
+  partnersA             Partnership[]           @relation("a")
+  partnersB             Partnership[]           @relation("b")
   // Contract relations — each company manages their own buy and sell contracts
-  sellContractsOut   SellContract[]          @relation("sellVendor") // we sell talent
-  sellContractsIn    SellContract[]          @relation("sellClient") // talent sold to us
-  buyContractsOut    BuyContract[]           @relation("buyer") // we buy talent
-  buyContractsIn     BuyContract[]           @relation("buyVendor") // talent bought from us
+  sellContractsOut      SellContract[]          @relation("sellVendor") // we sell talent
+  sellContractsIn       SellContract[]          @relation("sellClient") // talent sold to us
+  buyContractsOut       BuyContract[]           @relation("buyer") // we buy talent
+  buyContractsIn        BuyContract[]           @relation("buyVendor") // talent bought from us
   // Compliance & governance
-  verifications      Verification[]
-  governancePolicies GovernancePolicy[]
+  verifications         Verification[]
+  governancePolicies    GovernancePolicy[]
   // Training
-  courses            Course[]
+  courses               Course[]
   // Expenses
-  expenses           Expense[]
+  expenses              Expense[]
   // Conversations
-  conversations      Conversation[]
+  conversations         Conversation[]
   // Blacklist
-  blacklists         Blacklist[]
+  blacklists            Blacklist[]
   // Locations
-  locations          CompanyLocation[]
+  locations             CompanyLocation[]
   // Holidays
-  holidays           Holiday[]
+  holidays              Holiday[]
   // End-client contracts (where consultants actually work, when ≠ billing client)
-  endClientContracts SellContract[]          @relation("sellEndClient")
-  endClientRequirements Requirement[]        @relation("requirementEndClient")
-  payerRequirements     Requirement[]        @relation("requirementPayer")
-  openings              Opening[]            @relation("openingOwner")
-  openingsAsClient      Opening[]            @relation("openingClient")
-  leads                 Lead[]               @relation("leadOwner")
-  leadsPosted           Lead[]               @relation("leadPoster")
-  resumesUploaded       Resume[]             @relation("resumeUploader")
-  representationsHeld   Representation[]     @relation("representingVendor")
-  representationsAt     Representation[]     @relation("representedAtClient")
-  doNotSubmitTo         DoNotSubmit[]        @relation("doNotSubmitCompany")
+  endClientContracts    SellContract[]          @relation("sellEndClient")
+  endClientRequirements Requirement[]           @relation("requirementEndClient")
+  payerRequirements     Requirement[]           @relation("requirementPayer")
+  openings              Opening[]               @relation("openingOwner")
+  openingsAsClient      Opening[]               @relation("openingClient")
+  leads                 Lead[]                  @relation("leadOwner")
+  leadsPosted           Lead[]                  @relation("leadPoster")
+  resumesUploaded       Resume[]                @relation("resumeUploader")
+  representationsHeld   Representation[]        @relation("representingVendor")
+  representationsAt     Representation[]        @relation("representedAtClient")
+  doNotSubmitTo         DoNotSubmit[]           @relation("doNotSubmitCompany")
   // Finance dimensions — owned per company, never shared across parties
-  costCenters        CostCenter[]
-  posIssued          PurchaseOrder[]         @relation("poIssuer")
-  posReceived        PurchaseOrder[]         @relation("poRecipient")
-  remitTos           RemitTo[]
-  consultantsBehind  ConsultantProfile[]     @relation("consultantCorp")
-  documentShares     DocumentShare[]
-  approvalRules      ApprovalRule[]
-  events             Event[]
-  packets            DocumentPacket[]
-  packetsAbout       DocumentPacket[]        @relation("packetSubjectCompany")
-  serviceAccounts    ServiceAccount[]
-  webhooks           WebhookSubscription[]
-  subdomainAliases   SubdomainAlias[]
-  customDomains      CustomDomain[]
-  claimedDomains     CompanyDomain[]
+  costCenters           CostCenter[]
+  posIssued             PurchaseOrder[]         @relation("poIssuer")
+  posReceived           PurchaseOrder[]         @relation("poRecipient")
+  remitTos              RemitTo[]
+  consultantsBehind     ConsultantProfile[]     @relation("consultantCorp")
+  documentShares        DocumentShare[]
+  approvalRules         ApprovalRule[]
+  events                Event[]
+  packets               DocumentPacket[]
+  packetsAbout          DocumentPacket[]        @relation("packetSubjectCompany")
+  serviceAccounts       ServiceAccount[]
+  webhooks              WebhookSubscription[]
+  subdomainAliases      SubdomainAlias[]
+  customDomains         CustomDomain[]
+  claimedDomains        CompanyDomain[]
+  agentRuns             AgentRun[]
+  checks                Check[]
 }
 
 enum CompanyKind {
@@ -455,6 +457,35 @@ model ConsultantProfile {
   /// wherever they are now.
   previousSlugs String[] @default([])
 
+  // ── How fresh any of this actually is ──────────────────────────────
+  //
+  // A bench record says somebody is free at $78 and knows Java. That was
+  // true three weeks ago. Since then they took a contract, raised their
+  // rate, or learned Kubernetes, and nobody updated the record because
+  // updating records is nobody's job.
+  //
+  // Every clever thing in this product sits on top of this record. If it
+  // is wrong, the scoring produces confident nonsense faster than a human
+  // could produce it slowly. So: when the person themselves last said it
+  // was right, and how they said so.
+  //
+  // Unconfirmed is never a reason to hide somebody — that would empty the
+  // bench on day one. It moves them down the ranking, and it is said out
+  // loud rather than assumed away.
+
+  /// When the consultant last confirmed their own availability and rate.
+  confirmedAt  DateTime?
+  /// SMS · EMAIL · PORTAL — how the confirmation arrived.
+  confirmedVia String?
+  /// When they were last asked. Two asks with no reply is information too.
+  askedAt      DateTime?
+  /// Consecutive asks with no answer. Reset by any reply.
+  unanswered   Int       @default(0)
+  /// Their mobile, for the three texts. Null means email only.
+  mobile       String?
+  /// Set when they reply STOP. Nothing is ever sent again.
+  textsOffAt   DateTime?
+
   /// When they turned the page on, and null until they do.
   ///
   /// Deliberately not `visibility`. That field says whether an agency may
@@ -574,13 +605,13 @@ model VisaEvent {
 // ─────────────────────────────────────────────
 
 model MasterAgreement {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   vendorId     String
-  vendor       Company  @relation("vendor", fields: [vendorId], references: [id])
+  vendor       Company   @relation("vendor", fields: [vendorId], references: [id])
   clientId     String
-  client       Company  @relation("client", fields: [clientId], references: [id])
-  paymentTerms Int      @default(30)
-  currency     String   @default("USD")
+  client       Company   @relation("client", fields: [clientId], references: [id])
+  paymentTerms Int       @default(30)
+  currency     String    @default("USD")
   /// When it was actually signed. Null means work is running on a
   /// handshake — which is the ordinary state of this industry between an
   /// offer and a start date, and worth being able to count rather than
@@ -589,7 +620,7 @@ model MasterAgreement {
   minMarginPct Int? // the floor a recruiter may not price below without approval
   rateCard     Json? // condition records: client + skill + level + location
   capacity     Int? // max resources for GSA global contracts (null = unlimited)
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   engagements   Engagement[]
   requirements  Requirement[]
@@ -708,9 +739,10 @@ model Requirement {
 
   createdAt DateTime @default(now())
 
-  invitations RequirementInvitation[]
-  matches     Match[]
-  submissions Submission[]
+  invitations     RequirementInvitation[]
+  matches         Match[]
+  submissions     Submission[]
+  representations Representation[]
 
   @@index([companyId, status])
   @@index([openToNetwork, status])
@@ -718,8 +750,6 @@ model Requirement {
   @@index([raisedById])
   @@index([orgUnitId])
   @@index([costCenterId])
-  representations Representation[]
-
   @@index([endClientCompanyId])
   @@index([openingId])
   @@index([mirroredFromId])
@@ -1014,7 +1044,7 @@ model Resume {
 /// is the normal state, and the hiding is somebody's contract working as
 /// intended. What can honestly be said instead goes in inferredClient.
 model Opening {
-  id     String   @id @default(cuid())
+  id        String  @id @default(cuid())
   /// The company working this seat. Openings are private: two vendors
   /// chasing the same seat each have their own row, because neither can
   /// see the other's pipeline.
@@ -1027,7 +1057,7 @@ model Opening {
 
   /// Null while the prime is still hiding it, which is most of the time.
   clientCompanyId String?
-  clientCompany   Company? @relation("openingClient", fields: [clientCompanyId], references: [id])
+  clientCompany   Company?  @relation("openingClient", fields: [clientCompanyId], references: [id])
   /// What can honestly be said instead: "a medical device firm, Denver".
   inferredClient  String?
   /// How the name finally arrived — at interview, on the first day, never.
@@ -1056,17 +1086,17 @@ model Lead {
   companyId String
   company   Company @relation("leadOwner", fields: [companyId], references: [id], onDelete: Cascade)
 
-  source   String // DICE · LINKEDIN · EMAIL · DIRECT · VMS · OTHER
+  source            String // DICE · LINKEDIN · EMAIL · DIRECT · VMS · OTHER
   /// The prime who posted it, as text. Usually a name with no company row
   /// behind it, and pretending otherwise would invent a counterparty.
-  postedBy String?
+  postedBy          String?
   /// Their company row, once there is one to point at.
   postedByCompanyId String?
   postedByCompany   Company? @relation("leadPoster", fields: [postedByCompanyId], references: [id])
 
-  title    String
-  skills   String[]
-  location String?
+  title     String
+  skills    String[]
+  location  String?
   /// Cents per hour as posted — a ceiling to bid under, not an offer.
   rateCents Int?
   contact   String?
@@ -1075,8 +1105,8 @@ model Lead {
   seenAt    DateTime @default(now())
 
   /// The seat this advert is for, once somebody or something decided.
-  openingId String?
-  opening   Opening? @relation(fields: [openingId], references: [id])
+  openingId     String?
+  opening       Opening?  @relation(fields: [openingId], references: [id])
   /// SAME collapses on its own; LIKELY waits for a person. Nothing merges
   /// silently — the same rule CLAUDE.md sets for resolving people.
   matchStrength String?
@@ -1106,12 +1136,12 @@ model Lead {
 /// Taken automatically at submission — no form, no signature — and given
 /// back the moment the vendor stops trying.
 model Representation {
-  id              String  @id @default(cuid())
+  id              String   @id @default(cuid())
   personId        String
-  person          Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  person          Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
   /// The vendor doing the representing.
   companyId       String
-  company         Company @relation("representingVendor", fields: [companyId], references: [id], onDelete: Cascade)
+  company         Company  @relation("representingVendor", fields: [companyId], references: [id], onDelete: Cascade)
   /// The client they are held at. The end client where that is known,
   /// because two primes feeding one site is the case this exists for.
   ///
@@ -1123,12 +1153,12 @@ model Representation {
   /// The seat, when the client has no name yet. holdKey is built from the
   /// client where it is known and from this where it is not, so a blind
   /// role is still held against everybody else.
-  openingId String?
-  opening   Opening? @relation(fields: [openingId], references: [id])
+  openingId     String?
+  opening       Opening?     @relation(fields: [openingId], references: [id])
   /// The role it started with. Context for the person, not a constraint —
   /// the hold covers the client, not one requisition.
-  requirementId   String?
-  requirement     Requirement? @relation(fields: [requirementId], references: [id])
+  requirementId String?
+  requirement   Requirement? @relation(fields: [requirementId], references: [id])
 
   state       String    @default("HELD") // HELD · REQUESTED · RELEASED · EXPIRED · DECLINED
   takenAt     DateTime  @default(now())
@@ -1163,11 +1193,11 @@ model Representation {
 /// you" and "they have blocked somebody" are both more than a vendor needs
 /// and enough to start an argument the person should not have to have.
 model DoNotSubmit {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   personId  String
-  person    Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
   companyId String
-  company   Company @relation("doNotSubmitCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company  @relation("doNotSubmitCompany", fields: [companyId], references: [id], onDelete: Cascade)
   /// Their own note to themselves. Never leaves their own screen.
   note      String?
   createdAt DateTime @default(now())
@@ -1240,8 +1270,8 @@ model SellContract {
   /// thirty client accounts needs the second to keep one account from
   /// reading another's staffing — the first is the client's own structure
   /// and says nothing about the supplier's.
-  deliveryUnitId  String?
-  deliveryUnit    OrgUnit? @relation("deliveryUnit", fields: [deliveryUnitId], references: [id])
+  deliveryUnitId String?
+  deliveryUnit   OrgUnit? @relation("deliveryUnit", fields: [deliveryUnitId], references: [id])
 
   // The PO this contract invoices against, on the vendor→payer leg.
   // The demand this contract satisfies. Without it a placement cannot be
@@ -2722,4 +2752,137 @@ model CustomDomain {
 
   @@index([companyId, state])
   @@index([addedById])
+}
+
+// ─────────────────────────────────────────────
+// THE LEDGER  — what every agent did, and what it cost
+// ─────────────────────────────────────────────
+
+/// One attempt by one agent on one record.
+///
+/// This is not logging. Without it you cannot answer the three questions
+/// that decide whether any of the model work is worth doing: what does one
+/// submission cost, is that falling, and which agent is the expensive one.
+///
+/// The build had AutomationLog, which records what happened in plain
+/// English and is good for a person reading back. It has no cost, no
+/// attempt count, no model name and no duration, so it cannot answer any
+/// of the three.
+///
+/// A row is written for rule-only work as well, with no model and no cost.
+/// That absence is the point: roughly half the work in this product is
+/// arithmetic and date comparison, and a ledger that only records the
+/// expensive half makes the cheap half invisible.
+model AgentRun {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Dotted, so it groups: "match.score", "submission.check", "cv.evidence".
+  agent String
+
+  /// What it ran on. REQUIREMENT · SUBMISSION · CONSULTANT · OPENING
+  recordType String
+  recordId   String
+
+  /// 1 for the first try. A loop that fixes and re-checks writes 2, then 3.
+  /// Attempts are how you find the agent that never gets it right first time.
+  attempt Int @default(1)
+
+  /// PASS · FAIL · ERROR
+  ///   PASS  it did the job
+  ///   FAIL  it did the job and the answer was no — a check that says no is
+  ///         working, not broken
+  ///   ERROR the call itself failed
+  verdict    String
+  failReason String?
+
+  /// Null when no model was called.
+  model            String?
+  inputTokens      Int?
+  outputTokens     Int?
+  cacheReadTokens  Int?
+  cacheWriteTokens Int?
+
+  /// Millionths of a dollar. Integer, like every other money column here.
+  /// One scoring call lands around 40,000; a rule check is 0.
+  costMicros Int?
+
+  ms Int
+
+  /// How many the rules considered, and how many reached the model.
+  ///
+  /// The gap between these two is the margin. Scoring everybody instead of
+  /// the handful worth scoring is the difference between a business at 94%
+  /// and one at 70%, and the only way to know which you are running is to
+  /// write both numbers down every time.
+  consideredCount Int?
+  scoredCount     Int?
+
+  at DateTime @default(now())
+
+  checks Check[]
+
+  @@index([companyId, at])
+  @@index([recordType, recordId])
+  @@index([companyId, agent, at])
+}
+
+/// One check on one thing, and who did the checking.
+///
+/// Kept separate from AgentRun because the identity of the checker is the
+/// whole point. A rule is free and right every time. A model is neither. A
+/// person is the only thing that can tell you the model has quietly
+/// started being wrong.
+///
+/// An agent grading its own homework reports 96% accuracy while customers
+/// stop calling, and by the time anybody notices the ledger has been lying
+/// for months. So: machine checks and human checks are different rows,
+/// counted separately, and the agreement between them is a number on a
+/// screen.
+model Check {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// The run this check belongs to, where a machine did it. Null for a
+  /// human review drawn as a sample afterwards.
+  runId String?
+  run   AgentRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  recordType String
+  recordId   String
+
+  /// RULE · MODEL · HUMAN
+  checker String
+
+  /// What was checked: RATE_IN_RANGE · DOCS_PRESENT · SKILLS_EVIDENCED ·
+  /// AVAILABLE_IN_WINDOW · WORK_AUTH · SCORE_HONEST
+  code String
+
+  /// PASS · FAIL
+  verdict String
+
+  /// Why, in words somebody can act on. A failed check that does not say
+  /// what to fix sends people back to email.
+  reason String
+
+  /// What it read to decide — the quoted line from the CV, the two dates
+  /// it compared. A claim with no evidence cannot be reviewed, only
+  /// believed.
+  evidence String?
+
+  /// Set on a human review of a machine check.
+  checkedById   String?
+  /// Whether the person agreed with the machine. Null until reviewed.
+  agreed        Boolean?
+  /// Why they disagreed. This is the only thing that improves the agent.
+  disagreedNote String?
+
+  at DateTime @default(now())
+
+  @@index([companyId, at])
+  @@index([recordType, recordId])
+  @@index([companyId, checker, agreed])
+  @@index([runId])
 }

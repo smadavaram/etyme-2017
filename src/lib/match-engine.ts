@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { prisma } from '@/lib/db'
+import { sift, DEFAULT_SHORTLIST, type Candidate as Siftable } from '@/lib/bench-filter'
+import { record } from '@/lib/agent-run'
 
 /**
  * Match Engine — the core differentiator.
@@ -20,6 +22,16 @@ import { prisma } from '@/lib/db'
  */
 
 const anthropic = new Anthropic()
+
+/**
+ * Which model does the scoring.
+ *
+ * Settable, because this is the single biggest line in the cost of a
+ * submission and the right answer changes with the price list. The ledger
+ * records the model on every run, so switching it is a decision somebody
+ * can make from real numbers rather than a hunch.
+ */
+const MODEL = process.env.MATCH_MODEL ?? 'claude-opus-5'
 
 interface MatchFactor {
   label: string
@@ -64,6 +76,8 @@ interface CandidateData {
   listingTier: string
   listingRateMin: number | null
   listingRateMax: number | null
+  /// When the person themselves last said any of this was still true.
+  confirmedAt: Date | null
 }
 
 /**
@@ -163,13 +177,73 @@ export async function runMatchEngine(
       listingTier: listing.tier,
       listingRateMin: listing.rateMin,
       listingRateMax: listing.rateMax,
+      confirmedAt: listing.consultant.confirmedAt,
     })
   }
 
-  const candidates = Array.from(candidateMap.values())
+  const everyone = Array.from(candidateMap.values())
 
-  // 5. Score candidates using Claude for semantic skill matching
-  const matchResults = await scoreWithClaude(requirement, candidates, limit)
+  // 5. Filter with plain rules before paying a model for anything.
+  //
+  //    This sent all two hundred to the model. Any overlapping skills at
+  //    all, rate floor under the ceiling, free before the start date,
+  //    permit matches — every one of those is string and date comparison.
+  //    Free, instant, right every time, and on a forty-person bench the
+  //    difference between $53 a month and $140.
+  //
+  //    The model is kept for the one judgement that needs it: whether a
+  //    skill claim is real, and how close two differently-worded skills
+  //    actually are.
+  const sifted = sift(
+    {
+      skills: requirement.skills,
+      location: requirement.location,
+      billMin: requirement.billMin,
+      billMax: requirement.billMax,
+      startDate: requirement.startDate,
+      workAuth: null,
+    },
+    everyone.map(
+      (c): Siftable => ({
+        personId: c.personId,
+        name: c.personName,
+        skills: c.skills,
+        location: c.location,
+        workAuth: c.workAuth,
+        rateFloor: c.rateFloor,
+        availableFrom: c.availableFrom,
+        confirmedAt: c.confirmedAt,
+      })
+    ),
+    { shortlist: Math.max(limit, DEFAULT_SHORTLIST) }
+  )
+
+  const byPerson = new Map(everyone.map((c) => [c.personId, c]))
+  const candidates = sifted.kept
+    .map((k) => byPerson.get(k.candidate.personId))
+    .filter((c): c is CandidateData => c !== undefined)
+
+  // The rules alone are a run worth recording. A ledger that only counts
+  // the calls that cost money makes the free half invisible, and the free
+  // half is where the margin comes from.
+  await record({
+    companyId: requirement.companyId,
+    agent: 'match.sift',
+    recordType: 'REQUIREMENT',
+    recordId: requirement.id,
+    verdict: candidates.length > 0 ? 'PASS' : 'FAIL',
+    failReason: candidates.length === 0 ? sifted.summary : null,
+    ms: 0,
+    consideredCount: sifted.considered,
+    scoredCount: candidates.length,
+  })
+
+  if (candidates.length === 0) {
+    return { matches: [], basis: sifted.summary }
+  }
+
+  // 6. Score what survived
+  const matchResults = await scoreWithClaude(requirement, candidates, limit, sifted.considered)
 
   // 6. Write Match records to the database
   const now = new Date()
@@ -204,7 +278,9 @@ export async function runMatchEngine(
 
   return {
     matches: matchResults,
-    basis: `Evaluated ${candidates.length} candidates against "${requirement.title}" (${requirement.skills.join(', ')})`,
+    // Says what the rules did as well as what the model did, so "only
+    // three matched" is answerable without reading code.
+    basis: `${sifted.summary} Scored against "${requirement.title}" (${requirement.skills.join(', ')}).`,
   }
 }
 
@@ -218,11 +294,30 @@ export async function runMatchEngine(
 async function scoreWithClaude(
   req: RequirementData,
   candidates: CandidateData[],
-  limit: number
+  limit: number,
+  considered: number
 ): Promise<MatchResult[]> {
-  // If no ANTHROPIC_API_KEY, fall back to deterministic scoring
+  // No key: score with arithmetic instead, and say so in the ledger.
+  //
+  // Recording nothing here would have been the worst of both. A week where
+  // the key was misconfigured would read as a week where the model got
+  // free, the cost-per-submission line would fall, and somebody would
+  // conclude the product had improved.
   if (!process.env.ANTHROPIC_API_KEY) {
-    return scoreDeterministic(req, candidates, limit)
+    const started = Date.now()
+    const results = scoreDeterministic(req, candidates, limit)
+    await record({
+      companyId: req.companyId,
+      agent: 'match.score.deterministic',
+      recordType: 'REQUIREMENT',
+      recordId: req.id,
+      verdict: 'PASS',
+      failReason: 'no ANTHROPIC_API_KEY — scored with rules, not the model',
+      ms: Date.now() - started,
+      consideredCount: considered,
+      scoredCount: candidates.length,
+    })
+    return results
   }
 
   // Batch candidates into groups of 25 for the API call
@@ -243,7 +338,16 @@ async function scoreWithClaude(
       availableFrom: c.availableFrom?.toISOString().slice(0, 10) ?? null,
     }))
 
-    const prompt = `You are a staffing match engine. Score each candidate against this requirement.
+    // The prompt is built in two halves on purpose.
+    //
+    // Everything above the candidates is identical for every batch of the
+    // same requirement — the role, the scoring rules, the output shape.
+    // Put stably first and marked cacheable, it is charged at a tenth on
+    // every batch after the first. Eight batches become one full price and
+    // seven cheap ones.
+    //
+    // Anything volatile below the breakpoint, or the cache never hits.
+    const rules = `You are a staffing match engine. Score each candidate against this requirement.
 
 REQUIREMENT:
 - Title: ${req.title}
@@ -253,8 +357,11 @@ REQUIREMENT:
 - Duration: ${req.months ? `${req.months} months` : 'Not specified'}
 - Start Date: ${req.startDate?.toISOString().slice(0, 10) ?? 'Not specified'}
 
-CANDIDATES:
-${JSON.stringify(candidateList, null, 2)}
+These candidates have already passed the plain rules — they have at least
+one overlapping skill, their rate floor is under the ceiling, they are free
+in time, and their work authorisation fits. Do not re-check any of that.
+Judge the thing rules cannot: how close the skills really are, and whether
+the claim is credible.
 
 For each candidate, return a JSON array. Each element must have:
 - idx: the candidate index
@@ -275,11 +382,48 @@ SCORING RULES:
 
 Return ONLY a JSON array, no other text.`
 
+    const started = Date.now()
+
     try {
       const response = await anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        messages: [{ role: 'user', content: prompt }],
+        model: MODEL,
+        max_tokens: 8000,
+        // Adaptive thinking at low effort. This is a bounded judgement on
+        // fifteen rows, not an open problem, and effort is the dial that
+        // decides what it costs.
+        thinking: { type: 'adaptive' },
+        output_config: { effort: 'low' },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: rules,
+                cache_control: { type: 'ephemeral' },
+              },
+              {
+                type: 'text',
+                text: `CANDIDATES:\n${JSON.stringify(candidateList, null, 2)}`,
+              },
+            ],
+          },
+        ],
+      })
+
+      // Written whether it passed or failed. The runs that error are the
+      // ones worth counting.
+      await record({
+        companyId: req.companyId,
+        agent: 'match.score',
+        recordType: 'REQUIREMENT',
+        recordId: req.id,
+        verdict: 'PASS',
+        model: MODEL,
+        usage: response.usage,
+        ms: Date.now() - started,
+        consideredCount: considered,
+        scoredCount: batch.length,
       })
 
       const text = response.content[0].type === 'text' ? response.content[0].text : ''
@@ -320,7 +464,23 @@ Return ONLY a JSON array, no other text.`
           unknowns: s.unknowns ?? null,
         })
       }
-    } catch (err) {
+    } catch (err: any) {
+      // A degraded result presented as a good one is the failure worth
+      // avoiding. The fallback is labelled in the ledger, so a week where
+      // the key was wrong does not read as a week where the model got
+      // cheaper.
+      await record({
+        companyId: req.companyId,
+        agent: 'match.score',
+        recordType: 'REQUIREMENT',
+        recordId: req.id,
+        verdict: 'ERROR',
+        failReason: String(err?.message ?? err).slice(0, 300),
+        model: MODEL,
+        ms: Date.now() - started,
+        consideredCount: considered,
+        scoredCount: batch.length,
+      })
       console.error('Match engine: Claude API call failed, falling back to deterministic', err)
       allResults.push(...scoreDeterministic(req, batch, batch.length))
     }
