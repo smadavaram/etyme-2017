@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
 import { clientOf, maySubmit, askFor, takeHold } from '@/lib/holds'
+import { missingNote } from '@/lib/resumes'
 import { tellThem } from '@/lib/representation'
 
 /**
@@ -288,7 +289,16 @@ export async function POST(request: NextRequest) {
         kind = 'NETWORK'
       }
 
-      // 5. Create the submission
+      // 5. Create the submission, with the CV that is current right now.
+      //
+      // The version, not a pointer to whatever they upload next month. A
+      // client acted on the document they were sent, and it stops changing
+      // the moment it leaves.
+      const cv = await prisma.resume.findFirst({
+        where: { personId, currentKey: personId, deletedAt: null },
+        select: { id: true, label: true },
+      })
+
       const submission = await prisma.submission.create({
         data: {
           requirementId,
@@ -298,8 +308,14 @@ export async function POST(request: NextRequest) {
           kind,
           rate,
           status: 'SUBMITTED',
+          resumeId: cv?.id ?? null,
         },
       })
+
+      // Not a refusal — a recruiter working a role at eight at night should
+      // not be stopped by a missing file — but the client will ask for it.
+      item.cv = cv ? cv.label : null
+      if (!cv) item.note = missingNote(person.name)
 
       // 5b. Take the hold, now that there is something to hold for.
       //

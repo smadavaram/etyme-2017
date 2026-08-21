@@ -59,6 +59,7 @@ model Person {
   customDomainsAdded     CustomDomain[]         @relation("customDomainAdder")
   representations        Representation[]
   doNotSubmit            DoNotSubmit[]
+  resumes                Resume[]
 }
 
 model Credential {
@@ -301,6 +302,7 @@ model Company {
   openingsAsClient      Opening[]            @relation("openingClient")
   leads                 Lead[]               @relation("leadOwner")
   leadsPosted           Lead[]               @relation("leadPoster")
+  resumesUploaded       Resume[]             @relation("resumeUploader")
   representationsHeld   Representation[]     @relation("representingVendor")
   representationsAt     Representation[]     @relation("representedAtClient")
   doNotSubmitTo         DoNotSubmit[]        @relation("doNotSubmitCompany")
@@ -901,6 +903,14 @@ model Submission {
   status        String         @default("SUBMITTED")
   submittedAt   DateTime       @default(now()) // first timestamp wins on a duplicate
 
+  /// The CV that actually went with this submission.
+  ///
+  /// The version, not the person's current one. A client acted on the
+  /// document they were sent, and a consultant who rewrites their CV next
+  /// month does not retroactively change what a client read.
+  resumeId String?
+  resume   Resume? @relation(fields: [resumeId], references: [id])
+
   /// The hop this one came from.
   ///
   /// Submitting somebody to you and you sending them onward to the client
@@ -936,6 +946,61 @@ model Submission {
   @@index([fromCompanyId, status])
   @@index([toCompanyId, status])
   @@index([parentSubmissionId])
+  @@index([resumeId])
+}
+
+/// A consultant's CV, and specifically the copy that went out.
+///
+/// There was none. A submission reached a client with a name, a rate and
+/// no document, which is not a submission anybody can act on — the client
+/// reads the CV, not the row.
+///
+/// A version is never edited. Uploading again makes a new row, and a
+/// submission points at the one that was actually sent, so the client's
+/// copy stops changing the moment it leaves.
+///
+/// Bytes live in the database for now. At a few thousand CVs that is
+/// unremarkable, and it keeps a deploy from waiting on a storage decision.
+/// `url` is here so moving to object storage later is a write path change
+/// and not a migration of the model.
+model Resume {
+  id       String @id @default(cuid())
+  personId String
+  person   Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  /// Their own name for it: "SAP FICO 2026".
+  label       String
+  fileName    String
+  contentType String
+  sizeBytes   Int
+  /// DB · URL — where the bytes actually are.
+  storage     String  @default("DB")
+  bytes       Bytes?
+  url         String?
+  /// Filled when the text can be read out, for search and for filling a
+  /// profile. Null until then rather than guessed at.
+  textExtract String?
+
+  /// Who put it there, and on whose behalf. A recruiter usually holds the
+  /// CV before the consultant has an account.
+  uploadedById        String?
+  uploadedByCompanyId String?
+  uploadedByCompany   Company? @relation("resumeUploader", fields: [uploadedByCompanyId], references: [id])
+
+  /// Set to personId while this is the current one, null otherwise. The
+  /// unique index below is what stops two versions both claiming to be it.
+  currentKey String?
+
+  createdAt DateTime  @default(now())
+  /// Hidden from the person's list. Never unsent: a company it was sent to
+  /// can still open it, because it is in their inbox whatever we do.
+  deletedAt DateTime?
+
+  submissions Submission[]
+
+  @@unique([personId, currentKey])
+  @@index([personId, createdAt])
+  @@index([uploadedByCompanyId])
 }
 
 /// The seat itself — one real job at one client, however many adverts it wears.

@@ -53,6 +53,159 @@ function Chip({ children, tone = 'passive' }: {
   return <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${tones[tone]}`}>{children}</span>
 }
 
+/**
+ * Their CV.
+ *
+ * A submission with no document is not a submission a client can act on —
+ * they read the CV, not the row. Every version is kept as it was sent, so
+ * a client keeps the copy they were given.
+ */
+function YourCV() {
+  const [data, setData] = useState<any>(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    const res = await fetch('/api/me/resumes')
+    const body = await res.json()
+    if (res.ok) setData(body.data)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  async function upload(file: File) {
+    setBusy(true); setErr(null); setMsg(null)
+    try {
+      const form = new FormData()
+      form.append('file', file)
+      const res = await fetch('/api/me/resumes', { method: 'POST', body: form })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      setMsg(body.data.message)
+      await load()
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(id: string) {
+    setBusy(true); setErr(null); setMsg(null)
+    try {
+      const res = await fetch(`/api/me/resumes?id=${id}`, { method: 'DELETE' })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      setMsg(body.data.message)
+      await load()
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function act(payload: unknown, method = 'PATCH') {
+    setBusy(true); setErr(null); setMsg(null)
+    try {
+      const res = await fetch('/api/me/resumes', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      setMsg(body.data.message)
+      await load()
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!data) return null
+
+  return (
+    <section className="mt-10 pt-8 border-t border-etyme-rule">
+      <h2 className="font-serif text-xl text-etyme-ink tracking-[-0.02em]">Your CV</h2>
+      <p className="text-[13px] text-etyme-muted mt-1 max-w-prose">{data.note}</p>
+
+      <label className="inline-block mt-4">
+        <span
+          className={`px-3 py-1.5 rounded text-[13px] font-medium bg-etyme-action text-white cursor-pointer ${busy ? 'opacity-40' : ''}`}
+        >
+          {busy ? 'Uploading…' : data.versions.length > 0 ? 'Upload a newer one' : 'Upload your CV'}
+        </span>
+        <input
+          type="file"
+          className="hidden"
+          accept=".pdf,.doc,.docx,.txt,.rtf"
+          disabled={busy}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f) }}
+        />
+      </label>
+      <span className="text-[12px] text-etyme-faint ml-3">PDF or Word, up to 5MB</span>
+
+      {msg && <p className="text-[13px] text-etyme-verified mt-3">{msg}</p>}
+      {err && <p className="text-[13px] text-etyme-attention mt-3">{err}</p>}
+
+      {data.versions.length > 0 && (
+        <div className="mt-5 space-y-2">
+          {data.versions.map((v: any) => (
+            <div
+              key={v.id}
+              className="flex items-baseline justify-between gap-4 bg-etyme-surface border border-etyme-rule rounded-lg px-4 py-3"
+            >
+              <div className="min-w-0">
+                <a
+                  href={v.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`text-[14px] ${v.deleted ? 'text-etyme-faint line-through' : 'text-etyme-action hover:underline'}`}
+                >
+                  {v.label}
+                </a>
+                <div className="text-[12px] text-etyme-muted mt-0.5">
+                  {v.createdAt} · {Math.max(1, Math.round(v.sizeBytes / 1024))}KB
+                  {v.uploadedBy !== 'you' && ` · added by ${v.uploadedBy}`}
+                  {/* Where it actually went. The reason a version exists. */}
+                  {v.sentToNames.length > 0 && ` · sent to ${v.sentToNames.join(', ')}`}
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                {v.isCurrent ? (
+                  <Chip tone="verified">goes out</Chip>
+                ) : !v.deleted ? (
+                  <button
+                    className="text-[12px] text-etyme-action hover:underline disabled:opacity-40"
+                    disabled={busy}
+                    onClick={() => act({ id: v.id, makeCurrent: true })}
+                  >
+                    use this one
+                  </button>
+                ) : (
+                  <Chip>deleted</Chip>
+                )}
+                {!v.deleted && (
+                  <button
+                    className="text-[12px] text-etyme-muted hover:text-etyme-attention disabled:opacity-40"
+                    disabled={busy}
+                    onClick={() => remove(v.id)}
+                  >
+                    remove
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
 export default function MyWorkPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -232,6 +385,8 @@ export default function MyWorkPage() {
           </div>
         </section>
       )}
+
+      <YourCV />
     </div>
   )
 }
