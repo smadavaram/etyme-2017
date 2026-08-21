@@ -208,7 +208,8 @@
   <header class="mast">
     <p class="kicker">Adversarial review of my own design</p>
     <h1>Where the loops break</h1>
-    <p class="sub">I traced every flow in the build spec looking for loops that don't close. <b>Twelve are broken.</b> Three of them badly enough to matter before anyone writes code.</p>
+    <p class="sub">I traced every flow in the build spec looking for loops that don't close. <b>Eighteen are broken.</b></p>
+    <p class="sub">Six of them are in sign-up — the first loop anyone actually touches — and I had missed that flow entirely until you asked. <b>One of those six carries legal exposure.</b></p>
   </header>
 
   <!-- 1 -->
@@ -243,27 +244,163 @@
     </div>
   </section>
 
+
   <!-- 2 -->
   <section>
     <p class="num">2</p>
-    <h2>All twelve, worst first</h2>
+    <h2>The sign-up loop, which I never traced</h2>
+
+    <p class="say">Everything else in this audit assumes a vendor is already using the product. <b>Nothing in the design gets them there.</b></p>
+    <p class="say">The homepage promises: <em>"Upload ten CVs. See them scored against a live requirement within the hour."</em> Follow that promise backwards and there is no machinery behind it at all.</p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 1000 400" role="img" aria-label="The sign-up flow. What is built ends at a form collecting a name and email, then stops. The promise of a scored shortlist within the hour requires four steps that were never designed: someone replying, the CVs arriving, the CVs being parsed, and a live requirement to score against. Separately, consultants are texted without ever having opted in.">
+          <defs>
+            <marker id="sa2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="currentColor"/></marker>
+            <marker id="sb2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--bad)"/></marker>
+          </defs>
+
+          <text class="b-cap" x="14" y="24" fill="var(--ink-3)">WHAT IS ACTUALLY BUILT</text>
+          <rect class="b-box b-ok" x="14" y="38" width="140" height="48" rx="4"/>
+          <text class="b-sm" x="84" y="67" text-anchor="middle">Lands on the page</text>
+          <rect class="b-box b-ok" x="194" y="38" width="160" height="48" rx="4"/>
+          <text class="b-sm" x="274" y="67" text-anchor="middle">Clicks "Add your bench"</text>
+          <rect class="b-box b-bad" x="394" y="38" width="160" height="48" rx="4"/>
+          <text class="b-sm" x="474" y="60" text-anchor="middle">A form. Name, email.</text>
+          <text class="b-l t-bad" x="474" y="77" text-anchor="middle">that is the end of it</text>
+          <line class="b-arr" x1="154" y1="62" x2="190" y2="62" marker-end="url(#sa2)"/>
+          <line class="b-arr" x1="354" y1="62" x2="390" y2="62" marker-end="url(#sa2)"/>
+          <path class="b-arr-bad" d="M 554 62 L 588 62" stroke-dasharray="0"/>
+          <line x1="592" y1="42" x2="592" y2="82" stroke="var(--bad)" stroke-width="3"/>
+          <text class="b-l t-bad" x="606" y="58">no owner, no reply time,</text>
+          <text class="b-l t-bad" x="606" y="74">no second attempt if it goes quiet</text>
+          <circle class="badge" cx="574" cy="30" r="11"/><text class="badge-t" x="574" y="34" text-anchor="middle">07</text>
+
+          <line x1="14" y1="112" x2="986" y2="112" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+
+          <text class="b-cap t-bad" x="14" y="142">WHAT THE PROMISE NEEDS — NONE OF IT DESIGNED</text>
+          <rect class="b-box b-bad" x="14" y="158" width="170" height="52" rx="4" stroke-dasharray="5 4"/>
+          <text class="b-sm" x="99" y="182" text-anchor="middle">Someone replies</text>
+          <text class="b-l" x="99" y="198" text-anchor="middle">within the hour</text>
+          <rect class="b-box b-bad" x="204" y="158" width="170" height="52" rx="4" stroke-dasharray="5 4"/>
+          <text class="b-sm" x="289" y="182" text-anchor="middle">The CVs arrive</text>
+          <text class="b-l" x="289" y="198" text-anchor="middle">by what route?</text>
+          <rect class="b-box b-bad" x="394" y="158" width="170" height="52" rx="4" stroke-dasharray="5 4"/>
+          <text class="b-sm" x="479" y="182" text-anchor="middle">They get parsed</text>
+          <text class="b-l" x="479" y="198" text-anchor="middle">into profiles</text>
+          <rect class="b-box b-bad" x="584" y="158" width="170" height="52" rx="4" stroke-dasharray="5 4"/>
+          <text class="b-sm" x="669" y="182" text-anchor="middle">A live requirement</text>
+          <text class="b-l t-bad" x="669" y="198" text-anchor="middle">they have none yet</text>
+          <rect class="b-box" x="790" y="158" width="196" height="52" rx="4"/>
+          <text class="b-sm" x="888" y="182" text-anchor="middle">Scored shortlist</text>
+          <text class="b-l" x="888" y="198" text-anchor="middle">the moment that sells it</text>
+
+          <line class="b-arr" x1="184" y1="184" x2="200" y2="184" marker-end="url(#sa2)"/>
+          <line class="b-arr" x1="374" y1="184" x2="390" y2="184" marker-end="url(#sa2)"/>
+          <line class="b-arr" x1="564" y1="184" x2="580" y2="184" marker-end="url(#sa2)"/>
+          <line class="b-arr" x1="754" y1="184" x2="786" y2="184" marker-end="url(#sa2)"/>
+          <circle class="badge" cx="669" cy="150" r="11"/><text class="badge-t" x="669" y="154" text-anchor="middle">06</text>
+          <circle class="badge" cx="99" cy="150" r="11"/><text class="badge-t" x="99" y="154" text-anchor="middle">01</text>
+
+          <line x1="14" y1="240" x2="986" y2="240" stroke="currentColor" stroke-width="1" opacity="0.3"/>
+
+          <text class="b-cap t-bad" x="14" y="270">AND THE ONE WITH A LAWYER ATTACHED</text>
+          <rect class="b-box b-ok" x="14" y="286" width="190" height="52" rx="4"/>
+          <text class="b-sm" x="109" y="310" text-anchor="middle">Vendor uploads 50 CVs</text>
+          <text class="b-l" x="109" y="326" text-anchor="middle">bench created</text>
+          <rect class="b-box b-bad" x="244" y="286" width="190" height="52" rx="4"/>
+          <text class="b-sm t-bad" x="339" y="310" text-anchor="middle">We start texting them</text>
+          <text class="b-l t-bad" x="339" y="326" text-anchor="middle">pings and consent asks</text>
+          <line class="b-arr" x1="204" y1="312" x2="240" y2="312" marker-end="url(#sa2)"/>
+          <path class="b-arr-bad" d="M 434 312 L 468 312" stroke-dasharray="0"/>
+          <line x1="472" y1="290" x2="472" y2="334" stroke="var(--bad)" stroke-width="3"/>
+          <text class="b-l t-bad" x="486" y="300">Not one of those 50 people agreed to be texted.</text>
+          <text class="b-l t-bad" x="486" y="316">There is no consultant sign-up in the design at all —</text>
+          <text class="b-l t-bad" x="486" y="332">they appear because somebody uploaded a file about them.</text>
+          <circle class="badge" cx="454" cy="278" r="11"/><text class="badge-t" x="454" y="282" text-anchor="middle">02</text>
+        </svg>
+      </div>
+      <figcaption>Three bands: what exists, what the homepage promise silently assumes, and the consultant path that starts with a text message to somebody who never asked for one.</figcaption>
+    </figure>
+
+    <div class="warn">
+      <p><b>Break 02 is not a design problem, it is a legal one.</b></p>
+      <p>In the US, texting individuals without prior express consent carries statutory damages per message. Fifty consultants times a fortnightly ping is a real number, and "the vendor said it was fine" is not obviously a defence.</p>
+      <p>Have a lawyer look at this before the first message goes out — not before launch, before the <em>first message</em>. It is the only item in this whole audit I would stop for.</p>
+    </div>
+
+    <h3>How to close it</h3>
+
+    <p class="say">The fix is not to build a self-serve onboarding. It is to admit the first ten vendors are done by hand, and make the hand-work fast.</p>
+
+    <div class="breaks">
+      <div class="brk">
+        <p class="no">Fixes 01 and 06</p>
+        <h4>Ask for the requirement on the form</h4>
+        <p>Add one field: <em>"Paste a requirement you're working on right now."</em> They have one open in another tab. It costs them ten seconds and it hands you the exact thing the promise needs — a live requirement to score their bench against.</p>
+        <p class="fix"><b>And drop the login.</b> Send the scored shortlist back as a link or a PDF. Do not make them create an account to see whether you are any good. The account comes after they say "that's useful", never before.</p>
+      </div>
+      <div class="brk">
+        <p class="no">Fixes 02</p>
+        <h4>The first text is an opt-in, not a ping</h4>
+        <p>Message one identifies the vendor by name, says why they are hearing from you, and asks permission to continue. STOP works from that first message. Freshness pings only start after a yes, and consent is stored per person with a timestamp and a source.</p>
+        <p class="fix"><b>And the vendor confirms at upload</b> that they have a relationship with each person. Put it in the upload step and in the contract. Then get it reviewed.</p>
+      </div>
+      <div class="brk b2">
+        <p class="no">Fixes 07</p>
+        <h4>A named person and a clock</h4>
+        <p>A form submission with no owner dies at 9pm on a Friday. One named person, a two-hour reply target during working hours, and two follow-up attempts before it is closed with a reason.</p>
+        <p class="fix"><b>The reason is the loop.</b> "Too small", "no bench", "went quiet" tells you who to approach next. Without it, a dead lead teaches you nothing.</p>
+      </div>
+      <div class="brk b2">
+        <p class="no">Fixes 08</p>
+        <h4>Say out loud that you are also a vendor</h4>
+        <p>In year one you are the platform <em>and</em> a supplier. When a client posts a requirement, your own bench sees it. That is a conflict, and hiding it is how you lose the account when they work it out.</p>
+        <p class="fix"><b>Label it.</b> Submissions from your own bench are marked as such in the client's inbox, and the arrangement is stated in the contract. Disclosed, it is normal — every prime vendor does it. Undisclosed, it is fatal.</p>
+      </div>
+      <div class="brk b2">
+        <p class="no">Fixes 09</p>
+        <h4>Free needs a start date and an end date</h4>
+        <p>"Free until five a day" has no day zero and no defined finish. Both sides will remember it differently, and that conversation happens exactly when you are asking for money.</p>
+        <p class="fix"><b>Write it down at sign-up:</b> the clock starts on their first uploaded bench, ends at five good submissions a day or ninety days, whichever comes first, and here is the dashboard you will both be reading.</p>
+      </div>
+      <div class="brk b3">
+        <p class="no">Worth noting</p>
+        <h4>Nobody checks who is signing up</h4>
+        <p>Anyone can claim to be a staffing firm. Harmless while the vendor side only shows their own bench — but the moment client requirements are visible, a competitor signing up sees real demand.</p>
+        <p class="fix"><b>Gate the requirement feed,</b> not the sign-up. Let anyone in to see their own bench scored; require a conversation with a person before they see anything a client posted.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section>
+    <p class="num">3</p>
+    <h2>All eighteen, worst first</h2>
 
     <div class="tw">
       <table>
         <thead><tr><th>#</th><th>Flow</th><th>What breaks</th><th>Severity</th></tr></thead>
         <tbody>
-          <tr><td class="n">01</td><td class="k">Mix shift over 4 years</td><td>Nothing in the design actually makes the agent better. Improvement is assumed, not caused.</td><td><span class="sev a">Fatal</span></td></tr>
-          <tr><td class="n">02</td><td class="k">Outcome → learning</td><td>Clients often never say why. The arrow every learning loop depends on arrives less than half the time.</td><td><span class="sev a">Fatal</span></td></tr>
-          <tr><td class="n">03</td><td class="k">Five submissions a day</td><td>One number with no breakdown. When it stalls you cannot tell which stage is failing.</td><td><span class="sev a">Fatal</span></td></tr>
-          <tr><td class="n">04</td><td class="k">Escalation after 3 fixes</td><td>A person fixes it and nothing is recorded. The same failure returns next week.</td><td><span class="sev b">Serious</span></td></tr>
-          <tr><td class="n">05</td><td class="k">Consultant freshness</td><td>Unconfirmed people never leave the bench. Idle-days inflates with ghosts.</td><td><span class="sev b">Serious</span></td></tr>
-          <tr><td class="n">06</td><td class="k">Requirement changes</td><td>No flow handles rate, location or cancellation changing mid-flight. Scores silently go stale.</td><td><span class="sev b">Serious</span></td></tr>
-          <tr><td class="n">07</td><td class="k">Requirement quality check</td><td>Asks a coordinator to fix a rate they have no authority to change. Override becomes reflex.</td><td><span class="sev b">Serious</span></td></tr>
-          <tr><td class="n">08</td><td class="k">Human sample review</td><td>"Ten a week" with no rule for which ten. Rare failures never get sampled.</td><td><span class="sev b">Serious</span></td></tr>
-          <tr><td class="n">09</td><td class="k">Consent — the NO branch</td><td>Design says what happens on YES. Says nothing at all on NO.</td><td><span class="sev c">Fixable</span></td></tr>
-          <tr><td class="n">10</td><td class="k">Deduplication</td><td>A human corrects a wrong merge and the rule never learns. Same false merge recurs.</td><td><span class="sev c">Fixable</span></td></tr>
-          <tr><td class="n">11</td><td class="k">Rate benchmark</td><td>Built from your own submissions, then used to judge client rates. Circular until volume is real.</td><td><span class="sev c">Fixable</span></td></tr>
-          <tr><td class="n">12</td><td class="k">Submission check</td><td>Confirms the CV says a thing, not that the thing is true. Catches sloppiness, never lying.</td><td><span class="sev c">Known limit</span></td></tr>
+          <tr><td class="n">01</td><td class="k">Sign-up → first value</td><td>The homepage promises a scored bench within the hour. Nothing behind the form delivers it.</td><td><span class="sev a">Fatal</span></td></tr>
+          <tr><td class="n">02</td><td class="k">Texting consultants</td><td>We message 50 people who never opted in. Legal exposure, not just a design gap.</td><td><span class="sev a">Fatal</span></td></tr>
+          <tr><td class="n">03</td><td class="k">Mix shift over 4 years</td><td>Nothing in the design actually makes the agent better. Improvement is assumed, not caused.</td><td><span class="sev a">Fatal</span></td></tr>
+          <tr><td class="n">04</td><td class="k">Outcome → learning</td><td>Clients often never say why. The arrow every learning loop depends on arrives less than half the time.</td><td><span class="sev a">Fatal</span></td></tr>
+          <tr><td class="n">05</td><td class="k">Five submissions a day</td><td>One number with no breakdown. When it stalls you cannot tell which stage is failing.</td><td><span class="sev a">Fatal</span></td></tr>
+          <tr><td class="n">06</td><td class="k">The first scored bench</td><td>Scoring needs a live requirement. A brand new vendor has none in the system.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">07</td><td class="k">A new lead arrives</td><td>No owner, no reply time, no second attempt. It dies quietly at 9pm on a Friday.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">08</td><td class="k">Platform vs supplier</td><td>In year one you are both. A client's requirement reaches your own bench and nobody said so.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">09</td><td class="k">Free until it works</td><td>No start date, no end date. Both sides remember it differently when money comes up.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">10</td><td class="k">Escalation after 3 fixes</td><td>A person fixes it and nothing is recorded. The same failure returns next week.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">11</td><td class="k">Consultant freshness</td><td>Unconfirmed people never leave the bench. Idle-days inflates with ghosts.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">12</td><td class="k">Requirement changes</td><td>No flow handles rate, location or cancellation changing mid-flight. Scores silently go stale.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">13</td><td class="k">Requirement quality check</td><td>Asks a coordinator to fix a rate they have no authority to change. Override becomes reflex.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">14</td><td class="k">Human sample review</td><td>"Ten a week" with no rule for which ten. Rare failures never get sampled.</td><td><span class="sev b">Serious</span></td></tr>
+          <tr><td class="n">15</td><td class="k">Consent — the NO branch</td><td>Design says what happens on YES. Says nothing at all on NO.</td><td><span class="sev c">Fixable</span></td></tr>
+          <tr><td class="n">16</td><td class="k">Deduplication</td><td>A human corrects a wrong merge and the rule never learns. Same false merge recurs.</td><td><span class="sev c">Fixable</span></td></tr>
+          <tr><td class="n">17</td><td class="k">Rate benchmark</td><td>Built from your own submissions, then used to judge client rates. Circular until volume is real.</td><td><span class="sev c">Fixable</span></td></tr>
+          <tr><td class="n">18</td><td class="k">Submission check</td><td>Confirms the CV says a thing, not that the thing is true. Catches sloppiness, never lying.</td><td><span class="sev c">Known limit</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -271,7 +408,7 @@
 
   <!-- 3 -->
   <section>
-    <p class="num">3</p>
+    <p class="num">4</p>
     <h2>The vendor loop, honestly drawn</h2>
 
     <p class="say">Same flow as the build spec, with the breaks marked. Solid lines are real. <b>The dashed red one is the arrow I drew as if it were reliable.</b></p>
@@ -326,13 +463,13 @@
           <line x1="498" y1="258" x2="554" y2="258" stroke="var(--bad)" stroke-width="3"/>
           <text class="b-l t-bad" x="566" y="252">nothing recorded — same failure next week</text>
           <circle class="badge" cx="614" cy="204" r="11"/>
-          <text class="badge-t" x="614" y="208" text-anchor="middle">04</text>
+          <text class="badge-t" x="614" y="208" text-anchor="middle">10</text>
 
           <!-- BREAK 2: outcome return -->
           <path class="b-arr-bad" d="M 885 140 L 885 300 L 222 300 L 222 144" marker-end="url(#vb)"/>
           <text class="b-l t-bad" x="553" y="292" text-anchor="middle">arrives less than half the time — every learning loop starves</text>
           <circle class="badge" cx="885" cy="166" r="11"/>
-          <text class="badge-t" x="885" y="170" text-anchor="middle">02</text>
+          <text class="badge-t" x="885" y="170" text-anchor="middle">04</text>
 
           <!-- BREAK 5: consultant freshness -->
           <text class="b-cap t-bad" x="14" y="352">CONSULTANT FRESHNESS — SEPARATE LOOP, SAME PROBLEM</text>
@@ -349,7 +486,7 @@
           <text class="b-l t-bad" x="492" y="384">no archive rule — they stay on the bench forever,</text>
           <text class="b-l t-bad" x="492" y="399">inflating the one number the whole screen leads with</text>
           <circle class="badge" cx="452" cy="358" r="11"/>
-          <text class="badge-t" x="452" y="362" text-anchor="middle">05</text>
+          <text class="badge-t" x="452" y="362" text-anchor="middle">11</text>
         </svg>
       </div>
       <figcaption>The orange fix loop is genuinely closed and works. Everything red is a place I drew an arrow that does not carry data, or a path that stops without feeding anything back.</figcaption>
@@ -358,7 +495,7 @@
 
   <!-- 4 -->
   <section>
-    <p class="num">4</p>
+    <p class="num">5</p>
     <h2>The worst one: improvement was never designed</h2>
 
     <p class="say">The business plan says the agent share goes from 30% to 88% over four years. That single line carries the entire margin story — 45% gross margin becomes 84% because of it.</p>
@@ -426,7 +563,7 @@
 
   <!-- 5 -->
   <section>
-    <p class="num">5</p>
+    <p class="num">6</p>
     <h2>The metric can't tell you what's wrong</h2>
 
     <p class="say">I told you to watch one number: good submissions per day, per requirement. Target five. That advice is right and the instrumentation behind it is useless.</p>
@@ -474,68 +611,68 @@
 
   <!-- 6 -->
   <section>
-    <p class="num">6</p>
+    <p class="num">7</p>
     <h2>The other nine, with fixes</h2>
 
     <div class="breaks">
       <div class="brk">
-        <p class="no">Break 04 · serious</p>
+        <p class="no">Break 10 · serious</p>
         <h4>Escalation is a dead end</h4>
         <p>Three failed checks send it to a person. They fix it by hand and move on. Nothing records why it failed, so the identical failure arrives again next week — forever.</p>
-        <p class="fix"><b>Fix:</b> Every escalation must close with a cause from a short list. Causes aggregate. When one hits ten, it becomes a work item against the agent. That is the improvement loop from section 4, fed automatically.</p>
+        <p class="fix"><b>Fix:</b> Every escalation must close with a cause from a short list. Causes aggregate. When one hits ten, it becomes a work item against the agent. That is the improvement loop from section 5, fed automatically.</p>
       </div>
 
       <div class="brk">
-        <p class="no">Break 05 · serious</p>
+        <p class="no">Break 11 · serious</p>
         <h4>Ghosts never leave the bench</h4>
         <p>Two pings, no reply, marked unconfirmed — and then nothing. After a year a large share of the bench is people who left the market, still counted in the idle-days number on the front screen.</p>
         <p class="fix"><b>Fix:</b> Unconfirmed for 30 days raises one call task for a recruiter. Still nothing at 60 days, archive automatically and drop them from every count. One click restores them.</p>
       </div>
 
       <div class="brk">
-        <p class="no">Break 06 · serious</p>
+        <p class="no">Break 12 · serious</p>
         <h4>Requirements change and nothing notices</h4>
         <p>Rates move, locations change, roles get put on hold. Every flow assumes the requirement is frozen. Twenty scored submissions silently become wrong, and cancelled roles keep burning compute.</p>
         <p class="fix"><b>Fix:</b> Version the requirement. Stamp every score with the version it was scored against. On change, re-score what is in flight and flag stale shortlists. On cancel, stop everything downstream immediately.</p>
       </div>
 
       <div class="brk">
-        <p class="no">Break 07 · serious</p>
+        <p class="no">Break 13 · serious</p>
         <h4>The quality check asks the wrong person</h4>
         <p>"Rate below market" is shown to whoever typed the requirement — usually a coordinator with no authority over pay. They cannot fix it, so they override. Within a month overriding is automatic and the check is theatre.</p>
         <p class="fix"><b>Fix:</b> Route each problem to whoever can act on it — rate goes to the hiring manager with the market data attached. And watch the override rate: above half, the check is failing, not the user.</p>
       </div>
 
       <div class="brk">
-        <p class="no">Break 08 · serious</p>
+        <p class="no">Break 14 · serious</p>
         <h4>Ten a week, but which ten?</h4>
         <p>Left to a person, they will review the easy ones. Left to "most recent", you will never see the rare failures. Either way the agreement rate looks great and means nothing.</p>
         <p class="fix"><b>Fix:</b> Assign the sample, never let it be chosen. Mix it: some random, some from the 70–80 score band where errors cluster, some shortlisted, and every case where the rules and the model disagreed.</p>
       </div>
 
       <div class="brk b3">
-        <p class="no">Break 09 · fixable</p>
+        <p class="no">Break 15 · fixable</p>
         <h4>Nobody designed the word "no"</h4>
         <p>The consent text asks yes or no. The spec only says what happens on yes. A no leaves the submission in limbo and throws away the most valuable reply of all — "someone already put me forward there".</p>
         <p class="fix"><b>Fix:</b> No cancels the submission, tells the recruiter, and asks one follow-up: already submitted, rate too low, or not interested. That third answer is free deduplication and free market data.</p>
       </div>
 
       <div class="brk b3">
-        <p class="no">Break 10 · fixable</p>
+        <p class="no">Break 16 · fixable</p>
         <h4>Dedup never learns</h4>
         <p>A person judges "not the same person" in the check queue. The verdict corrects that one record and vanishes. The rule that made the mistake is unchanged, so it makes it again.</p>
-        <p class="fix"><b>Fix:</b> Same shape as break 04 — the human verdict is training data, not just a correction. Feed disagreements back into the matching thresholds monthly.</p>
+        <p class="fix"><b>Fix:</b> Same shape as break 10 — the human verdict is training data, not just a correction. Feed disagreements back into the matching thresholds monthly.</p>
       </div>
 
       <div class="brk b3">
-        <p class="no">Break 11 · fixable</p>
+        <p class="no">Break 17 · fixable</p>
         <h4>The benchmark judges itself</h4>
         <p>Market rates are built from your own submissions, then used to tell clients their rate is below market. Early on your bench <em>is</em> the sample, so an expensive bench makes every client look underpriced.</p>
         <p class="fix"><b>Fix:</b> Do not use the benchmark below a minimum sample per skill and city, and show the sample size beside every figure. Sanity-check the first year against published survey data.</p>
       </div>
 
       <div class="brk b3">
-        <p class="no">Break 12 · known limit</p>
+        <p class="no">Break 18 · known limit</p>
         <h4>The check cannot catch a liar</h4>
         <p>It confirms the CV says seven years of Spring Boot. It cannot confirm the seven years happened. A well-written fake passes every check cleanly.</p>
         <p class="fix"><b>Fix:</b> None available, and pretending otherwise is worse than admitting it. The check catches sloppiness; interviews catch lying. Never sell it as fraud detection — that promise is the one that ends the relationship.</p>
@@ -545,31 +682,45 @@
 
   <!-- 7 -->
   <section>
-    <p class="num">7</p>
-    <h2>Fix these three before any code</h2>
+    <p class="num">8</p>
+    <h2>Fix these five before any code</h2>
 
-    <p class="say">The other nine can be fixed as you go. These three change what you build.</p>
+    <p class="say">The other thirteen can be fixed as you go. These five change what you build — and the first two change what you do <em>this week</em>.</p>
 
     <div class="first">
       <div class="f-row">
         <div class="f-n">01</div>
+        <div>
+          <h4>Get the SMS consent question in front of a lawyer</h4>
+          <p>Before a single message goes out, not before launch. Everything else on this page is a design decision you can revise. This one has statutory damages attached and no amount of good intent undoes a send.</p>
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-n">02</div>
+        <div>
+          <h4>Make the first hour real, by hand</h4>
+          <p>Add the requirement field to the form, name one person to reply within two hours, and send the scored shortlist back without asking anyone to create an account. Ten vendors done manually beats a self-serve flow nobody completes.</p>
+        </div>
+      </div>
+      <div class="f-row">
+        <div class="f-n">03</div>
         <div>
           <h4>Put a name and a Friday on the improvement loop</h4>
           <p>One person, one hour a week, one change, measured against a frozen eval set, kept or reverted on the number. Without this the margin curve in the business plan is decoration and year four looks like year one.</p>
         </div>
       </div>
       <div class="f-row">
-        <div class="f-n">02</div>
+        <div class="f-n">04</div>
         <div>
           <h4>Assume outcomes will not arrive, and infer them</h4>
-          <p>Treat silence as a label, not missing data. "Not viewed in 14 days" and "requirement closed with nobody hired" are both real signals. Design for them now — retrofitting inferred outcomes into a schema that assumed clean feedback is a rewrite.</p>
+          <p>Treat silence as a label, not missing data. "Not viewed in 14 days" and "requirement closed with nobody hired" are both real signals. Retrofitting inferred outcomes into a schema that assumed clean feedback is a rewrite.</p>
         </div>
       </div>
       <div class="f-row">
-        <div class="f-n">03</div>
+        <div class="f-n">05</div>
         <div>
           <h4>Build the funnel, not the number</h4>
-          <p>Six counters instead of one. It is a day of work on data you already have, and it is the difference between diagnosing month three and guessing at it.</p>
+          <p>Six counters instead of one. A day of work on data you already have, and the difference between diagnosing month three and guessing at it.</p>
         </div>
       </div>
     </div>
@@ -577,9 +728,9 @@
     <div class="warn">
       <p><b>What this review does not change.</b></p>
       <p>The shape is still right. The submission check loop, the screening check loop and the human sample are sound, and they are the parts that make this different from an ATS.</p>
-      <p>What is wrong is that I drew several arrows as though drawing them made them work. Six of the twelve breaks are the same mistake: <b>a loop that ends at a human and stops there.</b> Every one of those needs the human's verdict to become an input.</p>
+      <p>What is wrong is that I drew several arrows as though drawing them made them work, and never traced the one flow every user hits first. Six of the eighteen breaks share one mistake: <b>a loop that ends at a human and stops there.</b> Every one of those needs the human's verdict to become an input.</p>
     </div>
   </section>
 
-  <footer>Flow audit · twelve breaks found across the vendor, client and business loops</footer>
+  <footer>Flow audit · eighteen breaks found across sign-up, vendor, client and business loops</footer>
 </div>
