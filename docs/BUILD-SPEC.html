@@ -1,0 +1,613 @@
+<title>The Two-Sided Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,400;100,500;100,600;100,700;112,700;112,800&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:#EDF1F1; --surface:#F8FAFA; --surface-2:#E3E9E9;
+    --ink:#101718; --ink-2:#465658; --ink-3:#7A8A8C;
+    --rule:#CCD6D6; --rule-soft:#DDE4E4;
+    --client:#0F5C61; --client-bg:#DCE9E9;
+    --vendor:#5B4A94; --vendor-bg:#E2DEEE;
+    --signal:#B85A16; --signal-bg:#F6E7DA;
+    --go:#2C6E49; --go-bg:#DDE9E0;
+    --no:#9C3626; --no-bg:#F2DFDB;
+    --sans:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --serif:"Source Serif 4",Georgia,serif;
+    --mono:"IBM Plex Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0B1011; --surface:#141B1C; --surface-2:#1C2526;
+      --ink:#E6ECEC; --ink-2:#9EAEAF; --ink-3:#77878A;
+      --rule:#2C3739; --rule-soft:#222C2E;
+      --client:#58BEC4; --client-bg:#16292B;
+      --vendor:#A99AD8; --vendor-bg:#221E33;
+      --signal:#E38B4B; --signal-bg:#33231A;
+      --go:#6BBF8E; --go-bg:#1B2C22;
+      --no:#DE7B66; --no-bg:#2F1D19;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0B1011; --surface:#141B1C; --surface-2:#1C2526;
+    --ink:#E6ECEC; --ink-2:#9EAEAF; --ink-3:#77878A;
+    --rule:#2C3739; --rule-soft:#222C2E;
+    --client:#58BEC4; --client-bg:#16292B;
+    --vendor:#A99AD8; --vendor-bg:#221E33;
+    --signal:#E38B4B; --signal-bg:#33231A;
+    --go:#6BBF8E; --go-bg:#1B2C22;
+    --no:#DE7B66; --no-bg:#2F1D19;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--serif); font-size:1.1rem; line-height:1.58;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1160px; margin:0 auto; padding:0 24px 100px; }
+
+  .mast { padding:58px 0 0; }
+  .kicker {
+    font-family:var(--sans); font-size:0.75rem; font-weight:700;
+    letter-spacing:0.16em; text-transform:uppercase; color:var(--signal); margin:0 0 18px;
+  }
+  h1 {
+    font-family:var(--sans); font-variation-settings:"wdth" 112; font-weight:800;
+    font-size:3.3rem; line-height:0.97; letter-spacing:-0.03em; margin:0 0 20px;
+    max-width:15ch; text-wrap:balance;
+  }
+  .sub { font-size:1.36rem; line-height:1.4; color:var(--ink-2); max-width:44ch; margin:0; }
+
+  section { padding-top:66px; }
+  .num {
+    font-family:var(--sans); font-variation-settings:"wdth" 112; font-weight:800;
+    font-size:2.1rem; line-height:1; color:var(--signal); margin:0 0 6px;
+  }
+  h2 {
+    font-family:var(--sans); font-weight:700; font-size:2.15rem; line-height:1.08;
+    letter-spacing:-0.025em; margin:0 0 20px; max-width:24ch; text-wrap:balance;
+  }
+  h3 {
+    font-family:var(--sans); font-weight:700; font-size:1.3rem;
+    margin:34px 0 10px; letter-spacing:-0.012em;
+  }
+  p { margin:0 0 15px; max-width:44ch; }
+  .say { font-size:1.22rem; line-height:1.48; max-width:42ch; }
+  .say b { font-weight:600; }
+  .big {
+    font-family:var(--sans); font-weight:800; font-size:1.62rem; line-height:1.2;
+    color:var(--signal); max-width:28ch; margin:26px 0; letter-spacing:-0.02em;
+  }
+  code {
+    font-family:var(--mono); font-size:0.86em; background:var(--surface-2);
+    padding:0.1em 0.36em; border-radius:3px;
+  }
+
+  .verdict {
+    display:grid; grid-template-columns:auto 1fr; gap:0 22px;
+    align-items:center; max-width:820px; margin:34px 0;
+    background:var(--surface); border:1px solid var(--rule);
+    border-left:5px solid var(--go); border-radius:5px; padding:22px 26px;
+  }
+  .verdict .yes {
+    font-family:var(--sans); font-weight:800; font-size:2.4rem;
+    color:var(--go); line-height:1; letter-spacing:-0.03em;
+  }
+  .verdict p { margin:0; max-width:none; font-size:1.14rem; }
+
+  .warn {
+    background:var(--surface); border:1px solid var(--rule);
+    border-left:4px solid var(--signal); border-radius:4px;
+    padding:20px 24px; margin:30px 0; max-width:50ch;
+  }
+  .warn.bad { border-left-color:var(--no); }
+  .warn p { margin:0; font-size:1.08rem; max-width:none; }
+  .warn p + p { margin-top:11px; }
+  .warn b { font-family:var(--sans); }
+
+  figure { margin:30px 0 0; max-width:1060px; }
+  .fig {
+    background:var(--surface); border:1px solid var(--rule-soft);
+    border-radius:6px; padding:24px 22px 16px; overflow-x:auto;
+  }
+  figure svg { display:block; width:100%; min-width:660px; height:auto; color:var(--ink-2); }
+  figcaption {
+    font-family:var(--sans); font-size:0.86rem; line-height:1.5;
+    color:var(--ink-3); margin-top:11px; max-width:64ch;
+  }
+  .s-box  { fill:var(--surface); stroke:currentColor; stroke-width:1.4; }
+  .s-cl   { stroke:var(--client); stroke-width:1.7; }
+  .s-vn   { stroke:var(--vendor); stroke-width:1.7; }
+  .s-hot  { stroke:var(--signal); stroke-width:2.3; }
+  .s-t    { font-family:"Archivo",sans-serif; font-size:13px; font-weight:600; fill:var(--ink); }
+  .s-sm   { font-family:"Archivo",sans-serif; font-size:11.5px; font-weight:500; fill:var(--ink); }
+  .s-lbl  { font-family:"IBM Plex Mono",monospace; font-size:11.5px; fill:currentColor; }
+  .s-cap  { font-family:"Archivo",sans-serif; font-size:10.5px; font-weight:700; letter-spacing:0.13em; fill:currentColor; }
+  .s-arr  { stroke:currentColor; stroke-width:1.5; fill:none; }
+  .s-arr-hot { stroke:var(--signal); stroke-width:2; fill:none; }
+  .t-cl { fill:var(--client); } .t-vn { fill:var(--vendor); } .t-hot { fill:var(--signal); }
+
+  /* tables */
+  .tw {
+    overflow-x:auto; margin:26px 0; border:1px solid var(--rule-soft);
+    border-radius:5px; background:var(--surface); max-width:1060px;
+  }
+  table { border-collapse:collapse; width:100%; min-width:680px; font-size:0.94rem; }
+  th {
+    font-family:var(--sans); font-size:0.66rem; font-weight:700; letter-spacing:0.11em;
+    text-transform:uppercase; text-align:left; color:var(--ink-3);
+    padding:12px 16px; border-bottom:1px solid var(--rule); white-space:nowrap;
+  }
+  td { padding:12px 16px; border-bottom:1px solid var(--rule-soft); vertical-align:top; line-height:1.45; }
+  tbody tr:last-child td { border-bottom:none; }
+  td.k { font-family:var(--sans); font-weight:600; white-space:nowrap; }
+  td.m { font-family:var(--mono); font-size:0.85rem; white-space:nowrap; }
+
+  .tag {
+    font-family:var(--sans); font-size:0.64rem; font-weight:700; letter-spacing:0.07em;
+    text-transform:uppercase; padding:3px 8px; border-radius:3px; white-space:nowrap; display:inline-block;
+  }
+  .tag.cl { background:var(--client-bg); color:var(--client); }
+  .tag.vn { background:var(--vendor-bg); color:var(--vendor); }
+  .tag.sh { background:var(--signal-bg); color:var(--signal); }
+  .tag.chk{ background:var(--go-bg); color:var(--go); }
+
+  /* agent filter */
+  .ctl { display:flex; flex-wrap:wrap; gap:7px; align-items:center; margin:22px 0 4px; }
+  .ctl-lbl {
+    font-family:var(--sans); font-size:0.66rem; font-weight:700; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--ink-3); margin-right:4px;
+  }
+  button.chip {
+    font-family:var(--sans); font-size:0.82rem; font-weight:600; padding:5px 12px;
+    border-radius:20px; cursor:pointer; border:1px solid var(--rule);
+    background:var(--surface); color:var(--ink-2);
+  }
+  button.chip:hover { border-color:var(--ink-3); color:var(--ink); }
+  button.chip:focus-visible { outline:2px solid var(--signal); outline-offset:2px; }
+  button.chip[aria-pressed="true"] { background:var(--signal); border-color:var(--signal); color:var(--ground); }
+
+  /* phases */
+  .phases { max-width:1000px; margin:28px 0 0; }
+  .phase {
+    display:grid; grid-template-columns:96px 1fr; gap:0 26px;
+    padding:24px 0; border-top:1px solid var(--rule);
+  }
+  .phase:last-child { border-bottom:1px solid var(--rule); }
+  .ph-n {
+    font-family:var(--sans); font-variation-settings:"wdth" 112; font-weight:800;
+    font-size:1.7rem; color:var(--signal); line-height:1;
+  }
+  .ph-w { font-family:var(--mono); font-size:0.72rem; color:var(--ink-3); margin-top:6px; }
+  .phase h3 { margin:-4px 0 8px; font-size:1.24rem; }
+  .phase p { margin:0 0 8px; max-width:56ch; font-size:1.04rem; }
+  .ph-list { font-family:var(--mono); font-size:0.82rem; color:var(--ink-2); line-height:1.7; margin-top:10px; }
+  .ph-list b { color:var(--signal); font-weight:500; }
+
+  pre {
+    background:var(--surface-2); border:1px solid var(--rule-soft); border-radius:5px;
+    padding:18px 20px; overflow-x:auto; font-family:var(--mono); font-size:0.84rem;
+    line-height:1.62; max-width:1000px; white-space:pre-wrap;
+  }
+
+  footer {
+    margin-top:70px; padding-top:20px; border-top:1px solid var(--rule);
+    font-family:var(--mono); font-size:0.79rem; color:var(--ink-3);
+  }
+
+  @media (max-width:760px) {
+    h1 { font-size:2.3rem; } h2 { font-size:1.66rem; }
+    .sub { font-size:1.14rem; } .say { font-size:1.1rem; }
+    .wrap { padding-left:18px; padding-right:18px; }
+    .phase { grid-template-columns:1fr; gap:6px; }
+    .verdict { grid-template-columns:1fr; gap:10px; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="kicker">Build spec · IT staffing only</p>
+    <h1>The two-sided bench</h1>
+    <p class="sub">Vendors run agents over their bench. Clients run agents over their requirements. Hand this page to a Base44 engineer and they can build it.</p>
+  </header>
+
+  <!-- 0 -->
+  <section>
+    <p class="num">0</p>
+    <h2>Can you build this in Base44?</h2>
+
+    <div class="verdict">
+      <div class="yes">Yes</div>
+      <p>For the first version, Base44 is a good fit. It has the database, login, file storage, scheduled jobs and — importantly — <b>Workflows</b>, which runs multi-step automation triggered by a data change. That is exactly what a loop needs.</p>
+    </div>
+
+    <p class="say">What you need and Base44 has: entities with relations, role-based login, file upload for resumes and documents, LLM calls, email, scheduled tasks, webhooks, and Workflows for the loops.</p>
+
+    <div class="warn bad">
+      <p><b>The one thing that matters: you cannot get your backend out.</b></p>
+      <p>Base44 exports your <b>frontend</b> code to GitHub. The backend and database stay on their infrastructure. If you leave, you rebuild the back half.</p>
+      <p>So do two things from week one. Keep the data model plain and portable. And write a weekly job that dumps every entity to your own S3 bucket as JSON. Your match history and outcome data is the only asset that compounds — never let it live in one place you don't control.</p>
+    </div>
+
+    <div class="warn">
+      <p><b>Two smaller cautions.</b></p>
+      <p>The database is MongoDB-style, not relational. Fine for this. It gets awkward later when you do financial reconciliation, so keep money records simple and flat.</p>
+      <p>Don't write long-running agent processes. Model every loop as a <b>status field on a record</b>, where each agent call moves it one step. That's how Base44 Workflows wants to work, and it's better engineering anyway — every step is restartable and every step is logged.</p>
+    </div>
+  </section>
+
+  <!-- 1 -->
+  <section>
+    <p class="num">1</p>
+    <h2>Why this is better than what I proposed</h2>
+
+    <p class="say">Earlier I warned you off building a marketplace. <b>That warning does not apply here, and I want to be clear about why.</b></p>
+    <p class="say">I was talking about a market for AI agents, where there are no buyers and no sellers yet. Building that is suicide.</p>
+    <p class="say">IT staffing is the opposite. <b>Vendors have benches today. Clients have requirements today.</b> Billions change hands every year. Nothing needs to be created — the matching and the paperwork are just slow and painful.</p>
+
+    <p class="big">You're not starting a market. You're speeding up one that already runs.</p>
+
+    <p class="say">And there's a second reason this is stronger: <b>the vendor side is useful on its own.</b> A staffing firm gets value on day one from triage and faster submissions, even if no client ever joins. That solves the cold start completely.</p>
+  </section>
+
+  <!-- 2 -->
+  <section>
+    <p class="num">2</p>
+    <h2>The loop graph</h2>
+
+    <p class="say">Two loops that feed each other, and a third that teaches both. Orange boxes are check steps — the loop turns there.</p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 920 736" role="img" aria-label="Client side: a hiring need is structured by an intake agent, checked for whether it is fillable, then sent to vendors. Vendor side: the requirement is triaged against the bench, a submission package is built, checked for completeness and rate, then submitted. Back on the client side submissions are screened and deduplicated, the scores are checked against evidence, then shortlisted and interviewed. The outcome teaches both the requirement check and the vendor triage.">
+          <defs>
+            <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+            </marker>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--signal)"/>
+            </marker>
+          </defs>
+
+          <text class="s-cap t-cl" x="40" y="32">CLIENT SIDE — THE DEMAND</text>
+          <text class="s-cap t-vn" x="630" y="32">VENDOR SIDE — THE SUPPLY</text>
+
+          <!-- client column -->
+          <rect class="s-box s-cl" x="40" y="56" width="250" height="50" rx="4"/>
+          <text class="s-t" x="165" y="86" text-anchor="middle">A hiring need turns up</text>
+
+          <rect class="s-box s-cl" x="40" y="126" width="250" height="50" rx="4"/>
+          <text class="s-t" x="165" y="149" text-anchor="middle">Intake agent writes it up</text>
+          <text class="s-sm" x="165" y="166" text-anchor="middle">skills, rate, duration, work permit</text>
+
+          <rect class="s-box s-hot" x="40" y="196" width="250" height="50" rx="4"/>
+          <text class="s-t t-hot" x="165" y="219" text-anchor="middle">CHECK — can this be filled?</text>
+          <text class="s-sm" x="165" y="236" text-anchor="middle">rate realistic? rules contradictory?</text>
+
+          <rect class="s-box s-cl" x="40" y="266" width="250" height="50" rx="4"/>
+          <text class="s-t" x="165" y="296" text-anchor="middle">Send to chosen vendors</text>
+
+          <rect class="s-box s-cl" x="40" y="476" width="250" height="50" rx="4"/>
+          <text class="s-t" x="165" y="499" text-anchor="middle">Screen &amp; remove duplicates</text>
+          <text class="s-sm" x="165" y="516" text-anchor="middle">same person, three vendors</text>
+
+          <rect class="s-box s-hot" x="40" y="546" width="250" height="50" rx="4"/>
+          <text class="s-t t-hot" x="165" y="569" text-anchor="middle">CHECK — is the score honest?</text>
+          <text class="s-sm" x="165" y="586" text-anchor="middle">every claim shown in the CV</text>
+
+          <line class="s-arr" x1="165" y1="106" x2="165" y2="122" marker-end="url(#a)"/>
+          <line class="s-arr" x1="165" y1="176" x2="165" y2="192" marker-end="url(#a)"/>
+          <line class="s-arr" x1="165" y1="246" x2="165" y2="262" marker-end="url(#a)"/>
+          <line class="s-arr" x1="165" y1="526" x2="165" y2="542" marker-end="url(#a)"/>
+
+          <!-- fail loop on the client check -->
+          <path class="s-arr-hot" d="M 40 221 L 20 221 L 20 151 L 36 151" marker-end="url(#ah)"/>
+          <text class="s-lbl t-hot" x="14" y="192" text-anchor="end">fix</text>
+
+          <!-- vendor column -->
+          <rect class="s-box s-vn" x="630" y="106" width="250" height="88" rx="4"/>
+          <text class="s-cap t-vn" x="755" y="128" text-anchor="middle">THE BENCH</text>
+          <text class="s-t" x="755" y="152" text-anchor="middle">40 consultants sitting idle</text>
+          <text class="s-sm" x="755" y="172" text-anchor="middle">skills · rate floor · free from · visa</text>
+
+          <rect class="s-box s-vn" x="630" y="266" width="250" height="50" rx="4"/>
+          <text class="s-t" x="755" y="289" text-anchor="middle">Triage against the bench</text>
+          <text class="s-sm" x="755" y="306" text-anchor="middle">who fits, and should we bid?</text>
+
+          <rect class="s-box s-vn" x="630" y="336" width="250" height="50" rx="4"/>
+          <text class="s-t" x="755" y="366" text-anchor="middle">Build the submission</text>
+
+          <rect class="s-box s-hot" x="630" y="406" width="250" height="50" rx="4"/>
+          <text class="s-t t-hot" x="755" y="429" text-anchor="middle">CHECK — is it fit to send?</text>
+          <text class="s-sm" x="755" y="446" text-anchor="middle">rate, docs, skills evidenced</text>
+
+          <rect class="s-box s-vn" x="630" y="476" width="250" height="50" rx="4"/>
+          <text class="s-t" x="755" y="506" text-anchor="middle">Submit</text>
+
+          <line class="s-arr" x1="755" y1="194" x2="755" y2="262" marker-end="url(#a)"/>
+          <line class="s-arr" x1="755" y1="316" x2="755" y2="332" marker-end="url(#a)"/>
+          <line class="s-arr" x1="755" y1="386" x2="755" y2="402" marker-end="url(#a)"/>
+          <line class="s-arr" x1="755" y1="456" x2="755" y2="472" marker-end="url(#a)"/>
+
+          <!-- fail loop on the vendor check -->
+          <path class="s-arr-hot" d="M 880 431 L 900 431 L 900 361 L 884 361" marker-end="url(#ah)"/>
+          <text class="s-lbl t-hot" x="906" y="402">fix</text>
+
+          <!-- crossings -->
+          <line class="s-arr" x1="290" y1="291" x2="626" y2="291" marker-end="url(#a)"/>
+          <text class="s-lbl" x="458" y="282" text-anchor="middle">the requirement goes out</text>
+
+          <line class="s-arr" x1="630" y1="501" x2="294" y2="501" marker-end="url(#a)"/>
+          <text class="s-lbl" x="462" y="492" text-anchor="middle">the submission comes back</text>
+
+          <!-- outcome bar -->
+          <rect class="s-box s-hot" x="40" y="632" width="840" height="56" rx="5"/>
+          <text class="s-t t-hot" x="460" y="656" text-anchor="middle">OUTCOME — shortlisted, interviewed, hired, or rejected and why</text>
+          <text class="s-sm" x="460" y="676" text-anchor="middle">this is the only data nobody else can buy</text>
+
+          <line class="s-arr" x1="165" y1="596" x2="165" y2="628" marker-end="url(#a)"/>
+
+          <path class="s-arr-hot" d="M 60 688 L 12 688 L 12 258 L 36 258"/>
+          <polygon points="40,258 26,252 26,264" fill="var(--signal)"/>
+          <text class="s-lbl t-hot" x="6" y="470" text-anchor="end">teaches</text>
+
+          <path class="s-arr-hot" d="M 860 688 L 908 688 L 908 291 L 884 291"/>
+          <polygon points="880,291 894,285 894,297" fill="var(--signal)"/>
+          <text class="s-lbl t-hot" x="914" y="470">teaches</text>
+        </svg>
+      </div>
+      <figcaption>Both loops turn on their orange check step. The outcome bar at the bottom feeds both — that's the part that makes the product get better instead of staying still.</figcaption>
+    </figure>
+
+    <h3>The three loops, named</h3>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Loop</th><th>Speed</th><th>What turns it</th><th>What it improves</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Submission loop</td><td class="m">minutes</td><td>The package fails the check — rate wrong, doc missing, skill not evidenced</td><td>Fewer bad submissions leaving the building</td></tr>
+          <tr><td class="k">Screening loop</td><td class="m">minutes</td><td>A score has no evidence behind it in the CV</td><td>Shortlists the hiring manager actually trusts</td></tr>
+          <tr><td class="k">Outcome loop</td><td class="m">weeks</td><td>Interview results and rejection reasons come back</td><td>Better requirements, better triage, vendor ranking</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="warn">
+      <p><b>Same rule as before, and it still decides everything.</b></p>
+      <p>On the client side, a person must check a sample of the screening. Not another agent. If the screening agent grades its own homework you will reject good people for months and never find out.</p>
+      <p>Ten submissions a week, reviewed by a human. That's all it takes.</p>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section>
+    <p class="num">3</p>
+    <h2>The agents</h2>
+
+    <p class="say">Sixteen agents. Each one is short — a single call that moves a record one step. None of them run for minutes.</p>
+
+    <div class="ctl">
+      <span class="ctl-lbl">Show</span>
+      <button class="chip" data-side="all" aria-pressed="true">All 16</button>
+      <button class="chip" data-side="vn" aria-pressed="false">Vendor side</button>
+      <button class="chip" data-side="cl" aria-pressed="false">Client side</button>
+      <button class="chip" data-side="sh" aria-pressed="false">Shared</button>
+      <button class="chip" data-side="chk" aria-pressed="false">Check steps only</button>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>Agent</th><th>Side</th><th>Fires when</th><th>Gives you</th><th>How you check it</th></tr></thead>
+        <tbody id="agents"></tbody>
+      </table>
+    </div>
+
+    <p class="say" style="margin-top:22px;">The three <span class="tag chk">Check</span> agents are the loop. Build those properly and the rest is ordinary CRUD.</p>
+  </section>
+
+  <!-- 4 -->
+  <section>
+    <p class="num">4</p>
+    <h2>The data model</h2>
+
+    <p class="say">Twelve entities. Everything is scoped by <code>org_id</code> from the first line of code — retrofitting multi-tenancy is a rewrite.</p>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>Entity</th><th>Key fields</th><th>Why it exists</th></tr></thead>
+        <tbody>
+          <tr><td class="k">Organization</td><td class="m">name, type (vendor / client / both), tier</td><td>Every other record hangs off this</td></tr>
+          <tr><td class="k">User</td><td class="m">org_id, email, role</td><td>Roles: vendor_admin, recruiter, client_admin, hiring_manager</td></tr>
+          <tr><td class="k">Consultant</td><td class="m">org_id, skills[], rate_floor, free_from, work_auth, visa_expiry, locations[], status, bench_since</td><td>The bench. <b>bench_since</b> is the money field — idle days cost real cash</td></tr>
+          <tr><td class="k">Document</td><td class="m">owner_type, owner_id, doc_type, file_url, expiry_date, verified</td><td>CV, visa, certs, insurance. Expiry drives alerts</td></tr>
+          <tr><td class="k">Requirement</td><td class="m">org_id, title, must_have[], nice_to_have[], rate_min, rate_max, duration, location, work_auth_required, status, quality_score</td><td>The demand side record</td></tr>
+          <tr><td class="k">Distribution</td><td class="m">requirement_id, vendor_org_id, tier, sent_at, viewed_at</td><td>Who got the req, when, and did they open it</td></tr>
+          <tr><td class="k">Submission</td><td class="m">requirement_id, vendor_org_id, consultant_id, rate, free_from, match_score, evidence[], status, dedup_group, reject_reason</td><td>The core record. Its status field <b>is</b> the loop</td></tr>
+          <tr><td class="k">AgentRun</td><td class="m">record_type, record_id, agent, attempt_no, verdict, fail_reason, cost, ms, model, created_at</td><td>Every attempt by every agent. <b>Build this first</b> — see below</td></tr>
+          <tr><td class="k">Check</td><td class="m">run_id, checker (rule / llm / human), verdict, evidence, checked_by</td><td>Keeps human checks separate from machine checks</td></tr>
+          <tr><td class="k">Outcome</td><td class="m">submission_id, stage, result, reason_code, reason_text, at</td><td>Why it won or lost. Feeds everything</td></tr>
+          <tr><td class="k">VendorScore</td><td class="m">vendor_org_id, client_org_id, submissions, shortlist_rate, placement_rate, updated_at</td><td>Rolling vendor quality. Drives distribution order</td></tr>
+          <tr><td class="k">RateBenchmark</td><td class="m">skill, location, p25, p50, p75, sample_size, updated_at</td><td>Built from your own submissions. Becomes sellable on its own</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="warn">
+      <p><b>AgentRun is not logging. It is the product.</b></p>
+      <p>It records what each agent tried, whether it passed, and what it cost. Without it you cannot tell whether the thing works, what a submission costs you, or which agent to fix.</p>
+      <p>Every founder skips this table and regrets it in month four. Build it in week one.</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section>
+    <p class="num">5</p>
+    <h2>Build order</h2>
+
+    <p class="say"><b>Vendor side first. Client side second.</b> The vendor side pays for itself alone, so nothing depends on getting both sides live at once.</p>
+
+    <div class="phases">
+      <div class="phase">
+        <div><div class="ph-n">01</div><div class="ph-w">weeks 1–3</div></div>
+        <div>
+          <h3>One vendor, bench and triage</h3>
+          <p>A single staffing firm. Requirements arrive by forwarded email, pasted in by hand. No client side exists yet. Prove that triage saves a recruiter hours a day.</p>
+          <div class="ph-list">
+            <b>Entities</b> Organization · User · Consultant · Document · Requirement · Submission · AgentRun<br>
+            <b>Agents</b> V1 Bench Profile · V2 Triage · V6 Submission Check<br>
+            <b>Screens</b> Bench board · Requirement inbox with scores<br>
+            <b>Done when</b> a recruiter says "don't take this away"
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><div class="ph-n">02</div><div class="ph-w">weeks 4–7</div></div>
+        <div>
+          <h3>Close the vendor loop</h3>
+          <p>Submissions get built, checked and sent from inside the app. Outcomes get typed in by hand — that's fine, and it's the data that matters most.</p>
+          <div class="ph-list">
+            <b>Add</b> V3 Package Builder · V4 Rate &amp; Margin · V5 Compliance Pack · V7 Bench Health · S1 Outcome Capture<br>
+            <b>Screens</b> Submission builder · Agent activity with cost per submission<br>
+            <b>Done when</b> you can show cost per submission falling week on week
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><div class="ph-n">03</div><div class="ph-w">weeks 8–14</div></div>
+        <div>
+          <h3>Client side</h3>
+          <p>Now bring on one client — ideally a prime vendor who receives submissions from others. Deduplication alone will sell this.</p>
+          <div class="ph-list">
+            <b>Add</b> C1 Intake · C2 Requirement Check · C3 Distribution · C4 Dedup · C5 Screener · C6 Screen Check · C7 Shortlist<br>
+            <b>Screens</b> Requirement builder · Submission inbox · Vendor scorecard<br>
+            <b>Done when</b> a hiring manager reads your shortlist before the raw list
+          </div>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div><div class="ph-n">04</div><div class="ph-w">month 4+</div></div>
+        <div>
+          <h3>Join the two sides</h3>
+          <p>Requirements flow straight into vendor benches. Submissions flow straight back. Now it's a network, and the rate benchmark data starts being worth money on its own.</p>
+          <div class="ph-list">
+            <b>Add</b> S2 Rate Benchmark · vendor tiering from VendorScore<br>
+            <b>Also</b> the weekly export job to your own storage. Do not skip it
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section>
+    <p class="num">6</p>
+    <h2>What to hand the engineer</h2>
+
+    <p class="say">This page, plus the brief below. It's written to be pasted into Base44 as the opening instruction.</p>
+
+    <pre>Build a multi-tenant app for IT staffing agencies.
+
+TENANCY
+Every record carries org_id. Users see only their own org's records,
+except Submissions, which the receiving client org can also read.
+Roles: vendor_admin, recruiter, client_admin, hiring_manager.
+
+ENTITIES
+Organization, User, Consultant, Document, Requirement, Distribution,
+Submission, AgentRun, Check, Outcome, VendorScore, RateBenchmark.
+(Fields as listed in the data model table.)
+
+THE CORE PATTERN — read this twice
+Do not write long-running agent processes. Each agent is ONE short
+LLM call that reads a record, writes a result, and moves the record's
+status one step forward. Loops are Workflows triggered by a status
+change. Every single call writes one AgentRun row with verdict,
+cost and duration — no exceptions, including failures.
+
+SUBMISSION STATUS MACHINE
+draft -> checking -> needs_fix -> checking -> ready -> submitted
+      -> screening -> shortlisted | rejected -> outcome_recorded
+"needs_fix" loops back to "checking" a maximum of 3 times, then it
+raises a task for a human. Never loop without a cap.
+
+FIRST BUILD — vendor side only
+Screens: Bench board, Requirement inbox, Submission builder,
+Agent activity log.
+Agents: bench profile builder, requirement triage, submission checker.
+Requirements are pasted in by hand for now. No client side yet.
+
+NON-NEGOTIABLE
+1. AgentRun is written on every call, pass or fail.
+2. A weekly scheduled job exports every entity as JSON to external
+   storage.
+3. The submission checker must use rules where a rule will do —
+   rate ranges, document presence, date validity. Only use the LLM
+   for judging whether a skill claim is actually evidenced in the CV.</pre>
+
+    <p class="say" style="margin-top:24px;">That last point matters more than it looks. <b>Half the checks are arithmetic and date comparison.</b> Use code for those. They're free, instant and always right. Save the model for the one judgement it's actually needed for.</p>
+
+    <p class="big">Start with one vendor and their bench. Everything else follows from that working.</p>
+  </section>
+
+  <footer>
+    Build spec · IT staffing · vendor side first, client side second
+  </footer>
+</div>
+
+<script>
+(function () {
+  var A = [
+    ["V1 · Bench Profile Builder","vn","A CV or document is uploaded","Structured consultant profile — skills, rates, availability, work permit","Compare each field back to the CV; a person spot-checks new ones"],
+    ["V2 · Requirement Triage","vn","A requirement arrives","Ranked list of who on the bench fits, and a bid or skip call","Did you win work you bid on? Tracked over weeks"],
+    ["V3 · Package Builder","vn","A recruiter picks a consultant","Tailored CV, summary, rate, availability, documents attached","Goes to V6 before it can leave"],
+    ["V4 · Rate &amp; Margin Check","vn","A rate is proposed","Pass, or a flag that it's below your floor or off the rate card","Pure arithmetic. Use code, not a model"],
+    ["V5 · Compliance Pack","vn","A submission is being prepared","Right-to-work, visa, certs, insurance — present and unexpired","Checklist and date maths. Code, not a model"],
+    ["V6 · Submission Checker","chk","A package reaches status: checking","Pass, or a specific list of what to fix","Rules for rate and docs. Model only for whether skills are evidenced"],
+    ["V7 · Bench Health","vn","Runs daily","Who's idle and how long, who rolls off soon, who to redeploy","Idle days are a fact. Nothing to judge"],
+
+    ["C1 · Requirement Intake","cl","A manager sends notes, an email or a call summary","A structured requirement with must-haves separated from nice-to-haves","Goes to C2 before it can be published"],
+    ["C2 · Requirement Check","chk","A requirement reaches status: checking","Can this be filled? Rate realistic? Anything contradictory?","Rate against your own benchmark data. Fill rate proves it over time"],
+    ["C3 · Distribution","cl","A requirement is published","Which vendors get it, in which tier, and when","Did they open it? Did they submit? Both are recorded"],
+    ["C4 · Deduplication","cl","A submission arrives","Groups the same person submitted by different vendors","Name, email, phone and CV similarity. Mostly code"],
+    ["C5 · Submission Screener","cl","A submission passes dedup","A match score with a quote from the CV behind every point","Goes to C6. Never trusted on its own"],
+    ["C6 · Screen Check","chk","A screening score is produced","Confirms every claimed match is actually quoted in the CV","<b>A person reviews ten a week.</b> This one is not optional"],
+    ["C7 · Shortlist Builder","cl","Screening is finished for a requirement","Ranked shortlist with a reason per candidate","The hiring manager agrees or doesn't. Tracked"],
+
+    ["S1 · Outcome Capture","sh","An interview or decision happens","Structured reason: rate, skills, availability, communication, timing","It's a record of fact. Typed by a human at first"],
+    ["S2 · Rate Benchmark","sh","Runs weekly","Real market rates by skill and location, from your own data","Compare to published market data as a sanity check"]
+  ];
+  var LBL = { vn:["Vendor","vn"], cl:["Client","cl"], sh:["Shared","sh"], chk:["Check","chk"] };
+  var body = document.getElementById("agents");
+  var state = "all";
+
+  function render() {
+    var out = "";
+    for (var i = 0; i < A.length; i++) {
+      var a = A[i];
+      if (state !== "all" && a[1] !== state) continue;
+      out += '<tr><td class="k">' + a[0] + '</td>' +
+             '<td><span class="tag ' + LBL[a[1]][1] + '">' + LBL[a[1]][0] + '</span></td>' +
+             '<td>' + a[2] + '</td><td>' + a[3] + '</td><td>' + a[4] + '</td></tr>';
+    }
+    body.innerHTML = out || '<tr><td colspan="5" style="color:var(--ink-3)">Nothing in that group.</td></tr>';
+  }
+
+  var btns = document.querySelectorAll("button.chip[data-side]");
+  Array.prototype.forEach.call(btns, function (b) {
+    b.addEventListener("click", function () {
+      state = b.getAttribute("data-side");
+      Array.prototype.forEach.call(btns, function (o) {
+        o.setAttribute("aria-pressed", o === b ? "true" : "false");
+      });
+      render();
+    });
+  });
+  render();
+})();
+</script>
