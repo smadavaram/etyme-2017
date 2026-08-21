@@ -6,6 +6,8 @@ import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
 import { clientOf, maySubmit, askFor, takeHold } from '@/lib/holds'
 import { missingNote } from '@/lib/resumes'
 import { tellThem } from '@/lib/representation'
+import { consentText, mayText } from '@/lib/texts'
+import { send as sendText } from '@/lib/sms'
 
 /**
  * POST /api/submissions
@@ -73,6 +75,9 @@ export async function POST(request: NextRequest) {
     select: {
       id: true, companyId: true, status: true, title: true,
       endClientCompanyId: true, payerCompanyId: true,
+      // For the consent text: enough detail that somebody can answer
+      // without a phone call.
+      location: true, startDate: true,
       company: { select: { name: true } },
       endClientCompany: { select: { name: true } },
     },
@@ -366,6 +371,64 @@ export async function POST(request: NextRequest) {
           entityId: submission.id,
           data: { submissionId: submission.id, clientCompanyId, requirementId },
         })
+      }
+
+      // ── Ask them ────────────────────────────────────────────────
+      //
+      // The most valuable message this product sends, and it solves three
+      // things at once. Consultants get submitted blind constantly and it
+      // burns them. When two vendors put the same person forward, the
+      // client often rejects both — one text stops that at source, and
+      // "no, someone already has me there" is the cheapest deduplication
+      // anybody will ever build. And it leaves a timestamped consent trail
+      // vendors need anyway.
+      //
+      // Not a gate. The submission stands and the ask goes out alongside
+      // it, because a recruiter working a role at eight at night should
+      // not be blocked waiting for a text — the check on the package says
+      // loudly that nobody has agreed yet, which is the right place for it.
+      if (held) {
+        const profile = await prisma.consultantProfile.findFirst({
+          where: { personId },
+          select: { mobile: true, textsOffAt: true },
+        })
+
+        const canText = mayText({
+          name: person.name,
+          mobile: profile?.mobile ?? null,
+          textsOffAt: profile?.textsOffAt ?? null,
+          confirmedAt: null,
+          askedAt: null,
+          unanswered: 0,
+          onBench: true,
+        })
+
+        if (canText.ok) {
+          await prisma.representation.update({
+            where: { id: held.id },
+            data: { consentAskedAt: new Date() },
+          })
+
+          void sendText({
+            companyId: fromCompanyId,
+            personId,
+            kind: 'CONSENT',
+            to: profile!.mobile,
+            body: consentText({
+              personName: person.name,
+              vendorName,
+              clientLabel: clientName,
+              title: requirement.title,
+              location: requirement.location,
+              rateCents: rate,
+              startsOn: requirement.startDate,
+            }),
+            aboutType: 'SUBMISSION',
+            aboutId: submission.id,
+          })
+
+          item.asked = true
+        }
       }
 
       // The band is advisory, so the submission stands and the warning

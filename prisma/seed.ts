@@ -22,6 +22,31 @@ import { PERMISSIONS } from '../src/lib/permissions'
 
 const prisma = new PrismaClient()
 
+/**
+ * How fresh a seeded bench record is.
+ *
+ * A real bench is not uniformly stale or uniformly fresh. Some people
+ * answered last week, some have not been asked in a month, and one has
+ * been asked twice and said nothing — which is information, not an
+ * absence. The filter ranks all three differently and the demo should
+ * show that.
+ */
+function freshness(i: number, now: Date) {
+  const daysAgo = (d: number) => new Date(now.getTime() - d * 86_400_000)
+
+  switch (i % 4) {
+    case 0: // answered this week
+      return { confirmedAt: daysAgo(3), confirmedVia: 'SMS', unanswered: 0, askedAt: daysAgo(3) }
+    case 1: // answered a month ago, due another ask
+      return { confirmedAt: daysAgo(31), confirmedVia: 'SMS', unanswered: 0, askedAt: daysAgo(31) }
+    case 2: // asked twice, said nothing. The record is not trusted.
+      return { confirmedAt: null, unanswered: 2, askedAt: daysAgo(14) }
+    default: // never asked
+      return { confirmedAt: null, unanswered: 0, askedAt: null }
+  }
+}
+
+
 async function main() {
   console.log('🌱 Seeding Etyme database…')
 
@@ -781,7 +806,7 @@ async function main() {
   const people: any[] = []
   const profiles: any[] = []
 
-  for (const c of consultantData) {
+  for (const [i, c] of consultantData.entries()) {
     const person = await prisma.person.create({
       data: { name: c.name, primaryEmail: c.email },
     })
@@ -798,6 +823,15 @@ async function main() {
         workAuth: c.workAuth,
         availableFrom: availDate,
         visibility: 'VERIFIED',
+        // A mobile, and how fresh the record is.
+        //
+        // Everything clever in this product sits on top of this record,
+        // and it rots. So the bench is seeded the way a real one looks: a
+        // couple confirmed this week, a couple a month ago, one who has
+        // been asked twice and never replied, and one with no mobile at
+        // all. The ranking should show all four differently.
+        mobile: `+1303555${String(1000 + i).slice(-4)}`,
+        ...freshness(i, now),
         // Two of them have turned their own page on. The rest have not,
         // which is the point: every one of these profiles is VERIFIED to
         // clients on the platform, and that is not consent to be named on

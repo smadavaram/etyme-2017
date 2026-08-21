@@ -57,6 +57,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
       { label: 'Candidates', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Keeping the bench honest', href: '/dashboard/texts', icon: '✆' },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },
       { label: 'Buy Contracts', href: '/dashboard/contracts?side=buy', icon: '▥' },
     ],

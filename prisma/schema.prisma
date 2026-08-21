@@ -33,6 +33,7 @@ model Person {
   actions                AccessLog[]            @relation("actor")
   visas                  VisaPetition[]
   submissions            Submission[]
+  texts                  TextMessage[]
   sellContracts          SellContract[]
   // A person sits on a buy contract through a candidate line, because one
   // agreement can cover several people at their own rates.
@@ -324,6 +325,7 @@ model Company {
   claimedDomains        CompanyDomain[]
   agentRuns             AgentRun[]
   checks                Check[]
+  TextMessage           TextMessage[]
 }
 
 enum CompanyKind {
@@ -2936,4 +2938,60 @@ model Check {
   @@index([recordType, recordId])
   @@index([companyId, checker, agreed])
   @@index([runId])
+}
+
+/// One text message, out or in.
+///
+/// Its own model rather than a Notification, because the inbound half is
+/// the entire point. A notification is something we told somebody; this is
+/// a conversation, and the reply is what keeps the bench honest.
+///
+/// Every outbound message goes out in the vendor's name, never ours. A
+/// consultant on two benches never learns that from us, and we never
+/// contact anybody about a role belonging to a different vendor. The
+/// moment a vendor suspects disintermediation, benches stop being
+/// uploaded, and with no benches there is nothing to score.
+model TextMessage {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  personId  String
+  person    Person  @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  /// FRESHNESS · CONSENT · OUTCOME · PLACED · LINK
+  kind      String
+  /// OUT · IN
+  direction String
+  body      String
+  /// The number, for an outbound one.
+  to        String?
+
+  /// PENDING · SENT · FAILED · NOT_CONFIGURED
+  ///
+  /// NOT_CONFIGURED is the important one. With no provider set up the
+  /// message is still written down and still visible, labelled as never
+  /// having left — a queue that silently drops messages looks exactly like
+  /// a queue where nobody replies.
+  status     String  @default("PENDING")
+  failReason String?
+
+  /// What we made of an inbound one: SAME · CHANGED · STOP · YES · NO ·
+  /// UNCLEAR. Null on anything outbound.
+  read String?
+
+  /// The outbound message this answers.
+  replyToId String?
+  replyTo   TextMessage?  @relation("replies", fields: [replyToId], references: [id])
+  replies   TextMessage[] @relation("replies")
+
+  /// What it is about, where it is about something: SUBMISSION · LISTING.
+  aboutType String?
+  aboutId   String?
+
+  at DateTime @default(now())
+
+  @@index([companyId, at])
+  @@index([personId, at])
+  @@index([replyToId])
+  @@index([companyId, kind, status])
 }
