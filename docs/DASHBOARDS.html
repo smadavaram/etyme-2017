@@ -1,0 +1,925 @@
+<title>Bench and Inbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,400;100,500;100,600;100,700;112,800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400&display=swap">
+
+<style>
+  :root {
+    --ground:#EEF1F2; --surface:#FFFFFF; --surface-2:#F2F5F6; --surface-3:#E6EBEC;
+    --ink:#0F1617; --ink-2:#48585A; --ink-3:#7B8B8D;
+    --rule:#D5DEDF; --rule-soft:#E5EBEC;
+    --supply:#5B4A94; --supply-bg:#EDEAF6; --supply-line:#8A78C4;
+    --demand:#0F5C61; --demand-bg:#E1EEEE; --demand-line:#3E9AA0;
+    --act:#B85A16; --act-bg:#FBEDE1;
+    --ok:#2C6E49; --ok-bg:#E3EFE7;
+    --warn:#8E6510; --warn-bg:#F7EEDA;
+    --bad:#9C3626; --bad-bg:#F8E4E0;
+    --accent:var(--supply); --accent-bg:var(--supply-bg); --accent-line:var(--supply-line);
+    --sans:"Archivo","Helvetica Neue",Arial,sans-serif;
+    --serif:"Source Serif 4",Georgia,serif;
+    --mono:"IBM Plex Mono",Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#090E0F; --surface:#131A1B; --surface-2:#182021; --surface-3:#212B2C;
+      --ink:#E8EEEE; --ink-2:#9DADAF; --ink-3:#768688;
+      --rule:#2A3435; --rule-soft:#202A2B;
+      --supply:#A99AD8; --supply-bg:#211D31; --supply-line:#7D6DB8;
+      --demand:#58BEC4; --demand-bg:#132A2B; --demand-line:#3E8F94;
+      --act:#E38B4B; --act-bg:#33231A;
+      --ok:#6BBF8E; --ok-bg:#16271C;
+      --warn:#D2A64B; --warn-bg:#2C2617;
+      --bad:#DE7B66; --bad-bg:#2D1B17;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#090E0F; --surface:#131A1B; --surface-2:#182021; --surface-3:#212B2C;
+    --ink:#E8EEEE; --ink-2:#9DADAF; --ink-3:#768688;
+    --rule:#2A3435; --rule-soft:#202A2B;
+    --supply:#A99AD8; --supply-bg:#211D31; --supply-line:#7D6DB8;
+    --demand:#58BEC4; --demand-bg:#132A2B; --demand-line:#3E8F94;
+    --act:#E38B4B; --act-bg:#33231A;
+    --ok:#6BBF8E; --ok-bg:#16271C;
+    --warn:#D2A64B; --warn-bg:#2C2617;
+    --bad:#DE7B66; --bad-bg:#2D1B17;
+  }
+  body[data-side="demand"] {
+    --accent:var(--demand); --accent-bg:var(--demand-bg); --accent-line:var(--demand-line);
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1280px; margin:0 auto; padding:0 22px 90px; }
+
+  /* ---------- intro ---------- */
+  .intro { padding:52px 0 0; max-width:70ch; }
+  .kicker {
+    font-size:0.72rem; font-weight:700; letter-spacing:0.16em;
+    text-transform:uppercase; color:var(--act); margin:0 0 16px;
+  }
+  h1 {
+    font-variation-settings:"wdth" 112; font-weight:800; font-size:2.9rem;
+    line-height:1; letter-spacing:-0.03em; margin:0 0 16px; max-width:14ch;
+  }
+  .intro p {
+    font-family:var(--serif); font-size:1.1rem; line-height:1.55;
+    color:var(--ink-2); margin:0 0 12px; max-width:60ch;
+  }
+  .intro p b { color:var(--ink); font-weight:600; font-family:var(--sans); }
+
+  /* ---------- tabs ---------- */
+  .tabs {
+    display:flex; gap:6px; margin:30px 0 0; border-bottom:1px solid var(--rule);
+  }
+  .tab {
+    font-family:var(--sans); font-size:0.94rem; font-weight:700; letter-spacing:-0.005em;
+    padding:11px 20px; border:none; background:none; cursor:pointer;
+    color:var(--ink-3); border-bottom:3px solid transparent; margin-bottom:-1px;
+  }
+  .tab:hover { color:var(--ink); }
+  .tab:focus-visible { outline:2px solid var(--act); outline-offset:-2px; }
+  .tab[aria-selected="true"] { color:var(--ink); border-bottom-color:var(--accent); }
+  .tab .sm {
+    display:block; font-size:0.72rem; font-weight:500; color:var(--ink-3);
+    letter-spacing:0; margin-top:1px;
+  }
+
+  /* ---------- app chrome ---------- */
+  .app {
+    background:var(--surface); border:1px solid var(--rule); border-radius:10px;
+    overflow:hidden; margin-top:22px;
+    box-shadow:0 2px 18px rgba(0,0,0,0.05);
+  }
+  .appbar {
+    background:var(--accent); padding:0 18px; height:50px;
+    display:flex; align-items:center; gap:20px;
+  }
+  .appbar .logo {
+    font-variation-settings:"wdth" 112; font-weight:800; font-size:1.1rem;
+    letter-spacing:-0.03em; color:var(--surface);
+  }
+  body[data-side="supply"] .appbar .logo,
+  body[data-side="demand"] .appbar .logo { color:#fff; }
+  .appbar .who {
+    font-size:0.7rem; font-weight:700; letter-spacing:0.13em; text-transform:uppercase;
+    color:#fff; opacity:0.72; padding:3px 9px; border:1px solid rgba(255,255,255,0.34);
+    border-radius:3px;
+  }
+  .appbar nav { display:flex; gap:16px; margin-left:8px; }
+  .appbar nav span {
+    font-size:0.85rem; font-weight:500; color:#fff; opacity:0.62;
+  }
+  .appbar nav span.on { opacity:1; font-weight:700; }
+  .appbar .right { margin-left:auto; font-family:var(--mono); font-size:0.74rem; color:#fff; opacity:0.7; }
+
+  .canvas { padding:20px; background:var(--surface-2); }
+
+  /* ---------- kpi ---------- */
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+  .kpi {
+    background:var(--surface); border:1px solid var(--rule-soft); border-radius:7px;
+    padding:13px 15px 14px; border-top:3px solid var(--accent);
+  }
+  .kpi.attn { border-top-color:var(--act); }
+  .kpi .l {
+    font-size:0.68rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--ink-3); margin-bottom:7px;
+  }
+  .kpi .v {
+    font-weight:800; font-size:1.85rem; line-height:1; letter-spacing:-0.03em;
+    font-variant-numeric:tabular-nums;
+  }
+  .kpi .v small { font-size:0.95rem; font-weight:600; color:var(--ink-3); letter-spacing:0; }
+  .kpi .d { font-family:var(--mono); font-size:0.72rem; color:var(--ink-3); margin-top:6px; }
+  .kpi .d.up { color:var(--ok); } .kpi .d.dn { color:var(--bad); }
+
+  /* ---------- loop strip ---------- */
+  .loopcard {
+    background:var(--surface); border:1px solid var(--rule-soft); border-radius:7px;
+    padding:15px 16px 8px; margin-bottom:16px;
+  }
+  .loophead { display:flex; align-items:baseline; gap:12px; margin-bottom:4px; flex-wrap:wrap; }
+  .loophead h3 { font-size:0.94rem; font-weight:700; margin:0; letter-spacing:-0.01em; }
+  .loophead .sub { font-family:var(--mono); font-size:0.73rem; color:var(--ink-3); }
+  .loophead .stats { margin-left:auto; display:flex; gap:16px; font-family:var(--mono); font-size:0.73rem; }
+  .loophead .stats b { color:var(--ink); font-weight:600; }
+  .loopsvg { overflow-x:auto; }
+  .loopsvg svg { display:block; width:100%; min-width:940px; height:auto; color:var(--ink-3); }
+  .n-box { fill:var(--surface-2); stroke:var(--rule); stroke-width:1.3; }
+  .n-box.hot { fill:var(--act-bg); stroke:var(--act); stroke-width:1.8; }
+  .n-box.acc { fill:var(--accent-bg); stroke:var(--accent-line); stroke-width:1.6; }
+  .n-num { font-family:"Archivo",sans-serif; font-weight:800; font-size:21px; fill:var(--ink); }
+  .n-num.hot { fill:var(--act); }
+  .n-lab { font-family:"Archivo",sans-serif; font-weight:600; font-size:10.5px; fill:var(--ink-2); }
+  .n-sub { font-family:"IBM Plex Mono",monospace; font-size:9px; fill:var(--ink-3); }
+  .l-arr { stroke:currentColor; stroke-width:1.4; fill:none; }
+  .l-fix { stroke:var(--act); stroke-width:2; fill:none; }
+  .l-fixt { fill:var(--act); font-family:"IBM Plex Mono",monospace; font-size:10px; font-weight:500; }
+
+  /* ---------- panels ---------- */
+  .cols { display:grid; grid-template-columns:1.55fr 1fr; gap:14px; }
+  .panel {
+    background:var(--surface); border:1px solid var(--rule-soft); border-radius:7px;
+    overflow:hidden; margin-bottom:14px;
+  }
+  .ph {
+    display:flex; align-items:center; gap:10px;
+    padding:11px 15px; border-bottom:1px solid var(--rule-soft);
+  }
+  .ph h3 { font-size:0.9rem; font-weight:700; margin:0; letter-spacing:-0.01em; }
+  .ph .cnt {
+    font-family:var(--mono); font-size:0.72rem; color:var(--ink-3);
+    background:var(--surface-3); padding:2px 7px; border-radius:10px;
+  }
+  .ph .act { margin-left:auto; font-family:var(--mono); font-size:0.72rem; color:var(--accent); }
+
+  table { width:100%; border-collapse:collapse; font-size:0.83rem; }
+  th {
+    font-size:0.63rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+    text-align:left; color:var(--ink-3); padding:8px 15px 7px;
+    border-bottom:1px solid var(--rule-soft); white-space:nowrap;
+  }
+  th.r, td.r { text-align:right; }
+  td {
+    padding:9px 15px; border-bottom:1px solid var(--rule-soft); vertical-align:middle;
+  }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:var(--surface-2); }
+  td.k { font-weight:600; }
+  td.m { font-family:var(--mono); font-size:0.78rem; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td .sub { display:block; font-family:var(--mono); font-size:0.7rem; color:var(--ink-3); margin-top:2px; }
+
+  .score {
+    font-family:var(--sans); font-weight:800; font-size:0.98rem;
+    font-variant-numeric:tabular-nums;
+  }
+  .score.hi { color:var(--ok); } .score.mid { color:var(--ink-2); } .score.lo { color:var(--bad); }
+
+  .pill {
+    font-size:0.63rem; font-weight:700; letter-spacing:0.06em; text-transform:uppercase;
+    padding:3px 7px; border-radius:3px; white-space:nowrap; display:inline-block;
+  }
+  .pill.ok { background:var(--ok-bg); color:var(--ok); }
+  .pill.warn { background:var(--warn-bg); color:var(--warn); }
+  .pill.bad { background:var(--bad-bg); color:var(--bad); }
+  .pill.act { background:var(--act-bg); color:var(--act); }
+  .pill.mute { background:var(--surface-3); color:var(--ink-3); }
+  .pill.acc { background:var(--accent-bg); color:var(--accent); }
+
+  /* idle bar */
+  .bar { height:5px; background:var(--surface-3); border-radius:3px; overflow:hidden; margin-top:5px; }
+  .bar i { display:block; height:100%; background:var(--accent-line); }
+  .bar i.hot { background:var(--act); }
+  .bar i.bad { background:var(--bad); }
+
+  /* stack rows */
+  .row2 { display:grid; grid-template-columns:1fr auto; gap:2px 10px; align-items:center; }
+  .row2 .nm { font-weight:600; font-size:0.86rem; }
+  .row2 .mt { font-family:var(--mono); font-size:0.7rem; color:var(--ink-3); grid-column:1; }
+
+  .listrow {
+    padding:10px 15px; border-bottom:1px solid var(--rule-soft);
+  }
+  .listrow:last-child { border-bottom:none; }
+  .listrow:hover { background:var(--surface-2); }
+
+  /* alerts */
+  .alert {
+    display:grid; grid-template-columns:auto 1fr auto; gap:0 11px; align-items:center;
+    padding:10px 15px; border-bottom:1px solid var(--rule-soft);
+  }
+  .alert:last-child { border-bottom:none; }
+  .alert .dot { width:7px; height:7px; border-radius:50%; }
+  .alert .dot.b { background:var(--bad); } .alert .dot.w { background:var(--warn); }
+  .alert .t { font-size:0.84rem; }
+  .alert .t span { display:block; font-family:var(--mono); font-size:0.7rem; color:var(--ink-3); }
+  .alert .go { font-family:var(--mono); font-size:0.72rem; color:var(--accent); }
+
+  /* sparkline card */
+  .spark { padding:13px 15px; }
+  .spark .top { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .spark .v { font-weight:800; font-size:1.5rem; letter-spacing:-0.03em; font-variant-numeric:tabular-nums; }
+  .spark .c { font-family:var(--mono); font-size:0.72rem; }
+  .spark .c.up { color:var(--ok); } .spark .c.dn { color:var(--bad); }
+  .spark svg { display:block; width:100%; height:44px; }
+
+  /* build notes */
+  .notes { margin-top:44px; }
+  .notes h2 {
+    font-weight:700; font-size:1.7rem; letter-spacing:-0.025em; margin:0 0 8px;
+  }
+  .notes > p {
+    font-family:var(--serif); font-size:1.06rem; color:var(--ink-2);
+    max-width:60ch; margin:0 0 20px;
+  }
+  .nlist { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .note {
+    background:var(--surface); border:1px solid var(--rule-soft); border-radius:7px;
+    padding:16px 18px; border-left:3px solid var(--act);
+  }
+  .note h4 { font-size:0.98rem; font-weight:700; margin:0 0 6px; }
+  .note p { font-family:var(--serif); font-size:0.95rem; color:var(--ink-2); margin:0; }
+  .note code {
+    font-family:var(--mono); font-size:0.85em; background:var(--surface-3);
+    padding:0.1em 0.35em; border-radius:3px;
+  }
+
+  footer {
+    margin-top:50px; padding-top:18px; border-top:1px solid var(--rule);
+    font-family:var(--mono); font-size:0.75rem; color:var(--ink-3);
+  }
+
+  [hidden] { display:none !important; }
+
+  @media (max-width:1000px) {
+    .kpis { grid-template-columns:1fr 1fr; }
+    .cols { grid-template-columns:1fr; }
+    .nlist { grid-template-columns:1fr; }
+  }
+  @media (max-width:620px) {
+    h1 { font-size:2.1rem; }
+    .wrap { padding-left:14px; padding-right:14px; }
+    .canvas { padding:12px; }
+    .appbar nav { display:none; }
+  }
+  @media (prefers-reduced-motion:reduce) { * { animation:none !important; transition:none !important; } }
+</style>
+
+<div class="wrap">
+
+  <div class="intro">
+    <p class="kicker">Screen designs for the Base44 build</p>
+    <h1>Bench and inbox</h1>
+    <p>Two dashboards, one for each side. Both are built around the same idea: <b>an ordinary staffing tool shows you records. These show you work moving through a loop.</b></p>
+    <p>The strip across the top of each screen is the loop itself, with live counts at every stage and the fix-branch drawn in. A recruiter can see in one glance what is stuck, what is being repaired, and what is waiting on a human — which is exactly what no ATS shows today.</p>
+  </div>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-supply" aria-selected="true" aria-controls="p-supply">
+      Supply side<span class="sm">vendor · the bench</span>
+    </button>
+    <button class="tab" role="tab" id="t-demand" aria-selected="false" aria-controls="p-demand">
+      Demand side<span class="sm">client · the inbox</span>
+    </button>
+  </div>
+
+  <!-- ================= SUPPLY ================= -->
+  <div id="p-supply" role="tabpanel" aria-labelledby="t-supply">
+    <div class="app">
+      <div class="appbar">
+        <span class="logo">etyme</span>
+        <span class="who">Vendor</span>
+        <nav>
+          <span class="on">Bench</span><span>Requirements</span><span>Submissions</span>
+          <span>Consultants</span><span>Activity</span>
+        </nav>
+        <span class="right">Apex Technical Staffing · Thu 09:14</span>
+      </div>
+
+      <div class="canvas">
+
+        <div class="kpis">
+          <div class="kpi attn">
+            <div class="l">Idle bench cost</div>
+            <div class="v">412 <small>days</small></div>
+            <div class="d dn">▲ 38 vs last week</div>
+          </div>
+          <div class="kpi">
+            <div class="l">Requirements triaged</div>
+            <div class="v">41 <small>today</small></div>
+            <div class="d">12 worth bidding on</div>
+          </div>
+          <div class="kpi">
+            <div class="l">Submissions sent</div>
+            <div class="v">7 <small>today</small></div>
+            <div class="d up">▲ target is 5 per req</div>
+          </div>
+          <div class="kpi">
+            <div class="l">Cost per submission</div>
+            <div class="v">$0.61</div>
+            <div class="d up">▼ from $0.74 last week</div>
+          </div>
+        </div>
+
+        <div class="loopcard">
+          <div class="loophead">
+            <h3>The submission loop</h3>
+            <span class="sub">live · updates as work moves</span>
+            <div class="stats">
+              <span>first-pass <b>71%</b></span>
+              <span>avg loop <b>4m 20s</b></span>
+              <span>escalated <b>1</b></span>
+            </div>
+          </div>
+          <div class="loopsvg">
+            <svg viewBox="0 0 1040 160" role="img" aria-label="Submission loop with live counts: 41 requirements arrived, 41 scored against the bench, 12 worth bidding, 3 packages being built, 2 in checking, 1 being fixed and returning to build, 7 sent, and 23 awaiting an outcome.">
+              <defs>
+                <marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="currentColor"/></marker>
+                <marker id="sf" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--act)"/></marker>
+              </defs>
+
+              <rect class="n-box" x="8" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="69" y="60" text-anchor="middle">41</text>
+              <text class="n-lab" x="69" y="76" text-anchor="middle">Arrived</text>
+              <text class="n-sub" x="69" y="88" text-anchor="middle">since 06:00</text>
+
+              <rect class="n-box acc" x="158" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="219" y="60" text-anchor="middle">41</text>
+              <text class="n-lab" x="219" y="76" text-anchor="middle">Scored vs bench</text>
+              <text class="n-sub" x="219" y="88" text-anchor="middle">15 each, in parallel</text>
+
+              <rect class="n-box" x="308" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="369" y="60" text-anchor="middle">12</text>
+              <text class="n-lab" x="369" y="76" text-anchor="middle">Worth bidding</text>
+              <text class="n-sub" x="369" y="88" text-anchor="middle">29 skipped</text>
+
+              <rect class="n-box" x="458" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="519" y="60" text-anchor="middle">3</text>
+              <text class="n-lab" x="519" y="76" text-anchor="middle">Building</text>
+              <text class="n-sub" x="519" y="88" text-anchor="middle">CV · rate · docs</text>
+
+              <rect class="n-box hot" x="608" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num hot" x="669" y="60" text-anchor="middle">2</text>
+              <text class="n-lab" x="669" y="76" text-anchor="middle">Checking</text>
+              <text class="n-sub" x="669" y="88" text-anchor="middle">rate · docs · proof</text>
+
+              <rect class="n-box" x="758" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="819" y="60" text-anchor="middle">7</text>
+              <text class="n-lab" x="819" y="76" text-anchor="middle">Sent</text>
+              <text class="n-sub" x="819" y="88" text-anchor="middle">avg 4m 20s</text>
+
+              <rect class="n-box" x="908" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="969" y="60" text-anchor="middle">23</text>
+              <text class="n-lab" x="969" y="76" text-anchor="middle">Awaiting reply</text>
+              <text class="n-sub" x="969" y="88" text-anchor="middle">6 over 3 days</text>
+
+              <line class="l-arr" x1="130" y1="59" x2="154" y2="59" marker-end="url(#sa)"/>
+              <line class="l-arr" x1="280" y1="59" x2="304" y2="59" marker-end="url(#sa)"/>
+              <line class="l-arr" x1="430" y1="59" x2="454" y2="59" marker-end="url(#sa)"/>
+              <line class="l-arr" x1="580" y1="59" x2="604" y2="59" marker-end="url(#sa)"/>
+              <line class="l-arr" x1="730" y1="59" x2="754" y2="59" marker-end="url(#sa)"/>
+              <text class="n-sub" x="742" y="52" text-anchor="middle">pass</text>
+              <line class="l-arr" x1="880" y1="59" x2="904" y2="59" marker-end="url(#sa)"/>
+
+              <path class="l-fix" d="M 669 92 L 669 124 L 519 124 L 519 96" marker-end="url(#sf)"/>
+              <text class="l-fixt" x="594" y="140" text-anchor="middle">1 failed the check → being fixed → 1 escalated to a person</text>
+            </svg>
+          </div>
+        </div>
+
+        <div class="cols">
+          <div>
+            <div class="panel">
+              <div class="ph">
+                <h3>Requirement inbox</h3>
+                <span class="cnt">12 worth bidding</span>
+                <span class="act">Sorted by best match →</span>
+              </div>
+              <table>
+                <thead><tr><th>Requirement</th><th>Best from your bench</th><th class="r">Match</th><th>Call</th><th class="r">Age</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td class="k">Senior Java Developer<span class="sub">Ridgeline Bank · Dallas · $75–85</span></td>
+                    <td class="k">R. Menon<span class="sub">free now · $78</span></td>
+                    <td class="r"><span class="score hi">94</span></td>
+                    <td><span class="pill ok">Bid</span></td>
+                    <td class="r m">18m</td>
+                  </tr>
+                  <tr>
+                    <td class="k">Data Engineer, Snowflake<span class="sub">Northwind Health · Remote · $85–95</span></td>
+                    <td class="k">T. Alvarez<span class="sub">free 2 Mar · $88</span></td>
+                    <td class="r"><span class="score hi">89</span></td>
+                    <td><span class="pill ok">Bid</span></td>
+                    <td class="r m">41m</td>
+                  </tr>
+                  <tr>
+                    <td class="k">DevOps Engineer, K8s<span class="sub">Cardinal Logistics · Chicago · $70–80</span></td>
+                    <td class="k">J. Whitfield<span class="sub">rolls off 4 Mar · $80</span></td>
+                    <td class="r"><span class="score mid">81</span></td>
+                    <td><span class="pill ok">Bid</span></td>
+                    <td class="r m">1h 12m</td>
+                  </tr>
+                  <tr>
+                    <td class="k">Salesforce Admin<span class="sub">Bellweather Group · Austin · $55–62</span></td>
+                    <td class="k">P. Osei<span class="sub">free now · $58</span></td>
+                    <td class="r"><span class="score mid">76</span></td>
+                    <td><span class="pill warn">Marginal</span></td>
+                    <td class="r m">2h 04m</td>
+                  </tr>
+                  <tr>
+                    <td class="k">Embedded C Engineer<span class="sub">Halcyon Devices · San Jose · $90–105</span></td>
+                    <td class="k">no match above 60<span class="sub">closest is 44</span></td>
+                    <td class="r"><span class="score lo">44</span></td>
+                    <td><span class="pill mute">Skip</span></td>
+                    <td class="r m">2h 31m</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="panel">
+              <div class="ph">
+                <h3>Consultant contact</h3>
+                <span class="cnt">bench freshness</span>
+                <span class="act">Send pings →</span>
+              </div>
+              <table>
+                <thead><tr><th>State</th><th>What it means</th><th class="r">People</th><th class="r">Share</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="pill ok">Confirmed</span></td><td>Replied within the last 14 days</td><td class="r m">31</td><td class="r m">62%</td></tr>
+                  <tr><td><span class="pill warn">Ageing</span></td><td>Last confirmed 15–30 days ago</td><td class="r m">12</td><td class="r m">24%</td></tr>
+                  <tr><td><span class="pill bad">Unconfirmed</span></td><td>No reply to two pings — scores downweighted</td><td class="r m">7</td><td class="r m">14%</td></tr>
+                  <tr><td><span class="pill act">Consent due</span></td><td>Waiting on a yes before we can submit</td><td class="r m">3</td><td class="r m">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="panel">
+              <div class="ph">
+                <h3>Agent activity — today</h3>
+                <span class="cnt">1,284 runs</span>
+                <span class="act">Full ledger →</span>
+              </div>
+              <table>
+                <thead><tr><th>Agent</th><th class="r">Runs</th><th class="r">Passed</th><th class="r">Cost</th></tr></thead>
+                <tbody>
+                  <tr><td class="k">Requirement triage</td><td class="r m">615</td><td class="r m">—</td><td class="r m">$2.44</td></tr>
+                  <tr><td class="k">Bench scoring</td><td class="r m">615</td><td class="r m">—</td><td class="r m">$1.81</td></tr>
+                  <tr><td class="k">Package builder</td><td class="r m">10</td><td class="r m">10</td><td class="r m">$0.19</td></tr>
+                  <tr><td class="k">Submission checker</td><td class="r m">14</td><td class="r"><span class="pill warn">10 of 14</span></td><td class="r m">$0.11</td></tr>
+                  <tr><td class="k">Rate &amp; docs (rules)</td><td class="r m">30</td><td class="r m">27</td><td class="r"><span class="pill ok">free</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <div class="panel">
+              <div class="ph"><h3>The bench</h3><span class="cnt">50 people</span><span class="act">Most idle first</span></div>
+              <div class="listrow">
+                <div class="row2">
+                  <span class="nm">D. Ferreira</span><span class="pill bad">61 days</span>
+                  <span class="mt">React · Node · $72 · free now</span>
+                </div>
+                <div class="bar"><i class="bad" style="width:100%"></i></div>
+              </div>
+              <div class="listrow">
+                <div class="row2">
+                  <span class="nm">P. Osei</span><span class="pill act">44 days</span>
+                  <span class="mt">Salesforce · $58 · free now</span>
+                </div>
+                <div class="bar"><i class="hot" style="width:72%"></i></div>
+              </div>
+              <div class="listrow">
+                <div class="row2">
+                  <span class="nm">A. Okafor</span><span class="pill act">37 days</span>
+                  <span class="mt">Java · $96 · rate above most reqs</span>
+                </div>
+                <div class="bar"><i class="hot" style="width:61%"></i></div>
+              </div>
+              <div class="listrow">
+                <div class="row2">
+                  <span class="nm">R. Menon</span><span class="pill warn">22 days</span>
+                  <span class="mt">Java · AWS · $78 · free now</span>
+                </div>
+                <div class="bar"><i style="width:36%"></i></div>
+              </div>
+              <div class="listrow">
+                <div class="row2">
+                  <span class="nm">T. Alvarez</span><span class="pill mute">9 days</span>
+                  <span class="mt">Snowflake · dbt · $88 · free 2 Mar</span>
+                </div>
+                <div class="bar"><i style="width:15%"></i></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="ph"><h3>Needs a person</h3><span class="cnt">4</span></div>
+              <div class="alert">
+                <span class="dot b"></span>
+                <span class="t">Escalated after 3 fix attempts<span>Cardinal Logistics · J. Whitfield · no AWS proof</span></span>
+                <span class="go">Open →</span>
+              </div>
+              <div class="alert">
+                <span class="dot b"></span>
+                <span class="t">Work permit expires in 9 days<span>S. Kaur · H-1B · blocks 2 submissions</span></span>
+                <span class="go">Open →</span>
+              </div>
+              <div class="alert">
+                <span class="dot w"></span>
+                <span class="t">Rate above range on a strong match<span>A. Okafor · $96 vs $75–85 · override?</span></span>
+                <span class="go">Open →</span>
+              </div>
+              <div class="alert">
+                <span class="dot w"></span>
+                <span class="t">6 submissions with no reply in 3 days<span>chase the client contact</span></span>
+                <span class="go">Open →</span>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="ph"><h3>Submissions per day, per requirement</h3></div>
+              <div class="spark">
+                <div class="top">
+                  <span class="v">3.4</span>
+                  <span class="c up">▲ from 1.9 four weeks ago · target 5</span>
+                </div>
+                <svg viewBox="0 0 300 44" role="img" aria-label="Submissions per requirement per day rising from 1.9 to 3.4 over four weeks, against a target of 5.">
+                  <line x1="0" y1="9" x2="300" y2="9" stroke="var(--act)" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>
+                  <text x="298" y="7" text-anchor="end" font-family="IBM Plex Mono" font-size="7.5" fill="var(--act)">target 5</text>
+                  <polyline points="6,37 48,35 90,31 132,29 174,24 216,21 258,17 294,16"
+                    fill="none" stroke="var(--accent-line)" stroke-width="2.2" stroke-linejoin="round"/>
+                  <circle cx="294" cy="16" r="3.4" fill="var(--accent-line)"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= DEMAND ================= -->
+  <div id="p-demand" role="tabpanel" aria-labelledby="t-demand" hidden>
+    <div class="app">
+      <div class="appbar">
+        <span class="logo">etyme</span>
+        <span class="who">Client</span>
+        <nav>
+          <span class="on">Requirements</span><span>Submissions</span><span>Shortlists</span>
+          <span>Vendors</span><span>Checks</span>
+        </nav>
+        <span class="right">Ridgeline Bank · Talent Ops · Thu 09:14</span>
+      </div>
+
+      <div class="canvas">
+
+        <div class="kpis">
+          <div class="kpi">
+            <div class="l">Open requirements</div>
+            <div class="v">18</div>
+            <div class="d">across 6 hiring managers</div>
+          </div>
+          <div class="kpi attn">
+            <div class="l">Stalled roles</div>
+            <div class="v">4</div>
+            <div class="d dn">open 20+ days, nobody shortlisted</div>
+          </div>
+          <div class="kpi">
+            <div class="l">Submissions this week</div>
+            <div class="v">148 <small>→ 22</small></div>
+            <div class="d">126 filtered out before you saw them</div>
+          </div>
+          <div class="kpi">
+            <div class="l">Days to first shortlist</div>
+            <div class="v">1.4</div>
+            <div class="d up">▼ from 6.2 before</div>
+          </div>
+        </div>
+
+        <div class="loopcard">
+          <div class="loophead">
+            <h3>The screening loop</h3>
+            <span class="sub">live · one requirement or all of them</span>
+            <div class="stats">
+              <span>agreement <b>91%</b></span>
+              <span>dupes caught <b>11</b></span>
+              <span>sample due <b>3</b></span>
+            </div>
+          </div>
+          <div class="loopsvg">
+            <svg viewBox="0 0 1040 160" role="img" aria-label="Screening loop with live counts: 48 submissions received, 11 merged as duplicates leaving 37, 37 scored, 5 in checking, 2 being re-examined and returning to scoring, 6 shortlisted, and 3 awaiting a human sample review.">
+              <defs>
+                <marker id="da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="currentColor"/></marker>
+                <marker id="df" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9 z" fill="var(--act)"/></marker>
+              </defs>
+
+              <rect class="n-box" x="8" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="69" y="60" text-anchor="middle">48</text>
+              <text class="n-lab" x="69" y="76" text-anchor="middle">Received</text>
+              <text class="n-sub" x="69" y="88" text-anchor="middle">from 9 vendors</text>
+
+              <rect class="n-box acc" x="158" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="219" y="60" text-anchor="middle">37</text>
+              <text class="n-lab" x="219" y="76" text-anchor="middle">After duplicates</text>
+              <text class="n-sub" x="219" y="88" text-anchor="middle">11 merged</text>
+
+              <rect class="n-box acc" x="308" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="369" y="60" text-anchor="middle">37</text>
+              <text class="n-lab" x="369" y="76" text-anchor="middle">Scored</text>
+              <text class="n-sub" x="369" y="88" text-anchor="middle">5 lenses each</text>
+
+              <rect class="n-box hot" x="458" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num hot" x="519" y="60" text-anchor="middle">5</text>
+              <text class="n-lab" x="519" y="76" text-anchor="middle">Checking proof</text>
+              <text class="n-sub" x="519" y="88" text-anchor="middle">quote in the CV?</text>
+
+              <rect class="n-box" x="608" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="669" y="60" text-anchor="middle">6</text>
+              <text class="n-lab" x="669" y="76" text-anchor="middle">Shortlisted</text>
+              <text class="n-sub" x="669" y="88" text-anchor="middle">31 rejected, with reasons</text>
+
+              <rect class="n-box hot" x="758" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num hot" x="819" y="60" text-anchor="middle">3</text>
+              <text class="n-lab" x="819" y="76" text-anchor="middle">Human sample</text>
+              <text class="n-sub" x="819" y="88" text-anchor="middle">due this week</text>
+
+              <rect class="n-box" x="908" y="26" width="122" height="66" rx="5"/>
+              <text class="n-num" x="969" y="60" text-anchor="middle">4</text>
+              <text class="n-lab" x="969" y="76" text-anchor="middle">Interviewing</text>
+              <text class="n-sub" x="969" y="88" text-anchor="middle">2 offers pending</text>
+
+              <line class="l-arr" x1="130" y1="59" x2="154" y2="59" marker-end="url(#da)"/>
+              <line class="l-arr" x1="280" y1="59" x2="304" y2="59" marker-end="url(#da)"/>
+              <line class="l-arr" x1="430" y1="59" x2="454" y2="59" marker-end="url(#da)"/>
+              <line class="l-arr" x1="580" y1="59" x2="604" y2="59" marker-end="url(#da)"/>
+              <text class="n-sub" x="592" y="52" text-anchor="middle">proof holds</text>
+              <line class="l-arr" x1="730" y1="59" x2="754" y2="59" marker-end="url(#da)"/>
+              <line class="l-arr" x1="880" y1="59" x2="904" y2="59" marker-end="url(#da)"/>
+
+              <path class="l-fix" d="M 519 92 L 519 124 L 369 124 L 369 96" marker-end="url(#df)"/>
+              <text class="l-fixt" x="444" y="140" text-anchor="middle">2 scores had no evidence → re-examined</text>
+            </svg>
+          </div>
+        </div>
+
+        <div class="cols">
+          <div>
+            <div class="panel">
+              <div class="ph">
+                <h3>Submission inbox — Senior Java Developer</h3>
+                <span class="cnt">37 of 48</span>
+                <span class="act">Duplicates merged →</span>
+              </div>
+              <table>
+                <thead><tr><th>Candidate</th><th>Submitted by</th><th class="r">Rate</th><th class="r">Match</th><th>State</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td class="k">R. Menon<span class="sub">Dallas · free now</span></td>
+                    <td><span class="pill acc">3 vendors</span><span class="sub">Apex · Trellis · Copperline</span></td>
+                    <td class="r m">$78–91<span class="sub">spread $13</span></td>
+                    <td class="r"><span class="score hi">94</span></td>
+                    <td><span class="pill ok">Shortlist</span></td>
+                  </tr>
+                  <tr>
+                    <td class="k">L. Bianchi<span class="sub">Plano · free 10 Mar</span></td>
+                    <td>Trellis Group<span class="sub">single</span></td>
+                    <td class="r m">$82</td>
+                    <td class="r"><span class="score hi">88</span></td>
+                    <td><span class="pill ok">Shortlist</span></td>
+                  </tr>
+                  <tr>
+                    <td class="k">M. Duarte<span class="sub">Remote · free now</span></td>
+                    <td><span class="pill acc">2 vendors</span><span class="sub">Apex · Vanguard</span></td>
+                    <td class="r m">$80–84<span class="sub">spread $4</span></td>
+                    <td class="r"><span class="score mid">79</span></td>
+                    <td><span class="pill act">Checking</span></td>
+                  </tr>
+                  <tr>
+                    <td class="k">K. Nwosu<span class="sub">Fort Worth · free now</span></td>
+                    <td>Copperline Talent<span class="sub">single</span></td>
+                    <td class="r m">$97</td>
+                    <td class="r"><span class="score lo">68</span></td>
+                    <td><span class="pill bad">Over budget</span></td>
+                  </tr>
+                  <tr>
+                    <td class="k">H. Park<span class="sub">Remote · free now</span></td>
+                    <td>Vanguard Staffing<span class="sub">single</span></td>
+                    <td class="r m">$74</td>
+                    <td class="r"><span class="score lo">52</span></td>
+                    <td><span class="pill mute">No AWS proof</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="panel">
+              <div class="ph"><h3>Your requirements</h3><span class="cnt">18 open</span><span class="act">Stalled first</span></div>
+              <table>
+                <thead><tr><th>Role</th><th class="r">Quality</th><th class="r">Open</th><th class="r">Subs</th><th>State</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <td class="k">Embedded C Engineer<span class="sub">San Jose · $90–105</span></td>
+                    <td class="r"><span class="score lo">41</span></td>
+                    <td class="r m">27d</td>
+                    <td class="r m">3</td>
+                    <td><span class="pill bad">Rate below market</span></td>
+                  </tr>
+                  <tr>
+                    <td class="k">Mainframe COBOL Dev<span class="sub">Remote · $65–72</span></td>
+                    <td class="r"><span class="score lo">55</span></td>
+                    <td class="r m">23d</td>
+                    <td class="r m">6</td>
+                    <td><span class="pill bad">Stalled</span></td>
+                  </tr>
+                  <tr>
+                    <td class="k">Senior Java Developer<span class="sub">Dallas · $75–85</span></td>
+                    <td class="r"><span class="score hi">92</span></td>
+                    <td class="r m">2d</td>
+                    <td class="r m">48</td>
+                    <td><span class="pill ok">6 shortlisted</span></td>
+                  </tr>
+                  <tr>
+                    <td class="k">Data Engineer, Snowflake<span class="sub">Remote · $85–95</span></td>
+                    <td class="r"><span class="score hi">87</span></td>
+                    <td class="r m">4d</td>
+                    <td class="r m">31</td>
+                    <td><span class="pill ok">4 shortlisted</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="panel">
+              <div class="ph">
+                <h3>Why people were rejected</h3>
+                <span class="cnt">31 this week</span>
+                <span class="act">Feeds next week's scoring →</span>
+              </div>
+              <table>
+                <thead><tr><th>Reason</th><th class="r">Count</th><th>Who should fix it</th></tr></thead>
+                <tbody>
+                  <tr><td class="k">Rate above the range</td><td class="r m">11</td><td><span class="pill acc">Vendor</span></td></tr>
+                  <tr><td class="k">Skill claimed, not evidenced</td><td class="r m">8</td><td><span class="pill act">Us — the checker</span></td></tr>
+                  <tr><td class="k">Not available in the window</td><td class="r m">6</td><td><span class="pill acc">Vendor</span></td></tr>
+                  <tr><td class="k">Requirement was unfillable</td><td class="r m">4</td><td><span class="pill bad">You — rewrite it</span></td></tr>
+                  <tr><td class="k">Duplicate, already submitted</td><td class="r m">2</td><td><span class="pill ok">Caught early</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div>
+            <div class="panel">
+              <div class="ph"><h3>Check queue</h3><span class="cnt">3 due</span><span class="act">Review →</span></div>
+              <div class="alert">
+                <span class="dot w"></span>
+                <span class="t">Agent scored 79, is the proof real?<span>M. Duarte · "AWS" appears once, in a course title</span></span>
+                <span class="go">Judge →</span>
+              </div>
+              <div class="alert">
+                <span class="dot w"></span>
+                <span class="t">Rejected for no Kafka — fair?<span>S. Bright · scored 71 · Kafka was nice-to-have</span></span>
+                <span class="go">Judge →</span>
+              </div>
+              <div class="alert">
+                <span class="dot w"></span>
+                <span class="t">Duplicate merge — same person?<span>R. Menon · 3 CVs, 2 different phone numbers</span></span>
+                <span class="go">Judge →</span>
+              </div>
+              <div class="alert" style="background:var(--ok-bg)">
+                <span class="dot" style="background:var(--ok)"></span>
+                <span class="t">Agreement over the last 40 reviews<span>you agreed with the agent 91% of the time</span></span>
+                <span class="go">History →</span>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="ph"><h3>Vendor scorecard</h3><span class="cnt">9 active</span><span class="act">By placement rate</span></div>
+              <table>
+                <thead><tr><th>Vendor</th><th class="r">Sent</th><th class="r">Short</th><th class="r">Placed</th></tr></thead>
+                <tbody>
+                  <tr><td class="k">Trellis Group</td><td class="r m">14</td><td class="r m">6</td><td class="r"><span class="pill ok">21%</span></td></tr>
+                  <tr><td class="k">Apex Technical</td><td class="r m">22</td><td class="r m">7</td><td class="r"><span class="pill ok">18%</span></td></tr>
+                  <tr><td class="k">Vanguard Staffing</td><td class="r m">31</td><td class="r m">4</td><td class="r"><span class="pill warn">6%</span></td></tr>
+                  <tr><td class="k">Copperline Talent</td><td class="r m">48</td><td class="r m">2</td><td class="r"><span class="pill bad">2%</span></td></tr>
+                </tbody>
+              </table>
+              <div class="spark" style="border-top:1px solid var(--rule-soft)">
+                <div class="top"><span class="c">Copperline sends the most and places the least. Volume is what weak vendors optimise for.</span></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="ph"><h3>Submissions you never had to read</h3></div>
+              <div class="spark">
+                <div class="top">
+                  <span class="v">85%</span>
+                  <span class="c up">126 of 148 filtered this week</span>
+                </div>
+                <svg viewBox="0 0 300 44" role="img" aria-label="Share of submissions filtered before reaching a human, rising to 85 percent over eight weeks.">
+                  <polyline points="6,34 48,32 90,27 132,25 174,20 216,17 258,13 294,11"
+                    fill="none" stroke="var(--accent-line)" stroke-width="2.2" stroke-linejoin="round"/>
+                  <circle cx="294" cy="11" r="3.4" fill="var(--accent-line)"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= BUILD NOTES ================= -->
+  <div class="notes">
+    <h2>Notes for whoever builds this</h2>
+    <p>Eight things that are easy to get wrong and expensive to fix later.</p>
+
+    <div class="nlist">
+      <div class="note">
+        <h4>The loop strip is not decoration</h4>
+        <p>Each node is a <code>count()</code> over one status value on the Submission record. Building it forces the status machine to be right, which is why it goes in first, not last.</p>
+      </div>
+      <div class="note">
+        <h4>Draw the fix branch even when it is empty</h4>
+        <p>Showing "0 being fixed" tells the user the check ran and everything passed. Hiding it makes a working loop look like no loop at all.</p>
+      </div>
+      <div class="note">
+        <h4>The top-left number is the money</h4>
+        <p>Vendor: idle bench days. Client: stalled roles. Both are costs, both are top-left, both stay there. Never replace them with something more flattering.</p>
+      </div>
+      <div class="note">
+        <h4>Sort by the painful thing</h4>
+        <p>Bench sorts by most idle. Requirements sort by most stalled. Vendors sort by placement rate, never by volume. The default sort is the product's opinion.</p>
+      </div>
+      <div class="note">
+        <h4>Never show a score without its proof</h4>
+        <p>Every score in these tables opens to the quoted lines from the CV behind it. A number on its own is what every ATS already does badly.</p>
+      </div>
+      <div class="note">
+        <h4>"Needs a person" is a real panel</h4>
+        <p>Escalations, expiring permits, and the check queue are work, not notifications. Give them a panel with a count, not a bell icon nobody clicks.</p>
+      </div>
+      <div class="note">
+        <h4>Build the empty state first</h4>
+        <p>A new vendor has no bench and no requirements. That screen is their whole first impression, and it should say what to do next in three lines.</p>
+      </div>
+      <div class="note">
+        <h4>Two themes, one token set</h4>
+        <p>Every colour here is a CSS variable redefined for dark mode. Violet is the supply side, teal the demand side, orange means act, green pass, red fail. Nothing else gets a colour.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>Screen designs · supply and demand dashboards · loop strip is the distinguishing element</footer>
+</div>
+
+<script>
+(function () {
+  var tabs = [document.getElementById('t-supply'), document.getElementById('t-demand')];
+  var panels = [document.getElementById('p-supply'), document.getElementById('p-demand')];
+  var sides = ['supply', 'demand'];
+
+  function pick(i) {
+    tabs.forEach(function (t, j) { t.setAttribute('aria-selected', i === j ? 'true' : 'false'); });
+    panels.forEach(function (p, j) { p.hidden = i !== j; });
+    document.body.setAttribute('data-side', sides[i]);
+  }
+  tabs.forEach(function (t, i) {
+    t.addEventListener('click', function () { pick(i); });
+    t.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        var n = (i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
+        pick(n); tabs[n].focus(); e.preventDefault();
+      }
+    });
+  });
+  pick(0);
+})();
+</script>
