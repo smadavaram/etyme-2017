@@ -1,0 +1,645 @@
+<title>Sell Finished Work</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100,400;100,500;100,600;100,700;112,700;112,800&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+
+<style>
+  :root {
+    --ground:  #EDF1F1;
+    --surface: #F8FAFA;
+    --ink:     #101718;
+    --ink-2:   #465658;
+    --ink-3:   #7A8A8C;
+    --rule:    #CCD6D6;
+    --rule-soft:#DDE4E4;
+    --accent:  #0F5C61;
+    --signal:  #B85A16;
+    --signal-bg:#F6E7DA;
+    --have:    #2C6E49;
+    --have-bg: #DFEBE3;
+    --need:    #B85A16;
+    --cost:    #C9962B;
+    --on-signal: #FFFFFF;
+
+    --step-0: 1.24rem;
+    --step-1: 1.5rem;
+    --step-2: 1.95rem;
+    --step-3: 2.7rem;
+    --step-4: 3.9rem;
+
+    --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --serif: "Source Serif 4", Georgia, serif;
+    --mono: "IBM Plex Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:  #0B1011;
+      --surface: #141B1C;
+      --ink:     #E6ECEC;
+      --ink-2:   #9EAEAF;
+      --ink-3:   #77878A;
+      --rule:    #2C3739;
+      --rule-soft:#222C2E;
+      --accent:  #58BEC4;
+      --signal:  #E38B4B;
+      --signal-bg:#33231A;
+      --have:    #6BBF8E;
+      --have-bg: #1B2C22;
+      --need:    #E38B4B;
+      --cost:    #D2A64B;
+      --on-signal: #2A1A0C;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:  #0B1011;
+    --surface: #141B1C;
+    --ink:     #E6ECEC;
+    --ink-2:   #9EAEAF;
+    --ink-3:   #77878A;
+    --rule:    #2C3739;
+    --rule-soft:#222C2E;
+    --accent:  #58BEC4;
+    --signal:  #E38B4B;
+    --signal-bg:#33231A;
+    --have:    #6BBF8E;
+    --have-bg: #1B2C22;
+    --need:    #E38B4B;
+    --cost:    #D2A64B;
+    --on-signal: #2A1A0C;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: var(--step-0);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 26px 110px; }
+
+  /* masthead */
+  .mast { padding: 70px 0 0; }
+  .kicker {
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--signal);
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-family: var(--sans);
+    font-variation-settings: "wdth" 112;
+    font-weight: 800;
+    font-size: var(--step-4);
+    line-height: 0.96;
+    letter-spacing: -0.03em;
+    margin: 0 0 24px;
+    max-width: 14ch;
+    text-wrap: balance;
+  }
+  .oneline {
+    font-size: var(--step-2);
+    line-height: 1.32;
+    font-weight: 600;
+    max-width: 24ch;
+    margin: 0 0 18px;
+    color: var(--ink);
+  }
+  .subline { font-size: var(--step-1); color: var(--ink-2); max-width: 34ch; margin: 0; }
+
+  .readme {
+    margin: 44px 0 0;
+    padding: 20px 26px;
+    background: var(--signal-bg);
+    border-radius: 5px;
+    max-width: 780px;
+    font-size: 1.08rem;
+    line-height: 1.55;
+  }
+  .readme b { font-family: var(--sans); font-weight: 700; }
+
+  /* sections */
+  section { padding-top: 82px; }
+
+  .num {
+    font-family: var(--sans);
+    font-variation-settings: "wdth" 112;
+    font-weight: 800;
+    font-size: 2.6rem;
+    line-height: 1;
+    color: var(--signal);
+    margin: 0 0 6px;
+  }
+  h2 {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: var(--step-3);
+    line-height: 1.06;
+    letter-spacing: -0.026em;
+    margin: 0 0 24px;
+    max-width: 19ch;
+    text-wrap: balance;
+  }
+
+  p { margin: 0 0 16px; max-width: 40ch; }
+  .say { font-size: var(--step-1); line-height: 1.5; max-width: 38ch; }
+  .say b { font-weight: 600; }
+
+  .lines { max-width: 42ch; margin: 0 0 20px; padding: 0; list-style: none; }
+  .lines li {
+    font-size: var(--step-1);
+    line-height: 1.42;
+    padding: 12px 0 12px 30px;
+    border-bottom: 1px solid var(--rule-soft);
+    position: relative;
+  }
+  .lines li:first-child { border-top: 1px solid var(--rule-soft); }
+  .lines li::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: var(--signal);
+    font-family: var(--sans);
+  }
+
+  .big {
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: var(--step-2);
+    line-height: 1.2;
+    color: var(--signal);
+    max-width: 26ch;
+    margin: 30px 0;
+    letter-spacing: -0.02em;
+  }
+
+  /* figures */
+  figure { margin: 34px 0 0; max-width: 1000px; }
+  .fig {
+    background: var(--surface);
+    border: 1px solid var(--rule-soft);
+    border-radius: 6px;
+    padding: 26px 24px 18px;
+    overflow-x: auto;
+  }
+  figure svg { display: block; width: 100%; min-width: 620px; height: auto; color: var(--ink-2); }
+  figcaption {
+    font-family: var(--sans);
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--ink-3);
+    margin-top: 12px;
+    max-width: 62ch;
+  }
+
+  .svg-box  { fill: var(--surface); stroke: currentColor; stroke-width: 1.4; }
+  .svg-t    { font-family: "Archivo", sans-serif; font-size: 14px; font-weight: 600; fill: var(--ink); }
+  .svg-t-sm { font-family: "Archivo", sans-serif; font-size: 12px; font-weight: 500; fill: var(--ink); }
+  .svg-lbl  { font-family: "IBM Plex Mono", monospace; font-size: 12px; fill: currentColor; }
+  .svg-huge { font-family: "Archivo", sans-serif; font-size: 30px; font-weight: 800; fill: var(--ink); }
+  .svg-cap  { font-family: "Archivo", sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; fill: currentColor; }
+  .svg-arrow{ stroke: currentColor; stroke-width: 1.6; fill: none; }
+  .svg-hot  { stroke: var(--signal); stroke-width: 2.2; }
+  .svg-hot-t{ fill: var(--signal); }
+  .svg-have { stroke: var(--have); stroke-width: 1.6; }
+  .svg-have-t { fill: var(--have); }
+  .svg-need { stroke: var(--need); stroke-width: 2.2; }
+
+  /* who pays */
+  .pays { max-width: 900px; margin: 30px 0 0; }
+  .pay {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 0 26px;
+    padding: 22px 0;
+    border-top: 1px solid var(--rule);
+    align-items: baseline;
+  }
+  .pay:last-child { border-bottom: 1px solid var(--rule); }
+  .pay-when {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--signal);
+  }
+  .pay p { margin: 0; max-width: 48ch; font-size: 1.12rem; }
+  .pay p b { font-weight: 600; }
+
+  /* 90 days */
+  .plan { max-width: 900px; margin: 30px 0 0; counter-reset: step; }
+  .step {
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    gap: 0 22px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--rule-soft);
+  }
+  .step:first-child { border-top: 1px solid var(--rule-soft); }
+  .step-n {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    color: var(--signal);
+    padding-top: 5px;
+  }
+  .step h3 { font-family: var(--sans); font-size: 1.24rem; font-weight: 700; margin: 0 0 4px; }
+  .step p { margin: 0; font-size: 1.06rem; color: var(--ink-2); max-width: 52ch; }
+
+  .warn {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 4px solid var(--signal);
+    border-radius: 4px;
+    padding: 20px 24px;
+    margin: 34px 0;
+    max-width: 46ch;
+  }
+  .warn b { font-family: var(--sans); }
+  .warn p { margin: 0; font-size: 1.1rem; max-width: none; }
+  .warn p + p { margin-top: 12px; }
+
+  footer {
+    margin-top: 84px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--ink-3);
+  }
+
+  @media (max-width: 640px) {
+    :root { --step-4: 2.5rem; --step-3: 1.95rem; --step-2: 1.5rem; --step-1: 1.24rem; --step-0: 1.12rem; }
+    .wrap { padding-left: 18px; padding-right: 18px; }
+    .mast { padding-top: 42px; }
+    section { padding-top: 54px; }
+    .pay, .step { grid-template-columns: 1fr; gap: 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="kicker">The plan · one page</p>
+    <h1>Sell finished work</h1>
+    <p class="oneline">You don't sell agents. You sell jobs that are done.</p>
+    <p class="subline">A company pays a fixed price per job. Your crew of agents and people does it. You keep the difference.</p>
+
+    <div class="readme">
+      <b>Read only this one.</b> The two longer documents were the detailed version. This page replaces both. Same plan, fewer words.
+    </div>
+  </header>
+
+  <!-- 1 -->
+  <section>
+    <p class="num">1</p>
+    <h2>The whole business, in one picture</h2>
+
+    <p class="say">A company sends you 1,000 jobs a month. Your crew does them. You send the finished work back. You invoice.</p>
+    <p class="say">The crew is part agents, part people. <b>The customer never sees the mix.</b> That mix is your business.</p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 900 400" role="img" aria-label="A company sends a thousand jobs a month to your crew of agents and people. The finished work goes back. The company pays ten thousand dollars, the crew costs four thousand, and you keep six thousand.">
+          <defs>
+            <marker id="p1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <!-- company -->
+          <rect class="svg-box" x="24" y="62" width="152" height="70" rx="4"/>
+          <text class="svg-t" x="100" y="92" text-anchor="middle">A company</text>
+          <text class="svg-t-sm" x="100" y="112" text-anchor="middle">with boring work</text>
+
+          <!-- crew -->
+          <rect class="svg-box" x="278" y="34" width="312" height="164" rx="6"/>
+          <text class="svg-cap svg-hot-t" x="434" y="60" text-anchor="middle">YOUR CREW</text>
+          <rect class="svg-box" x="300" y="76" width="132" height="52" rx="4"/>
+          <text class="svg-t" x="366" y="99" text-anchor="middle">Agents</text>
+          <text class="svg-t-sm" x="366" y="117" text-anchor="middle">do most of it</text>
+          <rect class="svg-box" x="446" y="76" width="122" height="52" rx="4"/>
+          <text class="svg-t" x="507" y="99" text-anchor="middle">People</text>
+          <text class="svg-t-sm" x="507" y="117" text-anchor="middle">do the rest</text>
+          <text class="svg-lbl svg-hot-t" x="434" y="160" text-anchor="middle">the mix shifts every month</text>
+          <text class="svg-lbl" x="434" y="180" text-anchor="middle" opacity="0.75">you decide it, not the customer</text>
+
+          <!-- done -->
+          <rect class="svg-box" x="692" y="62" width="176" height="70" rx="4"/>
+          <text class="svg-t" x="780" y="92" text-anchor="middle">Finished work</text>
+          <text class="svg-t-sm" x="780" y="112" text-anchor="middle">same day</text>
+
+          <line class="svg-arrow" x1="176" y1="97" x2="272" y2="97" marker-end="url(#p1)"/>
+          <text class="svg-lbl" x="224" y="86" text-anchor="middle">1,000 jobs</text>
+          <line class="svg-arrow" x1="590" y1="97" x2="686" y2="97" marker-end="url(#p1)"/>
+          <text class="svg-lbl" x="638" y="86" text-anchor="middle">1,000 done</text>
+
+          <!-- money strip -->
+          <rect x="24" y="248" width="844" height="112" rx="6" fill="var(--signal)" opacity="0.09"/>
+          <text class="svg-cap" x="48" y="276">THE MONTH, IN MONEY</text>
+
+          <text class="svg-lbl" x="140" y="308" text-anchor="middle">They pay you</text>
+          <text class="svg-huge" x="140" y="342" text-anchor="middle">$10,000</text>
+
+          <text class="svg-huge" x="300" y="342" text-anchor="middle" opacity="0.4">–</text>
+
+          <text class="svg-lbl" x="460" y="308" text-anchor="middle">Crew costs you</text>
+          <text class="svg-huge" x="460" y="342" text-anchor="middle">$4,000</text>
+
+          <text class="svg-huge" x="620" y="342" text-anchor="middle" opacity="0.4">=</text>
+
+          <text class="svg-lbl svg-hot-t" x="770" y="308" text-anchor="middle">You keep</text>
+          <text class="svg-huge svg-hot-t" x="770" y="342" text-anchor="middle">$6,000</text>
+        </svg>
+      </div>
+      <figcaption>That's the entire business. Everything else on this page is detail.</figcaption>
+    </figure>
+  </section>
+
+  <!-- 2 -->
+  <section>
+    <p class="num">2</p>
+    <h2>You already built most of it</h2>
+
+    <p class="say">This is the important part. I looked through Etyme. It has 136 tables. <b>Most of them are exactly what this business needs.</b></p>
+    <p class="say">Timesheets with approval chains. Invoices. Client bills and vendor bills. Stripe. DocuSign. Contracts with rate cards. Vendor and sub-vendor chains. Background checks.</p>
+    <p class="say">You built all of it for people. Agents need the same things. <b>You need three new pieces. That's it.</b></p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 900 400" role="img" aria-label="Eight things Etyme already has: contracts and rates, timesheets and approvals, invoices and billing, Stripe payments, vendor chains, document signing, background checks, and chat and notifications. Three things still to build: a job queue, an agent that does the job, and a checker that says pass or fail.">
+          <text class="svg-cap svg-have-t" x="24" y="30">ALREADY BUILT — WORKING TODAY</text>
+          <text class="svg-cap" x="560" y="30" fill="var(--need)">STILL TO BUILD — ALL OF IT</text>
+
+          <line x1="524" y1="12" x2="524" y2="380" stroke="currentColor" stroke-width="1" stroke-dasharray="4 5" opacity="0.4"/>
+
+          <!-- have: 2 cols x 4 rows -->
+          <rect class="svg-box svg-have" x="24" y="56" width="230" height="52" rx="4"/>
+          <text class="svg-t-sm" x="139" y="86" text-anchor="middle">Contracts &amp; rate cards</text>
+          <rect class="svg-box svg-have" x="270" y="56" width="230" height="52" rx="4"/>
+          <text class="svg-t-sm" x="385" y="86" text-anchor="middle">Timesheets &amp; approvals</text>
+
+          <rect class="svg-box svg-have" x="24" y="124" width="230" height="52" rx="4"/>
+          <text class="svg-t-sm" x="139" y="154" text-anchor="middle">Invoices &amp; billing</text>
+          <rect class="svg-box svg-have" x="270" y="124" width="230" height="52" rx="4"/>
+          <text class="svg-t-sm" x="385" y="154" text-anchor="middle">Payments (Stripe)</text>
+
+          <rect class="svg-box svg-have" x="24" y="192" width="230" height="52" rx="4"/>
+          <text class="svg-t-sm" x="139" y="222" text-anchor="middle">Vendor &amp; sub-vendor chain</text>
+          <rect class="svg-box svg-have" x="270" y="192" width="230" height="52" rx="4"/>
+          <text class="svg-t-sm" x="385" y="222" text-anchor="middle">Document signing</text>
+
+          <rect class="svg-box svg-have" x="24" y="260" width="230" height="52" rx="4"/>
+          <text class="svg-t-sm" x="139" y="290" text-anchor="middle">Background checks</text>
+          <rect class="svg-box svg-have" x="270" y="260" width="230" height="52" rx="4"/>
+          <text class="svg-t-sm" x="385" y="290" text-anchor="middle">Chat &amp; notifications</text>
+
+          <text class="svg-lbl svg-have-t" x="24" y="344">Built for people. Works the same for agents.</text>
+          <text class="svg-lbl" x="24" y="364" opacity="0.75">This is years of work you do not have to repeat.</text>
+
+          <!-- need: 3 big boxes -->
+          <rect class="svg-box svg-need" x="560" y="56" width="316" height="76" rx="5"/>
+          <text class="svg-t" x="718" y="88" text-anchor="middle">A job queue</text>
+          <text class="svg-t-sm" x="718" y="110" text-anchor="middle">work waiting to be done</text>
+
+          <rect class="svg-box svg-need" x="560" y="152" width="316" height="76" rx="5"/>
+          <text class="svg-t" x="718" y="184" text-anchor="middle">An agent that does the job</text>
+          <text class="svg-t-sm" x="718" y="206" text-anchor="middle">for one type of work, to start</text>
+
+          <rect class="svg-box svg-need" x="560" y="248" width="316" height="76" rx="5"/>
+          <text class="svg-t" x="718" y="280" text-anchor="middle">A checker</text>
+          <text class="svg-t-sm" x="718" y="302" text-anchor="middle">says pass or fail, every time</text>
+
+          <text class="svg-lbl" x="560" y="356" fill="var(--need)">Three pieces. Not a new company.</text>
+        </svg>
+      </div>
+      <figcaption>The left side is why you have an unfair advantage. Almost nobody chasing this has a working billing and approval engine, and it takes years to build.</figcaption>
+    </figure>
+
+    <p class="big">Your head start is not AI. It is that you already know how work becomes an invoice becomes cash.</p>
+  </section>
+
+  <!-- 3 -->
+  <section>
+    <p class="num">3</p>
+    <h2>How you make money</h2>
+
+    <p class="say">Say the customer pays an outsourcing firm <b>$14</b> per job today. You offer <b>$10</b>. They save money and sign.</p>
+    <p class="say">Year one, people do most of the work, so it costs you $5.50. Fine — you still make money.</p>
+    <p class="say">Every year the agents do more. Your cost falls. <b>The price never changes.</b></p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 880 356" role="img" aria-label="Four bars, one per year, each ten dollars tall. The cost portion shrinks from five dollars fifty in year one to one dollar sixty in year four as the agent share rises from thirty to eighty-eight percent, so the amount kept grows from four dollars fifty to eight dollars forty.">
+          <!-- price line -->
+          <line x1="60" y1="70" x2="840" y2="70" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4" opacity="0.6"/>
+          <text class="svg-cap" x="60" y="56">CUSTOMER PAYS $10 — EVERY YEAR, NEVER CHANGES</text>
+
+          <!-- year 1 -->
+          <rect x="90"  y="70"  width="110" height="81"   fill="var(--signal)" opacity="0.85"/>
+          <rect x="90"  y="151" width="110" height="99"   fill="var(--cost)" opacity="0.85"/>
+          <text class="svg-t" x="145" y="116" text-anchor="middle" fill="var(--on-signal)">keep $4.50</text>
+          <text class="svg-t-sm" x="145" y="206" text-anchor="middle" fill="#3A2E10">cost $5.50</text>
+
+          <!-- year 2 -->
+          <rect x="290" y="70"  width="110" height="120.6" fill="var(--signal)" opacity="0.85"/>
+          <rect x="290" y="190.6" width="110" height="59.4" fill="var(--cost)" opacity="0.85"/>
+          <text class="svg-t" x="345" y="136" text-anchor="middle" fill="var(--on-signal)">keep $6.70</text>
+          <text class="svg-t-sm" x="345" y="226" text-anchor="middle" fill="#3A2E10">cost $3.30</text>
+
+          <!-- year 3 -->
+          <rect x="490" y="70"  width="110" height="142.2" fill="var(--signal)" opacity="0.85"/>
+          <rect x="490" y="212.2" width="110" height="37.8" fill="var(--cost)" opacity="0.85"/>
+          <text class="svg-t" x="545" y="146" text-anchor="middle" fill="var(--on-signal)">keep $7.90</text>
+          <text class="svg-t-sm" x="545" y="236" text-anchor="middle" fill="#3A2E10">cost $2.10</text>
+
+          <!-- year 4 -->
+          <rect x="690" y="70"  width="110" height="151.2" fill="var(--signal)" opacity="0.85"/>
+          <rect x="690" y="221.2" width="110" height="28.8" fill="var(--cost)" opacity="0.85"/>
+          <text class="svg-t" x="745" y="150" text-anchor="middle" fill="var(--on-signal)">keep $8.40</text>
+          <text class="svg-t-sm" x="745" y="242" text-anchor="middle" fill="#3A2E10">cost $1.60</text>
+
+          <line x1="60" y1="250" x2="840" y2="250" stroke="currentColor" stroke-width="1.5"/>
+
+          <text class="svg-t" x="145" y="276" text-anchor="middle">Year 1</text>
+          <text class="svg-t" x="345" y="276" text-anchor="middle">Year 2</text>
+          <text class="svg-t" x="545" y="276" text-anchor="middle">Year 3</text>
+          <text class="svg-t" x="745" y="276" text-anchor="middle">Year 4</text>
+
+          <text class="svg-lbl" x="145" y="298" text-anchor="middle" opacity="0.8">agents do 30%</text>
+          <text class="svg-lbl" x="345" y="298" text-anchor="middle" opacity="0.8">agents do 60%</text>
+          <text class="svg-lbl" x="545" y="298" text-anchor="middle" opacity="0.8">agents do 80%</text>
+          <text class="svg-lbl" x="745" y="298" text-anchor="middle" opacity="0.8">agents do 88%</text>
+
+          <text class="svg-lbl svg-hot-t" x="60" y="336">Same customer. Same contract. No new sale. You just get better at your own job.</text>
+        </svg>
+      </div>
+      <figcaption>Orange is what you keep. Yellow is what the crew costs you. The orange grows on its own.</figcaption>
+    </figure>
+
+    <div class="warn">
+      <p><b>Why this beats selling an AI product.</b></p>
+      <p>A software company grows profit by raising prices. That means a hard conversation every year.</p>
+      <p>You grow profit by getting better at your own work. The customer never notices.</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section>
+    <p class="num">4</p>
+    <h2>The loop that shrinks your cost</h2>
+
+    <p class="say">This is the only clever bit, and it is simple. Four steps, over and over.</p>
+
+    <figure>
+      <div class="fig">
+        <svg viewBox="0 0 760 500" role="img" aria-label="A four step cycle: the agent does the job, someone checks it, a person fixes what went wrong, the fix is saved as a test so it cannot happen again, and then back to the start with the agent doing more of the work.">
+          <defs>
+            <marker id="c1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--signal)"/>
+            </marker>
+          </defs>
+
+          <!-- arcs -->
+          <path class="svg-arrow svg-hot" d="M 486 92 Q 592 118 628 192" marker-end="url(#c1)"/>
+          <path class="svg-arrow svg-hot" d="M 628 292 Q 592 366 486 392" marker-end="url(#c1)"/>
+          <path class="svg-arrow svg-hot" d="M 274 392 Q 168 366 132 292" marker-end="url(#c1)"/>
+          <path class="svg-arrow svg-hot" d="M 132 192 Q 168 118 274 92" marker-end="url(#c1)"/>
+
+          <!-- top -->
+          <rect class="svg-box" x="280" y="34" width="200" height="72" rx="5"/>
+          <text class="svg-cap svg-hot-t" x="380" y="56" text-anchor="middle">STEP 1</text>
+          <text class="svg-t" x="380" y="80" text-anchor="middle">The agent does</text>
+          <text class="svg-t" x="380" y="98" text-anchor="middle">the job</text>
+
+          <!-- right -->
+          <rect class="svg-box" x="540" y="200" width="200" height="84" rx="5"/>
+          <text class="svg-cap svg-hot-t" x="640" y="222" text-anchor="middle">STEP 2</text>
+          <text class="svg-t" x="640" y="246" text-anchor="middle">Someone checks it</text>
+          <text class="svg-t-sm" x="640" y="268" text-anchor="middle">a person, not another agent</text>
+
+          <!-- bottom -->
+          <rect class="svg-box" x="280" y="394" width="200" height="84" rx="5"/>
+          <text class="svg-cap svg-hot-t" x="380" y="416" text-anchor="middle">STEP 3</text>
+          <text class="svg-t" x="380" y="440" text-anchor="middle">A person fixes</text>
+          <text class="svg-t" x="380" y="458" text-anchor="middle">what went wrong</text>
+
+          <!-- left -->
+          <rect class="svg-box" x="20" y="200" width="200" height="84" rx="5"/>
+          <text class="svg-cap svg-hot-t" x="120" y="222" text-anchor="middle">STEP 4</text>
+          <text class="svg-t" x="120" y="246" text-anchor="middle">The fix is saved</text>
+          <text class="svg-t-sm" x="120" y="268" text-anchor="middle">so it can't happen twice</text>
+
+          <!-- centre -->
+          <text class="svg-t" x="380" y="228" text-anchor="middle">Every month:</text>
+          <text class="svg-t svg-hot-t" x="380" y="254" text-anchor="middle">agents do more</text>
+          <text class="svg-t svg-hot-t" x="380" y="276" text-anchor="middle">people do less</text>
+        </svg>
+      </div>
+      <figcaption>Step 4 is the one everyone skips. Without it you fix the same mistake forever and your cost never falls.</figcaption>
+    </figure>
+
+    <div class="warn">
+      <p><b>One rule you cannot break.</b></p>
+      <p>The checker in step 2 must be a person, or a simple hard-coded rule. Never another agent checking the first agent.</p>
+      <p>An agent checking its own work agrees with itself. Your dashboard says 96% correct while the customer gets angry.</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section>
+    <p class="num">5</p>
+    <h2>Who pays you, and when</h2>
+
+    <p class="say">You are not asking anyone for new budget. You are taking money they already spend on an outsourcing firm.</p>
+
+    <div class="pays">
+      <div class="pay">
+        <div class="pay-when">Now → year 3</div>
+        <p><b>Companies pay you to get work done.</b> Straight services money, like Etyme's customers paid for staffing. This is where all your money comes from at first.</p>
+      </div>
+      <div class="pay">
+        <div class="pay-when">Year 1 → 3</div>
+        <p><b>Companies pay for your software.</b> They run their own agents and have no idea what they cost. You sell them the ledger you built for yourself.</p>
+      </div>
+      <div class="pay">
+        <div class="pay-when">Year 3 → 6</div>
+        <p><b>You take a cut of other people's agents.</b> Other builders list on your platform. You test them and take a slice of what they earn.</p>
+      </div>
+      <div class="pay">
+        <div class="pay-when">Year 6 →</div>
+        <p><b>You become the rail.</b> The "Stripe for agents" idea. It only works after the three steps above. Nobody can start here.</p>
+      </div>
+    </div>
+
+    <p class="big" style="margin-top:36px;">Sell services now. The platform gets built out of the receipts.</p>
+
+    <p class="say"><b>Sell to the VP of Operations.</b> They own the outsourcing budget and are paid to make it smaller.</p>
+    <p class="say">Do not sell to the CTO or Head of AI. They buy pilots. Pilots die.</p>
+    <p class="say"><b>Your easiest first customer is a staffing company</b> — one of your old Etyme customers. Mountains of paperwork, scared of AI, and they already trust you.</p>
+  </section>
+
+  <!-- 6 -->
+  <section>
+    <p class="num">6</p>
+    <h2>What to do in the next 90 days</h2>
+
+    <p class="say">Do not rewrite Etyme. Do not build a platform. Get one customer paying for one type of job.</p>
+
+    <div class="plan">
+      <div class="step">
+        <div class="step-n">01</div>
+        <div>
+          <h3>Pick one job type</h3>
+          <p>One boring, repeated task a company already pays someone else to do. Onboarding paperwork. Invoice matching. Credential checks. Just one.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">02</div>
+        <div>
+          <h3>Write down what "done right" means</h3>
+          <p>The hardest step, and it needs no code. If you can't write the checklist, you don't have a product yet. Do this before anything else.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">03</div>
+        <div>
+          <h3>Sell it before you build it</h3>
+          <p>"You pay $14 and wait four days. We'll do it for $10, same day, guaranteed. Give us 10% of your volume." Do not mention AI.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">04</div>
+        <div>
+          <h3>Deliver with people first</h3>
+          <p>Month one can be 90% people. You only have to beat the current vendor's price, and offshore people already can. Get paid while you learn.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">05</div>
+        <div>
+          <h3>Add the three new pieces</h3>
+          <p>Job queue, agent, checker. Bolt them onto Etyme's existing invoicing and approvals. Then run the loop from section 4 every single week.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="warn">
+      <p><b>One honest warning about the old code.</b></p>
+      <p>Etyme runs on Ruby 2.6 and Rails 5.2. Both are past end of life and get no security fixes.</p>
+      <p>Fine for proving the business with one friendly customer. Not fine once real company data flows through it. Plan the upgrade for after your first paying customer — not before.</p>
+    </div>
+  </section>
+
+  <footer>
+    One-page plan · replaces the two longer documents
+  </footer>
+
+</div>
