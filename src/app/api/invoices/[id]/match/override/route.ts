@@ -207,6 +207,7 @@ function label(code: MatchCode): string {
     DUPLICATE: 'the duplicate check',
     QUANTITY: 'the hours variance',
     PERIOD: 'the billing period',
+    CONTRACT_PERIOD: 'the contract billing period',
     PRICE: 'the rate variance',
     EXTENSION: 'the line arithmetic',
     HEADER_TOTAL: 'the invoice total',

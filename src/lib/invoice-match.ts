@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from '@/lib/three-way-match'
 import { rateInForce } from '@/lib/contract-rate'
+import { periodFor, type Terms } from '@/lib/periods'
 
 /**
  * Load the three records and match them.
@@ -24,7 +25,12 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
               // done, not just when to price it from.
               periodStart: true, periodEnd: true,
               sellContractId: true,
-              sellContract: { select: { billRate: true } },
+              sellContract: {
+                select: {
+                  billRate: true, startDate: true,
+                  billFrequency: true, billAnchor: true, billStraddle: true,
+                },
+              },
             },
           },
         },
@@ -78,12 +84,29 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
     ).rateCents
   }
 
+  // What the contract says this invoice should be billing.
+  //
+  // Read from the first line's contract: an invoice consolidates people on
+  // one engagement, and an engagement carries one billing cycle. Null when
+  // no line has a contract to ask, in which case the check stays silent
+  // rather than inventing an opinion.
+  const terms = invoice.invoiceLines.find(l => l.timesheet)?.timesheet?.sellContract
+  const contractPeriod = terms
+    ? periodFor(invoice.periodStart, {
+        frequency: terms.billFrequency as Terms['frequency'],
+        anchor: terms.billAnchor as Terms['anchor'],
+        straddle: terms.billStraddle as Terms['straddle'],
+        startedOn: terms.startDate,
+      })
+    : null
+
   const input: MatchInput = {
     invoice: {
       id: invoice.id,
       totalCents: decimalToCents(invoice.total),
       periodStart: invoice.periodStart,
       periodEnd: invoice.periodEnd,
+      contractPeriod,
     },
     lines: invoice.invoiceLines.map(l => ({
       id: l.id,

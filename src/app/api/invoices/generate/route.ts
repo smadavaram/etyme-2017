@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
+import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
 
 /**
  * POST /api/invoices/generate
@@ -83,18 +84,33 @@ export async function POST(request: NextRequest) {
     invoiceLine: null,
   }
 
+  // Anything that *overlaps* the requested window, not only what sits
+  // wholly inside it.
+  //
+  // A week running 27 July to 2 August has four days that belong to July,
+  // and `periodEnd <= 31 July` excluded it entirely — so a month billed
+  // from weekly timesheets quietly lost its first few days every time.
   if (periodStart) {
-    timesheetWhere.periodStart = { gte: new Date(periodStart) }
+    timesheetWhere.periodEnd = { gte: new Date(periodStart) }
   }
   if (periodEnd) {
-    timesheetWhere.periodEnd = { lte: new Date(periodEnd) }
+    timesheetWhere.periodStart = { lte: new Date(periodEnd) }
   }
 
   const timesheets = await prisma.timesheet.findMany({
     where: timesheetWhere,
     include: {
       person: { select: { id: true, name: true } },
-      sellContract: { select: { id: true, billRate: true, billCurrency: true, purchaseOrderId: true } },
+      sellContract: {
+        select: {
+          id: true, billRate: true, billCurrency: true, purchaseOrderId: true,
+          startDate: true,
+          // The contract says what a period is. Without these three the
+          // period was invented from whatever timesheets happened to be
+          // waiting.
+          billFrequency: true, billAnchor: true, billStraddle: true,
+        },
+      },
     },
     orderBy: { periodStart: 'asc' },
   })
@@ -118,12 +134,52 @@ export async function POST(request: NextRequest) {
     timesheetIds: string[]
   }>()
 
-  let earliestPeriod = new Date('9999-12-31')
-  let latestPeriod = new Date('1970-01-01')
+  // ── The period the contract bills ───────────────────────────────────
+  //
+  // Taken from the contract, not from the timesheets. Four weekly sheets
+  // ending on the 3rd, 10th, 17th and 24th of August used to produce an
+  // invoice for "28 July to 24 August" — a period in no contract, matching
+  // no purchase order window, and reconciling against nothing the client
+  // holds.
+  //
+  // Which period: the one containing the date asked for, or the one
+  // containing the most recent work when nobody asked.
+  const first = timesheets[0]
+  const terms: Terms = {
+    frequency: first.sellContract.billFrequency as Terms['frequency'],
+    anchor: first.sellContract.billAnchor as Terms['anchor'],
+    straddle: first.sellContract.billStraddle as Terms['straddle'],
+    startedOn: first.sellContract.startDate,
+  }
+
+  const askedAbout = periodStart
+    ? new Date(periodStart)
+    : timesheets.reduce((latest, t) => (t.periodEnd > latest ? t.periodEnd : latest), timesheets[0].periodEnd)
+
+  const period = periodFor(askedAbout, terms)
 
   for (const ts of timesheets) {
-    const hours = Number(ts.totalHours)
     const rate = ts.sellContract.billRate // cents per hour
+
+    // How much of this timesheet belongs to the period being billed.
+    //
+    // Read from the daily hours, so a week crossing the boundary gives
+    // each month exactly its own days — nothing apportioned, nothing
+    // rounded, and the same hour never billed twice.
+    const share = hoursInPeriod(
+      {
+        id: ts.id,
+        periodStart: ts.periodStart,
+        periodEnd: ts.periodEnd,
+        days: (ts.days as Record<string, number>) ?? {},
+        totalHours: Number(ts.totalHours),
+      },
+      period,
+      terms.straddle
+    )
+
+    if (!share) continue
+    const hours = share.hours
 
     // Guard: LEGACY_RULES.md — cannot invoice if time <= 0 or rate <= 0
     if (hours <= 0 || rate <= 0) continue
@@ -148,8 +204,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (ts.periodStart < earliestPeriod) earliestPeriod = ts.periodStart
-    if (ts.periodEnd > latestPeriod) latestPeriod = ts.periodEnd
   }
 
   if (linesByContract.size === 0) {
@@ -164,8 +218,12 @@ export async function POST(request: NextRequest) {
   const currency = lines[0].currency // consolidated under one currency per invoice
 
   // Payment terms from the first contract (they cascade from MSA)
+  // Payment terms run from the end of the period the contract bills, not
+  // from whenever the last timesheet happened to finish. Thirty days from
+  // the 31st is the 30th of next month, every month, whatever shape the
+  // hours arrived in.
   const paymentTerms = engagement.sellContracts[0].paymentTerms ?? 30
-  const dueAt = new Date(latestPeriod.getTime() + paymentTerms * 86400000)
+  const dueAt = new Date(period.end.getTime() + paymentTerms * 86400000)
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -184,8 +242,8 @@ export async function POST(request: NextRequest) {
         data: {
           engagementId,
           number,
-          periodStart: earliestPeriod,
-          periodEnd: latestPeriod,
+          periodStart: period.start,
+          periodEnd: period.end,
           lines: lines.map((l) => ({
             sellContractId: l.sellContractId,
             personId: l.personId,

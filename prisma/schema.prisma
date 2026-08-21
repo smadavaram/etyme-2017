@@ -1376,6 +1376,32 @@ model SellContract {
   rolloff      RolloffEvent?
   docs         DocInstance[]  @relation("sellDocs")
   expenses     Expense[]
+  // ── What a period is, on this contract ─────────────────────────────
+  //
+  // The contract says what a period is; the timesheet does not. Invoice
+  // generation used to take the timesheets it was billing, find the
+  // earliest, and call that the start — so four weekly sheets produced an
+  // invoice for "28 July to 24 August", a period in no contract and
+  // matching no purchase order window.
+  //
+  // Two of these are genuine business variation rather than a default
+  // anybody can infer, which is why they are fields and not a rule:
+  //
+  //   anchor    where a month starts. The 1st, which is what an MSP or a
+  //             VMS portal imposes, or the day the contract began, which
+  //             is common on direct deals.
+  //
+  //   straddle  what happens to a week crossing a period boundary. Split
+  //             it by day — exact, because hours are stored per day — or
+  //             move the whole timesheet one way. Some clients will not
+  //             accept a part-week line.
+
+  /// WEEKLY · BIWEEKLY · SEMIMONTHLY · MONTHLY
+  billFrequency String @default("MONTHLY")
+  /// CALENDAR · CONTRACT
+  billAnchor    String @default("CALENDAR")
+  /// SPLIT · END · START
+  billStraddle  String @default("SPLIT")
 
   @@index([companyId, state])
   @@index([clientCompanyId])
@@ -1454,6 +1480,32 @@ model BuyContract {
   sellLinks ContractLink[] // linked sell contracts (for profitability)
   buyCycles Cycle[]        @relation("buyCycles")
   docs      DocInstance[]  @relation("buyDocs")
+  // ── What a period is, on this contract ─────────────────────────────
+  //
+  // The contract says what a period is; the timesheet does not. Payroll
+  // generation used to take the timesheets it was paying, find the
+  // earliest, and call that the start — so four weekly sheets produced an
+  // invoice for "28 July to 24 August", a period in no contract and
+  // matching nothing the consultant was told.
+  //
+  // Two of these are genuine business variation rather than a default
+  // anybody can infer, which is why they are fields and not a rule:
+  //
+  //   anchor    where a month starts. The 1st, which is what an MSP or a
+  //             VMS portal imposes, or the day the contract began, which
+  //             is common on direct deals.
+  //
+  //   straddle  what happens to a week crossing a period boundary. Split
+  //             it by day — exact, because hours are stored per day — or
+  //             move the whole timesheet one way. Some clients will not
+  //             accept a part-week line.
+
+  /// WEEKLY · BIWEEKLY · SEMIMONTHLY · MONTHLY
+  payFrequency String @default("MONTHLY")
+  /// CALENDAR · CONTRACT
+  payAnchor    String @default("CALENDAR")
+  /// SPLIT · END · START
+  payStraddle  String @default("SPLIT")
 
   @@index([companyId, state])
   @@index([vendorCompanyId])

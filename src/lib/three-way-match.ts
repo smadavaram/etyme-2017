@@ -28,6 +28,7 @@ export type MatchCode =
   | 'EXTENSION'     // hours × rate equals the line amount
   | 'DUPLICATE'     // no timesheet billed more than once
   | 'PERIOD'        // the work was done in the period being billed
+  | 'CONTRACT_PERIOD' // the invoice bills a period the contract recognises
   | 'HEADER_TOTAL'  // the invoice header equals the sum of its lines
   | 'PO_REQUIRED'   // an invoice against a PO-mandated contract has one
   | 'PO_STATUS'     // the PO is open and covers the period
@@ -57,6 +58,11 @@ export const OVERRIDABLE: Record<MatchCode, boolean> = {
   // than an arithmetic fault. The reason says how far out it is, so
   // somebody can tell a late timesheet from a mistake.
   PERIOD: true,
+  // A period the contract does not recognise is usually a one-off — a
+  // final invoice on a mid-month termination, a first part-period. Real,
+  // and worth somebody saying so once rather than the invoice being
+  // impossible to raise.
+  CONTRACT_PERIOD: true,
   // Not waivable. A rate that has genuinely changed is a contract
   // amendment, effective from the day it changed and approved by somebody
   // with authority (src/lib/contract-rate.ts). Waiving it here would record
@@ -136,6 +142,15 @@ export interface MatchInput {
     totalCents: number
     periodStart: Date
     periodEnd: Date
+    /**
+     * The period the contract says it should be billing, where the terms
+     * are known. Null on an invoice whose contract carries none.
+     *
+     * The invoice period used to be invented from whichever timesheets
+     * were waiting — four weekly ones produced "28 July to 24 August",
+     * which is in no contract and matches no purchase order window.
+     */
+    contractPeriod?: { start: Date; end: Date; label: string } | null
   }
   lines: InvoiceLineFacts[]
   timesheets: Record<string, TimesheetFacts>
@@ -280,6 +295,29 @@ export function threeWayMatch(input: MatchInput): MatchResult {
             return `${l.personName}: worked ${day(ts.periodStart)} to ${day(ts.periodEnd)}, billed on a ${day(invoice.periodStart)}–${day(invoice.periodEnd)} invoice`
           }).join('; '),
           lines: outsidePeriod.map(l => l.id),
+        })
+  }
+
+  // ── CONTRACT_PERIOD — is this a period the contract bills? ──
+  //
+  // A contract that bills monthly bills for the month. How the hours
+  // arrived is the consultant's business and the approver's; it changes
+  // nothing about what is billed or when.
+  const cp = invoice.contractPeriod
+  if (cp) {
+    const right =
+      day(cp.start) === day(invoice.periodStart) && day(cp.end) === day(invoice.periodEnd)
+
+    checks.push(right
+      ? {
+          code: 'CONTRACT_PERIOD',
+          outcome: 'PASS',
+          reason: `Bills ${cp.label}, which is what the contract bills`,
+        }
+      : {
+          code: 'CONTRACT_PERIOD',
+          outcome: 'FAIL',
+          reason: `Bills ${day(invoice.periodStart)} to ${day(invoice.periodEnd)}. The contract bills ${cp.label} — ${day(cp.start)} to ${day(cp.end)}.`,
         })
   }
 
