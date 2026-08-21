@@ -1,0 +1,742 @@
+<title>Etyme Business Plan</title>
+<link rel="stylesheet" href="fonts/local.css">
+
+<style>
+  @page { size: Letter; margin: 17mm 16mm 18mm; }
+
+  :root {
+    --ink:#141B1C; --ink-2:#414F51; --ink-3:#6E7E80;
+    --rule:#C8D2D2; --rule-soft:#DFE6E6;
+    --paper:#FFFFFF; --tint:#F1F5F5; --tint-2:#E7EDED;
+    --brand:#0F5C61; --brand-tint:#E0EDED;
+    --act:#A9500F; --act-tint:#F7E9DC;
+    --vend:#54428E; --vend-tint:#E7E3F2;
+    --ok:#256040; --ok-tint:#DFEAE3;
+    --no:#8E3021; --no-tint:#F3E1DD;
+    --sans:"Barlow","Liberation Sans",sans-serif;
+    --serif:"Source Serif Pro","Liberation Serif",Georgia,serif;
+    --mono:"IBM Plex Mono","DejaVu Sans Mono",monospace;
+  }
+
+  * { box-sizing:border-box; }
+  html { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body {
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--serif); font-size:10.4pt; line-height:1.52;
+  }
+  p { margin:0 0 9pt; max-width:none; }
+  strong { font-weight:600; }
+
+  h1,h2,h3,h4,.ui { font-family:var(--sans); }
+  h2 {
+    font-size:19pt; font-weight:700; line-height:1.1; letter-spacing:-0.02em;
+    margin:0 0 4pt; color:var(--ink);
+  }
+  h3 {
+    font-size:12.4pt; font-weight:700; letter-spacing:-0.01em;
+    margin:16pt 0 5pt; color:var(--ink); break-after:avoid;
+  }
+  h4 {
+    font-size:10.6pt; font-weight:700; margin:12pt 0 3pt; color:var(--ink);
+    break-after:avoid;
+  }
+
+  .page { break-after:page; }
+  .page:last-child { break-after:auto; }
+  .nobreak { break-inside:avoid; }
+
+  /* ---------- cover ---------- */
+  .cover { height:232mm; display:flex; flex-direction:column; }
+  .cover .top { flex:1; }
+  .cover .mark {
+    font-family:var(--sans); font-weight:800;
+    font-size:20pt; letter-spacing:-0.03em; color:var(--brand);
+  }
+  .cover h1 { font-weight:800; font-size:44pt;
+    line-height:0.95; letter-spacing:-0.035em; margin:0 0 12pt; max-width:12ch;
+  }
+  .cover .oneline {
+    font-size:15pt; line-height:1.3; color:var(--ink-2); max-width:34ch; margin:0 0 22pt;
+  }
+  .cover .rule { height:3pt; background:var(--act); width:64pt; margin:0 0 18pt; }
+  .cover .meta {
+    font-family:var(--mono); font-size:8.6pt; color:var(--ink-3); line-height:1.9;
+  }
+  .cover .meta b { color:var(--ink-2); font-weight:500; }
+
+  /* ---------- section head ---------- */
+  .part {
+    font-family:var(--sans); font-size:8pt; font-weight:700; letter-spacing:0.16em;
+    text-transform:uppercase; color:var(--act); margin:0 0 6pt;
+  }
+  .lede {
+    font-size:12pt; line-height:1.4; color:var(--ink-2); margin:8pt 0 14pt;
+  }
+  .hr { height:1px; background:var(--rule); margin:0 0 14pt; }
+
+  /* ---------- contents ---------- */
+  .toc { margin-top:10pt; }
+  .toc-row {
+    display:grid; grid-template-columns:26pt 1fr auto; gap:0 10pt;
+    padding:6pt 0; border-bottom:1px solid var(--rule-soft);
+    font-family:var(--sans); font-size:10pt;
+  }
+  .toc-row .n { font-family:var(--mono); font-size:8.6pt; color:var(--act); padding-top:1.5pt; }
+  .toc-row .t { font-weight:600; }
+  .toc-row .t span { display:block; font-family:var(--serif); font-weight:400; font-size:9.2pt; color:var(--ink-3); margin-top:1pt; }
+
+  /* ---------- callouts ---------- */
+  .box {
+    border:1px solid var(--rule); border-left:3pt solid var(--act);
+    background:var(--tint); padding:10pt 13pt; margin:11pt 0; break-inside:avoid;
+  }
+  .box.bad { border-left-color:var(--no); }
+  .box.good { border-left-color:var(--ok); }
+  .box .lab {
+    font-family:var(--sans); font-size:7.6pt; font-weight:700; letter-spacing:0.13em;
+    text-transform:uppercase; color:var(--act); display:block; margin-bottom:5pt;
+  }
+  .box.bad .lab { color:var(--no); }
+  .box.good .lab { color:var(--ok); }
+  .box p:last-child { margin-bottom:0; }
+
+  .big {
+    font-family:var(--sans); font-weight:800; font-size:14pt; line-height:1.22;
+    color:var(--act); letter-spacing:-0.02em; margin:13pt 0; break-inside:avoid;
+  }
+
+  /* ---------- tables ---------- */
+  table {
+    width:100%; border-collapse:collapse; margin:10pt 0; font-size:9.2pt;
+    break-inside:avoid;
+  }
+  th {
+    font-family:var(--sans); font-size:7.4pt; font-weight:700; letter-spacing:0.1em;
+    text-transform:uppercase; text-align:left; color:var(--ink-3);
+    padding:6pt 8pt 5pt; border-bottom:1px solid var(--ink-3);
+  }
+  td {
+    padding:6pt 8pt; border-bottom:1px solid var(--rule-soft);
+    vertical-align:top; line-height:1.4;
+  }
+  td.k { font-family:var(--sans); font-weight:600; }
+  td.m { font-family:var(--mono); font-size:8.6pt; white-space:nowrap; }
+  td.r { text-align:right; font-family:var(--mono); font-size:8.8pt; white-space:nowrap; }
+  th.r { text-align:right; }
+  tr.tot td { border-top:1.5px solid var(--ink-3); border-bottom:none; font-weight:600; }
+
+  /* ---------- lists ---------- */
+  ul, ol { margin:0 0 9pt; padding-left:14pt; }
+  li { margin-bottom:4pt; }
+  li::marker { color:var(--ink-3); }
+  ul.plain { list-style:none; padding-left:0; }
+  ul.plain li {
+    padding:5pt 0 5pt 15pt; border-bottom:1px solid var(--rule-soft);
+    position:relative; margin:0;
+  }
+  ul.plain li::before {
+    content:"›"; position:absolute; left:2pt; color:var(--act); font-weight:700;
+    font-family:var(--sans);
+  }
+
+  /* ---------- steps ---------- */
+  .step {
+    display:grid; grid-template-columns:20pt 1fr; gap:0 10pt;
+    padding:8pt 0; border-bottom:1px solid var(--rule-soft); break-inside:avoid;
+  }
+  .step .n { font-family:var(--mono); font-size:9pt; color:var(--act); padding-top:1pt; }
+  .step h4 { margin:0 0 2pt; }
+  .step p { margin:0; font-size:9.6pt; color:var(--ink-2); }
+
+  /* ---------- message mock ---------- */
+  .msg {
+    background:var(--tint-2); border-radius:4pt; padding:9pt 11pt; margin:7pt 0;
+    font-family:var(--mono); font-size:8.8pt; line-height:1.55; break-inside:avoid;
+  }
+  .msg .from {
+    font-family:var(--sans); font-size:7.4pt; font-weight:700; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--ink-3); display:block; margin-bottom:4pt;
+  }
+  .msg .reply { color:var(--act); font-weight:500; }
+
+  /* ---------- homepage blocks ---------- */
+  .wire {
+    border:1px solid var(--rule); background:var(--paper); margin:9pt 0; break-inside:avoid;
+  }
+  .wire .bar {
+    background:var(--brand); color:#FFF; padding:5pt 10pt;
+    font-family:var(--sans); font-size:7.6pt; font-weight:700; letter-spacing:0.12em;
+    text-transform:uppercase;
+  }
+  .wire .body { padding:10pt 12pt; }
+  .wire .body p { margin:0 0 6pt; }
+  .wire .body p:last-child { margin:0; }
+  .copy {
+    font-family:var(--sans); font-size:10.6pt; font-weight:700; line-height:1.25;
+    color:var(--ink); margin:0 0 5pt;
+  }
+  .copy-sub { font-size:9.6pt; color:var(--ink-2); margin:0 0 6pt; }
+  .note {
+    font-family:var(--mono); font-size:8.2pt; color:var(--ink-3);
+    border-top:1px dashed var(--rule); padding-top:5pt; margin-top:7pt;
+  }
+  .note b { color:var(--act); font-weight:500; }
+
+  .kpi { display:grid; grid-template-columns:repeat(4,1fr); gap:8pt; margin:11pt 0; break-inside:avoid; }
+  .kpi div { border-top:2.5pt solid var(--brand); padding-top:6pt; }
+  .kpi .v {
+    font-family:var(--sans); font-weight:800; font-size:15pt; letter-spacing:-0.025em;
+    color:var(--ink); line-height:1;
+  }
+  .kpi .l { font-family:var(--mono); font-size:7.8pt; color:var(--ink-3); margin-top:3pt; line-height:1.35; }
+
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:14pt; }
+  .tag {
+    font-family:var(--sans); font-size:7.2pt; font-weight:700; letter-spacing:0.07em;
+    text-transform:uppercase; padding:2pt 5pt; border-radius:2pt; white-space:nowrap;
+  }
+  .tag.v { background:var(--vend-tint); color:var(--vend); }
+  .tag.c { background:var(--brand-tint); color:var(--brand); }
+  .tag.a { background:var(--act-tint); color:var(--act); }
+  .tag.o { background:var(--ok-tint); color:var(--ok); }
+  .tag.n { background:var(--no-tint); color:var(--no); }
+
+  .foot {
+    font-family:var(--mono); font-size:7.6pt; color:var(--ink-3);
+    border-top:1px solid var(--rule); padding-top:5pt; margin-top:14pt;
+  }
+</style>
+
+<!-- ============ COVER ============ -->
+<div class="page cover">
+  <div class="top">
+    <div class="mark">etyme</div>
+  </div>
+  <div>
+    <div class="rule"></div>
+    <h1>Sell finished work</h1>
+    <p class="oneline">A business plan for AI-assisted contract staffing — built on the back office Etyme already runs.</p>
+    <div class="meta">
+      <b>Prepared for</b> Etyme / Cloud EPA<br>
+      <b>Scope</b> IT contract staffing, vendor side first<br>
+      <b>Covers</b> the model, the money, the product, the first 90 days, and the homepage<br>
+      <b>Status</b> working draft — every number here is to be tested, not believed
+    </div>
+  </div>
+</div>
+
+<!-- ============ CONTENTS ============ -->
+<div class="page">
+  <p class="part">Contents</p>
+  <h2>How to read this</h2>
+  <p class="lede">This is written as a manual, not a pitch. Each part tells you what to do and why. If you only read two parts, read Part 2 and Part 5.</p>
+  <div class="hr"></div>
+
+  <div class="toc">
+    <div class="toc-row"><span class="n">01</span><span class="t">The business<span>What you sell, to whom, and why it works</span></span><span class="n">p.3</span></div>
+    <div class="toc-row"><span class="n">02</span><span class="t">The consultant<span>How candidates engage — the part nobody solves</span></span><span class="n">p.5</span></div>
+    <div class="toc-row"><span class="n">03</span><span class="t">The money<span>Free until it works, then what. Unit economics</span></span><span class="n">p.8</span></div>
+    <div class="toc-row"><span class="n">04</span><span class="t">The product<span>Loops, agents, screens — in brief</span></span><span class="n">p.11</span></div>
+    <div class="toc-row"><span class="n">05</span><span class="t">Getting customers<span>Who to call, what to say, first 90 days</span></span><span class="n">p.13</span></div>
+    <div class="toc-row"><span class="n">06</span><span class="t">The homepage<span>Every section, with the actual words</span></span><span class="n">p.15</span></div>
+    <div class="toc-row"><span class="n">07</span><span class="t">What kills this<span>Honest risks, ranked</span></span><span class="n">p.19</span></div>
+  </div>
+
+  <div class="box">
+    <span class="lab">One paragraph, if that's all you have time for</span>
+    <p>A company pays you a fixed price for each finished piece of staffing work. A crew of software agents and people does it. Every month the agents do a bit more, so your cost falls while the price stays put. You start with staffing firms — your existing customers — because you already know their work and you already own the back office that turns it into an invoice.</p>
+  </div>
+</div>
+
+<!-- ============ PART 1 ============ -->
+<div class="page">
+  <p class="part">Part one</p>
+  <h2>The business</h2>
+  <p class="lede">Contract staffing is not a business about finding people. It is a business about carrying risk and turning work into an invoice. That does not go away when agents arrive — it gets more valuable.</p>
+  <div class="hr"></div>
+
+  <h3>What you sell</h3>
+  <p>Not software. Not an agent. <strong>A finished piece of work, at a fixed price, with a promise attached.</strong> The buyer does not know or care whether a person or a machine did it. That gap is the entire business.</p>
+
+  <h3>The three parties</h3>
+  <table>
+    <thead><tr><th>Who</th><th>What they want</th><th>Do they pay?</th></tr></thead>
+    <tbody>
+      <tr><td class="k"><span class="tag v">Vendor</span></td><td>Their bench working instead of sitting idle. To submit first, and to submit well.</td><td class="m">Yes — your first revenue</td></tr>
+      <tr><td class="k"><span class="tag c">Client</span></td><td>Four good candidates instead of a hundred bad ones. Requirements that can actually be filled.</td><td class="m">Yes — from year two</td></tr>
+      <tr><td class="k"><span class="tag a">Consultant</span></td><td>Work, honest treatment, and to be told what happened.</td><td class="m">Never. See Part 2</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Why you, specifically</h3>
+  <p>Etyme already runs contract staffing back office: contracts and rate cards, timesheets with approval chains, invoices, client and vendor bills, payments, document signing, compliance checks, and multi-tier vendor chains. That is years of unglamorous work that almost nobody chasing this market has done.</p>
+  <p>Three things are missing, and only three: <strong>a queue of work waiting to be done, an agent that does one job type, and an independent checker.</strong></p>
+
+  <div class="box good">
+    <span class="lab">The honest version of your advantage</span>
+    <p>Your head start is not AI — anyone can call a model. It is that you already know, in operational detail, how work becomes an approved unit becomes an invoice becomes cash, across a vendor chain, in a regulated employment context.</p>
+    <p>Teams attacking this from the AI side are learning that from scratch. It takes years and it demos badly, which is exactly why they skip it and exactly why it protects you.</p>
+  </div>
+
+  <h3>Why the market is not empty</h3>
+  <p>A fair objection is that nobody has a budget line called "AI agents". True, and it does not matter. You are not asking for new budget. You are taking over a line that already exists and already has a number on it:</p>
+  <ul class="plain">
+    <li><strong>Outsourcing and BPO contracts</strong> — priced per transaction, owned by someone paid to shrink them</li>
+    <li><strong>Offshore back-office teams</strong> — priced per seat</li>
+    <li><strong>Temporary admin staff</strong> — priced per hour</li>
+    <li><strong>Overtime</strong> — which everybody wants gone</li>
+  </ul>
+  <p>Every staffing firm you would call is already paying for this work to be done. You are a cheaper vendor with a better turnaround, not a new idea.</p>
+</div>
+
+<!-- ============ PART 2 ============ -->
+<div class="page">
+  <p class="part">Part two</p>
+  <h2>The consultant</h2>
+  <p class="lede">You asked how candidates engage with the supply side. This is the biggest hole in the plan so far, and fixing it is what makes the matching actually work.</p>
+  <div class="hr"></div>
+
+  <h3>The problem: bench data rots</h3>
+  <p>A vendor's bench record says a consultant is available now, wants $78 an hour, and knows Java and AWS. That was true three weeks ago. Since then he took a contract, raised his rate, or learned Kubernetes. Nobody updated the record because updating records is nobody's job.</p>
+  <p>So your scoring engine reads a stale record, ranks him first with total confidence, and the vendor submits somebody who started a job last Tuesday.</p>
+
+  <div class="box bad">
+    <span class="lab">Why this is not a small problem</span>
+    <p>Every clever thing in this product — the parallel scoring, the evidence, the checks — sits on top of the bench record. If that record is wrong, all of it produces confident nonsense faster than a human could produce it slowly.</p>
+    <p><strong>Consultant engagement is not a feature. It is the data integrity layer for the whole supply side.</strong></p>
+  </div>
+
+  <h3>The rule: no portal</h3>
+  <p>The obvious answer is a consultant portal where they keep their profile current. Do not build it, at least not first. A working IT consultant already has accounts on Dice, LinkedIn, Monster and six vendor portals. Adoption of a seventh will be close to zero, and a portal nobody uses is worse than no portal — it makes you believe the data is fresh.</p>
+  <p><strong>Go to them instead.</strong> Text message, WhatsApp or email. One question, one tap. No password, no app.</p>
+
+  <h3>Three touchpoints, that is all</h3>
+
+  <div class="step">
+    <span class="n">01</span>
+    <div>
+      <h4>The freshness ping — every two weeks while on the bench</h4>
+      <p>Keeps the bench honest. Costs almost nothing. Non-replies are information too.</p>
+    </div>
+  </div>
+  <div class="msg">
+    <span class="from">SMS · every 14 days</span>
+    Hi Ravi — still looking for your next contract? Still around $78/hr?<br>
+    Reply <span class="reply">1</span> yes, all the same · <span class="reply">2</span> something's changed · <span class="reply">3</span> stop texting me
+  </div>
+  <p>Reply <strong>1</strong> and the record is re-stamped as confirmed today. Reply <strong>2</strong> and they get a one-tap link to change rate or availability. No reply after two pings and the record is marked unconfirmed and quietly drops down the rankings. <strong>That is the loop</strong> — the bench self-cleans instead of rotting.</p>
+
+  <div class="step">
+    <span class="n">02</span>
+    <div>
+      <h4>Right to represent — before every single submission</h4>
+      <p>The most valuable message you will send. It solves three problems at once.</p>
+    </div>
+  </div>
+  <div class="msg">
+    <span class="from">SMS · before submitting</span>
+    Dallas · Java + AWS · $80/hr · hybrid · starts 3 March · client is a large bank.<br>
+    OK for us to submit you? Reply <span class="reply">YES</span> or <span class="reply">NO</span>
+  </div>
+  <p>Consultants get submitted blind constantly, and it burns them. When two vendors submit the same person, the client often rejects both — the consultant loses the role and the vendor loses the client's trust. One text prevents it.</p>
+  <ul class="plain">
+    <li><strong>Consent on record</strong> — a timestamped audit trail vendors need anyway</li>
+    <li><strong>Duplicates stopped at source</strong> — "no, someone already put me forward there" is the cheapest deduplication you will ever build</li>
+    <li><strong>Trust</strong> — you are the only party in the chain treating them like an adult</li>
+  </ul>
+
+  <div class="step">
+    <span class="n">03</span>
+    <div>
+      <h4>The outcome notice — always, even when it is bad</h4>
+      <p>The single most common complaint in staffing is never hearing back. Fixing it costs you nothing.</p>
+    </div>
+  </div>
+  <div class="msg">
+    <span class="from">SMS · when the client decides</span>
+    Update on the Dallas Java role — they went with someone at a lower rate.<br>
+    Your profile stays active. We'll be in touch when something fits.
+  </div>
+  <p>This is why the other two messages get answered. Once your texts are the ones that actually tell them something, they stop being ignored.</p>
+
+  <h3>Later: a light profile page, no password</h3>
+  <p>Around month six, add a page reached by a magic link from the texts. No account, no password. They can update skills, availability and rate — and see one thing nobody else will give them:</p>
+  <div class="box">
+    <span class="lab">The carrot</span>
+    <p><strong>"Java and AWS roles in Dallas paid between $75 and $92 an hour last quarter, based on 214 real submissions."</strong></p>
+    <p>You will have this data because you are watching real submissions and real placements. Consultants are negotiating blind today. Give them the number and they will keep their profile current without being asked.</p>
+  </div>
+
+  <h3>The trust boundary — write this into the vendor contract</h3>
+  <p>Every vendor will ask the same question, and if you do not have a crisp answer they will not upload their bench: <em>are you going to steal my consultants?</em></p>
+  <table>
+    <thead><tr><th>Policy</th><th>Why it matters</th></tr></thead>
+    <tbody>
+      <tr><td class="k">You never contact a consultant about a role from a different vendor</td><td>This is the whole fear. Kill it in writing, in the contract, on the homepage.</td></tr>
+      <tr><td class="k">Consultant contact details are never visible across vendors</td><td>Two vendors with the same person on their bench never learn that from you.</td></tr>
+      <tr><td class="k">The relationship belongs to the vendor who owns the record</td><td>You are the messaging layer, not the agency.</td></tr>
+      <tr><td class="k">Every message is sent in the vendor's name</td><td>The consultant experiences their vendor getting better, not a new middleman.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box bad">
+    <span class="lab">The temptation to resist</span>
+    <p>Once consultants confirm across many vendors, you could build one durable consultant record and become the place consultants actually live. That is worth a great deal, and chasing it in year one will end the company.</p>
+    <p>The moment a vendor suspects disintermediation, benches stop being uploaded, and with no benches there is nothing to score. Note the opportunity. Do not touch it before year three, and not without the vendors in the room.</p>
+  </div>
+</div>
+
+<!-- ============ PART 3 ============ -->
+<div class="page">
+  <p class="part">Part three</p>
+  <h2>The money</h2>
+  <p class="lede">Free until it works is the right instinct. It needs three guardrails or it becomes free forever.</p>
+  <div class="hr"></div>
+
+  <h3>Your bar, sharpened</h3>
+  <p>You said: free until you can deliver five or six submissions in a day, per requirement. That is a good bar — specific, mutual, and it is genuinely what wins in staffing. Three things need adding before it is safe.</p>
+
+  <div class="step">
+    <span class="n">01</span>
+    <div>
+      <h4>Define what counts as a submission</h4>
+      <p>Otherwise you deliver six weak ones and claim the bar. Use: <strong>five submissions that pass every automatic check and are not rejected by the client on rate, work authorisation or basic fit.</strong> Rubbish does not count, and both sides know the definition up front.</p>
+    </div>
+  </div>
+  <div class="step">
+    <span class="n">02</span>
+    <div>
+      <h4>Put a date on it as well as a bar</h4>
+      <p>"Free until we hit five a day, <strong>or ninety days, whichever comes first</strong> — then we talk about price either way." Without the date, free has no end.</p>
+    </div>
+  </div>
+  <div class="step">
+    <span class="n">03</span>
+    <div>
+      <h4>Instrument it from day one, and share the screen</h4>
+      <p>Both sides look at the same dashboard: submissions sent, checks passed, client rejections and why. That turns pricing day into arithmetic instead of an argument. This is what the agent activity ledger is for.</p>
+    </div>
+  </div>
+
+  <h3>What you charge when the bar is hit</h3>
+  <p>Price on <strong>active bench consultants per month.</strong> Vendors already think in bench headcount because it is their cost centre, it is predictable for you, and there is nothing to argue about at month end.</p>
+
+  <table>
+    <thead><tr><th>Option</th><th>How it works</th><th class="r">40-person bench</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Per bench seat</td><td>$30 per active consultant per month</td><td class="r">$1,200 / mo</td><td><span class="tag o">Recommended</span></td></tr>
+      <tr><td class="k">Per placement</td><td>$500 per placement made through the platform</td><td class="r">lumpy</td><td>Easier first sale, but you will argue about attribution every time</td></tr>
+      <tr><td class="k">Per submission</td><td>A few dollars per submission sent</td><td class="r">~$400 / mo</td><td>Rewards volume, which is the wrong behaviour to pay for</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Recommendation:</strong> lead with per-seat. Offer per-placement only to a customer who will not sign otherwise, and treat it as a stepping stone rather than a plan.</p>
+
+  <h3>Unit economics, per vendor, per month</h3>
+  <p>Assume a forty-person bench, forty requirements a day, twenty-two working days.</p>
+  <table>
+    <thead><tr><th>Line</th><th>Working</th><th class="r">Cost</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Scoring</td><td>880 requirements, filtered to ~15 candidates each, ≈13,200 short model calls</td><td class="r">$53</td></tr>
+      <tr><td class="k">Building &amp; checking</td><td>~100 submissions, roughly 3 calls each</td><td class="r">$3</td></tr>
+      <tr><td class="k">Consultant messages</td><td>40 consultants, freshness plus consent plus outcome</td><td class="r">$8</td></tr>
+      <tr><td class="k">Hosting</td><td>Platform share per customer</td><td class="r">$12</td></tr>
+      <tr class="tot"><td class="k">Total cost</td><td>Per vendor, per month</td><td class="r">$76</td></tr>
+      <tr class="tot"><td class="k">Revenue</td><td>40 seats at $30</td><td class="r">$1,200</td></tr>
+      <tr class="tot"><td class="k">Gross margin</td><td></td><td class="r">94%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box">
+    <span class="lab">Where that margin actually comes from</span>
+    <p>One decision. <strong>Filtering the bench with plain rules before using any model.</strong> Scoring all forty people on every requirement instead of the fifteen worth scoring would turn $53 into roughly $140, and returning an answer would take minutes instead of seconds.</p>
+    <p>Model prices move constantly. Re-check these numbers every quarter and keep the filter tight — it is the difference between a 94% margin and a 70% one.</p>
+  </div>
+
+  <h3>Twelve months, roughly</h3>
+  <table>
+    <thead><tr><th>Month</th><th>What is happening</th><th class="r">Paying</th><th class="r">Monthly revenue</th></tr></thead>
+    <tbody>
+      <tr><td class="m">1–3</td><td>One vendor, free. Prove the five-a-day bar</td><td class="r">0</td><td class="r">$0</td></tr>
+      <tr><td class="m">4–6</td><td>Three to five vendors. First two start paying</td><td class="r">2–3</td><td class="r">$3,600</td></tr>
+      <tr><td class="m">7–9</td><td>Ten to fifteen vendors. Client side begins</td><td class="r">10</td><td class="r">$12,000</td></tr>
+      <tr><td class="m">10–12</td><td>Twenty-five vendors, first client accounts</td><td class="r">25</td><td class="r">$30,000</td></tr>
+    </tbody>
+  </table>
+  <p>That is a <strong>$360,000 annual run rate at the end of year one</strong> — unglamorous, achievable, and entirely dependent on the first three months working. Nothing after month three matters if the bar is never hit.</p>
+
+  <div class="kpi">
+    <div><div class="v">5 / day</div><div class="l">good submissions per requirement — the bar</div></div>
+    <div><div class="v">90 days</div><div class="l">before the pricing conversation happens regardless</div></div>
+    <div><div class="v">$30</div><div class="l">per active bench consultant per month</div></div>
+    <div><div class="v">94%</div><div class="l">gross margin once the filter is tight</div></div>
+  </div>
+</div>
+
+<!-- ============ PART 4 ============ -->
+<div class="page">
+  <p class="part">Part four</p>
+  <h2>The product</h2>
+  <p class="lede">Enough to brief an engineer. The full specification is in the two build documents.</p>
+  <div class="hr"></div>
+
+  <h3>The four graph shapes, and where each belongs</h3>
+  <table>
+    <thead><tr><th>Shape</th><th>Use it when</th><th>Where, here</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Chain</td><td>Each step needs the last one's output</td><td>Assembling a submission package</td></tr>
+      <tr><td class="k">Diamond</td><td>Many independent judgements, and serial is too slow</td><td>Scoring the bench; screening submissions; judging one person on five separate axes</td></tr>
+      <tr><td class="k">Branch</td><td>The lane is a recorded fact, never a guess</td><td>W2 vs corp-to-corp vs 1099</td></tr>
+      <tr><td class="k">Loop</td><td>Being wrong is expensive and correctness is testable</td><td>Checking a submission before it is sent; checking a screening score</td></tr>
+    </tbody>
+  </table>
+
+  <h3>The one path, end to end</h3>
+  <p>A requirement arrives → <strong>branch</strong> on contract type → <strong>filter with plain rules</strong>, 200 people down to 15 → <strong>diamond</strong>, score all 15 at once → ranked list with evidence → a recruiter picks → <strong>chain</strong> builds the package → <strong>loop</strong> checks and fixes, three attempts at most → sent.</p>
+
+  <div class="box">
+    <span class="lab">The one engineering rule that matters most</span>
+    <p><strong>Use code, not a model, wherever a rule will do.</strong> Rate inside range, permit unexpired, document present, available in the window — that is arithmetic and date comparison. It is free, instant, and right every time.</p>
+    <p>Save the model for the single judgement that needs one: is this skill claim actually evidenced in the CV? Roughly half of what looks like AI in this product is not AI at all, and that is a feature.</p>
+  </div>
+
+  <h3>Sixteen agents, three of which are the product</h3>
+  <p>Seven on the vendor side, seven on the client side, two shared. The three <strong>check</strong> agents — submission check, screening check, requirement quality check — are where the loops turn. Build those properly and the rest is ordinary data entry.</p>
+
+  <div class="box bad">
+    <span class="lab">The rule you cannot break</span>
+    <p>A person must review a sample of the screening every week. Ten items is enough. Never let an agent be the only thing checking another agent's work.</p>
+    <p>An agent grading its own homework will report 96% accuracy while your clients quietly stop calling. By the time you find out, the ledger has been lying for months and there is nothing to reconstruct.</p>
+  </div>
+
+  <h3>Where it gets built</h3>
+  <p>Base44 fits the first version — database, logins, file storage, scheduled jobs, and Workflows for the loops. One serious caveat: <strong>only the front-end code exports.</strong> The backend and database stay on their infrastructure.</p>
+  <p>So from week one, run a weekly job that dumps every record to your own storage as JSON. Your match history and outcome data is the only asset that compounds, and it must never live in exactly one place you do not control.</p>
+</div>
+
+<!-- ============ PART 5 ============ -->
+<div class="page">
+  <p class="part">Part five</p>
+  <h2>Getting customers</h2>
+  <p class="lede">The whole plan turns on the first three phone calls. Everything else is downstream of them.</p>
+  <div class="hr"></div>
+
+  <h3>Who to call</h3>
+  <table>
+    <thead><tr><th>Call</th><th>Why them</th></tr></thead>
+    <tbody>
+      <tr><td class="k">Your existing Etyme customers</td><td>They already trust you, they have benches, and you know their operation without asking a single discovery question. Start here on Monday.</td></tr>
+      <tr><td class="k">Mid-size IT staffing firms, 20–100 on the bench</td><td>Big enough that idle bench genuinely hurts, small enough to decide in two weeks.</td></tr>
+      <tr><td class="k">Prime vendors who receive submissions</td><td>They feel the duplicate problem most sharply. Deduplication alone will sell them.</td></tr>
+      <tr><td class="k"><span class="tag n">Not</span> enterprise procurement</td><td>Twelve to eighteen months to buy. You need revenue before you need logos.</td></tr>
+      <tr><td class="k"><span class="tag n">Not</span> CTOs or Heads of AI</td><td>They buy pilots. Pilots die, and their budget vanishes in a downturn.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>What to say — and what not to</h3>
+  <div class="box good">
+    <span class="lab">The call, roughly</span>
+    <p>"You've got people sitting on the bench and a hundred requirement emails a day you can't read properly. Give me your bench and one day's requirements. Tomorrow morning I'll show you who fits what, with the evidence. It's free until I'm putting five good submissions a day in front of you. If I never get there, you never pay."</p>
+  </div>
+  <p><strong>Do not say AI.</strong> Not once. Say faster, say cheaper, say here is the evidence. Staffing owners have been pitched AI matching for a decade and it was keyword search with a percentage on the front. The word costs you credibility rather than buying it.</p>
+
+  <h3>The first ninety days</h3>
+  <div class="step"><span class="n">01</span><div><h4>Week 1 — three phone calls</h4><p>Old customers. Ask two questions: how many are on your bench right now, and how many requirement emails do you get a day. Do not pitch. Just get the numbers.</p></div></div>
+  <div class="step"><span class="n">02</span><div><h4>Week 2 — write down what "done right" means</h4><p>For one job type only. No code. If you cannot write the checklist, you do not have a product yet. This is the hardest step and it is entirely unglamorous.</p></div></div>
+  <div class="step"><span class="n">03</span><div><h4>Weeks 3–5 — build the bench board and the triage agent</h4><p>Requirements pasted in by hand. No client side. No marketplace. One vendor.</p></div></div>
+  <div class="step"><span class="n">04</span><div><h4>Weeks 6–8 — turn on the consultant messages</h4><p>Freshness ping and right-to-represent. This is what keeps the scoring honest, and it is where most of your differentiation lives.</p></div></div>
+  <div class="step"><span class="n">05</span><div><h4>Weeks 9–12 — close the loop and chase the bar</h4><p>Submission builder, checker, outcome capture. Track submissions per day per requirement daily, in front of the customer.</p></div></div>
+
+  <div class="box">
+    <span class="lab">The only measure that matters in month three</span>
+    <p>Good submissions per day, per requirement. Not users, not logins, not model accuracy, not requirements processed. If that number reaches five, you have a business. If it stalls at two, stop and find out why before writing another feature.</p>
+  </div>
+</div>
+
+<!-- ============ PART 6 — HOMEPAGE ============ -->
+<div class="page">
+  <p class="part">Part six</p>
+  <h2>The homepage</h2>
+  <p class="lede">Section by section, with the words to use. Build it in this order, top to bottom.</p>
+  <div class="hr"></div>
+
+  <h3>The one decision that shapes everything</h3>
+  <p>A two-sided page has one trap: <strong>"join our marketplace" fails when the marketplace is empty.</strong> Somebody signs up, finds nothing there, and never returns. You get one visit from each person and you spend it badly.</p>
+  <p>So the page sells each side something that <strong>works without the other side existing</strong>. A vendor gets triage and checking against their own bench with zero clients present. A client gets requirement checking and screened submissions while keeping the vendors they already use.</p>
+
+  <div class="box good">
+    <span class="lab">Say the honest thing</span>
+    <p>Do not invent logos, customer counts or testimonials. Say plainly that you are working with a small first group. To the operators you actually want, that is more attractive than fake scale — and it is true, which means you never have to remember what you claimed.</p>
+  </div>
+
+  <h3>Section 1 — the top of the page</h3>
+  <div class="wire">
+    <div class="bar">Hero · dark band · headline, one paragraph, two buttons, one product panel</div>
+    <div class="body">
+      <p class="copy">The first good submission wins</p>
+      <p class="copy-sub">Etyme scores every requirement against your bench in seconds, builds the submission, and checks it before it leaves. Clients get people who actually fit — deduplicated, scored, and evidenced.</p>
+      <p><span class="tag a">Button 1</span> &nbsp;I have a bench →&nbsp;&nbsp; <span class="tag c">Button 2</span> &nbsp;I'm hiring →</p>
+      <p class="note">Under the buttons: <b>"No card. Start with ten consultants, or one requirement."</b> Right-hand side: a panel showing a real requirement scored against three consultants — and one of them <b>flagged in red for being over rate</b>. Showing the software say no is more convincing than three green ticks.</p>
+    </div>
+  </div>
+
+  <h3>Section 2 — two doors</h3>
+  <div class="two">
+    <div class="wire">
+      <div class="bar">If you supply people</div>
+      <div class="body">
+        <p class="copy">Put your bench to work</p>
+        <p class="copy-sub">Every requirement that lands in your inbox, scored against your own people in seconds — before your competitor has finished reading it.</p>
+        <p class="note">Button: <b>Add your bench.</b> Under it: "Upload ten CVs. See them scored against a live requirement within the hour."</p>
+      </div>
+    </div>
+    <div class="wire">
+      <div class="bar">If you're hiring</div>
+      <div class="body">
+        <p class="copy">Stop reading bad submissions</p>
+        <p class="copy-sub">Write a requirement that can actually be filled, send it to the right vendors, and get back a shortlist you can trust — with the proof attached.</p>
+        <p class="note">Button: <b>Post one requirement.</b> Under it: "Try it on a role you're struggling with. Keep your current vendors."</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Section 3 — how a submission moves</h3>
+  <p>Four steps across the page. Make the third one visually louder than the others — it is the part nobody else does.</p>
+  <table>
+    <thead><tr><th>Step</th><th>Heading</th><th>The words underneath</th></tr></thead>
+    <tbody>
+      <tr><td class="m">01</td><td class="k">Scored</td><td>A requirement arrives. Everyone on your bench is ranked against it, with a reason for each score.</td></tr>
+      <tr><td class="m">02</td><td class="k">Built</td><td>Pick someone. The CV, summary, rate and compliance documents are assembled into a submission.</td></tr>
+      <tr><td class="m">03</td><td class="k"><span class="tag a">Checked</span></td><td>Before it leaves: is the rate in range, are the documents valid, is every skill claim actually in the CV? Anything failing comes back to be fixed.</td></tr>
+      <tr><td class="m">04</td><td class="k">Learned</td><td>The outcome comes back — hired, or rejected and why. Next month the scoring is sharper for it.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="page">
+  <h3>Section 4 — every match shows its working</h3>
+  <p>This is the section that earns trust, and the one to fight for if somebody wants the page shorter. Staffing buyers have been sold AI matching for a decade and it was keyword search with a percentage bolted on the front.</p>
+  <div class="wire">
+    <div class="bar">Left column · the argument</div>
+    <div class="body">
+      <p class="copy">Every match shows its working</p>
+      <p class="copy-sub">Etyme never gives you a score without the evidence behind it. Every point of a match is tied to a line in the CV. If it can't be found, it isn't claimed.</p>
+      <p class="copy-sub">The dull checks — rate ranges, permit expiry, missing documents — are done by plain rules, not by a model. They're right every time, and they're free.</p>
+      <p class="copy-sub"><strong>And a real person reviews a sample every week.</strong> Software that grades its own homework will tell you it's brilliant while your clients quietly stop calling.</p>
+    </div>
+  </div>
+  <div class="wire">
+    <div class="bar">Right column · what a 94% is made of</div>
+    <div class="body">
+      <table style="margin:0;">
+        <tbody>
+          <tr><td class="m" style="color:var(--ok)">✓ 40/40</td><td>Spring Boot, 7 years — <em>"Spring Boot microservices, 2018–present", CV p.2</em></td></tr>
+          <tr><td class="m" style="color:var(--ok)">✓ 25/25</td><td>AWS in production — <em>"EKS, RDS, migrated 40 services", CV p.2</em></td></tr>
+          <tr><td class="m" style="color:var(--ok)">✓ 15/15</td><td>Based in Dallas — <em>address on file, hybrid acceptable</em></td></tr>
+          <tr><td class="m" style="color:var(--no)">✕ 0/5</td><td>Kafka, nice to have — <em>not found anywhere in the CV</em></td></tr>
+        </tbody>
+      </table>
+      <p class="note">Include the <b>failing row</b>. A page that admits what it could not find is believed; a page of green ticks is not.</p>
+    </div>
+  </div>
+
+  <h3>Section 5 — a promise to consultants</h3>
+  <p>New section, and it follows directly from Part 2. It reassures consultants and — more importantly — it tells vendors exactly where the line is.</p>
+  <div class="wire">
+    <div class="bar">Short band · three sentences</div>
+    <div class="body">
+      <p class="copy">Nobody gets submitted without saying yes</p>
+      <p class="copy-sub">Every consultant is asked before their name goes anywhere, and told what happened afterwards — even when the answer is no. Their details are never shared between vendors, and we never approach anyone about a role from a different agency.</p>
+      <p class="note">This paragraph does two jobs. Consultants read it as respect. <b>Vendors read it as a promise you won't steal their bench</b> — which is the first question every one of them will ask.</p>
+    </div>
+  </div>
+
+  <h3>Section 6 — the early access band</h3>
+  <div class="wire">
+    <div class="bar">Dark band · honest positioning</div>
+    <div class="body">
+      <p class="copy">We're taking on a first group now</p>
+      <p class="copy-sub">Etyme has run contract staffing back office — contracts, timesheets, invoicing, compliance — for years. The scoring and checking layer is new, and we're building it with a small number of firms rather than launching at everyone.</p>
+      <p class="note">List beside it: set-up takes an afternoon · start with ten consultants or one role · keep your ATS and your vendors · your data exports in full, any time · you talk to the people building it. <b>Add: free until we're delivering five good submissions a day.</b></p>
+    </div>
+  </div>
+
+  <h3>Section 7 — the close</h3>
+  <div class="wire">
+    <div class="bar">Centred · repeat the two buttons</div>
+    <div class="body">
+      <p class="copy">Start with one requirement</p>
+      <p class="copy-sub">Bring a role you're struggling to fill, or a bench that's been quiet. You'll know within an hour whether this is worth your time.</p>
+    </div>
+  </div>
+
+  <h3>What to leave off</h3>
+  <ul class="plain">
+    <li><strong>Invented statistics</strong> — no "3× faster", no "10,000 consultants". Claim what the software does, not results you cannot yet evidence</li>
+    <li><strong>Logos and testimonials you do not have</strong> — an empty wall of grey boxes is worse than no wall</li>
+    <li><strong>The word AI in the headline</strong> — it lowers trust with this buyer rather than raising it</li>
+    <li><strong>Pricing</strong> — while it is free until the bar, say that instead. It is a stronger offer than any number</li>
+    <li><strong>A long form</strong> — vendor: company, bench size, email. Client: role, city, rate range, email. Everything else comes on the call</li>
+  </ul>
+</div>
+
+<!-- ============ PART 7 ============ -->
+<div class="page">
+  <p class="part">Part seven</p>
+  <h2>What kills this</h2>
+  <p class="lede">Ranked by how likely they are to actually happen, not by how dramatic they sound.</p>
+  <div class="hr"></div>
+
+  <table>
+    <thead><tr><th>Risk</th><th>What it looks like</th><th>What you do</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="k"><span class="tag n">1</span> The bar is never hit</td>
+        <td>Three months in you are delivering two good submissions a day, not five. Nobody ever starts paying.</td>
+        <td>Track it daily from week one. If it stalls at two, the problem is almost always the requirement quality or the bench data — not the model. Fix those before building anything else.</td>
+      </tr>
+      <tr>
+        <td class="k"><span class="tag n">2</span> Vendors won't upload the bench</td>
+        <td>"You'll go around me to my consultants." Without benches there is nothing to score and no product.</td>
+        <td>The trust boundary in Part 2, in the contract and on the homepage, before the first call. This is a policy problem, not a technical one.</td>
+      </tr>
+      <tr>
+        <td class="k"><span class="tag n">3</span> Consultants ignore the messages</td>
+        <td>Reply rates under 20%. The bench stays stale and the scoring degrades quietly.</td>
+        <td>Lead with the outcome notice, not the ping. Once your texts are the only ones that tell them anything true, the other two get answered.</td>
+      </tr>
+      <tr>
+        <td class="k"><span class="tag n">4</span> The checker is not independent</td>
+        <td>Dashboards look excellent, clients get quietly worse candidates, and you find out from churn.</td>
+        <td>Ten human-reviewed samples a week from day one. Cheap now, unrecoverable later.</td>
+      </tr>
+      <tr>
+        <td class="k"><span class="tag n">5</span> Model costs run away</td>
+        <td>Someone removes the rules filter "to improve accuracy" and the bill goes up fivefold.</td>
+        <td>Alert on cost per submission, not on error rate. Make it a number the whole team sees weekly.</td>
+      </tr>
+      <tr>
+        <td class="k"><span class="tag n">6</span> The incumbents ship it</td>
+        <td>Bullhorn or Ceipal add scoring to a product every vendor already pays for.</td>
+        <td>Likely, and survivable. They will ship scores without evidence and without an independent checker, because that is what a large roadmap produces. Compete on the working, the consent, and the honesty — not on having a score.</td>
+      </tr>
+      <tr>
+        <td class="k"><span class="tag n">7</span> Platform lock-in</td>
+        <td>You want to leave Base44 and the backend cannot come with you.</td>
+        <td>Weekly full export from week one. Keep the data model plain and portable.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>The three things that decide it</h3>
+  <div class="step"><span class="n">01</span><div><h4>Can you write down what "done right" means?</h4><p>For one job type, on one page, checkable. If not, there is no product yet — only a demo.</p></div></div>
+  <div class="step"><span class="n">02</span><div><h4>Will three old customers give you their bench?</h4><p>You will know inside a week. If they will not, the trust boundary is not clear enough yet.</p></div></div>
+  <div class="step"><span class="n">03</span><div><h4>Does the number reach five a day?</h4><p>Everything in this plan after month three assumes it does. Nothing else is worth building until it has.</p></div></div>
+
+  <div class="box">
+    <span class="lab">Last word</span>
+    <p>You are not betting on AI working. You are betting that a staffing firm will pay for faster, better-evidenced submissions — which they have paid for in every form for thirty years. The agents are just the cheapest way anyone has yet found to deliver it.</p>
+    <p>If the agents plateau at 60% you still have a profitable business with unusually good tooling. That floor is the best feature of this plan.</p>
+  </div>
+
+  <p class="foot">Etyme business plan · working draft · every figure is an assumption to be tested against a real customer, not a forecast</p>
+</div>
