@@ -162,6 +162,26 @@ export async function POST(
 
   const domain = companyDomain(email)
 
+  // ── The domain, only if nobody else holds it ────────────────────────
+  //
+  // Company.domain is globally unique, and the same firm can be listed
+  // by two different clients — two shells, one Apex Softech. The first
+  // person to claim takes the domain; the second would collide and get
+  // a 500 for doing nothing wrong.
+  //
+  // So the second claim goes through without the domain, and says so.
+  // Joining them into one company is a merge, and a merge that happens
+  // silently at sign-in is how a firm loses its history.
+  const domainHeldBy =
+    domain && invite.company.domain == null
+      ? await prisma.company.findFirst({
+          where: { domain, id: { not: invite.companyId } },
+          select: { id: true, name: true },
+        })
+      : null
+
+  const takeDomain = domain != null && invite.company.domain == null && domainHeldBy == null
+
   await prisma.$transaction([
     prisma.context.create({
       data: {
@@ -176,11 +196,12 @@ export async function POST(
       where: { id: invite.companyId },
       data: {
         claimedAt: new Date(),
-        // Only where the record had none. A domain that came from a
-        // paste is a guess; one that came from the person who signed in
-        // is at least their own address. Verification stays where it is
-        // — the OAuth tenant is the authority and this is not it.
-        ...(invite.company.domain == null && domain ? { domain } : {}),
+        // Only where the record had none and nobody else holds it. A
+        // domain that came from a paste is a guess; one that came from
+        // the person who signed in is at least their own address.
+        // Verification stays where it is — the OAuth tenant is the
+        // authority and this is not it.
+        ...(takeDomain ? { domain } : {}),
       },
     }),
     prisma.supplierInvite.update({
@@ -194,6 +215,12 @@ export async function POST(
       companyId: invite.companyId,
       company: invite.company.name,
       already: false,
+      // Said out loud rather than swallowed. Somebody has to decide
+      // whether these are one firm, and it is not us at sign-in.
+      alsoHere: domainHeldBy
+        ? `Another record for ${domainHeldBy.name} is already here on the same ` +
+          `domain. This one stays separate until somebody joins them.`
+        : null,
       landing: '/dashboard/invitations',
     },
   })

@@ -104,9 +104,165 @@ function daysUntil(iso: string): number {
 
 // ── One invitation ─────────────────────────────────────────
 
-function InvitationCard({ inv, onRespond }: {
+/**
+ * Answering a role by pasting one CV.
+ *
+ * The end of the invitation loop and the part that was missing. A client
+ * listed this supplier and sent them a role; asking them to build a
+ * bench before they can answer it is exactly the friction the invitation
+ * existed to skip.
+ *
+ * So the box is the CV. Everything else on this form is either read out
+ * of it or is a number the recruiter already has in their head. The
+ * bench is what accumulates from doing this.
+ */
+function AnswerBox({ inv, onSent }: { inv: Invitation; onSent: () => void }) {
+  const [cv, setCv] = useState('')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [rate, setRate] = useState('')
+  const [workAuth, setWorkAuth] = useState('')
+  const [mayRepresent, setMayRepresent] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState<string | null>(null)
+
+  const ceiling = inv.band.payMax
+
+  async function send() {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/invitations/${inv.id}/answer`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          cv,
+          name: name || undefined,
+          email: email || undefined,
+          rateCents: rate ? Math.round(Number(rate) * 100) : undefined,
+          workAuth: workAuth || undefined,
+          mayRepresent,
+        }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      setSent(body.data.says)
+      setCv(''); setName(''); setEmail(''); setRate(''); setWorkAuth(''); setMayRepresent(false)
+      onSent()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="mt-5 border-t border-etyme-rule pt-4">
+        <p className="text-sm" style={{ color: 'var(--color-verified)' }}>{sent}</p>
+        <button
+          onClick={() => setSent(null)}
+          className="mt-3 text-xs text-etyme-muted underline"
+        >
+          Send another
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-5 border-t border-etyme-rule pt-4">
+      <Lbl>Answer this with a CV</Lbl>
+      <p className="text-xs text-etyme-muted mt-1 mb-3">
+        Paste it. Nothing has to be set up first — they go on your bench
+        because you sent them, not the other way round.
+      </p>
+
+      <textarea
+        value={cv}
+        onChange={e => setCv(e.target.value)}
+        rows={6}
+        placeholder="Paste the CV here"
+        className="w-full px-3 py-2 border border-etyme-rule rounded bg-etyme-raised font-mono
+                   text-xs leading-relaxed text-etyme-ink placeholder:text-etyme-faint
+                   focus:outline-none focus:border-etyme-action"
+      />
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+        <input
+          value={name} onChange={e => setName(e.target.value)}
+          placeholder="Name (read from CV)"
+          className="px-2 py-1.5 border border-etyme-rule rounded bg-etyme-raised text-xs
+                     text-etyme-ink placeholder:text-etyme-faint"
+        />
+        <input
+          value={email} onChange={e => setEmail(e.target.value)}
+          placeholder="Email (read from CV)"
+          className="px-2 py-1.5 border border-etyme-rule rounded bg-etyme-raised text-xs
+                     text-etyme-ink placeholder:text-etyme-faint"
+        />
+        <input
+          value={rate} onChange={e => setRate(e.target.value)}
+          inputMode="decimal"
+          placeholder={ceiling ? `Rate — up to ${money(ceiling)}` : 'Rate per hour'}
+          className="px-2 py-1.5 border border-etyme-rule rounded bg-etyme-raised text-xs
+                     text-etyme-ink placeholder:text-etyme-faint tabular-nums"
+        />
+        <select
+          value={workAuth} onChange={e => setWorkAuth(e.target.value)}
+          className="px-2 py-1.5 border border-etyme-rule rounded bg-etyme-raised text-xs text-etyme-ink"
+        >
+          <option value="">Work permit…</option>
+          <option value="US_CITIZEN">US Citizen</option>
+          <option value="GC">Green Card</option>
+          <option value="H1B">H1B</option>
+          <option value="EAD">EAD</option>
+          <option value="OPT">OPT</option>
+          <option value="TN">TN</option>
+        </select>
+      </div>
+
+      {/* Never read out of a CV. "Visa" in a CV is as likely to be a
+          payment card as a permit, and a wrong permit is how a placement
+          collapses in week two. */}
+      <p className="text-[11px] text-etyme-faint mt-1.5">
+        The permit is never read from the CV — say what they hold.
+      </p>
+
+      <label className="flex items-start gap-2 mt-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={mayRepresent}
+          onChange={e => setMayRepresent(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span className="text-xs text-etyme-muted">
+          This person knows I am putting them forward for this role. Recorded
+          against you — being submitted blind is what makes consultants stop
+          answering, and when two vendors send the same person the client
+          rejects both.
+        </span>
+      </label>
+
+      {error && <p className="mt-3 text-sm text-etyme-attention">{error}</p>}
+
+      <button
+        onClick={send}
+        disabled={busy || cv.trim().length < 60 || !mayRepresent || !rate}
+        className="mt-3 px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium
+                   hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+      >
+        {busy ? 'Sending…' : 'Send this one'}
+      </button>
+    </div>
+  )
+}
+
+function InvitationCard({ inv, onRespond, onSent }: {
   inv: Invitation
   onRespond: (id: string, action: 'accept' | 'decline', reason?: string) => Promise<void>
+  onSent: () => void
 }) {
   const [busy, setBusy] = useState(false)
   const [declining, setDeclining] = useState(false)
@@ -199,6 +355,11 @@ function InvitationCard({ inv, onRespond }: {
           {inv.message}
         </p>
       )}
+
+      {/* Once they are working it, the CV box. A supplier who has just
+          been listed by a client has no bench yet, and the whole point of
+          the invitation was that they did not need one. */}
+      {(accepted || open) && <AnswerBox inv={inv} onSent={onSent} />}
 
       {error && (
         <div className="mt-4 text-sm text-etyme-attention">{error}</div>
@@ -400,7 +561,7 @@ export default function InvitationsPage() {
       {!loading && !error && visible.length > 0 && (
         <div className="space-y-4">
           {visible.map(inv => (
-            <InvitationCard key={inv.id} inv={inv} onRespond={respond} />
+            <InvitationCard key={inv.id} inv={inv} onRespond={respond} onSent={load} />
           ))}
         </div>
       )}

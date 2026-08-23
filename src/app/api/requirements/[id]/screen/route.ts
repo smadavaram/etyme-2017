@@ -6,6 +6,7 @@ import { staffOnly } from '@/lib/seat'
 import { runLoop, lastVerdict, type Finding, type Step } from '@/lib/loop'
 import { evidencePrompt, evidenceCheck, type Evidenced } from '@/lib/checks'
 import { evaluateGovernance } from '@/lib/governance'
+import { assessFit } from '@/lib/candidate-fit'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import {
   screenRules, shortlist, notesFrom, MAX_ATTEMPTS,
@@ -53,7 +54,7 @@ export async function POST(
     select: {
       id: true, title: true, skills: true, startDate: true,
       billMax: true, openToNetwork: true, openingId: true,
-      workAuthRequired: true,
+      workAuthRequired: true, location: true,
       mirroredFromId: true, mirrors: { select: { id: true } },
     },
   })
@@ -167,6 +168,70 @@ export async function POST(
 
   const results: Screened[] = []
 
+  /**
+   * The score, computing one where nobody has.
+   *
+   * Not the match engine — that one searches a bench for people worth
+   * approaching and costs a model call. This is the other question,
+   * asked later: five people have been put forward and somebody has to
+   * choose between them today. Deterministic, instant, free, and it
+   * carries its own factors, basis and unknowns.
+   *
+   * It matters here specifically because of the honesty rule on the
+   * shortlist: one unscored arrival from a newly listed supplier drops
+   * the whole pile back to arrival order. That is the rule working
+   * exactly as designed, and a worse answer than simply scoring the
+   * newcomer.
+   */
+  async function scored(
+    sub: { personId: string; requirementId: string; rate: number },
+    profile: { id: string; skills: string[]; availableFrom: Date | null } | null,
+    ceiling: number | null
+  ): Promise<number | null> {
+    const had = scoreFor.get(sub.personId)
+    if (had != null) return had
+    if (!profile) return null
+
+    const fit = assessFit({
+      required: {
+        skills: requirement!.skills,
+        location: requirement!.location,
+        ceilingCents: ceiling ?? requirement!.billMax,
+        neededBy: requirement!.startDate,
+      },
+      candidate: {
+        skills: profile.skills,
+        headline: null,
+        location: null,
+        availableFrom: profile.availableFrom,
+      },
+      submittedRateCents: sub.rate,
+    })
+
+    const saved = await prisma.match.upsert({
+      where: {
+        requirementId_consultantId: {
+          requirementId: sub.requirementId,
+          consultantId: profile.id,
+        },
+      },
+      create: {
+        requirementId: sub.requirementId,
+        consultantId: profile.id,
+        score: fit.score,
+        confidence: fit.confidence,
+        factors: fit.factors as any,
+        basis: fit.basis,
+        unknowns: fit.unknowns,
+      },
+      update: {},
+      select: { score: true },
+    })
+
+    scoreFor.set(sub.personId, saved.score)
+    return saved.score
+  }
+
   for (const s of arrivals) {
     const attempt = s.screenAttempt + 1
     const invite = inviteFor.get(s.fromCompanyId)
@@ -206,7 +271,7 @@ export async function POST(
 
     const profile = await prisma.consultantProfile.findFirst({
       where: { personId: s.personId },
-      select: { skills: true, availableFrom: true, workAuth: true },
+      select: { id: true, skills: true, availableFrom: true, workAuth: true },
     })
 
     const arriving: Arriving = {
@@ -297,7 +362,7 @@ export async function POST(
       cleared: outcome.state === 'READY',
       heldBackFor: outcome.toFix,
       notes: notesFrom(outcome.passed),
-      score: scoreFor.get(s.personId) ?? null,
+      score: await scored(s, profile, invite?.payMax ?? null),
     })
   }
 
