@@ -102,7 +102,7 @@ export async function POST(
       )
     }
     return NextResponse.json({
-      data: { requirementId: id, ...shortlist([]), screened: 0 },
+      data: { requirementId: id, title: requirement.title, ...shortlist([]), screened: 0 },
     })
   }
 
@@ -302,7 +302,12 @@ export async function POST(
   }
 
   return NextResponse.json({
-    data: { requirementId: id, screened: results.length, ...shortlist(results) },
+    data: {
+      requirementId: id,
+      title: requirement.title,
+      screened: results.length,
+      ...shortlist(results),
+    },
   })
 }
 
@@ -329,7 +334,8 @@ export async function GET(
   const requirement = await prisma.requirement.findUnique({
     where: { id },
     select: {
-      id: true, openingId: true, mirroredFromId: true,
+      id: true, title: true, location: true, billMin: true, billMax: true,
+      startDate: true, openingId: true, mirroredFromId: true,
       mirrors: { select: { id: true } },
     },
   })
@@ -399,6 +405,13 @@ export async function GET(
   return NextResponse.json({
     data: {
       requirementId: id,
+      title: requirement.title,
+      role: {
+        location: requirement.location,
+        billMin: requirement.billMin,
+        billMax: requirement.billMax,
+        startDate: requirement.startDate,
+      },
       screened: neverRun ? 0 : results.length,
       neverRun,
       ...shortlist(results),

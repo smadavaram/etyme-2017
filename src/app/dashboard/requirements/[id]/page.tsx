@@ -310,6 +310,15 @@ export default function RequirementDetailPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className={`chip ${statusCls}`}>{statusText}</span>
+            {/* What arrived, and what is worth reading. The buyer's half of
+                the same role — matching finds people, screening decides
+                which of the ones sent are worth an afternoon. */}
+            <Link
+              href={`/dashboard/requirements/${requirement.id}/pile` as any}
+              className="btn-secondary text-[12px] px-4 py-1.5"
+            >
+              The pile
+            </Link>
             {(requirement.status === 'OPEN' || requirement.status === 'DRAFT') && (
               <button
                 onClick={() => handleRunMatching(matches.length > 0)}
