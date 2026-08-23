@@ -1003,6 +1003,24 @@ model Submission {
 
   /// DRAFT · CHECKING · NEEDS_FIX · READY · SENT
   checkState     String    @default("DRAFT")
+
+  // ── The screen, from the other side ────────────────────────────────
+  //
+  // `checkState` is the sender's: is this package fit to leave. This one
+  // is the recipient's: is it worth the hiring manager's afternoon. They
+  // are different questions with different answers — a package can be
+  // perfectly assembled and still be the fourth vendor to send the same
+  // person at the highest rate.
+  //
+  // Two fields rather than reusing the sender's, because the sender must
+  // never be able to mark their own submission as having cleared the
+  // buyer's screen.
+
+  /// DRAFT · NEEDS_FIX · READY — READY means it reaches the manager.
+  screenState    String    @default("DRAFT")
+  /// Two, then a person looks. The client is waiting on somebody else's
+  /// inbox for each fix, and a third automated round is a week gone.
+  screenAttempt  Int       @default(0)
   /// Three, then it stops asking the machine and asks a person.
   checkAttempt   Int       @default(0)
   /// Set when somebody sent it anyway. A gate nobody can pass gets worked
