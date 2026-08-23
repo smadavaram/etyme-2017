@@ -2,20 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/rolloff-scan",
+      "path": "/api/cron/daily",
       "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/due-cycles",
-      "schedule": "0 6 * * *"
-    },
-    {
-      "path": "/api/cron/expire-invitations",
-      "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron/visa-watch",
-      "schedule": "0 7 * * *"
     }
   ]
 }
