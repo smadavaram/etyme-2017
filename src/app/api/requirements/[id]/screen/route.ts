@@ -8,7 +8,7 @@ import { evidencePrompt, evidenceCheck, type Evidenced } from '@/lib/checks'
 import { evaluateGovernance } from '@/lib/governance'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import {
-  screenRules, shortlist, MAX_ATTEMPTS,
+  screenRules, shortlist, notesFrom, MAX_ATTEMPTS,
   type Arriving, type Screened,
 } from '@/lib/screening'
 
@@ -53,6 +53,7 @@ export async function POST(
     select: {
       id: true, title: true, skills: true, startDate: true,
       billMax: true, openToNetwork: true, openingId: true,
+      workAuthRequired: true,
       mirroredFromId: true, mirrors: { select: { id: true } },
     },
   })
@@ -64,11 +65,21 @@ export async function POST(
     )
   }
 
-  // Everything sent to us against this role. Not everything on the role —
-  // a prime's own outgoing submissions are none of the client's business
+  // ── The seat, not the row ───────────────────────────────────────────
+  //
+  // A buyer means "everything that arrived for this job", and the same
+  // job reaches them on more than one requirement record: their own
+  // requisition, and the prime's mirror of it that a sub-vendor was
+  // submitted against. Screening one record would show nine of the ten
+  // and quietly drop the duplicate, which is the one the screen exists
+  // to catch.
+  const siblingIds = await siblingRequirements(requirement)
+
+  // Everything sent to us for that seat. Not everything on the role — a
+  // prime's own outgoing submissions are none of the client's business
   // and vice versa.
   const arrivals = await prisma.submission.findMany({
-    where: { requirementId: id, toCompanyId: companyId },
+    where: { requirementId: { in: siblingIds }, toCompanyId: companyId },
     include: {
       person: { select: { id: true, name: true } },
       fromCompany: { select: { id: true, name: true } },
@@ -97,27 +108,8 @@ export async function POST(
 
   const personIds = arrivals.map((a) => a.personId)
 
-  // ── The seat, not the row ───────────────────────────────────────────
-  //
-  // A duplicate that actually hurts arrives through two different primes,
-  // on two different requirement records that point at the same opening.
-  // Screening one row against itself would never find it.
-  const siblingIds = await siblingRequirements(requirement)
-
-  const [elsewhere, barred, invitations, agreements, priorWork, matches] =
+  const [barred, invitations, agreements, priorWork, matches] =
     await Promise.all([
-      prisma.submission.findMany({
-        where: {
-          toCompanyId: companyId,
-          personId: { in: personIds },
-          requirementId: { in: siblingIds },
-          id: { notIn: arrivals.map((a) => a.id) },
-        },
-        select: {
-          personId: true, rate: true, submittedAt: true,
-          fromCompany: { select: { name: true } },
-        },
-      }),
       prisma.blacklist.findMany({
         where: {
           companyId,
@@ -194,7 +186,18 @@ export async function POST(
         billRate: s.rate,
         requirementId: requirement.id,
       })
-      governance = g.evaluations.length ? { outcome: g.outcome, summary: g.summary } : null
+      // The evaluations, not `g.summary`. That one is already prefixed
+      // "Blocked:" for its own callers, and the screen adds its own — so
+      // the pile read "Blocked: Blocked: Peter Osei has 19 months".
+      const said = g.evaluations.filter((e) => e.outcome === g.outcome)
+      governance = g.evaluations.length
+        ? {
+            outcome: g.outcome,
+            summary:
+              said.map((e) => e.reason).join(' ') ||
+              `Clears all ${g.evaluations.length} of this client's rules.`,
+          }
+        : null
     } catch {
       // A governance engine that will not answer must not read as a pass.
       // The finding below is the honest version.
@@ -212,8 +215,8 @@ export async function POST(
       rateCents: s.rate,
       bandMaxCents: invite?.payMax ?? null,
       budgetMaxCents: requirement.billMax,
-      others: elsewhere
-        .filter((o) => o.personId === s.personId)
+      others: arrivals
+        .filter((o) => o.personId === s.personId && o.id !== s.id)
         .map((o) => ({
           vendorName: o.fromCompany.name,
           rateCents: o.rate,
@@ -221,7 +224,7 @@ export async function POST(
         })),
       submittedAt: s.submittedAt,
       workAuth: profile?.workAuth ?? null,
-      workAuthRequired: null,
+      workAuthRequired: requirement.workAuthRequired,
       availableFrom: profile?.availableFrom ?? null,
       startDate: requirement.startDate,
       invited: invite != null && invite.status !== 'DECLINED',
@@ -293,6 +296,7 @@ export async function POST(
       submittedAt: s.submittedAt,
       cleared: outcome.state === 'READY',
       heldBackFor: outcome.toFix,
+      notes: notesFrom(outcome.passed),
       score: scoreFor.get(s.personId) ?? null,
     })
   }
@@ -322,8 +326,27 @@ export async function GET(
   const { id } = await params
   const companyId = caller.company!.id
 
+  const requirement = await prisma.requirement.findUnique({
+    where: { id },
+    select: {
+      id: true, openingId: true, mirroredFromId: true,
+      mirrors: { select: { id: true } },
+    },
+  })
+
+  if (!requirement) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No role by that id.' } },
+      { status: 404 }
+    )
+  }
+
+  // The same seat the screen ran against, or the read-back would be
+  // missing exactly the rows the screen held back.
+  const siblingIds = await siblingRequirements(requirement)
+
   const arrivals = await prisma.submission.findMany({
-    where: { requirementId: id, toCompanyId: companyId },
+    where: { requirementId: { in: siblingIds }, toCompanyId: companyId },
     include: {
       person: { select: { id: true, name: true } },
       fromCompany: { select: { name: true } },
@@ -345,7 +368,7 @@ export async function GET(
   }
 
   const matches = await prisma.match.findMany({
-    where: { requirementId: id },
+    where: { requirementId: { in: siblingIds } },
     select: { score: true, consultant: { select: { personId: true } } },
   })
   const scoreFor = new Map(matches.map((m) => [m.consultant.personId, m.score]))
@@ -366,6 +389,7 @@ export async function GET(
       submittedAt: s.submittedAt,
       cleared: s.screenState === 'READY',
       heldBackFor: outcome.toFix,
+      notes: notesFrom(outcome.passed),
       score: scoreFor.get(s.personId) ?? null,
     })
   }

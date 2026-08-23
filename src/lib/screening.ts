@@ -153,7 +153,7 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       checker: 'RULE',
       verdict: 'FAIL',
       reason: a.barred.reason
-        ? `${a.personName} is on your do-not-submit list: ${a.barred.reason}. Held back.`
+        ? `${a.personName} is on your do-not-submit list: ${sentence(a.barred.reason)} Held back.`
         : `${a.personName} is on your do-not-submit list. Held back.`,
       evidence: `Added ${a.barred.at.toISOString().slice(0, 10)}.`,
     })
@@ -420,6 +420,16 @@ export interface Screened {
   /** Why it did not, where it did not. */
   heldBackFor: Finding[]
   /**
+   * What passed but is still worth saying out loud.
+   *
+   * A screen that only ever speaks to refuse is a filter. The three
+   * things worth surfacing on a candidate who cleared are the ones
+   * nobody in the building knows: that they have worked here before,
+   * that three other vendors sent them and at what prices, and that a
+   * governance rule warned rather than blocked.
+   */
+  notes: Finding[]
+  /**
    * The match score, where one has been computed.
    *
    * Null is honest and common. Ranking silently on zero would put every
@@ -448,6 +458,29 @@ export interface Shortlist {
  * judgement that was never made. A ranking nobody can account for is the
  * thing this product exists to replace.
  */
+/**
+ * The passing findings a person should still read.
+ *
+ * Deliberately a short list. Every check that passes could report itself
+ * and then nobody reads any of them.
+ */
+export const WORTH_SAYING: string[] = [
+  'WORKED_HERE_BEFORE',
+  'ALREADY_SUBMITTED',
+  'GOVERNANCE',
+]
+
+export function notesFrom(passed: Finding[]): Finding[] {
+  return passed.filter(
+    (f) =>
+      WORTH_SAYING.includes(f.code) &&
+      // The ordinary passes say "only vendor to put this person forward"
+      // and "clears your governance rules", which is noise on every row.
+      // Evidence, or a warning, means there is something to read.
+      (f.evidence != null || /warning/i.test(f.reason))
+  )
+}
+
 export function shortlist(all: Screened[], size: number = SHORTLIST): Shortlist {
   const cleared = all.filter((s) => s.cleared)
   const heldBack = all.filter((s) => !s.cleared)
@@ -514,6 +547,12 @@ export function plainly(code: string): string {
 }
 
 // ── Small readers ─────────────────────────────────────────────────────
+
+/** Somebody's own note, punctuated once rather than twice. */
+function sentence(text: string): string {
+  const t = text.trim()
+  return /[.!?]$/.test(t) ? t : `${t}.`
+}
 
 function hourly(cents: number): string {
   const d = cents / 100

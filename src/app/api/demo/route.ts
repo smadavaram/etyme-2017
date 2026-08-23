@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 import { prisma } from '@/lib/db'
 import { seedDemoCompany, DEMO_DAYS } from '@/lib/demo-seed'
+import { seedDemoClientCompany } from '@/lib/demo-seed-client'
 import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor } from '@/lib/demo-session'
 
 /**
@@ -18,11 +19,27 @@ import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor } from '@/lib/demo-ses
  * product was any good.
  */
 
+/**
+ * Which chair the visitor sits in.
+ *
+ * Not a toggle inside one workspace. A client and a vendor see different
+ * companies, different navigation and different data, and a demo that
+ * pretended one account could be both would be demonstrating a product
+ * we do not sell.
+ */
+export type Side = 'HIRING' | 'BENCH'
+
 /** Names that read like a staffing firm without naming a real one. */
 const NAMES = [
   'Halloway Talent', 'Brightmoor Staffing', 'Kestrel Consulting',
   'Alderway Partners', 'Marchfield Group', 'Two Rivers Talent',
   'Pinehurst Staffing', 'Norwood Consulting',
+]
+
+/** And names that read like a company that buys contract staff. */
+const BUYERS = [
+  'Northfield Instruments', 'Calder Manufacturing', 'Harlow Health',
+  'Ravensmere Energy', 'Stanmore Logistics', 'Ashcombe Financial',
 ]
 
 export async function POST(request: NextRequest) {
@@ -42,9 +59,16 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Which door they came through. Defaults to the buyer's chair: the
+  // demand side is the one being sold first, and a visitor who arrives
+  // with no preference should land where the product is sharpest.
+  const body = await request.json().catch(() => ({}))
+  const side: Side = body?.side === 'BENCH' ? 'BENCH' : 'HIRING'
+
   const handle = randomBytes(6).toString('hex')
   const email = addressFor(handle)
-  const companyName = NAMES[Math.floor(Math.random() * NAMES.length)]
+  const pool = side === 'BENCH' ? NAMES : BUYERS
+  const companyName = pool[Math.floor(Math.random() * pool.length)]
   const slug = `demo-${handle}`
 
   const person = await prisma.person.create({
@@ -53,7 +77,8 @@ export async function POST(request: NextRequest) {
 
   let seeded
   try {
-    seeded = await seedDemoCompany({
+    const fill = side === 'BENCH' ? seedDemoCompany : seedDemoClientCompany
+    seeded = await fill({
       personId: person.id,
       personName: person.name,
       companyName,
@@ -80,6 +105,8 @@ export async function POST(request: NextRequest) {
       companyId: seeded.companyId,
       companyName: seeded.companyName,
       counts: seeded.counts,
+      side,
+      landing: side === 'BENCH' ? '/dashboard' : '/dashboard/program',
       expiresInDays: DEMO_DAYS,
       resumed: false,
     },

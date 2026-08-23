@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  screenRules, shortlist, summarise, plainly, SHORTLIST,
+  screenRules, shortlist, summarise, plainly, notesFrom, SHORTLIST,
   type Arriving, type Screened,
 } from '@/lib/screening'
 import { decide, type Finding } from '@/lib/loop'
@@ -53,6 +53,7 @@ function screened(over: Partial<Screened> = {}): Screened {
     submittedAt: new Date('2026-08-20T09:00:00Z'),
     cleared: true,
     heldBackFor: [],
+    notes: [],
     score: null,
     ...over,
   }
@@ -397,5 +398,44 @@ describe('the reason codes read as English', () => {
     expect(plainly('IN_BUDGET')).toBe('over budget')
     expect(plainly('ALREADY_SUBMITTED')).toBe('sent by somebody else first')
     expect(plainly('GOVERNANCE')).toBe('blocked on tenure or a break in service')
+  })
+})
+
+describe('what a cleared candidate still gets told about', () => {
+  it('surfaces somebody who has worked here before', () => {
+    const notes = notesFrom(
+      screenRules(
+        arriving({ workedHereBefore: { months: 14, lastEnded: new Date('2025-06-30') } }),
+        NOW
+      ).filter((f) => f.verdict === 'PASS')
+    )
+    expect(notes.map((n) => n.code)).toContain('WORKED_HERE_BEFORE')
+  })
+
+  it('surfaces what the same person costs from the vendors who came later', () => {
+    const notes = notesFrom(
+      screenRules(
+        arriving({
+          others: [{ vendorName: 'Vertex', rateCents: 9600, submittedAt: new Date('2026-08-25') }],
+        }),
+        NOW
+      ).filter((f) => f.verdict === 'PASS')
+    )
+    expect(notes.find((n) => n.code === 'ALREADY_SUBMITTED')?.evidence).toMatch(/Vertex \$96/)
+  })
+
+  it('surfaces a governance warning that went through', () => {
+    const notes = notesFrom(
+      screenRules(
+        arriving({ governance: { outcome: 'WARN', summary: 'outside the usual rate band' } }),
+        NOW
+      ).filter((f) => f.verdict === 'PASS')
+    )
+    expect(notes.map((n) => n.code)).toContain('GOVERNANCE')
+  })
+
+  it('says nothing on an ordinary clean submission, because a screen that always speaks is noise', () => {
+    const notes = notesFrom(screenRules(arriving(), NOW).filter((f) => f.verdict === 'PASS'))
+    expect(notes).toHaveLength(0)
   })
 })

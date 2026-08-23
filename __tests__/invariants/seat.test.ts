@@ -133,8 +133,26 @@ describe('who may see a role, and who may see the shortlist behind it', () => {
     expect(scope.OR).toEqual([
       { companyId: 'cloudepa' },
       { invitations: { some: { toCompanyId: 'cloudepa' } } },
-      { openToNetwork: true, status: 'OPEN' },
+      { openToNetwork: true, status: 'OPEN', company: { isDemo: false } },
     ])
+  })
+
+  it('never shows a real company a stranger\u2019s demo sandbox', () => {
+    // Open-to-network is the one branch that crosses a company boundary,
+    // so it is the one that has to carry the wall.
+    const scope = requirementScope(staff()) as any
+    expect(scope.OR[2].company).toEqual({ isDemo: false })
+  })
+
+  it('keeps a demo visitor off the network entirely', () => {
+    // A sandbox has its own demand seeded into it. Letting it read the
+    // open market showed a visitor three real customers\u2019 open roles.
+    const visitor = staff({
+      company: { ...staff().company!, isDemo: true },
+    })
+    const scope = requirementScope(visitor) as any
+    expect(scope.OR).toHaveLength(2)
+    expect(scope.OR.some((c: any) => c.openToNetwork)).toBe(false)
   })
 
   it('drops the open market for a firm that has shut its outside access', () => {

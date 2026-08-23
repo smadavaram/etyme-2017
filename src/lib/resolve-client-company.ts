@@ -288,7 +288,18 @@ export function requirementScope(
     { companyId: id },
     { invitations: { some: { toCompanyId: id } } },
   ]
-  if (outside.ok) visible.push({ openToNetwork: true, status: 'OPEN' })
+
+  // Demo and real are separate universes.
+  //
+  // Open-to-network is the one branch here that crosses a company
+  // boundary, and it was crossing that one too: a visitor looking around
+  // in a sandbox was reading three real customers' open roles, and a real
+  // customer with an open posture would have read strangers' sandboxes
+  // back. A sandbox has its own demand seeded into it and has no business
+  // on the network at all.
+  if (outside.ok && !caller.company.isDemo) {
+    visible.push({ openToNetwork: true, status: 'OPEN', company: { isDemo: false } })
+  }
 
   return { OR: visible }
 }

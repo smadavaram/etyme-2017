@@ -742,6 +742,15 @@ model Requirement {
   costCenter    CostCenter? @relation(fields: [costCenterId], references: [id])
   headcount     Int         @default(1) // "I need three of these", not three requisitions
   neededBy      DateTime?
+
+  /// The work authorisation this role actually requires.
+  ///
+  /// Null means the role does not care, which is the honest default —
+  /// inventing a requirement here would hold back half the market on a
+  /// rule nobody set. Where a client does set it, it is the single
+  /// cheapest thing to check and the most expensive to discover in week
+  /// two of an assignment.
+  workAuthRequired String?
   justification String?
 
   // Approval is separate from status: a requisition can be APPROVED and still
