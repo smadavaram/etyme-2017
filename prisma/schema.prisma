@@ -340,6 +340,70 @@ model Company {
   // coming back.
   isDemo        Boolean   @default(false)
   demoExpiresAt DateTime?
+
+  // ── Companies that did not put themselves here ─────────────────────
+  //
+  // A client arrives with twelve suppliers already. Making each of them
+  // sign up before the client can send them a role is asking the client
+  // to do our selling for us, one phone call at a time — so the client
+  // lists them, and each becomes a real company record that nobody has
+  // taken possession of yet.
+  //
+  // An unclaimed shell can be sent a role and can be scored. It cannot
+  // sign in, cannot be seen by the network, and must never be mistaken
+  // for a firm that chose to be here.
+
+  /// When somebody at this firm took possession of it. Null = a shell.
+  claimedAt   DateTime?
+  /// The client who put them on the platform, where that is how it began.
+  listedById  String?
+  listedBy    Company?  @relation("listedSuppliers", fields: [listedById], references: [id])
+  listed      Company[] @relation("listedSuppliers")
+
+  supplierInvitesReceived SupplierInvite[] @relation("invitedCompany")
+  supplierInvitesSent     SupplierInvite[] @relation("invitingCompany")
+
+  @@index([listedById])
+}
+
+/// An invitation to a firm that has never heard of us.
+///
+/// Distinct from `RequirementInvitation`, which invites a company already
+/// here to bid on one role. This one invites the company itself, and it
+/// carries the only thing that lets somebody claim a supplier record.
+model SupplierInvite {
+  id        String  @id @default(cuid())
+  /// The supplier shell this invitation is for.
+  companyId String
+  company   Company @relation("invitedCompany", fields: [companyId], references: [id], onDelete: Cascade)
+  /// The client doing the inviting.
+  byId      String
+  by        Company @relation("invitingCompany", fields: [byId], references: [id], onDelete: Cascade)
+
+  email       String
+  contactName String?
+  /// The registrable part of the address, or null for a consumer one.
+  ///
+  /// Kept here rather than on the shell company, because `Company.domain`
+  /// is globally unique and a shell has not proved it owns anything. A
+  /// client pasting "cloudepa.com" must not be able to take the domain
+  /// away from the real Cloudepa, or be handed it.
+  domain      String?
+  /// What was pasted, kept whole so a better reader can be run later.
+  line        String?
+
+  /// The claim. Single use, and the only authority besides the address.
+  token       String    @unique
+  state       String    @default("PENDING") // PENDING · ACCEPTED · REVOKED
+  sentAt      DateTime  @default(now())
+  remindedAt  DateTime?
+  acceptedAt  DateTime?
+  acceptedById String?
+
+  @@unique([byId, email])
+  @@index([companyId, state])
+  @@index([byId, state])
+  @@index([byId, domain])
 }
 
 enum CompanyKind {

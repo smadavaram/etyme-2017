@@ -122,6 +122,10 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Placements', href: '/dashboard/contracts', icon: '▤' },
       { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠' },
       { label: 'Worked here before', href: '/dashboard/alumni', icon: '◎' },
+      // The growth loop. A client arrives with twelve suppliers already
+      // and an MSA with each; until those are reachable in here, none of
+      // the rest of this nav has anything to work on.
+      { label: 'Your suppliers', href: '/dashboard/suppliers', icon: '⬡' },
     ],
   },
   {

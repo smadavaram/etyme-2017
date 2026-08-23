@@ -33,6 +33,9 @@ export const RESERVED_SUBDOMAINS = new Set([
   'www', 'api', 'app', 'admin', 'dashboard', 'login', 'signup', 'signin',
   'auth', 'etyme', 'shared', 'static', 'assets', 'cdn', 'docs', 'status',
   'support', 'help', 'blog', 'about', 'legal', 'privacy', 'terms',
+  // Where a listed supplier takes possession of their own record. Every
+  // invitation in the product points at this one address.
+  'claim',
   // Infrastructure that must not be shadowed
   'mail', 'smtp', 'imap', 'pop', 'mx', 'ns', 'ns1', 'ns2', 'dns',
   'autodiscover', 'autoconfig', '_acme-challenge', '_dmarc', 'dkim',

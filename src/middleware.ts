@@ -34,6 +34,10 @@ const PLATFORM_SUBDOMAINS = new Set([
   'www', 'api', 'app', 'admin', 'dashboard', 'login', 'signup', 'signin',
   'auth', 'etyme', 'shared', 'static', 'assets', 'cdn', 'docs', 'status',
   'support', 'help', 'blog', 'about', 'legal', 'privacy', 'terms',
+  // Where a listed supplier takes possession of their own record. A firm
+  // that grabbed this slug would sit on the one address every invitation
+  // in the product points at.
+  'claim',
 ])
 
 export function middleware(request: NextRequest) {
