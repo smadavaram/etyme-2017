@@ -24,7 +24,7 @@ function staff(over: Partial<CallerContext> = {}): CallerContext {
     context: { id: 'ctx', type: 'EMPLOYEE', companyId: 'cloudepa', roleId: 'role-1' },
     company: {
       id: 'cloudepa', name: 'Cloudepa Inc.', slug: 'cloudepa', kind: 'VENDOR',
-      outsideAccess: 'ALLOWED', accountWalls: false,
+      outsideAccess: 'ALLOWED', accountWalls: false, isDemo: false,
     },
     permissions: ['requirements.read', 'consultants.cost'],
     ...over,

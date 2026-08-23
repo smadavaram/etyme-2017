@@ -51,7 +51,7 @@ function caller(overrides: {
     company: hasCompany
       ? {
           id: companyId, name: companyName, slug: 'test-co', kind: companyKind,
-          outsideAccess: 'ALLOWED', accountWalls: false,
+          outsideAccess: 'ALLOWED', accountWalls: false, isDemo: false,
         }
       : null,
     permissions,

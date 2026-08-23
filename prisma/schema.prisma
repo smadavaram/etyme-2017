@@ -326,6 +326,20 @@ model Company {
   agentRuns             AgentRun[]
   checks                Check[]
   TextMessage           TextMessage[]
+
+  // ── A demo company ─────────────────────────────────────────────────
+  //
+  // Every visitor who asks for a demo gets their own, seeded and
+  // isolated, so they can break it freely without touching anybody
+  // else's. Marked rather than inferred, because "looks like demo data"
+  // is exactly the judgement nobody should be making about a customer's
+  // real book.
+  //
+  // Reaped after a fortnight. A demo nobody came back to is clutter, and
+  // a demo somebody is still using will have been extended by their
+  // coming back.
+  isDemo        Boolean   @default(false)
+  demoExpiresAt DateTime?
 }
 
 enum CompanyKind {

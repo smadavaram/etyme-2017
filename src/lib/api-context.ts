@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { looksLikeKey, hashKey, keyMatches, checkKey } from '@/lib/service-accounts'
+import { cookies } from 'next/headers'
+import { DEMO_COOKIE, read as readDemo } from '@/lib/demo-session'
 
 /**
  * Caller context — resolved once per request, used by every endpoint
@@ -33,6 +35,14 @@ export interface CallerContext {
     outsideAccess: string
     /** Whether one client account here may see another. */
     accountWalls: boolean
+    /**
+     * A sandbox rather than somebody's book.
+     *
+     * Demo and real are separate universes: a visitor looking around must
+     * never see a customer's name, and a customer must never see a
+     * stranger's sandbox.
+     */
+    isDemo: boolean
   } | null
   /**
    * The org unit this person sits on, if any.
@@ -71,8 +81,32 @@ export async function getSessionEmail(): Promise<string | null> {
   if (devBypass && process.env.NODE_ENV === 'development') {
     return devBypass
   }
+
   const session = await getServerSession(authOptions)
-  return session?.user?.email ?? null
+  if (session?.user?.email) return session.user.email
+
+  // A demo visitor, who has not signed up and should not have to.
+  //
+  // Checked after the real session, never before: somebody with an
+  // account is that account, whatever a stale demo cookie says.
+  return await demoEmail()
+}
+
+/**
+ * The demo identity in the cookie, if there is a valid one.
+ *
+ * Only ever returns a @demo.etyme.local address — a signature over a real
+ * customer's email would otherwise be a way in.
+ */
+async function demoEmail(): Promise<string | null> {
+  try {
+    const jar = await cookies()
+    return readDemo(jar.get(DEMO_COOKIE)?.value)
+  } catch {
+    // cookies() throws outside a request scope, which is where the cron
+    // jobs call this from. No cookie, no demo visitor.
+    return null
+  }
 }
 
 /**
@@ -100,15 +134,14 @@ export async function getCallerContext(
   // ── Dev bypass — resolve founder context without OAuth ──
   // Set DEV_BYPASS_AUTH=email in .env.local for development screenshots.
   // NEVER enable in production. Removed before deploy.
-  const devBypass = process.env.DEV_BYPASS_AUTH
-  let sessionEmail: string | null = null
-
-  if (devBypass && process.env.NODE_ENV === 'development') {
-    sessionEmail = devBypass
-  } else {
-    const session = await getServerSession(authOptions)
-    sessionEmail = session?.user?.email ?? null
-  }
+  // One resolver, not two.
+  //
+  // This carried its own copy of the session logic, so every route using
+  // getCallerContext — which is nearly all of them — was resolving
+  // identity by different code from the handful using getSessionEmail.
+  // The two agreed until they did not: a demo visitor was somebody to
+  // /api/me and nobody to /api/bench.
+  const sessionEmail = await getSessionEmail()
 
   if (!sessionEmail) {
     return {
@@ -147,14 +180,14 @@ export async function getCallerContext(
     ? await prisma.context.findFirst({
         where: { id: contextId, personId: person.id, ...usable },
         include: {
-          company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true } },
+          company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true } },
           role: { select: { id: true, name: true, permissions: true } },
         },
       })
     : await prisma.context.findFirst({
         where: { personId: person.id, ...usable },
         include: {
-          company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true } },
+          company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true } },
           role: { select: { id: true, name: true, permissions: true } },
         },
         orderBy: { grantedAt: 'desc' },
@@ -262,7 +295,7 @@ async function callerFromApiKey(
     where: { keyHash: hashKey(presented) },
     select: {
       id: true, name: true, permissions: true, revokedAt: true, expiresAt: true,
-      company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true } },
+      company: { select: { id: true, name: true, slug: true, kind: true, outsideAccess: true, accountWalls: true, isDemo: true } },
     },
   })
 

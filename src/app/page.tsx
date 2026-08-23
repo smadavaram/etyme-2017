@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { EtymeLogo, EtymeMark } from '@/components/logo'
+import { TryDemo } from '@/components/try-demo'
 
 export default function LandingPage() {
   return (
@@ -49,21 +50,23 @@ export default function LandingPage() {
             </p>
             <div className="flex items-center gap-4 animate-slide-up"
                  style={{ animationDelay: '0.2s', animationFillMode: 'both' }}>
-              <Link
-                href="/login"
+              {/* A seeded workspace of their own, in one click. Nobody
+                  evaluates a staffing system from a marketing page, and
+                  nobody signs up to find out. */}
+              <TryDemo
+                label="Look around"
                 className="inline-flex items-center px-6 py-3.5 text-sm font-semibold
                            text-etyme-navy bg-white rounded-lg hover:bg-white/90
-                           transition-colors shadow-lg shadow-white/10"
-              >
-                Get started
-              </Link>
-              <a
-                href="#how-it-works"
+                           transition-colors shadow-lg shadow-white/10
+                           disabled:opacity-70"
+              />
+              <Link
+                href="/login"
                 className="text-sm font-medium text-white/50 hover:text-white/80
                            transition-colors"
               >
-                See how it works →
-              </a>
+                Sign in →
+              </Link>
             </div>
           </div>
         </div>
@@ -205,14 +208,15 @@ export default function LandingPage() {
             Three recruiters instead of thirty. But you still employ people, sponsor
             visas, and move money every two weeks. Etyme is the system that makes that possible.
           </p>
-          <Link
-            href="/login"
+          <TryDemo
+            label="Look around — no sign-up"
             className="inline-flex items-center px-8 py-3.5 text-sm font-semibold
                        text-etyme-navy bg-white rounded-lg hover:bg-white/90
-                       transition-colors"
-          >
-            Get started free
-          </Link>
+                       transition-colors disabled:opacity-70"
+          />
+          <p className="mt-3 text-xs text-white/35">
+            Your own copy, filled with a working book. Break it however you like.
+          </p>
         </div>
       </section>
 

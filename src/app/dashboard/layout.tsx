@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { Header } from '@/components/shell/header'
 import { DashboardShell } from './shell'
 import { SessionProvider } from '@/components/session-provider'
+import { DemoBanner } from '@/components/demo-banner'
 
 /**
  * Authenticated dashboard shell — sidebar + header + content.
@@ -42,6 +43,9 @@ export default function DashboardLayout({
           <Suspense>
             <Header />
           </Suspense>
+
+          {/* Says demo on every screen. Silent for a real company. */}
+          <DemoBanner />
 
           <main className="flex-1 overflow-y-auto p-6 md:p-8">
             <div className="max-w-[1200px] mx-auto">

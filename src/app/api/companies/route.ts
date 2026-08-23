@@ -383,6 +383,13 @@ export async function GET(request: NextRequest) {
   const visible = await directoryScope(caller)
 
   const companies = await prisma.company.findMany({
+    // Demo and real are separate universes.
+    //
+    // A visitor looking around must not see a customer's name in the
+    // directory, and a customer must not see a stranger's sandbox. The
+    // partition is on the flag rather than on a guess about the name,
+    // because "looks like demo data" is exactly the judgement nobody
+    // should be making about somebody's real book.
     where: visible,
     orderBy: { createdAt: 'desc' },
     select: {
@@ -457,10 +464,33 @@ async function directoryScope(
 
   if (!caller.company) return { id: { in: [] } }
 
+  // A demo sees its own sandbox and nothing else.
+  //
+  // Demo and real are separate universes — a visitor must never see a
+  // customer's name and a customer must never see a stranger's sandbox —
+  // and one visitor has no business seeing another's either. Somebody
+  // looking around should find their own company and the client they bill,
+  // not seven copies of a demo client belonging to strangers.
+  if (caller.company.isDemo) {
+    const dealings = await prisma.sellContract.findMany({
+      where: { companyId: caller.company.id },
+      select: { clientCompanyId: true, endClientCompanyId: true },
+    })
+
+    const mine = new Set<string>([caller.company.id])
+    for (const c of dealings) {
+      mine.add(c.clientCompanyId)
+      if (c.endClientCompanyId) mine.add(c.endClientCompanyId)
+    }
+
+    return { id: { in: [...mine] } }
+  }
+
   const outside = maySeeOutside({
     posture: caller.company.outsideAccess,
     permissions: caller.permissions,
   })
 
-  return outside.ok ? undefined : { id: caller.company.id }
+  // A real company never sees a sandbox, however open its posture.
+  return outside.ok ? { isDemo: false } : { id: caller.company.id }
 }
