@@ -20,6 +20,46 @@ optional.
 
 ---
 
+## What Etyme is — say this, not something else
+
+**Etyme is the system of record for contingent workers: the layer between
+a company and every staffing supplier it uses.**
+
+Category first, the way Concur says Travel and Expense before it says
+anything clever. The span is requisition → suppliers → submissions →
+screening → interviews → onboarding → timesheets → invoices →
+compliance. Naming one station makes the whole product read as that
+station.
+
+**The sharpest wedge is tenure**, not efficiency. A contractor's time on
+site aggregated across every supplier is a number no vendor can compute
+and no client can obtain by asking, and it is a legal exposure rather
+than a saving. Efficiency pitches lose to "we are managing fine".
+
+**Never lead with AI.** It is in there, it does real work, and it is the
+least defensible thing in the product. Roughly half of what looks like
+AI is plain rules, and that is a feature.
+
+**Two constraints this positioning creates:**
+- Horizontal, never vertical. Nothing in the core may assume IT staffing —
+  the same product has to work for a travel nurse or a validation engineer.
+- Neutrality is absolute. Etyme never runs a bench and never places
+  anybody. The moment it competes with its own suppliers the network
+  stops growing.
+
+### Why this is written down
+
+It was agreed in conversation and the landing page went on saying
+something else for a week — "Stop reading bad submissions", which is one
+module describing itself, over a hero showing a shortlist. It read as a
+hiring tool. Nothing caught it, because positioning has no test and the
+founder had not seen the page.
+
+Copy and framing drift the moment a decision lives only in a chat log.
+Anything user-facing gets checked against this section before it ships.
+
+---
+
 ## Source of truth, in order
 
 1. `/spec/Etyme_Master_BRD_v3_7_FINAL.docx` — 34 sections. **FROZEN BASELINE.**
