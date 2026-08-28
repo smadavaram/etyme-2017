@@ -37,12 +37,20 @@ import { rolesFor } from '@/lib/company-defaults'
 import { defaultPostureFor } from '@/lib/walls'
 import { DEMO_DAYS, type Seeded } from '@/lib/demo-seed'
 
-/** The four suppliers. Three you work with, one you do not. */
+/**
+ * The four suppliers. Three you work with, one you do not.
+ *
+ * `bandOfMax` is where their ceiling sits inside the role's own budget,
+ * not a fixed number of dollars. A flat $85 ceiling was being handed out
+ * on a $140/hr SAP role, which made three honest submissions read as
+ * over-band on the scorecard — a demo teaching the opposite of the
+ * thing it is demonstrating.
+ */
 const VENDORS = [
-  { name: 'Cloudepa Systems', band: 8500, agreement: true, invited: true },
-  { name: 'Vertex Talent', band: 8800, agreement: true, invited: true },
-  { name: 'Brightmoor Staffing', band: 8200, agreement: true, invited: true },
-  { name: 'Kestrel Consulting', band: null, agreement: false, invited: false },
+  { name: 'Cloudepa Systems', bandOfMax: 0.94, agreement: true, invited: true },
+  { name: 'Vertex Talent', bandOfMax: 0.98, agreement: true, invited: true },
+  { name: 'Brightmoor Staffing', bandOfMax: 0.91, agreement: true, invited: true },
+  { name: 'Kestrel Consulting', bandOfMax: null, agreement: false, invited: false },
 ]
 
 /**
@@ -223,7 +231,7 @@ export async function seedDemoClientCompany(input: {
   })
 
   // ── The suppliers ───────────────────────────────────────────────────
-  const vendors = new Map<string, { id: string; band: number | null }>()
+  const vendors = new Map<string, { id: string }>()
 
   for (const v of VENDORS) {
     const vc = await prisma.company.create({
@@ -249,7 +257,7 @@ export async function seedDemoClientCompany(input: {
       })
     }
 
-    vendors.set(v.name, { id: vc.id, band: v.band })
+    vendors.set(v.name, { id: vc.id })
   }
 
   // ── The roles ───────────────────────────────────────────────────────
@@ -348,7 +356,8 @@ export async function seedDemoClientCompany(input: {
           requirementId: requirement.id,
           fromCompanyId: company.id,
           toCompanyId: vendors.get(v.name)!.id,
-          payMax: v.band,
+          payMin: spec.min,
+          payMax: v.bandOfMax ? Math.round(spec.max * v.bandOfMax) : null,
           expiresAt: daysAhead(spec.startsIn),
           status: 'ACCEPTED',
           createdAt: daysAgo(spec.openedDaysAgo),

@@ -86,6 +86,10 @@ const VENDOR_NAV: NavSection[] = [
     label: 'Grow',
     items: [
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
+      // A scorecard the supplier cannot see is a blacklist with better
+      // manners. It decides who gets the next role, so it is not a
+      // secret from the firm it is about.
+      { label: 'How clients see you', href: '/dashboard/my-standing', icon: '◈' },
     ],
   },
 ]
@@ -139,6 +143,10 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
       { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱' },
       { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
+      // Only computable here. No supplier can work these out about
+      // themselves — they cannot see what the other eleven did with the
+      // same role — and no supplier's own numbers are ever bad.
+      { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈' },
       { label: 'Who can do what', href: '/dashboard/access', icon: '⚿' },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙' },
       { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓' },
