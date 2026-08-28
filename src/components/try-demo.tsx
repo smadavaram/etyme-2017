@@ -16,9 +16,19 @@ import { useRouter } from 'next/navigation'
 export function TryDemo({
   className,
   label = 'Look around',
+  side = 'HIRING',
 }: {
   className?: string
   label?: string
+  /**
+   * Which chair they sit in.
+   *
+   * A client and a supplier get different companies, different
+   * navigation and different data. Sending somebody who clicked "I'm
+   * hiring" into a staffing agency's bench would be demonstrating a
+   * product they did not ask about.
+   */
+  side?: 'HIRING' | 'BENCH'
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -28,10 +38,16 @@ export function TryDemo({
     setBusy(true)
     setError(null)
     try {
-      const res = await fetch('/api/demo', { method: 'POST' })
+      const res = await fetch('/api/demo', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ side }),
+      })
       const body = await res.json()
       if (!res.ok) throw new Error(body.error?.message ?? 'Could not start a demo.')
-      router.push('/dashboard')
+      // Land where the product is sharpest for that chair, not on a
+      // generic dashboard they have to navigate out of.
+      router.push(body.data?.landing ?? '/dashboard')
     } catch (err: any) {
       setError(err.message)
       setBusy(false)

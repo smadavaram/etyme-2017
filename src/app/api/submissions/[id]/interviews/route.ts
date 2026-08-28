@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { headline, stillValid, type Interview as I, type Slot } from '@/lib/interviews'
+import {
+  headline, stillValid, shapeRow as shape, rowToInterview as asInterview, type Slot,
+} from '@/lib/interviews'
 
 /**
  * GET  /api/submissions/:id/interviews — the rounds so far
@@ -162,53 +164,4 @@ export async function POST(
         `Waiting on the supplier and the consultant.`,
     },
   })
-}
-
-// ── Shared shaping ────────────────────────────────────────────────────
-
-export function shape(row: any) {
-  return {
-    id: row.id,
-    round: row.round,
-    stage: row.stage,
-    mode: row.mode,
-    state: row.state,
-    slots: row.proposedSlots,
-    scheduledAt: row.scheduledAt,
-    durationMins: row.durationMins,
-    location: row.location,
-    interviewers: row.interviewers,
-    confirmed: {
-      client: row.clientConfirmedAt,
-      vendor: row.vendorConfirmedAt,
-      consultant: row.consultantConfirmedAt,
-      consultantVia: row.consultantConfirmedVia,
-    },
-    outcome: row.outcome,
-    feedback: row.feedback,
-    noShowBy: row.noShowBy,
-  }
-}
-
-export function asInterview(row: any): I {
-  return {
-    round: row.round,
-    stage: row.stage,
-    mode: row.mode,
-    state: row.state,
-    proposedSlots: (row.proposedSlots as any[]).map((s) => ({
-      start: new Date(s.start),
-      end: new Date(s.end),
-    })),
-    proposedAt: row.proposedAt,
-    scheduledAt: row.scheduledAt,
-    durationMins: row.durationMins,
-    client: row.clientConfirmedAt ? { at: row.clientConfirmedAt, via: 'SELF' } : null,
-    vendor: row.vendorConfirmedAt ? { at: row.vendorConfirmedAt, via: 'SELF' } : null,
-    consultant: row.consultantConfirmedAt
-      ? { at: row.consultantConfirmedAt, via: row.consultantConfirmedVia ?? 'SELF' }
-      : null,
-    noShowBy: row.noShowBy,
-    outcome: row.outcome,
-  }
 }

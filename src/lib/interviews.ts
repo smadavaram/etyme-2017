@@ -344,3 +344,64 @@ export function headline(
     }
   }
 }
+
+// ── Reading a stored row ──────────────────────────────────────────────
+//
+// Lives here rather than in a route because a Next.js route file may
+// only export handlers — exporting a helper from one compiles until the
+// type checker gets to it, and then fails somewhere else entirely.
+
+/**
+ * The row as a screen wants it.
+ *
+ * Dates left as they are, so the caller decides between an ISO string
+ * and a Date. Confirmations grouped, because "who has said yes" is one
+ * question and three columns is not an answer to it.
+ */
+export function shapeRow(row: any) {
+  return {
+    id: row.id,
+    round: row.round,
+    stage: row.stage,
+    mode: row.mode,
+    state: row.state,
+    slots: row.proposedSlots,
+    scheduledAt: row.scheduledAt,
+    durationMins: row.durationMins,
+    location: row.location,
+    interviewers: row.interviewers,
+    confirmed: {
+      client: row.clientConfirmedAt,
+      vendor: row.vendorConfirmedAt,
+      consultant: row.consultantConfirmedAt,
+      consultantVia: row.consultantConfirmedVia,
+    },
+    outcome: row.outcome,
+    feedback: row.feedback,
+    noShowBy: row.noShowBy,
+  }
+}
+
+/** The row as the rules above want it. */
+export function rowToInterview(row: any): Interview {
+  return {
+    round: row.round,
+    stage: row.stage,
+    mode: row.mode,
+    state: row.state,
+    proposedSlots: ((row.proposedSlots as any[]) ?? []).map((s) => ({
+      start: new Date(s.start),
+      end: new Date(s.end),
+    })),
+    proposedAt: row.proposedAt,
+    scheduledAt: row.scheduledAt,
+    durationMins: row.durationMins,
+    client: row.clientConfirmedAt ? { at: row.clientConfirmedAt, via: 'SELF' } : null,
+    vendor: row.vendorConfirmedAt ? { at: row.vendorConfirmedAt, via: 'SELF' } : null,
+    consultant: row.consultantConfirmedAt
+      ? { at: row.consultantConfirmedAt, via: row.consultantConfirmedVia ?? 'SELF' }
+      : null,
+    noShowBy: row.noShowBy,
+    outcome: row.outcome,
+  }
+}

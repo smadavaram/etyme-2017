@@ -5,8 +5,8 @@ import { staffOnly } from '@/lib/seat'
 import {
   stateAfterConfirming, stillValid, settle, noShow, reasonFor, headline,
   earliest, type Party, type Outcome,
+  shapeRow as shape, rowToInterview as asInterview,
 } from '@/lib/interviews'
-import { shape, asInterview } from '@/app/api/submissions/[id]/interviews/route'
 
 /**
  * POST /api/interviews/:id — confirm it, call it off, or say what happened

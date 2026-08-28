@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { headline, waitingOn } from '@/lib/interviews'
-import { shape, asInterview } from '@/app/api/submissions/[id]/interviews/route'
+import {
+  headline, waitingOn, shapeRow as shape, rowToInterview as asInterview,
+} from '@/lib/interviews'
 
 /**
  * GET /api/interviews — everything either side of this company is in
