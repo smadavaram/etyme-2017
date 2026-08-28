@@ -363,7 +363,79 @@ model Company {
   supplierInvitesReceived SupplierInvite[] @relation("invitedCompany")
   supplierInvitesSent     SupplierInvite[] @relation("invitingCompany")
 
+  interviewsHosted   Interview[] @relation("interviewHost")
+  interviewsSupplied Interview[] @relation("interviewVendor")
+
   @@index([listedById])
+}
+
+/// Where a submission actually gets decided.
+///
+/// Every ATS treats an interview as a thing a client books. In contract
+/// staffing it is not: the client proposes, the vendor has to know their
+/// consultant is free and still interested, and the consultant has to
+/// turn up. Three diaries, and the one that breaks is almost never the
+/// client's — so nothing is confirmed until all three have said so.
+model Interview {
+  id           String     @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  /// The company running it — the one that received the submission.
+  companyId String
+  company   Company @relation("interviewHost", fields: [companyId], references: [id], onDelete: Cascade)
+  /// The supplier who put the person forward.
+  vendorId  String
+  vendor    Company @relation("interviewVendor", fields: [vendorId], references: [id])
+
+  round        Int    @default(1)
+  /// SCREEN · TECHNICAL · FINAL — the client's own words, not an enum.
+  stage        String @default("TECHNICAL")
+  /// PHONE · VIDEO · ONSITE
+  mode         String @default("VIDEO")
+  /// PROPOSED · CONFIRMED · DONE · NO_SHOW · CANCELLED
+  state        String @default("PROPOSED")
+
+  /// [{ start, end }] in UTC. Displayed local, stored absolute — an
+  /// interview booked across two time zones is the ordinary case.
+  proposedSlots Json
+  proposedAt    DateTime  @default(now())
+  scheduledAt   DateTime?
+  durationMins  Int       @default(60)
+  /// A link, or an address. One field, because it is one answer to one
+  /// question: where do I go.
+  location      String?
+
+  /// Who asked for it.
+  requestedById String
+  /// Names, not seats. Plenty of interviewers have no account here.
+  interviewers  String[]
+
+  clientConfirmedAt     DateTime?
+  vendorConfirmedAt     DateTime?
+  consultantConfirmedAt DateTime?
+  /// SELF · VENDOR_ASSERTED — the same convention as the right to
+  /// represent. A consultant with no seat here is confirmed by their
+  /// vendor, and the difference matters when nobody turns up.
+  consultantConfirmedVia String?
+
+  /// ADVANCE · OFFER · REJECT
+  outcome     String?
+  feedback    String?
+  /// CLIENT · VENDOR · CONSULTANT
+  noShowBy    String?
+  decidedAt   DateTime?
+  decidedById String?
+
+  cancelledAt     DateTime?
+  cancelledReason String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([submissionId, round])
+  @@index([companyId, state])
+  @@index([vendorId, state])
+  @@index([submissionId])
 }
 
 /// An invitation to a firm that has never heard of us.
@@ -1088,6 +1160,8 @@ model Submission {
   // Two fields rather than reusing the sender's, because the sender must
   // never be able to mark their own submission as having cleared the
   // buyer's screen.
+
+  interviews     Interview[]
 
   /// DRAFT · NEEDS_FIX · READY — READY means it reaches the manager.
   screenState    String    @default("DRAFT")

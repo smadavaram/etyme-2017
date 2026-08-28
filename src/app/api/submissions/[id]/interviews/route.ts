@@ -1,20 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { staffOnly } from '@/lib/seat'
+import { headline, stillValid, type Interview as I, type Slot } from '@/lib/interviews'
 
 /**
- * POST /api/submissions/:id/interviews
+ * GET  /api/submissions/:id/interviews — the rounds so far
+ * POST /api/submissions/:id/interviews — ask for one
  *
- * Schedule an interview for a submission. Stored as a Notification
- * with type='INTERVIEW' and structured data in the JSON `data` field,
- * since the schema has no dedicated Interview model.
+ * Both sides read this route. The client sees what they proposed; the
+ * supplier sees what they have been asked to confirm. Same rows, and the
+ * scoping is the whole security boundary: either party to the
+ * submission, and nobody else.
+ */
+
+function party(companyId: string, sub: { toCompanyId: string | null; fromCompanyId: string }) {
+  if (sub.toCompanyId === companyId) return 'CLIENT' as const
+  if (sub.fromCompanyId === companyId) return 'VENDOR' as const
+  return null
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const notStaff = staffOnly(caller, 'Interviews')
+  if (notStaff) return notStaff
+
+  const { id } = await params
+  const companyId = caller.company!.id
+
+  const submission = await prisma.submission.findFirst({
+    where: { id, OR: [{ toCompanyId: companyId }, { fromCompanyId: companyId }] },
+    select: {
+      id: true, toCompanyId: true, fromCompanyId: true,
+      person: { select: { name: true } },
+      fromCompany: { select: { name: true } },
+      toCompany: { select: { name: true } },
+      interviews: { orderBy: { round: 'asc' } },
+    },
+  })
+
+  if (!submission) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No submission by that id.' } },
+      { status: 404 }
+    )
+  }
+
+  const now = new Date()
+  const names = {
+    vendor: submission.fromCompany.name,
+    client: submission.toCompany?.name ?? 'the client',
+    consultant: submission.person.name,
+  }
+
+  return NextResponse.json({
+    data: {
+      you: party(companyId, submission),
+      names,
+      rounds: submission.interviews.map((row) => ({
+        ...shape(row),
+        says: headline(asInterview(row), now, names),
+      })),
+    },
+  })
+}
+
+/**
+ * POST — ask for an interview.
  *
- * Body: {
- *   scheduledAt: string,                                  // ISO datetime
- *   interviewType: 'PHONE' | 'VIDEO' | 'ONSITE' | 'PANEL',
- *   interviewerName?: string,
- *   notes?: string,
- * }
+ * Only the side that received the submission may ask for one. A supplier
+ * booking an interview into their client's diary is not a thing that
+ * happens, and building it would be building the wrong product.
  */
 export async function POST(
   request: NextRequest,
@@ -23,129 +84,131 @@ export async function POST(
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
+  const notStaff = staffOnly(caller, 'Interviews')
+  if (notStaff) return notStaff
+
   const { id } = await params
-  const body = await request.json()
-  const { scheduledAt, interviewType, interviewerName, notes } = body
+  const companyId = caller.company!.id
+  const now = new Date()
 
-  // Validate required fields
-  const validTypes = ['PHONE', 'VIDEO', 'ONSITE', 'PANEL']
-  if (!scheduledAt) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'scheduledAt is required', field: 'scheduledAt' } },
-      { status: 422 }
-    )
-  }
-
-  const scheduled = new Date(scheduledAt)
-  if (isNaN(scheduled.getTime())) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Invalid scheduledAt date', field: 'scheduledAt' } },
-      { status: 422 }
-    )
-  }
-
-  if (!interviewType || !validTypes.includes(interviewType)) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: `interviewType must be one of: ${validTypes.join(', ')}`, field: 'interviewType' } },
-      { status: 422 }
-    )
-  }
-
-  // Verify submission exists
-  const submission = await prisma.submission.findUnique({
-    where: { id },
-    include: {
-      person: { select: { id: true, name: true } },
-      requirement: { select: { id: true, title: true } },
-      fromCompany: { select: { id: true, name: true } },
+  const submission = await prisma.submission.findFirst({
+    where: { id, toCompanyId: companyId },
+    select: {
+      id: true, fromCompanyId: true, toCompanyId: true, screenState: true,
+      person: { select: { name: true } },
+      interviews: { select: { round: true } },
     },
   })
 
   if (!submission) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Submission not found' } },
+      { error: { code: 'NOT_FOUND', message: 'No submission by that id.' } },
       { status: 404 }
     )
   }
 
-  // Create interview as a Notification record
-  const notification = await prisma.notification.create({
+  const body = await request.json().catch(() => ({}))
+
+  const slots: Slot[] = (Array.isArray(body?.slots) ? body.slots : [])
+    .map((s: any) => ({ start: new Date(s.start), end: new Date(s.end) }))
+    .filter((s: Slot) => !isNaN(s.start.getTime()) && !isNaN(s.end.getTime()))
+
+  // A proposal with no future slots is a message, not a booking, and
+  // confirming one later produces a meeting nobody attends.
+  const usable = slots.filter((s) => stillValid(s, now))
+
+  if (usable.length === 0) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NO_SLOTS',
+          message:
+            slots.length === 0
+              ? 'Offer at least one time. Nobody can confirm an interview with no time on it.'
+              : 'Every time you offered has already passed.',
+          field: 'slots',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  const round = Math.max(0, ...submission.interviews.map((i) => i.round)) + 1
+
+  const created = await prisma.interview.create({
     data: {
-      personId: submission.personId,
-      companyId: submission.fromCompanyId,
-      type: 'INTERVIEW',
-      title: `${interviewType} interview for "${submission.requirement.title}"`,
-      body: `${interviewType} interview scheduled for ${scheduled.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at ${scheduled.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}${interviewerName ? ` with ${interviewerName}` : ''}`,
-      entityId: id,
-      channel: 'IN_APP',
-      status: 'UNREAD',
+      submissionId: submission.id,
+      companyId,
+      vendorId: submission.fromCompanyId,
+      round,
+      stage: typeof body?.stage === 'string' ? body.stage : 'TECHNICAL',
+      mode: ['PHONE', 'VIDEO', 'ONSITE'].includes(body?.mode) ? body.mode : 'VIDEO',
+      proposedSlots: usable.map((s) => ({ start: s.start.toISOString(), end: s.end.toISOString() })),
+      durationMins: Number.isFinite(Number(body?.durationMins)) ? Number(body.durationMins) : 60,
+      location: typeof body?.location === 'string' ? body.location : null,
+      requestedById: caller.person.id,
+      interviewers: Array.isArray(body?.interviewers) ? body.interviewers : [],
+      // The side that asked has said yes by asking. Making them confirm
+      // their own proposal is a click that teaches people to click.
+      clientConfirmedAt: now,
     },
   })
 
   return NextResponse.json({
     data: {
-      id: notification.id,
-      submissionId: id,
-      interviewType,
-      scheduledAt: scheduled.toISOString(),
-      interviewerName: interviewerName ?? null,
-      notes: notes ?? null,
-      personName: submission.person.name,
-      requirementTitle: submission.requirement.title,
-      message: `${interviewType} interview scheduled for ${submission.person.name}`,
+      ...shape(created),
+      says:
+        `Round ${round} proposed for ${submission.person.name}. ` +
+        `Waiting on the supplier and the consultant.`,
     },
-  }, { status: 201 })
+  })
 }
 
-/**
- * GET /api/submissions/:id/interviews
- *
- * List all interviews for a submission.
- * Returns Notification records with type='INTERVIEW' linked via entityId.
- */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { caller, error } = await getCallerContext(request)
-  if (error) return error
+// ── Shared shaping ────────────────────────────────────────────────────
 
-  const { id } = await params
-
-  // Verify submission exists
-  const submission = await prisma.submission.findUnique({
-    where: { id },
-    select: { id: true },
-  })
-
-  if (!submission) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Submission not found' } },
-      { status: 404 }
-    )
+export function shape(row: any) {
+  return {
+    id: row.id,
+    round: row.round,
+    stage: row.stage,
+    mode: row.mode,
+    state: row.state,
+    slots: row.proposedSlots,
+    scheduledAt: row.scheduledAt,
+    durationMins: row.durationMins,
+    location: row.location,
+    interviewers: row.interviewers,
+    confirmed: {
+      client: row.clientConfirmedAt,
+      vendor: row.vendorConfirmedAt,
+      consultant: row.consultantConfirmedAt,
+      consultantVia: row.consultantConfirmedVia,
+    },
+    outcome: row.outcome,
+    feedback: row.feedback,
+    noShowBy: row.noShowBy,
   }
+}
 
-  const interviews = await prisma.notification.findMany({
-    where: {
-      entityId: id,
-      type: 'INTERVIEW',
-    },
-    orderBy: { createdAt: 'asc' },
-  })
-
-  return NextResponse.json({
-    data: {
-      interviews: interviews.map((n) => ({
-        id: n.id,
-        type: n.type,
-        title: n.title,
-        body: n.body,
-        channel: n.channel,
-        status: n.status,
-        readAt: n.readAt?.toISOString() ?? null,
-        createdAt: n.createdAt.toISOString(),
-      })),
-      total: interviews.length,
-    },
-  })
+export function asInterview(row: any): I {
+  return {
+    round: row.round,
+    stage: row.stage,
+    mode: row.mode,
+    state: row.state,
+    proposedSlots: (row.proposedSlots as any[]).map((s) => ({
+      start: new Date(s.start),
+      end: new Date(s.end),
+    })),
+    proposedAt: row.proposedAt,
+    scheduledAt: row.scheduledAt,
+    durationMins: row.durationMins,
+    client: row.clientConfirmedAt ? { at: row.clientConfirmedAt, via: 'SELF' } : null,
+    vendor: row.vendorConfirmedAt ? { at: row.vendorConfirmedAt, via: 'SELF' } : null,
+    consultant: row.consultantConfirmedAt
+      ? { at: row.consultantConfirmedAt, via: row.consultantConfirmedVia ?? 'SELF' }
+      : null,
+    noShowBy: row.noShowBy,
+    outcome: row.outcome,
+  }
 }

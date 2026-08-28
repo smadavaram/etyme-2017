@@ -48,6 +48,9 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Invitations', href: '/dashboard/invitations', icon: '✉' },
       { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
+      // The supplier's side of the same rows: what they have been asked
+      // to confirm, and for whom.
+      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Sell Contracts', href: '/dashboard/contracts?side=sell', icon: '▤' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
     ],
@@ -123,6 +126,7 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Requisitions', href: '/dashboard/requisitions', icon: '⊞' },
       { label: 'Open roles', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Candidates', href: '/dashboard/submissions', icon: '◇' },
+      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
       { label: 'Placements', href: '/dashboard/contracts', icon: '▤' },
       { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠' },
       { label: 'Worked here before', href: '/dashboard/alumni', icon: '◎' },
