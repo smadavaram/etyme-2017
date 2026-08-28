@@ -80,6 +80,83 @@ type Tab = 'overview' | 'contractors' | 'approvals' | 'vendors' | 'roles'
 
 // ── Page ───────────────────────────────────────────────────
 
+/**
+ * The number.
+ *
+ * How long from opening a role to the first submission worth reading.
+ * Not the first CV — a supplier can flood an inbox in an hour, and a
+ * number that cannot tell flooding from a shortlist is a number that
+ * rewards flooding.
+ *
+ * It sits above everything else because it is the one figure a client
+ * already knows for their current process, and the only one on this page
+ * they can compare against how things work today.
+ */
+function TheNumber() {
+  const [n, setN] = useState<any>(null)
+
+  useEffect(() => {
+    fetch('/api/first-good')
+      .then(r => r.json())
+      .then(b => { if (b.data) setN(b.data) })
+      // A dashboard strip that cannot load should be absent, not a red
+      // box above somebody's actual work.
+      .catch(() => {})
+  }, [])
+
+  if (!n) return null
+
+  return (
+    <div className="border border-etyme-rule rounded-lg p-5 mt-6 bg-etyme-surface">
+      <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
+        <div>
+          <div className="eyebrow mb-1">First one worth reading</div>
+          <div className="font-serif text-[34px] leading-none tabular-nums text-etyme-ink">
+            {n.hours == null ? (
+              <span className="text-etyme-faint text-[22px]">not yet</span>
+            ) : (
+              <>
+                {n.hours}
+                <span className="text-[16px] text-etyme-faint ml-1">hours</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="text-sm">
+          <div className="text-etyme-muted">{n.trend.says}</div>
+          <div className="text-etyme-faint text-xs mt-0.5">
+            Bar is {n.target.says}. {n.reading.says}
+          </div>
+        </div>
+
+        {n.hit && (
+          <span className="chip chip--verified ml-auto">Inside the bar</span>
+        )}
+      </div>
+
+      <p className="text-sm text-etyme-ink mt-3">{n.says}</p>
+
+      {/* Where the work is. A role with forty CVs and nothing worth
+          reading is somebody's whole afternoon. */}
+      {n.stuck.length > 0 && (
+        <ul className="mt-3 pt-3 border-t border-etyme-rule space-y-1">
+          {n.stuck.slice(0, 3).map((r: any) => (
+            <li key={r.requirementId} className="text-xs text-etyme-muted">
+              {r.says}
+            </li>
+          ))}
+          {n.stuckTotal > 3 && (
+            <li className="text-xs text-etyme-faint">
+              and {n.stuckTotal - 3} more waiting
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export default function ProgramPage() {
   const [data, setData] = useState<ProgramData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -216,6 +293,8 @@ export default function ProgramPage() {
           {scope === 'mine' ? 'View all IT' : 'View my team'}
         </button>
       </div>
+
+      <TheNumber />
 
       {/* ── Summary cards ──────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-6 mb-6">
