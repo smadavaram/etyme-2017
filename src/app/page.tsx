@@ -59,7 +59,7 @@ export default function LandingPage() {
             </Link>
           </nav>
 
-          <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="grid items-start gap-14 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
               <p className="mb-4 text-sm font-semibold uppercase tracking-[0.16em]"
                  style={{ color: '#00D4FF' }}>
@@ -92,7 +92,7 @@ export default function LandingPage() {
                              hover:border-white/40 hover:text-white"
                 />
               </div>
-              <p className="mt-4 font-mono text-xs text-white/40">
+              <p className="mt-4 font-mono text-xs text-white/55">
                 No card, no sign-up. Your own worked example, seeded and yours to break.
               </p>
             </div>
@@ -307,7 +307,7 @@ export default function LandingPage() {
           </div>
 
           <ul className="mx-auto mt-10 flex max-w-lg flex-wrap justify-center gap-x-6 gap-y-2
-                         font-mono text-[11px] text-etyme-faint">
+                         font-mono text-[12px] text-etyme-muted">
             {[
               'Set-up takes an afternoon',
               'Keep your ATS, VMS and vendors',
