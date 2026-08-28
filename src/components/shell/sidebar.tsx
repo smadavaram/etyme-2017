@@ -127,6 +127,8 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Open roles', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Candidates', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
+      // One record per person, however many suppliers are selling them.
+      { label: 'People', href: '/dashboard/people', icon: '◍' },
       { label: 'Placements', href: '/dashboard/contracts', icon: '▤' },
       { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠' },
       { label: 'Worked here before', href: '/dashboard/alumni', icon: '◎' },
