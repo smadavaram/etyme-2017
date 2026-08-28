@@ -71,12 +71,21 @@ export async function POST(request: NextRequest) {
   const companyName = pool[Math.floor(Math.random() * pool.length)]
   const slug = `demo-${handle}`
 
-  const person = await prisma.person.create({
-    data: { name: 'You', primaryEmail: email },
-  })
-
+  // Inside the try, along with everything else that touches the database.
+  //
+  // This one sat outside it, so a database that was reachable but had no
+  // tables threw before the handler below could say anything — and the
+  // first deploy answered a visitor with a blank 500. An empty 500 is
+  // the worst error a product can give: it tells the person nothing and
+  // it tells whoever has to fix it nothing either.
+  let person: { id: string; name: string } | null = null
   let seeded
+
   try {
+    person = await prisma.person.create({
+      data: { name: 'You', primaryEmail: email },
+    })
+
     const fill = side === 'BENCH' ? seedDemoCompany : seedDemoClientCompany
     seeded = await fill({
       personId: person.id,
@@ -87,13 +96,27 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     // A half-built workspace is worse than none: the visitor lands on
     // screens that are empty for the wrong reason. Clear it and say so.
-    await prisma.person.delete({ where: { id: person.id } }).catch(() => {})
-    console.error('demo: could not seed', err)
+    if (person) await prisma.person.delete({ where: { id: person.id } }).catch(() => {})
+
+    const why = String(err?.message ?? err)
+    console.error('demo: could not seed', why)
+
+    // Two failures that look identical to a visitor and are completely
+    // different to whoever has to fix them: a database nobody can reach,
+    // and a database with no tables in it. Said apart, because "try
+    // again later" is wrong advice for the second one.
+    const unreachable = /P1001|Can't reach database|ECONNREFUSED|ETIMEDOUT/i.test(why)
+    const noTables = /P2021|P2022|does not exist in the current database|relation .* does not exist/i.test(why)
+
     return NextResponse.json(
       {
         error: {
-          code: 'DEMO_FAILED',
-          message: 'Could not build a demo workspace just now. Nothing was left behind.',
+          code: unreachable ? 'DATABASE_UNREACHABLE' : noTables ? 'DATABASE_NOT_SET_UP' : 'DEMO_FAILED',
+          message: unreachable
+            ? 'The database is not answering. Nothing was left behind — try again in a minute.'
+            : noTables
+              ? 'The database is reachable but has no tables yet. Somebody needs to push the schema.'
+              : 'Could not build a demo workspace just now. Nothing was left behind.',
         },
       },
       { status: 500 }
