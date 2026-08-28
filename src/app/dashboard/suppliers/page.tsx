@@ -24,6 +24,16 @@ interface Row {
   needs: string[]
 }
 
+interface Pair {
+  domain: string
+  ok: boolean
+  keep: { id: string; name: string } | null
+  fold: { id: string; name: string } | null
+  says: string
+  moving: string[]
+  button: string
+}
+
 interface Supplier {
   companyId: string
   name: string
@@ -40,6 +50,7 @@ export default function SuppliersPage() {
   const [readSummary, setReadSummary] = useState('')
   const [skipped, setSkipped] = useState<string[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [pairs, setPairs] = useState<Pair[]>([])
   const [listSummary, setListSummary] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -52,6 +63,12 @@ export default function SuppliersPage() {
       if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
       setSuppliers(body.data.suppliers)
       setListSummary(body.data.summary)
+
+      // The same firm listed twice. Two clients each list Cloudepa and
+      // neither knows the other did — a real state, and one somebody has
+      // to be able to fix.
+      const dup = await fetch('/api/suppliers/join').then((r) => r.json()).catch(() => null)
+      setPairs(dup?.data?.pairs ?? [])
     } catch (err: any) {
       setError(err.message)
     }
@@ -96,6 +113,26 @@ export default function SuppliersPage() {
       setDone(body.data.summary)
       setRows(null)
       setText('')
+      load()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function join(keepId: string, foldId: string) {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/suppliers/join', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ keepId, foldId }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      setDone(body.data.says)
       load()
     } catch (err: any) {
       setError(err.message)
@@ -229,6 +266,38 @@ export default function SuppliersPage() {
               )}
             </div>
           )}
+        </section>
+      )}
+
+      {/* ── The same firm, listed twice ───────────────────────────── */}
+      {pairs.length > 0 && (
+        <section className="space-y-3">
+          <p className="stat-label">The same firm, listed twice</p>
+          {pairs.map((p) => (
+            <article key={p.domain} className="panel">
+              <p className="text-[13px] text-etyme-ink">{p.says}</p>
+              {/* Said before the button, not after. A dialog that only
+                  says "this cannot be undone" is one people click
+                  through. */}
+              {p.moving.length > 0 && (
+                <p className="mt-1 text-[12px] text-etyme-muted">
+                  Moving: {p.moving.join(', ')}.
+                </p>
+              )}
+              {p.ok && p.keep && p.fold ? (
+                <button
+                  onClick={() => join(p.keep!.id, p.fold!.id)}
+                  disabled={busy}
+                  className="mt-3 rounded border border-etyme-rule px-3 py-1.5 text-[12px]
+                             text-etyme-ink hover:border-etyme-action disabled:opacity-40"
+                >
+                  {p.button}
+                </button>
+              ) : (
+                <p className="mt-2 text-[12px] text-etyme-faint">{p.button}</p>
+              )}
+            </article>
+          ))}
         </section>
       )}
 
