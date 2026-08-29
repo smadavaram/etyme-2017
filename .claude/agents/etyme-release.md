@@ -52,6 +52,16 @@ crash — each is a bug and each passes every unit test.
   tabular figures in tables, one blue. A screen that works and looks
   wrong is not done.
 
+## The matrix is part of the deliverable
+
+Check `src/lib/matrix.ts` before you sign anything off. The L3 the work
+belongs to should now carry the right status, the files under
+`implementedBy`, and the tests under `testedBy`.
+
+A feature built and not recorded is a feature the next person rebuilds.
+If the row is untouched, that is a do-not-ship on its own — the suite
+will usually have caught it, and where it has not, you are the catch.
+
 ## What you say
 
 **Ship** or **do not ship**, and why, in one paragraph a non-technical

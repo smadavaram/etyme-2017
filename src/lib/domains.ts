@@ -187,7 +187,7 @@ export const DOMAINS: Domain[] = [
       'the generated company sites, lead capture and nurture, and the distribution ' +
       'of requirements and bench candidates up and down a chain without breaching ' +
       'an NDA on the way.',
-    l2: ['L2.1.2', 'L2.2.2'],
+    l2: ['L2.1.4'],
     owns: [
       'lib/positioning', 'lib/site-voice', 'lib/public-site', 'lib/distribution',
       'app/page', 'app/site', 'app/c', 'app/api/c',
@@ -209,7 +209,7 @@ export const DOMAINS: Domain[] = [
       'app/api/settings', 'app/api/imports', 'app/api/integrations',
       'app/api/onboarding', 'app/api/automation',
       'lib/evals', 'middleware',
-      'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains',
+      'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix',
       'lib/company-defaults', 'lib/company-domains', 'lib/domains-owned',
       'lib/registrable-domain', 'lib/account-lifecycle',
       'lib/service-accounts', 'lib/import-mapper', 'lib/importable',

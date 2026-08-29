@@ -58,6 +58,11 @@ only such queue.
 
 ## How one piece of work moves
 
+**0. The matrix.** Find the L3 in `src/lib/matrix.ts`. If there is not
+one, the architect adds it before anything else happens — a piece of work
+with no process behind it is a piece of work nobody asked for. Read its
+L4 tasks; they are acceptance criteria somebody already agreed to.
+
 **1. Scout.** `etyme-scout` answers whether it exists already, who owns
 the files, what depends on them, and whether the schema is involved.
 Cheap, read-only, and it is the step that stops the same thing being
@@ -84,7 +89,18 @@ It computes one number by hand from the underlying rows, because that is
 where money bugs are found. Then it says ship or do not ship, in a
 paragraph a non-technical person could read.
 
-**6. Preview.** A URL the founder clicks. If he cannot click it, it is
+**6. Update the matrix.** Status, `implementedBy`, `testedBy` — in the
+same change as the code. `__tests__/invariants/matrix.test.ts` fails on a
+row claiming BUILT with no files, a named file that does not exist, or a
+BUILT row with no tests. A feature built and not recorded breaks the
+build on its own commit, which is the cheapest moment it will ever be to
+fix.
+
+It is a test because it was a page, and within two agent runs the page
+was wrong: accounts receivable still read "not started" after it had been
+built and tested. Nobody noticed, because a page cannot notice.
+
+**7. Preview.** A URL the founder clicks. If he cannot click it, it is
 not done.
 
 ---

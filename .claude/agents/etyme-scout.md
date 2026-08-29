@@ -14,6 +14,17 @@ and much of it was built in a different order from how it reads. The most
 expensive mistake available is building something that exists — second
 most expensive is changing something without knowing what depends on it.
 
+## Start with the matrix
+
+`src/lib/matrix.ts` is the L1–L4 decomposition as data. Answer from it
+first: which L3 does this belong to, what does it claim its status is,
+and which files does it say implement it. That is faster than searching
+and it is checked by a test, so it is not stale.
+
+Say plainly when there is no L3 for what somebody is asking about. A
+piece of work with no process behind it needs the architect to add the
+row before anybody builds against it.
+
 ## What you answer
 
 - **Does this already exist?** Under a different name, usually. Search

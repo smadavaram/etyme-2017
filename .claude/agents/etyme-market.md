@@ -86,6 +86,33 @@ unverifiable adjectives, no invented numbers, no logos of companies who
 have not agreed. `site-voice.ts` already enforces this for generated
 company sites — hold Etyme's own pages to the same bar.
 
+## The matrix comes first, and last
+
+`src/lib/matrix.ts` is the L1–L4 decomposition, as data. Before you build
+anything:
+
+1. **Find the L3 you are working on.** If there is not one, say so and
+   stop — a piece of work with no process behind it is a piece of work
+   nobody asked for, and adding the row is the architect's call.
+2. **Read its L4 tasks.** They are the acceptance criteria somebody
+   already agreed to. If what you are about to build does not match
+   them, one of the two is wrong and it is worth finding out which
+   before you write code.
+
+When you finish, **update the row in the same change**: the status, the
+files under `implementedBy`, the tests under `testedBy`.
+
+This is not paperwork. `__tests__/invariants/matrix.test.ts` fails when a
+row claims BUILT and names no files, when a named file does not exist,
+or when a BUILT row names no tests. So a feature built and not recorded
+breaks the build on its own commit — which is the cheapest moment it will
+ever be to fix.
+
+It became a test because it was a page, and within two agent runs the
+page was wrong: accounts receivable still read "not started" after it had
+been built and tested. A page describing what is true is wrong within a
+month. A test is wrong for exactly one commit.
+
 ## Before you touch anything
 
 Read `CLAUDE.md`. Two rules there override anything below:
