@@ -38,6 +38,9 @@ const PLATFORM_SUBDOMAINS = new Set([
   // that grabbed this slug would sit on the one address every invitation
   // in the product points at.
   'claim',
+  // Where a supplier answers a role without an account. Every
+  // invitation email points at this address.
+  'answer',
 ])
 
 export function middleware(request: NextRequest) {

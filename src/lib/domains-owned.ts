@@ -36,6 +36,9 @@ export const RESERVED_SUBDOMAINS = new Set([
   // Where a listed supplier takes possession of their own record. Every
   // invitation in the product points at this one address.
   'claim',
+  // Where a supplier answers a role without an account. Every
+  // invitation email points at this address.
+  'answer',
   // Infrastructure that must not be shadowed
   'mail', 'smtp', 'imap', 'pop', 'mx', 'ns', 'ns1', 'ns2', 'dns',
   'autodiscover', 'autoconfig', '_acme-challenge', '_dmarc', 'dkim',

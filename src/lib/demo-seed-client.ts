@@ -357,7 +357,10 @@ export async function seedDemoClientCompany(input: {
           fromCompanyId: company.id,
           toCompanyId: vendors.get(v.name)!.id,
           payMin: spec.min,
-          payMax: v.bandOfMax ? Math.round(spec.max * v.bandOfMax) : null,
+          // Rounded to the dollar. A band of $84.60 is an artefact of the
+          // percentage above, and reading it back to a supplier to the cent
+          // makes the whole screen look computed rather than agreed.
+          payMax: v.bandOfMax ? Math.round((spec.max * v.bandOfMax) / 100) * 100 : null,
           expiresAt: daysAhead(spec.startsIn),
           status: 'ACCEPTED',
           createdAt: daysAgo(spec.openedDaysAgo),
@@ -523,6 +526,45 @@ export async function seedDemoClientCompany(input: {
       paymentTerms: 45,
     },
   })
+
+  // ── Two people who actually got the job ─────────────────────────────
+  //
+  // Without these every scorecard reads "0 hired" on the one column a
+  // client looks at first, and the most valuable number in the product
+  // is blank on the screen that sells it.
+  const hiredThrough = ['Cloudepa Systems', 'Brightmoor Staffing']
+  for (const [i, vendorName] of hiredThrough.entries()) {
+    const won = await prisma.submission.findFirst({
+      where: {
+        toCompanyId: company.id,
+        fromCompanyId: vendors.get(vendorName)!.id,
+        status: 'SUBMITTED',
+      },
+      orderBy: { submittedAt: 'asc' },
+      select: { id: true, personId: true, rate: true },
+    })
+    if (!won) continue
+
+    await prisma.submission.update({
+      where: { id: won.id },
+      data: { status: 'PLACED' },
+    })
+
+    await prisma.sellContract.create({
+      data: {
+        companyId: vendors.get(vendorName)!.id,
+        personId: won.personId,
+        clientCompanyId: company.id,
+        orgUnitId: orgUnit.id,
+        billRate: won.rate,
+        billCurrency: 'USD',
+        startDate: daysAgo(120 - i * 30),
+        endDate: daysAhead(90 + i * 30),
+        state: 'IN_PROGRESS',
+        paymentTerms: 45,
+      },
+    })
+  }
 
   let sheets = 0
   for (let w = 4; w >= 1; w--) {

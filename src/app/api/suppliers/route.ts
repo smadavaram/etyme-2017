@@ -7,6 +7,9 @@ import { defaultPostureFor } from '@/lib/walls'
 import {
   readSupplierList, listSentence, nameFromDomain, type SupplierRow,
 } from '@/lib/supplier-list'
+import { inviteLetter } from '@/lib/reaching-out'
+import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
+import { configuredSenders } from '@/lib/senders'
 
 /**
  * GET  /api/suppliers        — who this client buys from, and where each stands
@@ -235,13 +238,63 @@ export async function POST(request: NextRequest) {
       update: {},
     })
 
+    // ── Actually send it ────────────────────────────────────────────
+    //
+    // The claim link used to be returned in this JSON and go nowhere, so
+    // "bring your network" was a feature nobody outside the building
+    // ever experienced. The supplier finds out because a role arrived —
+    // which only works if something leaves.
+    //
+    // Sent once, on creation. Re-pasting the same list does not email
+    // anybody again, because upsert leaves an existing invite alone and
+    // this only fires on a new one.
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL ??
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+    const claimUrl = `${base}/claim/${invite.token}`
+
+    let delivery = { state: 'PENDING' as string, note: 'Not attempted' }
+
+    if (invite.sentAt.getTime() > Date.now() - 5000) {
+      const waiting = await prisma.requirementInvitation.findMany({
+        where: { toCompanyId: supplier.id, status: { in: ['SENT', 'ACCEPTED'] } },
+        select: { requirement: { select: { title: true } } },
+        take: 5,
+      })
+
+      const letter = inviteLetter({
+        supplierName: supplier.name,
+        contactName: row.contactName ?? null,
+        clientName: caller.company!.name,
+        rolesWaiting: waiting.length,
+        firstRole: waiting[0]?.requirement.title ?? null,
+        claimUrl,
+      })
+
+      const out = await attemptDelivery(
+        // Email, not Teams. A firm that has never heard of us has no
+        // webhook here, and would not want one before they have decided
+        // whether to answer at all.
+        routeFor({ isConsultant: false, email: row.email, teamsWebhookUrl: null }),
+        row.email,
+        letter.subject,
+        letter.body,
+        configuredSenders(),
+        new Date()
+      )
+      delivery = { state: out.state, note: out.note }
+    }
+
     made.push({
       companyId: supplier.id,
       name: supplier.name,
       email: row.email,
       alreadyHere: existing != null && existing.claimedAt != null,
-      claimUrl: `/claim/${invite.token}`,
+      claimUrl,
       state: invite.state,
+      // Said out loud. NOT_CONFIGURED is a true answer and it points at
+      // the fix; pretending it was sent is the failure worth avoiding.
+      delivery,
     })
   }
 
