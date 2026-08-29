@@ -563,11 +563,12 @@ export default function LandingPage() {
             There is no price on this page because we have not settled one
           </h2>
           <p className="mt-5 max-w-[58ch] text-[17px] leading-relaxed text-etyme-muted">
-            We are working it out with the first firms using the product, against
-            what it replaces for them. A number invented for a landing page is a
-            number we would have to take back, and you would be right to hold it
-            against us. If you want to know where our thinking is, ask and we will
-            tell you where it is that week.
+            The decision, made deliberately: Etyme is free while we prove it with
+            the first five firms. Founding firms keep whatever terms we agree
+            when a price exists — in writing, before you start, not as a promise
+            in a paragraph like this one. A number invented for a landing page is
+            a number we would have to take back, and you would be right to hold
+            it against us.
           </p>
           <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-ink">
             Three things about the commercials are settled, and they are the ones
