@@ -251,6 +251,11 @@ export async function POST(request: NextRequest) {
           number,
           periodStart: period.start,
           periodEnd: period.end,
+          // The day it was actually billed. The column existed for a
+          // week with nothing writing it, so every DSO fell back to
+          // periodEnd and understated the age. Adding a column is not
+          // building a feature; this is the write.
+          issuedAt: new Date(),
           lines: lines.map((l) => ({
             sellContractId: l.sellContractId,
             personId: l.personId,

@@ -17,7 +17,8 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "evals": "npx tsx scripts/evals.ts"
+    "evals": "npx tsx scripts/evals.ts",
+    "test:integration": "vitest run -c vitest.integration.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

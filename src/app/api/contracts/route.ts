@@ -113,6 +113,40 @@ export async function POST(request: NextRequest) {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      // ── The paper behind the contract ─────────────────────────────
+      //
+      // Found by the first end-to-end run against a real database: a
+      // contract recorded directly — the "manage my existing work" path
+      // every solo tester starts on — got no engagement, and an invoice
+      // hangs off the engagement. So the contract could be worked and
+      // approved and never billed. The award path already finds or
+      // creates both; a recorded contract deserves the same paper.
+      const msa =
+        (msaId
+          ? await tx.masterAgreement.findUnique({ where: { id: msaId }, select: { id: true } })
+          : null) ??
+        (await tx.masterAgreement.findFirst({
+          where: { vendorId: companyId, clientId: clientCompanyId },
+          select: { id: true },
+        })) ??
+        (await tx.masterAgreement.create({
+          data: { vendorId: companyId, clientId: clientCompanyId, paymentTerms: 30 },
+          select: { id: true },
+        }))
+
+      const engagement =
+        (engagementId
+          ? await tx.engagement.findUnique({ where: { id: engagementId }, select: { id: true } })
+          : null) ??
+        (await tx.engagement.findFirst({
+          where: { msaId: msa.id },
+          select: { id: true },
+        })) ??
+        (await tx.engagement.create({
+          data: { msaId: msa.id, title: 'Recorded work', invoiceCycle: 'MONTHLY' },
+          select: { id: true },
+        }))
+
       // Create the sell contract
       const sellContract = await tx.sellContract.create({
         data: {
@@ -121,8 +155,8 @@ export async function POST(request: NextRequest) {
           endClientCompanyId: endClientCompanyId ?? null,
           workLocationId: workLocationId ?? null,
           personId,
-          engagementId: engagementId ?? null,
-          msaId: msaId ?? null,
+          engagementId: engagement.id,
+          msaId: msa.id,
           billRate,
           billCurrency: billCurrency ?? 'USD',
           state: 'DRAFT',
