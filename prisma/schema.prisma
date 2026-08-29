@@ -94,19 +94,48 @@ enum Provider {
 }
 
 model Context {
-  id          String      @id @default(cuid())
-  personId    String
-  person      Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
-  type        ContextType
-  companyId   String?
-  company     Company?    @relation(fields: [companyId], references: [id])
-  roleId      String?
-  role        Role?       @relation(fields: [roleId], references: [id])
-  orgUnitId   String? // a delivery manager owns a practice, not the firm
-  orgUnit     OrgUnit?    @relation(fields: [orgUnitId], references: [id])
-  grantedById String?
-  grantedAt   DateTime    @default(now())
-  revokedAt   DateTime?
+  id        String      @id @default(cuid())
+  personId  String
+  person    Person      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type      ContextType
+  companyId String?
+  company   Company?    @relation(fields: [companyId], references: [id])
+  roleId    String?
+  role      Role?       @relation(fields: [roleId], references: [id])
+  orgUnitId String? // a delivery manager owns a practice, not the firm
+  orgUnit   OrgUnit?    @relation(fields: [orgUnitId], references: [id])
+
+  // ── Side, and persona ───────────────────────────────────────────────
+  //
+  // A GSI is prime to one client and buys bench from three firms in the
+  // same week, and the same person runs both. There is no unique on
+  // (personId, companyId), so two seats at one firm were always possible
+  // — but nothing said which was which, so a screen could show what a
+  // client pays beside what a sub-vendor is offered, to the person
+  // negotiating both.
+  //
+  /// BUY or SELL. What this seat is doing, not what the company is.
+  side String @default("SELL")
+
+  /// How far this person's permissions reach: INDIVIDUAL, MANAGER,
+  /// UNIT_HEAD, PRINCIPAL.
+  ///
+  /// Separate from the role on purpose. A recruiter and a recruiting
+  /// manager hold the same `submissions.write`; the manager sees the
+  /// team's and the recruiter their own. Folding that into permissions
+  /// means minting `.own` and `.team` variants of every one of them, and
+  /// doing it again for each new noun — the list triples and a promotion
+  /// becomes a migration.
+  ///
+  /// Role says what. Persona says how far.
+  persona String @default("INDIVIDUAL")
+
+  /// Whose work a manager may see. Empty for an individual, and derived
+  /// rather than typed where an org unit already answers it.
+  teamPersonIds String[]
+  grantedById   String?
+  grantedAt     DateTime  @default(now())
+  revokedAt     DateTime?
 
   // Access ends by default. Null means it genuinely does not — permitted
   // for read-only, argued for otherwise. Renewing is a click; forgetting is

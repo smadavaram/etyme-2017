@@ -153,9 +153,9 @@ const MONDAY = [
     screen: 'Payables',
     q: 'Who owes us, and whose work are we financing?',
     a:
-      'They pay you at day 75 against sixty-day terms and you pay your sub at day 30. ' +
-      'The difference is your cash funding somebody else’s work, and nobody invoices ' +
-      'you for it.',
+      'A client pays at day 75 against sixty-day terms while you pay your sub at ' +
+      'day 30. The difference is your own cash funding somebody else’s work, and ' +
+      'nobody invoices you for that.',
   },
 ]
 
@@ -397,8 +397,9 @@ export default function LandingPage() {
                   Roles arrive the way they already arrive
                 </p>
                 <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
-                  A forwarded email, an advert, a spreadsheet from a VMS. Paste it and
-                  it is read into a seat. Nobody changes how they send you work.
+                  A forwarded email, an advert, five of them at once. Paste them and
+                  they come back as seats, with the duplicates already collapsed.
+                  Nobody has to change how they send you work.
                 </p>
               </li>
               <li className="border-t border-etyme-rule pt-4">
