@@ -29,7 +29,7 @@ type NavItem = {
   badge?: number
 }
 
-type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI'
+type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
 
 const VENDOR_NAV: NavSection[] = [
   {
@@ -197,6 +197,10 @@ function getNavForKind(
     case 'CLIENT': return CLIENT_NAV
     case 'MSP':
     case 'GSI':
+    // A company of one is a vendor with one person on the bench. It
+    // sells, so it gets the seller's nav rather than a fifth shell
+    // nobody asked for.
+    case 'CONSULTANT_CORP':
     case 'VENDOR':
     default:       return VENDOR_NAV
   }

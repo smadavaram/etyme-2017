@@ -4,6 +4,7 @@ import { isConsultantSeat } from '@/lib/seat'
 import { isExcludedDomain } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { defaultPostureFor, maySeeOutside } from '@/lib/walls'
+import { mayRegisterWithEmail, rolesFor } from '@/lib/company-defaults'
 
 /**
  * POST /api/companies
@@ -157,22 +158,21 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Personal email domains cannot register companies
-  if (isExcludedDomain(email)) {
+  const body = await request.json()
+  const { name, kind = 'VENDOR' } = body
+
+  // Personal email cannot claim a company domain — but a consultant's
+  // own corporation claims no domain at all, and a one-person shop on
+  // gmail is how a one-person shop actually runs. The rule lives in
+  // mayRegisterWithEmail so the reasoning is tested, not folklore.
+  const personalEmail = isExcludedDomain(email)
+  const registration = mayRegisterWithEmail(kind, personalEmail)
+  if (!registration.ok) {
     return NextResponse.json(
-      {
-        error: {
-          code: 'PERSONAL_EMAIL',
-          message:
-            'Company registration requires a work email. Personal domains (gmail, yahoo, etc.) are not accepted.',
-        },
-      },
+      { error: { code: 'PERSONAL_EMAIL', message: registration.says } },
       { status: 422 }
     )
   }
-
-  const body = await request.json()
-  const { name, kind = 'VENDOR' } = body
 
   if (!name || typeof name !== 'string' || name.trim().length < 2) {
     return NextResponse.json(
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const validKinds = ['VENDOR', 'CLIENT', 'MSP', 'GSI']
+  const validKinds = ['VENDOR', 'CLIENT', 'MSP', 'GSI', 'CONSULTANT_CORP']
   if (!validKinds.includes(kind)) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: `Invalid kind. Must be one of: ${validKinds.join(', ')}`, field: 'kind' } },
@@ -198,8 +198,11 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Domain from the authenticated user's email
-  const domain = email.split('@')[1]?.toLowerCase() ?? null
+  // Domain from the authenticated user's email — unless it is a personal
+  // one, which proves nothing about any company and must not be recorded
+  // as if it did. gmail.com marked domainVerified would be a lie the
+  // whole identity model then repeats.
+  const domain = personalEmail ? null : email.split('@')[1]?.toLowerCase() ?? null
 
   try {
     const slug = await uniqueSlug(baseSlug)
@@ -212,8 +215,8 @@ export async function POST(request: NextRequest) {
           name: name.trim(),
           slug,
           domain,
-          domainVerified: true, // came from OAuth
-          kind: kind as 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI',
+          domainVerified: !personalEmail, // OAuth proves a work domain; gmail proves nothing
+          kind: kind as 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP',
           // Same rule as onboarding: a delivery firm or an enterprise
           // starts closed to all but named people.
           outsideAccess: defaultPostureFor(kind),
@@ -221,9 +224,20 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // 2. Create 7 default roles
+      // 2. Roles for this KIND of company. Every kind was getting the
+      // same seven vendor roles — rolesFor() existed, was tested, and
+      // this route never called it. A one-person consultant corp gets
+      // one role: Owner. It is their company.
+      const seeds =
+        kind === 'CONSULTANT_CORP'
+          ? rolesFor('CONSULTANT_CORP').map((r) => ({
+              name: r.name,
+              permissions: r.permissions,
+              isDefault: false,
+            }))
+          : DEFAULT_ROLES
       const roles = await Promise.all(
-        DEFAULT_ROLES.map((r) =>
+        seeds.map((r) =>
           tx.role.create({
             data: {
               companyId: company.id,
@@ -261,12 +275,38 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // 5. AutomationLog — "Company created with 7 default roles"
+      // 5. The owner of a consultant corporation IS its consultant.
+      //
+      // Without this they would register and face an empty bench with an
+      // Add consultant form asking about themselves in the third person.
+      // The listing is granted at creation — the grant rule protects a
+      // consultant from a company marketing them without consent, and
+      // consenting to your own one-person company is what registering it
+      // means.
+      if (kind === 'CONSULTANT_CORP') {
+        const profile = await tx.consultantProfile.upsert({
+          where: { personId: person.id },
+          update: { ownCompanyId: company.id },
+          create: {
+            personId: person.id,
+            ownCompanyId: company.id,
+          },
+        })
+        await tx.benchListing.create({
+          data: {
+            consultantId: profile.id,
+            companyId: company.id,
+            tier: 'RETAINED',
+          },
+        })
+      }
+
+      // AutomationLog — what was created, honestly counted
       await tx.automationLog.create({
         data: {
           companyId: company.id,
           action: 'COMPANY_CREATED',
-          summary: `Company "${company.name}" created at ${slug}.etyme.com with 7 default roles`,
+          summary: `Company "${company.name}" created at ${slug}.etyme.com with ${roles.length} role${roles.length === 1 ? '' : 's'}`,
           reason: 'User registered a new company via the onboarding flow',
           payload: {
             personId: person.id,

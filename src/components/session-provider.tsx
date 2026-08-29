@@ -15,7 +15,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
  * API uses (CLAUDE.md: "The OAuth tenant is the authority").
  */
 
-export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI'
+export type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
 
 export interface SessionCompany {
   id: string
@@ -52,7 +52,12 @@ const SessionContext = createContext<SessionState>(EMPTY)
 
 /** Company kinds that are not VENDOR still fall back to vendor-shaped nav. */
 function normaliseKind(kind: string | undefined): CompanyKind {
-  if (kind === 'CLIENT' || kind === 'MSP' || kind === 'GSI') return kind
+  if (kind === 'CLIENT' || kind === 'MSP' || kind === 'GSI' || kind === 'CONSULTANT_CORP') return kind
+  // A consultant corp deliberately falls through to nothing special
+  // elsewhere: it sells, so screens that branch on VENDOR treat it as
+  // one — a company of one is a vendor with one person on the bench,
+  // and inventing a fifth navigation for them would be a shell nobody
+  // asked for.
   return 'VENDOR'
 }
 

@@ -337,3 +337,50 @@ export function defaultsFor(
     seedHolidays: ['US', 'GB', 'IN'].includes(country),
   }
 }
+
+// ── The company of one ────────────────────────────────────────────────
+
+export interface RegistrationVerdict {
+  ok: boolean
+  says: string
+}
+
+/**
+ * Whether this kind of company may register on a personal email.
+ *
+ * The rule that personal domains cannot register companies exists to
+ * stop domain-based identity claims — you cannot claim wipro.com's
+ * company from a gmail address. A consultant's own corporation makes no
+ * domain claim at all: it is one person, their LLC, and very often a
+ * gmail address, because that is how a one-person shop actually runs.
+ *
+ * Blocking them was blocking the easiest firms to serve — the
+ * self-employed and the one-employee vendor, who can join with existing
+ * work already in hand and nothing to migrate. So CONSULTANT_CORP
+ * registers on any email, and gets no verified domain when the email is
+ * personal, because there is no domain to verify.
+ */
+export function mayRegisterWithEmail(
+  kind: CompanyKind,
+  emailIsPersonal: boolean
+): RegistrationVerdict {
+  if (!emailIsPersonal) return { ok: true, says: 'Work email — any kind of company.' }
+
+  if (kind === 'CONSULTANT_CORP') {
+    return {
+      ok: true,
+      says:
+        'A consultant’s own corporation may register on a personal email. It claims ' +
+        'no domain, so there is nothing to verify — and a one-person shop on gmail ' +
+        'is how a one-person shop actually runs.',
+    }
+  }
+
+  return {
+    ok: false,
+    says:
+      'Company registration needs a work email for this kind of company — a personal ' +
+      'address cannot claim a company domain. Registering your own one-person ' +
+      'consulting corporation? Choose that instead; it works with any email.',
+  }
+}

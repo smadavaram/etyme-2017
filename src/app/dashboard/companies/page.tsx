@@ -186,6 +186,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
                 <option value="CLIENT">Client</option>
                 <option value="MSP">MSP</option>
                 <option value="GSI">GSI</option>
+                <option value="CONSULTANT_CORP">My own consulting corporation — one person</option>
               </select>
             </div>
             <div>
