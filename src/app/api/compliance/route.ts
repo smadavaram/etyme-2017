@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
+import { supplierCoverGate, standingOf, coverLabel } from '@/lib/document-stages'
 
 /**
  * GET /api/compliance
@@ -138,22 +139,80 @@ export async function GET(request: NextRequest) {
   }
 
   // Group verifications by company
+  //
+  // A stored status is a claim about a past moment; standing is what is
+  // true today. The 2017 build showed the stored one, so a certificate
+  // that lapsed in March still read green in July because nothing swept
+  // the column. Every certificate here carries its computed standing
+  // alongside the status, and where the two disagree the computed one is
+  // what the screen shows.
   const companyVerifMap = new Map<string, { name: string; checks: any[] }>()
+
+  // Every vendor with somebody on site, whether or not they have ever
+  // filed a certificate. Building this map from the verification rows
+  // alone meant a vendor who had given us nothing did not appear at all —
+  // so the one supplier with no insurance on file was the one supplier
+  // the compliance screen never mentioned.
+  for (const c of activeContracts) {
+    if (!companyVerifMap.has(c.companyId)) {
+      companyVerifMap.set(c.companyId, { name: c.company.name, checks: [] })
+    }
+  }
+
   for (const v of companyVerifications) {
     if (!v.companyId || !v.company) continue
     const existing = companyVerifMap.get(v.companyId)
+    const isCover = v.type.startsWith('INSURANCE_')
+    const computed = isCover
+      ? standingOf(
+          { key: v.type, label: coverLabel(v.type), issuedAt: v.issuedAt, expiresAt: v.expiresAt, verifiedAt: v.verifiedAt },
+          { key: v.type, label: coverLabel(v.type), validMonths: 12 },
+          now
+        )
+      : null
     const check = {
       type: v.type,
       status: v.status,
       provider: v.provider,
       issuedAt: v.issuedAt?.toISOString() ?? null,
       expiresAt: v.expiresAt?.toISOString() ?? null,
+      standing: computed?.standing ?? null,
+      says: computed?.says ?? null,
     }
     if (existing) {
       existing.checks.push(check)
     } else {
       companyVerifMap.set(v.companyId, { name: v.company.name, checks: [check] })
     }
+  }
+
+  // Whether each supplier could put anybody forward today.
+  //
+  // The same function the submission path calls, so the screen and the
+  // refusal cannot drift apart — a compliance page that says one thing
+  // while the submit button says another is worse than no page.
+  //
+  // No `requiredTypes` yet: nothing in the data model carries a client's
+  // own list of mandatory cover, so the two defaults apply and a missing
+  // certificate chases rather than blocks. Noted rather than invented.
+  const coverByCompany = new Map<string, { outcome: string; says: string; fix: string | null }>()
+  for (const [companyId, data] of companyVerifMap) {
+    const rows = companyVerifications.filter(
+      v => v.companyId === companyId && v.type.startsWith('INSURANCE_')
+    )
+    const gate = supplierCoverGate({
+      supplierName: data.name,
+      clientName: clientCompany.name,
+      certificates: rows.map(v => ({
+        type: v.type,
+        status: v.status,
+        issuedAt: v.issuedAt,
+        expiresAt: v.expiresAt,
+        verifiedAt: v.verifiedAt,
+      })),
+      on: now,
+    })
+    coverByCompany.set(companyId, { outcome: gate.outcome, says: gate.says, fix: gate.fix })
   }
 
   // Compute compliance health
@@ -211,8 +270,16 @@ export async function GET(request: NextRequest) {
           companyId,
           name: data.name,
           checks: data.checks,
+          // BLOCK here means this supplier cannot submit anybody today.
+          cover: coverByCompany.get(companyId) ?? null,
         })),
       },
+      // Suppliers who cannot put anybody forward right now. Lifted out of
+      // the list because a lapse buried in a table of forty vendors is a
+      // lapse nobody sees.
+      lapsed: Array.from(companyVerifMap.entries())
+        .map(([companyId, data]) => ({ companyId, name: data.name, ...coverByCompany.get(companyId)! }))
+        .filter(c => c.outcome === 'BLOCK'),
       health: {
         totalChecks,
         clear,

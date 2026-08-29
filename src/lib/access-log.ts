@@ -20,6 +20,7 @@ export type AccessAction =
   | 'PAYROLL_VIEW'        // viewed a person's payroll data
   | 'MATCH_VIEW'          // viewed match scores for a person
   | 'RELEASING_SOON_VIEW' // saw somebody listed as coming free before they are
+  | 'CLASSIFICATION_CALL' // took a position on whether somebody is employed
 
 interface LogAccessParams {
   /** The person whose data was accessed */

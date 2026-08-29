@@ -576,3 +576,199 @@ export function clearance(
           : `${blocking.length} required documents are missing or out of date — ${blocking[0].label} among them.`,
   }
 }
+
+// ── Supplier insurance, at the point of submission ────────────────────
+//
+// Addendum E lists lapsed supplier insurance among the five things that
+// BLOCK rather than warn. Until now the certificate was collected (the
+// packet asks for it) and checked at award (`checkCover` in
+// worker-classification.ts), which is one step too late: a client has by
+// then read a CV, run an interview and made an offer against a supplier
+// who could not lawfully put anybody on their site.
+//
+// Three deliberate lines here, because "insurance blocks" on its own
+// would be both wrong and unusable.
+//
+// **A lapse blocks; an absence chases.** A certificate the supplier gave
+// us with an expiry date that has passed is a fact — nothing is being
+// judged. A certificate that was never collected is a different thing
+// entirely, and refusing every supplier who has not yet been asked would
+// make Etyme the party deciding what cover a client requires. That is a
+// screening judgement, and screening judgements are not ours to make.
+// Which cover is mandatory varies: workers' compensation is state-funded
+// in the monopolistic states, the UK equivalent is employers' liability,
+// and a fully remote engagement may reasonably need neither.
+//
+// **So the client's own list escalates it.** `requiredTypes` is data.
+// A client that insists on general liability gets a block on its absence,
+// not because we decided so but because they did.
+//
+// **The two defaults are general liability and workers' compensation**,
+// because those are the two that answer when somebody is hurt on a site.
+// Errors and omissions and cyber lapse into a chase unless asked for.
+
+/** Cover whose lapse stops a placement wherever a client has said nothing. */
+export const COVER_THAT_STOPS_WORK = ['INSURANCE_GL', 'INSURANCE_WC'] as const
+
+/** How long a certificate of insurance counts for. Brokers issue annually. */
+const COVER_VALID_MONTHS = 12
+
+const COVER_LABEL: Record<string, string> = {
+  INSURANCE_GL: 'certificate of general liability insurance',
+  INSURANCE_WC: "certificate of workers' compensation",
+  INSURANCE_EO: 'errors and omissions cover',
+  INSURANCE_CYBER: 'cyber liability cover',
+}
+
+export function coverLabel(type: string): string {
+  return COVER_LABEL[type] ?? type.toLowerCase().replace(/_/g, ' ')
+}
+
+/** A verification row, reduced to what the gate needs. */
+export interface CoverCertificate {
+  /** INSURANCE_GL · INSURANCE_WC · INSURANCE_EO · INSURANCE_CYBER */
+  type: string
+  /** The Verification status: PENDING · CLEAR · EXPIRED · FAILED · … */
+  status: string
+  issuedAt?: Date | null
+  expiresAt?: Date | null
+  verifiedAt?: Date | null
+}
+
+export interface CoverGate {
+  outcome: 'PASS' | 'WARN' | 'BLOCK'
+  /** Cover whose lapse or absence stops a submission today. */
+  blocking: DocStanding[]
+  /** Worth chasing; stops nothing yet. */
+  chasing: DocStanding[]
+  /** One line, in the form somebody acts on. */
+  says: string
+  /** What to actually do, in the shape the vendor's broker works in. */
+  fix: string | null
+}
+
+/** A certificate a supplier has actually produced, whatever its dates. */
+const A_CERTIFICATE = ['CLEAR', 'CONDITIONAL', 'EXPIRED']
+
+/**
+ * Whether this supplier may put anybody forward today.
+ *
+ * Pure. The caller reads the Verification rows for the supplying company
+ * and passes them in; nothing here touches a database, so every branch is
+ * testable against a fixed date.
+ */
+export function supplierCoverGate(input: {
+  /** The supplying company, by name. It appears in the refusal. */
+  supplierName: string
+  certificates: CoverCertificate[]
+  /** Cover this client's own policy insists on. Absence of one blocks. */
+  requiredTypes?: string[]
+  /** Who the certificate holder line should name, where it is known. */
+  clientName?: string | null
+  on: Date
+}): CoverGate {
+  const required = input.requiredTypes ?? []
+  const mustNotLapse = new Set<string>([...COVER_THAT_STOPS_WORK, ...required])
+
+  // Every kind we have an opinion about: the two defaults, whatever the
+  // client added, and anything the supplier has actually filed. A
+  // certificate on file that nobody asked for is still worth reporting
+  // when it runs out.
+  const kinds = [
+    ...new Set([
+      ...COVER_THAT_STOPS_WORK,
+      ...required,
+      ...input.certificates.map((c) => c.type).filter((t) => t.startsWith('INSURANCE_')),
+    ]),
+  ]
+
+  const blocking: DocStanding[] = []
+  const chasing: DocStanding[] = []
+
+  for (const kind of kinds) {
+    const label = coverLabel(kind)
+    const rows = input.certificates.filter((c) => c.type === kind)
+
+    // A request that has not come back is not a certificate. Saying "on
+    // file" of a check still running is how a supplier gets waved through
+    // on paperwork that does not exist.
+    const produced = rows.filter((c) => A_CERTIFICATE.includes(c.status))
+
+    // A renewal supersedes the one it renews, so the certificate that
+    // counts is the one that runs longest — not the newest row, which on
+    // a back-dated upload is the wrong one.
+    const best = produced.slice().sort((a, b) => {
+      const ae = a.expiresAt?.getTime() ?? -Infinity
+      const be = b.expiresAt?.getTime() ?? -Infinity
+      if (ae !== be) return be - ae
+      return (b.issuedAt?.getTime() ?? 0) - (a.issuedAt?.getTime() ?? 0)
+    })[0]
+
+    let standing = standingOf(
+      best
+        ? {
+            key: kind,
+            label,
+            issuedAt: best.issuedAt ?? null,
+            expiresAt: best.expiresAt ?? null,
+            verifiedAt: best.verifiedAt ?? null,
+          }
+        : null,
+      { key: kind, label, validMonths: COVER_VALID_MONTHS },
+      input.on
+    )
+
+    // The supplier's own record says it has run out. Believe them even
+    // where no date was ever recorded — a status nobody can reconcile
+    // against a date is exactly the state that went green in 2017.
+    if (best && best.status === 'EXPIRED' && standing.standing !== 'EXPIRED') {
+      standing = {
+        ...standing,
+        standing: 'EXPIRED',
+        daysLeft: null,
+        says: `${label} is marked expired on ${input.supplierName}'s own record.`,
+      }
+    }
+
+    const stops =
+      mustNotLapse.has(kind) &&
+      (standing.standing === 'EXPIRED' ||
+        (standing.standing === 'MISSING' && required.includes(kind)))
+
+    if (stops) blocking.push(standing)
+    else if (standing.standing !== 'VALID' || standing.unverified) chasing.push(standing)
+  }
+
+  const outcome: CoverGate['outcome'] =
+    blocking.length > 0 ? 'BLOCK' : chasing.length > 0 ? 'WARN' : 'PASS'
+
+  const holder = input.clientName ?? 'the client'
+  const fix =
+    outcome === 'PASS'
+      ? null
+      : `${input.supplierName}'s broker can issue a replacement certificate, usually the same day, ` +
+        `naming ${holder} as certificate holder. Upload it and the submission goes through.`
+
+  let says: string
+  if (outcome === 'BLOCK') {
+    says =
+      blocking.length === 1
+        ? `${input.supplierName}: ${lowerFirst(blocking[0].says)} Nobody can be submitted through ${input.supplierName} until it is back in date.`
+        : `${input.supplierName} has ${blocking.length} certificates out of date — the ${blocking[0].label} among them. ` +
+          `Nobody can be submitted through ${input.supplierName} until they are renewed.`
+  } else if (outcome === 'WARN') {
+    says =
+      chasing.length === 1
+        ? `${input.supplierName}: ${lowerFirst(chasing[0].says)}`
+        : `${input.supplierName} has ${chasing.length} certificates worth chasing — the ${chasing[0].label} among them.`
+  } else {
+    says = `${input.supplierName}'s cover is on file and in date.`
+  }
+
+  return { outcome, blocking, chasing, says, fix }
+}
+
+/** "Certificate of X expired" → "certificate of X expired", inside a sentence. */
+function lowerFirst(s: string): string {
+  return s.charAt(0).toLowerCase() + s.slice(1)
+}
