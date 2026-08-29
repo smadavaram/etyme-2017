@@ -62,23 +62,23 @@ model Person {
   doNotSubmit            DoNotSubmit[]
   resumes                Resume[]
 
-  identityA           IdentityMatch[]       @relation("identityA")
-  identityB           IdentityMatch[]       @relation("identityB")
-  orderPostings       OrderPosting[]
-  postingsAuthored    OrderPosting[]        @relation("postingAuthor")
-  journalLines        JournalLine[]
-  paymentsApplied     Payment[]             @relation("paymentApplier")
-  creditLimitsSet     CustomerCreditLimit[] @relation("creditLimitSetter")
-  dunningLettersSent  DunningSend[]         @relation("dunningSender")
-  counterpartiesAdded Counterparty[]        @relation("counterpartyCreator")
-  contactIdentities   CompanyContact[]      @relation("contactIdentity")
-  contactsAdded       CompanyContact[]      @relation("contactCreator")
-  creditNotesWritten   CreditNote[]         @relation("creditNoteAuthor")
-  paymentRunsCreated   PaymentRun[]         @relation("paymentRunAuthor")
-  paymentRunsApproved  PaymentRun[]         @relation("paymentRunApprover")
-  classificationsAbout ClassificationCall[] @relation("classificationSubject")
-  classificationsMade  ClassificationCall[] @relation("classificationDecider")
-  reconRunsMade        ReconciliationRun[]  @relation("reconRunner")
+  identityA            IdentityMatch[]       @relation("identityA")
+  identityB            IdentityMatch[]       @relation("identityB")
+  orderPostings        OrderPosting[]
+  postingsAuthored     OrderPosting[]        @relation("postingAuthor")
+  journalLines         JournalLine[]
+  paymentsApplied      Payment[]             @relation("paymentApplier")
+  creditLimitsSet      CustomerCreditLimit[] @relation("creditLimitSetter")
+  dunningLettersSent   DunningSend[]         @relation("dunningSender")
+  counterpartiesAdded  Counterparty[]        @relation("counterpartyCreator")
+  contactIdentities    CompanyContact[]      @relation("contactIdentity")
+  contactsAdded        CompanyContact[]      @relation("contactCreator")
+  creditNotesWritten   CreditNote[]          @relation("creditNoteAuthor")
+  paymentRunsCreated   PaymentRun[]          @relation("paymentRunAuthor")
+  paymentRunsApproved  PaymentRun[]          @relation("paymentRunApprover")
+  classificationsAbout ClassificationCall[]  @relation("classificationSubject")
+  classificationsMade  ClassificationCall[]  @relation("classificationDecider")
+  reconRunsMade        ReconciliationRun[]   @relation("reconRunner")
 }
 
 model Credential {
@@ -469,10 +469,10 @@ model Company {
   billsOwed        VendorBill[]          @relation("billPayer")
   billsIssued      VendorBill[]          @relation("billIssuer")
 
-  paymentRuns        PaymentRun[]        @relation("paymentRunOwner")
+  paymentRuns         PaymentRun[]         @relation("paymentRunOwner")
   classificationCalls ClassificationCall[] @relation("classificationOwner")
-  reconRuns          ReconciliationRun[] @relation("reconOwner")
-  reconAgainst       ReconciliationRun[] @relation("reconAgainst")
+  reconRuns           ReconciliationRun[]  @relation("reconOwner")
+  reconAgainst        ReconciliationRun[]  @relation("reconAgainst")
 
   @@index([listedById])
 }
@@ -4657,10 +4657,10 @@ model PaymentRun {
   totalCents   Int       @default(0)
 
   createdById  String?
-  createdBy    Person?   @relation("paymentRunAuthor", fields: [createdById], references: [id])
+  createdBy    Person?  @relation("paymentRunAuthor", fields: [createdById], references: [id])
   approvedById String?
-  approvedBy   Person?   @relation("paymentRunApprover", fields: [approvedById], references: [id])
-  createdAt    DateTime  @default(now())
+  approvedBy   Person?  @relation("paymentRunApprover", fields: [approvedById], references: [id])
+  createdAt    DateTime @default(now())
 
   items PaymentRunItem[]
 
@@ -4702,13 +4702,13 @@ model ClassificationCall {
   /// The answers to the test, as given. What the decision was made FROM.
   arrangement Json
   /// EMPLOYEE · INDEPENDENT — the position taken.
-  position String
+  position    String
   /// The factors that carried it, in plain English.
-  reasons  String[]
+  reasons     String[]
 
   decidedById String?
-  decidedBy   Person?  @relation("classificationDecider", fields: [decidedById], references: [id])
-  decidedAt   DateTime @default(now())
+  decidedBy   Person?   @relation("classificationDecider", fields: [decidedById], references: [id])
+  decidedAt   DateTime  @default(now())
   /// Positions rot as arrangements drift. A call with no review date is
   /// a call nobody will remember to remake.
   reviewBy    DateTime?
@@ -4724,17 +4724,17 @@ model ClassificationCall {
 /// whose whole argument is that the industry's noise is the problem. So
 /// a lead exists only with consent, records where it came from, and
 /// carries the one thing worth knowing at this stage: what they wanted.
-model Lead {
+model MarketingLead {
   id String @id @default(cuid())
 
-  email       String   @unique
-  name        String?
-  companyName String?
+  email              String    @unique
+  name               String?
+  companyName        String?
   /// HOME_PAGE · DEMO · GENERATED_SITE · REFERRAL · EVENT
-  source      String
+  source             String
   /// What they asked for, in their words.
-  asked       String?
-  consentAt   DateTime @default(now())
+  asked              String?
+  consentAt          DateTime  @default(now())
   /// Set when they become a real tenant, so nobody keeps courting a customer.
   convertedCompanyId String?
   convertedAt        DateTime?
@@ -4764,8 +4764,8 @@ model ReconciliationRun {
   periodStart DateTime
   periodEnd   DateTime
 
-  oursCents      Int
-  theirsCents    Int
+  oursCents       Int
+  theirsCents     Int
   /// ours minus theirs. Zero is the goal and rarely the first result.
   differenceCents Int
 
