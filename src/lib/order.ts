@@ -54,6 +54,9 @@ export type PostingKind =
   | 'COMMISSION'
   | 'VISA'
   | 'OVERHEAD'
+  /// Held back from a consultant's share into their own bench reserve, or
+  /// drawn out of it to pay them while they sit. Sign says which.
+  | 'RESERVE'
   | 'SETTLEMENT'
 
 export interface Posting {
@@ -508,6 +511,10 @@ export function signed(kind: PostingKind, amountCents: number): number {
     case 'VISA':
     case 'OVERHEAD':
       return -magnitude
+    // Held back from a share is money out of this month's pay; drawn back
+    // out to fund a bench week is money in. Only the caller knows which.
+    case 'RESERVE':
+      return Math.round(amountCents)
     // An expense billed on to the client is money in; reimbursed to the
     // person it is money out. The caller has to say which, so this one
     // passes the sign through as given.

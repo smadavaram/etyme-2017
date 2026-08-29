@@ -63,8 +63,10 @@ export async function GET(request: NextRequest) {
       settledAt: true, settledCents: true,
       personId: true, person: { select: { name: true } },
       clientCompanyId: true, clientCompany: { select: { name: true } },
-      internalOrderId: true,
-      internalOrder: { select: { id: true, code: true, name: true, budgetCents: true } },
+      projectOrderId: true,
+      projectOrder: {
+        select: { id: true, code: true, name: true, budgetCents: true, currency: true },
+      },
     },
     orderBy: { postedAt: 'asc' },
     take: 20_000,
@@ -122,12 +124,12 @@ export async function GET(request: NextRequest) {
     // by === 'order'
     const orders = new Map<string, typeof posted>()
     for (const p of posted) {
-      orders.set(p.internalOrderId, [...(orders.get(p.internalOrderId) ?? []), p])
+      orders.set(p.projectOrderId, [...(orders.get(p.projectOrderId) ?? []), p])
     }
 
     const rows = [...orders.entries()].map(([orderId, theirs]) => {
       const mine = ps.filter((x) => theirs.some((t) => t.id === x.id))
-      const meta = theirs[0].internalOrder
+      const meta = theirs[0].projectOrder
       return {
         orderId,
         code: meta.code,

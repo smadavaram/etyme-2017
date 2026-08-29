@@ -66,6 +66,7 @@ model Person {
   identityB        IdentityMatch[] @relation("identityB")
   orderPostings    OrderPosting[]
   postingsAuthored OrderPosting[]  @relation("postingAuthor")
+  journalLines     JournalLine[]
 }
 
 model Credential {
@@ -409,6 +410,13 @@ model Company {
   clientOrderPostings OrderPosting[] @relation("postingClient")
 
   fxRates FxRate[]
+
+  projectOrders  ProjectOrder[]
+  projectClients ProjectOrder[]  @relation("projectClient")
+  ledgerAccounts LedgerAccount[]
+  journalEntries JournalEntry[]
+  journalClients JournalLine[]   @relation("journalClient")
+  erpAccountMaps ErpAccountMap[]
 
   @@index([listedById])
 }
@@ -815,6 +823,8 @@ model OrgUnit {
   approvalRules ApprovalRule[]
 
   internalOrders InternalOrder[]
+
+  projectOrders ProjectOrder[]
 
   @@index([companyId])
   @@index([parentId])
@@ -1881,6 +1891,9 @@ model SellContract {
 
   orderPostings OrderPosting[]
 
+  projectOrderId String?
+  projectOrder   ProjectOrder? @relation(fields: [projectOrderId], references: [id])
+
   @@index([companyId, state])
   @@index([clientCompanyId])
   @@index([endClientCompanyId])
@@ -1898,6 +1911,7 @@ model SellContract {
   @@index([costCenterId])
   @@index([internalOrderId])
   @@index([salesOrderId])
+  @@index([projectOrderId])
 }
 
 enum SellContractState {
@@ -2016,12 +2030,16 @@ model BuyContract {
 
   orderPostings OrderPosting[]
 
+  projectOrderId String?
+  projectOrder   ProjectOrder? @relation(fields: [projectOrderId], references: [id])
+
   @@index([companyId, state])
   @@index([vendorCompanyId])
   @@index([endDate])
   @@index([entityId])
   @@index([purchaseOrderId])
   @@index([internalOrderId])
+  @@index([projectOrderId])
 }
 
 // One person on a buy contract, at their own rate and dates.
@@ -2157,6 +2175,8 @@ model Engagement {
   sellContracts SellContract[]
   invoices      Invoice[]
   salesOrders   SalesOrder[]
+
+  projectOrders ProjectOrder[]
 
   @@index([msaId])
 }
@@ -2392,7 +2412,13 @@ model InternalOrder {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  /// Must match the client's own ERP — "IO-4711".
+  /// The client's own code, matched exactly — "IO-4711", "WBS-4711.02".
+  ///
+  /// INTERFACE ONLY. This object exists so a figure leaving here lands on
+  /// the right line in somebody else's ERP. It does not accumulate
+  /// anything; ProjectOrder does that. Conflating the two is how a
+  /// reconciliation ends up depending on a code the client can renumber
+  /// without telling anybody.
   code        String
   name        String
   /// The department that owns the budget, where one does.
@@ -2416,6 +2442,8 @@ model InternalOrder {
   sellContracts SellContract[]
   buyContracts  BuyContract[]
   postings      OrderPosting[]
+  /// The project orders that carry this code outward. Interface only.
+  projectOrders ProjectOrder[]
 
   @@unique([companyId, code])
   @@index([companyId, isActive])
@@ -2485,13 +2513,292 @@ model FxRate {
   @@index([companyId, fromCurrency, toCurrency, effectiveOn])
 }
 
+// ─────────────────────────────────────────────
+// THE JOURNAL
+// ─────────────────────────────────────────────
+//
+// Not a general ledger. We are not replacing anybody's ERP and should not
+// try — no trial balance, no period close, no statutory reporting.
+//
+// What this is: one canonical double-entry journal behind the postings,
+// and a mapping per accounting system. Without it every integration is a
+// bespoke transformation of our own posting shapes into SAP's, then
+// Oracle's, then NetSuite's, then QuickBooks' — four transformations that
+// drift apart and each of which can be wrong on its own.
+//
+// With it there is one journal, four mappings, and a balance check that
+// fails loudly. It is also the artefact an auditor asks for, so it earns
+// its keep twice.
+
+/// A line in the chart of accounts. Ours, mapped outward.
+model LedgerAccount {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Our own code. "4000" revenue, "5000" direct cost, and so on.
+  code       String
+  name       String
+  type       AccountType
+  /// Which side increases this account. Debit for assets and expenses,
+  /// credit for liabilities, equity and revenue. Stored rather than
+  /// derived because a sign error here is silent everywhere downstream.
+  normalSide Side
+
+  isActive Boolean @default(true)
+
+  lines    JournalLine[]
+  mappings ErpAccountMap[]
+
+  @@unique([companyId, code])
+  @@index([companyId, type])
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum Side {
+  DEBIT
+  CREDIT
+}
+
+/// One balanced transaction. Debits equal credits or it does not save.
+model JournalEntry {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  projectOrderId String?
+  projectOrder   ProjectOrder? @relation(fields: [projectOrderId], references: [id])
+
+  /// The date the transaction belongs to, not the date it was written.
+  postedAt DateTime
+  /// The posting, invoice or payroll run that caused it.
+  source   PostingSource
+  sourceId String?
+  memo     String
+
+  /// Set on an entry that reverses an earlier one. Both stay.
+  reversalOfId String?       @unique
+  reversalOf   JournalEntry? @relation("journalReversal", fields: [reversalOfId], references: [id])
+  reverses     JournalEntry? @relation("journalReversal")
+
+  /// Stamped when this entry has been sent to the company's own system, so
+  /// a re-export does not double-post into somebody's real ledger.
+  exportedAt DateTime?
+  exportedTo String?
+
+  lines JournalLine[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([source, sourceId])
+  @@index([companyId, postedAt])
+  @@index([projectOrderId])
+  @@index([exportedAt])
+}
+
+model JournalLine {
+  id      String       @id @default(cuid())
+  entryId String
+  entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  accountId String
+  account   LedgerAccount @relation(fields: [accountId], references: [id])
+
+  /// One of these is zero. Both in the company's home currency, in cents.
+  debitCents  Int    @default(0)
+  creditCents Int    @default(0)
+  currency    String
+
+  /// The dimensions a client's finance team will want the line broken by.
+  personId         String?
+  person           Person?     @relation(fields: [personId], references: [id])
+  clientCompanyId  String?
+  clientCompany    Company?    @relation("journalClient", fields: [clientCompanyId], references: [id])
+  costCenterId     String?
+  costCenter       CostCenter? @relation("journalCostCenter", fields: [costCenterId], references: [id])
+  /// The client's coding at the time, copied so an export reproduces.
+  clientCostObject String?
+
+  memo String?
+
+  @@index([entryId])
+  @@index([accountId])
+  @@index([personId])
+  @@index([clientCompanyId])
+  @@index([costCenterId])
+}
+
+/// Our account code, in their language.
+///
+/// One row per account per system. A vendor on QuickBooks and a client on
+/// SAP both read the same journal through their own map, which is the
+/// whole reason the journal exists.
+model ErpAccountMap {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  system ErpSystem
+
+  accountId String
+  account   LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  /// Their account code. "0004000000" in SAP, "40100" in NetSuite.
+  theirAccount    String
+  /// Their cost object type, where the system needs one on every line.
+  theirCostObject String?
+  /// Their tax code, where postings carry one.
+  theirTaxCode    String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, system, accountId])
+  @@index([companyId, system])
+}
+
+enum ErpSystem {
+  /// Clients, mostly.
+  SAP
+  ORACLE
+  WORKDAY
+  /// Vendors, mostly.
+  NETSUITE
+  QUICKBOOKS
+  XERO
+  /// A file somebody imports by hand. Always supported, because most
+  /// firms below a certain size have no system at all.
+  CSV
+}
+
+/// The thing that accumulates. Our own, not anybody else's.
+///
+/// ── Why this is separate from InternalOrder ──────────────────────────
+///
+/// An internal order in a client's SAP is their object. We carry their
+/// code so a figure leaving here lands on the right line in their books,
+/// and that is all it is for — an interface value they can renumber
+/// without telling us. Posting to it would make our profitability depend
+/// on somebody else's master data.
+///
+/// This is the revenue-bearing order: it collects real revenue and real
+/// cost for one piece of work, carries the back-office allocations, and
+/// settles to a cost centre when it closes. Every posting lands here.
+///
+/// One per project or statement of work, which is how a client thinks
+/// and how the work is actually sold. A project may span several openings
+/// and several months and everybody on it belongs to the same order.
+model ProjectOrder {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Ours. "PRJ-0042". Stable for the life of the work.
+  code String
+  name String
+
+  kind ProjectOrderKind @default(TIME_AND_MATERIALS)
+
+  /// Who is billed. Null on an internal or overhead-collecting order.
+  clientCompanyId String?
+  clientCompany   Company? @relation("projectClient", fields: [clientCompanyId], references: [id])
+
+  /// The project or SOW this order is the money side of.
+  engagementId String?
+  engagement   Engagement? @relation(fields: [engagementId], references: [id])
+
+  orgUnitId String?
+  orgUnit   OrgUnit? @relation(fields: [orgUnitId], references: [id])
+
+  /// Where the balance goes when the order closes.
+  settlesToId String?
+  settlesTo   CostCenter? @relation("projectSettlement", fields: [settlesToId], references: [id])
+
+  /// The client's coding, carried for interfacing. Never posted to.
+  internalOrderId  String?
+  internalOrder    InternalOrder? @relation(fields: [internalOrderId], references: [id])
+  /// Where they gave us a code we do not model — a WBS element, a job
+  /// number, a PO line. Free text on purpose: guessing at a structure we
+  /// have not seen is worse than carrying the string they sent.
+  clientCostObject String?
+
+  /// Every posting is converted into this on the way in. Fixed when the
+  /// order opens, because a total across two currencies is a total of
+  /// nothing.
+  currency    String @default("USD")
+  budgetCents Int?
+
+  /// TRUE where this order exists only to collect back-office cost that
+  /// is later spread across the others. Excluded from margin on its own.
+  isOverheadPool Boolean @default(false)
+
+  status ProjectOrderStatus @default(OPEN)
+
+  opensAt   DateTime?
+  closesAt  DateTime?
+  /// When the balance was moved out to the cost centre. Postings after
+  /// this are refused rather than quietly changing a settled period.
+  settledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  postings       OrderPosting[]
+  sellContracts  SellContract[]
+  buyContracts   BuyContract[]
+  journalEntries JournalEntry[]
+
+  @@unique([companyId, code])
+  @@index([companyId, status])
+  @@index([clientCompanyId])
+  @@index([engagementId])
+  @@index([internalOrderId])
+  @@index([orgUnitId])
+  @@index([settlesToId])
+}
+
+enum ProjectOrderKind {
+  /// Billed for hours worked. The staffing default.
+  TIME_AND_MATERIALS
+  /// A fixed sum for a defined deliverable.
+  FIXED_PRICE
+  /// Billed on named milestones being accepted.
+  MILESTONE
+  /// A recurring fee whether or not hours are worked.
+  RETAINER
+  /// Collects cost only — back office, marketing, recruiting. Spread
+  /// across the others rather than reported as a loss of its own.
+  OVERHEAD
+}
+
+enum ProjectOrderStatus {
+  OPEN
+  /// No new postings, corrections still allowed. The month-end state.
+  LOCKED
+  /// Balance moved out to the cost centre. Nothing further posts.
+  SETTLED
+  CLOSED
+}
+
 model OrderPosting {
-  id              String        @id @default(cuid())
-  internalOrderId String
-  internalOrder   InternalOrder @relation(fields: [internalOrderId], references: [id], onDelete: Cascade)
+  id              String         @id @default(cuid())
+  /// The order that accumulates. Always ours.
+  projectOrderId  String
+  projectOrder    ProjectOrder   @relation(fields: [projectOrderId], references: [id], onDelete: Cascade)
+  /// The client's coding at the moment this was posted, copied rather than
+  /// looked up, so an export next year reproduces what was sent last year
+  /// even if they have since renumbered.
+  internalOrderId String?
+  internalOrder   InternalOrder? @relation(fields: [internalOrderId], references: [id])
   /// Whose books. Postings never cross a company wall.
   companyId       String
-  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   kind PostingKind
 
@@ -2571,7 +2878,8 @@ model OrderPosting {
   /// One posting per source event per kind. An accepted timesheet writes
   /// pay and burden and must not write them twice if the route is retried.
   @@unique([source, sourceId, kind])
-  @@index([internalOrderId, postedAt])
+  @@index([projectOrderId, postedAt])
+  @@index([internalOrderId])
   @@index([companyId, postedAt])
   @@index([personId])
   @@index([clientCompanyId])
@@ -2639,6 +2947,9 @@ model CostCenter {
   settledFrom InternalOrder[]
 
   sellContracts SellContract[]
+
+  journalLines       JournalLine[]  @relation("journalCostCenter")
+  projectSettlements ProjectOrder[] @relation("projectSettlement")
 
   @@unique([companyId, code])
   @@index([companyId, isActive])

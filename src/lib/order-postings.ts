@@ -50,6 +50,8 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
       endDate: true,
       requirementId: true,
       billCurrency: true,
+      projectOrderId: true,
+      clientCompanyId: true,
       clientCompany: { select: { name: true } },
       engagement: { select: { id: true, title: true } },
       requirement: {
@@ -58,17 +60,7 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
     },
   })
   if (!sell) return null
-  if (sell.internalOrderId) return sell.internalOrderId
-
-  // The requisition's own order, where the client's ERP already named one.
-  // Their code wins over ours — their finance team reconciles against it.
-  if (sell.requirement?.internalOrderId) {
-    await prisma.sellContract.update({
-      where: { id: sell.id },
-      data: { internalOrderId: sell.requirement.internalOrderId },
-    })
-    return sell.requirement.internalOrderId
-  }
+  if (sell.projectOrderId) return sell.projectOrderId
 
   // The project, where there is one. Six consultants across three openings
   // on the same project share a bucket, which is the whole point.
@@ -84,15 +76,21 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
       ? `${sell.requirement.title} — ${sell.clientCompany.name}`
       : `Placement at ${sell.clientCompany.name}`
 
-  const order = await prisma.internalOrder.upsert({
+  const order = await prisma.projectOrder.upsert({
     where: { companyId_code: { companyId: sell.companyId, code } },
     update: {},
     create: {
       companyId: sell.companyId,
       code,
       name,
+      clientCompanyId: sell.clientCompanyId,
+      engagementId: sell.engagement?.id ?? null,
       orgUnitId: sell.orgUnitId,
       settlesToId: sell.costCenterId,
+      // The client's coding, carried for interfacing and never posted to.
+      // It is their master data and they can renumber it without telling
+      // us, which is exactly why our accumulation must not depend on it.
+      internalOrderId: sell.requirement?.internalOrderId ?? null,
       // The order's currency, which every posting is converted into. A
       // total across two currencies is a total of nothing, so this is
       // fixed when the order opens rather than inferred later.
@@ -103,20 +101,10 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
     select: { id: true },
   })
 
-  await prisma.$transaction([
-    prisma.sellContract.update({
-      where: { id: sell.id },
-      data: { internalOrderId: order.id },
-    }),
-    ...(sell.requirement
-      ? [
-          prisma.requirement.update({
-            where: { id: sell.requirement.id },
-            data: { internalOrderId: order.id },
-          }),
-        ]
-      : []),
-  ])
+  await prisma.sellContract.update({
+    where: { id: sell.id },
+    data: { projectOrderId: order.id },
+  })
 
   return order.id
 }
@@ -170,7 +158,7 @@ export async function rateOn(
 }
 
 interface Write {
-  internalOrderId: string
+  projectOrderId: string
   companyId: string
   kind: PostingKind
   amountCents: number
@@ -204,11 +192,20 @@ export class NoRate extends Error {
 
 /** One posting, or nothing where it was already written. */
 async function write(w: Write) {
-  const order = await prisma.internalOrder.findUnique({
-    where: { id: w.internalOrderId },
-    select: { currency: true },
+  const order = await prisma.projectOrder.findUnique({
+    where: { id: w.projectOrderId },
+    select: { currency: true, status: true, internalOrderId: true },
   })
   const orderCurrency = order?.currency ?? 'USD'
+
+  // A settled order is a period somebody has already reported. Posting
+  // into it silently changes a number that has left the building.
+  if (order?.status === 'SETTLED' || order?.status === 'CLOSED') {
+    throw new Error(
+      `That project order is ${order.status.toLowerCase()}. Post the correction to ` +
+        `an open order instead of changing a period that has already been reported.`
+    )
+  }
 
   const fx = await rateOn(w.companyId, w.txCurrency, orderCurrency, w.postedAt)
   if (fx == null) throw new NoRate(w.txCurrency, orderCurrency, w.postedAt)
@@ -237,7 +234,10 @@ async function write(w: Write) {
     },
     update: {},
     create: {
-      internalOrderId: w.internalOrderId,
+      projectOrderId: w.projectOrderId,
+      // Copied rather than looked up, so an export next year reproduces
+      // what was sent last year even if the client has since renumbered.
+      internalOrderId: order?.internalOrderId ?? null,
       companyId: w.companyId,
       kind: w.kind,
       amountCents: amount,
@@ -375,7 +375,7 @@ export async function postAssertion(assertionId: string, byId?: string | null) {
   // and using it moves margin between months for no reason.
   const at = a.timesheet.periodStart
   const common = {
-    internalOrderId: orderId,
+    projectOrderId: orderId,
     companyId: sell.companyId,
     personId: a.timesheet.personId,
     clientCompanyId: sell.endClientCompanyId ?? sell.clientCompanyId,
@@ -470,6 +470,7 @@ export async function reversePostingsFor(
     out.push(
       await prisma.orderPosting.create({
         data: {
+          projectOrderId: p.projectOrderId,
           internalOrderId: p.internalOrderId,
           companyId: p.companyId,
           kind: p.kind,
