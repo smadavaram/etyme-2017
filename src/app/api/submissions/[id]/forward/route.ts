@@ -131,6 +131,10 @@ export async function POST(
           title: mirrored.title,
           skills: mirrored.skills,
           location: mirrored.location,
+          // Carried, not inferred. Dropping it here made every forwarded
+          // role look like a direct placement one hop down, and tenure
+          // then aggregated against the prime instead of the client.
+          endClientCompanyId: mirrored.endClientCompanyId,
           status: 'OPEN',
           source: 'NETWORK',
           mirroredFromId: mirrored.mirroredFromRequirementId,

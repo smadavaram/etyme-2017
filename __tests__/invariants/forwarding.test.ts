@@ -254,3 +254,66 @@ describe('the role on the way up', () => {
     expect(m.location).toBe('Lakewood, CO')
   })
 })
+
+// ── The end client survives every hop ────────────────────────────────
+//
+// It did not. A role forwarded through a prime arrived at the sub with no
+// end client, so the sub's contract recorded the prime as the place of
+// work — and tenure, which Addendum E requires to aggregate at the end
+// client across every vendor, counted the wrong company.
+//
+// Twelve months at Nike direct and twelve at Nike through a prime read as
+// two unrelated years at two firms. That is precisely the industry blind
+// spot this product exists to close, and the forward route was selecting
+// the field and then not using it.
+
+describe('Where the work actually is survives being forwarded', () => {
+
+  it('carries the end client to the next company down the chain', () => {
+    const m = mirrorRole(
+      {
+        id: 'req-1', title: 'Validation engineer', skills: ['GxP'], location: 'Denver',
+        endClientCompanyId: 'terumo', companyId: 'prime-systems',
+      },
+      'sub-staffing'
+    )
+    expect(m.endClientCompanyId).toBe('terumo')
+  })
+
+  it('survives a second hop, because a chain is rarely two companies long', () => {
+    const first = mirrorRole(
+      { id: 'req-1', title: 'X', skills: [], location: null, endClientCompanyId: 'terumo', companyId: 'client' },
+      'prime'
+    )
+    const second = mirrorRole(
+      { id: 'req-2', title: 'X', skills: [], location: null, endClientCompanyId: first.endClientCompanyId, companyId: 'prime' },
+      'sub'
+    )
+    expect(second.endClientCompanyId).toBe('terumo')
+  })
+
+  it('falls back to the sender where nobody set an end client', () => {
+    // A null here reads downstream as "direct placement", which is wrong
+    // twice — the sender is at least the end client as far as the
+    // recipient can tell.
+    const m = mirrorRole(
+      { id: 'req-1', title: 'X', skills: [], location: null, companyId: 'prime-systems' },
+      'sub-staffing'
+    )
+    expect(m.endClientCompanyId).toBe('prime-systems')
+  })
+
+  it('is null only when the sender genuinely does not know either', () => {
+    const m = mirrorRole({ id: 'req-1', title: 'X', skills: [], location: null }, 'sub')
+    expect(m.endClientCompanyId).toBeNull()
+  })
+
+  it('still records which role it was mirrored from, for anybody auditing', () => {
+    const m = mirrorRole(
+      { id: 'req-1', title: 'X', skills: [], location: null, endClientCompanyId: 'terumo' },
+      'sub'
+    )
+    expect(m.mirroredFromRequirementId).toBe('req-1')
+    expect(m.companyId).toBe('sub')
+  })
+})

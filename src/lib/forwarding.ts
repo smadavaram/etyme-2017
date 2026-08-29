@@ -189,12 +189,35 @@ export interface MirroredRole {
   location: string | null
   /** Whose books it lands on. */
   companyId: string
+  /**
+   * Where the work actually is, carried down every hop.
+   *
+   * This was dropped. A role forwarded through a prime arrived at the sub
+   * with no end client, so the sub's contract recorded the prime as the
+   * place of work — and tenure, which Addendum E requires to aggregate at
+   * the end client across every vendor, quietly counted the wrong
+   * company. Twelve months at Nike direct and twelve at Nike through a
+   * prime read as two unrelated years at two firms.
+   *
+   * That is the exact blind spot the product exists to close, so it is
+   * carried rather than inferred. Null only where the sender genuinely
+   * does not know it either.
+   */
+  endClientCompanyId: string | null
   /** The role it was mirrored from, for anybody auditing later. */
   mirroredFromRequirementId: string
 }
 
 export function mirrorRole(
-  source: { id: string; title: string; skills: string[]; location: string | null },
+  source: {
+    id: string
+    title: string
+    skills: string[]
+    location: string | null
+    endClientCompanyId?: string | null
+    /** Who is paying the sender. The fallback where no end client is set. */
+    companyId?: string
+  },
   destinationCompanyId: string
 ): MirroredRole {
   return {
@@ -202,6 +225,11 @@ export function mirrorRole(
     skills: source.skills,
     location: source.location,
     companyId: destinationCompanyId,
+    // Where the sender knows the end client, that travels. Where it does
+    // not, the sender itself IS the end client as far as the recipient
+    // can tell, and saying so beats leaving it null — a null here reads
+    // downstream as "direct placement", which is the wrong answer twice.
+    endClientCompanyId: source.endClientCompanyId ?? source.companyId ?? null,
     mirroredFromRequirementId: source.id,
   }
 }
