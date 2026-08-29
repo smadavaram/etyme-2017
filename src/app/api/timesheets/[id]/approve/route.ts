@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
+import { gates, maySign, acceptWith, type Sheet } from '@/lib/timesheet-signatures'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 
@@ -80,14 +81,101 @@ export async function POST(
 
   const hours = Number(timesheet.totalHours)
   const billAmount = hours * timesheet.sellContract.billRate / 100 // billRate is in cents
+  const now = new Date()
+
+  // ── Which signature is this ─────────────────────────────────────────
+  //
+  // The client approves that the work happened; the employer accepts
+  // what it will pay for. Different assertions, and in a forwarding
+  // chain almost never the same company — so the caller's position on
+  // this contract decides which one they are making.
+  const body = await request.json().catch(() => ({}))
+  const employer = timesheet.sellContract.companyId
+  const client = timesheet.sellContract.endClientCompanyId ?? timesheet.sellContract.clientCompanyId
+  const isEmployer = caller.company?.id === employer
+  const isClient = caller.company?.id === client
+  const direct = employer === client
+
+  const sheet: Sheet = {
+    totalHours: hours,
+    clientApproved: timesheet.clientApprovedAt
+      ? { at: timesheet.clientApprovedAt, byId: timesheet.clientApprovedById! }
+      : null,
+    employerAccepted: timesheet.employerAcceptedAt
+      ? { at: timesheet.employerAcceptedAt, byId: timesheet.employerAcceptedById! }
+      : null,
+    acceptedHours: timesheet.acceptedHours ? Number(timesheet.acceptedHours) : null,
+    acceptedNote: timesheet.acceptedNote,
+    direct,
+  }
+
+  const asParty = body?.as === 'EMPLOYER' ? 'EMPLOYER' : isClient ? 'CLIENT' : 'EMPLOYER'
+  const may = maySign(asParty, sheet, isClient, isEmployer)
+  if (!may.ok) {
+    return NextResponse.json(
+      { error: { code: 'CANNOT_SIGN', message: may.reason } },
+      { status: 409 }
+    )
+  }
+
+  // Accepting a different number needs a reason. Somebody finding out
+  // from their payslip is the fastest way to lose a good contractor.
+  const accepted = acceptWith(
+    hours,
+    body?.acceptedHours != null ? Number(body.acceptedHours) : null,
+    typeof body?.note === 'string' ? body.note : null
+  )
+  if (!accepted.ok) {
+    return NextResponse.json(
+      { error: { code: 'NEEDS_REASON', message: accepted.reason, field: 'note' } },
+      { status: 422 }
+    )
+  }
+
+  // On a direct placement the two parties are one company, so one press
+  // signs both — and the record still carries two signatures, which is
+  // why the invoice engine cannot tell a direct sheet from one approved
+  // three companies away.
+  const signatures: Record<string, unknown> = direct
+    ? {
+        clientApprovedById: person.id, clientApprovedAt: now,
+        employerAcceptedById: person.id, employerAcceptedAt: now,
+      }
+    : asParty === 'CLIENT'
+      ? { clientApprovedById: person.id, clientApprovedAt: now }
+      : {
+          employerAcceptedById: person.id, employerAcceptedAt: now,
+          acceptedHours: accepted.hours, acceptedNote: body?.note ?? null,
+        }
+
+  const after: Sheet = {
+    ...sheet,
+    clientApproved: signatures.clientApprovedAt
+      ? { at: now, byId: person.id }
+      : sheet.clientApproved,
+    employerAccepted: signatures.employerAcceptedAt
+      ? { at: now, byId: person.id }
+      : sheet.employerAccepted,
+    acceptedHours: (signatures.acceptedHours as number | null) ?? sheet.acceptedHours,
+  }
+
+  const g = gates(after, {
+    client: timesheet.sellContract.clientCompanyId,
+    employer: timesheet.sellContract.companyId,
+  })
 
   await prisma.$transaction([
     prisma.timesheet.update({
       where: { id },
       data: {
-        status: 'APPROVED',
-        approvedById: person.id,
-        approvedAt: new Date(),
+        // APPROVED only once both are in. A sheet with one signature is
+        // half done, and calling it approved is what let a prime bill on
+        // a signature it never collected.
+        status: g.mayInvoice && g.mayPay ? 'APPROVED' : 'SUBMITTED',
+        ...signatures,
+        // The old single field, kept in step so anything still reading it
+        // sees the client's approval rather than nothing.
+        ...(signatures.clientApprovedAt ? { approvedById: person.id, approvedAt: now } : {}),
       },
     }),
     prisma.automationLog.create({

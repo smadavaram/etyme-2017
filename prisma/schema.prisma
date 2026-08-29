@@ -354,17 +354,23 @@ model Company {
   // for a firm that chose to be here.
 
   /// When somebody at this firm took possession of it. Null = a shell.
-  claimedAt   DateTime?
+  claimedAt  DateTime?
   /// The client who put them on the platform, where that is how it began.
-  listedById  String?
-  listedBy    Company?  @relation("listedSuppliers", fields: [listedById], references: [id])
-  listed      Company[] @relation("listedSuppliers")
+  listedById String?
+  listedBy   Company?  @relation("listedSuppliers", fields: [listedById], references: [id])
+  listed     Company[] @relation("listedSuppliers")
 
   supplierInvitesReceived SupplierInvite[] @relation("invitedCompany")
   supplierInvitesSent     SupplierInvite[] @relation("invitingCompany")
 
   interviewsHosted   Interview[] @relation("interviewHost")
   interviewsSupplied Interview[] @relation("interviewVendor")
+
+  internalOrders InternalOrder[]
+
+  invoicesSoldTo Invoice[] @relation("invoiceSoldTo")
+  invoicesBillTo Invoice[] @relation("invoiceBillTo")
+  invoicesPayer  Invoice[] @relation("invoicePayer")
 
   @@index([listedById])
 }
@@ -388,13 +394,13 @@ model Interview {
   vendorId  String
   vendor    Company @relation("interviewVendor", fields: [vendorId], references: [id])
 
-  round        Int    @default(1)
+  round Int    @default(1)
   /// SCREEN · TECHNICAL · FINAL — the client's own words, not an enum.
-  stage        String @default("TECHNICAL")
+  stage String @default("TECHNICAL")
   /// PHONE · VIDEO · ONSITE
-  mode         String @default("VIDEO")
+  mode  String @default("VIDEO")
   /// PROPOSED · CONFIRMED · DONE · NO_SHOW · CANCELLED
-  state        String @default("PROPOSED")
+  state String @default("PROPOSED")
 
   /// [{ start, end }] in UTC. Displayed local, stored absolute — an
   /// interview booked across two time zones is the ordinary case.
@@ -411,9 +417,9 @@ model Interview {
   /// Names, not seats. Plenty of interviewers have no account here.
   interviewers  String[]
 
-  clientConfirmedAt     DateTime?
-  vendorConfirmedAt     DateTime?
-  consultantConfirmedAt DateTime?
+  clientConfirmedAt      DateTime?
+  vendorConfirmedAt      DateTime?
+  consultantConfirmedAt  DateTime?
   /// SELF · VENDOR_ASSERTED — the same convention as the right to
   /// represent. A consultant with no seat here is confirmed by their
   /// vendor, and the difference matters when nobody turns up.
@@ -465,11 +471,11 @@ model SupplierInvite {
   line        String?
 
   /// The claim. Single use, and the only authority besides the address.
-  token       String    @unique
-  state       String    @default("PENDING") // PENDING · ACCEPTED · REVOKED
-  sentAt      DateTime  @default(now())
-  remindedAt  DateTime?
-  acceptedAt  DateTime?
+  token        String    @unique
+  state        String    @default("PENDING") // PENDING · ACCEPTED · REVOKED
+  sentAt       DateTime  @default(now())
+  remindedAt   DateTime?
+  acceptedAt   DateTime?
   acceptedById String?
 
   @@unique([byId, email])
@@ -508,6 +514,8 @@ model CompanyLocation {
 
   sellContracts SellContract[] // contracts at this work site
 
+  invoicesShipTo Invoice[] @relation("invoiceShipTo")
+
   @@index([companyId])
 }
 
@@ -540,6 +548,8 @@ model OrgUnit {
   costCenters   CostCenter[] // budgets that fund this unit
   requisitions  Requirement[]
   approvalRules ApprovalRule[]
+
+  internalOrders InternalOrder[]
 
   @@index([companyId])
   @@index([parentId])
@@ -870,14 +880,16 @@ model Requirement {
   // records against demand it heard about. Same object, two origins: the
   // client names the budget, the manager and the headcount; the vendor sees
   // it with a rate band that is theirs alone (on RequirementInvitation).
-  raisedById    String? // the hiring manager who needs the people
-  raisedBy      Person?     @relation("requisitionRaiser", fields: [raisedById], references: [id])
-  orgUnitId     String? // the department the headcount belongs to
-  orgUnit       OrgUnit?    @relation(fields: [orgUnitId], references: [id])
-  costCenterId  String? // the budget that funds it
-  costCenter    CostCenter? @relation(fields: [costCenterId], references: [id])
-  headcount     Int         @default(1) // "I need three of these", not three requisitions
-  neededBy      DateTime?
+  raisedById      String? // the hiring manager who needs the people
+  raisedBy        Person?        @relation("requisitionRaiser", fields: [raisedById], references: [id])
+  orgUnitId       String? // the department the headcount belongs to
+  orgUnit         OrgUnit?       @relation(fields: [orgUnitId], references: [id])
+  internalOrderId String?
+  internalOrder   InternalOrder? @relation(fields: [internalOrderId], references: [id])
+  costCenterId    String? // the budget that funds it
+  costCenter      CostCenter?    @relation(fields: [costCenterId], references: [id])
+  headcount       Int            @default(1) // "I need three of these", not three requisitions
+  neededBy        DateTime?
 
   /// The work authorisation this role actually requires.
   ///
@@ -887,7 +899,7 @@ model Requirement {
   /// cheapest thing to check and the most expensive to discover in week
   /// two of an assignment.
   workAuthRequired String?
-  justification String?
+  justification    String?
 
   // Approval is separate from status: a requisition can be APPROVED and still
   // OPEN, or PENDING and never reach the market. Addendum E: most clear
@@ -932,6 +944,7 @@ model Requirement {
   @@index([openingId])
   @@index([mirroredFromId])
   @@index([payerCompanyId])
+  @@index([internalOrderId])
 }
 
 // ─────────────────────────────────────────────
@@ -1147,7 +1160,7 @@ model Submission {
   // look at instead of a job nobody can find.
 
   /// DRAFT · CHECKING · NEEDS_FIX · READY · SENT
-  checkState     String    @default("DRAFT")
+  checkState String @default("DRAFT")
 
   // ── The screen, from the other side ────────────────────────────────
   //
@@ -1161,7 +1174,7 @@ model Submission {
   // never be able to mark their own submission as having cleared the
   // buyer's screen.
 
-  interviews     Interview[]
+  interviews Interview[]
 
   /// DRAFT · NEEDS_FIX · READY — READY means it reaches the manager.
   screenState    String    @default("DRAFT")
@@ -1822,11 +1835,36 @@ model Timesheet {
   status         String       @default("OPEN") // OPEN · SUBMITTED · APPROVED · PARTIAL · REJECTED
   anomalyScore   Int? // low score means low confidence; held, never auto rejected
   anomalyReason  String?
-  approvedById   String?
-  approvedAt     DateTime?
+
+  // ── Two signatures, not one ────────────────────────────────────────
+  //
+  // The client approves a fact: this work happened, on these days, at
+  // this site. The employer accepts a basis: this is what I will pay
+  // for. Different assertions by different companies — and in a
+  // forwarding chain almost never the same company. The end client
+  // signs, the prime bills, the sub pays.
+  //
+  // One field for both meant a sub-vendor paying on somebody else's
+  // signature, and a prime billing on one it never collected.
+
+  /// The end client saying the work happened. Gates billing.
+  clientApprovedById   String?
+  clientApprovedAt     DateTime?
+  /// The employer saying this is the basis for pay. Gates payroll.
+  employerAcceptedById String?
+  employerAcceptedAt   DateTime?
+  /// What the employer will pay for, where it differs from what the
+  /// client approved. Null means accepted as approved.
+  acceptedHours        Decimal?  @db.Decimal(7, 2)
+  acceptedNote         String?
+
+  /// The single approval that predates the split. Kept so history reads,
+  /// but new code should use the two above.
+  approvedById String?
+  approvedAt   DateTime?
   // Billing is expressed by InvoiceLine, which the database constrains to one
   // line per timesheet. The old loose invoiceId string enforced nothing.
-  invoiceLine    InvoiceLine?
+  invoiceLine  InvoiceLine?
 
   @@unique([sellContractId, periodStart])
   @@index([status])
@@ -1867,10 +1905,38 @@ model Invoice {
   /// been right, how often it needed a second go, or what it cost.
   matchAttempt Int @default(0)
 
+  // ── Who is who on this invoice ─────────────────────────────────────
+  //
+  // A large client signs in one entity, is billed through a shared
+  // services centre in another country, has the work done at a third
+  // site, and pays from a fourth. Treating those as one party is how an
+  // invoice reaches the wrong address and ages ninety days before
+  // anybody notices.
+  //
+  // All optional. Null means the party is the client on the agreement,
+  // which is the ordinary case and should not need four rows of setup.
+
+  /// Who signed the agreement this is issued under.
+  soldToId String?
+  soldTo   Company?         @relation("invoiceSoldTo", fields: [soldToId], references: [id])
+  /// Where the invoice is sent.
+  billToId String?
+  billTo   Company?         @relation("invoiceBillTo", fields: [billToId], references: [id])
+  /// Where the work was actually done.
+  shipToId String?
+  shipTo   CompanyLocation? @relation("invoiceShipTo", fields: [shipToId], references: [id])
+  /// Who settles it, where that is not the bill-to.
+  payerId  String?
+  payer    Company?         @relation("invoicePayer", fields: [payerId], references: [id])
+
   @@index([status, dueAt])
   @@index([purchaseOrderId])
   @@index([engagementId])
   @@index([remitToId])
+  @@index([soldToId])
+  @@index([billToId])
+  @@index([shipToId])
+  @@index([payerId])
 }
 
 // Expenses — consolidates 2017 expense, client_expense, expense_account, contract_expense, expense_item.
@@ -1934,6 +2000,48 @@ model Payment {
 // of record for AP; this is not a general ledger.
 // ─────────────────────────────────────────────
 
+/// A cost object for work that spans cost centres.
+///
+/// Contingent labour on a project is very often booked to an internal
+/// order rather than a cost centre: the project has a budget of its own,
+/// runs across three departments, and closes when it is finished. A cost
+/// centre is a standing department; an internal order is a temporary
+/// pot with an end date.
+///
+/// Both exist because clients use both, and forcing a project onto a
+/// cost centre is how the finance team stops trusting the numbers.
+model InternalOrder {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Must match the client's own ERP — "IO-4711".
+  code        String
+  name        String
+  /// The department that owns the budget, where one does.
+  orgUnitId   String?
+  orgUnit     OrgUnit?    @relation(fields: [orgUnitId], references: [id])
+  /// The cost centre it settles to when it closes, where it settles.
+  settlesToId String?
+  settlesTo   CostCenter? @relation(fields: [settlesToId], references: [id])
+
+  /// What it is allowed to spend, in cents. Null = uncapped.
+  budgetCents Int?
+  currency    String    @default("USD")
+  opensAt     DateTime?
+  closesAt    DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  allocations  ContractCostAllocation[]
+  requisitions Requirement[]
+
+  @@unique([companyId, code])
+  @@index([companyId, isActive])
+  @@index([orgUnitId])
+  @@index([settlesToId])
+}
+
 model CostCenter {
   id        String   @id @default(cuid())
   companyId String // the company whose budget this is
@@ -1949,6 +2057,8 @@ model CostCenter {
   allocations    ContractCostAllocation[]
   headcountPlans HeadcountPlan[]
   requisitions   Requirement[]
+
+  settledFrom InternalOrder[]
 
   @@unique([companyId, code])
   @@index([companyId, isActive])
@@ -1977,8 +2087,13 @@ model ContractCostAllocation {
   glAccount      String? // overrides the cost centre default for this contract
   createdAt      DateTime     @default(now())
 
+  /// Either a standing department or a project pot. Never both.
+  internalOrderId String?
+  internalOrder   InternalOrder? @relation(fields: [internalOrderId], references: [id])
+
   @@unique([sellContractId, costCenterId])
   @@index([sellContractId])
+  @@index([internalOrderId])
 }
 
 // A purchase order from a payer to a vendor.

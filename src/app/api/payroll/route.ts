@@ -58,11 +58,18 @@ export async function GET(request: NextRequest) {
           sellContract: {
             include: {
               timesheets: {
-                where: { status: 'APPROVED' },
+                // The employer's acceptance, not the combined status.
+                // Somebody paid late because a client's approval queue is
+                // slow is a fault with nothing to do with them.
+                where: { employerAcceptedAt: { not: null } },
                 select: {
                   id: true,
                   personId: true,
                   totalHours: true,
+                  // What the employer agreed to pay for, where it differs
+                  // from what the client approved — two hours of travel
+                  // nobody agreed to bill. Null means as submitted.
+                  acceptedHours: true,
                   periodStart: true,
                   periodEnd: true,
                   // The daily breakdown, so a week crossing a pay period
@@ -124,7 +131,7 @@ export async function GET(request: NextRequest) {
           .filter((ts) => ts.personId === cand.personId)
           .map((ts) => ({
             id: ts.id,
-            totalHours: Number(ts.totalHours),
+            totalHours: Number(ts.acceptedHours ?? ts.totalHours),
             rawStart: ts.periodStart,
             rawEnd: ts.periodEnd,
             days: (ts.days as Record<string, number>) ?? {},
