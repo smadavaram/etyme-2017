@@ -11,9 +11,10 @@ import { describe, it, expect } from 'vitest'
 import {
   ageInvoice, ageBook, bucketOf, daysOverdue, settlementOf, forCustomer,
   dso, dunningForCustomer, dunningRun, LADDER,
+  directionOf, stepsAlreadySent, openInvoiceIds,
   ROUNDING_TOLERANCE_MINOR, SHORT_PAY_MAX_FRACTION, CHASE_FLOOR_MINOR,
   ESCALATE_AFTER_DAYS,
-  type ArInvoice, type DunningStep,
+  type ArInvoice, type DunningStep, type SentLetter,
 } from '@/lib/ar-ageing'
 
 const NOW = new Date('2026-08-29T00:00:00Z')
@@ -332,5 +333,161 @@ describe('Four letters and then a person, because the fifth is filed by a rule',
     expect(run.send[0].customerName).toBe('Nike')
     expect(run.send[0].invoiceIds).toHaveLength(2)
     expect(run.send[0].step).toBe('FINAL')
+  })
+})
+
+// ── Which way the money runs ─────────────────────────────────────────
+
+describe('Money owed to us and money we owe are never the same total', () => {
+
+  const US = 'us'
+
+  it('an invoice we raised to a client is money owed to us', () => {
+    expect(directionOf({ vendorId: US, clientId: 'nike' }, US)).toBe('RECEIVABLE')
+  })
+
+  it('an invoice a supplier raised to us is money we owe, and never joins the owed-to-us bar', () => {
+    expect(directionOf({ vendorId: 'sub-vendor', clientId: US }, US)).toBe('PAYABLE')
+  })
+
+  it('an invoice between two other companies is neither ours to collect nor ours to pay', () => {
+    expect(directionOf({ vendorId: 'sub-vendor', clientId: 'nike' }, US)).toBe('NEITHER')
+  })
+
+  it('a firm that both sells and buys sees two totals, never one', () => {
+    // The bug this replaces: a prime scoped its ageing to "the agreement
+    // mentions us anywhere" and added every row into one figure, so its
+    // own supplier bills raised the bar labelled money owed to us.
+    const rows = [
+      { id: 'sold', vendorId: US, clientId: 'nike', minor: 500_000 },
+      { id: 'bought', vendorId: 'sub-vendor', clientId: US, minor: 300_000 },
+    ]
+    const owedToUs = rows
+      .filter((r) => directionOf(r, US) === 'RECEIVABLE')
+      .reduce((n, r) => n + r.minor, 0)
+    const weOwe = rows
+      .filter((r) => directionOf(r, US) === 'PAYABLE')
+      .reduce((n, r) => n + r.minor, 0)
+
+    expect(owedToUs).toBe(500_000)
+    expect(weOwe).toBe(300_000)
+    expect(owedToUs + weOwe).not.toBe(owedToUs)
+  })
+
+  it('dollars and rupees are aged in two books and never added together', () => {
+    const book = ageBook(
+      [
+        invoice({ id: 'usd', currency: 'USD', totalMinor: 100_000, dueAt: dueAgo(10) }),
+        invoice({ id: 'inr', currency: 'INR', totalMinor: 900_000, dueAt: dueAgo(10) }),
+      ],
+      NOW
+    )
+    expect(book.byCurrency).toHaveLength(2)
+    expect(book.currencies.sort()).toEqual(['INR', 'USD'])
+    const usd = book.byCurrency.find((b) => b.currency === 'USD')!
+    expect(usd.outstandingMinor).toBe(100_000)
+  })
+
+  it('the ageing summary is in cents, the same units as every row beside it', () => {
+    // £9,600 is 960,000 pence. A summary in whole pounds beside rows in
+    // pence is the shape of a hundredfold error nobody notices on screen.
+    const book = ageBook([invoice({ totalMinor: 960_000, dueAt: dueAgo(10) })], NOW).byCurrency[0]
+    expect(book.outstandingMinor).toBe(960_000)
+    expect(book.buckets.D1_30.minor).toBe(960_000)
+  })
+})
+
+// ── What has already been said ───────────────────────────────────────
+
+describe('The ladder can only stop repeating itself if something records a send', () => {
+
+  const letter = (over: Partial<SentLetter> = {}): SentLetter => ({
+    clientCompanyId: 'nike',
+    step: 'FIRST',
+    sentAt: dueAgo(3),
+    invoiceIds: ['a'],
+    ...over,
+  })
+
+  const nikeBook = (over: Partial<ArInvoice> = {}) =>
+    ageBook(
+      [invoice({ id: 'a', customerId: 'nike', customerName: 'Nike', dueAt: dueAgo(12), ...over })],
+      NOW
+    ).byCurrency[0]
+
+  it('a reminder already sent is not sent again the next morning', () => {
+    const book = nikeBook()
+    const sent = stepsAlreadySent([letter()], openInvoiceIds(book))
+    expect(sent).toEqual({ nike: ['FIRST'] })
+
+    const run = dunningRun(book, sent)
+    expect(run.send).toHaveLength(0)
+    expect(run.silent[0].reason).toBe('ALREADY_SAID')
+  })
+
+  it('with nothing recorded the same letter goes out again, which is the bug the record exists to stop', () => {
+    const run = dunningRun(nikeBook(), {})
+    expect(run.send).toHaveLength(1)
+    expect(run.send[0].step).toBe('FIRST')
+  })
+
+  it('the ladder starts again when a customer clears the balance and falls behind afresh', () => {
+    // The March run named invoice "a". It has since been paid in full,
+    // and "b" is the new arrears. Resuming at a final notice because a
+    // row exists from six months ago is worse than saying nothing.
+    const book = ageBook(
+      [
+        invoice({ id: 'a', customerId: 'nike', customerName: 'Nike', paidMinor: 960_000, dueAt: dueAgo(200) }),
+        invoice({ id: 'b', customerId: 'nike', customerName: 'Nike', dueAt: dueAgo(12) }),
+      ],
+      NOW
+    ).byCurrency[0]
+
+    const sent = stepsAlreadySent(
+      [letter({ step: 'FINAL', invoiceIds: ['a'], sentAt: dueAgo(160) })],
+      openInvoiceIds(book)
+    )
+    expect(sent).toEqual({})
+
+    const run = dunningRun(book, sent)
+    expect(run.send[0].step).toBe('FIRST')
+  })
+
+  it('a send recorded before this run of arrears does not silence today\'s letter', () => {
+    const book = nikeBook()
+    const sent = stepsAlreadySent(
+      [letter({ step: 'FIRST', invoiceIds: ['some-old-invoice'] })],
+      openInvoiceIds(book)
+    )
+    expect(sent).toEqual({})
+  })
+
+  it('once a person owns the debt nothing automated goes out', () => {
+    const book = ageBook(
+      [invoice({ id: 'a', customerId: 'nike', customerName: 'Nike', dueAt: dueAgo(70) })],
+      NOW
+    ).byCurrency[0]
+    const sent = stepsAlreadySent([letter({ step: 'ESCALATED' })], openInvoiceIds(book))
+    const run = dunningRun(book, sent)
+    expect(run.send).toHaveLength(0)
+    expect(run.silent[0].reason).toBe('WITH_A_PERSON')
+  })
+
+  it('a step nobody recognises is ignored rather than standing in for a final notice', () => {
+    const book = nikeBook()
+    const sent = stepsAlreadySent([letter({ step: 'REMINDER_3' })], openInvoiceIds(book))
+    expect(sent).toEqual({})
+  })
+
+  it('a letter that named no invoices belongs to no run and silences nothing', () => {
+    const book = nikeBook()
+    const sent = stepsAlreadySent([letter({ invoiceIds: [] })], openInvoiceIds(book))
+    expect(sent).toEqual({})
+  })
+
+  it('the same rung recorded twice is still one rung', () => {
+    const book = nikeBook()
+    const sent = stepsAlreadySent([letter(), letter({ sentAt: dueAgo(1) })], openInvoiceIds(book))
+    expect(sent.nike).toEqual(['FIRST'])
   })
 })

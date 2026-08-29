@@ -73,6 +73,9 @@ const VENDOR_NAV: NavSection[] = [
       // Next to Invoices deliberately: same money, different question.
       // One is what we sent, the other is what came back.
       { label: 'Money owed to us', href: '/dashboard/ar', icon: '◧' },
+      // The other half of the same question. One screen says who owes us,
+      // this one says who is funding whom while everybody waits.
+      { label: 'Who is financing whom', href: '/dashboard/ap', icon: '◨' },
       // High in the list on purpose. It is a queue, not a report, and a
       // report is something somebody has to think to ask for.
       { label: 'Loose ends', href: '/dashboard/loose-ends', icon: '⛓' },

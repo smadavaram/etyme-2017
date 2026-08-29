@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest'
 import {
   committedOf, exposureOf, assess, overrideAcceptable,
   COMMITMENT_HORIZON_DAYS, ASSUMED_HOURS_PER_WEEK, APPROACHING_BPS,
-  type RunningAssignment,
+  type RunningAssignment, type CreditLimit,
 } from '@/lib/credit'
 
 const NOW = new Date('2026-08-29T00:00:00Z')
@@ -143,6 +143,15 @@ describe('A credit limit warns, and never blocks, and is never silently permitte
     says: '',
   })
 
+  /** A limit as somebody set it — number, currency, reasoning, review date. */
+  const limit = (minor: number, over: Partial<CreditLimit> = {}): CreditLimit => ({
+    limitMinor: minor,
+    currency: 'GBP',
+    basis: 'Two years of filings and a clean payment record.',
+    reviewBy: new Date('2027-01-01T00:00:00Z'),
+    ...over,
+  })
+
   it('a credit limit nobody has set cannot be breached, and it says so instead of showing a green tick', () => {
     const v = assess(exposure(50_000_000), null)
     expect(v.outcome).toBe('NO_LIMIT_SET')
@@ -152,7 +161,7 @@ describe('A credit limit warns, and never blocks, and is never silently permitte
   })
 
   it('breaching a credit limit warns, names who must approve, and demands a reason — it never blocks', () => {
-    const v = assess(exposure(15_000_000), 10_000_000)
+    const v = assess(exposure(15_000_000), limit(10_000_000))
     expect(v.outcome).toBe('BREACHED')
     expect(v.action).toBe('WARN')
     expect(v.reasonRequired).toBe(true)
@@ -163,7 +172,7 @@ describe('A credit limit warns, and never blocks, and is never silently permitte
   })
 
   it('a breach is never silently permitted — proceeding needs a name and a readable reason', () => {
-    const v = assess(exposure(15_000_000), 10_000_000)
+    const v = assess(exposure(15_000_000), limit(10_000_000))
 
     expect(overrideAcceptable(v, { byPersonId: null, reason: 'Big client' }).ok).toBe(false)
     expect(overrideAcceptable(v, { byPersonId: 'p1', reason: 'Approved' }).ok).toBe(false)
@@ -177,7 +186,7 @@ describe('A credit limit warns, and never blocks, and is never silently permitte
 
   it('eighty per cent of the limit warns without demanding a reason', () => {
     expect(APPROACHING_BPS).toBe(8_000)
-    const v = assess(exposure(8_500_000), 10_000_000)
+    const v = assess(exposure(8_500_000), limit(10_000_000))
     expect(v.outcome).toBe('APPROACHING')
     expect(v.action).toBe('WARN')
     expect(v.reasonRequired).toBe(false)
@@ -185,14 +194,53 @@ describe('A credit limit warns, and never blocks, and is never silently permitte
   })
 
   it('well inside the limit proceeds and says nothing dramatic', () => {
-    const v = assess(exposure(2_000_000), 10_000_000)
+    const v = assess(exposure(2_000_000), limit(10_000_000))
     expect(v.outcome).toBe('WITHIN')
     expect(v.action).toBe('PROCEED')
     expect(v.approver).toBeNull()
   })
 
+  it('a customer with a limit set is measured against it rather than reported as unchecked', () => {
+    const v = assess(exposure(4_000_000), limit(10_000_000), { now: NOW })
+    expect(v.outcome).toBe('WITHIN')
+    expect(v.limitMinor).toBe(10_000_000)
+    expect(v.usedBps).toBe(4_000)
+    expect(v.headroomMinor).toBe(6_000_000)
+  })
+
+  it('the reasoning behind the number travels with the verdict, so somebody can defend it on a Friday', () => {
+    const v = assess(exposure(4_000_000), limit(10_000_000), { now: NOW })
+    expect(v.basis).toContain('filings')
+  })
+
+  it('a limit whose review date has passed is still applied, and says it is out of date', () => {
+    const v = assess(exposure(15_000_000), limit(10_000_000, { reviewBy: new Date('2026-01-01T00:00:00Z') }), { now: NOW })
+    expect(v.stale).toBe(true)
+    expect(v.outcome).toBe('BREACHED')
+    expect(v.limitMinor).toBe(10_000_000)
+    expect(v.says).toContain('an out-of-date limit is not a removed one')
+  })
+
+  it('a limit with no review date is not treated as stale', () => {
+    const v = assess(exposure(4_000_000), limit(10_000_000, { reviewBy: null }), { now: NOW })
+    expect(v.stale).toBe(false)
+    expect(v.says).not.toContain('due for review')
+  })
+
+  it('a limit set in one currency is not applied to exposure in another', () => {
+    const v = assess(exposure(15_000_000), limit(10_000_000, { currency: 'USD' }), { now: NOW })
+    expect(v.outcome).toBe('NO_LIMIT_SET')
+    expect(v.limitMinor).toBeNull()
+    expect(v.says).toContain('two unrelated numbers')
+  })
+
+  it('a limit of zero is nobody having set one, not a limit of nothing', () => {
+    const v = assess(exposure(1), limit(0), { now: NOW })
+    expect(v.outcome).toBe('NO_LIMIT_SET')
+  })
+
   it('a breach computed on an incomplete exposure says the real number is worse', () => {
-    const v = assess(exposure(15_000_000, false), 10_000_000)
+    const v = assess(exposure(15_000_000, false), limit(10_000_000))
     expect(v.says).toContain('a floor')
   })
 })

@@ -99,6 +99,44 @@ describe('A subcontract is the one case where the two meet', () => {
     expect(result.reason).toContain('no supplier')
   })
 
+  it('a purchase order cannot be raised to your own W2 employee', () => {
+    // The contradiction CLAUDE.md names and nothing refused until now: a
+    // purchase order raised to an employee. It is not a harmless extra
+    // field — it puts wages into a commitment ledger and makes the
+    // person look like a supplier in every report downstream.
+    const result = canAttachPoToBuyContract({
+      vendorCompanyId: 'cloudepa-payroll',
+      contractType: 'W2',
+    })
+    expect(result.allowed).toBe(false)
+    expect(result.reason).toContain('your own employee')
+  })
+
+  it('a stale vendor company on a W2 row does not make it a purchase', () => {
+    const result = canAttachPoToBuyContract({
+      vendorCompanyId: 'techvista',
+      contractType: 'w2',
+    })
+    expect(result.allowed).toBe(false)
+  })
+
+  it('a 1099 contractor engaged directly is also not somebody you raise a purchase order to', () => {
+    const result = canAttachPoToBuyContract({
+      vendorCompanyId: 'techvista',
+      contractType: '1099',
+    })
+    expect(result.allowed).toBe(false)
+  })
+
+  it('a purchase order may be raised to a sub-vendor on a corp-to-corp contract', () => {
+    const result = canAttachPoToBuyContract({
+      vendorCompanyId: 'techvista',
+      contractType: 'C2C',
+    })
+    expect(result.allowed).toBe(true)
+    expect(result.reason).toContain('commitment to the supplier')
+  })
+
   it('a C2C individual with no vendor company still has no supplier to bill', () => {
     // C2C through a personal corporation — legitimate, but there is no
     // counterparty company for a PO to be issued to

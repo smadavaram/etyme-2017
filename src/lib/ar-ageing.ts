@@ -116,6 +116,44 @@ export const ESCALATE_AFTER_DAYS = 60
 
 const DAY = 86_400_000
 
+// ── Which way the money runs ─────────────────────────────────────────
+
+/**
+ * Whose money this invoice is.
+ *
+ * ── Why this is a function and not an assumption ─────────────────────
+ *
+ * `/api/invoices` scoped its ageing summary to
+ * `msa: { OR: [{ vendorId }, { clientId }] }` and then added every row
+ * into one `totalOutstanding`. For a firm that only sells, that is
+ * correct. For a prime that both sells to a client and buys from a
+ * sub — which is most of this industry — it silently summed its own
+ * supplier bills into the "money owed to us" figure on the dashboard.
+ *
+ * The bar went up when the firm owed MORE, and it read as good news.
+ *
+ * Receivable and payable are opposite signs of the same table, and there
+ * is no arrangement of them that makes one total meaningful. So the
+ * direction is decided per invoice, here, and the two are never added.
+ */
+export type Direction = 'RECEIVABLE' | 'PAYABLE' | 'NEITHER'
+
+/**
+ * Where we are the vendor on the agreement, the invoice is ours to
+ * collect. Where we are the client, it is ours to pay. Where we are
+ * neither, it belongs to two other companies and is not ours at all —
+ * which is a scoping bug upstream rather than a number to be shown, so
+ * it is named rather than being quietly bucketed into one side.
+ */
+export function directionOf(
+  agreement: { vendorId: string; clientId: string },
+  companyId: string
+): Direction {
+  if (agreement.vendorId === companyId) return 'RECEIVABLE'
+  if (agreement.clientId === companyId) return 'PAYABLE'
+  return 'NEITHER'
+}
+
 // ── Shapes ───────────────────────────────────────────────────────────
 
 export const BUCKETS = ['CURRENT', 'D1_30', 'D31_60', 'D61_90', 'D90_PLUS'] as const
@@ -949,13 +987,87 @@ function actionSays(step: DunningStep, count: number, maxDays: number): string {
   )
 }
 
+
+// ── What has already been said ───────────────────────────────────────
+
+/** One recorded send, as the `DunningSend` table holds it. */
+export interface SentLetter {
+  clientCompanyId: string
+  /** COURTESY · FIRST · SECOND · FINAL · ESCALATED. Read, not trusted. */
+  step: string
+  sentAt: Date
+  /** The invoices that letter named. */
+  invoiceIds: readonly string[]
+}
+
+const STEP_SET = new Set<string>(LADDER.map((r) => r.step))
+
+/**
+ * Which rungs this customer has already been sent, for the arrears they
+ * are in NOW.
+ *
+ * ── Why the invoices decide, and not a date window ───────────────────
+ *
+ * The ladder has to reset. A client chased to a final notice in March,
+ * who then paid everything and fell behind again in September, is a
+ * client at the start of a new conversation — resuming at "final notice"
+ * because a row exists from six months ago is worse than saying nothing.
+ *
+ * The tempting fix is a rolling window: ignore sends older than ninety
+ * days. It is wrong in both directions. A slow-paying client chased in
+ * January and still unpaid in May gets the whole ladder again, which is
+ * exactly the filter-rule failure. And a client who cleared and relapsed
+ * inside the window never gets a first reminder at all.
+ *
+ * So the run of arrears is defined by the debt rather than by the
+ * calendar: **a letter suppresses a rung only while at least one invoice
+ * it named is still open.** When the last of them settles, that run is
+ * over and the ladder starts from the bottom on whatever comes next.
+ * That is also the only rule here that a person would recognise as the
+ * one they follow themselves.
+ *
+ * A letter naming no invoices belongs to no run and suppresses nothing.
+ * An unrecognised step is ignored rather than guessed at — a row saying
+ * `REMINDER_3` from some future import must not silently stand in for a
+ * final notice.
+ */
+export function stepsAlreadySent(
+  sends: readonly SentLetter[],
+  stillOpenInvoiceIds: ReadonlySet<string>
+): Record<string, DunningStep[]> {
+  const out: Record<string, DunningStep[]> = {}
+
+  for (const s of sends) {
+    if (!STEP_SET.has(s.step)) continue
+    if (s.invoiceIds.length === 0) continue
+    if (!s.invoiceIds.some((id) => stillOpenInvoiceIds.has(id))) continue
+
+    const steps = out[s.clientCompanyId] ?? []
+    if (!steps.includes(s.step as DunningStep)) steps.push(s.step as DunningStep)
+    out[s.clientCompanyId] = steps
+  }
+
+  return out
+}
+
+/**
+ * Every invoice still carrying a balance, as a set of ids.
+ *
+ * The companion to `stepsAlreadySent` — what "this run of arrears" means
+ * in practice.
+ */
+export function openInvoiceIds(book: CurrencyBook): Set<string> {
+  return new Set(book.invoices.filter((a) => a.outstandingMinor > 0).map((a) => a.id))
+}
+
 /**
  * A dunning run over a whole book: one decision per customer.
  *
- * `sentByCustomer` is what has already gone out. Where nothing records
- * that — which is the case today, see the note on the AR route — pass an
- * empty map and read the result as "what would be sent", not as "what
- * was sent".
+ * `sentByCustomer` is what has already gone out, built by
+ * `stepsAlreadySent` from the recorded sends. Passing an empty map means
+ * "nothing has ever been said", and the ladder will climb its top rung
+ * again every morning — which is the failure this whole file is written
+ * against, so do it only where there genuinely is no history to read.
  */
 export function dunningRun(
   book: CurrencyBook,

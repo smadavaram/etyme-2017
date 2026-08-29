@@ -88,11 +88,49 @@ export function poBalance(input: PoBalanceInput, now: Date = new Date()): PoBala
 }
 
 /**
+ * Contract types that describe employing somebody rather than buying from
+ * a company.
+ *
+ * W2 and 1099 are both the payer's own arrangement with an individual:
+ * one is an employee, the other is an independent contractor engaged
+ * directly. Neither has a supplier on the other side of it.
+ */
+const EMPLOYMENT_TYPES = new Set(['W2', 'W2_HOURLY', 'W2_SALARY', 'C1099', '1099'])
+
+/**
  * May a PO be attached to this buy contract?
  *
- * A PO is issued to another company. Direct employment has no counterparty
- * to raise one to, so attaching one there is a modelling error rather than
- * a harmless extra.
+ * ── The contradiction this refuses ───────────────────────────────────
+ *
+ * A purchase order is a commitment to a SUPPLIER: a ceiling somebody
+ * else may bill against. An employee does not bill against a ceiling —
+ * they are paid through payroll, and the money leaves by an entirely
+ * different route with entirely different tax consequences.
+ *
+ * So a `BuyContract` with `contractType: W2` and a `purchaseOrderId` set
+ * is a purchase order raised to your own employee. It is not a harmless
+ * extra field. It puts wages into a commitment ledger, it makes a
+ * three-way match run against a person who will never send an invoice,
+ * and — the part that actually costs money — a worker paid through a PO
+ * looks in every downstream report like a supplier rather than an
+ * employee, which is the exact shape of a misclassification finding.
+ *
+ * CLAUDE.md names this as the clearest proof that an order and a
+ * contract are different objects: `BuyContract.purchaseOrderId` is
+ * nullable precisely because roughly half of all buy contracts have
+ * none.
+ *
+ * Two ways to be wrong, and they are checked in this order because the
+ * second is the one somebody will argue about:
+ *
+ *   **No vendor company.** There is nobody to raise a PO to. This is
+ *   checked first because it is the plainest thing to say back.
+ *
+ *   **An employment contract type, even with a vendor company recorded.**
+ *   This is the one that was slipping through: a staffing firm that both
+ *   employs and subcontracts, a stale `vendorCompanyId` left on the row,
+ *   and a W2 contract that now looks like a purchase. The type decides
+ *   how the person is paid, so the type decides this.
  */
 export function canAttachPoToBuyContract(contract: {
   vendorCompanyId: string | null
@@ -102,6 +140,16 @@ export function canAttachPoToBuyContract(contract: {
     return {
       allowed: false,
       reason: 'Direct employment has no supplier — a purchase order needs a counterparty',
+    }
+  }
+  if (EMPLOYMENT_TYPES.has(String(contract.contractType).toUpperCase())) {
+    return {
+      allowed: false,
+      reason:
+        `A ${contract.contractType} contract employs somebody directly, so there is no ` +
+        `supplier here whatever the vendor field says. You do not raise a purchase order to ` +
+        `your own employee — they are paid through payroll, not against a ceiling they bill ` +
+        `into, and a worker carried as a supplier is the shape of a misclassification finding`,
     }
   }
   return { allowed: true, reason: 'Subcontract — the PO is this company\'s commitment to the supplier' }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { fromUnits as fmtCurrency } from '@/lib/money-display'
+import { fromUnits as fmtCurrency, compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
 
 /**
  * Reports — Grow section (vendor)
@@ -51,21 +51,39 @@ interface BenchEntry {
   }
 }
 
-interface InvoiceSummary {
-  totalOutstanding: number
-  current: number
-  '1-30': number
-  '31-60': number
-  '61-90': number
-  '90+': number
+type AgingKey = 'current' | '1-30' | '31-60' | '61-90' | '90+'
+
+/**
+ * One currency's book, on one side of the ledger.
+ *
+ * `/api/invoices` no longer returns a single outstanding figure, because
+ * a single figure required adding a firm's own supplier bills to what it
+ * was owed and adding dollars to rupees. This report shows the largest
+ * receivable book and names its currency rather than inventing a total.
+ */
+interface CurrencySummary {
+  currency: string
+  outstandingMinor: number
+  overdueMinor: number
+  buckets: Record<AgingKey, { count: number; minor: number }>
   invoiceCount: number
+}
+
+interface InvoiceSummary {
+  units: 'MINOR'
+  receivable: CurrencySummary[]
+  payable: CurrencySummary[]
+  unattributedCount: number
+  gaps: string[]
+  says: string
 }
 
 interface Invoice {
   id: string
-  total: number
-  paid: number
-  outstanding: number
+  currency: string
+  totalMinor: number
+  paidMinor: number
+  outstandingMinor: number
   status: string
   aging: string
 }
@@ -154,9 +172,10 @@ export default function ReportsPage() {
       // Invoices
       const invoices: Invoice[] = (invoiceBody?.data?.invoices ?? []).map((inv: any) => ({
         id: inv.id,
-        total: inv.total,
-        paid: inv.paid,
-        outstanding: inv.outstanding,
+        currency: inv.currency,
+        totalMinor: inv.totalMinor,
+        paidMinor: inv.paidMinor,
+        outstandingMinor: inv.outstandingMinor,
         status: inv.status,
         aging: inv.aging,
       }))
@@ -243,8 +262,19 @@ export default function ReportsPage() {
     ? (activeContractCount / utilizationDenominator) * 100
     : null
 
-  // 4. AR Outstanding — from invoice summary
-  const arOutstanding = invoiceSummary?.totalOutstanding ?? 0
+  // 4. AR Outstanding — the receivable side only, one currency at a time.
+  //
+  // The old figure here added payables into the receivable and added two
+  // currencies together. There is no total that fixes either, so the
+  // largest book is shown with its currency named, and a second book is
+  // said out loud rather than folded in.
+  const arBooks = invoiceSummary?.receivable ?? []
+  const arBook = arBooks.length > 0
+    ? arBooks.reduce((a, b) => (b.outstandingMinor > a.outstandingMinor ? b : a))
+    : null
+  const arOutstandingMinor = arBook?.outstandingMinor ?? 0
+  const arCurrency = arBook?.currency ?? 'USD'
+  const otherArBooks = arBooks.filter((b) => b.currency !== arCurrency)
 
   // ── Revenue by client ─────────────────────────────
 
@@ -406,12 +436,15 @@ export default function ReportsPage() {
             {/* AR Outstanding */}
             <div className="panel">
               <p className="stat-label">AR Outstanding</p>
-              <p className={`stat-value ${arOutstanding > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-                {fmtCurrency(arOutstanding)}
+              <p className={`stat-value ${arOutstandingMinor > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+                {fmtMinor(arOutstandingMinor, arCurrency)}
               </p>
               <p className="text-[11px] text-etyme-faint mt-0.5">
-                {invoiceSummary
-                  ? `${invoiceSummary.invoiceCount} invoice${invoiceSummary.invoiceCount !== 1 ? 's' : ''}`
+                {arBook
+                  ? `${arBook.invoiceCount} invoice${arBook.invoiceCount !== 1 ? 's' : ''} · ${arCurrency}` +
+                    (otherArBooks.length > 0
+                      ? ` · ${otherArBooks.length} other book${otherArBooks.length !== 1 ? 's' : ''} not added in`
+                      : '')
                   : 'no invoices'}
               </p>
             </div>
@@ -570,43 +603,43 @@ export default function ReportsPage() {
                   </div>
 
                   {/* Aging breakdown if available */}
-                  {invoiceSummary && invoiceSummary.totalOutstanding > 0 && (
+                  {arBook && arBook.outstandingMinor > 0 && (
                     <div className="mt-5 pt-4 border-t border-etyme-rule">
-                      <p className="stat-label mb-2">Aging Breakdown</p>
+                      <p className="stat-label mb-2">Aging Breakdown — owed to us, {arCurrency}</p>
                       <div className="flex h-2.5 rounded-full overflow-hidden mb-3">
                         {([
-                          { key: 'current', color: 'bg-etyme-verified', amount: invoiceSummary.current },
-                          { key: '1-30', color: 'bg-amber-400', amount: invoiceSummary['1-30'] },
-                          { key: '31-60', color: 'bg-orange-500', amount: invoiceSummary['31-60'] },
-                          { key: '61-90', color: 'bg-red-500', amount: invoiceSummary['61-90'] },
-                          { key: '90+', color: 'bg-red-700', amount: invoiceSummary['90+'] },
+                          { key: 'current', color: 'bg-etyme-verified', amount: arBook.buckets.current.minor },
+                          { key: '1-30', color: 'bg-amber-400', amount: arBook.buckets['1-30'].minor },
+                          { key: '31-60', color: 'bg-orange-500', amount: arBook.buckets['31-60'].minor },
+                          { key: '61-90', color: 'bg-red-500', amount: arBook.buckets['61-90'].minor },
+                          { key: '90+', color: 'bg-red-700', amount: arBook.buckets['90+'].minor },
                         ] as const).map((bucket) => {
                           if (bucket.amount <= 0) return null
-                          const pct = (bucket.amount / invoiceSummary.totalOutstanding) * 100
+                          const pct = (bucket.amount / arBook.outstandingMinor) * 100
                           return (
                             <div
                               key={bucket.key}
                               className={`${bucket.color} transition-all`}
                               style={{ width: `${pct}%` }}
-                              title={`${bucket.key}: ${fmtCurrency(bucket.amount)}`}
+                              title={`${bucket.key}: ${fmtMinorExact(bucket.amount, arCurrency)}`}
                             />
                           )
                         })}
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                         {([
-                          { key: 'Current', color: 'bg-etyme-verified', amount: invoiceSummary.current },
-                          { key: '1–30d', color: 'bg-amber-400', amount: invoiceSummary['1-30'] },
-                          { key: '31–60d', color: 'bg-orange-500', amount: invoiceSummary['31-60'] },
-                          { key: '61–90d', color: 'bg-red-500', amount: invoiceSummary['61-90'] },
-                          { key: '90+d', color: 'bg-red-700', amount: invoiceSummary['90+'] },
+                          { key: 'Current', color: 'bg-etyme-verified', amount: arBook.buckets.current.minor },
+                          { key: '1–30d', color: 'bg-amber-400', amount: arBook.buckets['1-30'].minor },
+                          { key: '31–60d', color: 'bg-orange-500', amount: arBook.buckets['31-60'].minor },
+                          { key: '61–90d', color: 'bg-red-500', amount: arBook.buckets['61-90'].minor },
+                          { key: '90+d', color: 'bg-red-700', amount: arBook.buckets['90+'].minor },
                         ] as const).map((bucket) => (
                           <div key={bucket.key} className="flex items-center gap-1 text-[11px]">
                             <span className={`w-2 h-2 rounded-full ${bucket.color}`} />
                             <span className="text-etyme-muted">{bucket.key}</span>
                             <span className="font-medium text-etyme-ink"
                                   style={{ fontVariantNumeric: 'tabular-nums' }}>
-                              {fmtCurrency(bucket.amount)}
+                              {fmtMinor(bucket.amount, arCurrency)}
                             </span>
                           </div>
                         ))}

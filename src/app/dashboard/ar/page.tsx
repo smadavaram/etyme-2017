@@ -396,13 +396,45 @@ function Customers({ book }: { book: any }) {
       ),
     },
     {
+      key: 'lastChased',
+      label: 'Last chased',
+      hideOnMobile: true,
+      sortValue: (r) => (r.lastChased ? new Date(r.lastChased.sentAt).getTime() : 0),
+      render: (r) =>
+        r.lastChased ? (
+          <div>
+            <span className="text-[13px] text-etyme-ink">
+              {STEP_WORD[r.lastChased.step] ?? r.lastChased.step}
+            </span>
+            <p className="mt-0.5 text-[11px] tabular-nums text-etyme-faint">
+              {new Date(r.lastChased.sentAt).toISOString().slice(0, 10)}
+            </p>
+          </div>
+        ) : (
+          <span className="text-[11px] text-etyme-faint">never</span>
+        ),
+    },
+    {
       key: 'credit',
       label: 'Limit',
       hideOnMobile: true,
       sortValue: (r) => r.credit.outcome,
       render: (r) => {
         const c = CREDIT_CHIP[r.credit.outcome] ?? CREDIT_CHIP.NO_LIMIT_SET
-        return <span className={`chip ${c.chip}`}>{c.word}</span>
+        return (
+          <div>
+            <span className={`chip ${c.chip}`}>{c.word}</span>
+            {r.credit.limitMinor != null && (
+              <p className="mt-0.5 text-[11px] tabular-nums text-etyme-faint">
+                {compact(r.credit.limitMinor, ccy)}
+                {r.credit.usedBps != null && ` · ${Math.round(r.credit.usedBps / 100)}% used`}
+              </p>
+            )}
+            {r.credit.stale && (
+              <p className="mt-0.5 text-[11px] text-etyme-attention">out of date</p>
+            )}
+          </div>
+        )
       },
     },
   ]
@@ -678,6 +710,29 @@ function Reminders({ book }: { book: any }) {
     ['IN_DISPUTE', 'WITH_A_PERSON', 'NOT_WORTH_A_LETTER'].includes(s.reason)
   )
 
+  const [sending, setSending] = useState(false)
+  const [result, setResult] = useState<string | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+
+  async function raise(clientCompanyId?: string) {
+    setSending(true)
+    setFailed(null)
+    try {
+      const res = await fetch('/api/ar/dunning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clientCompanyId ? { clientCompanyId } : {}),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      setResult(body.data.note)
+    } catch (e: any) {
+      setFailed(e.message)
+    } finally {
+      setSending(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <p className="max-w-[70ch] text-[13px] text-etyme-muted">
@@ -687,10 +742,39 @@ function Reminders({ book }: { book: any }) {
         goes out at all.
       </p>
 
+      {send.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <button className="btn-primary" disabled={sending} onClick={() => raise()}>
+            {sending ? 'Recording…' : `Send all ${send.length}`}
+          </button>
+          <span className="text-[11px] text-etyme-faint">
+            Each letter is recorded, so the same rung will not go out again while an
+            invoice it named is still open.
+          </span>
+        </div>
+      )}
+
+      {result && (
+        <div className="panel" style={{ borderColor: 'var(--color-verified)' }}>
+          <p className="text-[13px] text-etyme-ink">{result}</p>
+          <p className="mt-1 text-[11px] text-etyme-faint">
+            Reload to see the ladder with these suppressed.
+          </p>
+        </div>
+      )}
+
+      {failed && (
+        <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
+          <p className="text-[13px] text-etyme-attention">{failed}</p>
+        </div>
+      )}
+
       {send.length === 0 && (
         <div className="panel">
           <p className="text-[13px] text-etyme-muted">
-            Nothing is due to be said today.
+            Nothing is due to be said today. Where a rung has already gone for this run of
+            arrears it stays quiet until the next one falls due — repeating it is how a
+            client learns to filter us.
           </p>
         </div>
       )}
@@ -723,6 +807,16 @@ function Reminders({ book }: { book: any }) {
               {a.invoiceNumbers.length > 6 ? ` +${a.invoiceNumbers.length - 6} more` : ''}
             </span>
             <span className="tabular-nums">oldest {a.maxDaysOverdue}d</span>
+            {a.automated && (
+              <button
+                className="ml-auto text-[11px] underline"
+                style={{ color: 'var(--color-action)' }}
+                disabled={sending}
+                onClick={() => raise(a.customerId)}
+              >
+                Send this one
+              </button>
+            )}
           </div>
         </article>
       ))}

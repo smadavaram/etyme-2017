@@ -59,6 +59,14 @@
  * six months later the question "who decided to keep going" has an
  * answer.
  *
+ * ── The limit itself ─────────────────────────────────────────────────
+ *
+ * A limit is a number, a currency, a reason and a review date, held per
+ * (vendor, client) pair in `CustomerCreditLimit`. All four matter. A
+ * number with no reasoning is one nobody will defend when it is breached
+ * at three o'clock on a Friday, and a number with no review date goes
+ * quietly out of date while continuing to look like a control.
+ *
  * ── Units ────────────────────────────────────────────────────────────
  *
  * Minor units throughout — cents, pence. Conversion from Prisma Decimals
@@ -348,35 +356,83 @@ export interface CreditVerdict {
   approver: string | null
   /** True where proceeding must record why. */
   reasonRequired: boolean
+  /** Why the number is what it is, where somebody wrote it down. */
+  basis: string | null
+  /** When it should next be looked at. Null where nobody said. */
+  reviewBy: Date | null
+  /** True where that date has passed. The limit still applies. */
+  stale: boolean
   says: string
+}
+
+/**
+ * A limit as somebody actually set it — a number, a currency, and the
+ * reasoning behind it.
+ *
+ * The currency is part of the limit and not a decoration. A £250,000
+ * limit says nothing about a customer whose exposure is in rupees, and
+ * applying it anyway is the same class of error as adding the two.
+ */
+export interface CreditLimit {
+  limitMinor: number
+  currency: string
+  /** Why this number. Null where nobody said, which is worth showing. */
+  basis?: string | null
+  /** When it should next be looked at. */
+  reviewBy?: Date | null
 }
 
 /**
  * Where this customer stands against what they are allowed to owe.
  *
- * `limitMinor` is null when nobody has set one, and that is reported as
- * its own outcome rather than as a pass. A green tick against a limit
- * that does not exist is the most misleading thing this file could show:
- * it reads as "checked and fine" when the truth is "never checked".
+ * `limit` is null when nobody has set one, and that is reported as its
+ * own outcome rather than as a pass. A green tick against a limit that
+ * does not exist is the most misleading thing this file could show: it
+ * reads as "checked and fine" when the truth is "never checked".
+ *
+ * ── A stale limit still applies ──────────────────────────────────────
+ *
+ * A number set against a client's 2019 filings is not a number about
+ * that client today, and `reviewBy` is how somebody says when they
+ * expect it to have gone off. But an expired limit is not a removed one:
+ * dropping back to NO_LIMIT_SET on the day a review date passes would
+ * quietly turn every breach into a pass, which is the worst possible
+ * direction for that failure. So a stale limit is applied exactly as it
+ * was, and the staleness is carried on the verdict and said out loud.
+ *
+ * ── And a limit in the wrong currency is not applied at all ──────────
+ *
+ * Exposure is computed one book at a time, because dollars and rupees
+ * are never added. A limit inherits that: a dollar limit tested against
+ * a rupee exposure is a comparison of two unrelated numbers that happens
+ * to type-check.
  */
 export function assess(
   exposure: Exposure,
-  limitMinor: number | null,
-  opts: { approver?: string } = {}
+  limit: CreditLimit | null,
+  opts: { approver?: string; now?: Date } = {}
 ): CreditVerdict {
   const approver = opts.approver ?? 'whoever owns credit here — a controller or a director'
+  const now = opts.now ?? new Date()
+
+  const reviewBy = limit?.reviewBy ?? null
+  const stale = reviewBy != null && reviewBy.getTime() < now.getTime()
 
   const base = {
     customerId: exposure.customerId,
     customerName: exposure.customerName,
     currency: exposure.currency,
     exposureMinor: exposure.minor,
-    limitMinor,
+    limitMinor: limit?.limitMinor ?? null,
+    basis: limit?.basis ?? null,
+    reviewBy,
+    stale,
   }
 
-  if (limitMinor == null || limitMinor <= 0) {
+  if (limit == null || limit.limitMinor <= 0) {
     return {
       ...base,
+      limitMinor: null,
       outcome: 'NO_LIMIT_SET',
       action: 'PROCEED',
       headroomMinor: null,
@@ -390,8 +446,33 @@ export function assess(
     }
   }
 
+  if (limit.currency.toUpperCase() !== exposure.currency.toUpperCase()) {
+    return {
+      ...base,
+      limitMinor: null,
+      outcome: 'NO_LIMIT_SET',
+      action: 'PROCEED',
+      headroomMinor: null,
+      usedBps: null,
+      approver: null,
+      reasonRequired: false,
+      says:
+        `The limit on ${exposure.customerName} is set in ${limit.currency.toUpperCase()} and ` +
+        `this exposure is in ${exposure.currency.toUpperCase()}. Testing one against the ` +
+        `other would compare two unrelated numbers, so this book is shown as unchecked ` +
+        `until somebody sets a limit in ${exposure.currency.toUpperCase()}.`,
+    }
+  }
+
+  const limitMinor = limit.limitMinor
   const usedBps = Math.round((exposure.minor / limitMinor) * 10_000)
   const headroom = limitMinor - exposure.minor
+
+  const staleNote = stale
+    ? ` The limit was due for review on ${reviewBy!.toISOString().slice(0, 10)} and has not ` +
+      `been. It still applies — an out-of-date limit is not a removed one — but it is a ` +
+      `number about this client as they were, not as they are.`
+    : ''
 
   if (usedBps >= 10_000) {
     return {
@@ -410,7 +491,8 @@ export function assess(
         `"who decided to keep going" has an answer.` +
         (exposure.complete
           ? ''
-          : ' And the exposure is a floor — some of what is carried here could not be counted.'),
+          : ' And the exposure is a floor — some of what is carried here could not be counted.') +
+        staleNote,
     }
   }
 
@@ -425,7 +507,8 @@ export function assess(
       reasonRequired: false,
       says:
         `${Math.round(usedBps / 100)}% of the limit used. Worth knowing before the next ` +
-        `placement here rather than after it — one more contractor usually takes it over.`,
+        `placement here rather than after it — one more contractor usually takes it over.` +
+        staleNote,
     }
   }
 
@@ -437,7 +520,7 @@ export function assess(
     usedBps,
     approver: null,
     reasonRequired: false,
-    says: `${Math.round(usedBps / 100)}% of the limit used.`,
+    says: `${Math.round(usedBps / 100)}% of the limit used.` + staleNote,
   }
 }
 

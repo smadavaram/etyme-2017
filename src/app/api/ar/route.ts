@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { fromPrismaDecimal, minorPerUnit } from '@/lib/money'
+import { fromPrismaDecimal } from '@/lib/money'
 import {
-  ageBook, dso, dunningRun,
-  type ArInvoice, type BillingPeriod, type CurrencyBook,
+  dso, dunningRun, stepsAlreadySent,
+  type BillingPeriod, type CurrencyBook,
+  type DunningStep, type SentLetter,
 } from '@/lib/ar-ageing'
+import { loadBook, openInvoiceIdsAcross } from './book'
 import {
   committedOf, exposureOf, assess,
-  type RunningAssignment, type Committed,
+  type RunningAssignment, type Committed, type CreditLimit,
 } from '@/lib/credit'
 
 /**
@@ -32,21 +34,30 @@ import {
  * Three honest gaps are reported rather than papered over, and they
  * appear in `gaps` on the response:
  *
- *   **Nothing records a dunning send.** The ladder returns what WOULD go
- *   out today. There is no table saying what already went, so the run
- *   cannot suppress a rung it has already climbed. Until there is, this
- *   is a screen to read, not a job to run.
+ *   **A customer with no limit set.** `CustomerCreditLimit` holds one per
+ *   vendor and client pair and is read here, so a limit that exists is
+ *   applied. Where none exists the verdict is NO_LIMIT_SET, which is
+ *   reported as its own state and never as a pass — a green tick against
+ *   a limit nobody set is the most misleading thing this screen could
+ *   show.
  *
- *   **No credit limit exists to check against.** Nothing in the schema
- *   holds one, so every customer comes back NO_LIMIT_SET — which is
- *   reported as its own state, never as a pass.
+ *   **The dunning ladder is now suppressed by real history.**
+ *   `DunningSend` records every letter and `POST /api/ar/dunning` writes
+ *   one. The run reads them back through `stepsAlreadySent`, so a rung
+ *   already climbed for THIS run of arrears is not climbed again
+ *   tomorrow. The run of arrears is defined by the debt and not the
+ *   calendar: a letter suppresses a rung only while an invoice it named
+ *   is still open.
  *
- *   **A receipt that matches no invoice cannot be seen.**
- *   `Payment.invoiceId` is required, so a payment that arrived at the
- *   bank and was never keyed against anything is invisible here. What IS
- *   visible is money received against an invoice beyond its total, and
- *   receipts that disagree with the invoice header — both of which are
- *   unapplied cash by another route.
+ *   **A receipt that matches no invoice is still not read here.**
+ *   `Payment.invoiceId` is now nullable, so genuinely unapplied cash is
+ *   RECORDABLE — but this route reaches every payment through its
+ *   invoice, so a receipt keyed against nothing is invisible to it. What
+ *   IS visible is money received against an invoice beyond its total,
+ *   and receipts that disagree with the invoice header, both of which
+ *   are unapplied cash by another route. The orphan-payment queue is not
+ *   built, and the gap is reported rather than left to be discovered by
+ *   somebody wondering why the bank balance is larger than the ledger.
  */
 
 /** Months of billing history the countback DSO is allowed to walk. */
@@ -54,9 +65,6 @@ const HISTORY_MONTHS = 12
 
 /** How far back observed weekly hours are averaged. Twelve weeks. */
 const OBSERVED_WINDOW_DAYS = 84
-
-/** Nothing owed on these, and nothing to chase. */
-const NOT_RECEIVABLE = ['DRAFT', 'CANCELLED', 'VOID']
 
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -89,26 +97,12 @@ export async function GET(request: NextRequest) {
   // vendor. An invoice where we are the client is somebody else's
   // receivable and our payable, and mixing the two is how an AR report
   // reports a positive balance to a company that owes money.
-  const raw = await prisma.invoice.findMany({
-    where: {
-      engagement: { msa: { vendorId: companyId } },
-      status: { notIn: NOT_RECEIVABLE },
-    },
-    select: {
-      id: true, number: true, currency: true, total: true, paid: true,
-      dueAt: true, status: true, periodStart: true, periodEnd: true,
-      payments: { select: { amount: true, receivedAt: true } },
-      billTo: { select: { id: true, name: true } },
-      engagement: {
-        select: {
-          title: true,
-          msa: { select: { client: { select: { id: true, name: true } }, paymentTerms: true } },
-        },
-      },
-    },
-    orderBy: { dueAt: 'asc' },
-    take: 5_000,
-  })
+  //
+  // Loaded through `./book` rather than here, because the sending
+  // endpoint has to see exactly the same rows. A screen and a letter that
+  // disagree about which invoices are open produce a customer chased for
+  // something the screen shows as settled, and nobody can reconstruct why.
+  const { raw, book } = await loadBook(companyId, now)
 
   if (raw.length === 0) {
     return NextResponse.json({
@@ -124,44 +118,14 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // Exposure is to the CLIENT, not to whichever entity of theirs the
-  // invoice happens to be posted to. A large client signs in one entity
+  // The bill-to travels with the invoice as a label while the CLIENT is
+  // the key everything rolls up on. A large client signs in one entity
   // and is billed through a shared services centre in another; if they
-  // stop paying, both stop. So the bill-to travels with the invoice as a
-  // label and the client is the key everything rolls up on — which also
-  // keeps the receivable, the unbilled work and the running contracts on
-  // one identifier instead of three.
-  const invoices: ArInvoice[] = raw.map((i) => {
-    const per = minorPerUnit(i.currency)
-    const receipts = i.payments.reduce(
-      (n, p) => n + Math.round(parseFloat(p.amount.toString()) * per),
-      0
-    )
-    const lastAt = i.payments.reduce<Date | null>(
-      (d, p) => (d == null || p.receivedAt > d ? p.receivedAt : d),
-      null
-    )
-    return {
-      id: i.id,
-      number: i.number,
-      currency: i.currency,
-      totalMinor: fromPrismaDecimal(i.total, i.currency).minor,
-      paidMinor: fromPrismaDecimal(i.paid, i.currency).minor,
-      dueAt: i.dueAt,
-      customerId: i.engagement.msa.client.id,
-      customerName: i.engagement.msa.client.name,
-      status: i.status,
-      receiptsMinor: receipts,
-      lastPaymentAt: lastAt,
-    }
-  })
-
+  // stop paying, both stop.
   const billedVia = new Map(
     raw.filter((i) => i.billTo && i.billTo.id !== i.engagement.msa.client.id)
       .map((i) => [i.id, i.billTo!.name])
   )
-
-  const book = ageBook(invoices, now)
 
   // ── Delivered and not yet billed ────────────────────────────────────
   //
@@ -264,15 +228,17 @@ export async function GET(request: NextRequest) {
 
   // ── Billing history, for the countback DSO ──────────────────────────
   //
-  // `Invoice` carries no raised-at column, so the end of the period it
-  // bills is used as the billing date. It is the closest honest proxy —
-  // an invoice for July is billing raised at the end of July — and it is
-  // said here rather than assumed silently.
-  gaps.push(
-    'Invoices carry no raised-at date, so the billing history behind DSO is dated by the ' +
-      'end of the period each invoice covers. Close, and not the same thing.'
-  )
-
+  // `Invoice.issuedAt` is the day it was actually billed and it is what
+  // the countback walks. It is nullable, because rows raised before the
+  // column existed have no honest value and inventing one would corrupt
+  // the very history this reads.
+  //
+  // Where it is null the end of the billed period stands in. That is the
+  // closest honest proxy and it is not the same thing: a period ending
+  // on the 31st and invoiced on the 6th is six days of ageing nobody was
+  // counting, and it always errs in the flattering direction. So the
+  // count of rows relying on the proxy is reported rather than left for
+  // somebody to discover.
   const historyByCurrency = new Map<string, Map<string, number>>()
   const monthKeys: string[] = []
   for (let m = 0; m < HISTORY_MONTHS; m++) {
@@ -280,8 +246,10 @@ export async function GET(request: NextRequest) {
     monthKeys.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`)
   }
 
+  let datedByProxy = 0
   for (const i of raw) {
-    const d = i.periodEnd
+    const d = i.issuedAt ?? i.periodEnd
+    if (i.issuedAt == null) datedByProxy += 1
     const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
     if (!monthKeys.includes(key)) continue
     const per = historyByCurrency.get(i.currency) ?? new Map<string, number>()
@@ -289,22 +257,118 @@ export async function GET(request: NextRequest) {
     historyByCurrency.set(i.currency, per)
   }
 
+  if (datedByProxy > 0) {
+    gaps.push(
+      `${datedByProxy} of ${raw.length} invoice${raw.length === 1 ? '' : 's'} carry no ` +
+        `issued-at date, so the billing history behind DSO dates ${
+          datedByProxy === 1 ? 'that one' : 'those'
+        } by the end of the period covered instead. Close, not the same thing, and it ` +
+        `always understates the age.`
+    )
+  }
+
   const daysInMonth = (key: string) => {
     const [y, m] = key.split('-').map(Number)
     return new Date(Date.UTC(y, m, 0)).getUTCDate()
   }
 
-  // Nothing anywhere records that a reminder was sent, so the ladder is
-  // advisory. Said plainly rather than left for a reader to discover when
-  // the same customer is chased twice.
-  gaps.push(
-    'Nothing records that a reminder was sent, so the ladder below shows what WOULD go out ' +
-      'today. It cannot yet suppress a rung it has already climbed.'
+  // ── What has already been said ──────────────────────────────────────
+  //
+  // Without this the ladder climbs its top rung again every morning,
+  // which is the failure the whole dunning file is written against. The
+  // run of arrears is defined by the debt rather than the calendar: a
+  // letter suppresses a rung only while an invoice it named is still
+  // open, so a client who cleared and relapsed starts again at the
+  // bottom.
+  const openIds = openInvoiceIdsAcross(book)
+
+  const sendRows = await prisma.dunningSend.findMany({
+    where: { companyId },
+    select: { clientCompanyId: true, step: true, sentAt: true, invoiceIds: true },
+    orderBy: { sentAt: 'desc' },
+    take: 5_000,
+  })
+
+  const sentByCustomer: Record<string, DunningStep[]> = stepsAlreadySent(
+    sendRows as SentLetter[],
+    openIds
   )
-  gaps.push(
-    'No credit limit is held anywhere, so every customer reads as NO_LIMIT_SET. That is ' +
-      'not the same as being within a limit and is never shown as a pass.'
-  )
+
+  const lastSentByCustomer = new Map<string, { step: string; sentAt: Date }>()
+  for (const r of sendRows) {
+    if (!lastSentByCustomer.has(r.clientCompanyId)) {
+      lastSentByCustomer.set(r.clientCompanyId, { step: r.step, sentAt: r.sentAt })
+    }
+  }
+
+  // ── What each customer is allowed to owe ────────────────────────────
+  //
+  // One limit per (us, them) pair. A limit set in another currency is not
+  // applied to this book — `assess` refuses that comparison rather than
+  // making it.
+  const limitRows = await prisma.customerCreditLimit.findMany({
+    where: { companyId },
+    select: {
+      clientCompanyId: true, limitCents: true, currency: true,
+      basis: true, reviewBy: true, setAt: true,
+      setBy: { select: { name: true } },
+    },
+  })
+
+  const limitByCustomer = new Map<string, CreditLimit & { setByName: string | null; setAt: Date }>()
+  for (const l of limitRows) {
+    limitByCustomer.set(l.clientCompanyId, {
+      limitMinor: l.limitCents,
+      currency: l.currency,
+      basis: l.basis,
+      reviewBy: l.reviewBy,
+      setByName: l.setBy?.name ?? null,
+      setAt: l.setAt,
+    })
+  }
+
+  const withoutLimit = book.byCurrency
+    .flatMap((cb) => cb.customers.map((c) => c.customerId))
+    .filter((id, i, all) => all.indexOf(id) === i)
+    .filter((id) => !limitByCustomer.has(id)).length
+
+  if (withoutLimit > 0) {
+    gaps.push(
+      `${withoutLimit} customer${withoutLimit === 1 ? '' : 's'} here ha${
+        withoutLimit === 1 ? 's' : 've'
+      } no credit limit set, so ${withoutLimit === 1 ? 'it reads' : 'they read'} as ` +
+        `NO_LIMIT_SET. That is not the same as being within a limit and is never shown ` +
+        `as a pass.`
+    )
+  }
+
+  // Money in the bank that was never keyed against an invoice is not
+  // reachable from here — every payment on this screen is found through
+  // the invoice it belongs to. Said plainly rather than left to be
+  // discovered when the bank balance and the ledger disagree.
+  const orphanPayments = await prisma.payment.count({
+    where: { invoiceId: null, receivedByCompanyId: companyId },
+  })
+  if (orphanPayments > 0) {
+    gaps.push(
+      `${orphanPayments} payment${orphanPayments === 1 ? '' : 's'} arrived and ` +
+        `${orphanPayments === 1 ? 'was' : 'were'} never keyed against an invoice. ` +
+        `${orphanPayments === 1 ? 'It is' : 'They are'} not in any figure on this screen — ` +
+        `money you have and cannot count is a different problem from money you are owed, ` +
+        `and the queue for placing it is not built yet.`
+    )
+  }
+
+  const staleLimits = limitRows.filter((l) => l.reviewBy != null && l.reviewBy < now).length
+  if (staleLimits > 0) {
+    gaps.push(
+      `${staleLimits} credit limit${staleLimits === 1 ? '' : 's'} ${
+        staleLimits === 1 ? 'is' : 'are'
+      } past the review date somebody set. Still applied — an out-of-date limit is not a ` +
+        `removed one — but ${staleLimits === 1 ? 'it is a number' : 'they are numbers'} ` +
+        `about ${staleLimits === 1 ? 'that client' : 'those clients'} as they were.`
+    )
+  }
 
   const currencies = book.byCurrency.map((cb) => decorate(cb))
 
@@ -332,12 +396,18 @@ export async function GET(request: NextRequest) {
         committed,
       })
 
+      const held = limitByCustomer.get(c.customerId) ?? null
+      const last = lastSentByCustomer.get(c.customerId) ?? null
+
       return {
         ...c,
         exposure,
-        // Null limit until somewhere holds one. Reported as its own
-        // outcome rather than as a green tick.
-        credit: assess(exposure, null),
+        // A real limit where one is held, and NO_LIMIT_SET where none is
+        // — reported as its own outcome rather than as a green tick.
+        credit: assess(exposure, held, { now }),
+        limitSetBy: held?.setByName ?? null,
+        limitSetAt: held?.setAt ?? null,
+        lastChased: last ? { step: last.step, sentAt: last.sentAt } : null,
         running: assignments.length,
       }
     })
@@ -383,7 +453,7 @@ export async function GET(request: NextRequest) {
         paidMinor: a.paidMinor, receiptsMinor: a.receiptsMinor ?? null,
       })),
       dso: dso(cb.outstandingMinor, history),
-      dunning: dunningRun(cb, {}),
+      dunning: dunningRun(cb, sentByCustomer),
     }
   }
 

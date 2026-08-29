@@ -148,11 +148,29 @@ describe('It can say where the build actually stands', () => {
     expect(money.says).toContain('processes built')
   })
 
-  it('names accounts payable as the biggest hole, because it is', () => {
-    // Every process under L2.5.2 except the three-way match. This is the
-    // half of the money nobody models, and the reason chain payment
-    // delay cannot be answered today.
-    const ap = allProcesses().filter((r) => r.l2.code === 'L2.5.2')
-    expect(ap.filter((r) => r.l3.status === 'BUILT')).toHaveLength(0)
+  it('can name the least finished group without anybody hardcoding which it is', () => {
+    // This test used to assert that accounts payable had nothing built,
+    // which was true when it was written and stopped being true the next
+    // time somebody built something there. A test that pins the current
+    // state of the build fails on every commit that improves it, which
+    // is noise rather than signal. So it checks the arithmetic instead.
+    const groups = MATRIX.flatMap((l1) => l1.groups).map((g) => ({
+      code: g.code,
+      built: g.processes.filter((p) => p.status === 'BUILT').length,
+      total: g.processes.length,
+    }))
+
+    const worst = groups.reduce((a, b) => (a.built / a.total <= b.built / b.total ? a : b))
+    expect(worst.total).toBeGreaterThan(0)
+    expect(worst.built / worst.total).toBeLessThan(1)
+  })
+
+  it('a group is never counted as more built than it has processes', () => {
+    for (const l1 of MATRIX) {
+      for (const g of l1.groups) {
+        const built = g.processes.filter((p) => p.status === 'BUILT').length
+        expect(built, g.code).toBeLessThanOrEqual(g.processes.length)
+      }
+    }
   })
 })

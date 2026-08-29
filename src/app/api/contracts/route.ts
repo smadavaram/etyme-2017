@@ -7,6 +7,7 @@ import { getTemplatePack } from '@/lib/template-packs'
 import { sellContractScope, buyContractScope } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
+import { canAttachPoToBuyContract } from '@/lib/purchase-order'
 
 /**
  * POST /api/contracts
@@ -49,6 +50,10 @@ export async function POST(request: NextRequest) {
     contractType,
     vendorCompanyId,
     entityId,
+    // The PO this company raises to the sub-vendor supplying the person.
+    // Null on roughly half of all buy contracts, and it must stay null on
+    // every one of them that employs somebody directly.
+    buyPurchaseOrderId,
   } = body
 
   // Validation — sell contract required fields
@@ -57,6 +62,34 @@ export async function POST(request: NextRequest) {
   if (!clientCompanyId) return errResponse('clientCompanyId is required', 'clientCompanyId')
   if (typeof billRate !== 'number' || billRate <= 0) return errResponse('billRate must be a positive number (cents/hr)', 'billRate')
   if (!startDate) return errResponse('startDate is required', 'startDate')
+
+  // ── A purchase order is not raised to your own employee ────────────
+  //
+  // CLAUDE.md calls this the clearest proof that an order and a contract
+  // are different objects, and until now nothing refused it. A W2 buy
+  // contract carrying a purchase order puts wages into a commitment
+  // ledger, makes the three-way match run against somebody who will never
+  // send an invoice, and leaves a worker looking like a supplier in every
+  // report downstream — which is the shape of a misclassification
+  // finding, not a tidy-up.
+  //
+  // Checked before anything is written rather than after, because the
+  // half-created pair is worse than the refusal.
+  if (buyPurchaseOrderId) {
+    if (!payRate) {
+      return errResponse(
+        'A purchase order belongs to a buy contract, and no buy contract is being created here',
+        'buyPurchaseOrderId'
+      )
+    }
+    const po = canAttachPoToBuyContract({
+      vendorCompanyId: vendorCompanyId ?? null,
+      contractType: contractType ?? 'W2',
+    })
+    if (!po.allowed) {
+      return errResponse(po.reason, 'buyPurchaseOrderId')
+    }
+  }
 
   const start = new Date(startDate)
   const end = endDate ? new Date(endDate) : null
@@ -112,6 +145,7 @@ export async function POST(request: NextRequest) {
             entityId: entityId ?? null,
             payCurrency: payCurrency ?? 'USD',
             contractType: contractType ?? 'W2',
+            purchaseOrderId: buyPurchaseOrderId ?? null,
             state: 'DRAFT',
             startDate: start,
             endDate: end,

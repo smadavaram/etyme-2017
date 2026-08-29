@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { fromUnits as fmtCurrency } from '@/lib/money-display'
+import { compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
+import { minorPerUnit } from '@/lib/money'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 import { useSession } from '@/components/session-provider'
@@ -28,7 +29,9 @@ import { pageFraming } from '@/lib/page-framing'
 
 interface InvoicePayment {
   id: string
-  amount: number
+  /** Minor units — cents, pence. The route converts at the edge. */
+  amountMinor: number
+  currency: string
   receivedAt: string
 }
 
@@ -41,12 +44,17 @@ interface Invoice {
     vendorCompany: { id: string; name: string }
     clientCompany: { id: string; name: string }
   }
+  /** RECEIVABLE — ours to collect. PAYABLE — ours to pay. Never summed. */
+  direction: 'RECEIVABLE' | 'PAYABLE' | 'NEITHER'
   periodStart: string
   periodEnd: string
+  /** The day it was actually billed. Null on rows raised before it was held. */
+  issuedAt: string | null
   currency: string
-  total: number
-  paid: number
-  outstanding: number
+  /** Minor units throughout. `units: 'MINOR'` on the summary says so. */
+  totalMinor: number
+  paidMinor: number
+  outstandingMinor: number
   dueAt: string
   status: string
   aging: string
@@ -54,14 +62,35 @@ interface Invoice {
   payments: InvoicePayment[]
 }
 
-interface AgingSummary {
-  totalOutstanding: number
-  current: number
-  '1-30': number
-  '31-60': number
-  '61-90': number
-  '90+': number
+type AgingKey = 'current' | '1-30' | '31-60' | '61-90' | '90+'
+
+/**
+ * One currency's book, on one side of the ledger.
+ *
+ * The summary used to be a single flat object with one `totalOutstanding`
+ * on it, and that one number was wrong three ways: it added a firm's own
+ * supplier bills to what it was owed, it added dollars to rupees, and it
+ * was in whole currency while every row beside it was in cents. There is
+ * no arrangement of those that produces one honest figure, so there is
+ * no longer one figure.
+ */
+interface CurrencySummary {
+  currency: string
+  outstandingMinor: number
+  overdueMinor: number
+  buckets: Record<AgingKey, { count: number; minor: number }>
   invoiceCount: number
+}
+
+interface AgingSummary {
+  units: 'MINOR'
+  /** Ours to collect. */
+  receivable: CurrencySummary[]
+  /** Ours to pay. Never added to the line above. */
+  payable: CurrencySummary[]
+  unattributedCount: number
+  gaps: string[]
+  says: string
 }
 
 type StatusFilter = 'ALL' | 'ISSUED' | 'SUBMITTED' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED'
@@ -370,8 +399,12 @@ function InvoiceDetailDrawer({
   }, [invoice.id])
   const [submitting, setSubmitting] = useState(false)
   const [payments, setPayments] = useState<InvoicePayment[]>(invoice.payments ?? [])
-  const [localPaid, setLocalPaid] = useState(invoice.paid)
-  const [localOutstanding, setLocalOutstanding] = useState(invoice.outstanding)
+  // Minor units, like everything else on this screen. The payments route
+  // still speaks whole currency, so the conversion happens where the two
+  // meet and nowhere else.
+  const per = minorPerUnit(invoice.currency)
+  const [localPaid, setLocalPaid] = useState(invoice.paidMinor)
+  const [localOutstanding, setLocalOutstanding] = useState(invoice.outstandingMinor)
   const [localStatus, setLocalStatus] = useState(invoice.status)
 
   async function handleRecordPayment(e: React.FormEvent) {
@@ -383,7 +416,7 @@ function InvoiceDetailDrawer({
       return
     }
 
-    if (amount > localOutstanding) {
+    if (Math.round(amount * per) > localOutstanding) {
       onToast('Payment amount exceeds outstanding balance', 'error')
       return
     }
@@ -416,14 +449,22 @@ function InvoiceDetailDrawer({
         setPayments((prev) => [...prev, payment])
       }
       if (updatedInvoice) {
-        setLocalPaid(updatedInvoice.paid ?? localPaid + amount)
-        setLocalOutstanding(updatedInvoice.outstanding ?? localOutstanding - amount)
+        setLocalPaid(
+          updatedInvoice.paid != null
+            ? Math.round(updatedInvoice.paid * per)
+            : localPaid + Math.round(amount * per)
+        )
+        setLocalOutstanding(
+          updatedInvoice.outstanding != null
+            ? Math.round(updatedInvoice.outstanding * per)
+            : localOutstanding - Math.round(amount * per)
+        )
         setLocalStatus(updatedInvoice.status ?? localStatus)
       } else {
         // Fallback: compute locally
-        setLocalPaid((prev) => prev + amount)
-        setLocalOutstanding((prev) => prev - amount)
-        if (localOutstanding - amount <= 0) {
+        setLocalPaid((prev) => prev + Math.round(amount * per))
+        setLocalOutstanding((prev) => prev - Math.round(amount * per))
+        if (localOutstanding - Math.round(amount * per) <= 0) {
           setLocalStatus('PAID')
         } else {
           setLocalStatus('PARTIALLY_PAID')
@@ -434,7 +475,7 @@ function InvoiceDetailDrawer({
       setPayAmount('')
       setPayReference('')
 
-      onToast(`Payment of ${fmtCurrency(amount)} recorded`)
+      onToast(`Payment of ${fmtMinorExact(Math.round(amount * per), invoice.currency)} recorded`)
       onPaymentRecorded()
     } catch {
       onToast('Network error. Please try again.', 'error')
@@ -609,23 +650,23 @@ function InvoiceDetailDrawer({
           <div className="rounded-lg bg-etyme-canvas p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-etyme-muted">Total</p>
-              <p className="text-sm font-medium tabular-nums">{fmtCurrency(invoice.total)}</p>
+              <p className="text-sm font-medium tabular-nums">{fmtMinorExact(invoice.totalMinor, invoice.currency)}</p>
             </div>
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-etyme-muted">Paid</p>
-              <p className="text-sm font-medium tabular-nums text-etyme-verified">{fmtCurrency(localPaid)}</p>
+              <p className="text-sm font-medium tabular-nums text-etyme-verified">{fmtMinorExact(localPaid, invoice.currency)}</p>
             </div>
             <div className="border-t border-etyme-rule pt-3 flex items-center justify-between">
               <p className="text-xs font-semibold text-etyme-muted">Outstanding</p>
               <p className={`text-sm font-semibold tabular-nums ${localOutstanding > 0 ? agingColor(invoice.aging) : 'text-etyme-muted'}`}>
-                {localOutstanding > 0 ? fmtCurrency(localOutstanding) : 'Paid in full'}
+                {localOutstanding > 0 ? fmtMinorExact(localOutstanding, invoice.currency) : 'Paid in full'}
               </p>
             </div>
-            {invoice.total > 0 && (
+            {invoice.totalMinor > 0 && (
               <div className="flex h-2 rounded-full overflow-hidden bg-etyme-rule/30">
                 <div
                   className="bg-etyme-verified transition-all rounded-full"
-                  style={{ width: `${Math.min(100, (localPaid / invoice.total) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (localPaid / invoice.totalMinor) * 100)}%` }}
                 />
               </div>
             )}
@@ -640,7 +681,7 @@ function InvoiceDetailDrawer({
                   <div key={p.id} className="flex items-center justify-between py-2 border-b border-etyme-rule last:border-0">
                     <div>
                       <p className="text-sm tabular-nums font-medium text-etyme-verified">
-                        {fmtCurrency(p.amount)}
+                        {fmtMinorExact(p.amountMinor, p.currency)}
                       </p>
                       <p className="text-[11px] text-etyme-faint">
                         {new Date(p.receivedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -668,10 +709,10 @@ function InvoiceDetailDrawer({
                       required
                       min="0.01"
                       step="0.01"
-                      max={localOutstanding}
+                      max={localOutstanding / per}
                       value={payAmount}
                       onChange={(e) => setPayAmount(e.target.value)}
-                      placeholder={`Up to ${fmtCurrency(localOutstanding)}`}
+                      placeholder={`Up to ${fmtMinorExact(localOutstanding, invoice.currency)}`}
                       className="w-full pl-7 pr-3 py-2 text-sm border border-etyme-rule rounded-lg
                                  focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
                                  tabular-nums"
@@ -737,6 +778,9 @@ export default function InvoicesPage() {
   const [showGenerate, setShowGenerate] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  /** Which side of the ledger the totals describe. Never both at once. */
+  const [side, setSide] = useState<'RECEIVABLE' | 'PAYABLE'>('RECEIVABLE')
+  const [bookCurrency, setBookCurrency] = useState<string | null>(null)
   const [submittingBulk, setSubmittingBulk] = useState(false)
 
   // Open the generate modal when navigated with ?new=1
@@ -839,9 +883,9 @@ export default function InvoicesPage() {
         inv.engagement.title,
         periodStart,
         periodEnd,
-        inv.total.toString(),
-        inv.paid.toString(),
-        inv.outstanding.toString(),
+        (inv.totalMinor / minorPerUnit(inv.currency)).toFixed(2),
+        (inv.paidMinor / minorPerUnit(inv.currency)).toFixed(2),
+        (inv.outstandingMinor / minorPerUnit(inv.currency)).toFixed(2),
         inv.status,
         dueDate,
       ]
@@ -863,20 +907,32 @@ export default function InvoicesPage() {
   }, [invoices, showToast])
 
   // ── Computed stats ────────────────────────────────
-  const totalOutstanding = summary?.totalOutstanding ?? 0
-  const overdueAmount = (summary?.['1-30'] ?? 0) + (summary?.['31-60'] ?? 0) + (summary?.['61-90'] ?? 0) + (summary?.['90+'] ?? 0)
+  //
+  // One book at a time. There is no total across currencies and no total
+  // across the two sides of the ledger, because neither would mean
+  // anything — a firm that both sells and buys used to see its own
+  // supplier bills raise the bar labelled outstanding.
+  const books = summary
+    ? (side === 'RECEIVABLE' ? summary.receivable : summary.payable)
+    : []
+  const book =
+    books.find((b) => b.currency === bookCurrency) ?? books[0] ?? null
+
+  const outstandingMinor = book?.outstandingMinor ?? 0
+  const overdueMinor = book?.overdueMinor ?? 0
+  const bookCcy = book?.currency ?? 'USD'
   const paidCount = invoices.filter((i) => i.status === 'PAID').length
   const issuedCount = invoices.filter((i) => ['ISSUED', 'SUBMITTED'].includes(i.status)).length
 
   // ── Aging bar segments (visual proportion) ────────
-  const agingBuckets = [
-    { key: 'current', label: 'Current', color: 'bg-etyme-verified', amount: summary?.current ?? 0 },
-    { key: '1-30', label: '1–30 days', color: 'bg-amber-400', amount: summary?.['1-30'] ?? 0 },
-    { key: '31-60', label: '31–60 days', color: 'bg-orange-500', amount: summary?.['31-60'] ?? 0 },
-    { key: '61-90', label: '61–90 days', color: 'bg-red-500', amount: summary?.['61-90'] ?? 0 },
-    { key: '90+', label: '90+ days', color: 'bg-red-700', amount: summary?.['90+'] ?? 0 },
+  const agingBuckets: { key: AgingKey; label: string; color: string; minor: number }[] = [
+    { key: 'current', label: 'Current', color: 'bg-etyme-verified', minor: book?.buckets.current.minor ?? 0 },
+    { key: '1-30', label: '1–30 days', color: 'bg-amber-400', minor: book?.buckets['1-30'].minor ?? 0 },
+    { key: '31-60', label: '31–60 days', color: 'bg-orange-500', minor: book?.buckets['31-60'].minor ?? 0 },
+    { key: '61-90', label: '61–90 days', color: 'bg-red-500', minor: book?.buckets['61-90'].minor ?? 0 },
+    { key: '90+', label: '90+ days', color: 'bg-red-700', minor: book?.buckets['90+'].minor ?? 0 },
   ]
-  const agingTotal = agingBuckets.reduce((s, b) => s + b.amount, 0)
+  const agingTotal = agingBuckets.reduce((s, b) => s + b.minor, 0)
 
   // ── Column definitions ────────────────────────────
   const columns: Column<Invoice>[] = [
@@ -926,18 +982,18 @@ export default function InvoicesPage() {
       key: 'total',
       label: 'Total',
       render: (row) => (
-        <span className="tabular-nums font-medium">{fmtCurrency(row.total)}</span>
+        <span className="tabular-nums font-medium">{fmtMinor(row.totalMinor, row.currency)}</span>
       ),
-      sortValue: (row) => row.total,
+      sortValue: (row) => row.totalMinor,
       align: 'right' as const,
     },
     {
       key: 'paid',
       label: 'Paid',
       render: (row) => (
-        <span className="tabular-nums text-etyme-verified">{fmtCurrency(row.paid)}</span>
+        <span className="tabular-nums text-etyme-verified">{fmtMinor(row.paidMinor, row.currency)}</span>
       ),
-      sortValue: (row) => row.paid,
+      sortValue: (row) => row.paidMinor,
       align: 'right' as const,
       hideOnMobile: true,
     },
@@ -945,11 +1001,11 @@ export default function InvoicesPage() {
       key: 'outstanding',
       label: 'Outstanding',
       render: (row) => (
-        <span className={`tabular-nums font-medium ${row.outstanding > 0 ? agingColor(row.aging) : 'text-etyme-muted'}`}>
-          {row.outstanding > 0 ? fmtCurrency(row.outstanding) : '—'}
+        <span className={`tabular-nums font-medium ${row.outstandingMinor > 0 ? agingColor(row.aging) : 'text-etyme-muted'}`}>
+          {row.outstandingMinor > 0 ? fmtMinor(row.outstandingMinor, row.currency) : '—'}
         </span>
       ),
-      sortValue: (row) => row.outstanding,
+      sortValue: (row) => row.outstandingMinor,
       align: 'right' as const,
     },
     {
@@ -1016,21 +1072,51 @@ export default function InvoicesPage() {
         </button>
       </div>
 
+      {/* Which side of the ledger, and which currency. Never summed. */}
+      {summary && (summary.payable.length > 0 || summary.receivable.length + summary.payable.length > 1) && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="stat-label">Showing</span>
+          {(['RECEIVABLE', 'PAYABLE'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => { setSide(s); setBookCurrency(null) }}
+              className={`chip ${side === s ? 'chip--action' : 'chip--passive'}`}
+            >
+              {s === 'RECEIVABLE' ? 'Owed to us' : 'We owe'}
+            </button>
+          ))}
+          {books.length > 1 && books.map((b) => (
+            <button
+              key={b.currency}
+              onClick={() => setBookCurrency(b.currency)}
+              className={`chip ${b.currency === bookCcy ? 'chip--action' : 'chip--passive'}`}
+            >
+              {b.currency}
+            </button>
+          ))}
+          <span className="text-[11px] text-etyme-faint">
+            What we are owed and what we owe are never added, and neither are two currencies.
+          </span>
+        </div>
+      )}
+
       {/* Stats row — prototype Stat component pattern */}
       <div className="flex gap-3 mb-6 flex-wrap">
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Outstanding</p>
-          <p className={`stat-value ${totalOutstanding > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
-            {fmtCurrency(totalOutstanding)}
+          <p className={`stat-value ${outstandingMinor > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+            {fmtMinor(outstandingMinor, bookCcy)}
           </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">accounts receivable</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">
+            {side === 'RECEIVABLE' ? 'owed to us' : 'we owe'} · {bookCcy}
+          </p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Overdue</p>
-          <p className={`stat-value ${overdueAmount > 0 ? 'text-red-600' : 'text-etyme-ink'}`}>
-            {fmtCurrency(overdueAmount)}
+          <p className={`stat-value ${overdueMinor > 0 ? 'text-red-600' : 'text-etyme-ink'}`}>
+            {fmtMinor(overdueMinor, bookCcy)}
           </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">{overdueAmount > 0 ? 'past due date' : 'none overdue'}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">{overdueMinor > 0 ? 'past due date' : 'none overdue'}</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Open invoices</p>
@@ -1047,15 +1133,17 @@ export default function InvoicesPage() {
       {/* Aging bar — visual AR health indicator */}
       {summary && agingTotal > 0 && (
         <div className="panel mb-6">
-          <p className="stat-label mb-2">Aging breakdown</p>
+          <p className="stat-label mb-2">
+            Aging breakdown — {side === 'RECEIVABLE' ? 'owed to us' : 'we owe'}, {bookCcy}
+          </p>
           <div className="flex h-3 rounded-full overflow-hidden bg-etyme-canvas">
             {agingBuckets.map((bucket) =>
-              bucket.amount > 0 ? (
+              bucket.minor > 0 ? (
                 <div
                   key={bucket.key}
                   className={`${bucket.color} transition-all`}
-                  style={{ width: `${(bucket.amount / agingTotal) * 100}%` }}
-                  title={`${bucket.label}: ${fmtCurrency(bucket.amount)}`}
+                  style={{ width: `${(bucket.minor / agingTotal) * 100}%` }}
+                  title={`${bucket.label}: ${fmtMinorExact(bucket.minor, bookCcy)}`}
                 />
               ) : null
             )}
@@ -1066,11 +1154,23 @@ export default function InvoicesPage() {
                 <span className={`w-2 h-2 rounded-full ${bucket.color}`} />
                 <span className="text-etyme-muted">{bucket.label}</span>
                 <span className="tabular-nums font-medium text-etyme-ink">
-                  {fmtCurrency(bucket.amount)}
+                  {fmtMinor(bucket.minor, bookCcy)}
                 </span>
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* What the totals could not honestly include */}
+      {summary && summary.gaps.length > 0 && (
+        <div className="panel mb-6" style={{ borderColor: 'var(--color-attention)' }}>
+          <p className="stat-label">What these totals leave out</p>
+          <ul className="mt-2 space-y-1">
+            {summary.gaps.map((g, i) => (
+              <li key={i} className="text-[13px] text-etyme-muted">— {g}</li>
+            ))}
+          </ul>
         </div>
       )}
 
