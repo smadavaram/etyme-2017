@@ -173,6 +173,7 @@ export const DOMAINS: Domain[] = [
       'lib/releasing-soon', 'lib/shared-consultant', 'lib/scorecard',
       'lib/benchmark', 'lib/resumes', 'lib/cv-reader', 'lib/extract',
       'lib/consultant-portfolio', 'lib/portfolio-data', 'lib/onboarding',
+      'lib/supplier-risk', 'lib/concentration',
       'app/dashboard/bench', 'app/dashboard/consultants', 'app/dashboard/rolloff',
       'app/dashboard/scorecards', 'app/dashboard/my-standing', 'app/dashboard/my-work',
       'app/api/bench', 'app/api/consultants', 'app/api/rolloff', 'app/api/vendors',

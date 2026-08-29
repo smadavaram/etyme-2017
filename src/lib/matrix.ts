@@ -143,11 +143,19 @@ export const MATRIX: L1[] = [
           ],
           implementedBy: ['src/lib/distribution.ts'],
           testedBy: ['__tests__/invariants/distribution.test.ts'] },
-        { code: 'L3.1.4.5', name: 'Lead capture and nurture', owner: 'Etyme', status: N,
+        { code: 'L3.1.4.5', name: 'Lead capture and nurture', owner: 'Etyme', status: B,
           tasks: [
-            'Only people who asked to hear from us',
+            'Only people who asked to hear from us — no consent, no row',
+            'A purchased list is refused whole, so it cannot be laundered by mixing',
             'Cold outbound at volume trains a market to filter you',
-          ] },
+          ],
+          implementedBy: [
+            'src/lib/public-site/leads.ts',
+            'src/app/api/market/leads/route.ts',
+            'src/app/site/ask.tsx',
+            'src/app/page.tsx',
+          ],
+          testedBy: ['__tests__/invariants/marketing-leads.test.ts'] },
       ]},
       { code: 'L2.1.3', name: 'Evaluation', domain: 'DEMAND', processes: [
         { code: 'L3.1.3.1', name: 'Screening loop', owner: 'Client screener', status: B,

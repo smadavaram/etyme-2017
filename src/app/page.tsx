@@ -1,5 +1,7 @@
 import { EtymeLogo } from '@/components/logo'
 import { TryDemo } from '@/components/try-demo'
+import { Ask } from '@/app/site/ask'
+import { ASK_COPY } from '@/lib/public-site/leads'
 import Link from 'next/link'
 
 /**
@@ -625,6 +627,32 @@ export default function LandingPage() {
               <li key={l}>{l}</li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      {/* ── The ask ──────────────────────────────────────────────── */}
+      {/* Quiet on purpose, and last. A page that opens with a form is a
+          page that wants something before it has given anything.
+
+          The words are in src/lib/public-site/leads.ts so a test can read
+          them: no newsletter, no sequence, no price. The price is settled
+          — free until five real vendors — and it is settled in CLAUDE.md
+          rather than invented on a form somebody has to take back. */}
+      <section className="border-t border-etyme-rule bg-etyme-surface">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+          <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+            <div>
+              <p className="eyebrow mb-3">{ASK_COPY.eyebrow}</p>
+              <h2 className="max-w-[18ch] text-balance font-serif text-3xl leading-tight
+                             tracking-[-0.02em] text-etyme-ink md:text-4xl">
+                {ASK_COPY.heading}
+              </h2>
+              <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-etyme-muted">
+                {ASK_COPY.body}
+              </p>
+            </div>
+            <Ask source="HOME_PAGE" />
+          </div>
         </div>
       </section>
 
