@@ -5,7 +5,7 @@ import { clientOf, releaseAllAt } from '@/lib/holds'
 import { emit } from '@/lib/events'
 import { resolveBillingTerms } from '@/lib/billing-cascade'
 import { evaluateGovernance } from '@/lib/governance'
-import { assessAward, type AwardFacts } from '@/lib/award'
+import { assessAward, buySide, type AwardFacts } from '@/lib/award'
 import { notify } from '@/lib/notify'
 import {
   checkClassification, checkCover, insuranceRestsWith, type WorkerType,
@@ -358,6 +358,67 @@ export async function POST(
         state: 'DRAFT',
         startDate: start,
         endDate: end,
+      },
+    })
+
+    // ── The other half of the deal ──────────────────────────────────
+    //
+    // Awarding created a sell contract and nothing else, so every
+    // placement had a price and no cost. Profitability then read the
+    // missing pay rate as zero and reported a hundred per cent margin
+    // on the whole book — confidently wrong, and it looks like good
+    // news, which is the kind nobody audits.
+    //
+    // You cannot place somebody without knowing what you pay them, so
+    // the buy side is raised here. Where the submission came from
+    // another firm, what they asked for IS the cost — that is the whole
+    // arrangement, and defaulting to it is right rather than lazy.
+    const buy = buySide({
+      fromCompanyId: submission.fromCompanyId,
+      awardingCompanyId: payerId,
+      submittedRateCents: submission.rate,
+      agreedRateCents: typeof body?.payRate === 'number' ? body.payRate : null,
+    })
+
+    const buyContract = await tx.buyContract.create({
+      data: {
+        companyId: submission.fromCompanyId,
+        // Null where we employ them ourselves; the supplier where we do
+        // not. The model has meant this from the first commit.
+        vendorCompanyId: buy.vendorCompanyId,
+        payCurrency: terms.currency.value,
+        contractType: buy.contractType,
+        // DRAFT until somebody confirms the rate. A placement whose cost
+        // nobody has agreed is not ready to pay against, and pretending
+        // otherwise is how the wrong number reaches a payroll file.
+        state: 'DRAFT',
+        startDate: start,
+        endDate: end,
+      },
+    })
+
+    await tx.buyContractCandidate.create({
+      data: {
+        buyContractId: buyContract.id,
+        personId: submission.personId,
+        // Zero where nobody has said yet. Visibly missing beats a
+        // plausible guess — profitability refuses to show a margin on it
+        // rather than inventing one.
+        payRate: buy.payRateCents,
+        payCurrency: terms.currency.value,
+        startDate: start,
+        endDate: end,
+      },
+    })
+
+    // The join that makes margin readable. It has existed in the schema
+    // from the start and nothing ever created one.
+    await tx.contractLink.create({
+      data: {
+        sellContractId: contract.id,
+        buyContractId: buyContract.id,
+        effectiveFrom: start,
+        effectiveTo: end,
       },
     })
 

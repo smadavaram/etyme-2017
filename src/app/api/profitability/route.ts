@@ -123,12 +123,19 @@ export async function GET(request: NextRequest) {
     }
 
     const eng = engagement.get(c.person.id)
+    const payRate = payRateFromLedger || eng?.payRate || 0
+
     const line: Line = {
       billedHours,
       billRateCents: c.billRate,
       paidHours,
-      payRateCents: payRateFromLedger || eng?.payRate || 0,
+      payRateCents: payRate,
       contractType: eng?.type ?? 'C2C',
+      // No buy contract means no cost on record. Said, rather than
+      // computed around — a placement with an unknown cost reads 100%
+      // margin, which is the most dangerous number this screen could
+      // show because it looks like good news.
+      costKnown: eng != null && payRate > 0,
     }
 
     const p = profitOf(line)
@@ -243,6 +250,9 @@ export async function GET(request: NextRequest) {
       rows: rows.sort((a, b) => a.profit.marginCents - b.profit.marginCents),
       overall,
       breaches: rows.filter((r) => r.floorBreach).length,
+      // Counted separately from breaches. A placement nobody can price
+      // is a different problem from one priced too thin.
+      unpriced: rows.filter((r) => r.profit.costUnknown).length,
       note: 'Every figure comes from what was actually approved and accepted, not from a rate card.',
     },
   })

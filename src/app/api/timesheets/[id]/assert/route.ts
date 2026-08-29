@@ -77,11 +77,15 @@ async function expectedLegs(sellContractId: string) {
     },
   })
 
+  // Zero, never the bill rate. Falling back to what the client pays says
+  // "we pay them exactly what we bill", which silently zeroes the margin
+  // and is never true of any placement anywhere. Zero is visibly wrong;
+  // the bill rate is invisibly wrong, which is worse.
   legs.push({
     companyId: buy?.company.id ?? sell.company.id,
     companyName: buy?.company.name ?? sell.company.name,
     role: 'EMPLOYER_ACCEPTANCE',
-    rateCents: buy?.candidates[0]?.payRate ?? sell.billRate,
+    rateCents: buy?.candidates[0]?.payRate ?? 0,
   })
 
   return { legs, sell }

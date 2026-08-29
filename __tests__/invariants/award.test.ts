@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { assessAward, seatsRemaining, type AwardFacts } from '@/lib/award'
+import { assessAward, buySide, seatsRemaining, type AwardFacts } from '@/lib/award'
 
 function facts(over: Partial<AwardFacts> = {}): AwardFacts {
   return {
@@ -203,6 +203,79 @@ describe('An award explains itself either way', () => {
     const d = assessAward(facts())
     expect(d.checks.map(c => c.code).sort()).toEqual(
       ['APPROVAL', 'BAND', 'CEILING', 'DUPLICATE', 'GOVERNANCE', 'SEATS']
+    )
+  })
+})
+
+// ── The buy side ───────────────────────────────────────────────
+//
+// Awarding created a sell contract and nothing else. Every placement had
+// a price and no cost, so profitability reported a hundred per cent
+// margin on the whole book.
+
+describe('Awarding a person creates both sides of the deal, not just the price', () => {
+
+  it('a person supplied by another firm is bought from that firm', () => {
+    const b = buySide({
+      fromCompanyId: 'supplier',
+      awardingCompanyId: 'us',
+      submittedRateCents: 8_000,
+    })
+    expect(b.vendorCompanyId).toBe('supplier')
+    expect(b.contractType).toBe('C2C')
+  })
+
+  it('what the supplier asked for is what the placement costs', () => {
+    const b = buySide({
+      fromCompanyId: 'supplier',
+      awardingCompanyId: 'us',
+      submittedRateCents: 8_000,
+    })
+    expect(b.payRateCents).toBe(8_000)
+    expect(b.rateKnown).toBe(true)
+    expect(b.says).toBe('Pay rate taken from what the supplier asked for.')
+  })
+
+  it('a rate agreed on the award beats the rate that was asked for', () => {
+    const b = buySide({
+      fromCompanyId: 'supplier',
+      awardingCompanyId: 'us',
+      submittedRateCents: 8_000,
+      agreedRateCents: 7_500,
+    })
+    expect(b.payRateCents).toBe(7_500)
+    expect(b.says).toBe('Pay rate taken from the award.')
+  })
+
+  it('our own employee is not bought from a vendor', () => {
+    const b = buySide({
+      fromCompanyId: 'us',
+      awardingCompanyId: 'us',
+      submittedRateCents: 8_000,
+    })
+    expect(b.vendorCompanyId).toBeNull()
+    expect(b.contractType).toBe('W2')
+  })
+
+  it('nothing in a submission says what we pay our own employee', () => {
+    const b = buySide({
+      fromCompanyId: 'us',
+      awardingCompanyId: 'us',
+      submittedRateCents: 8_000,
+    })
+    expect(b.rateKnown).toBe(false)
+    expect(b.payRateCents).toBe(0)
+  })
+
+  it('a missing pay rate is left visibly missing rather than guessed', () => {
+    const b = buySide({
+      fromCompanyId: 'supplier',
+      awardingCompanyId: 'us',
+      submittedRateCents: null,
+    })
+    expect(b.rateKnown).toBe(false)
+    expect(b.says).toBe(
+      'No pay rate on this placement yet. Margin stays blank until somebody sets one.'
     )
   })
 })

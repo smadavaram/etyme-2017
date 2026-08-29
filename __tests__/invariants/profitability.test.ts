@@ -190,3 +190,47 @@ describe('the floor nobody was checking', () => {
     expect(health(profitOf(line({ billRateCents: 6000 })), null)).toBe('LOSS')
   })
 })
+
+// ── When there is no cost on record ────────────────────────────
+//
+// Awarding used to create a sell contract and nothing else. A missing
+// pay rate read as zero, so the margin came out at a hundred per cent —
+// wrong, and it looks like good news, which is the kind nobody audits.
+
+describe('a placement with no buy contract behind it has no margin, not a perfect one', () => {
+
+  it('refuses to report a margin where the cost is unknown', () => {
+    const p = profitOf(line({ payRateCents: 0 }))
+    expect(p.costUnknown).toBe(true)
+    expect(p.marginPct).toBeNull()
+  })
+
+  it('still shows what was billed, because that part is known', () => {
+    const p = profitOf(line({ payRateCents: 0 }))
+    expect(p.revenueCents).toBe(160 * 9000)
+  })
+
+  it('says what is missing and what to do about it', () => {
+    const p = profitOf(line({ payRateCents: 0 }))
+    expect(p.assumptions).toContain(
+      'No buy contract behind this placement, so nothing here knows what it costs.'
+    )
+    expect(p.says).toContain('Raise the buy contract')
+  })
+
+  it('one unpriced placement makes the whole book unpriced, not slightly optimistic', () => {
+    const t = total([profitOf(line()), profitOf(line({ payRateCents: 0 }))])
+    expect(t.costUnknown).toBe(true)
+    expect(t.marginPct).toBeNull()
+  })
+
+  it('is not graded healthy, thin or loss-making — it is not graded', () => {
+    expect(health(profitOf(line({ payRateCents: 0 })), null)).toBe('UNKNOWN')
+  })
+
+  it('cannot be checked against a margin floor, and says that instead of passing', () => {
+    expect(belowFloor(profitOf(line({ payRateCents: 0 })), 20)).toBe(
+      'Cannot be checked against the floor — no buy contract behind it.'
+    )
+  })
+})

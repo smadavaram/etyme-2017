@@ -194,3 +194,64 @@ export function assessAward(f: AwardFacts): AwardDecision {
           : `${f.personName} placed — ${remaining - 1} position(s) still open`,
   }
 }
+
+// ── The other half of the deal ────────────────────────────────────
+//
+// An award used to create a sell contract and nothing else, so every
+// placement carried a price and no cost. Profitability read the missing
+// pay rate as zero and reported a hundred per cent margin across the
+// whole book — confidently wrong, and it looks like good news, which is
+// the kind nobody audits.
+//
+// You cannot place somebody without knowing what you pay them, so the
+// buy side is decided here, in one readable place, and the route builds
+// the rows from it.
+
+export interface BuySideFacts {
+  /** The firm supplying the person. */
+  fromCompanyId: string
+  /** The firm doing the awarding — us. */
+  awardingCompanyId: string
+  /** What the supplier asked for, in cents per hour. */
+  submittedRateCents: number | null
+  /** A rate somebody typed on the award itself, if they did. */
+  agreedRateCents?: number | null
+}
+
+export interface BuySide {
+  /** Null where we employ them ourselves; the supplier where we do not. */
+  vendorCompanyId: string | null
+  contractType: 'C2C' | 'W2'
+  /** Zero where nobody has said. Visibly missing beats a plausible guess. */
+  payRateCents: number
+  rateKnown: boolean
+  /** Plain English for the award log and the screen. */
+  says: string
+}
+
+export function buySide(f: BuySideFacts): BuySide {
+  const ourOwn = f.fromCompanyId === f.awardingCompanyId
+
+  // Where the submission came from another firm, what they asked for IS
+  // the cost. That is the whole arrangement, so defaulting to it is
+  // right rather than lazy. Where we employ the person ourselves,
+  // nothing in the submission tells us what we pay them.
+  const agreed =
+    typeof f.agreedRateCents === 'number' && f.agreedRateCents > 0 ? f.agreedRateCents : null
+  const fallback = !ourOwn && f.submittedRateCents && f.submittedRateCents > 0
+    ? f.submittedRateCents
+    : null
+  const rate = agreed ?? fallback
+
+  return {
+    vendorCompanyId: ourOwn ? null : f.fromCompanyId,
+    contractType: ourOwn ? 'W2' : 'C2C',
+    payRateCents: rate ?? 0,
+    rateKnown: rate !== null,
+    says: rate === null
+      ? 'No pay rate on this placement yet. Margin stays blank until somebody sets one.'
+      : agreed !== null
+        ? 'Pay rate taken from the award.'
+        : 'Pay rate taken from what the supplier asked for.',
+  }
+}

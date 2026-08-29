@@ -66,6 +66,15 @@ export interface Line {
   paidHours: number
   payRateCents: number
   contractType: ContractType
+  /**
+   * False where no buy contract exists behind this placement.
+   *
+   * Not a detail. With no buy side the pay rate reads zero and the
+   * margin computes to 100%, which is the most dangerous number this
+   * file could produce — it is confidently wrong, it looks like good
+   * news, and nobody questions good news.
+   */
+  costKnown?: boolean
   /** Overridden burden rate, where a client knows their own. */
   burdenRate?: number
   /** Commission on this placement, cents. */
@@ -77,6 +86,8 @@ export interface Line {
 }
 
 export interface Profit {
+  /** True where nothing behind this placement says what it costs. */
+  costUnknown: boolean
   revenueCents: number
   payCents: number
   burdenCents: number
@@ -104,6 +115,32 @@ export const THIN_BELOW_PCT = 15
  */
 export function profitOf(l: Line): Profit {
   const revenue = Math.round(l.billedHours * l.billRateCents)
+
+  // ── Refuse before computing ─────────────────────────────────────────
+  //
+  // A placement with no buy contract behind it has no cost on record.
+  // The arithmetic still runs and produces 100%, which is worse than an
+  // error: it is confidently wrong, it reads as good news, and nobody
+  // audits good news.
+  const costKnown = l.costKnown !== false && l.payRateCents > 0
+  if (!costKnown) {
+    return {
+      costUnknown: true,
+      revenueCents: revenue,
+      payCents: 0, burdenCents: 0, commissionCents: 0, expenseMarginCents: 0,
+      costCents: 0, marginCents: 0,
+      // Null, never 100. A percentage nobody can stand behind should not
+      // be a number on a screen.
+      marginPct: null,
+      assumptions: [
+        'No buy contract behind this placement, so nothing here knows what it costs.',
+      ],
+      says:
+        `${money(revenue)} billed and no cost on record. ` +
+        `Raise the buy contract before trusting any margin on this one.`,
+    }
+  }
+
   const pay = Math.round(l.paidHours * l.payRateCents)
 
   const burdenRate = l.burdenRate ?? DEFAULT_BURDEN[l.contractType]
@@ -134,6 +171,7 @@ export function profitOf(l: Line): Profit {
   }
 
   return {
+    costUnknown: false,
     revenueCents: revenue,
     payCents: pay,
     burdenCents: burden,
@@ -168,7 +206,12 @@ export function total(lines: Profit[]): Profit {
   const revenue = sum((p) => p.revenueCents)
   const margin = sum((p) => p.marginCents)
 
+  const anyUnknown = lines.some((p) => p.costUnknown)
+
   return {
+    // One unknown cost makes the total unknown. Averaging it in with
+    // known ones produces a number that is quietly too good.
+    costUnknown: anyUnknown,
     revenueCents: revenue,
     payCents: sum((p) => p.payCents),
     burdenCents: sum((p) => p.burdenCents),
@@ -176,9 +219,15 @@ export function total(lines: Profit[]): Profit {
     expenseMarginCents: sum((p) => p.expenseMarginCents),
     costCents: sum((p) => p.costCents),
     marginCents: margin,
-    marginPct: revenue === 0 ? null : Math.round((margin / revenue) * 1000) / 10,
+    // Blank, not approximate. A book with one unpriced placement in it
+    // has no margin percentage — printing one invites somebody to quote
+    // it in a meeting.
+    marginPct: anyUnknown || revenue === 0 ? null : Math.round((margin / revenue) * 1000) / 10,
     assumptions: [...new Set(lines.flatMap((p) => p.assumptions))],
-    says: lineSays(revenue, margin, revenue === 0 ? null : (margin / revenue) * 100),
+    says: anyUnknown
+      ? `${money(revenue)} billed across ${lines.length}. ` +
+        `${lines.filter((p) => p.costUnknown).length} have no cost on record, so this total is not a margin.`
+      : lineSays(revenue, margin, revenue === 0 ? null : (margin / revenue) * 100),
   }
 }
 
@@ -221,9 +270,16 @@ export function forCandidate(lines: Profit[], bench: Bench): CandidateProfit {
     ...t,
     benchCents,
     netMarginCents: net,
-    netMarginPct: t.revenueCents === 0 ? null : Math.round((net / t.revenueCents) * 1000) / 10,
+    // Blank where any assignment has no cost behind it. The bench figure
+    // is still real, so it is still shown — the rate is not.
+    netMarginPct:
+      t.costUnknown || t.revenueCents === 0
+        ? null
+        : Math.round((net / t.revenueCents) * 1000) / 10,
     profitableOnPaperOnly: onPaperOnly,
-    netSays: onPaperOnly
+    netSays: t.costUnknown
+      ? `${t.says} ${bench.idleDays} idle days on top.`
+      : onPaperOnly
       ? `Every assignment made money and the year did not. ${money(t.marginCents)} earned, ` +
         `${money(benchCents)} spent on ${bench.idleDays} idle days — ${money(-net)} down.`
       : benchCents === 0
@@ -259,7 +315,8 @@ export function forCustomer(
   meta: { contracts: number; people: number; unpaidCents: number }
 ): CustomerProfit {
   const t = total(lines)
-  const onPaper = t.marginCents > 0 && meta.unpaidCents > t.marginCents
+  // A margin nobody can compute cannot be "on paper only" either.
+  const onPaper = !t.costUnknown && t.marginCents > 0 && meta.unpaidCents > t.marginCents
 
   return {
     ...t,
@@ -278,7 +335,12 @@ export function forCustomer(
 
 export type Health = 'LOSS' | 'THIN' | 'FINE'
 
-export function health(p: Profit, floorPct: number | null): Health {
+export type HealthOrUnknown = Health | 'UNKNOWN'
+
+export function health(p: Profit, floorPct: number | null): HealthOrUnknown {
+  // Grading a placement whose cost nobody recorded is guessing with a
+  // colour attached.
+  if (p.costUnknown) return 'UNKNOWN'
   if (p.marginCents < 0) return 'LOSS'
   if (p.marginPct == null) return 'THIN'
   return p.marginPct < (floorPct ?? THIN_BELOW_PCT) ? 'THIN' : 'FINE'
@@ -291,6 +353,9 @@ export function health(p: Profit, floorPct: number | null): Health {
  * nothing ever checked it.
  */
 export function belowFloor(p: Profit, floorPct: number | null): string | null {
+  if (p.costUnknown) {
+    return 'Cannot be checked against the floor — no buy contract behind it.'
+  }
   if (floorPct == null || p.marginPct == null) return null
   if (p.marginPct >= floorPct) return null
   return `${p.marginPct}% against a floor of ${floorPct}%. Somebody has to approve this or reprice it.`

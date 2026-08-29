@@ -25,7 +25,12 @@ const TONE: Record<string, string> = {
   LOSS: 'chip--attention',
   THIN: 'chip--passive',
   FINE: 'chip--verified',
+  // Not a grade. A placement with no buy contract behind it has no
+  // margin to grade, and saying "no cost on record" is the point.
+  UNKNOWN: 'chip--passive',
 }
+
+const CHIP_SAYS: Record<string, string> = { UNKNOWN: 'no cost on record' }
 
 export default function ProfitabilityPage() {
   const [by, setBy] = useState<By>('contract')
@@ -109,11 +114,20 @@ export default function ProfitabilityPage() {
               {data.overall.marginPct == null ? '—' : `${data.overall.marginPct}%`}
             </p>
           </div>
-          {data.breaches > 0 && (
-            <span className="chip chip--attention ml-auto">
-              {data.breaches} below the agreed floor
-            </span>
-          )}
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {/* A placement nobody can price is a different problem from
+                one priced too thin, so it is counted separately. */}
+            {data.unpriced > 0 && (
+              <span className="chip chip--passive">
+                {data.unpriced} with no buy contract
+              </span>
+            )}
+            {data.breaches > 0 && (
+              <span className="chip chip--attention">
+                {data.breaches} below the agreed floor
+              </span>
+            )}
+          </div>
         </div>
       )}
 
@@ -132,7 +146,11 @@ export default function ProfitabilityPage() {
                 {by === 'customer' && `${r.contracts} contracts · ${r.people} people`}
               </p>
             </div>
-            {r.health && <span className={`chip ${TONE[r.health]}`}>{r.health.toLowerCase()}</span>}
+            {r.health && (
+              <span className={`chip ${TONE[r.health]}`}>
+                {CHIP_SAYS[r.health] ?? r.health.toLowerCase()}
+              </span>
+            )}
           </div>
 
           <p className="mt-2 text-[13px] text-etyme-ink">
