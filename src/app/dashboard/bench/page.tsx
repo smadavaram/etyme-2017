@@ -337,7 +337,7 @@ function AddBenchListingModal({ onClose, onCreated }: { onClose: () => void; onC
           </div>
 
           {/* Rate range */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Rate min ($/hr)</label>
               <input
@@ -628,7 +628,7 @@ export default function BenchPage() {
 
       {/* Stats row */}
       {!loading && entries.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 mb-6">
           <StatChip label="Total" value={stats.total} />
           <StatChip label="Retained" value={stats.retained} tone="verified" />
           <StatChip label="Marketing" value={stats.marketing} tone="action" />
@@ -801,7 +801,7 @@ function BenchBurnPanel({ data }: { data: BurnData }) {
         </div>
 
         {/* Burn stats row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           <div>
             <div className="stat-label text-[9px] mb-0.5">Daily Burn</div>
             <div className="text-2xl font-serif font-medium text-etyme-attention tabular-nums">

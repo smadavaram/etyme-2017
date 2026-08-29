@@ -263,7 +263,7 @@ function RaiseModal({ onClose, onRaised }: {
               placeholder="SAP MM Consultant" className={`${field} mt-1`} />
           </label>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="block">
               <Lbl>How many</Lbl>
               <input type="number" min="1" value={form.headcount}
@@ -277,7 +277,7 @@ function RaiseModal({ onClose, onRaised }: {
             </label>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <label className="block">
               <Lbl>Most you will pay ($/hr)</Lbl>
               <input type="number" min="0" step="1" value={form.billMax}
@@ -414,7 +414,7 @@ export default function RequisitionsPage() {
       {decision && <DecisionPanel decision={decision} onDismiss={() => setDecision(null)} />}
 
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
           <Stat label="Open" value={summary.open} />
           <Stat label="Cleared automatically" value={summary.autoCleared} tone="verified"
             sub="no human needed" />

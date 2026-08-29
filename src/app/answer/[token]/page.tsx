@@ -209,7 +209,7 @@ export default function AnswerPage() {
                                  font-mono text-[12px] leading-relaxed text-etyme-ink
                                  placeholder:text-etyme-faint"
                     />
-                    <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:grid-cols-4">
                       <input value={name} onChange={(e) => setName(e.target.value)}
                         placeholder="Name (read from CV)"
                         className="rounded border border-etyme-rule bg-etyme-raised px-2 py-1.5 text-[12px]" />

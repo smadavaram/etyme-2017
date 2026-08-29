@@ -268,7 +268,7 @@ export default function AccessPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
         <div>
           <Lbl>Waiting on you</Lbl>
           <div className={`font-serif text-3xl mt-1 tabular-nums ${s.waiting > 0 ? 'text-etyme-attention' : 'text-etyme-ink'}`}>

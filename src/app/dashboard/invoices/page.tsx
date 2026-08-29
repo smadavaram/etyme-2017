@@ -269,7 +269,7 @@ function GenerateInvoiceModal({
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Period start</label>
               <input
@@ -532,7 +532,7 @@ function InvoiceDetailDrawer({
           {/* AP references — PO and remit-to. Without both, AP has no basis to pay. */}
           {!codingLoading && coding && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="eyebrow mb-1">Purchase order</p>
                   {coding.purchaseOrder ? (
@@ -633,7 +633,7 @@ function InvoiceDetailDrawer({
           )}
 
           {/* Period + due date */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="eyebrow mb-1">Period</p>
               <p className="text-sm tabular-nums">{periodStart} &ndash; {periodEnd}</p>

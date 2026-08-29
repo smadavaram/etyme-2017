@@ -150,7 +150,7 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
               last name to anybody moving fast — which is exactly what
               happened: a surname typed into the email field, and a button
               that then did nothing. */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Full name *</label>
               <input
@@ -214,7 +214,7 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Location</label>
               <input
@@ -466,7 +466,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
           </div>
 
           {/* Details grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="eyebrow mb-1">Location</p>
               <p className="text-sm">{consultant.location ?? 'Not specified'}</p>
@@ -492,7 +492,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
           </div>
 
           {/* Availability + Rate row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-2 gap-4">
             {consultant.availableFrom && (
               <div>
                 <p className="eyebrow mb-1">Available from</p>
@@ -598,7 +598,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
                   )}
                 </p>
                 {/* Summary stat row */}
-                <div className="grid grid-cols-3 gap-3 mb-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                   {rateProgression.summary.firstRate != null && (
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-etyme-faint">First</p>

@@ -409,7 +409,7 @@ export default function BlacklistPage() {
 
       {/* Stats row */}
       {!loading && entries.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 mb-6">
           <StatChip label="Total Entries" value={stats.total} />
           <StatChip label="Active" value={stats.active} tone="attention" />
           <StatChip label="Expired" value={stats.expired} />

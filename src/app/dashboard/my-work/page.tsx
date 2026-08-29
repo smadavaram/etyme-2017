@@ -251,7 +251,7 @@ export default function MyWorkPage() {
         <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Your work</h1>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
         <div>
           <Lbl>Hours this month</Lbl>
           <div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.hoursThisMonth}</div>

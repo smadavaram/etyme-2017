@@ -359,7 +359,7 @@ export default function RequirementDetailPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-etyme-rule">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-etyme-rule">
           <DetailField label="Skills" value={
             <div className="flex flex-wrap gap-1 mt-1">
               {requirement.skills.map((s) => (
@@ -569,7 +569,7 @@ export default function RequirementDetailPage() {
                     </div>
 
                     {/* Basis + unknowns */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <div className="eyebrow mb-1">Basis</div>
                         <p className="text-[12px] text-etyme-muted leading-relaxed">

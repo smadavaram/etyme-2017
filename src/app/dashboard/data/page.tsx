@@ -268,7 +268,7 @@ export default function DataPage() {
               </h2>
               <p className="text-[13px] text-etyme-ink mb-4">{preview.summary}</p>
 
-              <div className="grid grid-cols-3 gap-6 mb-5 pb-4 border-b border-etyme-rule">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-5 pb-4 border-b border-etyme-rule">
                 <div>
                   <Lbl>New</Lbl>
                   <p className="font-serif text-2xl text-etyme-ink tabular-nums mt-0.5">{preview.willCreate}</p>

@@ -323,7 +323,7 @@ export default function RequisitionDetail() {
         {r.justification && <p className="text-sm text-etyme-muted mt-3 italic">{r.justification}</p>}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
         <div><Lbl>Vendors asked</Lbl><div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.invited}</div></div>
         <div><Lbl>Working it</Lbl><div className="font-serif text-3xl mt-1 tabular-nums text-etyme-verified">{s.accepted}</div></div>
         <div>

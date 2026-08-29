@@ -292,7 +292,7 @@ function ForTalentAndBuyers({ site }: { site: PublicSite }) {
             what actually happens, so it fills in as they work.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-3">
+          <div className="grid grid-cols-1 sm:grid-cols-1 gap-8 sm:grid-cols-3">
             <div>
               <Lbl>Placements</Lbl>
               <p className="font-serif text-4xl text-etyme-ink mt-1 tabular-nums">

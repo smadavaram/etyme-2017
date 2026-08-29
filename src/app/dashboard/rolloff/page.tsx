@@ -269,7 +269,7 @@ export default function RolloffPage() {
 
       {/* Summary stats */}
       {!loading && total > 0 && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="card">
             <div className="flex items-center gap-2 mb-1">
               <span className="evidence-dot evidence-dot--blocked" />
@@ -450,7 +450,7 @@ export default function RolloffPage() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                         <ChecklistItem
                           label="Knowledge transfer"
                           checked={event.checklist.knowledgeTransfer ?? false}

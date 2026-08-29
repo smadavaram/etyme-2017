@@ -297,7 +297,7 @@ export default function ProgramPage() {
       <TheNumber />
 
       {/* ── Summary cards ──────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-6 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-6 mb-6">
         <StatCard
           label="Contractors"
           value={s.activeContractors}
@@ -425,7 +425,7 @@ function OverviewTab({ data, onExtend, onRolloff }: {
   onRolloff: (contractId: string) => void
 }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Left column — main content */}
       <div className="lg:col-span-3 space-y-6">
         {/* Approval queue preview */}
@@ -864,7 +864,7 @@ function VendorsTab({ vendors }: { vendors: ProgramData['vendors'] }) {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <p className="text-[10px] uppercase tracking-wider text-etyme-muted mb-0.5">
                     Avg rate

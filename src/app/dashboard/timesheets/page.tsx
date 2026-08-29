@@ -268,7 +268,7 @@ function CreateTimesheetModal({
           {/* Daily hours grid */}
           <div>
             <label className="block text-xs font-semibold text-etyme-muted mb-2">Hours per day</label>
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
               {weekDates.map((date, i) => {
                 const isWeekend = i >= 5
                 return (

@@ -341,7 +341,7 @@ export default function AutomationPage() {
                 {/* Expanded detail */}
                 {isExpanded && (
                   <div className="px-4 pb-4 pt-0 border-t border-etyme-rule/50">
-                    <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                       <div>
                         <p className="stat-label mb-1">Action</p>
                         <p className="text-[12px] text-etyme-ink font-mono">{entry.action}</p>

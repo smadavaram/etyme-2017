@@ -271,7 +271,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Bill min ($/hr)</label>
               <input
@@ -322,7 +322,7 @@ function NewRequirementModal({ onClose, onCreated }: { onClose: () => void; onCr
           {/* Rate transparency — Addendum D §D.3.1 & D.3.2 */}
           <div className="border-t border-etyme-rule pt-4 mt-2">
             <div className="stat-label text-[9px] mb-2">Rate Transparency</div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-etyme-muted mb-1">Margin class</label>
                 <select

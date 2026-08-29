@@ -185,7 +185,7 @@ export default function ProgramOrgPage() {
       </div>
 
       {/* Stat row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-etyme-rule border border-etyme-rule mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-px bg-etyme-rule border border-etyme-rule mb-10">
         {[
           { label: 'Annual run rate', value: money(summary.annualSpend), note: `${summary.headcount} contractor${summary.headcount === 1 ? '' : 's'}` },
           { label: 'Rate variance', value: money(summary.annualSaving), note: 'same skill, different price', tone: hasFinding },

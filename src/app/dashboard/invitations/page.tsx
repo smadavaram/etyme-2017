@@ -189,7 +189,7 @@ function AnswerBox({ inv, onSent }: { inv: Invitation; onSent: () => void }) {
                    focus:outline-none focus:border-etyme-action"
       />
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 mt-2">
         <input
           value={name} onChange={e => setName(e.target.value)}
           placeholder="Name (read from CV)"
@@ -502,7 +502,7 @@ export default function InvitationsPage() {
       </div>
 
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
           <Stat
             label="Awaiting your answer"
             value={summary.awaitingResponse}

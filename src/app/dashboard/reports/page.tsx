@@ -397,7 +397,7 @@ export default function ReportsPage() {
       ) : (
         <>
           {/* Stats row — four panels */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
             {/* Active Revenue */}
             <div className="panel">
               <p className="stat-label">Active Revenue</p>
@@ -451,7 +451,7 @@ export default function ReportsPage() {
           </div>
 
           {/* Two-column layout for main sections */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 
             {/* Revenue by client */}
             <div className="panel">
@@ -542,7 +542,7 @@ export default function ReportsPage() {
           </div>
 
           {/* Second row — bench skills + invoice aging */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-6">
 
             {/* Bench skills distribution */}
             <div className="panel">

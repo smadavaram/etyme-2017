@@ -293,7 +293,7 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
             </div>
 
             {/* Client (bill to) and End client */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Client (bill to) *</label>
                 <select
@@ -325,7 +325,7 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
             </div>
 
             {/* Bill rate and currency */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="col-span-2">
                 <label className={labelClass}>Bill rate ($/hr) *</label>
                 <input
@@ -355,7 +355,7 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
             </div>
 
             {/* Pay rate and currency */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="col-span-2">
                 <label className={labelClass}>Pay rate ($/hr)</label>
                 <input
@@ -385,7 +385,7 @@ function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCr
             </div>
 
             {/* Dates */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Start date *</label>
                 <input
@@ -620,7 +620,7 @@ function ContractDetailDrawer({
           {/* Key details */}
           <div>
             <p className="eyebrow mb-2">Key details</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="stat-label">{drawerCounterpartyLabel}</p>
                 <p className="text-sm font-medium text-etyme-ink mt-0.5">

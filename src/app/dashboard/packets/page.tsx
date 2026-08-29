@@ -207,7 +207,7 @@ export default function PacketsPage() {
         </section>
       )}
 
-      <div className="grid grid-cols-3 gap-6 mb-8 pb-6 border-b border-etyme-rule">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8 pb-6 border-b border-etyme-rule">
         <Stat label="Waiting on you" value={counts.awaitingReview} tone={counts.awaitingReview > 0 ? 'attention' : 'ink'} sub="documents to look at" />
         <Stat label="Still open" value={counts.open} sub="waiting on them" />
         <Stat label="Link expired" value={counts.stale} tone={counts.stale > 0 ? 'attention' : 'ink'} sub="they cannot reply" />

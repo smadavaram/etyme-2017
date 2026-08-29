@@ -290,7 +290,7 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
           </div>
 
           {/* Category + Billable */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Category *</label>
               <select
@@ -337,7 +337,7 @@ function AddExpenseModal({ onClose, onCreated }: { onClose: () => void; onCreate
           </div>
 
           {/* Period */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className={labelClass}>Start date *</label>
               <input

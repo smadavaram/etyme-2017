@@ -218,7 +218,7 @@ export default function SuppliersPage() {
               {rows.map((r, i) => (
                 <div
                   key={r.email}
-                  className="grid grid-cols-[1fr_1fr_1.2fr] items-center gap-2 border-b
+                  className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_1.2fr] items-center gap-2 border-b
                              border-etyme-rule pb-2 last:border-0 last:pb-0"
                 >
                   <input

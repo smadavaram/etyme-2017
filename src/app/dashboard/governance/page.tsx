@@ -158,7 +158,7 @@ export default function GovernancePage() {
       </div>
 
       {s && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8 pb-8 border-b border-etyme-rule">
           <Stat label="Already past" value={s.alreadyBreached}
             tone={s.alreadyBreached > 0 ? 'attention' : 'verified'}
             sub={s.alreadyBreached === 0 ? 'nothing overdue' : 'blocking now'} />

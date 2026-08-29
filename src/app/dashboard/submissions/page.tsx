@@ -367,7 +367,7 @@ function SubmitToRequirementModal({
             )}
 
             {/* Rate + Currency */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="col-span-2">
                 <label className="block text-xs font-semibold text-etyme-muted mb-1">Rate ($/hr) *</label>
                 <input

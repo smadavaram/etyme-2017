@@ -162,7 +162,7 @@ export default function TrainingPage() {
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <div className="panel">
           <p className="stat-label">Open requirements</p>
           <p className="stat-value text-etyme-ink">{totalReqs}</p>

@@ -173,7 +173,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Kind *</label>
               <select
@@ -201,7 +201,7 @@ function AddCompanyModal({ onClose, onCreated }: { onClose: () => void; onCreate
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Domain</label>
               <input
@@ -326,7 +326,7 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
           </div>
 
           {/* Details grid */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="eyebrow mb-1">Domain</p>
               <p className="text-sm">{company.domain ?? 'Not set'}</p>
@@ -432,7 +432,7 @@ function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => 
               <hr className="border-etyme-rule" />
               <div>
                 <p className="eyebrow mb-3">Trust signals</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {trustSignals.medianTenureMonths != null && (
                     <div className="bg-etyme-canvas rounded-lg px-3 py-2.5">
                       <p className="text-[10px] uppercase tracking-wider text-etyme-faint">Median tenure</p>
