@@ -237,3 +237,40 @@ export function copyFrom(source: string): string[] {
 
   return out
 }
+
+// ── The other way a page fails a reader ───────────────────────────────
+//
+// The four rules above catch a page that says the wrong thing. This
+// catches a page that says the right thing at 375 pixels and cannot be
+// read. The founder reads this on a phone, and a `grid-cols-2` with no
+// breakpoint prefix is two columns at every width including his — the
+// same class of bug that put half a surname in an email field on
+// another screen the same day.
+//
+// Tailwind is mobile-first: an unprefixed column count applies from
+// zero up. So an unprefixed count of anything other than one is a
+// declaration that the layout never stacks, which is almost never what
+// was meant.
+
+/**
+ * Column counts that apply at every width, phone included.
+ *
+ * Returns the offending class tokens so somebody can go and look. An
+ * empty array means every multi-column grid on the page stacks by
+ * default and splits only when there is room.
+ */
+export function gridsWithoutBreakpoint(source: string): string[] {
+  const out: string[] = []
+  for (const m of source.matchAll(/(^|[\s"'`])((?:[a-z0-9]+:)*)grid-cols-([\w[\]().,_%-]+)/g)) {
+    const prefixes = m[2]
+    const value = m[3]
+    // A single column at every width is a single column, which stacks
+    // by definition and is what a phone wants anyway.
+    if (value === '1') continue
+    // Anything carrying a variant — sm:, md:, lg:, and also hover: or
+    // print: — was a deliberate choice about when it applies.
+    if (prefixes.length > 0) continue
+    out.push(`grid-cols-${value}`)
+  }
+  return out
+}

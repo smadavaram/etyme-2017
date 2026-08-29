@@ -1,9 +1,11 @@
-import Link from 'next/link'
 import { EtymeLogo } from '@/components/logo'
 import { TryDemo } from '@/components/try-demo'
+import Link from 'next/link'
 
 /**
  * The front door.
+ *
+ * ── The hero ─────────────────────────────────────────────────────────
  *
  * It had the right proof and the wrong headline. "Stop reading bad
  * submissions" is one module describing itself, and a visitor read the
@@ -20,15 +22,43 @@ import { TryDemo } from '@/components/try-demo'
  * started, timesheeted, invoiced, and nineteen months of tenure across
  * three suppliers. Nobody looks at that and thinks recruiting tool.
  *
- * The shortlist is still here, further down, doing the job it is
- * actually good at: proving the screening is real. One station in the
- * chain rather than the whole product.
+ * ── Everything below it, rewritten ───────────────────────────────────
  *
- * ── Every number below is real ───────────────────────────────────────
+ * The hero was right and the rest of the page was written to somebody
+ * we are not selling to yet. "Three checks your suppliers cannot run",
+ * "Stop reading bad submissions", "Nobody has to be replaced" — every
+ * section addressed a client with eleven suppliers. Phase 1 ships to
+ * paying staffing firms, so the page was selling to the people who are
+ * not the customers in front of the people who are.
  *
- * All of it is what the seeded sandbox produces. Nothing here is a
- * drawing of a feature that does not exist, which is the only reason a
- * "Look around" button can sit next to it.
+ * And nowhere did it say how any of this works as a business: not who
+ * pays, not what it costs, not what it sits beside, not what anybody
+ * does differently on Monday. A visitor could not answer "is this for
+ * me and what would I do with it", which is the only question a landing
+ * page has to answer.
+ *
+ * So, in order: who it is for and why the chain needs the same product
+ * at every hop; what it sits beside rather than replaces; the four
+ * questions a firm answers with a phone call and a guess today; the
+ * tenure argument on its own, because it is the sharpest wedge and it
+ * was the second of three bullets in a grid; and what it costs, which
+ * is not settled and says so.
+ *
+ * Cut: the shortlist panel and the score breakdown. Both were real
+ * proof and both made the page read as a screening tool — the demo
+ * button proves the product better than a picture of it does.
+ *
+ * ── Every claim here is checkable ────────────────────────────────────
+ *
+ * The numbers are what the seeded sandbox produces, and are labelled as
+ * a worked example where they are one. Nothing here is a drawing of a
+ * feature that does not exist, which is the only reason a "Look around"
+ * button can sit next to it.
+ *
+ * Two claims came off this page because nothing stands behind them:
+ * "your data exports in full, any time" — the eighteen lists built on
+ * the shared table export to CSV, which is a smaller promise — and
+ * "set-up takes an afternoon", which nobody has measured.
  */
 
 /**
@@ -53,22 +83,118 @@ const CHAIN = [
   'Onboarding', 'Timesheets', 'Invoices', 'Compliance',
 ]
 
-const SHORTLIST = [
-  { name: 'Rohan Menon', from: 'Cloudepa', rate: '$78', score: 94,
-    note: 'First in. Vertex sent the same person later at $96.' },
-  { name: 'Marta Farrow', from: 'Cloudepa', rate: '$79', score: 88,
-    note: 'Worked here before — 14 months, through a vendor you no longer use.' },
-  { name: 'James Whitfield', from: 'Brightmoor', rate: '$80', score: 81, note: null },
-  { name: 'Lucia Braga', from: 'Brightmoor', rate: '$81', score: 76, note: null },
+/**
+ * The chain, as positions rather than as kinds of company.
+ *
+ * Nobody says this out loud and it is the thing that decides the shape
+ * of the product: the same firm is a prime on Monday's role and a sub
+ * on Tuesday's. Build for one of them and the other has to keep the
+ * spreadsheet anyway.
+ */
+const POSITIONS = [
+  {
+    who: 'The company hiring',
+    sees:
+      'Eleven suppliers and eleven spreadsheets. Knows what each contract cost. ' +
+      'Cannot say what any one person cost, or how long they have been here.',
+  },
+  {
+    who: 'The prime',
+    sees:
+      'Holds the client and the agreement that says the client may not be named ' +
+      'further down. Forwards the role anyway, because the alternative is retyping it.',
+  },
+  {
+    who: 'The sub',
+    sees:
+      'Answers a role it cannot see the end of. Prices it from a title, a rate ' +
+      'and a guess about who is really behind it.',
+  },
+  {
+    who: 'The bench operator',
+    sees:
+      'Has the person. Cannot see the seat. Learns the client name only when there ' +
+      'is a right to represent on file, which is the whole reason benches distrust portals.',
+  },
 ]
 
-const HELD = [
-  '$96 is $11 over the band you gave them. Ask Cloudepa to come to $85.',
-  'Already put forward by Cloudepa on the 16th. First in wins.',
-  'Blocked: 19 months tenure here, across three vendors. Your cap is 18.',
-  'On your do-not-submit list: left mid-project without notice in March.',
-  'Role needs a work permit and Vertex has not said what she holds.',
-  'Kestrel was not invited and there is no agreement with them on file.',
+/**
+ * Four questions, four screens that already exist.
+ *
+ * Not a feature list. These are the four things a staffing firm answers
+ * today with a phone call, a spreadsheet and a guess, and each line
+ * describes what the screen actually does rather than what it is called.
+ */
+const MONDAY = [
+  {
+    screen: 'Leads',
+    q: 'A role arrived. Is it four roles, or one role four times?',
+    a:
+      'Adverts and forwarded emails collapse into seats. Three primes carrying the ' +
+      'same seat show as one, because submitting the same person down all three is ' +
+      'how a client sees the name three times and rejects all three.',
+  },
+  {
+    screen: 'Bench',
+    q: 'Do we have anybody, and what is the bench costing while it waits?',
+    a:
+      'Who is free, who comes free and when, and what a day of waiting costs — ' +
+      'per person and in total, against the roles currently open.',
+  },
+  {
+    screen: 'Profitability',
+    q: 'What does this placement actually make?',
+    a:
+      'Not bill minus pay times hours. The client approved forty hours and the ' +
+      'employer accepted thirty-eight, and the margin is neither rate times either ' +
+      'number. Every figure comes off the work ledger.',
+  },
+  {
+    screen: 'Payables',
+    q: 'Who owes us, and whose work are we financing?',
+    a:
+      'They pay you at day 75 against sixty-day terms and you pay your sub at day 30. ' +
+      'The difference is your cash funding somebody else’s work, and nobody invoices ' +
+      'you for it.',
+  },
+]
+
+/**
+ * The tenure ledger, as a worked example.
+ *
+ * Three suppliers, three honest answers, one number none of them can
+ * produce. It is the same person and the same client as the hero panel,
+ * so a reader who scrolls sees the arithmetic behind the line they
+ * already read.
+ */
+const LEDGER = [
+  { supplier: 'Cloudepa Systems', months: '14 months', span: 'Feb 2024 – Apr 2025' },
+  { supplier: 'Brightmoor Talent', months: '3 months', span: 'May 2025 – Aug 2025' },
+  { supplier: 'Vertex Group', months: '2 months', span: 'Sep 2025 – Oct 2025' },
+]
+
+/** What is settled about the commercials, in the absence of a price. */
+const DECIDED = [
+  {
+    t: 'Governance is never a paid tier',
+    p:
+      'Tenure caps, approval chains and the record of who approved what are in the ' +
+      'product for everybody. Any company with two hiring managers needs them, and ' +
+      'charging extra for them loses the deal at evaluation rather than at negotiation.',
+  },
+  {
+    t: 'Etyme never runs a bench and never places anybody',
+    p:
+      'It sits between the firms that do. The moment it competes with its own ' +
+      'suppliers, the suppliers stop putting their people in it and the network ' +
+      'stops growing. That is a structural commitment, not a policy we could revise.',
+  },
+  {
+    t: 'Looking around costs nothing and needs no card',
+    p:
+      'A seeded workspace with a worked example in it, yours to break. If it is not ' +
+      'obviously useful in that workspace, no price would have made it useful.',
+  },
 ]
 
 export default function LandingPage() {
@@ -207,225 +333,268 @@ export default function LandingPage() {
             ))}
           </ul>
           <p className="mt-3 text-[13px] text-etyme-muted">
-            One record, end to end. Keep your ATS, your VMS and every supplier
-            you already use — Etyme sits in front of them, not instead of them.
+            One record, end to end — one company, or nine of them in a chain.
           </p>
         </div>
       </section>
 
-      {/* ── The three nobody else can run ─────────────────────── */}
-      <section className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-        <h2 className="max-w-[20ch] text-balance font-serif text-3xl leading-tight
+      {/* ── Who this is for ──────────────────────────────────────── */}
+      {/* The page used to pick one reader — a client with eleven
+          suppliers — and every other reader bounced. The product serves
+          a chain, so the page says so. */}
+      <section className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+        <p className="eyebrow mb-3">Who this is for</p>
+        <h2 className="max-w-[22ch] text-balance font-serif text-3xl leading-tight
                        tracking-[-0.02em] text-etyme-ink md:text-4xl">
-          Three checks your suppliers cannot run
+          A role goes down a chain. A person comes back up it.
         </h2>
-        <p className="mt-4 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted">
-          Not because they would not — because they cannot see what the other
-          eleven did with the same role. Sitting between all of them, we can.
+        <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-muted">
+          Client, managed service provider, prime, sub, bench vendor. At every hop
+          somebody forwards an email containing more than they were allowed to
+          send — not maliciously, but because the alternative is retyping it. Every
+          firm in that chain is keeping its own partial record of the same
+          contractor, and none of them can see the whole one.
+        </p>
+        <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-ink">
+          Prime, sub and bench are positions on a deal, not kinds of company. The
+          same firm is a prime on one role and a sub on the next, in the same week.
+          That is why this is one product and not four.
         </p>
 
-        <div className="mt-12 grid gap-8 md:grid-cols-3">
-          {[
-            {
-              t: 'The same person, four times',
-              p: 'One consultant, submitted by four suppliers at four different rates. Merged into one entry — and you get to see all four prices, which is worth more than the tidying up.',
-            },
-            {
-              t: 'Tenure across every vendor',
-              p: 'Twelve months through one supplier plus twelve through another is twenty-four months of co-employment exposure. Neither supplier can see it. Neither can you, today.',
-            },
-            {
-              t: 'Who actually delivers',
-              p: 'Days to first CV, share that clears the screen, share that gets hired — built from your own hires, not from who emails you most. Your suppliers see their own card too.',
-            },
-          ].map((c) => (
-            <div key={c.t} className="border-t-2 border-etyme-ink pt-5">
-              <h3 className="mb-2 text-[17px] font-semibold text-etyme-ink">{c.t}</h3>
-              <p className="text-[15px] leading-relaxed text-etyme-muted">{c.p}</p>
+        <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          {POSITIONS.map((p) => (
+            <div key={p.who} className="border-t-2 border-etyme-ink pt-5">
+              <h3 className="mb-2 text-[17px] font-semibold text-etyme-ink">{p.who}</h3>
+              <p className="text-[15px] leading-relaxed text-etyme-muted">{p.sees}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Screening: one station, shown properly ─────────────── */}
-      {/* The pile, demoted from the hero. It is the best proof in the
-          product and the worst headline: put it on top and the whole
-          page reads as a recruiting tool. */}
+      {/* ── What it sits beside ──────────────────────────────────── */}
+      {/* This was thirteen-pixel grey text under an arrow diagram and it
+          is the most useful sentence on the page. */}
       <section className="border-y border-etyme-rule bg-etyme-surface">
-        <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-          <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+          <div className="grid gap-12 lg:grid-cols-[1fr_0.85fr] lg:items-start">
             <div>
-              <p className="eyebrow mb-3">Screening</p>
-              <h2 className="max-w-[17ch] text-balance font-serif text-3xl leading-tight
+              <p className="eyebrow mb-3">What it sits beside</p>
+              <h2 className="max-w-[20ch] text-balance font-serif text-3xl leading-tight
                              tracking-[-0.02em] text-etyme-ink md:text-4xl">
-                Stop reading bad submissions
+                Keep your ATS, your VMS and every supplier you already use
               </h2>
-              <p className="mt-4 max-w-[46ch] text-[17px] leading-relaxed text-etyme-muted">
-                A hard role gets a hundred CVs and most are noise. The work was
-                never finding people — it is finding the four worth an interview.
-              </p>
-              <p className="mt-4 max-w-[46ch] text-[15px] leading-relaxed text-etyme-muted">
-                Every one held back names what the supplier has to fix, because a
-                screen that only says no trains them to send more, not better.
+              <p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted">
+                Etyme sits in front of the tools and the supply chain you have, not
+                instead of them. There is nothing to switch off, no supplier
+                onboarding project and nobody to displace — the record it keeps is
+                the one that spans them, which is the one none of them keeps.
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-etyme-rule bg-etyme-raised">
-              <div className="border-b border-etyme-rule bg-etyme-canvas px-5 py-3">
-                <p className="stat-label">Senior Java Developer · Dallas</p>
-                <p className="mt-1 font-mono text-[13px] text-etyme-ink">
-                  10 arrived. 4 worth reading. 6 held back.
+            <ul className="space-y-6">
+              <li className="border-t border-etyme-rule pt-4">
+                <p className="text-[15px] font-semibold text-etyme-ink">
+                  Roles arrive the way they already arrive
                 </p>
-              </div>
-
-              {SHORTLIST.map((c) => (
-                <div key={c.name} className="border-b border-etyme-rule px-5 py-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-[14px] font-semibold text-etyme-ink">{c.name}</span>
-                    <span
-                      className="font-serif text-[18px] tabular-nums"
-                      style={{ color: c.score >= 85 ? 'var(--color-verified)' : undefined }}
-                    >
-                      {c.score}
-                    </span>
-                  </div>
-                  <p className="font-mono text-[11px] text-etyme-faint">
-                    {c.from} · {c.rate}/hr
-                  </p>
-                  {c.note && (
-                    <p className="mt-1.5 rounded px-2 py-1 font-mono text-[11px] leading-snug"
-                       style={{ background: '#EDF1ED', color: 'var(--color-verified)' }}>
-                      {c.note}
-                    </p>
-                  )}
-                </div>
-              ))}
-
-              <div className="px-5 py-3">
-                <p className="stat-label">Held back</p>
-                <ul className="mt-2 space-y-1.5">
-                  {HELD.slice(0, 3).map((h) => (
-                    <li key={h} className="font-mono text-[11px] leading-snug text-etyme-muted">
-                      {h}
-                    </li>
-                  ))}
-                  <li className="font-mono text-[11px] text-etyme-faint">
-                    and 3 more, each with what the supplier has to fix
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Bring your own suppliers ──────────────────────────── */}
-      <section>
-        <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
-            <div>
-              <p className="eyebrow mb-3">Nobody has to be replaced</p>
-              <h2 className="max-w-[18ch] text-balance font-serif text-3xl leading-tight
-                             tracking-[-0.02em] text-etyme-ink md:text-4xl">
-                Keep the suppliers you already have
-              </h2>
-              <p className="mt-4 max-w-[50ch] text-[17px] leading-relaxed text-etyme-muted">
-                Paste the distribution list you already email. Every firm on it
-                becomes somebody you can send a role to today — whether or not
-                they have heard of us. They find out because a role arrives,
-                which is the only message a staffing firm opens first time.
-              </p>
-              <p className="mt-4 max-w-[50ch] text-[15px] leading-relaxed text-etyme-faint">
-                No procurement exercise, no supplier onboarding project, no
-                switching. Etyme sits in front of the supply chain you have.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-6">
-              <p className="stat-label">What a supplier sees</p>
-              <p className="mt-3 font-serif text-[22px] leading-snug text-etyme-ink">
-                Calder Manufacturing listed you as a supplier
-              </p>
-              <p className="mt-2 text-[15px] leading-relaxed text-etyme-muted">
-                There is <strong className="text-etyme-ink">1 role waiting</strong> for
-                you. Sign in and you can answer it straight away — no bench to
-                build first, no setup.
-              </p>
-              <p className="mt-4 border-t border-etyme-rule pt-3 font-mono text-[11px] text-etyme-faint">
-                Their bench, rates and client relationships stay theirs.
-                Exportable in full, any time.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Every score shows its working ─────────────────────── */}
-      <section className="mx-auto max-w-6xl px-6 py-20 md:py-24">
-        <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-          <div>
-            <h2 className="max-w-[16ch] text-balance font-serif text-3xl leading-tight
-                           tracking-[-0.02em] text-etyme-ink md:text-4xl">
-              Every score shows its working
-            </h2>
-            <p className="mt-4 max-w-[46ch] text-[17px] leading-relaxed text-etyme-muted">
-              You have seen &ldquo;AI matching&rdquo; before. Usually a keyword
-              search with a percentage bolted on the front.
-            </p>
-            <p className="mt-4 max-w-[46ch] text-[15px] leading-relaxed text-etyme-muted">
-              The dull checks — rate against band, permit expiry, missing
-              documents — are done by plain rules, not by a model. They are
-              right every time and they cost nothing. Roughly half of what
-              looks like AI here is not, and that is on purpose.
-            </p>
-            <p className="mt-4 max-w-[46ch] text-[15px] leading-relaxed text-etyme-muted">
-              A person reviews a sample every week. Software that grades its own
-              homework will tell you it is brilliant while your suppliers
-              quietly get worse.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-etyme-rule bg-etyme-surface p-6">
-            <p className="stat-label">What a 94 is made of</p>
-            <ul className="mt-4 space-y-3">
-              {[
-                ['40/40', 'Spring Boot, 7 years', '“Spring Boot microservices, 2018–present” — CV p.2', true],
-                ['25/25', 'AWS in production', '“EKS, RDS, migrated 40 services” — CV p.2', true],
-                ['15/15', 'Located in Dallas', 'Address on file · hybrid acceptable', true],
-                ['14/15', 'Available in the window', 'Free now, you wanted a two-week start', true],
-                ['0/5', 'Kafka — nice to have', 'Not found anywhere in the CV', false],
-              ].map(([pts, label, ev, ok]) => (
-                <li key={label as string} className="flex gap-3 border-b border-etyme-rule pb-3 last:border-0">
-                  <span
-                    className="w-14 shrink-0 font-mono text-[12px] tabular-nums"
-                    style={{ color: ok ? 'var(--color-verified)' : 'var(--color-attention)' }}
-                  >
-                    {ok ? '✓' : '✕'} {pts as string}
-                  </span>
-                  <span>
-                    <span className="block text-[14px] text-etyme-ink">{label as string}</span>
-                    <span className="block font-mono text-[11px] leading-snug text-etyme-faint">
-                      {ev as string}
-                    </span>
-                  </span>
-                </li>
-              ))}
+                <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
+                  A forwarded email, an advert, a spreadsheet from a VMS. Paste it and
+                  it is read into a seat. Nobody changes how they send you work.
+                </p>
+              </li>
+              <li className="border-t border-etyme-rule pt-4">
+                <p className="text-[15px] font-semibold text-etyme-ink">
+                  Your suppliers become reachable without signing up
+                </p>
+                <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
+                  Paste the distribution list you already email. Every firm on it
+                  becomes somebody you can send a role to today, whether or not they
+                  have heard of us.
+                </p>
+              </li>
+              <li className="border-t border-etyme-rule pt-4">
+                <p className="text-[15px] font-semibold text-etyme-ink">
+                  What is yours stays yours
+                </p>
+                <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
+                  Your bench, your rates and your client relationships. The lists
+                  export to CSV from the screen, without asking us for them.
+                </p>
+              </li>
             </ul>
           </div>
         </div>
       </section>
 
+      {/* ── Monday ───────────────────────────────────────────────── */}
+      {/* Four questions a firm answers today with a phone call and a
+          guess, and the four screens that answer them instead. */}
+      <section className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+        <p className="eyebrow mb-3">What changes on Monday</p>
+        <h2 className="max-w-[24ch] text-balance font-serif text-3xl leading-tight
+                       tracking-[-0.02em] text-etyme-ink md:text-4xl">
+          Four questions, answered before lunch instead of by Thursday
+        </h2>
+        <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
+          Every one of these is answered today with a phone call, a spreadsheet and
+          a guess. They are four screens, and they are the reason a firm keeps
+          paying after the first month.
+        </p>
+
+        <div className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2">
+          {MONDAY.map((m) => (
+            <div key={m.screen} className="rounded-xl border border-etyme-rule bg-etyme-raised p-6">
+              <p className="stat-label">{m.screen}</p>
+              <h3 className="mt-2 text-balance text-[19px] font-semibold leading-snug text-etyme-ink">
+                {m.q}
+              </h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">{m.a}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Tenure ───────────────────────────────────────────────── */}
+      {/* The sharpest wedge, and it was the second of three bullets in a
+          grid. Efficiency loses to "we are managing fine". A number
+          nobody can produce and a lawyer wants does not. */}
+      <section className="border-y border-etyme-rule bg-etyme-surface">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+          <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+            <div>
+              <p className="eyebrow mb-3">Tenure</p>
+              <h2 className="max-w-[20ch] text-balance font-serif text-3xl leading-tight
+                             tracking-[-0.02em] text-etyme-ink md:text-4xl">
+                Nobody can tell you how long a contractor has actually been on site
+              </h2>
+              <p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted">
+                Ask each supplier and each tells you the truth about its own
+                contract. Fourteen months. Three. Two. The person has been at the
+                same client for nineteen, and no supplier can compute that number
+                because none of them can see the other two.
+              </p>
+              <p className="mt-4 max-w-[52ch] text-[17px] leading-relaxed text-etyme-ink">
+                It is an exposure rather than a saving, which is why we lead with
+                it. A company that is managing fine on efficiency is still carrying
+                this, and finds out about it from a lawyer.
+              </p>
+              <p className="mt-4 max-w-[52ch] text-[15px] leading-relaxed text-etyme-muted">
+                Where a cap is legally grounded the system blocks and says why. Rate
+                bands, headcount plans and vendor tiers warn, take a reason and let
+                you proceed. Nothing is ever silently permitted, and every override
+                keeps the name of whoever gave it.
+              </p>
+            </div>
+
+            <div className="overflow-hidden rounded-xl border border-etyme-rule bg-etyme-raised">
+              <div className="border-b border-etyme-rule bg-etyme-canvas px-5 py-3">
+                <p className="stat-label">Worked example · one person, one client</p>
+                <p className="mt-1 font-mono text-[11px] text-etyme-faint">
+                  Three suppliers, three honest answers
+                </p>
+              </div>
+
+              {LEDGER.map((l) => (
+                <div key={l.supplier}
+                     className="flex items-baseline justify-between gap-3 border-b border-etyme-rule px-5 py-3">
+                  <span className="text-[14px] text-etyme-ink">{l.supplier}</span>
+                  <span className="text-right">
+                    <span className="block text-[14px] font-semibold tabular-nums text-etyme-ink">
+                      {l.months}
+                    </span>
+                    <span className="block font-mono text-[11px] text-etyme-faint">{l.span}</span>
+                  </span>
+                </div>
+              ))}
+
+              <div className="px-5 py-4" style={{ background: '#F7EDE6' }}>
+                <p className="stat-label" style={{ color: 'var(--color-attention)' }}>
+                  Aggregated at the client
+                </p>
+                <p className="mt-1 font-serif text-[30px] leading-none tabular-nums"
+                   style={{ color: 'var(--color-attention)' }}>
+                  19 months
+                </p>
+                <p className="mt-2 font-mono text-[11px] leading-snug text-etyme-muted">
+                  Their cap is 18. The next submission for this person is blocked, and
+                  the block says which three contracts made the number.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Rules first, model second ────────────────────────────── */}
+      {/* Short on purpose. It is in there, it does real work, and it is
+          the least defensible thing in the product. */}
+      <section className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <h2 className="max-w-[18ch] text-balance font-serif text-3xl leading-tight
+                         tracking-[-0.02em] text-etyme-ink md:text-4xl">
+            About half of what looks like AI here is not
+          </h2>
+          <div>
+            <p className="max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
+              The checks that matter — rate against the band, an expiring permit, a
+              missing document, the same person submitted twice — are plain rules.
+              They are right every time, they cost nothing to run, and each one
+              explains itself in a sentence you can argue with.
+            </p>
+            <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
+              A model reads CVs and drafts messages. It never decides work
+              authorisation. Every score carries what it was made of, what it was
+              based on and what it could not find — a bare number is treated here as
+              a bug, not a feature.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── What it costs ────────────────────────────────────────── */}
+      {/* A page with no price makes a reader assume enterprise sales and
+          leave. We do not have one yet, so it says that rather than
+          nothing — and says what is settled, which is the shape. */}
+      <section className="border-y border-etyme-rule bg-etyme-surface">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+          <p className="eyebrow mb-3">What it costs</p>
+          <h2 className="max-w-[22ch] text-balance font-serif text-3xl leading-tight
+                         tracking-[-0.02em] text-etyme-ink md:text-4xl">
+            There is no price on this page because we have not settled one
+          </h2>
+          <p className="mt-5 max-w-[58ch] text-[17px] leading-relaxed text-etyme-muted">
+            We are working it out with the first firms using the product, against
+            what it replaces for them. A number invented for a landing page is a
+            number we would have to take back, and you would be right to hold it
+            against us. If you want to know where our thinking is, ask and we will
+            tell you where it is that week.
+          </p>
+          <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-ink">
+            Three things about the commercials are settled, and they are the ones
+            that would be expensive to change later.
+          </p>
+
+          <div className="mt-12 grid gap-8 md:grid-cols-3">
+            {DECIDED.map((d) => (
+              <div key={d.t} className="border-t-2 border-etyme-ink pt-5">
+                <h3 className="mb-2 text-[17px] font-semibold text-etyme-ink">{d.t}</h3>
+                <p className="text-[15px] leading-relaxed text-etyme-muted">{d.p}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── Close ────────────────────────────────────────────── */}
-      <section className="border-t border-etyme-rule bg-etyme-surface">
-        <div className="mx-auto max-w-3xl px-6 py-20 text-center md:py-24">
+      <section>
+        <div className="mx-auto max-w-3xl px-6 py-16 text-center md:py-24">
           <h2 className="text-balance font-serif text-3xl leading-tight
                          tracking-[-0.02em] text-etyme-ink md:text-4xl">
-            Start with one role you are struggling to fill
+            Start with one role and one supplier you already use
           </h2>
-          <p className="mx-auto mt-4 max-w-[46ch] text-[17px] leading-relaxed text-etyme-muted">
-            We are building this with a small number of firms rather than
-            launching at everybody. You will know within an hour whether it is
-            worth your time.
+          <p className="mx-auto mt-4 max-w-[48ch] text-[17px] leading-relaxed text-etyme-muted">
+            We are building this with a small number of firms rather than launching
+            at everybody, which means you get the people writing it and they get a
+            real chain to build against.
           </p>
 
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
@@ -446,9 +615,9 @@ export default function LandingPage() {
           <ul className="mx-auto mt-10 flex max-w-lg flex-wrap justify-center gap-x-6 gap-y-2
                          font-mono text-[12px] text-etyme-muted">
             {[
-              'Set-up takes an afternoon',
-              'Keep your ATS, VMS and vendors',
-              'Your data exports in full, any time',
+              'No card to look around',
+              'Keep your ATS, VMS and suppliers',
+              'Lists export to CSV',
               'You talk to the people building it',
             ].map((l) => (
               <li key={l}>{l}</li>
