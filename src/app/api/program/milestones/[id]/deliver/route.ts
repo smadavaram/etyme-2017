@@ -86,9 +86,14 @@ export async function POST(
     where: { id },
     data: {
       status: move.status,
+      // The columns exist now, so the gap arithmetic gets real dates.
+      deliveredAt: new Date(),
+      deliveredById: caller.person.id,
       // A resubmission after a rejection clears the old reason. Leaving it
       // would show a milestone waiting on the client and rejected at the
       // same time, which is two different states in one row.
+      rejectedAt: null,
+      rejectionReason: null,
       note: null,
     },
     select: { id: true, name: true, status: true, amountCents: true },

@@ -245,6 +245,9 @@ export async function GET(request: NextRequest) {
       return {
         buyContractId: bc.id,
         buyContractCandidateId: cand.id,
+        // The contract the carry hangs off. The off-cycle screen needs
+        // it, and the timesheets below already knew it.
+        sellContractId: filteredTimesheets[0]?.sellContractId ?? null,
         // What is actually being paid for. A pay slip with no period on
         // it is the first thing a consultant queries.
         payPeriod: payPeriod

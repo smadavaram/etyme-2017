@@ -134,7 +134,12 @@ export async function POST(
           status: 'REJECTED',
           acceptedAt: null,
           acceptedById: null,
-          note: encodeRejection(reason as RejectionReason, note),
+          rejectedAt: now,
+          // The real column. The labelled shadow prefix in `note` served
+          // while this did not exist; rows written that way still decode
+          // on read, and nothing writes the prefix any more.
+          rejectionReason: reason,
+          note: note && note.trim() ? note.trim() : null,
         },
     select: {
       id: true, name: true, amountCents: true, dueOn: true,

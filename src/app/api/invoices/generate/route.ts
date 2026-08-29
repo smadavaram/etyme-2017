@@ -387,6 +387,16 @@ export async function POST(request: NextRequest) {
           // periodEnd and understated the age. Adding a column is not
           // building a feature; this is the write.
           issuedAt: new Date(),
+          // Queryable, not only in the lines JSON — a rate that exists
+          // only inside a blob is not something a return can be filed
+          // from. The columns landed for exactly this write.
+          taxRegime: tax?.regime ?? null,
+          taxOutcome: tax?.outcome ?? (vendorSite ? null : 'UNKNOWN'),
+          placeOfSupply: tax?.placeOfSupply ?? null,
+          taxTotalCents:
+            tax?.rateBps == null
+              ? null
+              : Math.round((Math.round(total * per) * tax.rateBps) / 10_000),
           lines: lines.map((l) => ({
             sellContractId: l.sellContractId,
             personId: l.personId,

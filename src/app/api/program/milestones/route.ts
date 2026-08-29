@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true, name: true, amountCents: true, dueOn: true,
           acceptedAt: true, acceptedById: true, note: true,
+          deliveredAt: true, rejectionReason: true,
           status: true, sortOrder: true, createdAt: true,
         },
         orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
@@ -99,10 +100,9 @@ export async function GET(request: NextRequest) {
       amountCents: m.amountCents,
       dueOn: m.dueOn,
       acceptedAt: m.acceptedAt,
-      // Nothing stores it. See the note at the top; this is deliberately
-      // not m.createdAt, which would date every delivery to the day
-      // somebody typed the milestone in.
-      deliveredAt: null,
+      // The column exists now. Rows from before it stay null and the gap
+      // arithmetic says so, rather than backdating them to createdAt.
+      deliveredAt: m.deliveredAt,
       status: m.status,
     }))
 
@@ -136,8 +136,11 @@ export async function GET(request: NextRequest) {
           status: m.status,
           acceptedAt: m.acceptedAt?.toISOString() ?? null,
           acceptedById: m.acceptedById,
+          deliveredAt: m.deliveredAt?.toISOString() ?? null,
           note: humanNote(m.note),
-          rejectionReason: rejected?.reason ?? null,
+          // The real column first; the labelled shadow prefix only for
+          // rows written before the column existed.
+          rejectionReason: m.rejectionReason ?? rejected?.reason ?? null,
           billable: mayBill(
             { id: m.id, name: m.name, amountCents: m.amountCents, dueOn: m.dueOn, acceptedAt: m.acceptedAt, status: m.status },
             now
@@ -156,7 +159,7 @@ export async function GET(request: NextRequest) {
       amountCents: m.amountCents,
       dueOn: m.dueOn ? new Date(m.dueOn) : null,
       acceptedAt: m.acceptedAt ? new Date(m.acceptedAt) : null,
-      deliveredAt: null,
+      deliveredAt: m.deliveredAt ? new Date(m.deliveredAt) : null,
       status: m.status,
     }))
   )

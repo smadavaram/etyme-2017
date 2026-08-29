@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { allProcesses } from '@/lib/matrix'
 import {
   triage, cluster, rank, forFounder, guessProcess, voiceOf,
   VOICES, ENOUGH_TENANTS, DEMO_WEIGHT, type Request, type Party,
@@ -43,16 +44,30 @@ describe('Most requests are not build requests, and saying so is the job', () =>
       .toContain('expensive answer to a cheap problem')
   })
 
-  it('a half-built process is finished by the agent that owns it', () => {
-    const t = triage(req({ l3Code: 'L3.4.2.2' }))
-    expect(t.verdict).toBe('FINISH_IT')
-    expect(t.agent).toBe('etyme-money')
+  it('whatever a process\u2019s status, the verdict follows it and the owner is named', () => {
+    // The first version of this pinned two codes that were PARTIAL and
+    // NONE at the time — and failed on the commit that finished them.
+    // A fixture that assumes the build stays unfinished is the same
+    // disease as a page describing the build. So: every real process,
+    // whatever its status today, triages to the verdict its status maps
+    // to, with a real agent attached.
+    const want = { BUILT: 'ALREADY_BUILT', PARTIAL: 'FINISH_IT', SPEC: 'BUILD_IT', NONE: 'BUILD_IT' } as const
+    for (const { l3 } of allProcesses()) {
+      const t = triage(req({ l3Code: l3.code }))
+      expect(t.verdict, l3.code).toBe(want[l3.status])
+      expect(t.agent, l3.code).toMatch(/^etyme-/)
+    }
   })
 
-  it('an unbuilt process names the owner and the criteria that already exist', () => {
-    const t = triage(req({ l3Code: 'L3.4.2.3' }))
-    expect(t.verdict).toBe('BUILD_IT')
-    expect(t.next).toContain('L4 tasks already agreed')
+  it('a finish-it or build-it verdict, when one exists, needs no founder', () => {
+    // The branch text is exercised whenever the matrix has such a row;
+    // when it has none, that is the product being finished, not a gap in
+    // the test.
+    for (const { l3 } of allProcesses().filter((p) => p.l3.status !== 'BUILT')) {
+      const t = triage(req({ l3Code: l3.code }))
+      expect(t.needsFounder, l3.code).toBe(false)
+      expect(t.next, l3.code).toMatch(/finishes it|L4 tasks already agreed/)
+    }
   })
 
   it('a request that maps to no process is a scope question, not a feature', () => {

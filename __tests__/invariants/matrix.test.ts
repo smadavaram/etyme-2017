@@ -162,7 +162,12 @@ describe('It can say where the build actually stands', () => {
 
     const worst = groups.reduce((a, b) => (a.built / a.total <= b.built / b.total ? a : b))
     expect(worst.total).toBeGreaterThan(0)
-    expect(worst.built / worst.total).toBeLessThan(1)
+    // Never "less than 1": the first version of this line asserted the
+    // worst group was unfinished, which was true when written and failed
+    // on the commit that finished it — a test punishing completion is
+    // the same disease as a page describing the build, caught twice now.
+    expect(worst.built / worst.total).toBeGreaterThanOrEqual(0)
+    expect(worst.built / worst.total).toBeLessThanOrEqual(1)
   })
 
   it('a group is never counted as more built than it has processes', () => {

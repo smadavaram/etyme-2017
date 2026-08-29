@@ -23,6 +23,7 @@ import { DataTable, type Column } from '@/components/data-table'
 // ── Types ────────────────────────────────────────────
 
 interface PayItem {
+  sellContractId: string | null
   buyContractId: string
   person: { id: string; name: string; primaryEmail: string }
   contractType: string
@@ -110,6 +111,52 @@ function formatCents(cents: number): string {
 
 
 // ── Page ─────────────────────────────────────────────
+
+/**
+ * The carried balance on a contract — costs that could not come out of
+ * one period and wait for the next. Loaded on demand: most rows carry
+ * nothing, and fetching every contract's ledger to render dashes would
+ * be the expensive way to show nothing.
+ */
+function CarryCell({ sellContractId }: { sellContractId: string | null }) {
+  const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle')
+  const [says, setSays] = useState<string | null>(null)
+  const [cents, setCents] = useState<number | null>(null)
+
+  if (!sellContractId) return <span className="text-etyme-faint">—</span>
+
+  async function look() {
+    setState('loading')
+    try {
+      const res = await fetch(`/api/payroll/off-cycle?sellContractId=${sellContractId}`)
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      setCents(body.data?.carriedCents ?? body.data?.outstandingCents ?? 0)
+      setSays(body.data?.says ?? null)
+      setState('done')
+    } catch (e: any) {
+      setSays(e.message)
+      setState('done')
+    }
+  }
+
+  if (state === 'idle')
+    return (
+      <button onClick={look} className="text-[12px]" style={{ color: 'var(--color-action)' }}>
+        Look
+      </button>
+    )
+  if (state === 'loading') return <span className="text-[12px] text-etyme-faint">…</span>
+  return (
+    <span
+      title={says ?? undefined}
+      className="tabular-nums text-[12px]"
+      style={{ color: (cents ?? 0) > 0 ? 'var(--color-attention)' : 'var(--color-muted)' }}
+    >
+      {cents == null ? '—' : cents === 0 ? 'none' : formatCents(cents)}
+    </span>
+  )
+}
 
 export default function PayrollPage() {
   const [payItems, setPayItems] = useState<PayItem[]>([])
@@ -319,6 +366,12 @@ export default function PayrollPage() {
         </span>
       ),
       sortValue: (row) => row.grossPay,
+      align: 'right' as const,
+    },
+    {
+      key: 'carry',
+      label: 'Carry',
+      render: (row) => <CarryCell sellContractId={row.sellContractId} />,
       align: 'right' as const,
     },
     {

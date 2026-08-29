@@ -261,6 +261,15 @@ model Company {
   reserveOnExit  ReserveOnExit @default(PAY_OUT)
 
   /// The currency this company reports in, whatever it bills or pays in.
+  /// ISO country, for place-of-supply. Falls back to the primary location.
+  country   String?
+  /// VAT/GST registration. Needed on the CUSTOMER to test reverse charge —
+  /// without it a cross-border EU B2B supply over-taxes at the supplier's
+  /// own rate: wrong in the safer direction, and still wrong.
+  taxId     String?
+  /// The client issues its own invoices against approved work.
+  selfBills Boolean @default(false)
+
   homeCurrency     String  @default("USD")
   /// A second reporting currency, kept alongside rather than instead of.
   parallelCurrency String?
@@ -649,18 +658,27 @@ model OrderMilestone {
   orderId String
   order   SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  name         String
-  amountCents  Int
+  name            String
+  amountCents     Int
   /// When it is expected. Not when it becomes billable — that is
   /// `acceptedAt`, and the gap between the two is the interesting part.
-  dueOn        DateTime?
+  dueOn           DateTime?
   /// The client agreeing the thing was delivered. Until this, no invoice.
-  acceptedAt   DateTime?
-  acceptedById String?
+  acceptedAt      DateTime?
+  acceptedById    String?
   /// Said plainly where it slipped or was reduced.
-  note         String?
-  status       String    @default("PENDING") // PENDING · ACCEPTED · INVOICED · CANCELLED
-  sortOrder    Int       @default(0)
+  note            String?
+  status          String    @default("PENDING") // PENDING · DELIVERED · ACCEPTED · REJECTED · INVOICED · CANCELLED
+  /// When it was handed over, by whom. Without this the delivery-to-
+  /// acceptance gap dated everything from createdAt and reported a
+  /// two-month wait on work handed over yesterday.
+  deliveredAt     DateTime?
+  deliveredById   String?
+  rejectedAt      DateTime?
+  /// The code from the closed list. Replaces the labelled shadow prefix
+  /// the decide route carried in `note` while this column did not exist.
+  rejectionReason String?
+  sortOrder       Int       @default(0)
 
   createdAt DateTime @default(now())
 
@@ -2446,7 +2464,14 @@ model Invoice {
   issuedAt       DateTime?
   status         String                 @default("ISSUED")
   submittedAt    DateTime?
-  payments       Payment[]
+
+  /// Tax as queryable fields, not a JSON blob — a rate that exists only
+  /// inside lines JSON is not something a return can be filed from.
+  taxTotalCents Int?
+  taxRegime     String? // US_SALES_TAX · EU_VAT · UK_VAT · IN_GST
+  taxOutcome    String? // TAXABLE · ZERO_RATED · REVERSE_CHARGE · OUT_OF_SCOPE · UNKNOWN
+  placeOfSupply String?
+  payments      Payment[]
 
   // AP references — what the payer's finance team needs to post and pay.
   purchaseOrderId String?
@@ -2640,6 +2665,12 @@ model DunningSend {
   step       String
   /// The invoices this letter named, so a reader can see what was said.
   invoiceIds String[]
+
+  /// A promise is a date. It cannot live in sentAt — overwriting when a
+  /// letter went would corrupt the ladder's own memory.
+  promisedFor DateTime?
+  amountCents Int?
+  note        String?
 
   channel  String   @default("EMAIL")
   sentAt   DateTime @default(now())
@@ -3372,6 +3403,9 @@ model InvoiceLine {
 
   description String?
   createdAt   DateTime @default(now())
+
+  taxRateBps     Int?
+  taxAmountCents Int?
 
   @@index([invoiceId])
   @@index([sellContractId])

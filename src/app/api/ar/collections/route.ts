@@ -51,6 +51,7 @@ import { loadBook, openInvoiceIdsAcross } from '../book'
 /** Steps that are collections events rather than letters. */
 const COLLECTION_STEPS = [
   'OWNER_ASSIGNED',
+  'PROMISE_MADE',
   'STOP_WORK_ADVISED',
   'FACTORED',
   'WRITTEN_OFF',
@@ -81,11 +82,7 @@ export async function GET(request: NextRequest) {
 
   const companyId = caller.company.id
   const now = new Date()
-  const gaps: string[] = [
-    'A promise to pay cannot be recorded yet. A promise is a date, and DunningSend has ' +
-      'nowhere for a future date to live — the arithmetic for promises and broken promises ' +
-      'is built and waiting on a column rather than guessing at one.',
-  ]
+  const gaps: string[] = []
 
   const { raw, book } = await loadBook(companyId, now)
   if (raw.length === 0) {
@@ -119,6 +116,7 @@ export async function GET(request: NextRequest) {
     where: { companyId },
     select: {
       clientCompanyId: true, step: true, sentAt: true, invoiceIds: true,
+      promisedFor: true, amountCents: true, note: true,
       sentBy: { select: { id: true, name: true } },
     },
     orderBy: { sentAt: 'desc' },
@@ -130,6 +128,30 @@ export async function GET(request: NextRequest) {
     sendRows as unknown as SentLetter[],
     openIds
   )
+
+  // Promises, from the same event log. The most recent promise whose
+  // named invoices are still open is the live one; one whose date has
+  // passed while those invoices stayed open is broken — and broken is
+  // counted per promise, because two broken promises is a pattern and
+  // the stop-work arithmetic treats it as one.
+  const promiseByCustomer = new Map<string, { amountMinor: number; promisedFor: Date; by: string; madeAt: Date }>()
+  const brokenByCustomer = new Map<string, number>()
+  for (const r of sendRows) {
+    if (r.step !== 'PROMISE_MADE' || !r.promisedFor) continue
+    const stillOpen = r.invoiceIds.some((id) => openIds.has(id))
+    if (!stillOpen) continue
+    if (r.promisedFor.getTime() < now.getTime()) {
+      brokenByCustomer.set(r.clientCompanyId, (brokenByCustomer.get(r.clientCompanyId) ?? 0) + 1)
+    } else if (!promiseByCustomer.has(r.clientCompanyId)) {
+      // Rows arrive newest first, so the first live one is the latest.
+      promiseByCustomer.set(r.clientCompanyId, {
+        amountMinor: r.amountCents ?? 0,
+        promisedFor: r.promisedFor,
+        by: r.sentBy?.name ?? 'somebody at the client',
+        madeAt: r.sentAt,
+      })
+    }
+  }
 
   // The owner is whoever most recently took it, while any invoice that
   // event named is still open. An owner from a run of arrears that has
@@ -211,10 +233,8 @@ export async function GET(request: NextRequest) {
         exposureMinor: exposure.minor,
         laddersSent: laddersByCustomer[customerId] ?? [],
         ownerName: owner?.name ?? null,
-        // Not readable until the column exists. Null is honest: it means
-        // nobody has recorded one, which is exactly true.
-        promise: null,
-        brokenPromises: 0,
+        promise: promiseByCustomer.get(customerId) ?? null,
+        brokenPromises: brokenByCustomer.get(customerId) ?? 0,
       }
 
       cases.push({
@@ -296,9 +316,7 @@ export async function POST(request: NextRequest) {
         error: {
           code: 'VALIDATION',
           message:
-            `"${body.step}" is not a collections action. One of ${COLLECTION_STEPS.join(', ')}. ` +
-            `A promise to pay cannot be recorded yet — a promise is a date and there is ` +
-            `nowhere on the record for a future date to live.`,
+            `"${body.step}" is not a collections action. One of ${COLLECTION_STEPS.join(', ')}.`,
           field: 'step',
         },
       },
@@ -363,6 +381,27 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // A promise is a date and an amount, or it is not a promise. "They
+  // said they would pay" with neither is a way of ending a phone call.
+  let promisedFor: Date | null = null
+  let promisedCents: number | null = null
+  if (step === 'PROMISE_MADE') {
+    promisedFor = body?.promisedFor ? new Date(String(body.promisedFor)) : null
+    promisedCents = Number.isFinite(Number(body?.amountCents)) ? Math.round(Number(body.amountCents)) : null
+    if (!promisedFor || isNaN(promisedFor.getTime()) || promisedFor.getTime() <= Date.now()) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'A promise needs a future date.', field: 'promisedFor' } },
+        { status: 422 }
+      )
+    }
+    if (!promisedCents || promisedCents <= 0) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'A promise needs an amount, in minor units.', field: 'amountCents' } },
+        { status: 422 }
+      )
+    }
+  }
+
   const row = await prisma.dunningSend.create({
     data: {
       companyId,
@@ -371,6 +410,9 @@ export async function POST(request: NextRequest) {
       invoiceIds: mine.map((i) => i.id),
       channel: 'PERSON',
       sentById: personId,
+      promisedFor,
+      amountCents: promisedCents,
+      note: body?.note ? String(body.note).trim() : null,
     },
     select: { id: true, step: true, sentAt: true, invoiceIds: true },
   })
