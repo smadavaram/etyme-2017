@@ -95,6 +95,10 @@ const VENDOR_NAV: NavSection[] = [
       // The rolodex. A staffing business is a rolodex with invoicing
       // attached, and this is finally the rolodex.
       { label: 'Who we work with', href: '/dashboard/contacts', icon: '☎' },
+      // Five onboardings, derived live from what exists.
+      { label: 'Getting set up', href: '/dashboard/onboarding', icon: '☑' },
+      // The journal out to their books, and the statement back against ours.
+      { label: 'Your books, their books', href: '/dashboard/integrations', icon: '⇄' },
       { label: 'Who can do what', href: '/dashboard/access', icon: '⚿' },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙' },
       { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓' },
