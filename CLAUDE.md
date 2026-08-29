@@ -320,7 +320,7 @@ shared, the framing is not.
 
 ## Several agents at once
 
-Six specialists own disjoint parts of the codebase and work at the same
+Seven specialists own disjoint parts of the codebase and work at the same
 time; two more read only. `docs/how-agents-work.md` is the working
 agreement; `.claude/agents/` holds the definitions.
 
@@ -343,6 +343,7 @@ and why, and stops.
 | `etyme-conversation` | How something is said, to whom, on which channel, how often |
 | `etyme-demand` | Between a manager needing somebody and a person being chosen |
 | `etyme-supply` | The bench as a business |
+| `etyme-market` | Public words, positioning, and moving work between companies without leaking |
 | `etyme-architect` | Schema, shared components, decisions crossing two domains |
 | `etyme-scout` | "Does this already exist and who owns it" — read only |
 | `etyme-release` | Deciding whether it ships — read only |

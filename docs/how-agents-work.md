@@ -9,7 +9,7 @@ overlap, not because they talk to each other often.
 
 ---
 
-## The eight
+## The nine
 
 | Agent | Owns | Use it for |
 |---|---|---|
@@ -18,6 +18,7 @@ overlap, not because they talk to each other often.
 | `etyme-conversation` | Notifications, email, SMS, Teams, invitations, interview scheduling, wording | How something is said, to whom, on which channel, how often |
 | `etyme-demand` | Requisitions, approvals, supplier release, submissions, screening, award, the seat | Between a manager needing somebody and a person being chosen |
 | `etyme-supply` | Bench, matching, fit, burn, releasing-soon, rolloff, scorecards, resumes | The bench as a business |
+| `etyme-market` | Home page, positioning, generated company sites, lead capture, chain distribution | Any public-facing words, and anything forwarding work between companies |
 | `etyme-architect` | Schema, database client, auth, company identity, design system, shell | A schema change, a shared component, a decision crossing two domains |
 | `etyme-scout` | Nothing — read only | "Does this already exist and who owns it" |
 | `etyme-release` | Nothing — read only | Deciding whether it ships |
@@ -135,6 +136,12 @@ matrix and the code cannot drift apart:
 | Record to report | L2.6.3 Integration | `etyme-architect` |
 | Govern and protect | L2.7.1 Workforce risk · L2.7.3 Data and access | `etyme-regulatory` |
 | Govern and protect | L2.7.2 Commercial risk | `etyme-supply` |
+
+Distribution between companies — a requirement going down a chain, a
+consultant coming back up — belongs to `etyme-market` rather than to
+demand or supply. It is neither side's own process; it is the wire
+between them, and the rules on it are about what may be said rather than
+about who is placed.
 
 L3 is the process with an owner and a service level. L4 is the task an
 agent actually picks up. Both are in the delivery matrix, and a change to

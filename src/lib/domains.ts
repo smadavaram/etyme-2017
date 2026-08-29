@@ -36,6 +36,7 @@ export type DomainKey =
   | 'CONVERSATION'
   | 'DEMAND'
   | 'SUPPLY'
+  | 'MARKET'
   | 'PLATFORM'
 
 export interface Domain {
@@ -117,7 +118,7 @@ export const DOMAINS: Domain[] = [
       'app/answer', 'app/claim',
       'lib/notify', 'lib/notification-delivery', 'lib/texts', 'lib/sms',
       'lib/reaching-out', 'lib/senders', 'lib/forwarding', 'lib/interviews',
-      'lib/timesheet-signatures', 'lib/site-voice', 'lib/page-framing',
+      'lib/timesheet-signatures', 'lib/page-framing',
       'lib/watch', 'lib/events',
       'app/dashboard/interviews', 'app/dashboard/notifications',
       'app/api/interviews', 'app/api/notifications', 'app/api/answer', 'app/api/claim',
@@ -175,6 +176,22 @@ export const DOMAINS: Domain[] = [
     ],
   },
   {
+    key: 'MARKET',
+    agent: 'etyme-market',
+    label: 'The market',
+    knows:
+      'What Etyme says it is, to people who have never heard of it. The home page, ' +
+      'the generated company sites, lead capture and nurture, and the distribution ' +
+      'of requirements and bench candidates up and down a chain without breaching ' +
+      'an NDA on the way.',
+    l2: ['L2.1.2', 'L2.2.2'],
+    owns: [
+      'lib/positioning', 'lib/site-voice', 'lib/public-site', 'lib/distribution',
+      'app/page', 'app/site', 'app/c', 'app/api/c',
+      'app/dashboard/market', 'app/api/market', 'app/api/site',
+    ],
+  },
+  {
     key: 'PLATFORM',
     agent: 'etyme-architect',
     label: 'Platform',
@@ -185,22 +202,22 @@ export const DOMAINS: Domain[] = [
     l2: ['L2.2.2', 'L2.6.3'],
     owns: [
       'app/dashboard/page', 'app/dashboard/shell', 'app/dashboard/import',
-      'app/(auth)', 'app/c/', 'app/api/c/',
+      'app/(auth)',
       'app/api/settings', 'app/api/imports', 'app/api/integrations',
       'app/api/onboarding', 'app/api/automation',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains',
       'lib/company-defaults', 'lib/company-domains', 'lib/domains-owned',
-      'lib/registrable-domain', 'lib/account-lifecycle', 'lib/public-site',
+      'lib/registrable-domain', 'lib/account-lifecycle',
       'lib/service-accounts', 'lib/import-mapper', 'lib/importable',
       'lib/loop', 'lib/agent-run', 'lib/demo-seed', 'lib/demo-seed-client',
       'lib/demo-session',
-      'app/page', 'app/layout', 'app/login', 'app/start',
+      'app/layout', 'app/login', 'app/start',
       'app/dashboard/layout', 'app/dashboard/settings', 'app/dashboard/companies',
       'app/dashboard/data', 'app/dashboard/automation', 'app/dashboard/checks',
       'app/api/health', 'app/api/demo', 'app/api/auth', 'app/api/companies',
-      'app/api/cron', 'app/api/import', 'app/api/site',
-      'components/', 'app/site/',
+      'app/api/cron', 'app/api/import',
+      'components/',
     ],
   },
 ]
