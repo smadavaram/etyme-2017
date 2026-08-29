@@ -1,0 +1,611 @@
+<title>Contingent Delivery Matrix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --canvas:  #F0EEE6;
+    --surface: #FBFAF7;
+    --raised:  #FFFFFF;
+    --ink:     #1F1E1D;
+    --muted:   #6B6862;
+    --faint:   #9C9891;
+    --rule:    #E3DFD5;
+    --action:  #2B47E5;
+    --attention:#C0622E;
+    --verified:#4F6F52;
+    --shadow:  0 1px 2px rgba(31,30,29,.05);
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas:  #151412;
+      --surface: #1C1B18;
+      --raised:  #232220;
+      --ink:     #EDEAE2;
+      --muted:   #A29D93;
+      --faint:   #75706A;
+      --rule:    #322F2B;
+      --action:  #8AA0FF;
+      --attention:#E2925E;
+      --verified:#8CB18F;
+      --shadow:  0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --canvas:  #151412;
+    --surface: #1C1B18;
+    --raised:  #232220;
+    --ink:     #EDEAE2;
+    --muted:   #A29D93;
+    --faint:   #75706A;
+    --rule:    #322F2B;
+    --action:  #8AA0FF;
+    --attention:#E2925E;
+    --verified:#8CB18F;
+    --shadow:  0 1px 2px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 48px 24px 96px; }
+
+  .eyebrow {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--faint); font-weight: 600; margin: 0 0 10px;
+  }
+
+  h1 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: clamp(30px, 4.6vw, 46px); line-height: 1.08;
+    letter-spacing: -.02em; text-wrap: balance;
+    margin: 0 0 16px;
+  }
+
+  h2 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: 26px; letter-spacing: -.015em; line-height: 1.15;
+    margin: 0 0 4px; text-wrap: balance;
+  }
+
+  h3 {
+    font-family: var(--serif); font-weight: 400;
+    font-size: 19px; letter-spacing: -.01em;
+    margin: 0 0 6px;
+  }
+
+  .lede { max-width: 64ch; color: var(--muted); font-size: 15px; margin: 0 0 8px; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  hr.rule { border: 0; border-top: 1px solid var(--rule); margin: 40px 0; }
+
+  /* ── Answer callouts ─────────────────────────────────── */
+  .answer {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--action);
+    border-radius: 3px;
+    padding: 22px 24px;
+    margin: 28px 0;
+    box-shadow: var(--shadow);
+  }
+  .answer .q {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--action); font-weight: 600; margin: 0 0 10px;
+  }
+  .answer p { margin: 0 0 12px; max-width: 68ch; }
+  .answer p:last-child { margin-bottom: 0; }
+  .answer.warn { border-left-color: var(--attention); }
+  .answer.warn .q { color: var(--attention); }
+
+  /* ── Lifecycle strip ─────────────────────────────────── */
+  .stages {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .stage { background: var(--surface); padding: 12px 13px; }
+  .stage .n {
+    font-family: var(--mono); font-size: 10px; color: var(--faint);
+    display: block; margin-bottom: 3px;
+  }
+  .stage .t { font-weight: 600; font-size: 13px; display: block; line-height: 1.3; }
+  .stage .d { color: var(--muted); font-size: 11.5px; line-height: 1.4; display: block; margin-top: 3px; }
+  .stage.gate { background: var(--raised); box-shadow: inset 3px 0 0 var(--attention); }
+
+  /* ── Controls ────────────────────────────────────────── */
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin: 0 0 20px;
+  }
+  .controls input[type="search"] {
+    font: inherit; font-size: 13px;
+    background: var(--raised); color: var(--ink);
+    border: 1px solid var(--rule); border-radius: 3px;
+    padding: 7px 11px; min-width: 220px; flex: 1 1 220px;
+  }
+  .controls input[type="search"]:focus-visible,
+  .filter:focus-visible { outline: 2px solid var(--action); outline-offset: 1px; }
+  .filter {
+    font: inherit; font-size: 12px; cursor: pointer;
+    background: var(--raised); color: var(--muted);
+    border: 1px solid var(--rule); border-radius: 999px;
+    padding: 5px 12px;
+  }
+  .filter[aria-pressed="true"] { background: var(--ink); color: var(--canvas); border-color: var(--ink); }
+  .count { font-size: 12px; color: var(--faint); margin-left: auto; font-variant-numeric: tabular-nums; }
+
+  /* ── The matrix ──────────────────────────────────────── */
+  .stream { margin: 0 0 34px; }
+  .stream > header {
+    display: flex; align-items: baseline; gap: 12px;
+    padding-bottom: 8px; margin-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .stream code.l1 {
+    font-family: var(--mono); font-size: 11px; color: var(--faint);
+    letter-spacing: .04em;
+  }
+  .stream > header p { margin: 0; color: var(--muted); font-size: 13px; flex: 1 1 100%; }
+
+  .group { margin: 0 0 18px; }
+  .group > h3 { display: flex; align-items: baseline; gap: 10px; }
+  .group > h3 code {
+    font-family: var(--mono); font-size: 10.5px; color: var(--faint); font-weight: 400;
+  }
+
+  .scroller { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; }
+  th {
+    text-align: left; font-size: 10px; text-transform: uppercase;
+    letter-spacing: .09em; color: var(--faint); font-weight: 600;
+    padding: 0 12px 6px 0; border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 12px 9px 0; border-bottom: 1px solid var(--rule);
+    vertical-align: top; font-size: 13px;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.code { font-family: var(--mono); font-size: 11px; color: var(--faint); white-space: nowrap; width: 1%; }
+  td.name { font-weight: 600; width: 22%; }
+  td.tasks { color: var(--muted); font-size: 12.5px; }
+  td.tasks ul { margin: 0; padding-left: 16px; }
+  td.tasks li { margin: 0 0 1px; }
+  td.who { white-space: nowrap; width: 1%; font-size: 12px; color: var(--muted); }
+  td.st { white-space: nowrap; width: 1%; }
+
+  .chip {
+    display: inline-block; font-size: 10.5px; font-weight: 600;
+    letter-spacing: .03em; padding: 2px 8px; border-radius: 999px;
+    border: 1px solid transparent; white-space: nowrap;
+  }
+  .chip.built    { color: var(--verified);  border-color: color-mix(in srgb, var(--verified) 38%, transparent); }
+  .chip.partial  { color: var(--attention); border-color: color-mix(in srgb, var(--attention) 38%, transparent); }
+  .chip.spec     { color: var(--muted);     border-color: var(--rule); }
+  .chip.none     { color: var(--faint);     border-color: var(--rule); }
+  .chip.ask      { color: var(--action);    border-color: color-mix(in srgb, var(--action) 38%, transparent); }
+
+  .agent {
+    font-family: var(--mono); font-size: 10px; font-weight: 500;
+    color: var(--action); border: 1px solid color-mix(in srgb, var(--action) 32%, transparent);
+    border-radius: 3px; padding: 1px 6px; letter-spacing: 0;
+  }
+
+  .by { display: inline-block; font-size: 10px; font-family: var(--mono); color: var(--faint); }
+
+  mark { background: color-mix(in srgb, var(--action) 22%, transparent); color: inherit; border-radius: 2px; }
+
+  .empty { color: var(--muted); font-size: 13px; padding: 24px 0; }
+
+  footer.note {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule);
+    color: var(--faint); font-size: 12px; max-width: 70ch;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">Etyme · delivery reference</p>
+  <h1>Contingent delivery matrix</h1>
+  <p class="lede">
+    Seven value streams decomposed to the level a person or an agent
+    actually picks up work. <strong>L1</strong> is the stream,
+    <strong>L2</strong> the process group, <strong>L3</strong> the process
+    that has an owner and a service level, <strong>L4</strong> the task.
+  </p>
+  <p class="lede">
+    Accounts payable, accounts receivable, credit and risk sit at L3 with
+    everything else — they are processes with owners, not departments.
+  </p>
+
+  <div class="answer">
+    <p class="q">The question: are all the L2s part of onboarding?</p>
+    <p>
+      Neither. <strong>Onboarding is an L3, and it happens five separate
+      times</strong> — once per party, under two different L2s.
+    </p>
+    <p>
+      Treating it as one L2 is the classic mistake, and it is expensive
+      because org charts follow taxonomies. Make onboarding an L2 and
+      somebody creates an onboarding team; that team then owns five
+      unrelated queues with different documents, different owners and
+      different service levels, and it becomes the bottleneck every other
+      stream waits on.
+    </p>
+    <p>
+      Client onboarding is a sales handover. Supplier onboarding is a due
+      diligence exercise. Consultant onboarding is an employment
+      formality. Assignment onboarding is a site badge and a laptop.
+      Tenant onboarding is a software setup. One word, five processes,
+      nothing shared but the word.
+    </p>
+  </div>
+
+  <hr class="rule">
+
+  <h2>The contingent contract lifecycle</h2>
+  <p class="lede">
+    Eighteen stages. The four in clay are gates — a stage that can stop
+    the deal rather than merely record it.
+  </p>
+  <div class="stages" id="stages"></div>
+
+  <hr class="rule">
+
+  <div class="answer">
+    <p class="q">Who builds each of these</p>
+    <p>
+      Six specialists own disjoint parts of the codebase and work at the
+      same time; two more read only. <strong>Parallelism is bought with a
+      boundary, not with coordination</strong> — every file has exactly
+      one owner, checked by a test rather than described on a page.
+    </p>
+    <p>
+      The schema belongs to nobody. Every domain wants a column in the
+      same file, and it is the one artefact where two individually
+      correct changes still produce a wrong result, so it queues through
+      <span class="agent">etyme-architect</span>. That is the single
+      queue in an otherwise parallel system, and it is the cost of the
+      arrangement.
+    </p>
+    <p>
+      Each L2 group below carries its owning agent. Work moves scout →
+      schema → spec as test names → build → release → preview URL.
+    </p>
+  </div>
+
+  <h2>The matrix</h2>
+  <div class="controls">
+    <input type="search" id="q" placeholder="Search any level, owner or task" aria-label="Search the matrix">
+    <button class="filter" data-f="all" aria-pressed="true">All</button>
+    <button class="filter" data-f="Built" aria-pressed="false">Built</button>
+    <button class="filter" data-f="Partial" aria-pressed="false">Partial</button>
+    <button class="filter" data-f="Spec" aria-pressed="false">Spec only</button>
+    <button class="filter" data-f="None" aria-pressed="false">Not started</button>
+    <span class="count" id="count"></span>
+  </div>
+
+  <div id="matrix"></div>
+  <p class="empty" id="empty" hidden>Nothing matches that.</p>
+
+  <footer class="note">
+    Status is against the current build, not the specification. “Built”
+    means it exists with tests behind it and a screen you can click.
+    “Partial” means the arithmetic or the model is there and something
+    downstream is not. “Spec only” means it is written down and nothing
+    has been coded.
+  </footer>
+</div>
+
+<script>
+const STAGES = [
+  ['Demand raised', 'A manager needs somebody', 0],
+  ['Approved to source', 'Budget, headcount, rate band', 1],
+  ['Released to suppliers', 'Who sees it, at what rate band', 0],
+  ['Submitted', 'CV, rate, availability, right to represent', 0],
+  ['Screened', 'Rules first, then one judgement', 0],
+  ['Interviewed', 'Three-party scheduling and feedback', 0],
+  ['Selected', 'The client picks', 0],
+  ['Awarded', 'Seat closes, others stood down', 1],
+  ['Papered', 'MSA, SOW, PO, sell and buy contracts', 0],
+  ['Cleared', 'Work authorisation, checks, insurance', 1],
+  ['Started', 'Badge, access, first day on site', 0],
+  ['Working', 'Time and expense, approved and accepted', 0],
+  ['Billed', 'Invoice raised against the order', 0],
+  ['Paid', 'Consultant paid, client collected', 0],
+  ['Changed', 'Rate change, extension, transfer', 1],
+  ['Rolled off', 'Notice, handover, releasing-soon pool', 0],
+  ['Settled', 'Order closed, balance to the cost centre', 0],
+  ['Alumni', 'Tenure ledger keeps counting', 0],
+];
+
+const M = [
+  {
+    l1: 'L1.1', stream: 'Source to contract',
+    blurb: 'From somebody needing a person to somebody being chosen.',
+    groups: [
+      { l2: 'L2.1.1', name: 'Demand intake', rows: [
+        ['L3.1.1.1', 'Requisition raise and approve', ['Draft the role', 'Route the approval chain', 'Auto-clear inside policy'], 'Hiring manager', 'Built'],
+        ['L3.1.1.2', 'Budget and rate band', ['Check the cost object has money', 'Set the band per invitation'], 'Program manager', 'Built'],
+        ['L3.1.1.3', 'Supplier release', ['Choose who sees it', 'Stagger by tier', 'Set the response window'], 'Program manager', 'Built'],
+      ]},
+      { l2: 'L2.1.2', name: 'Supply response', rows: [
+        ['L3.1.2.1', 'Bench matching', ['Rules filter first', 'One model pass on what survives', 'Factors, basis, confidence, unknowns'], 'Recruiter', 'Built'],
+        ['L3.1.2.2', 'Submission assembly', ['Point-in-time CV', 'Rate and availability', 'Batch with per-item errors'], 'Recruiter', 'Built'],
+        ['L3.1.2.3', 'Right to represent', ['Take the hold', 'Refuse a duplicate at source', 'Release on award'], 'Recruiter', 'Built'],
+      ]},
+      { l2: 'L2.1.3', name: 'Evaluation', rows: [
+        ['L3.1.3.1', 'Screening loop', ['Nine rule checks', 'Attempt cap and fix list', 'Human sample review'], 'Client screener', 'Built'],
+        ['L3.1.3.2', 'Interview', ['Three-party acceptance', 'Chase after 24 hours', 'Flag a fourth round'], 'Hiring manager', 'Built'],
+        ['L3.1.3.3', 'Award and seat close', ['Governance checks', 'Seat arithmetic', 'Stand down the rest'], 'Program manager', 'Built'],
+      ]},
+    ],
+  },
+  {
+    l1: 'L1.2', stream: 'Contract to onboard',
+    blurb: 'Papering the deal, clearing the person, and getting them on site. Onboarding lives here — five times.',
+    groups: [
+      { l2: 'L2.2.1', name: 'Commercial papering', rows: [
+        ['L3.2.1.1', 'Master agreement and SOW', ['Terms, margin floor, payment days', 'Statement of work scope'], 'Account manager', 'Partial'],
+        ['L3.2.1.2', 'Sell contract', ['Bill rate, term, end client', 'Cost object and PO attached at award'], 'Account manager', 'Built'],
+        ['L3.2.1.3', 'Buy contract or employment agreement', ['Pay model, share basis, burden', 'Raised at award, never after'], 'Delivery manager', 'Built'],
+        ['L3.2.1.4', 'Purchase order and ceiling', ['Issue to the sub-vendor', 'Draw down and stop at the ceiling'], 'Procurement', 'Built'],
+      ]},
+      { l2: 'L2.2.2', name: 'Party onboarding — five processes, one word', rows: [
+        ['L3.2.2.1', 'Client onboarding', ['Sales handover', 'Approval chain, cost objects, calendars', 'Rate policy and governance rules'], 'Account manager', 'Partial'],
+        ['L3.2.2.2', 'Supplier onboarding', ['Due diligence and insurance', 'Bank and tax details', 'Tier and rate agreement'], 'Procurement', 'Partial'],
+        ['L3.2.2.3', 'Consultant onboarding', ['Employment or C2C papers', 'Bank, tax, emergency contact', 'Pay model explained and agreed'], 'Delivery manager', 'Partial'],
+        ['L3.2.2.4', 'Assignment onboarding', ['Badge, laptop, system access', 'Site induction and start confirmation', 'First timesheet expectation set'], 'Hiring manager', 'Spec'],
+        ['L3.2.2.5', 'Tenant onboarding', ['Company formation and domain', 'Roles, seats, notification channel', 'Generated public site'], 'Etyme', 'Built'],
+      ]},
+      { l2: 'L2.2.3', name: 'Compliance clearance', rows: [
+        ['L3.2.3.1', 'Work authorisation', ['Visa class and expiry', 'Petition and transfer events', 'Blocks, never warns'], 'Compliance', 'Built'],
+        ['L3.2.3.2', 'Background and screening', ['Derive the checklist from the role', 'Chase and record refusals'], 'Compliance', 'Built'],
+        ['L3.2.3.3', 'Insurance and indemnity', ['Certificate on file and in date', 'Lapse blocks new submissions'], 'Compliance', 'Partial'],
+        ['L3.2.3.4', 'Document packet', ['Derived, not a hardcoded list', 'Share by token with an expiry'], 'Compliance', 'Built'],
+      ]},
+    ],
+  },
+  {
+    l1: 'L1.3', stream: 'Work to approve',
+    blurb: 'Hours are a fact. Approvals are opinions about that fact.',
+    groups: [
+      { l2: 'L2.3.1', name: 'Capture', rows: [
+        ['L3.3.1.1', 'Time capture', ['Daily entry against the assignment', 'Overtime and on-call as elements'], 'Consultant', 'Built'],
+        ['L3.3.1.2', 'Expense capture', ['Receipt, policy check, staleness', 'Billable versus absorbed'], 'Consultant', 'Built'],
+        ['L3.3.1.3', 'Milestone capture', ['Deliverable submitted for acceptance'], 'Delivery manager', 'Partial'],
+      ]},
+      { l2: 'L2.3.2', name: 'Approval', rows: [
+        ['L3.3.2.1', 'Client approval', ['One assertion per party, per date range', 'Partial approval is ordinary'], 'Hiring manager', 'Built'],
+        ['L3.3.2.2', 'Employer acceptance', ['Accepts the basis for pay', 'A different number needs a reason'], 'Delivery manager', 'Built'],
+        ['L3.3.2.3', 'Auto-approval', ['Window per contract', 'Anomaly holds it back'], 'Rules', 'Built'],
+        ['L3.3.2.4', 'Reversal and correction', ['Supersede, never edit', 'Posts to the month it belonged to'], 'Payroll', 'Built'],
+      ]},
+    ],
+  },
+  {
+    l1: 'L1.4', stream: 'Approve to invoice',
+    blurb: 'Order to cash. Earning, invoicing and collecting are three separate facts.',
+    groups: [
+      { l2: 'L2.4.1', name: 'Billing', rows: [
+        ['L3.4.1.1', 'Invoice generation', ['From approvals, not a rate card', 'Cycle, straddle and holiday calendar'], 'AR clerk', 'Built'],
+        ['L3.4.1.2', 'Partner functions', ['Sold-to, bill-to, ship-to, payer', 'Consolidated and self-billing'], 'AR clerk', 'Partial'],
+        ['L3.4.1.3', 'Tax determination', ['Place of supply and rate', 'Withholding where it applies'], 'Controller', 'Spec'],
+      ]},
+      { l2: 'L2.4.2', name: 'Accounts receivable', rows: [
+        ['L3.4.2.1', 'AR ageing and dunning', ['Bucket by days overdue', 'Reminder ladder with escalation', 'Stop-work threshold'], 'AR clerk', 'None'],
+        ['L3.4.2.2', 'Cash application', ['Match receipts to invoices', 'Part payments and short pays', 'Unapplied cash queue'], 'AR clerk', 'None'],
+        ['L3.4.2.3', 'Disputes and credit notes', ['Reason coded, not free text', 'Credit note reverses in period'], 'Account manager', 'None'],
+      ]},
+      { l2: 'L2.4.3', name: 'Credit management', rows: [
+        ['L3.4.3.1', 'Customer credit assessment', ['Score at onboarding and on review', 'Trade references and filings'], 'Controller', 'None'],
+        ['L3.4.3.2', 'Limit and exposure', ['Limit per customer and per group', 'Exposure counts unbilled work too'], 'Controller', 'None'],
+        ['L3.4.3.3', 'Collections and escalation', ['Escalation ladder to legal', 'Factoring or insurance decision'], 'Controller', 'None'],
+      ]},
+    ],
+  },
+  {
+    l1: 'L1.5', stream: 'Approve to pay',
+    blurb: 'Procure to pay, and paying the person. What is owed and what is paid are two numbers.',
+    groups: [
+      { l2: 'L2.5.1', name: 'Worker pay', rows: [
+        ['L3.5.1.1', 'Payroll instruction', ['Export to ADP, Paychex or a file', 'From acceptance, never from a rate card'], 'Payroll', 'Built'],
+        ['L3.5.1.2', 'Pay model application', ['Fixed, share of bill, share of margin', 'Working shown line by line'], 'Payroll', 'Built'],
+        ['L3.5.1.3', 'Bench and reserve', ['Hold back, draw down, carry limit', 'What happens on exit'], 'Payroll', 'Partial'],
+        ['L3.5.1.4', 'Off-cycle and corrections', ['Short pay carried, never a negative payslip'], 'Payroll', 'Partial'],
+      ]},
+      { l2: 'L2.5.2', name: 'Accounts payable', rows: [
+        ['L3.5.2.1', 'Vendor bill intake', ['Bill against the PO and the approvals', 'Duplicate and over-bill refusal'], 'AP clerk', 'None'],
+        ['L3.5.2.2', 'Three-way match', ['PO, receipt of work, invoice', 'Tolerance and exception queue'], 'AP clerk', 'Partial'],
+        ['L3.5.2.3', 'Payment run and remittance', ['Batch by terms and currency', 'Remittance advice out'], 'AP clerk', 'None'],
+      ]},
+      { l2: 'L2.5.3', name: 'Statutory', rows: [
+        ['L3.5.3.1', 'Payroll tax and filings', ['Federal, state and local deposits', 'Quarterly and annual returns'], 'Payroll bureau', 'None'],
+        ['L3.5.3.2', 'Worker tax documents', ['W-2, 1099-NEC, and equivalents', 'Corrections and reissues'], 'Payroll bureau', 'None'],
+      ]},
+    ],
+  },
+  {
+    l1: 'L1.6', stream: 'Record to report',
+    blurb: 'The project order accumulates. The journal balances. Their ERP reads it in their own language.',
+    groups: [
+      { l2: 'L2.6.1', name: 'The ledger', rows: [
+        ['L3.6.1.1', 'Journal and balance', ['Debits equal credits before writing', 'One entry per source event'], 'Controller', 'Built'],
+        ['L3.6.1.2', 'Allocations', ['Back office per head', 'Basis stated on every line'], 'Controller', 'Built'],
+        ['L3.6.1.3', 'Settlement and close', ['Balance out to the cost centre', 'Settled orders refuse new postings'], 'Controller', 'Partial'],
+      ]},
+      { l2: 'L2.6.2', name: 'Profitability', rows: [
+        ['L3.6.2.1', 'By contract, person, customer, order', ['Same postings, four questions', 'Refuses a margin with no cost behind it'], 'Controller', 'Built'],
+        ['L3.6.2.2', 'Earned against cash', ['To collect and still owed to people', 'Side by side, never merged'], 'Controller', 'Built'],
+        ['L3.6.2.3', 'Currency', ['Converted once, rate stamped', 'Parallel valuation kept alongside'], 'Controller', 'Built'],
+      ]},
+      { l2: 'L2.6.3', name: 'Integration', rows: [
+        ['L3.6.3.1', 'ERP account mapping', ['SAP and Oracle for clients', 'NetSuite and QuickBooks for vendors', 'CSV for the firm with no system'], 'Etyme', 'Built'],
+        ['L3.6.3.2', 'Outbound posting', ['Export once, stamped as sent', 'Refuses on an unmapped account'], 'Etyme', 'Partial'],
+        ['L3.6.3.3', 'Reconciliation', ['Our balance against theirs', 'Break list with a reason each'], 'Controller', 'None'],
+      ]},
+    ],
+  },
+  {
+    l1: 'L1.7', stream: 'Govern and protect',
+    blurb: 'The exposures nobody bills for. Block where it is legally grounded, warn and record a reason everywhere else.',
+    groups: [
+      { l2: 'L2.7.1', name: 'Workforce risk', rows: [
+        ['L3.7.1.1', 'Tenure and co-employment', ['Aggregated across every supplier', 'Break in service and eligibility date'], 'Compliance', 'Built'],
+        ['L3.7.1.2', 'Worker classification', ['Test the arrangement, not the label', 'Evidence kept for the position taken'], 'Compliance', 'Spec'],
+        ['L3.7.1.3', 'Segregation of duties', ['Approver is not the beneficiary', 'Blocks, and says whose rule'], 'Compliance', 'Built'],
+      ]},
+      { l2: 'L2.7.2', name: 'Commercial risk', rows: [
+        ['L3.7.2.1', 'Supplier financial risk', ['Filings, insurance, payment behaviour', 'Watchlist and review cadence'], 'Procurement', 'None'],
+        ['L3.7.2.2', 'Concentration risk', ['One client, one supplier, one person', 'Threshold and named owner'], 'Controller', 'None'],
+        ['L3.7.2.3', 'Insurance lapse', ['Certificate expiry watch', 'Blocks new submissions on lapse'], 'Compliance', 'Partial'],
+      ]},
+      { l2: 'L2.7.3', name: 'Data and access', rows: [
+        ['L3.7.3.1', 'Access log', ['Every read of another person, refusals too'], 'Etyme', 'Built'],
+        ['L3.7.3.2', 'Company walls', ['Filtered at the query, not the screen'], 'Etyme', 'Built'],
+        ['L3.7.3.3', 'Audit chain export', ['Who said what, when, and what changed'], 'Compliance', 'Partial'],
+      ]},
+    ],
+  },
+];
+
+const OWNER = {
+  'Demand intake': 'demand',
+  'Supply response': 'supply',
+  'Evaluation': 'demand',
+  'Commercial papering': 'demand',
+  'Party onboarding — five processes, one word': 'architect',
+  'Compliance clearance': 'regulatory',
+  'Capture': 'demand',
+  'Approval': 'conversation',
+  'Billing': 'money',
+  'Accounts receivable': 'money',
+  'Credit management': 'money',
+  'Worker pay': 'money',
+  'Accounts payable': 'money',
+  'Statutory': 'money',
+  'The ledger': 'money',
+  'Profitability': 'money',
+  'Integration': 'architect',
+  'Workforce risk': 'regulatory',
+  'Commercial risk': 'supply',
+  'Data and access': 'regulatory',
+};
+
+const LABEL = { Built: 'built', Partial: 'partial', Spec: 'spec only', None: 'not started' };
+const CLS   = { Built: 'built', Partial: 'partial', Spec: 'spec', None: 'none' };
+
+// ── Lifecycle strip ──────────────────────────────────────
+document.getElementById('stages').innerHTML = STAGES.map(([t, d, gate], i) =>
+  `<div class="stage${gate ? ' gate' : ''}">
+     <span class="n">${String(i + 1).padStart(2, '0')}</span>
+     <span class="t">${t}</span>
+     <span class="d">${d}</span>
+   </div>`).join('');
+
+// ── The matrix ───────────────────────────────────────────
+const root = document.getElementById('matrix');
+const empty = document.getElementById('empty');
+const countEl = document.getElementById('count');
+let filter = 'all';
+let query = '';
+
+function hit(text) {
+  if (!query) return true;
+  return text.toLowerCase().includes(query);
+}
+
+function mark(s) {
+  if (!query) return s;
+  const i = s.toLowerCase().indexOf(query);
+  if (i < 0) return s;
+  return s.slice(0, i) + '<mark>' + s.slice(i, i + query.length) + '</mark>' + s.slice(i + query.length);
+}
+
+function render() {
+  let shown = 0, total = 0;
+  const html = M.map(stream => {
+    const groups = stream.groups.map(g => {
+      const rows = g.rows.filter(([code, name, tasks, who, status]) => {
+        total++;
+        if (filter !== 'all' && status !== filter) return false;
+        const blob = [code, name, who, status, g.name, stream.stream,
+          OWNER[g.name] ? 'etyme-' + OWNER[g.name] : '', ...tasks].join(' ');
+        if (!hit(blob)) return false;
+        shown++;
+        return true;
+      });
+      if (!rows.length) return '';
+      return `<div class="group">
+        <h3>${mark(g.name)} <code>${g.l2}</code>${
+          OWNER[g.name] ? ` <span class="agent">etyme-${OWNER[g.name]}</span>` : ''
+        }</h3>
+        <div class="scroller"><table>
+          <thead><tr>
+            <th>L3</th><th>Process</th><th>L4 — what somebody actually does</th><th>Owner</th><th>Status</th>
+          </tr></thead>
+          <tbody>${rows.map(([code, name, tasks, who, status]) => `
+            <tr>
+              <td class="code">${code}</td>
+              <td class="name">${mark(name)}</td>
+              <td class="tasks"><ul>${tasks.map(t => `<li>${mark(t)}</li>`).join('')}</ul></td>
+              <td class="who">${mark(who)}</td>
+              <td class="st"><span class="chip ${CLS[status]}">${LABEL[status]}</span></td>
+            </tr>`).join('')}
+          </tbody>
+        </table></div>
+      </div>`;
+    }).join('');
+
+    if (!groups) return '';
+    return `<section class="stream">
+      <header>
+        <h2>${mark(stream.stream)}</h2>
+        <code class="l1">${stream.l1}</code>
+        <p>${stream.blurb}</p>
+      </header>
+      ${groups}
+    </section>`;
+  }).join('');
+
+  root.innerHTML = html;
+  empty.hidden = shown > 0;
+  countEl.textContent = `${shown} of ${total} processes`;
+}
+
+document.getElementById('q').addEventListener('input', e => {
+  query = e.target.value.trim().toLowerCase();
+  render();
+});
+
+document.querySelectorAll('.filter').forEach(b => {
+  b.addEventListener('click', () => {
+    filter = b.dataset.f;
+    document.querySelectorAll('.filter').forEach(x =>
+      x.setAttribute('aria-pressed', String(x === b)));
+    render();
+  });
+});
+
+render();
+</script>
