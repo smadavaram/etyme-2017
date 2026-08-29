@@ -73,6 +73,12 @@ model Person {
   counterpartiesAdded Counterparty[]        @relation("counterpartyCreator")
   contactIdentities   CompanyContact[]      @relation("contactIdentity")
   contactsAdded       CompanyContact[]      @relation("contactCreator")
+  creditNotesWritten   CreditNote[]         @relation("creditNoteAuthor")
+  paymentRunsCreated   PaymentRun[]         @relation("paymentRunAuthor")
+  paymentRunsApproved  PaymentRun[]         @relation("paymentRunApprover")
+  classificationsAbout ClassificationCall[] @relation("classificationSubject")
+  classificationsMade  ClassificationCall[] @relation("classificationDecider")
+  reconRunsMade        ReconciliationRun[]  @relation("reconRunner")
 }
 
 model Credential {
@@ -462,6 +468,11 @@ model Company {
   dunningReceived  DunningSend[]         @relation("dunningSubject")
   billsOwed        VendorBill[]          @relation("billPayer")
   billsIssued      VendorBill[]          @relation("billIssuer")
+
+  paymentRuns        PaymentRun[]        @relation("paymentRunOwner")
+  classificationCalls ClassificationCall[] @relation("classificationOwner")
+  reconRuns          ReconciliationRun[] @relation("reconOwner")
+  reconAgainst       ReconciliationRun[] @relation("reconAgainst")
 
   @@index([listedById])
 }
@@ -926,6 +937,11 @@ model Counterparty {
   createdBy   Person?  @relation("counterpartyCreator", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  /// OK · WATCH · AT_RISK — a judgement somebody made, with a date to
+  /// remake it. Null means nobody has looked, which is its own answer.
+  riskLevel    String?
+  riskReviewBy DateTime?
 
   @@unique([companyId, otherCompanyId, relationship])
   @@index([otherCompanyId])
@@ -2022,6 +2038,11 @@ model SellContract {
   projectOrderId String?
   projectOrder   ProjectOrder? @relation(fields: [projectOrderId], references: [id])
 
+  /// Somebody confirmed the person actually started on site. Assignment
+  /// onboarding ends here, and billing before it is billing on a guess.
+  startConfirmedAt   DateTime?
+  startConfirmedById String?
+
   @@index([companyId, state])
   @@index([clientCompanyId])
   @@index([endClientCompanyId])
@@ -2307,6 +2328,11 @@ model Engagement {
 
   projectOrders ProjectOrder[]
 
+  /// The statement of work, where one exists. The SOW is the engagement;
+  /// a separate model would be the same thing twice.
+  statementOfWork String?
+  sowSignedAt     DateTime?
+
   @@index([msaId])
 }
 
@@ -2462,6 +2488,8 @@ model Invoice {
   /// Who settles it, where that is not the bill-to.
   payerId  String?
   payer    Company?         @relation("invoicePayer", fields: [payerId], references: [id])
+
+  creditNotes CreditNote[]
 
   @@index([status, dueAt])
   @@index([purchaseOrderId])
@@ -2683,6 +2711,8 @@ model VendorBill {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  paymentRunItems PaymentRunItem[]
 
   @@unique([companyId, vendorCompanyId, number])
   @@index([companyId, status])
@@ -4579,4 +4609,174 @@ model TextMessage {
   @@index([personId, at])
   @@index([replyToId])
   @@index([companyId, kind, status])
+}
+
+/// Money given back, with a reason that is a code and not a paragraph.
+///
+/// A credit note is the only lawful way an issued invoice shrinks — the
+/// invoice itself is immutable once sent, because the client already has
+/// their copy. Reason codes rather than free text, because "various" is
+/// what free text becomes, and the reasons are the only data that says
+/// which part of the operation keeps going wrong.
+model CreditNote {
+  id        String  @id @default(cuid())
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id])
+  /// Whole currency, matching Invoice.total. Positive: the amount credited.
+  amount    Decimal @db.Decimal(12, 2)
+
+  /// RATE_WRONG · HOURS_DISPUTED · WORK_REJECTED · DUPLICATE_BILLING ·
+  /// GOODWILL · CONTRACT_TERMS · OTHER_SAY_WHY
+  reasonCode String
+  note       String?
+
+  issuedAt    DateTime  @default(now())
+  /// Posted into the period it belonged to, when applied to the books.
+  appliedAt   DateTime?
+  createdById String?
+  createdBy   Person?   @relation("creditNoteAuthor", fields: [createdById], references: [id])
+
+  @@index([invoiceId])
+  @@index([reasonCode])
+  @@index([createdById])
+}
+
+/// One batch of supplier payments, grouped the only way money actually
+/// leaves: same currency, same day, one remittance advice each.
+model PaymentRun {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation("paymentRunOwner", fields: [companyId], references: [id], onDelete: Cascade)
+
+  currency String
+  /// DRAFT · APPROVED · PAID · CANCELLED
+  status   String @default("DRAFT")
+
+  scheduledFor DateTime
+  paidAt       DateTime?
+  totalCents   Int       @default(0)
+
+  createdById  String?
+  createdBy    Person?   @relation("paymentRunAuthor", fields: [createdById], references: [id])
+  approvedById String?
+  approvedBy   Person?   @relation("paymentRunApprover", fields: [approvedById], references: [id])
+  createdAt    DateTime  @default(now())
+
+  items PaymentRunItem[]
+
+  @@index([companyId, status])
+  @@index([createdById])
+  @@index([approvedById])
+}
+
+model PaymentRunItem {
+  id    String     @id @default(cuid())
+  runId String
+  run   PaymentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  vendorBillId String
+  vendorBill   VendorBill @relation(fields: [vendorBillId], references: [id])
+  amountCents  Int
+  /// What the remittance advice says this payment covers.
+  remittance   String?
+
+  /// A bill enters one run at a time. Paying an invoice twice is not a
+  /// bug report, it is a phone call from an angry controller.
+  @@unique([runId, vendorBillId])
+  @@index([vendorBillId])
+}
+
+/// The position taken on how a worker is classified, and why.
+///
+/// The evidence is kept for the position, not the other way round: when
+/// an auditor asks two years later, "we tested the arrangement on these
+/// factors and concluded X on this date, signed" is a defence, and a
+/// blank is a settlement.
+model ClassificationCall {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation("classificationOwner", fields: [companyId], references: [id], onDelete: Cascade)
+  personId  String
+  person    Person  @relation("classificationSubject", fields: [personId], references: [id])
+
+  /// The answers to the test, as given. What the decision was made FROM.
+  arrangement Json
+  /// EMPLOYEE · INDEPENDENT — the position taken.
+  position String
+  /// The factors that carried it, in plain English.
+  reasons  String[]
+
+  decidedById String?
+  decidedBy   Person?  @relation("classificationDecider", fields: [decidedById], references: [id])
+  decidedAt   DateTime @default(now())
+  /// Positions rot as arrangements drift. A call with no review date is
+  /// a call nobody will remember to remake.
+  reviewBy    DateTime?
+
+  @@index([companyId, personId])
+  @@index([personId])
+  @@index([decidedById])
+}
+
+/// Somebody who asked to hear from us. Nobody else.
+///
+/// Cold outbound at volume trains a market to filter you, on a product
+/// whose whole argument is that the industry's noise is the problem. So
+/// a lead exists only with consent, records where it came from, and
+/// carries the one thing worth knowing at this stage: what they wanted.
+model Lead {
+  id String @id @default(cuid())
+
+  email       String   @unique
+  name        String?
+  companyName String?
+  /// HOME_PAGE · DEMO · GENERATED_SITE · REFERRAL · EVENT
+  source      String
+  /// What they asked for, in their words.
+  asked       String?
+  consentAt   DateTime @default(now())
+  /// Set when they become a real tenant, so nobody keeps courting a customer.
+  convertedCompanyId String?
+  convertedAt        DateTime?
+
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([source])
+  @@index([convertedAt])
+}
+
+/// One reconciliation of our books against theirs.
+///
+/// Our balance and their statement, the difference, and one line per
+/// break with a reason. A reconciliation that ends in a number with no
+/// break list is a reconciliation that gets redone next month from zero.
+model ReconciliationRun {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation("reconOwner", fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Which counterparty or system this reconciles against.
+  againstCompanyId String?
+  againstCompany   Company? @relation("reconAgainst", fields: [againstCompanyId], references: [id])
+  system           String? // SAP · ORACLE · NETSUITE · QUICKBOOKS · CSV · STATEMENT
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  oursCents      Int
+  theirsCents    Int
+  /// ours minus theirs. Zero is the goal and rarely the first result.
+  differenceCents Int
+
+  /// [{ what, amountCents, reason, resolvedAt? }] — every break named.
+  breaks Json
+
+  runById String?
+  runBy   Person?  @relation("reconRunner", fields: [runById], references: [id])
+  runAt   DateTime @default(now())
+
+  @@index([companyId, runAt])
+  @@index([againstCompanyId])
+  @@index([runById])
 }
