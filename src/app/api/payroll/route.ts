@@ -58,10 +58,12 @@ export async function GET(request: NextRequest) {
           sellContract: {
             include: {
               timesheets: {
-                // The employer's acceptance, not the combined status.
-                // Somebody paid late because a client's approval queue is
-                // slow is a fault with nothing to do with them.
-                where: { employerAcceptedAt: { not: null } },
+                // The employer's live acceptance in the ledger. Pay
+                // follows who actually employs the person, which in a
+                // chain is rarely the company that billed the client.
+                where: {
+                  assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } },
+                },
                 select: {
                   id: true,
                   personId: true,
@@ -70,6 +72,13 @@ export async function GET(request: NextRequest) {
                   // from what the client approved — two hours of travel
                   // nobody agreed to bill. Null means as submitted.
                   acceptedHours: true,
+                  // What the employer actually stands behind, at their
+                  // own rate. Not the client's number and never was.
+                  assertions: {
+                    where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
+                    select: { hours: true, rateCents: true },
+                    take: 1,
+                  },
                   periodStart: true,
                   periodEnd: true,
                   // The daily breakdown, so a week crossing a pay period
@@ -131,7 +140,9 @@ export async function GET(request: NextRequest) {
           .filter((ts) => ts.personId === cand.personId)
           .map((ts) => ({
             id: ts.id,
-            totalHours: Number(ts.acceptedHours ?? ts.totalHours),
+            totalHours: Number(
+              ts.assertions[0]?.hours ?? ts.acceptedHours ?? ts.totalHours
+            ),
             rawStart: ts.periodStart,
             rawEnd: ts.periodEnd,
             days: (ts.days as Record<string, number>) ?? {},

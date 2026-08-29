@@ -78,11 +78,14 @@ export async function POST(request: NextRequest) {
 
   const timesheetWhere: any = {
     sellContractId: { in: contractIds },
-    // The client's signature, not the combined status. A prime may
-    // invoice as soon as the end client has approved the work — waiting
-    // for the sub to settle what it owes its own employee would hold up
-    // cash for a reason that has nothing to do with the client.
-    clientApprovedAt: { not: null },
+    // A live client approval in the ledger, not a column. The column
+    // held one answer; a chain has one per leg, and billing follows the
+    // end client's — a prime may invoice as soon as they have signed,
+    // without waiting on the sub to settle what it owes its own
+    // employee.
+    assertions: {
+      some: { role: 'CLIENT_APPROVAL', state: 'LIVE' },
+    },
     // Not yet billed. Expressed as the absence of an InvoiceLine rather
     // than a loose flag, so it cannot disagree with what was invoiced.
     invoiceLine: null,

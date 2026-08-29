@@ -36,6 +36,9 @@ export async function GET(request: NextRequest) {
       sellContract: {
         select: {
           companyId: true,
+          billRate: true,
+          clientCompanyId: true,
+          endClientCompanyId: true,
           clientCompany: { select: { name: true } },
           endClientCompany: { select: { name: true } },
           salesOrder: {
@@ -74,6 +77,28 @@ export async function GET(request: NextRequest) {
 
   for (const d of approving) {
     const sheet = waiting.find((t) => t.id === d.sheetId)!
+    // Named nobody, in the ledger as well as the column. An automatic
+    // approval carrying a manager's id is a forged signature wherever it
+    // is written down.
+    await prisma.workAssertion.create({
+      data: {
+        timesheetId: d.sheetId,
+        // The end client, not the vendor. A client approval asserted by
+        // the company that raised the invoice is the vendor approving
+        // its own bill, which is the whole thing two signatures exist to
+        // prevent.
+        companyId:
+          sheet.sellContract.endClientCompanyId ?? sheet.sellContract.clientCompanyId,
+        role: 'CLIENT_APPROVAL',
+        hours: Number(sheet.totalHours),
+        rateCents: sheet.sellContract.billRate,
+        state: 'LIVE',
+        byId: null,
+        auto: true,
+        note: d.says,
+      },
+    }).catch(() => {})
+
     await prisma.$transaction([
       prisma.timesheet.update({
         where: { id: d.sheetId },

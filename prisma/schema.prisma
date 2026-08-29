@@ -380,6 +380,7 @@ model Company {
   invoicesBillTo Invoice[]       @relation("invoiceBillTo")
   invoicesPayer  Invoice[]       @relation("invoicePayer")
   IdentityMatch  IdentityMatch[]
+  WorkAssertion  WorkAssertion[]
 
   @@index([listedById])
 }
@@ -622,6 +623,61 @@ model IdentityMatch {
   @@index([companyId, state])
   @@index([personAId])
   @@index([personBId])
+}
+
+/// One company's position on some or all of a timesheet.
+///
+/// Hours are a fact; approvals are opinions about that fact. 2017 kept
+/// the two together by duplicating the whole timesheet down the chain,
+/// so three companies meant three copies of one week and "is this
+/// approved" had three answers. Two signature columns collapsed it the
+/// other way — right for two parties, silently wrong for three.
+///
+/// A list of assertions works at any depth, carries each leg's own rate,
+/// covers a date range so partial approval is ordinary rather than
+/// exceptional, and is its own audit trail: nothing is ever edited, so
+/// the rows in order are the history.
+model WorkAssertion {
+  id String @id @default(cuid())
+
+  /// The hours being asserted about. Never edited by this.
+  timesheetId String
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  /// Who is speaking. A company may only speak for its own leg.
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// CLIENT_APPROVAL · PASS_THROUGH · EMPLOYER_ACCEPTANCE
+  role String
+
+  /// Inclusive dates. Both null covers the whole timesheet.
+  coversFrom DateTime?
+  coversTo   DateTime?
+
+  /// What this company accepts across the range it covers.
+  hours     Decimal @db.Decimal(7, 2)
+  /// Their rate for this leg. Their money, their number.
+  rateCents Int
+
+  /// LIVE · WITHDRAWN · SUPERSEDED. Rows are never deleted or updated
+  /// in place except to move to one of the latter two.
+  state String @default("LIVE")
+
+  at   DateTime @default(now())
+  /// Null where nobody looked — an automatic approval names nobody,
+  /// because one carrying a manager's id is a forged signature.
+  byId String?
+  auto Boolean  @default(false)
+  note String?
+
+  /// The assertion this replaces, where it replaces one.
+  supersedesId String?        @unique
+  supersedes   WorkAssertion? @relation("supersedes", fields: [supersedesId], references: [id])
+  supersededBy WorkAssertion? @relation("supersedes")
+
+  @@index([timesheetId, state])
+  @@index([companyId, role, state])
 }
 
 /// An invitation to a firm that has never heard of us.
@@ -2071,6 +2127,11 @@ model Timesheet {
   // Billing is expressed by InvoiceLine, which the database constrains to one
   // line per timesheet. The old loose invoiceId string enforced nothing.
   invoiceLine  InvoiceLine?
+
+  /// Every company's position on these hours. Billing and pay both
+  /// derive from here rather than from the columns above, which remain
+  /// only so the two-party history still reads.
+  assertions WorkAssertion[]
 
   @@unique([sellContractId, periodStart])
   @@index([status])

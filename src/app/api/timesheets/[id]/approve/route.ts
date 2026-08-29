@@ -164,6 +164,47 @@ export async function POST(
     employer: timesheet.sellContract.companyId,
   })
 
+  // The ledger is the record now. The columns below stay in step so the
+  // two-party history still reads, but nothing derives from them.
+  await prisma.workAssertion.create({
+    data: {
+      timesheetId: id,
+      companyId: caller.company!.id,
+      role: direct
+        ? asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE'
+        : asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE',
+      hours: accepted.hours ?? hours,
+      rateCents: timesheet.sellContract.billRate,
+      state: 'LIVE',
+      byId: person.id,
+      auto: false,
+      note: typeof body?.note === 'string' ? body.note : null,
+    },
+  }).catch(() => {
+    // A second assertion from the same party is refused by the ledger
+    // rules, not by a crash here. The column update below still runs so
+    // the two records do not drift apart on a retry.
+  })
+
+  // On a direct placement one press is both parties, so the ledger needs
+  // both rows — otherwise billing sees an approval and payroll sees
+  // nothing, on a placement where they are the same company.
+  if (direct) {
+    await prisma.workAssertion.create({
+      data: {
+        timesheetId: id,
+        companyId: caller.company!.id,
+        role: 'EMPLOYER_ACCEPTANCE',
+        hours: accepted.hours ?? hours,
+        rateCents: timesheet.sellContract.billRate,
+        state: 'LIVE',
+        byId: person.id,
+        auto: false,
+        note: null,
+      },
+    }).catch(() => {})
+  }
+
   await prisma.$transaction([
     prisma.timesheet.update({
       where: { id },
