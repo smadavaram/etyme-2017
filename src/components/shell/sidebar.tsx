@@ -70,6 +70,9 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧' },
+      // High in the list on purpose. It is a queue, not a report, and a
+      // report is something somebody has to think to ask for.
+      { label: 'Loose ends', href: '/dashboard/loose-ends', icon: '⛓' },
       { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫' },
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩' },

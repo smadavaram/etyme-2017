@@ -31,6 +31,7 @@ const JOBS = [
   { path: 'due-cycles', does: 'generates the billing and pay cycles that fell due' },
   { path: 'rolloff-scan', does: 'finds assignments ending soon' },
   { path: 'visa-watch', does: 'finds permits expiring inside a contract' },
+  { path: 'loose-ends', does: 'chases placements billed with no cost behind them' },
   { path: 'expire-invitations', does: 'closes invitations nobody answered' },
   { path: 'proactive-match', does: 'looks for people worth putting forward' },
   { path: 'freshness-ping', does: 'asks the bench whether they are still looking' },

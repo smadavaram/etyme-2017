@@ -90,7 +90,18 @@ export const PACKETS: PacketSpec[] = [
     preamble: 'What we need alongside the resume before this person can be put forward.',
     items: [
       { key: 'RESUME', label: 'Resume', hint: 'The current one, as a PDF or Word file.', required: true, validMonths: null },
-      { key: 'RIGHT_TO_WORK', label: 'Proof of right to work', hint: 'Passport, green card, or visa approval notice.', required: true, validMonths: null },
+      // A QUESTION, not a document.
+      //
+      // This used to ask for "passport, green card, or visa approval
+      // notice" at submission — before any offer. That is document abuse
+      // under the INA: the employer picks which document it wants to see,
+      // before the point the law lets it ask at all. The UK is the same
+      // shape, and holding identity papers for somebody you have not
+      // offered a job to fails data minimisation across the EU.
+      //
+      // The business still finds out what it needed to know. The document
+      // itself is collected at award, in CONTRACT_START.
+      { key: 'WORK_AUTH_QUESTION', label: 'Work authorisation', hint: 'Are you authorised to work in this country, and will you need sponsorship now or in the future?', required: true, validMonths: null },
       { key: 'REFERENCE_CHECK', label: 'Two references', hint: 'Names and contact details from the last two engagements.', required: false, validMonths: 24 },
     ],
   },
@@ -101,6 +112,7 @@ export const PACKETS: PacketSpec[] = [
     subject: 'PERSON',
     preamble: 'Before the first day. Some of these are legally required before any work is done.',
     items: [
+      { key: 'RIGHT_TO_WORK', label: 'Proof of right to work', hint: 'Now that there is an offer, we take the document. You choose which one from the acceptable list — we do not.', required: true, validMonths: null },
       { key: 'I9_EVERIFY', label: 'I-9 and E-Verify', hint: 'Federal work authorisation. Nobody may start without it.', required: true, validMonths: null },
       { key: 'BACKGROUND_CHECK', label: 'Background check', hint: 'Through our provider, or yours if the client accepts it.', required: true, validMonths: 12 },
       { key: 'DRUG_SCREENING', label: 'Drug screening', hint: 'Where the client site requires it.', required: false, validMonths: 12 },
