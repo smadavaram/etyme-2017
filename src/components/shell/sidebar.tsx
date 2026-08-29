@@ -153,6 +153,9 @@ const CLIENT_NAV: NavSection[] = [
       // themselves — they cannot see what the other eleven did with the
       // same role — and no supplier's own numbers are ever bad.
       { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈' },
+      // Where a chain we can only see part of makes one person look like
+      // two, and the tenure number quietly goes wrong.
+      { label: 'Same person, twice?', href: '/dashboard/identity', icon: '⧉' },
       { label: 'Who can do what', href: '/dashboard/access', icon: '⚿' },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙' },
       { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓' },

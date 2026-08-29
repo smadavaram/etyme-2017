@@ -61,6 +61,9 @@ model Person {
   representations        Representation[]
   doNotSubmit            DoNotSubmit[]
   resumes                Resume[]
+
+  identityA IdentityMatch[] @relation("identityA")
+  identityB IdentityMatch[] @relation("identityB")
 }
 
 model Credential {
@@ -373,9 +376,10 @@ model Company {
   ordersBillTo SalesOrder[] @relation("orderBillTo")
   ordersPayer  SalesOrder[] @relation("orderPayer")
 
-  invoicesSoldTo Invoice[] @relation("invoiceSoldTo")
-  invoicesBillTo Invoice[] @relation("invoiceBillTo")
-  invoicesPayer  Invoice[] @relation("invoicePayer")
+  invoicesSoldTo Invoice[]       @relation("invoiceSoldTo")
+  invoicesBillTo Invoice[]       @relation("invoiceBillTo")
+  invoicesPayer  Invoice[]       @relation("invoicePayer")
+  IdentityMatch  IdentityMatch[]
 
   @@index([listedById])
 }
@@ -568,6 +572,56 @@ model OrderMilestone {
   createdAt DateTime @default(now())
 
   @@index([orderId, status])
+}
+
+/// Two records that might be one human, and what somebody decided.
+///
+/// A client and a bench vendor both on the platform with the prime
+/// between them offline means the same person arrives twice under two
+/// Person rows, and the tenure ledger counts fourteen months and twelve
+/// as two people.
+///
+/// The decision is recorded rather than the merge performed. Merging two
+/// different contractors blocks one on a cap they never earned and pays
+/// the other at somebody else's rate — so the rows stay separate and a
+/// confirmed link is read by anything that aggregates.
+model IdentityMatch {
+  id String @id @default(cuid())
+
+  /// Whose view this is. Identity resolution never reaches outside the
+  /// company asking — a client is shown two people already in their own
+  /// records, never somebody they have not been shown.
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Ordered so a pair is stored once whichever way round it is found.
+  personAId String
+  personA   Person @relation("identityA", fields: [personAId], references: [id], onDelete: Cascade)
+  personBId String
+  personB   Person @relation("identityB", fields: [personBId], references: [id], onDelete: Cascade)
+
+  /// CERTAIN · LIKELY · POSSIBLE
+  confidence   String
+  score        Int
+  /// What it read to decide, so a person can argue with it.
+  signals      Json
+  /// Their combined tenure here if this is one person.
+  monthsIfSame Int
+
+  /// SUGGESTED · CONFIRMED · DISMISSED
+  state       String    @default("SUGGESTED")
+  decidedById String?
+  decidedAt   DateTime?
+  /// Why somebody said no, which is the useful half.
+  note        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, personAId, personBId])
+  @@index([companyId, state])
+  @@index([personAId])
+  @@index([personBId])
 }
 
 /// An invitation to a firm that has never heard of us.
