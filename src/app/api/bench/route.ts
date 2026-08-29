@@ -109,18 +109,26 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Find partner companies with ACCEPTED partnerships
-    const partnerships = await prisma.partnership.findMany({
-      where: {
-        status: 'ACCEPTED',
-        OR: [{ aId: companyId }, { bId: companyId }],
-      },
-      select: { aId: true, bId: true },
-    })
+    // Network bench: the firms on the caller's own counterparty register,
+    // and the firms that hold the caller on theirs. Partnership — the old
+    // model here — was never written by anything in the product's life,
+    // so this scope silently returned empty for every company that ever
+    // existed. Reading the register makes it real: put a firm on your
+    // register and their shared bench appears.
+    const [mine, theirs] = await Promise.all([
+      prisma.counterparty.findMany({
+        where: { companyId, status: 'ACTIVE' },
+        select: { otherCompanyId: true },
+      }),
+      prisma.counterparty.findMany({
+        where: { otherCompanyId: companyId, status: 'ACTIVE' },
+        select: { companyId: true },
+      }),
+    ])
 
-    const partnerIds = partnerships.map((p) =>
-      p.aId === companyId ? p.bId : p.aId
-    )
+    const partnerIds = [
+      ...new Set([...mine.map((c) => c.otherCompanyId), ...theirs.map((c) => c.companyId)]),
+    ]
 
     if (partnerIds.length === 0) {
       return NextResponse.json({

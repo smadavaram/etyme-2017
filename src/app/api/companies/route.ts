@@ -281,6 +281,39 @@ export async function POST(request: NextRequest) {
       return { company, roles, person, context }
     })
 
+    // ── The register, where the caller said what this firm is to them ──
+    //
+    // The dashboard's Add company modal reuses this route, and until now
+    // it created a standalone company with no relationship to anybody —
+    // a logo in a list. Where the caller is signed in with a company and
+    // said what the new firm is to them (CLIENT, SUPPLIER, PRIME, MSP),
+    // the register row is written here, in the same request, because a
+    // relationship recorded later is a relationship usually not recorded.
+    const relationship = String(body?.relationship ?? '')
+    if (['CLIENT', 'SUPPLIER', 'PRIME', 'MSP'].includes(relationship)) {
+      const { caller } = await getCallerContext(request)
+      const ownCompanyId = caller?.company?.id
+      if (ownCompanyId && ownCompanyId !== result.company.id) {
+        await prisma.counterparty.upsert({
+          where: {
+            companyId_otherCompanyId_relationship: {
+              companyId: ownCompanyId,
+              otherCompanyId: result.company.id,
+              relationship,
+            },
+          },
+          update: {},
+          create: {
+            companyId: ownCompanyId,
+            otherCompanyId: result.company.id,
+            relationship,
+            status: body?.prospect === true ? 'PROSPECT' : 'ACTIVE',
+            createdById: caller.person.id,
+          },
+        })
+      }
+    }
+
     return NextResponse.json({
       data: {
         company: {

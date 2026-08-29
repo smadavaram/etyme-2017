@@ -263,8 +263,9 @@ async function reopenFor(f: Finding, now: Date): Promise<ActOutcome> {
     where: {
       OR: [
         { sellContractsIn: { some: { companyId: verification.companyId, state: { in: ['IN_PROGRESS', 'PAUSED'] } } } },
-        { partnersA: { some: { bId: verification.companyId } } },
-        { partnersB: { some: { aId: verification.companyId } } },
+        // A firm holding this supplier on its counterparty register is a
+        // firm whose placements a lapse would stop.
+        { counterparties: { some: { otherCompanyId: verification.companyId, status: 'ACTIVE' } } },
       ],
     },
     select: { id: true, name: true },

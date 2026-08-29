@@ -223,6 +223,48 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // The register row, alongside the agreement stub. Partnership died of
+    // exactly this omission — a relationship model no flow ever wrote —
+    // so the flow that creates the relationship writes the register.
+    await prisma.counterparty.upsert({
+      where: {
+        companyId_otherCompanyId_relationship: {
+          companyId,
+          otherCompanyId: supplier.id,
+          relationship: 'SUPPLIER',
+        },
+      },
+      update: {},
+      create: {
+        companyId,
+        otherCompanyId: supplier.id,
+        relationship: 'SUPPLIER',
+        status: 'ACTIVE',
+        createdById: caller.person.id,
+      },
+    })
+
+    // And a contact, where the pasted row named one. The rolodex fills
+    // from the flows that already know the people, not from data entry.
+    if (row.contactName || row.email) {
+      const existing = await prisma.companyContact.findFirst({
+        where: { companyId, atCompanyId: supplier.id, email: row.email.toLowerCase() },
+        select: { id: true },
+      })
+      if (!existing) {
+        await prisma.companyContact.create({
+          data: {
+            companyId,
+            atCompanyId: supplier.id,
+            name: row.contactName ?? row.email.split('@')[0],
+            email: row.email.toLowerCase(),
+            kind: 'RECRUITING',
+            createdById: caller.person.id,
+          },
+        })
+      }
+    }
+
     const invite = await prisma.supplierInvite.upsert({
       where: { byId_email: { byId: companyId, email: row.email } },
       create: {

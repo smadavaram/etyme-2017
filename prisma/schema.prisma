@@ -62,14 +62,17 @@ model Person {
   doNotSubmit            DoNotSubmit[]
   resumes                Resume[]
 
-  identityA          IdentityMatch[]       @relation("identityA")
-  identityB          IdentityMatch[]       @relation("identityB")
-  orderPostings      OrderPosting[]
-  postingsAuthored   OrderPosting[]        @relation("postingAuthor")
-  journalLines       JournalLine[]
-  paymentsApplied    Payment[]             @relation("paymentApplier")
-  creditLimitsSet    CustomerCreditLimit[] @relation("creditLimitSetter")
-  dunningLettersSent DunningSend[]         @relation("dunningSender")
+  identityA           IdentityMatch[]       @relation("identityA")
+  identityB           IdentityMatch[]       @relation("identityB")
+  orderPostings       OrderPosting[]
+  postingsAuthored    OrderPosting[]        @relation("postingAuthor")
+  journalLines        JournalLine[]
+  paymentsApplied     Payment[]             @relation("paymentApplier")
+  creditLimitsSet     CustomerCreditLimit[] @relation("creditLimitSetter")
+  dunningLettersSent  DunningSend[]         @relation("dunningSender")
+  counterpartiesAdded Counterparty[]        @relation("counterpartyCreator")
+  contactIdentities   CompanyContact[]      @relation("contactIdentity")
+  contactsAdded       CompanyContact[]      @relation("contactCreator")
 }
 
 model Credential {
@@ -332,8 +335,10 @@ model Company {
   accessLogs            AccessLog[]
   delegationsOut        Delegation[]            @relation("grantor")
   delegationsIn         Delegation[]            @relation("grantee")
-  partnersA             Partnership[]           @relation("a")
-  partnersB             Partnership[]           @relation("b")
+  counterparties        Counterparty[]          @relation("counterpartyOwner")
+  counterpartyOf        Counterparty[]          @relation("counterpartyOther")
+  contacts              CompanyContact[]        @relation("contactOwner")
+  contactsAt            CompanyContact[]        @relation("contactAt")
   // Contract relations — each company manages their own buy and sell contracts
   sellContractsOut      SellContract[]          @relation("sellVendor") // we sell talent
   sellContractsIn       SellContract[]          @relation("sellClient") // talent sold to us
@@ -882,16 +887,99 @@ model Role {
   @@index([companyId])
 }
 
-model Partnership {
-  id        String   @id @default(cuid())
-  aId       String
-  a         Company  @relation("a", fields: [aId], references: [id])
-  bId       String
-  b         Company  @relation("b", fields: [bId], references: [id])
-  status    String // PENDING · ACCEPTED · BLOCKED
-  createdAt DateTime @default(now())
+/// Who this firm works with, and as what.
+///
+/// Replaces Partnership, which was symmetric, untyped, and — the audit
+/// found — never written by anything in the product's life. A status
+/// enum nothing could ever move out of PENDING, because nothing inserted
+/// a row.
+///
+/// This one is directional and typed, because "Wipro" is not a fact
+/// about a relationship: Wipro is somebody's client, somebody else's
+/// prime, and a third firm's supplier, all at once. Each firm keeps its
+/// own register, and the register is private — who you sell to is
+/// commercial information.
+///
+/// A row can exist before any agreement does. A prospect is a real
+/// counterparty; requiring an MSA first would mean the register only
+/// records relationships after they stop needing recording.
+model Counterparty {
+  id String @id @default(cuid())
 
-  @@unique([aId, bId])
+  /// Whose register.
+  companyId      String
+  company        Company @relation("counterpartyOwner", fields: [companyId], references: [id], onDelete: Cascade)
+  /// Who they are.
+  otherCompanyId String
+  otherCompany   Company @relation("counterpartyOther", fields: [otherCompanyId], references: [id])
+
+  /// What THEY are to US: CLIENT · SUPPLIER · PRIME · MSP.
+  /// One pair may hold several rows — a prime is often also a client.
+  relationship String
+
+  /// PROSPECT · ACTIVE · DORMANT · BLOCKED
+  status String    @default("ACTIVE")
+  since  DateTime?
+  notes  String?
+
+  createdById String?
+  createdBy   Person?  @relation("counterpartyCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, otherCompanyId, relationship])
+  @@index([otherCompanyId])
+  @@index([companyId, status])
+  @@index([createdById])
+}
+
+/// A person at a counterparty. The rolodex.
+///
+/// A staffing business is a rolodex with invoicing attached, and until
+/// this model there was nowhere to write down WHO at Wipro to call — the
+/// audit found no contact concept anywhere. Every Person in the system
+/// had a login; the person you phone about an unpaid invoice does not.
+///
+/// Private to the firm that recorded them. My contact at a client is my
+/// commercial asset, not shared data — sharing a rolodex is how a
+/// competitor learns whose hiring manager answers the phone.
+model CompanyContact {
+  id String @id @default(cuid())
+
+  /// Whose rolodex.
+  companyId   String
+  company     Company @relation("contactOwner", fields: [companyId], references: [id], onDelete: Cascade)
+  /// Where this person works.
+  atCompanyId String
+  atCompany   Company @relation("contactAt", fields: [atCompanyId], references: [id])
+
+  name  String
+  email String?
+  phone String?
+  title String?
+
+  /// What you would call them for: HIRING_MANAGER · PROCUREMENT · AP ·
+  /// RECRUITING · EXECUTIVE · DELIVERY · OTHER.
+  kind String @default("OTHER")
+
+  /// Set when this contact later joins the platform themselves, so the
+  /// rolodex entry and the real account become one person rather than
+  /// two records that drift.
+  personId String?
+  person   Person? @relation("contactIdentity", fields: [personId], references: [id])
+
+  notes String?
+
+  createdById String?
+  createdBy   Person?  @relation("contactCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, atCompanyId, email])
+  @@index([companyId, atCompanyId])
+  @@index([atCompanyId])
+  @@index([personId])
+  @@index([createdById])
 }
 
 // ─────────────────────────────────────────────
