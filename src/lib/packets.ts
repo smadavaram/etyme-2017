@@ -33,6 +33,18 @@ export type Purpose =
   | 'CONTRACT_START'
   | 'COMPLIANCE_ANNUAL'
   | 'IMMIGRATION'
+  // ── The other direction ────────────────────────────────────────────
+  //
+  // A staffing vendor spends as much time being screened as screening.
+  // These are the reasons somebody asks US for documents; the packs
+  // themselves live in src/lib/outbound-pack.ts because what may go out
+  // is a different question from what may be asked for. Added here so
+  // both directions share one Purpose rather than drifting into two.
+  | 'CLIENT_SCREENING'
+  | 'INSURANCE_PROOF'
+  | 'SECURITY_REVIEW'
+  | 'RFP_BID'
+  | 'PAYMENT_SETUP'
 
 /** Who the packet is about — a company, or a person. */
 export type SubjectKind = 'COMPANY' | 'PERSON'

@@ -70,6 +70,9 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧' },
+      // Next to Invoices deliberately: same money, different question.
+      // One is what we sent, the other is what came back.
+      { label: 'Money owed to us', href: '/dashboard/ar', icon: '◧' },
       // High in the list on purpose. It is a queue, not a report, and a
       // report is something somebody has to think to ask for.
       { label: 'Loose ends', href: '/dashboard/loose-ends', icon: '⛓' },
@@ -80,6 +83,9 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Automation', href: '/dashboard/automation', icon: '⚙' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
       { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱' },
+      // The two directions belong adjacent. A vendor spends as much time
+      // being screened as screening, and only one of those had a screen.
+      { label: 'Being screened', href: '/dashboard/outbound-pack', icon: '◲' },
       { label: 'Blacklist', href: '/dashboard/blacklist', icon: '⊘' },
       { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻' },
       { label: 'Companies', href: '/dashboard/companies', icon: '▣' },

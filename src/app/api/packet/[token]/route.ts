@@ -39,7 +39,7 @@ async function loadByToken(token: string) {
         orderBy: { position: 'asc' },
         select: {
           id: true, key: true, label: true, hint: true, required: true,
-          state: true, fileName: true, receivedAt: true, reviewNote: true,
+          state: true, fileName: true, fileUrl: true, receivedAt: true, reviewNote: true,
         },
       },
     },
@@ -82,8 +82,13 @@ export async function GET(
     }))
   )
 
+  // COLLECT — they send us things. SEND — we are giving them ours, and
+  // the page is a list of downloads rather than a list of upload buttons.
+  const outbound = packet.direction === 'SEND'
+
   return NextResponse.json({
     data: {
+      direction: packet.direction,
       label: packet.label,
       from: packet.company.name,
       about: packet.subjectCompany?.name ?? packet.subjectPerson?.name ?? null,
@@ -100,6 +105,11 @@ export async function GET(
         state: i.state,
         fileName: i.fileName,
         receivedAt: i.receivedAt?.toISOString().slice(0, 10) ?? null,
+        // The file itself is handed back only on a pack we are sending.
+        // On a collection, handing an uploader's file back through the
+        // link would let anybody holding the token read what somebody
+        // else sent.
+        fileUrl: outbound ? i.fileUrl : null,
         // Only a rejection reason is shown back. Internal review notes on
         // an accepted document are not the sender's business.
         note: i.state === 'REJECTED' ? i.reviewNote : null,
@@ -133,6 +143,22 @@ export async function POST(
     return NextResponse.json(
       { error: { code: 'EXPIRED', message: 'This link has expired. Ask for a new one — nothing you sent before is lost.' } },
       { status: 410 }
+    )
+  }
+
+  // A pack we are sending is a set of downloads. Letting the recipient
+  // write into it would let anybody holding the link overwrite our own
+  // certificate of insurance with their own file.
+  if (packet.direction === 'SEND') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'READ_ONLY',
+          message:
+            'These are documents being sent to you, not asked of you. If you need something else from us, reply to whoever sent the link.',
+        },
+      },
+      { status: 405 }
     )
   }
 

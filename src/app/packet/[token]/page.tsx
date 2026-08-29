@@ -20,11 +20,14 @@ interface Item {
   required: boolean
   state: string
   fileName: string | null
+  fileUrl: string | null
   receivedAt: string | null
   note: string | null
 }
 
 interface Packet {
+  /** COLLECT — they are asking us. SEND — they are giving us theirs. */
+  direction: string
   label: string
   from: string
   about: string | null
@@ -140,6 +143,36 @@ export default function PacketPage({ params }: { params: Promise<{ token: string
           </div>
         )}
 
+        {packet.direction === 'SEND' && (
+          <div className="mt-8 space-y-3">
+            {packet.items.map((item) => (
+              <div key={item.id} className="bg-etyme-surface border border-etyme-rule rounded-lg p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-[15px] text-etyme-ink">{item.label}</p>
+                    {/* The standing at the moment it was sent. Stated so
+                        nobody has to open the PDF to find the date. */}
+                    <p className="text-[13px] text-etyme-muted mt-0.5">{item.hint}</p>
+                  </div>
+                  <div className="shrink-0">
+                    {item.fileUrl ? (
+                      <a
+                        href={item.fileUrl}
+                        className="inline-block px-3 py-1.5 rounded text-[13px] font-medium bg-etyme-action text-white hover:opacity-90"
+                      >
+                        Download
+                      </a>
+                    ) : (
+                      <span className="text-[12px] text-etyme-faint">On file</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {packet.direction !== 'SEND' && (
         <div className="mt-8 space-y-3">
           {packet.items.map((item) => {
             const done = item.state === 'RECEIVED' || item.state === 'ACCEPTED'
@@ -202,10 +235,21 @@ export default function PacketPage({ params }: { params: Promise<{ token: string
             )
           })}
         </div>
+        )}
 
         <p className="text-[12px] text-etyme-faint mt-8">
-          This link works until {packet.expiresAt} and only for this request. If it stops working,
-          ask {packet.from} for a new one — nothing you have already sent is lost.
+          {packet.direction === 'SEND' ? (
+            <>
+              This link works until {packet.expiresAt}, and never longer than the earliest document
+              inside it — so nothing here can be read as current after it has lapsed. Ask {packet.from}{' '}
+              for a fresh link if you need these again.
+            </>
+          ) : (
+            <>
+              This link works until {packet.expiresAt} and only for this request. If it stops working,
+              ask {packet.from} for a new one — nothing you have already sent is lost.
+            </>
+          )}
         </p>
       </div>
     </div>
