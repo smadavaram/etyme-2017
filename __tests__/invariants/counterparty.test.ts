@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { register, mayRemove, RELATIONSHIPS } from '@/lib/counterparty'
+import { register, mayRemove, riskJudgement, RELATIONSHIPS } from '@/lib/counterparty'
 
 describe('The register is typed, because Wipro is not a fact about a relationship', () => {
 
@@ -81,5 +81,27 @@ describe('A counterparty with anything live between you cannot be removed', () =
     const v = mayRemove(0, 0)
     expect(v.may).toBe(true)
     expect(v.says).toContain('DORMANT')
+  })
+})
+
+describe('A risk level is a judgement, and a judgement needs a date to be remade', () => {
+  const NOW = new Date('2026-08-29T00:00:00Z')
+
+  it('refuses a level nobody defined', () => {
+    expect(riskJudgement('SCARY', new Date('2027-01-01'), NOW).says).toContain('not "SCARY"')
+  })
+
+  it('refuses a judgement with no review date, because nobody will remember to remake it', () => {
+    expect(riskJudgement('WATCH', null, NOW).ok).toBe(false)
+  })
+
+  it('refuses a review date already in the past', () => {
+    expect(riskJudgement('WATCH', new Date('2026-01-01'), NOW).ok).toBe(false)
+  })
+
+  it('accepts a level with a future date and says both back', () => {
+    const v = riskJudgement('AT_RISK', new Date('2026-11-01'), NOW)
+    expect(v.ok).toBe(true)
+    expect(v.says).toBe('AT_RISK, to be looked at again by 2026-11-01.')
   })
 })

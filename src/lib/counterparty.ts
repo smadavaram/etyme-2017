@@ -142,3 +142,34 @@ export function mayRemove(liveContracts: number, unpaidInvoices: number): Remove
   }
   return { may: true, says: 'Nothing live between you. Mark them DORMANT to keep the history, or remove the row.' }
 }
+
+// ── The judgement somebody sets on a counterparty ─────────────────────
+
+export const RISK_LEVELS = ['OK', 'WATCH', 'AT_RISK'] as const
+
+export interface RiskJudgementVerdict {
+  ok: boolean
+  says: string
+}
+
+/**
+ * A risk level is a judgement, and a judgement needs a date to be
+ * remade. One set without a review date is one nobody will remember to
+ * revisit — the supplier-risk sweep flags exactly that, and refusing it
+ * at the door beats flagging it forever.
+ */
+export function riskJudgement(level: string, reviewBy: Date | null, on: Date): RiskJudgementVerdict {
+  if (!RISK_LEVELS.includes(level as any)) {
+    return { ok: false, says: `A risk level is ${RISK_LEVELS.join(', ')} — not "${level}".` }
+  }
+  if (!reviewBy) {
+    return {
+      ok: false,
+      says: 'Set a date to look again. A judgement with no review date is one nobody will remember to remake.',
+    }
+  }
+  if (reviewBy.getTime() <= on.getTime()) {
+    return { ok: false, says: 'The review date has to be in the future, or it is already overdue.' }
+  }
+  return { ok: true, says: `${level}, to be looked at again by ${reviewBy.toISOString().slice(0, 10)}.` }
+}

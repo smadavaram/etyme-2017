@@ -44,6 +44,13 @@ export const EVENT_TYPES = [
   'submission.created',
   'submission.withdrawn',
   'submission.awarded',
+  // The acceptance gap reconstructable from the log even before the
+  // delivery columns exist — and a client sitting on a deliverable for
+  // three weeks is exactly the thing worth a nudge.
+  'milestone.delivered',
+  'milestone.accepted',
+  'milestone.rejected',
+  'agreement.signed',
   'submission.rejected',
   'submission.forwarded',
   'resume.uploaded',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { supplierCoverGate } from '@/lib/document-stages'
 import { emit } from '@/lib/events'
 import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
 import { clientOf, maySubmit, askFor, takeHold } from '@/lib/holds'
@@ -153,6 +154,33 @@ export async function POST(request: NextRequest) {
       return `$${Math.round(submittedRate / 100)}/hr is below the $${Math.round(invitation.payMin / 100)}/hr floor you were given`
     }
     return null
+  }
+
+  // ── Insurance, before anything goes in front of a client ──────────
+  //
+  // Addendum E: lapsed supplier insurance is a legally grounded BLOCK.
+  // It was checked at award, which is one step too late — by then the
+  // client has read a CV, run interviews and made an offer against a
+  // supplier who could not lawfully put anybody on site. Once per batch:
+  // nothing about a candidate is relevant when the supplier cannot
+  // place anybody at all.
+  const certRows = await prisma.verification.findMany({
+    where: { companyId: fromCompanyId, personId: null },
+    select: { type: true, status: true, issuedAt: true, expiresAt: true, verifiedAt: true },
+  })
+
+  const cover = supplierCoverGate({
+    supplierName: vendorName,
+    clientName,
+    certificates: certRows.filter((v) => v.type.startsWith('INSURANCE_')),
+    on: new Date(),
+  })
+
+  if (cover.outcome === 'BLOCK') {
+    return NextResponse.json(
+      { error: { code: 'COVER_LAPSED', message: cover.says, fix: cover.fix } },
+      { status: 409 }
+    )
   }
 
   const results: any[] = []

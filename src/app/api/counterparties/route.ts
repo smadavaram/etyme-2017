@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { register, mayRemove, RELATIONSHIPS } from '@/lib/counterparty'
+import { register, mayRemove, riskJudgement, RELATIONSHIPS } from '@/lib/counterparty'
 
 /**
  * GET  /api/counterparties — the register: who we work with, and as what
@@ -174,5 +174,45 @@ export async function DELETE(request: NextRequest) {
   }
 
   await prisma.counterparty.deleteMany({ where: { companyId, otherCompanyId, relationship } })
+  return NextResponse.json({ data: { says: verdict.says } })
+}
+
+/**
+ * PATCH /api/counterparties — set the risk judgement on a register row.
+ *
+ * The supplier-risk watchlist read these columns before anything could
+ * write them, and said so. This is the writer.
+ */
+export async function PATCH(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const notStaff = staffOnly(caller, 'Counterparties')
+  if (notStaff) return notStaff
+
+  const companyId = caller.company!.id
+  const body = await request.json().catch(() => ({}))
+  const otherCompanyId = String(body?.otherCompanyId ?? '')
+  const relationship = String(body?.relationship ?? '')
+  const level = String(body?.riskLevel ?? '')
+  const reviewBy = body?.riskReviewBy ? new Date(String(body.riskReviewBy)) : null
+
+  const verdict = riskJudgement(level, reviewBy && !isNaN(reviewBy.getTime()) ? reviewBy : null, new Date())
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: verdict.says } },
+      { status: 422 }
+    )
+  }
+
+  const updated = await prisma.counterparty.updateMany({
+    where: { companyId, otherCompanyId, relationship },
+    data: { riskLevel: level, riskReviewBy: reviewBy },
+  })
+  if (updated.count === 0) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No register row for that pair and relationship.' } },
+      { status: 404 }
+    )
+  }
   return NextResponse.json({ data: { says: verdict.says } })
 }

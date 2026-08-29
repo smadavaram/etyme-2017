@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { compact } from '@/lib/money-display'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 
@@ -285,13 +286,32 @@ export default function ProgramPage() {
             Contingent workforce program — {s.activeContractors} active contractors across {s.vendors} vendor{s.vendors !== 1 ? 's' : ''}
           </p>
         </div>
-        <button
-          onClick={() => setScope(scope === 'mine' ? 'org' : 'mine')}
-          className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted
-                     hover:text-etyme-ink hover:border-etyme-muted transition-colors mt-1"
-        >
-          {scope === 'mine' ? 'View all IT' : 'View my team'}
-        </button>
+        <div className="flex items-center gap-2 mt-1">
+          {/* The paper behind the programme. An order carries a ceiling, a
+              contract carries a rate, and an agreement carries permission —
+              three different questions, so three different places. */}
+          <Link
+            href={{ pathname: '/dashboard/program/agreements' }}
+            className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted
+                       hover:text-etyme-ink hover:border-etyme-muted transition-colors"
+          >
+            Agreements
+          </Link>
+          <Link
+            href={{ pathname: '/dashboard/program/milestones' }}
+            className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted
+                       hover:text-etyme-ink hover:border-etyme-muted transition-colors"
+          >
+            Milestones
+          </Link>
+          <button
+            onClick={() => setScope(scope === 'mine' ? 'org' : 'mine')}
+            className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted
+                       hover:text-etyme-ink hover:border-etyme-muted transition-colors"
+          >
+            {scope === 'mine' ? 'View all IT' : 'View my team'}
+          </button>
+        </div>
       </div>
 
       <TheNumber />
@@ -741,7 +761,7 @@ const CONTRACTOR_COLUMNS: Column<Contractor>[] = [
     align: 'right',
     render: (row) => (
       <span className="tabular-nums">
-        {row.billRate != null ? `{compact(row.billRate)}/hr` : '—'}
+        {row.billRate != null ? `${compact(row.billRate)}/hr` : '—'}
       </span>
     ),
     sortValue: (row) => row.billRate ?? 0,
