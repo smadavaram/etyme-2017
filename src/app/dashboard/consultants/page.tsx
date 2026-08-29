@@ -49,9 +49,46 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
   })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  /**
+   * Checked here rather than left to the browser.
+   *
+   * `type="email" required` looks like free validation and is not: the
+   * browser refuses to submit, `handleSubmit` never runs, and the error
+   * banner below never fires. Inside a modal on a phone the native bubble
+   * has nowhere to appear, so the button simply does nothing and says
+   * nothing — which is what a real person hit.
+   */
+  function problems(): Record<string, string> {
+    const p: Record<string, string> = {}
+
+    if (form.name.trim().length < 2) {
+      p.name = 'A name, so somebody can be told who this is about.'
+    }
+
+    const email = form.email.trim()
+    if (!email) {
+      p.email = 'An email — this is how they are invited and how they sign in.'
+    } else if (!email.includes('@') || !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
+      // Names it, because "invalid email" leaves somebody staring at a
+      // field they have already read twice.
+      p.email = `"${email}" is not an email address. It needs an @ and a domain — jane@acme.com.`
+    }
+
+    return p
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+
+    const found = problems()
+    setFieldErrors(found)
+    if (Object.keys(found).length > 0) {
+      setError(Object.values(found)[0])
+      return
+    }
+
     setSubmitting(true)
     setError(null)
 
@@ -72,6 +109,11 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
       if (!res.ok) {
         const body = await res.json()
         setError(body.error?.message ?? 'Failed to create consultant')
+        // The API says which field it refused. Showing it beside the
+        // field beats a banner the eye has already skipped.
+        if (body.error?.field) {
+          setFieldErrors({ [body.error.field]: body.error.message })
+        }
         return
       }
 
@@ -102,31 +144,49 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {/* One column on a phone.
+              Side by side, "Full name" and "Email" read as first name and
+              last name to anybody moving fast — which is exactly what
+              happened: a surname typed into the email field, and a button
+              that then did nothing. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Full name *</label>
               <input
                 type="text"
-                required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                placeholder="Jane Smith"
+                aria-invalid={!!fieldErrors.name}
+                className={`w-full px-3 py-2 text-sm border rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                           ${fieldErrors.name ? 'border-etyme-attention' : 'border-etyme-rule'}`}
+                placeholder="Jane Smith — first and last"
               />
+              {fieldErrors.name && (
+                <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.name}</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Email *</label>
+              {/* type=email for the phone keyboard. The checking is
+                  ours — see problems() — because the browser's version
+                  refuses silently inside a modal. */}
               <input
                 type="email"
-                required
+                inputMode="email"
+                autoComplete="off"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-                placeholder="jane@example.com"
+                aria-invalid={!!fieldErrors.email}
+                className={`w-full px-3 py-2 text-sm border rounded-lg
+                           focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action
+                           ${fieldErrors.email ? 'border-etyme-attention' : 'border-etyme-rule'}`}
+                placeholder="jane@acme.com"
               />
+              {fieldErrors.email && (
+                <p className="mt-1 text-[12px] text-etyme-attention">{fieldErrors.email}</p>
+              )}
             </div>
           </div>
 
@@ -154,7 +214,7 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-etyme-muted mb-1">Location</label>
               <input
@@ -406,7 +466,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
           </div>
 
           {/* Details grid */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <p className="eyebrow mb-1">Location</p>
               <p className="text-sm">{consultant.location ?? 'Not specified'}</p>
@@ -432,7 +492,7 @@ function ConsultantDrawer({ consultant, onClose }: { consultant: Consultant; onC
           </div>
 
           {/* Availability + Rate row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {consultant.availableFrom && (
               <div>
                 <p className="eyebrow mb-1">Available from</p>
