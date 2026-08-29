@@ -88,6 +88,9 @@ const VENDOR_NAV: NavSection[] = [
   {
     label: 'Grow',
     items: [
+      // Gated on margin.read — a Recruiter role deliberately cannot see
+      // what a placement earns.
+      { label: 'What we made', href: '/dashboard/profitability', icon: '◑' },
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
       // A scorecard the supplier cannot see is a blacklist with better
       // manners. It decides who gets the next role, so it is not a
