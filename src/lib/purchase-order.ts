@@ -154,3 +154,214 @@ export function canAttachPoToBuyContract(contract: {
   }
   return { allowed: true, reason: 'Subcontract — the PO is this company\'s commitment to the supplier' }
 }
+
+// ═════════════════════════════════════════════════════════════════════
+// OVER-BILLING — the other half of the duplicate check
+// ═════════════════════════════════════════════════════════════════════
+//
+// `/api/ap/bills` already refuses the same supplier invoice number twice,
+// which catches the commonest AP error. It caught nothing else. A
+// supplier could bill £40,000 against a £25,000 purchase order, or
+// £12,000 a month against a buy contract worth £8,000 a month, and the
+// bill went straight in — because the ceiling existed in one table and
+// the bill in another and nothing compared them.
+//
+// A ceiling nobody checks is not a control. It is a number in a database.
+//
+// ── Two different ceilings, and they mean different things ───────────
+//
+// **The purchase order** is what the payer authorised in total, across
+// however many people and months. Going past it is not a rounding
+// question — somebody has committed the firm to spend it did not agree
+// to, and the fix is a change order, not a waiver.
+//
+// **The buy contract** carries a rate and a shape: this person, this
+// many hours, this long. A bill materially above what that contract can
+// produce is either hours nobody worked or a rate nobody agreed, and both
+// are worth stopping at the door rather than finding in a margin report
+// three months later.
+
+export interface OverBillInput {
+  /** The bill being recorded, in minor units. */
+  billCents: number
+  billCurrency: string
+  /** The window the bill covers, where it says. */
+  periodStart?: Date | null
+  periodEnd?: Date | null
+  po: {
+    number: string
+    status: string
+    /** Authorised ceiling, minor units. */
+    amountCents: number
+    currency: string
+    /** Already billed against it by other bills. */
+    consumedCents: number
+    startDate: Date
+    endDate: Date | null
+  } | null
+  /**
+   * What the buy contract can produce for the period, where it is
+   * knowable. Null where the contract carries no rate or no hours
+   * expectation — and null means unchecked, never "fine".
+   */
+  contractExpectedCents?: number | null
+  contractCurrency?: string | null
+}
+
+export type OverBillCode =
+  | 'PO_CURRENCY'
+  | 'PO_CLOSED'
+  | 'PO_WINDOW'
+  | 'PO_CEILING'
+  | 'CONTRACT_CURRENCY'
+  | 'CONTRACT_AMOUNT'
+
+export interface OverBillProblem {
+  code: OverBillCode
+  /** True where an AP clerk with authority may record it anyway. */
+  overridable: boolean
+  says: string
+}
+
+export interface OverBillVerdict {
+  ok: boolean
+  problems: OverBillProblem[]
+  /** What the PO has left after this bill, where there is a PO. */
+  poRemainingAfterCents: number | null
+  says: string
+}
+
+/**
+ * A material variance. Five per cent.
+ *
+ * Below this an over-bill is a rounding difference, a part-hour, or a
+ * currency conversion at the supplier's end, and refusing it would train
+ * an AP clerk to override everything. Above it, somebody billed something
+ * the contract does not produce.
+ */
+export const CONTRACT_TOLERANCE_BPS = 500
+
+export function overBillCheck(i: OverBillInput, now: Date = new Date()): OverBillVerdict {
+  const problems: OverBillProblem[] = []
+  let remainingAfter: number | null = null
+
+  if (i.po) {
+    const po = i.po
+    if (po.currency.toUpperCase() !== i.billCurrency.toUpperCase()) {
+      problems.push({
+        code: 'PO_CURRENCY',
+        overridable: false,
+        says:
+          `PO ${po.number} authorises spend in ${po.currency.toUpperCase()} and this bill ` +
+          `is in ${i.billCurrency.toUpperCase()}. Drawing one down with the other would ` +
+          `bury an exchange rate inside a ceiling, where nobody would find it.`,
+      })
+    } else {
+      const balance = poBalance(
+        {
+          amountCents: po.amountCents,
+          invoicedCents: po.consumedCents,
+          status: po.status as PoStatus,
+          endDate: po.endDate,
+        },
+        now
+      )
+      remainingAfter = balance.remainingCents - i.billCents
+
+      if (po.status !== 'OPEN') {
+        problems.push({
+          code: 'PO_CLOSED',
+          overridable: true,
+          says:
+            `PO ${po.number} is ${po.status.toLowerCase()}. A bill against it needs the ` +
+            `order reopened, or somebody saying in writing why it is being paid anyway.`,
+        })
+      }
+
+      const start = i.periodStart ?? null
+      const end = i.periodEnd ?? null
+      if (start && start < po.startDate) {
+        problems.push({
+          code: 'PO_WINDOW',
+          overridable: true,
+          says:
+            `The work starts ${iso(start)}, before PO ${po.number} opens on ` +
+            `${iso(po.startDate)}. A purchase order authorises spend over a window, and ` +
+            `this is spend from outside it.`,
+        })
+      }
+      if (end && po.endDate && end > po.endDate) {
+        problems.push({
+          code: 'PO_WINDOW',
+          overridable: true,
+          says:
+            `The work runs to ${iso(end)}, past PO ${po.number} ending ${iso(po.endDate)}.`,
+        })
+      }
+
+      if (remainingAfter < 0) {
+        problems.push({
+          code: 'PO_CEILING',
+          overridable: true,
+          says:
+            `PO ${po.number} has ${money(balance.remainingCents)} left and this bill is ` +
+            `${money(i.billCents)} — over by ${money(-remainingAfter)}. The ceiling is what ` +
+            `the payer actually authorised; going past it is a change order, not a rounding ` +
+            `question.`,
+        })
+      }
+    }
+  }
+
+  if (i.contractExpectedCents != null) {
+    const expected = i.contractExpectedCents
+    const contractCurrency = (i.contractCurrency ?? i.billCurrency).toUpperCase()
+    if (contractCurrency !== i.billCurrency.toUpperCase()) {
+      problems.push({
+        code: 'CONTRACT_CURRENCY',
+        overridable: false,
+        says:
+          `The buy contract is in ${contractCurrency} and the bill is in ` +
+          `${i.billCurrency.toUpperCase()}. Those two numbers are not comparable, so the ` +
+          `contract check is refused rather than made.`,
+      })
+    } else {
+      const ceiling = expected + Math.round((expected * CONTRACT_TOLERANCE_BPS) / 10_000)
+      if (expected > 0 && i.billCents > ceiling) {
+        problems.push({
+          code: 'CONTRACT_AMOUNT',
+          overridable: true,
+          says:
+            `The buy contract produces about ${money(expected)} for this period and the ` +
+            `bill is ${money(i.billCents)} — ${Math.round(((i.billCents - expected) / expected) * 100)}% ` +
+            `above it. That is either hours nobody worked or a rate nobody agreed, and both ` +
+            `are cheaper to settle at the door than in a margin report three months later.`,
+        })
+      }
+    }
+  }
+
+  return {
+    ok: problems.length === 0,
+    problems,
+    poRemainingAfterCents: remainingAfter,
+    says:
+      problems.length === 0
+        ? i.po
+          ? `Within PO ${i.po.number} — ${money(remainingAfter ?? 0)} left after this bill.`
+          : 'Nothing to check it against, and nothing wrong with it.'
+        : problems[0].says,
+  }
+}
+
+function iso(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+function money(cents: number): string {
+  const n = Math.abs(cents) / 100
+  return `${cents < 0 ? '-' : ''}$${n.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+}

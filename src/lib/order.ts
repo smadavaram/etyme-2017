@@ -547,3 +547,202 @@ export function money(cents: number): string {
   const s = n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   return `${cents < 0 ? '-' : ''}$${s}`
 }
+
+// ═════════════════════════════════════════════════════════════════════
+// SETTLEMENT AND CLOSE
+// ═════════════════════════════════════════════════════════════════════
+//
+// An order is a temporary pot. It opens when work starts, it accumulates,
+// and at the end its balance has to go somewhere — because a project that
+// has finished should not still be carrying a result that nobody owns.
+// Where it goes is the cost centre: a standing department with a budget
+// that continues after the project does not.
+//
+// `order-postings.ts` already refuses to write into a SETTLED order,
+// which is half the control. This is the other half: the act of settling.
+//
+// ── Why the settlement is always a pair ──────────────────────────────
+//
+// Moving a balance is two postings, never one: the amount out of the
+// order and the same amount into wherever it went. Writing only the
+// first makes money disappear from the group's books, which balances on
+// the order and not on anything above it.
+//
+// A pair also means the movement is visible from both ends. Somebody
+// looking at the cost centre can see what arrived and from where, which
+// is the question a controller actually asks at year end.
+//
+// ── Why LOCKED exists between OPEN and SETTLED ───────────────────────
+//
+// Month end is not the end of a project. Books close on the 5th and
+// corrections to the month just closed keep arriving for a fortnight —
+// a timesheet reversed, an expense coded late. LOCKED says "no new work
+// posts here, corrections still may", which is the state every finance
+// team actually operates in and which most systems make people fake by
+// leaving the period open.
+
+export type OrderStatus = 'OPEN' | 'LOCKED' | 'SETTLED' | 'CLOSED'
+
+export interface SettlementPosting {
+  kind: 'SETTLEMENT'
+  /** Signed cents. The pair sums to zero. */
+  amountCents: number
+  /** Which side of the movement this is. */
+  leg: 'OUT_OF_ORDER' | 'INTO_COST_CENTRE'
+  says: string
+}
+
+export interface SettlementPlan {
+  ok: boolean
+  /** Why not, where it cannot be settled. */
+  refusal: string | null
+  /** The balance being moved, in the order's currency. */
+  balanceCents: number
+  /** Always two, or empty where it cannot proceed. */
+  postings: SettlementPosting[]
+  /** The date the movement takes. The period being closed, not today. */
+  postedAt: Date | null
+  says: string
+}
+
+export interface SettlementInput {
+  status: OrderStatus
+  /** The cost centre the balance goes to. Null is a refusal, not a default. */
+  settlesToCode: string | null
+  settlesToName: string | null
+  currency: string
+  /** Every posting on the order. */
+  postings: Posting[]
+  /** The last day of the period being closed. */
+  closingOn: Date
+}
+
+/**
+ * What settling this order would do, or why it cannot be done.
+ *
+ * Returns a plan rather than performing anything, so the screen can show
+ * the two postings before anybody agrees to them. A settlement that
+ * happens and is then queried is a settlement somebody has to reverse
+ * across a closed period.
+ */
+export function settlementPlan(i: SettlementInput): SettlementPlan {
+  const nothing = { balanceCents: 0, postings: [], postedAt: null }
+
+  if (i.status === 'SETTLED' || i.status === 'CLOSED') {
+    return {
+      ok: false,
+      refusal: 'ALREADY_SETTLED',
+      ...nothing,
+      says:
+        `This order is already ${i.status.toLowerCase()}. Settling it again would move a ` +
+        `balance that has already gone, and the second movement would land in a period ` +
+        `somebody has already reported.`,
+    }
+  }
+
+  if (!i.settlesToCode) {
+    return {
+      ok: false,
+      refusal: 'NO_COST_CENTRE',
+      ...nothing,
+      says:
+        'Nowhere to settle this to. An order is a temporary pot and its balance has to ' +
+        'land in a standing one — set the cost centre before closing it, rather than ' +
+        'leaving a finished project carrying a result nobody owns.',
+    }
+  }
+
+  const result = resultOf(i.postings)
+  const balance = result.netCents
+
+  if (balance === 0) {
+    return {
+      ok: false,
+      refusal: 'NOTHING_TO_MOVE',
+      ...nothing,
+      says:
+        'The order nets to nothing, so there is no balance to move. It can be closed ' +
+        'without a settlement posting — two rows moving zero would be noise in the ' +
+        'ledger for ever.',
+    }
+  }
+
+  const to = i.settlesToName ?? i.settlesToCode
+  const direction = balance > 0 ? 'a surplus' : 'a shortfall'
+
+  return {
+    ok: true,
+    refusal: null,
+    balanceCents: balance,
+    postedAt: i.closingOn,
+    postings: [
+      {
+        kind: 'SETTLEMENT',
+        amountCents: -balance,
+        leg: 'OUT_OF_ORDER',
+        says: `${money(Math.abs(balance))} ${direction} settled out to ${to}.`,
+      },
+      {
+        kind: 'SETTLEMENT',
+        amountCents: balance,
+        leg: 'INTO_COST_CENTRE',
+        says: `${money(Math.abs(balance))} ${direction} received from this order.`,
+      },
+    ],
+    says:
+      `${money(Math.abs(balance))} ${direction}, moving to ${to} and dated ` +
+      `${i.closingOn.toISOString().slice(0, 10)} — the period being closed, not the day ` +
+      `somebody ran it. Two postings, equal and opposite, so nothing is created or ` +
+      `destroyed on the way.`,
+  }
+}
+
+/** A settlement pair is only well formed when it nets to nothing. */
+export function settlementBalances(postings: SettlementPosting[]): boolean {
+  return postings.length === 2 && postings.reduce((n, p) => n + p.amountCents, 0) === 0
+}
+
+export type PostingIntent = 'NEW_WORK' | 'CORRECTION'
+
+export interface PostingPermission {
+  allowed: boolean
+  says: string
+}
+
+/**
+ * Whether a posting may be written given the order's state.
+ *
+ * The three states in one place, so the route, the screen and the writer
+ * cannot disagree about what LOCKED means.
+ */
+export function mayPostTo(status: OrderStatus, intent: PostingIntent): PostingPermission {
+  if (status === 'OPEN') {
+    return { allowed: true, says: 'The order is open.' }
+  }
+  if (status === 'LOCKED') {
+    return intent === 'CORRECTION'
+      ? {
+          allowed: true,
+          says:
+            'The order is locked for new work and still takes corrections. Books close on ' +
+            'the 5th and corrections to the month just closed keep arriving for a ' +
+            'fortnight — that is the state a finance team actually operates in.',
+        }
+      : {
+          allowed: false,
+          says:
+            'This order is locked. New work does not post to a closed month; post it to ' +
+            'the current one, or reopen the period deliberately if the work genuinely ' +
+            'belongs there.',
+        }
+  }
+  return {
+    allowed: false,
+    says:
+      `This order is ${status.toLowerCase()}. Its balance has already moved out to a cost ` +
+      `centre, so a posting here would change a period that has left the building. Post ` +
+      `the correction to an open order instead.`,
+  }
+}
+
+

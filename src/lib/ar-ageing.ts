@@ -1060,6 +1060,779 @@ export function openInvoiceIds(book: CurrencyBook): Set<string> {
   return new Set(book.invoices.filter((a) => a.outstandingMinor > 0).map((a) => a.id))
 }
 
+// ═════════════════════════════════════════════════════════════════════
+// CASH APPLICATION — the receipt that names nothing
+// ═════════════════════════════════════════════════════════════════════
+//
+// Money hits the bank with a reference nobody recognises, or a client
+// pays four invoices in one wire. Every AR screen in this industry is
+// built around the invoice, so a receipt keyed against nothing is simply
+// invisible — it sits on a bank statement and in no figure anywhere.
+//
+// Money you have and cannot count is a different and worse problem from
+// money you are owed, because it looks like neither. So an orphan receipt
+// is a first-class record with its own queue, and the queue shows the
+// three things a person actually matches by hand: who sent it, how much,
+// and when it landed.
+
+export interface Receipt {
+  id: string
+  /** Who sent it, where that is known. Null is ordinary on a wire. */
+  payerCompanyId: string | null
+  payerName: string | null
+  currency: string
+  amountMinor: number
+  receivedAt: Date
+  /** Their reference off the bank statement, where there is one. */
+  reference: string | null
+  /** Set once somebody decided which invoice it belongs to. */
+  appliedToInvoiceId: string | null
+  appliedAt: Date | null
+}
+
+export interface UnappliedCash {
+  currency: string
+  /** Receipts nobody has placed, newest first. */
+  receipts: Receipt[]
+  totalMinor: number
+  /** The oldest one, in days. Null when the queue is empty. */
+  oldestDays: number | null
+  says: string
+}
+
+/**
+ * Cash we hold and cannot count, one book per currency.
+ *
+ * Deliberately NOT netted against what we are owed. A receipt of £9,000
+ * and a debt of £9,000 are not a settled account until somebody says they
+ * are the same £9,000 — and where they are not, netting them hides both.
+ */
+export function unappliedCash(receipts: Receipt[], now: Date): UnappliedCash[] {
+  const open = receipts.filter((r) => r.appliedToInvoiceId == null)
+
+  const byCurrency = new Map<string, Receipt[]>()
+  for (const r of open) {
+    const key = r.currency.toUpperCase()
+    byCurrency.set(key, [...(byCurrency.get(key) ?? []), r])
+  }
+
+  return [...byCurrency.entries()]
+    .map(([currency, theirs]) => {
+      const sorted = [...theirs].sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())
+      const total = sorted.reduce((n, r) => n + r.amountMinor, 0)
+      const oldest = sorted.length
+        ? Math.max(...sorted.map((r) => Math.floor((now.getTime() - r.receivedAt.getTime()) / DAY)))
+        : null
+
+      const unknownPayer = sorted.filter((r) => !r.payerCompanyId).length
+
+      return {
+        currency,
+        receipts: sorted,
+        totalMinor: total,
+        oldestDays: oldest,
+        says:
+          `${sorted.length} receipt${sorted.length === 1 ? '' : 's'} arrived and ` +
+          `${sorted.length === 1 ? 'was' : 'were'} never placed against an invoice` +
+          (oldest != null ? `, the oldest ${oldest} day${oldest === 1 ? '' : 's'} ago` : '') +
+          `. ` +
+          (unknownPayer > 0
+            ? `${unknownPayer} of them do not even say who sent the money. `
+            : '') +
+          `This is not netted against what you are owed — until somebody says these are ` +
+          `the same money, they are two separate facts.`,
+      }
+    })
+    .sort((a, b) => b.totalMinor - a.totalMinor)
+}
+
+export type ApplyRefusal =
+  | 'ALREADY_APPLIED'
+  | 'CURRENCY_MISMATCH'
+  | 'INVOICE_SETTLED'
+  | 'MORE_THAN_OWED'
+  | 'NOT_POSITIVE'
+
+export interface ApplyVerdict {
+  ok: boolean
+  refusal: ApplyRefusal | null
+  /** How much of the receipt actually lands on this invoice. */
+  appliedMinor: number
+  /** What remains on the receipt afterwards, for a second application. */
+  leftOverMinor: number
+  /** What the invoice still owes afterwards. */
+  invoiceOwesAfterMinor: number
+  says: string
+}
+
+/**
+ * Placing one receipt on one invoice.
+ *
+ * ── Why an overpayment is refused rather than absorbed ───────────────
+ *
+ * Applying £10,000 to a £6,000 invoice and calling the invoice paid loses
+ * £4,000: the invoice reads settled, the receipt reads used, and the
+ * excess exists nowhere. So a receipt bigger than the debt is refused,
+ * with the split it would have to be made into said out loud. Somebody
+ * records two applications, and both invoices are right.
+ *
+ * A part application is fine and ordinary — one wire covering four
+ * invoices is exactly the case this queue exists for.
+ */
+export function applyReceipt(
+  receipt: Pick<Receipt, 'currency' | 'amountMinor' | 'appliedToInvoiceId'>,
+  invoice: Pick<ArInvoice, 'number' | 'currency' | 'totalMinor' | 'paidMinor'>
+): ApplyVerdict {
+  const owed = Math.max(0, invoice.totalMinor - invoice.paidMinor)
+  const nothing = { appliedMinor: 0, leftOverMinor: receipt.amountMinor, invoiceOwesAfterMinor: owed }
+
+  if (receipt.appliedToInvoiceId) {
+    return {
+      ok: false,
+      refusal: 'ALREADY_APPLIED',
+      ...nothing,
+      says:
+        'This receipt has already been placed. Applying it a second time would credit the ' +
+        'same money twice, which reads as a client who has paid and has not.',
+    }
+  }
+
+  if (receipt.amountMinor <= 0) {
+    return {
+      ok: false,
+      refusal: 'NOT_POSITIVE',
+      ...nothing,
+      says: 'A receipt is money arriving. Nothing here to place.',
+    }
+  }
+
+  if (receipt.currency.toUpperCase() !== invoice.currency.toUpperCase()) {
+    return {
+      ok: false,
+      refusal: 'CURRENCY_MISMATCH',
+      ...nothing,
+      says:
+        `The receipt is in ${receipt.currency.toUpperCase()} and ${invoice.number} is in ` +
+        `${invoice.currency.toUpperCase()}. Converting one to place it on the other would ` +
+        `bury an exchange rate inside a payment, where nobody would ever find it.`,
+    }
+  }
+
+  if (owed <= 0) {
+    return {
+      ok: false,
+      refusal: 'INVOICE_SETTLED',
+      ...nothing,
+      says: `${invoice.number} is already settled. Placing more cash on it would create an overpayment where there is none.`,
+    }
+  }
+
+  if (receipt.amountMinor > owed) {
+    return {
+      ok: false,
+      refusal: 'MORE_THAN_OWED',
+      appliedMinor: 0,
+      leftOverMinor: receipt.amountMinor,
+      invoiceOwesAfterMinor: owed,
+      says:
+        `${invoice.number} is owed ${minor(owed)} and this receipt is ${minor(receipt.amountMinor)}. ` +
+        `Placing all of it would mark the invoice paid and lose the extra ` +
+        `${minor(receipt.amountMinor - owed)} — it would exist on no record. Split the ` +
+        `receipt: ${minor(owed)} here and ${minor(receipt.amountMinor - owed)} left to place.`,
+    }
+  }
+
+  return {
+    ok: true,
+    refusal: null,
+    appliedMinor: receipt.amountMinor,
+    leftOverMinor: 0,
+    invoiceOwesAfterMinor: owed - receipt.amountMinor,
+    says:
+      receipt.amountMinor === owed
+        ? `${invoice.number} settled in full.`
+        : `${minor(receipt.amountMinor)} placed against ${invoice.number}. ` +
+          `${minor(owed - receipt.amountMinor)} still owed on it.`,
+  }
+}
+
+/** Minor units as a bare figure. The currency is said by the caller. */
+function minor(n: number): string {
+  return (n / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// CREDIT NOTES — the argument that ends in a document
+// ═════════════════════════════════════════════════════════════════════
+//
+// A short payment is a client deciding not to pay part of an invoice. A
+// credit note is us agreeing with them. They are the same argument at two
+// stages, which is why they belong in one view: chasing a client for
+// money you have already agreed to credit is the fastest way to lose an
+// account you had just finished repairing.
+//
+// ── Why the reason is coded and not typed ────────────────────────────
+//
+// A free-text reason is unreadable in aggregate, and the question a
+// finance director asks is never about one credit note. It is "how much
+// did we credit last quarter and why" — and that question has no answer
+// at all unless the reasons are a short closed list. The escape hatch
+// exists, and it demands a sentence: a code of OTHER with no note is the
+// free-text field back again.
+
+export const CREDIT_REASONS = [
+  'RATE_WRONG',
+  'HOURS_DISPUTED',
+  'WORK_REJECTED',
+  'DUPLICATE_BILLING',
+  'GOODWILL',
+  'CONTRACT_TERMS',
+  'OTHER_SAY_WHY',
+] as const
+
+export type CreditReason = (typeof CREDIT_REASONS)[number]
+
+export const CREDIT_REASON_LABEL: Record<CreditReason, string> = {
+  RATE_WRONG: 'Billed at the wrong rate',
+  HOURS_DISPUTED: 'Hours the client did not accept',
+  WORK_REJECTED: 'Work rejected',
+  DUPLICATE_BILLING: 'Billed twice',
+  GOODWILL: 'Goodwill',
+  CONTRACT_TERMS: 'A term of the contract we had not applied',
+  OTHER_SAY_WHY: 'Something else — say what',
+}
+
+/**
+ * Reasons that say something about how we bill, rather than about one
+ * client. These are the ones worth counting: a quarter of RATE_WRONG
+ * credits is a contract-amendment process that is not working.
+ */
+export const PROCESS_FAULT_REASONS: CreditReason[] = [
+  'RATE_WRONG',
+  'DUPLICATE_BILLING',
+  'CONTRACT_TERMS',
+]
+
+export interface CreditNoteInput {
+  reasonCode: string
+  note?: string | null
+  /** Minor units. */
+  amountMinor: number
+  /** The invoice being credited. */
+  invoiceTotalMinor: number
+  /** Already credited against it by earlier notes. */
+  alreadyCreditedMinor: number
+}
+
+export interface CreditNoteVerdict {
+  ok: boolean
+  reasonCode: CreditReason | null
+  problems: string[]
+  says: string
+}
+
+/**
+ * Whether a proposed credit note may be written.
+ *
+ * Three refusals, each for a different kind of wrong:
+ *
+ *   an unrecognised code, because the aggregate question dies without one;
+ *   OTHER with no sentence, because that is free text wearing a code;
+ *   more credit than there was invoice, because a credit note is a
+ *   reduction of a debt and not a payment to a client. Refunding somebody
+ *   is a different act, with different authority behind it.
+ */
+export function checkCreditNote(i: CreditNoteInput): CreditNoteVerdict {
+  const problems: string[] = []
+  const code = CREDIT_REASONS.includes(i.reasonCode as CreditReason)
+    ? (i.reasonCode as CreditReason)
+    : null
+
+  if (!code) {
+    problems.push(
+      `"${i.reasonCode}" is not one of the reasons. Pick from ${CREDIT_REASONS.join(', ')} — ` +
+        `a free-text reason cannot answer "how much did we credit last quarter, and why".`
+    )
+  }
+
+  if (code === 'OTHER_SAY_WHY' && (!i.note || i.note.trim().length < 10)) {
+    problems.push(
+      'A reason of "something else" needs a sentence saying what. Without one it is the ' +
+        'free-text field back again, and the whole list stops meaning anything.'
+    )
+  }
+
+  if (i.amountMinor <= 0) {
+    problems.push('A credit note is for a positive amount.')
+  }
+
+  const room = i.invoiceTotalMinor - i.alreadyCreditedMinor
+  if (i.amountMinor > room) {
+    problems.push(
+      `That is more than is left on the invoice. It is for ${minor(i.invoiceTotalMinor)}, ` +
+        `${minor(i.alreadyCreditedMinor)} has already been credited, and ${minor(room)} ` +
+        `remains. A credit note reduces a debt; paying money back to a client is a refund, ` +
+        `which is a different act with different authority behind it.`
+    )
+  }
+
+  return {
+    ok: problems.length === 0,
+    reasonCode: code,
+    problems,
+    says:
+      problems.length === 0
+        ? `${minor(i.amountMinor)} credited — ${CREDIT_REASON_LABEL[code!].toLowerCase()}.`
+        : problems[0],
+  }
+}
+
+export interface AppliedCredit {
+  invoiceId: string
+  amountMinor: number
+  currency: string
+  reasonCode: string
+  /** Null until it is posted to the books. Unapplied credits do not reduce a debt. */
+  appliedAt: Date | null
+}
+
+/**
+ * What each invoice has been credited, counting only applied notes.
+ *
+ * An issued-but-unapplied credit note is a promise somebody has made and
+ * not yet posted. Reducing the receivable on it would show a debt as
+ * smaller than the ledger says, which is the one direction an AR figure
+ * must never be wrong in.
+ */
+export function creditsByInvoice(credits: AppliedCredit[]): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const c of credits) {
+    if (c.appliedAt == null) continue
+    out.set(c.invoiceId, (out.get(c.invoiceId) ?? 0) + Math.max(0, c.amountMinor))
+  }
+  return out
+}
+
+/**
+ * The invoice as it stands after credits.
+ *
+ * Applied as a reduction of the TOTAL rather than an addition to the
+ * paid amount, because those are two different facts: the client has not
+ * paid the credited part, we have agreed they never will. Adding it to
+ * `paid` would report cash that never arrived.
+ */
+export function netOfCredits(inv: ArInvoice, creditedMinor: number): ArInvoice {
+  const credited = Math.max(0, Math.min(creditedMinor, inv.totalMinor))
+  if (credited === 0) return inv
+  return { ...inv, totalMinor: inv.totalMinor - credited }
+}
+
+export interface DisputeRow {
+  kind: 'SHORT_PAID' | 'CREDIT_NOTE'
+  invoiceId: string
+  invoiceNumber: string
+  customerName: string
+  currency: string
+  /** The amount in argument, minor units. */
+  amountMinor: number
+  /** Coded where there is a credit note; null on a bare short payment. */
+  reasonCode: string | null
+  /** Days the argument has been running. */
+  ageDays: number
+  says: string
+}
+
+/**
+ * Short payments and credit notes in one list.
+ *
+ * They are the same argument at two stages. A screen that shows only one
+ * of them lets somebody chase a client for money the account manager has
+ * already agreed to credit.
+ */
+export function disputesView(
+  shortPaid: AgedInvoice[],
+  credits: (AppliedCredit & {
+    invoiceNumber: string
+    customerName: string
+    issuedAt: Date
+    note?: string | null
+  })[],
+  now: Date
+): DisputeRow[] {
+  const rows: DisputeRow[] = []
+
+  for (const a of shortPaid) {
+    rows.push({
+      kind: 'SHORT_PAID',
+      invoiceId: a.id,
+      invoiceNumber: a.number,
+      customerName: a.customerName,
+      currency: a.currency,
+      amountMinor: a.outstandingMinor,
+      reasonCode: null,
+      ageDays: Math.max(0, a.daysOverdue),
+      says:
+        `${a.customerName} paid and stopped short by ${minor(a.outstandingMinor)}. Nobody ` +
+        `has said why yet — until somebody asks, this is neither a debt nor a credit.`,
+    })
+  }
+
+  for (const c of credits) {
+    rows.push({
+      kind: 'CREDIT_NOTE',
+      invoiceId: c.invoiceId,
+      invoiceNumber: c.invoiceNumber,
+      customerName: c.customerName,
+      currency: c.currency,
+      amountMinor: c.amountMinor,
+      reasonCode: c.reasonCode,
+      ageDays: Math.max(0, Math.floor((now.getTime() - c.issuedAt.getTime()) / DAY)),
+      says:
+        `${minor(c.amountMinor)} credited on ${c.invoiceNumber} — ` +
+        `${CREDIT_REASON_LABEL[c.reasonCode as CreditReason] ?? c.reasonCode}` +
+        (c.appliedAt ? '.' : ', issued and not yet posted, so it does not reduce the debt yet.'),
+    })
+  }
+
+  return rows.sort((a, b) => b.amountMinor - a.amountMinor)
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// COLLECTIONS — what happens after the ladder runs out
+// ═════════════════════════════════════════════════════════════════════
+//
+// The dunning ladder above stops at ESCALATED and hands to a person. That
+// is correct and it is not the end of the process — it is the beginning
+// of the part with money in it. What follows is not more letters:
+//
+//   somebody OWNS the debt, by name;
+//   they get a PROMISE with a date on it;
+//   the promise is kept, or it is broken and that is a fact;
+//   at some point the recommendation is to STOP WORKING;
+//   and eventually somebody decides to SELL it or WRITE IT OFF.
+//
+// ── Why stopping work is recommended and never done ──────────────────
+//
+// There are people on site. Pulling four contractors off a client to
+// protect a receivable ends the account, and the consultants are on
+// contracts of their own that keep paying either way. That is a decision
+// for a director with the whole picture, and a system that took it
+// automatically would be switched off within a month.
+
+export type CollectionStage =
+  /** The automated ladder still has rungs left. */
+  | 'IN_LADDER'
+  /**
+   * The ladder has run out and nobody has taken it.
+   *
+   * The state this whole section exists for. A debt that reaches the end
+   * of an automated process and is owned by nobody is not being collected
+   * — it is being aged, quietly, by a system that has stopped talking.
+   */
+  | 'UNOWNED'
+  /** A named person owns it. */
+  | 'OWNED'
+  /** They said they would pay, by a date that has not passed. */
+  | 'PROMISED'
+  /** That date passed and no money came. */
+  | 'PROMISE_BROKEN'
+  /** Enough is at risk that continuing to work is a decision, not a default. */
+  | 'STOP_WORK_ADVISED'
+  /** Sold to a factor or handed to a solicitor. */
+  | 'PLACED'
+  /** Given up on, with a reason and a name. */
+  | 'WRITTEN_OFF'
+
+/**
+ * A promise somebody at the client actually made.
+ *
+ * The date is the whole object. "They said they will pay" with no date is
+ * not a promise, it is a way of postponing a phone call, and it is the
+ * commonest thing an unstructured collections process records.
+ */
+export interface PromiseToPay {
+  /** Minor units they said they would pay. */
+  amountMinor: number
+  promisedFor: Date
+  /** Who at the client said it. */
+  by: string
+  madeAt: Date
+}
+
+export interface CollectionCase {
+  customerId: string
+  customerName: string
+  currency: string
+  /** What is actually overdue, net of credits. */
+  overdueMinor: number
+  oldestDaysOverdue: number
+  /** Short payments — an argument, not arrears. Excluded from the chase. */
+  disputedMinor: number
+  /** Everything at stake if they stop paying, including work not yet done. */
+  exposureMinor: number
+  /** Rungs of the automated ladder already climbed. */
+  laddersSent: readonly DunningStep[]
+  /** Null until somebody takes it. */
+  ownerName: string | null
+  /** The live promise, where there is one. */
+  promise: PromiseToPay | null
+  /** How many promises have already been broken on this account. */
+  brokenPromises: number
+}
+
+export interface CollectionVerdict {
+  stage: CollectionStage
+  /** What the next move is, in the imperative. */
+  action: string
+  /** True where nothing automated should go out. */
+  silenceTheLadder: boolean
+  /** Never true unless a person has been named. */
+  hasOwner: boolean
+  /** Recommended, never applied. */
+  recommendStopWork: boolean
+  /** Whether this debt could be sold, and why or why not. */
+  factorable: { ok: boolean; says: string }
+  says: string
+}
+
+/**
+ * The share of exposure at which continuing to work is a decision.
+ *
+ * Half. Below that a slow client is a cash-flow problem; above it, every
+ * further week of work is being given to somebody who has stopped paying
+ * for the last lot, and the firm is lending money it has not agreed to
+ * lend. The number is a threshold and not a law, which is why it produces
+ * a recommendation with the arithmetic shown.
+ */
+export const STOP_WORK_SHARE_BPS = 5_000
+
+/** Two broken promises is a pattern rather than a mishap. */
+export const BROKEN_PROMISES_BEFORE_STOP = 2
+
+export function collectionStage(c: CollectionCase, now: Date): CollectionVerdict {
+  const factorable = canFactor(c)
+
+  const overdueShareBps =
+    c.exposureMinor > 0 ? Math.round((c.overdueMinor / c.exposureMinor) * 10_000) : 0
+  const stopWork =
+    c.overdueMinor > 0 &&
+    (overdueShareBps >= STOP_WORK_SHARE_BPS || c.brokenPromises >= BROKEN_PROMISES_BEFORE_STOP)
+
+  // A live promise silences everything. Chasing somebody between the day
+  // they promised and the day they promised for is how a person who was
+  // going to pay decides you are not worth dealing with.
+  if (c.promise && c.promise.promisedFor.getTime() >= now.getTime()) {
+    const days = Math.ceil((c.promise.promisedFor.getTime() - now.getTime()) / DAY)
+    return {
+      stage: 'PROMISED',
+      action: `Wait. ${c.promise.by} promised ${minor(c.promise.amountMinor)} by ${iso(c.promise.promisedFor)}.`,
+      silenceTheLadder: true,
+      hasOwner: c.ownerName != null,
+      recommendStopWork: false,
+      factorable,
+      says:
+        `${c.promise.by} at ${c.customerName} committed to ${minor(c.promise.amountMinor)} in ` +
+        `${days} day${days === 1 ? '' : 's'}. Nothing goes out until that date — chasing ` +
+        `somebody between the promise and the date is how a client who was going to pay ` +
+        `decides you are not worth dealing with.`,
+    }
+  }
+
+  if (c.promise && c.promise.promisedFor.getTime() < now.getTime()) {
+    const late = Math.floor((now.getTime() - c.promise.promisedFor.getTime()) / DAY)
+    return {
+      stage: 'PROMISE_BROKEN',
+      action: `Call ${c.promise.by}. The ${iso(c.promise.promisedFor)} promise is ${late} day${late === 1 ? '' : 's'} past.`,
+      silenceTheLadder: true,
+      hasOwner: c.ownerName != null,
+      recommendStopWork: stopWork,
+      factorable,
+      says:
+        `${c.promise.by} promised ${minor(c.promise.amountMinor)} by ` +
+        `${iso(c.promise.promisedFor)} and it has not arrived. That is a fact about the ` +
+        `account rather than a missed email, and it is ${c.brokenPromises + 1} of them. ` +
+        (stopWork
+          ? `Continuing to work here is now a decision somebody should take deliberately.`
+          : `The next promise is worth getting in writing.`),
+    }
+  }
+
+  if (stopWork) {
+    return {
+      stage: 'STOP_WORK_ADVISED',
+      action: 'Take a decision on whether to keep working here.',
+      silenceTheLadder: true,
+      hasOwner: c.ownerName != null,
+      recommendStopWork: true,
+      factorable,
+      says:
+        `${minor(c.overdueMinor)} is overdue against ${minor(c.exposureMinor)} of total ` +
+        `exposure — ${Math.round(overdueShareBps / 100)}% of everything at stake here. ` +
+        `Every further week is work given to somebody who has not paid for the last lot. ` +
+        `This is a recommendation and nothing more: there are people on site, pulling them ` +
+        `ends the account, and they are on contracts that keep paying either way.`,
+    }
+  }
+
+  if (c.ownerName) {
+    return {
+      stage: 'OWNED',
+      action: `${c.ownerName} owns this. Get a date.`,
+      silenceTheLadder: true,
+      hasOwner: true,
+      recommendStopWork: false,
+      factorable,
+      says:
+        `${c.ownerName} has this account. Nothing automated goes out while a person owns ` +
+        `it — two voices on the same debt is how a client learns to answer neither. The ` +
+        `next thing worth having is a date, from somebody who can authorise the payment.`,
+    }
+  }
+
+  if (c.laddersSent.includes('ESCALATED')) {
+    return {
+      stage: 'UNOWNED',
+      action: 'Name somebody to own this.',
+      silenceTheLadder: true,
+      hasOwner: false,
+      recommendStopWork: false,
+      factorable,
+      says:
+        `The last automated letter has gone and nobody has taken this on. ` +
+        `${minor(c.overdueMinor)} is overdue at ${c.customerName} and the system has ` +
+        `stopped talking — which means the debt is not being collected, it is being aged. ` +
+        `Put a name against it.`,
+    }
+  }
+
+  return {
+    stage: 'IN_LADDER',
+    action: 'The automated ladder still has rungs. Let it run.',
+    silenceTheLadder: false,
+    hasOwner: false,
+    recommendStopWork: false,
+    factorable,
+    says:
+      `${c.oldestDaysOverdue} days on the oldest invoice and the ladder has not finished. ` +
+      `Most late invoices are late because they were never entered, and a letter still ` +
+      `fixes that.`,
+  }
+}
+
+/**
+ * Whether this debt could be sold, and the honest reason if not.
+ *
+ * A factor buys an undisputed receivable at a discount. They will not buy
+ * an argument: where any part of the balance is short paid or credited,
+ * the amount is not agreed, and a factor's first act is to verify it with
+ * the customer — which turns a quiet dispute into a formal one.
+ */
+export function canFactor(c: Pick<CollectionCase, 'overdueMinor' | 'disputedMinor' | 'oldestDaysOverdue'>): {
+  ok: boolean
+  says: string
+} {
+  if (c.overdueMinor <= 0) {
+    return { ok: false, says: 'Nothing overdue to sell.' }
+  }
+  if (c.disputedMinor > 0) {
+    return {
+      ok: false,
+      says:
+        `${minor(c.disputedMinor)} of this is in dispute. A factor buys an undisputed ` +
+        `receivable — their first act is to verify the balance with the customer, which ` +
+        `turns a quiet argument into a formal one. Settle the dispute first.`,
+    }
+  }
+  if (c.oldestDaysOverdue > 120) {
+    return {
+      ok: false,
+      says:
+        `The oldest of this is ${c.oldestDaysOverdue} days out. Past about four months a ` +
+        `factor prices it as collection work rather than as an advance, and the discount ` +
+        `stops being worth it.`,
+    }
+  }
+  return {
+    ok: true,
+    says:
+      `Undisputed and ${c.oldestDaysOverdue} days out. This is the shape a factor will ` +
+      `advance against — worth comparing the discount to the cost of waiting.`,
+  }
+}
+
+export type WriteOffReason =
+  | 'CUSTOMER_INSOLVENT'
+  | 'UNECONOMIC_TO_PURSUE'
+  | 'SETTLED_FOR_LESS'
+  | 'DISPUTE_CONCEDED'
+  | 'TIME_BARRED'
+
+export const WRITE_OFF_LABEL: Record<WriteOffReason, string> = {
+  CUSTOMER_INSOLVENT: 'The customer has gone under',
+  UNECONOMIC_TO_PURSUE: 'Costs more to chase than it is worth',
+  SETTLED_FOR_LESS: 'Settled for less than the invoice',
+  DISPUTE_CONCEDED: 'We conceded the argument',
+  TIME_BARRED: 'Out of time to sue for it',
+}
+
+export interface WriteOffProposal {
+  amountMinor: number
+  reason: string
+  note?: string | null
+  byPersonId?: string | null
+}
+
+/**
+ * Whether a write-off may be recorded.
+ *
+ * A debt that disappears without a name and a reason is the single worst
+ * thing that can happen in a receivable ledger, because it is
+ * indistinguishable from a fraud and from a mistake. So both are
+ * required, and UNECONOMIC_TO_PURSUE additionally has to say what was
+ * tried — it is the reason people reach for when they mean "I gave up".
+ */
+export function checkWriteOff(p: WriteOffProposal): { ok: boolean; problems: string[]; says: string } {
+  const problems: string[] = []
+  const reason = (Object.keys(WRITE_OFF_LABEL) as WriteOffReason[]).includes(p.reason as WriteOffReason)
+    ? (p.reason as WriteOffReason)
+    : null
+
+  if (!reason) {
+    problems.push(
+      `"${p.reason}" is not a write-off reason. Pick from ` +
+        `${Object.keys(WRITE_OFF_LABEL).join(', ')}.`
+    )
+  }
+  if (!p.byPersonId) {
+    problems.push(
+      'A write-off carries a name. A debt that disappears with nobody against it is ' +
+        'indistinguishable from a fraud and from a mistake.'
+    )
+  }
+  if (p.amountMinor <= 0) {
+    problems.push('Nothing to write off.')
+  }
+  if (reason === 'UNECONOMIC_TO_PURSUE' && (!p.note || p.note.trim().length < 10)) {
+    problems.push(
+      'Say what was actually tried. "Uneconomic to pursue" is the reason people reach for ' +
+        'when they mean they gave up, and in six months nobody can tell the two apart.'
+    )
+  }
+
+  return {
+    ok: problems.length === 0,
+    problems,
+    says:
+      problems.length === 0
+        ? `${minor(p.amountMinor)} written off — ${WRITE_OFF_LABEL[reason!].toLowerCase()}.`
+        : problems[0],
+  }
+}
+
+function iso(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
 /**
  * A dunning run over a whole book: one decision per customer.
  *

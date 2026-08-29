@@ -204,6 +204,8 @@ export default function ProfitabilityPage() {
               </div>
             )}
 
+            <CloseOrder row={r} onDone={load} />
+
             {r.months.length > 0 && (
               <div className="mt-3 overflow-x-auto border-t border-etyme-rule pt-3">
                 <p className="stat-label">By month</p>
@@ -306,6 +308,158 @@ export default function ProfitabilityPage() {
           </p>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Settlement and close ─────────────────────────────────────────────
+//
+// An order is a temporary pot. It opens when work starts, it accumulates,
+// and at the end its balance has to go somewhere — because a project that
+// has finished should not still be carrying a result nobody owns.
+//
+// Three states and they are not decoration. OPEN takes everything.
+// LOCKED takes corrections and no new work, which is the state a finance
+// team actually operates in for the fortnight after a month end and which
+// most systems make people fake by leaving the period open. SETTLED takes
+// nothing at all, because its balance has left the building.
+//
+// The settlement itself is always a PAIR of postings — the amount out of
+// the order and the same amount into where it went. Writing only the
+// first makes money disappear from the group's books.
+
+function CloseOrder({ row, onDone }: { row: any; onDone: () => void }) {
+  const [busy, setBusy] = useState(false)
+  const [preview, setPreview] = useState<any>(null)
+  const [said, setSaid] = useState<string | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+
+  const status: string = row.status ?? 'OPEN'
+  const settled = status === 'SETTLED' || status === 'CLOSED'
+
+  async function call(body: Record<string, unknown>) {
+    setBusy(true)
+    setFailed(null)
+    try {
+      const res = await fetch('/api/profitability/settle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectOrderId: row.orderId, ...body }),
+      })
+      const b = await res.json()
+      if (!res.ok) throw new Error(b.error?.message ?? `HTTP ${res.status}`)
+      return b.data
+    } catch (e: any) {
+      setFailed(e.message)
+      return null
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-etyme-rule pt-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <span
+          className={`chip ${
+            settled ? 'chip--verified' : status === 'LOCKED' ? 'chip--attention' : 'chip--passive'
+          }`}
+        >
+          {status.toLowerCase()}
+        </span>
+        {row.settlesTo ? (
+          <span className="text-[11px] text-etyme-faint">
+            settles to {row.settlesTo.code} · {row.settlesTo.name}
+          </span>
+        ) : (
+          <span className="text-[11px] text-etyme-attention">
+            no cost centre — this order cannot be settled until one is set
+          </span>
+        )}
+
+        {!settled && (
+          <>
+            <button
+              className="text-[11px] underline"
+              style={{ color: 'var(--color-action)' }}
+              disabled={busy}
+              onClick={async () => {
+                const d = await call({ action: status === 'LOCKED' ? 'unlock' : 'lock' })
+                if (d) {
+                  setSaid(d.note)
+                  onDone()
+                }
+              }}
+            >
+              {status === 'LOCKED' ? 'Reopen the month' : 'Lock the month'}
+            </button>
+
+            {row.settlesTo && (
+              <button
+                className="text-[11px] underline"
+                style={{ color: 'var(--color-action)' }}
+                disabled={busy}
+                onClick={async () => {
+                  const d = await call({ action: 'settle', dryRun: true })
+                  if (d) setPreview(d)
+                }}
+              >
+                Show what settling would do
+              </button>
+            )}
+          </>
+        )}
+
+        {settled && row.settledAt && (
+          <span className="text-[11px] text-etyme-faint tabular-nums">
+            settled {String(row.settledAt).slice(0, 10)}
+          </span>
+        )}
+      </div>
+
+      {preview && (
+        <div className="panel mt-3">
+          <p className="stat-label">Two postings, equal and opposite</p>
+          <p className="mt-2 text-[13px] text-etyme-ink">{preview.note}</p>
+          <ul className="mt-2 space-y-1">
+            {preview.postings.map((p: any) => (
+              <li key={p.leg} className="flex justify-between gap-4 text-[13px]">
+                <span className="text-etyme-muted">{p.says}</span>
+                <span className="tabular-nums text-etyme-ink">{money(p.amountCents)}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-etyme-rule pt-3">
+            <button
+              className="btn-primary"
+              disabled={busy}
+              onClick={async () => {
+                const d = await call({ action: 'settle' })
+                if (d) {
+                  setSaid(d.note)
+                  setPreview(null)
+                  onDone()
+                }
+              }}
+            >
+              Settle it
+            </button>
+            <button
+              className="text-[11px] underline text-etyme-muted"
+              onClick={() => setPreview(null)}
+            >
+              Not yet
+            </button>
+            <span className="text-[11px] text-etyme-faint">
+              Nothing posts here afterwards. A correction goes to an open order rather
+              than changing a period that has already been reported.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {said && <p className="mt-2 text-[11px] text-etyme-muted">{said}</p>}
+      {failed && <p className="mt-2 text-[11px] text-etyme-attention">{failed}</p>}
     </div>
   )
 }

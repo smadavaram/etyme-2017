@@ -65,7 +65,15 @@ export async function GET(request: NextRequest) {
       clientCompanyId: true, clientCompany: { select: { name: true } },
       projectOrderId: true,
       projectOrder: {
-        select: { id: true, code: true, name: true, budgetCents: true, currency: true },
+        select: {
+          id: true, code: true, name: true, budgetCents: true, currency: true,
+          // The close section needs to know where an order stands and
+          // where its balance would go. An order with no cost centre
+          // cannot be settled, and saying so before somebody presses the
+          // button is cheaper than a 422 afterwards.
+          status: true, settledAt: true,
+          settlesTo: { select: { id: true, code: true, name: true } },
+        },
       },
     },
     orderBy: { postedAt: 'asc' },
@@ -134,6 +142,10 @@ export async function GET(request: NextRequest) {
         orderId,
         code: meta.code,
         name: meta.name,
+        currency: meta.currency,
+        status: meta.status,
+        settledAt: meta.settledAt,
+        settlesTo: meta.settlesTo,
         result: resultOf(mine),
         standing: standing(meta.budgetCents, mine),
         people: postingsByPerson(mine),

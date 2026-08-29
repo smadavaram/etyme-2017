@@ -899,3 +899,339 @@ export function mirror(dsoDays: number | null, dpoDays: number | null): Mirror {
       `our own clients are doing to us, one layer down.`,
   }
 }
+
+// ═════════════════════════════════════════════════════════════════════
+// THE PAYMENT RUN — the act that sets the date this file measures
+// ═════════════════════════════════════════════════════════════════════
+//
+// Everything above measures `VendorBill.paidAt`. Nothing set it except a
+// clerk typing a date one bill at a time, which is not how money actually
+// leaves: it leaves in batches, one file to the bank, same currency, same
+// day, one remittance advice per supplier.
+//
+// ── The four rules, and why each one is a refusal and not a warning ──
+//
+// **One currency per run.** A run is a payment file, and a file is
+// denominated. A total across two currencies is a total of nothing, and
+// the place it would be discovered is the bank rejecting the file.
+//
+// **A bill enters one run at a time.** The schema already carries the
+// unique key; this is the same rule expressed where somebody can read it.
+// Paying an invoice twice is not a bug report, it is a phone call from an
+// angry controller.
+//
+// **A disputed bill never enters a run.** Paying something you are
+// arguing about ends the argument in the supplier's favour and cannot be
+// undone by a status change.
+//
+// **The approver is not the creator.** One person who can both assemble
+// and release a payment file is the entire control environment for money
+// leaving the building. This is the oldest segregation of duties there
+// is and the cheapest to enforce.
+//
+// NOTE FOR THE ARCHITECT: this belongs in `src/lib/payment-run.ts`. It is
+// here because `src/lib/domains.ts` maps ownership by an explicit file
+// list and a new top-level lib file has no owner, which fails
+// `__tests__/invariants/domain-ownership.test.ts` on the commit that adds
+// it. Move it when the domain map can take the name.
+
+export type RunStatus = 'DRAFT' | 'APPROVED' | 'PAID' | 'CANCELLED'
+
+export interface PayableBill {
+  id: string
+  /** Their number, which is what goes on the remittance advice. */
+  number: string
+  vendorCompanyId: string
+  vendorName: string
+  currency: string
+  totalCents: number
+  paidCents: number
+  dueAt: Date
+  /** RECEIVED · APPROVED · DISPUTED · PAID · CANCELLED */
+  status: string
+  /** Set where this bill is already in a live run. */
+  inRunId?: string | null
+}
+
+export type ExclusionReason =
+  | 'NOT_APPROVED'
+  | 'DISPUTED'
+  | 'ALREADY_PAID'
+  | 'CANCELLED'
+  | 'ALREADY_IN_A_RUN'
+  | 'NOT_DUE_YET'
+  | 'NOTHING_LEFT'
+
+export interface Excluded {
+  bill: PayableBill
+  reason: ExclusionReason
+  says: string
+}
+
+export interface RunLine {
+  billId: string
+  billNumber: string
+  vendorCompanyId: string
+  vendorName: string
+  amountCents: number
+  dueAt: Date
+}
+
+export interface ProposedRun {
+  currency: string
+  scheduledFor: Date
+  lines: RunLine[]
+  totalCents: number
+  /** One entry per supplier — a supplier gets one advice, not one per bill. */
+  vendors: number
+  excluded: Excluded[]
+  says: string
+}
+
+/**
+ * Which bills go in a run scheduled for a given day.
+ *
+ * Everything approved, unpaid, undisputed, not already in a run, and due
+ * on or before the scheduled date. Everything else is excluded WITH A
+ * REASON — a bill that silently misses a run is a supplier who phones,
+ * and "it was not picked up" is not an answer anybody can act on.
+ */
+export function proposeRun(
+  bills: PayableBill[],
+  currency: string,
+  scheduledFor: Date
+): ProposedRun {
+  const ccy = currency.toUpperCase()
+  const lines: RunLine[] = []
+  const excluded: Excluded[] = []
+
+  for (const b of bills) {
+    // A bill in another currency is not excluded — it is simply not part
+    // of this run, and listing it as a refusal would fill the screen with
+    // noise on a firm that pays in three currencies.
+    if (b.currency.toUpperCase() !== ccy) continue
+
+    const outstanding = b.totalCents - b.paidCents
+
+    const refuse = (reason: ExclusionReason, says: string) =>
+      excluded.push({ bill: b, reason, says })
+
+    if (b.status === 'CANCELLED') {
+      refuse('CANCELLED', `${b.number} is cancelled.`)
+      continue
+    }
+    if (b.status === 'DISPUTED') {
+      refuse(
+        'DISPUTED',
+        `${b.number} is in dispute. Paying something you are arguing about ends the ` +
+          `argument in their favour, and no status change undoes it.`
+      )
+      continue
+    }
+    if (b.status === 'PAID' || outstanding <= 0) {
+      refuse(
+        outstanding <= 0 ? 'NOTHING_LEFT' : 'ALREADY_PAID',
+        `${b.number} has nothing left owing on it.`
+      )
+      continue
+    }
+    if (b.status !== 'APPROVED') {
+      refuse(
+        'NOT_APPROVED',
+        `${b.number} is ${b.status.toLowerCase()} and has not been approved for payment. ` +
+          `A run releases money; it is not the place to decide whether a bill is right.`
+      )
+      continue
+    }
+    if (b.inRunId) {
+      refuse(
+        'ALREADY_IN_A_RUN',
+        `${b.number} is already in another run. Paying the same invoice twice is not a bug ` +
+          `report, it is a phone call from an angry controller.`
+      )
+      continue
+    }
+    if (b.dueAt.getTime() > scheduledFor.getTime()) {
+      refuse(
+        'NOT_DUE_YET',
+        `${b.number} falls due ${iso(b.dueAt)}, after this run pays on ${iso(scheduledFor)}. ` +
+          `Paying early is a decision worth taking on purpose rather than by accident.`
+      )
+      continue
+    }
+
+    lines.push({
+      billId: b.id,
+      billNumber: b.number,
+      vendorCompanyId: b.vendorCompanyId,
+      vendorName: b.vendorName,
+      amountCents: outstanding,
+      dueAt: b.dueAt,
+    })
+  }
+
+  const total = lines.reduce((n, l) => n + l.amountCents, 0)
+  const vendors = new Set(lines.map((l) => l.vendorCompanyId)).size
+
+  return {
+    currency: ccy,
+    scheduledFor,
+    lines: lines.sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime()),
+    totalCents: total,
+    vendors,
+    excluded,
+    says:
+      lines.length === 0
+        ? `Nothing to pay in ${ccy} on ${iso(scheduledFor)}.` +
+          (excluded.length > 0
+            ? ` ${excluded.length} bill${excluded.length === 1 ? '' : 's'} looked at and left out, each with a reason.`
+            : '')
+        : `${lines.length} bill${lines.length === 1 ? '' : 's'} to ${vendors} ` +
+          `supplier${vendors === 1 ? '' : 's'}, ${ccy} ${cents(total)}, paying ` +
+          `${iso(scheduledFor)}.` +
+          (excluded.length > 0
+            ? ` ${excluded.length} left out — see why before releasing.`
+            : ''),
+  }
+}
+
+export interface RemittanceAdvice {
+  vendorCompanyId: string
+  vendorName: string
+  currency: string
+  totalCents: number
+  lines: { billNumber: string; amountCents: number; dueAt: Date }[]
+  /** The text that actually goes to the supplier. */
+  text: string
+}
+
+/**
+ * One advice per supplier, listing every bill it covers.
+ *
+ * A payment with no advice arrives as an unexplained credit, and the
+ * supplier's own AR clerk cannot place it — which is the same unapplied
+ * cash problem this codebase solves on its own receivable side. Sending
+ * one advice per bill is the mirror of sending one dunning letter per
+ * invoice, and it fails for the same reason.
+ */
+export function remittanceAdvice(
+  run: { currency: string; scheduledFor: Date; lines: RunLine[] },
+  payerName: string
+): RemittanceAdvice[] {
+  const byVendor = new Map<string, RunLine[]>()
+  for (const l of run.lines) {
+    byVendor.set(l.vendorCompanyId, [...(byVendor.get(l.vendorCompanyId) ?? []), l])
+  }
+
+  return [...byVendor.entries()]
+    .map(([vendorCompanyId, lines]) => {
+      const total = lines.reduce((n, l) => n + l.amountCents, 0)
+      const listed = lines
+        .map((l) => `  ${l.billNumber}   ${run.currency} ${cents(l.amountCents)}   due ${iso(l.dueAt)}`)
+        .join('\n')
+
+      return {
+        vendorCompanyId,
+        vendorName: lines[0].vendorName,
+        currency: run.currency,
+        totalCents: total,
+        lines: lines.map((l) => ({
+          billNumber: l.billNumber,
+          amountCents: l.amountCents,
+          dueAt: l.dueAt,
+        })),
+        text:
+          `Remittance advice from ${payerName}\n` +
+          `Payment dated ${iso(run.scheduledFor)}\n\n` +
+          `Covering ${lines.length} invoice${lines.length === 1 ? '' : 's'}:\n` +
+          `${listed}\n\n` +
+          `Total ${run.currency} ${cents(total)}\n\n` +
+          `Your own invoice numbers are used above so this can be placed against them ` +
+          `without a phone call.`,
+      }
+    })
+    .sort((a, b) => b.totalCents - a.totalCents)
+}
+
+export interface ApprovalVerdict {
+  ok: boolean
+  says: string
+}
+
+/**
+ * Whether this person may approve this run.
+ *
+ * The creator may not. It is the oldest segregation of duties there is,
+ * and the cheapest to enforce: one person who can both assemble and
+ * release a payment file is the entire control environment for money
+ * leaving the building.
+ */
+export function mayApproveRun(
+  run: { status: string; createdById: string | null },
+  approverPersonId: string
+): ApprovalVerdict {
+  if (run.status !== 'DRAFT') {
+    return {
+      ok: false,
+      says: `This run is ${run.status.toLowerCase()}. Only a draft can be approved.`,
+    }
+  }
+  if (run.createdById && run.createdById === approverPersonId) {
+    return {
+      ok: false,
+      says:
+        'You assembled this run, so you cannot also release it. One person who can do ' +
+        'both is the entire control on money leaving the building — ask somebody else ' +
+        'to approve it.',
+    }
+  }
+  return { ok: true, says: 'Approved by somebody other than whoever assembled it.' }
+}
+
+/**
+ * What marking a run paid does to each bill in it, and nothing else.
+ *
+ * A part-paid bill keeps no paid date, exactly as `PATCH /api/ap/bills`
+ * already decides: the obligation is still open, and dating it now would
+ * report the first instalment as the day the supplier was paid — which is
+ * the figure every float number in this file counts to.
+ */
+export interface PaidOutcome {
+  billId: string
+  paidCentsAfter: number
+  /** Null on a part payment. */
+  paidAt: Date | null
+  status: 'PAID' | 'APPROVED'
+}
+
+export function applyRunPayment(
+  lines: { billId: string; amountCents: number }[],
+  bills: { id: string; totalCents: number; paidCents: number }[],
+  paidAt: Date
+): PaidOutcome[] {
+  const byId = new Map(bills.map((b) => [b.id, b]))
+  const out: PaidOutcome[] = []
+
+  for (const l of lines) {
+    const b = byId.get(l.billId)
+    if (!b) continue
+    const after = b.paidCents + l.amountCents
+    const settled = after >= b.totalCents
+    out.push({
+      billId: b.id,
+      paidCentsAfter: after,
+      paidAt: settled ? paidAt : null,
+      status: settled ? 'PAID' : 'APPROVED',
+    })
+  }
+
+  return out
+}
+
+function iso(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+function cents(n: number): string {
+  return (n / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}

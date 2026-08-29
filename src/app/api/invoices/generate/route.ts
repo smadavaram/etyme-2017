@@ -4,6 +4,11 @@ import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
+import {
+  partnerFunctions, mayConsolidate, selfBilling, taxFor,
+  type Place, type Party,
+} from '@/lib/billing-cascade'
+import { minorPerUnit } from '@/lib/money'
 
 /**
  * POST /api/invoices/generate
@@ -54,6 +59,20 @@ export async function POST(request: NextRequest) {
         where: { state: 'IN_PROGRESS' },
         include: {
           person: { select: { id: true, name: true } },
+          // ── Who is who on the invoice ──────────────────────────────
+          //
+          // A large client signs in one entity, is billed through a
+          // shared services centre in another, and has the work done at a
+          // third site. `Invoice` has carried soldTo, billTo, shipTo and
+          // payer columns since it was written and nothing filled them,
+          // so every invoice went to whoever the agreement named — which
+          // is how an invoice reaches the wrong address and ages ninety
+          // days before anybody notices.
+          clientCompany: { select: { id: true, name: true } },
+          endClientCompany: { select: { id: true, name: true } },
+          workLocation: {
+            select: { id: true, name: true, country: true, state: true, companyId: true },
+          },
         },
       },
     },
@@ -221,8 +240,119 @@ export async function POST(request: NextRequest) {
   }
 
   const lines = Array.from(linesByContract.values())
+
+  // ── Consolidation: contracts may share an invoice, companies may not ──
+  //
+  // One sales order for a five-person project produces five sell
+  // contracts and one invoice a month, which is the ordinary case. What
+  // it may never do is cross a bill-to, a payer or a currency — an
+  // invoice addressed to two companies is a document neither of them will
+  // post, and `currency = lines[0].currency` was quietly asserting they
+  // all matched.
+  const contractById = new Map(engagement.sellContracts.map((sc) => [sc.id, sc]))
+  const consolidation = mayConsolidate(
+    lines.map((l) => {
+      const sc = contractById.get(l.sellContractId)
+      const billTo = sc?.clientCompany ?? engagement.msa.client
+      return {
+        sellContractId: l.sellContractId,
+        billToId: billTo.id,
+        billToName: billTo.name,
+        payerId: billTo.id,
+        currency: l.currency,
+      }
+    })
+  )
+
+  if (!consolidation.ok) {
+    return NextResponse.json(
+      { error: { code: 'CANNOT_CONSOLIDATE', message: consolidation.says } },
+      { status: 422 }
+    )
+  }
+
   const total = lines.reduce((sum, line) => sum + line.amount, 0)
-  const currency = lines[0].currency // consolidated under one currency per invoice
+  const currency = lines[0].currency // one currency per invoice, now checked
+
+  // ── The four parties ────────────────────────────────────────────────
+  const firstContract = contractById.get(lines[0].sellContractId)
+  const agreementClient: Party = {
+    id: engagement.msa.client.id,
+    name: engagement.msa.client.name,
+  }
+  const shipTo: Place | null = firstContract?.workLocation
+    ? {
+        id: firstContract.workLocation.id,
+        name: firstContract.workLocation.name,
+        country: firstContract.workLocation.country,
+        state: firstContract.workLocation.state,
+      }
+    : null
+
+  const partners = partnerFunctions({
+    agreementClient,
+    contract: {
+      // The contract's own paying customer, which is not always the
+      // company that signed the agreement.
+      billTo: firstContract?.clientCompany ?? null,
+      payer: firstContract?.clientCompany ?? null,
+      shipTo,
+    },
+  })
+
+  // ── Self-billing ────────────────────────────────────────────────────
+  //
+  // Some clients and every VMS raise the document themselves from the
+  // hours they approved. Two numbers for one debt means they post one,
+  // ignore the other, and the receipt matches neither — so where they
+  // self-bill we carry THEIR number rather than allocating one of ours.
+  const self = selfBilling({
+    selfBilled: body.selfBilled === true,
+    clientDocumentNumber: body.clientDocumentNumber ? String(body.clientDocumentNumber) : null,
+  })
+  if (self.selfBilled && !self.number) {
+    return NextResponse.json(
+      { error: { code: 'SELF_BILLED', message: self.says, field: 'clientDocumentNumber' } },
+      { status: 422 }
+    )
+  }
+
+  // ── Tax determination ───────────────────────────────────────────────
+  //
+  // The place of supply is where the work was done, which is the ship-to
+  // and nothing else. Where nobody has set one, `taxFor` returns UNKNOWN
+  // and no rate goes anywhere near the invoice — an under-taxed invoice
+  // is a liability that surfaces two years later with interest, and a
+  // plausible zero is the one output nobody ever audits.
+  const vendorSite = await prisma.companyLocation.findFirst({
+    where: { companyId: caller.company!.id },
+    orderBy: [{ isPrimary: 'desc' }],
+    select: { country: true, state: true },
+  })
+  const customerSite = await prisma.companyLocation.findFirst({
+    where: { companyId: partners.billTo.party.id },
+    orderBy: [{ isPrimary: 'desc' }],
+    select: { country: true, state: true },
+  })
+
+  const per = minorPerUnit(currency)
+  const tax = vendorSite
+    ? taxFor({
+        supplier: { country: vendorSite.country, state: vendorSite.state },
+        placeOfPerformance: shipTo ? { country: shipTo.country, state: shipTo.state } : null,
+        customer: customerSite
+          ? { country: customerSite.country, state: customerSite.state }
+          : { country: vendorSite.country },
+        netMinor: Math.round(total * per),
+      })
+    : null
+
+  const taxNote = !vendorSite
+    ? 'No registered location on this company, so no place of supply can be established ' +
+      'and no tax is determined. Set a primary location before billing across a border.'
+    : tax?.outcome === 'UNKNOWN'
+      ? tax.says
+      : null
 
   // Payment terms from the first contract (they cascade from MSA)
   // Payment terms run from the end of the period the contract bills, not
@@ -242,7 +372,8 @@ export async function POST(request: NextRequest) {
       const seq = String(existingCount + 1).padStart(3, '0')
       // Use engagement ID fragment for the contract portion
       const engFragment = engagementId.slice(-6).toUpperCase()
-      const number = `IN_${engFragment}_${seq}`
+      // Their number where they self-bill. Never both.
+      const number = self.number ?? `IN_${engFragment}_${seq}`
 
       // Create the invoice
       const invoice = await tx.invoice.create({
@@ -263,11 +394,32 @@ export async function POST(request: NextRequest) {
             billRate: l.billRate,
             totalHours: l.totalHours,
             amount: l.amount,
+            // How the tax was determined at the moment of billing, kept
+            // with the line rather than recomputed later. A rate table
+            // changes; what was charged does not.
+            tax: tax
+              ? {
+                  regime: tax.regime,
+                  outcome: tax.outcome,
+                  rateBps: tax.rateBps,
+                  placeOfSupply: tax.placeOfSupply,
+                  basis: tax.basis,
+                  amountMinor:
+                    tax.rateBps == null
+                      ? null
+                      : Math.round((Math.round(l.amount * per) * tax.rateBps) / 10_000),
+                }
+              : null,
           })),
           currency,
           total,
           dueAt,
           status: 'ISSUED',
+          // The four partner functions, written rather than left null.
+          soldToId: partners.soldTo.party.id,
+          billToId: partners.billTo.party.id,
+          shipToId: partners.shipTo?.party.id ?? null,
+          payerId: partners.payer.party.id,
           // Inherit the PO the work was authorised under. Without it the
           // three-way match has only two records to compare.
           purchaseOrderId: timesheets.find(t => t.sellContract.purchaseOrderId)
@@ -362,6 +514,34 @@ export async function POST(request: NextRequest) {
           lineCount: lines.length,
           timesheetCount: lines.reduce((sum, l) => sum + l.timesheetIds.length, 0),
         },
+        partners: {
+          soldTo: partners.soldTo.party.name,
+          billTo: partners.billTo.party.name,
+          shipTo: partners.shipTo?.party.name ?? null,
+          payer: partners.payer.party.name,
+          split: partners.split,
+          says: partners.says,
+        },
+        consolidation: { count: lines.length, says: consolidation.says },
+        selfBilling: { selfBilled: self.selfBilled, says: self.says },
+        // Determined and shown. It is NOT a queryable field on the
+        // invoice — `Invoice` carries no tax columns, so this lives with
+        // the line detail and is stated here rather than left to be
+        // discovered by whoever files the return.
+        tax: tax
+          ? {
+              regime: tax.regime,
+              outcome: tax.outcome,
+              rateBps: tax.rateBps,
+              taxMinor: tax.taxMinor,
+              grossMinor: tax.grossMinor,
+              placeOfSupply: tax.placeOfSupply,
+              components: tax.components,
+              basis: tax.basis,
+              says: tax.says,
+            }
+          : null,
+        taxNote,
         message: `Invoice ${result.number} generated: $${Number(result.total).toFixed(2)} total`,
       },
     }, { status: 201 })

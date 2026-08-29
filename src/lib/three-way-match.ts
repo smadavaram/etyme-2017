@@ -502,3 +502,348 @@ export function threeWayMatch(input: MatchInput): MatchResult {
 export function decimalToCents(d: { toString(): string }): number {
   return Math.round(parseFloat(d.toString()) * 100)
 }
+
+// ═════════════════════════════════════════════════════════════════════
+// THE SAME CONTROL, POINTED THE OTHER WAY
+// ═════════════════════════════════════════════════════════════════════
+//
+// Everything above matches an invoice we ISSUE. The identical control
+// belongs on the invoices we RECEIVE, and it is the side where the money
+// actually leaves — a wrong sell invoice gets queried by the client, a
+// wrong supplier bill gets paid.
+//
+// The match had forty-two tests and was never called from bill intake, so
+// a sub-vendor could bill hours nobody accepted against a purchase order
+// with no room left and the bill went straight in. The engine existed;
+// nothing asked it anything.
+//
+//   purchase order   what we authorised the supplier to bill
+//   receipt          the hours WE accepted for pay, not the ones the
+//                    client approved — those are two different facts and
+//                    the margin sits between them
+//   bill             what the supplier is asking for
+//
+// The receipt being employer acceptance rather than client approval is
+// the whole reason this is not a copy of the code above. The client
+// approves forty; we accept thirty-eight; the supplier bills forty. That
+// is a real disagreement worth two pounds an hour and it is invisible if
+// the bill is matched against the client's number.
+
+export interface VendorBillFacts {
+  id: string
+  /** Their number, not ours. */
+  number: string
+  totalCents: number
+  currency: string
+  periodStart: Date | null
+  periodEnd: Date | null
+  /** Hours the supplier says they are billing, where the bill says. */
+  hours?: number | null
+  /** The rate the supplier billed at, where the bill says. */
+  rateCents?: number | null
+  /** Set where another bill from this supplier already carries this number. */
+  duplicateOfBillId?: string | null
+}
+
+export interface AcceptedWork {
+  /** Hours WE accepted for pay across the billed period. */
+  hours: number
+  /** The rate the buy contract says we pay. */
+  contractRateCents: number
+  /** The earliest and latest work accepted, for the period test. */
+  firstDay: Date
+  lastDay: Date
+  /** How many separate acceptances make it up. Zero means nothing witnessed. */
+  count: number
+}
+
+export interface VendorBillMatchInput {
+  bill: VendorBillFacts
+  /** Null where no accepted work could be found at all. */
+  accepted: AcceptedWork | null
+  po: PurchaseOrderFacts | null
+  poRequired: boolean
+  overrides?: MatchOverride[]
+}
+
+/**
+ * Match a supplier bill against what we authorised and what we accepted.
+ *
+ * Returns the same `MatchResult` shape as the sell-side match, so one
+ * exception queue and one screen serve both.
+ */
+export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
+  const { bill, accepted, po, poRequired } = input
+  const checks: MatchCheck[] = []
+
+  // ── DUPLICATE — the most expensive AP error there is ──
+  checks.push(
+    bill.duplicateOfBillId
+      ? {
+          code: 'DUPLICATE',
+          outcome: 'FAIL',
+          reason: `${bill.number} is already recorded from this supplier`,
+        }
+      : { code: 'DUPLICATE', outcome: 'PASS', reason: 'No other bill carries this number' }
+  )
+
+  // ── RECEIPT — did anybody here accept this work? ──
+  checks.push(
+    accepted && accepted.count > 0
+      ? {
+          code: 'RECEIPT',
+          outcome: 'PASS',
+          reason: `${accepted.hours}h accepted for pay across ${accepted.count} record(s)`,
+        }
+      : {
+          code: 'RECEIPT',
+          outcome: 'FAIL',
+          reason:
+            'Nothing here accepted any hours for this supplier over this period. The bill ' +
+            'is the only record that the work happened.',
+        }
+  )
+
+  if (accepted && accepted.count > 0) {
+    // ── QUANTITY — what they billed against what we accepted ──
+    if (bill.hours != null) {
+      checks.push(
+        hoursEqual(bill.hours, accepted.hours)
+          ? { code: 'QUANTITY', outcome: 'PASS', reason: 'Billed hours match the hours we accepted' }
+          : {
+              code: 'QUANTITY',
+              outcome: 'FAIL',
+              reason:
+                `Billed ${bill.hours}h, we accepted ${accepted.hours}h. The client's ` +
+                `approval is a different number again — this one is what we agreed to pay for.`,
+            }
+      )
+    }
+
+    // ── PRICE — at the rate the buy contract says ──
+    if (bill.rateCents != null) {
+      checks.push(
+        bill.rateCents === accepted.contractRateCents
+          ? { code: 'PRICE', outcome: 'PASS', reason: 'Billed at the contracted pay rate' }
+          : {
+              code: 'PRICE',
+              outcome: 'FAIL',
+              reason:
+                `Billed ${money(bill.rateCents)}/hr, the buy contract says ` +
+                `${money(accepted.contractRateCents)}/hr`,
+            }
+      )
+    }
+
+    // ── EXTENSION — the arithmetic on the face of the bill ──
+    if (bill.hours != null && bill.rateCents != null) {
+      const expected = Math.round(bill.hours * bill.rateCents)
+      checks.push(
+        Math.abs(expected - bill.totalCents) <= EXTENSION_TOLERANCE_CENTS
+          ? { code: 'EXTENSION', outcome: 'PASS', reason: 'The bill multiplies out correctly' }
+          : {
+              code: 'EXTENSION',
+              outcome: 'FAIL',
+              reason:
+                `${bill.hours}h × ${money(bill.rateCents)} is ${money(expected)}, billed ` +
+                `${money(bill.totalCents)}`,
+            }
+      )
+    }
+
+    // ── PERIOD — overlap, not containment ──
+    if (bill.periodStart && bill.periodEnd) {
+      const outside =
+        accepted.lastDay < bill.periodStart || accepted.firstDay > bill.periodEnd
+      checks.push(
+        outside
+          ? {
+              code: 'PERIOD',
+              outcome: 'FAIL',
+              reason:
+                `The work we accepted runs ${day(accepted.firstDay)} to ` +
+                `${day(accepted.lastDay)}, and the bill covers ${day(bill.periodStart)} to ` +
+                `${day(bill.periodEnd)}. Those do not meet.`,
+            }
+          : { code: 'PERIOD', outcome: 'PASS', reason: 'The accepted work falls in the billed period' }
+      )
+    }
+  }
+
+  // ── The purchase order ──
+  let poAfter: MatchResult['poAfter'] = null
+
+  if (!po) {
+    checks.push(
+      poRequired
+        ? {
+            code: 'PO_REQUIRED',
+            outcome: 'FAIL',
+            reason:
+              'This supplier bills against a purchase order and none is on this bill. ' +
+              'Without one there is no ceiling to draw down and no record of what was ' +
+              'authorised.',
+          }
+        : { code: 'PO_REQUIRED', outcome: 'PASS', reason: 'No purchase order required for this supplier' }
+    )
+  } else {
+    checks.push({ code: 'PO_REQUIRED', outcome: 'PASS', reason: `Raised against PO ${po.number}` })
+
+    const first = accepted?.firstDay ?? bill.periodStart ?? po.startDate
+    const last = accepted?.lastDay ?? bill.periodEnd ?? po.startDate
+    const open = po.status === 'OPEN'
+    const coversStart = first >= po.startDate
+    const coversEnd = po.endDate === null || last <= po.endDate
+
+    checks.push(
+      open && coversStart && coversEnd
+        ? {
+            code: 'PO_STATUS',
+            outcome: 'PASS',
+            reason: `PO ${po.number} is open and covers ${day(first)} to ${day(last)}`,
+          }
+        : {
+            code: 'PO_STATUS',
+            outcome: 'FAIL',
+            reason: !open
+              ? `PO ${po.number} is ${po.status.toLowerCase()}`
+              : !coversStart
+                ? `Work starts ${day(first)}, before PO ${po.number} opens on ${day(po.startDate)}`
+                : `Work runs to ${day(last)}, past PO ${po.number} ending ${day(po.endDate!)}`,
+          }
+    )
+
+    const remainingBefore = po.amountCents - po.consumedCents
+    const remainingAfter = remainingBefore - bill.totalCents
+    checks.push(
+      remainingAfter >= 0
+        ? {
+            code: 'PO_BALANCE',
+            outcome: 'PASS',
+            reason: `${money(remainingAfter)} left on PO ${po.number} after this bill`,
+          }
+        : {
+            code: 'PO_BALANCE',
+            outcome: 'FAIL',
+            reason:
+              `PO ${po.number} has ${money(remainingBefore)} left; this bill is ` +
+              `${money(bill.totalCents)}, over by ${money(-remainingAfter)}`,
+          }
+    )
+
+    poAfter = {
+      remainingCents: remainingAfter,
+      utilisationPercent:
+        po.amountCents === 0
+          ? 0
+          : Math.round(((po.consumedCents + bill.totalCents) / po.amountCents) * 100),
+    }
+  }
+
+  // ── Exceptions, on exactly the same terms as the sell side ──
+  const overrides = input.overrides ?? []
+  for (const check of checks) {
+    check.overridable = OVERRIDABLE[check.code]
+    if (check.outcome !== 'FAIL') continue
+    const waiver = overrides.find((o) => o.code === check.code)
+    if (!waiver) continue
+    if (!OVERRIDABLE[check.code]) continue
+    check.outcome = 'OVERRIDDEN'
+    check.overriddenBy = { name: waiver.byName, reason: waiver.reason, at: waiver.at.toISOString() }
+  }
+
+  const failures = checks.filter((c) => c.outcome === 'FAIL')
+  const waived = checks.filter((c) => c.outcome === 'OVERRIDDEN')
+
+  return {
+    matched: failures.length === 0,
+    cleanMatch: failures.length === 0 && waived.length === 0,
+    checks,
+    summary:
+      failures.length === 0
+        ? waived.length === 0
+          ? `Matched — ${bill.number}, ${money(bill.totalCents)}, every hour accepted here`
+          : `Matched with ${waived.length} exception(s) — ${waived.map((w) => w.code.toLowerCase().replace(/_/g, ' ')).join(', ')}`
+        : failures.length === 1
+          ? failures[0].reason
+          : `${failures.length} checks failed — ${failures[0].reason}`,
+    poAfter,
+  }
+}
+
+// ── The exception queue ───────────────────────────────────────────────
+
+export interface Exception {
+  /** Whatever failed the match — a bill or an invoice. */
+  id: string
+  reference: string
+  counterparty: string
+  currency: string
+  amountCents: number
+  /** Days since it arrived. */
+  ageDays: number
+  result: MatchResult
+  /** Failures that no signature can unlock. */
+  hardFailures: MatchCode[]
+  /** Failures somebody with authority may record an exception against. */
+  waivableFailures: MatchCode[]
+  says: string
+}
+
+/**
+ * Everything that failed, worst first.
+ *
+ * "Worst" is not the largest amount. It is whether anybody can do
+ * anything about it: a duplicate payment or unwitnessed hours cannot be
+ * waived by anyone at any level, so those go to the top regardless of
+ * size. Sorting a control queue by value puts the £40,000 rate query
+ * above the £900 duplicate, and the duplicate is the one that is
+ * definitely wrong.
+ */
+export function exceptionQueue(
+  items: {
+    id: string
+    reference: string
+    counterparty: string
+    currency: string
+    amountCents: number
+    receivedAt: Date
+    result: MatchResult
+  }[],
+  now: Date
+): Exception[] {
+  const DAY = 86_400_000
+
+  return items
+    .filter((i) => !i.result.matched)
+    .map((i) => {
+      const failed = i.result.checks.filter((c) => c.outcome === 'FAIL').map((c) => c.code)
+      const hard = failed.filter((c) => !OVERRIDABLE[c])
+      const soft = failed.filter((c) => OVERRIDABLE[c])
+      return {
+        id: i.id,
+        reference: i.reference,
+        counterparty: i.counterparty,
+        currency: i.currency,
+        amountCents: i.amountCents,
+        ageDays: Math.max(0, Math.floor((now.getTime() - i.receivedAt.getTime()) / DAY)),
+        result: i.result,
+        hardFailures: hard,
+        waivableFailures: soft,
+        says:
+          hard.length > 0
+            ? `${i.result.summary} Nobody can wave this through — ` +
+              `${hard.map((c) => c.toLowerCase().replace(/_/g, ' ')).join(' and ')} ` +
+              `${hard.length === 1 ? 'is' : 'are'} not a judgement call.`
+            : `${i.result.summary} Somebody with authority may record an exception and say why.`,
+      }
+    })
+    .sort((a, b) => {
+      // Unwaivable first, then oldest, then largest.
+      if ((b.hardFailures.length > 0 ? 1 : 0) !== (a.hardFailures.length > 0 ? 1 : 0)) {
+        return (b.hardFailures.length > 0 ? 1 : 0) - (a.hardFailures.length > 0 ? 1 : 0)
+      }
+      if (b.ageDays !== a.ageDays) return b.ageDays - a.ageDays
+      return b.amountCents - a.amountCents
+    })
+}

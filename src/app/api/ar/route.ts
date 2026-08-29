@@ -4,9 +4,9 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
 import {
-  dso, dunningRun, stepsAlreadySent,
+  dso, dunningRun, stepsAlreadySent, unappliedCash,
   type BillingPeriod, type CurrencyBook,
-  type DunningStep, type SentLetter,
+  type DunningStep, type SentLetter, type Receipt,
 } from '@/lib/ar-ageing'
 import { loadBook, openInvoiceIdsAcross } from './book'
 import {
@@ -49,15 +49,19 @@ import {
  *   calendar: a letter suppresses a rung only while an invoice it named
  *   is still open.
  *
- *   **A receipt that matches no invoice is still not read here.**
- *   `Payment.invoiceId` is now nullable, so genuinely unapplied cash is
- *   RECORDABLE — but this route reaches every payment through its
- *   invoice, so a receipt keyed against nothing is invisible to it. What
- *   IS visible is money received against an invoice beyond its total,
- *   and receipts that disagree with the invoice header, both of which
- *   are unapplied cash by another route. The orphan-payment queue is not
- *   built, and the gap is reported rather than left to be discovered by
- *   somebody wondering why the bank balance is larger than the ledger.
+ *   **A receipt that matches no invoice is read here now.**
+ *   `POST /api/ar/payments` records one and `PATCH` places it. This
+ *   route loads them, shows them as their own number, and takes them off
+ *   the paying customer's exposure — money we hold is not money we are
+ *   carrying — without ever netting them into the receivable. A receipt
+ *   that does not say who sent it belongs to nobody's exposure and is
+ *   counted only in the book total, which is reported rather than
+ *   guessed at.
+ *
+ *   **Credit notes come off before anything is aged or chased.** Only
+ *   applied ones: an issued-and-unapplied note is a promise that has not
+ *   reached the books, and reducing a receivable on it would show a debt
+ *   as smaller than the ledger says.
  */
 
 /** Months of billing history the countback DSO is allowed to walk. */
@@ -342,20 +346,62 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // Money in the bank that was never keyed against an invoice is not
-  // reachable from here — every payment on this screen is found through
-  // the invoice it belongs to. Said plainly rather than left to be
-  // discovered when the bank balance and the ledger disagree.
-  const orphanPayments = await prisma.payment.count({
+  // ── Money in the bank that no invoice has claimed ───────────────────
+  //
+  // Every payment reached through an invoice is, by definition, one
+  // somebody has already placed. These are the others: a wire with a
+  // reference nobody recognises, a client paying four invoices at once.
+  // They are read here so the screen can show them as their own number
+  // and take them off exposure — money we hold is not money we are
+  // carrying — without ever netting them into the receivable, which
+  // would hide a debt and a stray receipt in one movement.
+  const orphanRows = await prisma.payment.findMany({
     where: { invoiceId: null, receivedByCompanyId: companyId },
+    select: {
+      id: true, amount: true, currency: true, receivedAt: true, reference: true,
+      payerCompany: { select: { id: true, name: true } },
+    },
+    orderBy: { receivedAt: 'desc' },
+    take: 2_000,
   })
-  if (orphanPayments > 0) {
+
+  const orphanReceipts: Receipt[] = orphanRows.map((r) => ({
+    id: r.id,
+    payerCompanyId: r.payerCompany?.id ?? null,
+    payerName: r.payerCompany?.name ?? null,
+    currency: r.currency,
+    amountMinor: fromPrismaDecimal(r.amount, r.currency).minor,
+    receivedAt: r.receivedAt,
+    reference: r.reference,
+    appliedToInvoiceId: null,
+    appliedAt: null,
+  }))
+
+  const orphanBooks = unappliedCash(orphanReceipts, now)
+
+  // Per (customer, currency), for the exposure figure. A receipt with no
+  // payer on it belongs to nobody's exposure and is counted only in the
+  // book-level total — attributing it to a guess would flatter one
+  // customer's position with money that might be another's.
+  const heldByCustomer = new Map<string, Map<string, number>>()
+  let unattributedMinor = 0
+  for (const r of orphanReceipts) {
+    if (!r.payerCompanyId) {
+      unattributedMinor += r.amountMinor
+      continue
+    }
+    const per = heldByCustomer.get(r.payerCompanyId) ?? new Map<string, number>()
+    const key = r.currency.toUpperCase()
+    per.set(key, (per.get(key) ?? 0) + r.amountMinor)
+    heldByCustomer.set(r.payerCompanyId, per)
+  }
+
+  if (unattributedMinor > 0) {
     gaps.push(
-      `${orphanPayments} payment${orphanPayments === 1 ? '' : 's'} arrived and ` +
-        `${orphanPayments === 1 ? 'was' : 'were'} never keyed against an invoice. ` +
-        `${orphanPayments === 1 ? 'It is' : 'They are'} not in any figure on this screen — ` +
-        `money you have and cannot count is a different problem from money you are owed, ` +
-        `and the queue for placing it is not built yet.`
+      `Some cash on the unapplied queue does not say who sent it, so it is not taken off ` +
+        `any one customer's exposure. It is counted in the book total and shown on the ` +
+        `queue — guessing whose it is would flatter one customer's position with money ` +
+        `that might be another's.`
     )
   }
 
@@ -394,6 +440,10 @@ export async function GET(request: NextRequest) {
         receivableMinor: c.outstandingMinor,
         unbilledMinor: unbilled,
         committed,
+        // Their cash we already hold. Comes off exposure, never off the
+        // receivable — until somebody says these are the same money they
+        // are two separate facts.
+        unappliedCashMinor: heldByCustomer.get(c.customerId)?.get(cb.currency) ?? 0,
       })
 
       const held = limitByCustomer.get(c.customerId) ?? null
@@ -447,7 +497,22 @@ export async function GET(request: NextRequest) {
         id: a.id, number: a.number, customerName: a.customerName,
         unappliedMinor: a.unappliedMinor, lastPaymentAt: a.lastPaymentAt, says: a.says,
       })),
-      unappliedMinor: cb.unappliedMinor,
+      // Receipts that name no invoice at all — a different thing from an
+      // overpayment on one, and the half no AR screen usually shows.
+      orphanReceipts: (orphanBooks.find((b) => b.currency === cb.currency)?.receipts ?? []).map(
+        (r) => ({
+          id: r.id,
+          payerName: r.payerName,
+          amountMinor: r.amountMinor,
+          receivedAt: r.receivedAt,
+          reference: r.reference,
+        })
+      ),
+      orphanMinor: orphanBooks.find((b) => b.currency === cb.currency)?.totalMinor ?? 0,
+      orphanSays: orphanBooks.find((b) => b.currency === cb.currency)?.says ?? null,
+      unappliedMinor:
+        cb.unappliedMinor +
+        (orphanBooks.find((b) => b.currency === cb.currency)?.totalMinor ?? 0),
       unreconciled: cb.unreconciled.map((a) => ({
         id: a.id, number: a.number, customerName: a.customerName,
         paidMinor: a.paidMinor, receiptsMinor: a.receiptsMinor ?? null,

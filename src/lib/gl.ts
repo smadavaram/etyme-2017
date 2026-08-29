@@ -166,6 +166,44 @@ export function onInvoice(amountCents: number, postedAt: Date, ref: string): Ent
   }
 }
 
+/**
+ * A credit note is the invoice entry, backwards, in the invoice's period.
+ *
+ * ── The two things this gets right that a manual credit does not ─────
+ *
+ * **It reverses revenue and not cash.** Crediting a client is not a
+ * payment to them: no money moves. The receivable goes down and the
+ * revenue that raised it goes down with it. Booking a credit against cash
+ * would report a payment out that never happened.
+ *
+ * **It posts to the period the invoice belonged to.** March revenue
+ * credited in June is a March correction. Posting it to June overstates
+ * one quarter and understates the next, and the two errors never meet
+ * because they are in different reports.
+ *
+ * The reason code travels in the memo rather than in the accounts. Which
+ * account a credit hits is a question about revenue; WHY it was given is
+ * a question about how we bill, and the second one is answered by
+ * counting reason codes, not by reading a chart.
+ */
+export function onCreditNote(
+  amountCents: number,
+  /** The date the INVOICE belonged to, not today. */
+  postedAt: Date,
+  ref: string,
+  reasonCode: string
+): Entry {
+  const n = Math.abs(amountCents)
+  return {
+    postedAt,
+    memo: `Credit note against ${ref} — ${reasonCode}`,
+    lines: [
+      { accountCode: '4000', debitCents: n, creditCents: 0, memo: 'Revenue given up' },
+      { accountCode: '1100', debitCents: 0, creditCents: n, memo: 'Receivable reduced' },
+    ],
+  }
+}
+
 /** Cash arriving clears the receivable. Nothing about margin changes. */
 export function onReceipt(amountCents: number, postedAt: Date, ref: string): Entry {
   const n = Math.abs(amountCents)

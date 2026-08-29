@@ -579,6 +579,210 @@ export default function PayrollPage() {
           {stats.totalGross > 0 && ` · ${formatCents(stats.totalGross)} gross`}
         </p>
       )}
+
+      <BenchReserves />
+      <Statutory />
     </>
+  )
+}
+
+// ── What the firm holds for people ───────────────────────────────────
+//
+// `bench-policy.ts` has known how to compute a hold-back since it was
+// written and nothing ever wrote one, so a firm could run a
+// reserve-funded bench for a year with no record of what it owed
+// anybody. The balance here is the sum of the movements — never a stored
+// total, because a stored total and the postings behind it disagree the
+// first time a run is retried, and the number somebody argues with is the
+// consultant's.
+
+function BenchReserves() {
+  const [data, setData] = useState<any>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/payroll/reserve')
+      .then(async (r) => {
+        const b = await r.json()
+        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        setData(b.data)
+      })
+      .catch((e) => setFailed(e.message))
+  }, [])
+
+  if (failed || !data) return null
+  const pots: any[] = data.pots ?? []
+
+  return (
+    <section className="mt-8">
+      <p className="eyebrow">Operate</p>
+      <h2 className="headline-serif text-[22px] leading-tight">Bench reserves</h2>
+      <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">{data.note}</p>
+
+      {pots.length === 0 && (
+        <div className="panel mt-4">
+          <p className="text-[13px] text-etyme-muted">
+            Nothing has been held back for anybody. A reserve only fills where the house
+            bench policy is to fund the bench from a slice of each share — on the other
+            three policies a consultant never sees a deduction they were not told about.
+          </p>
+        </div>
+      )}
+
+      {pots.length > 0 && (
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-3">
+            <div>
+              <p className="stat-label">Held for people</p>
+              <p className="stat-value tabular-nums">{formatCents(data.totalHeldCents)}</p>
+              <p className="mt-0.5 text-[11px] text-etyme-faint">
+                Their money on our balance sheet, not ours.
+              </p>
+            </div>
+          </div>
+
+          {data.overdrawn?.length > 0 && (
+            <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
+              <p className="stat-label">Overdrawn</p>
+              <ul className="mt-2 space-y-1">
+                {data.overdrawn.map((o: any) => (
+                  <li key={o.personName} className="text-[13px] text-etyme-muted">
+                    {o.personName} — {formatCents(o.balanceCents)}. More has come out than
+                    ever went in, which is somebody&rsquo;s real money and is shown rather
+                    than floored at zero.
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {pots.map((p: any) => (
+            <article key={p.personId} className="panel">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <p className="text-[15px] font-semibold text-etyme-ink">{p.personName}</p>
+                <span className="chip chip--passive tabular-nums">
+                  {formatCents(p.balanceCents)}
+                </span>
+              </div>
+              <p className="mt-2 text-[13px] text-etyme-ink">{p.says}</p>
+              <p className="mt-2 text-[11px] text-etyme-faint tabular-nums">
+                {p.movements} movement{p.movements === 1 ? '' : 's'}
+              </p>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── Prepared for the bureau ──────────────────────────────────────────
+//
+// Etyme never files anything. What it has and the bureau does not is what
+// was actually earned and by whom — from postings rather than a rate
+// card, because those differ every time a timesheet is reversed or a rate
+// amendment lands late. The notice is on the screen and in the file.
+
+function Statutory() {
+  const year = new Date().getUTCFullYear()
+  const [data, setData] = useState<any>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/payroll/statutory?year=${year}`)
+      .then(async (r) => {
+        const b = await r.json()
+        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        setData(b.data)
+      })
+      .catch((e) => setFailed(e.message))
+  }, [year])
+
+  if (failed || !data) return null
+
+  const summaries: any[] = data.pack?.summaries ?? []
+
+  return (
+    <section className="mt-10">
+      <p className="eyebrow">Operate</p>
+      <h2 className="headline-serif text-[22px] leading-tight">
+        Prepared for your bureau — {data.year}
+      </h2>
+      <p className="mt-2 max-w-[68ch] text-[13px] text-etyme-muted">{data.notice}</p>
+
+      <div className="mt-4 flex flex-wrap items-baseline gap-8 border-b border-etyme-rule pb-3">
+        <div>
+          <p className="stat-label">W-2s to issue</p>
+          <p className="stat-value tabular-nums">{data.pack.w2Count}</p>
+        </div>
+        <div>
+          <p className="stat-label">1099-NECs to issue</p>
+          <p className="stat-value tabular-nums">{data.pack.necCount}</p>
+        </div>
+        <div>
+          <p className="stat-label">Reportable</p>
+          <p className="stat-value tabular-nums">
+            {data.pack.currency
+              ? formatCents(data.pack.totalReportableCents)
+              : '—'}
+          </p>
+          {!data.pack.currency && (
+            <p className="mt-0.5 max-w-[30ch] text-[11px] text-etyme-faint">
+              More than one currency in the year, so there is no single total to give.
+            </p>
+          )}
+        </div>
+        <div>
+          <p className="stat-label">Deposits</p>
+          <p className="stat-value tabular-nums">
+            {data.deposits.schedule === 'MONTHLY' ? 'Monthly' : 'Semiweekly'}
+          </p>
+        </div>
+        <a className="btn-primary" href={data.csvUrl}>
+          Download the file for your bureau
+        </a>
+      </div>
+
+      <p className="mt-3 max-w-[70ch] text-[13px] text-etyme-ink">{data.pack.says}</p>
+      <p className="mt-2 max-w-[70ch] text-[11px] text-etyme-faint">{data.taxIdNote}</p>
+      <p className="mt-2 max-w-[70ch] text-[11px] text-etyme-faint">{data.deposits.proxySays}</p>
+
+      {summaries.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {summaries.slice(0, 25).map((s: any) => (
+            <article key={s.personId} className="panel">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <p className="text-[15px] font-semibold text-etyme-ink">{s.personName}</p>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`chip ${s.form === 'NONE' ? 'chip--passive' : 'chip--action'}`}
+                  >
+                    {s.form === 'NONE' ? 'no form' : s.form.replace('_', '-')}
+                  </span>
+                  <span className="chip chip--passive tabular-nums">
+                    {s.grossCents == null ? '—' : formatCents(s.grossCents)}
+                  </span>
+                </div>
+              </div>
+              <p className="mt-2 max-w-[74ch] text-[13px] text-etyme-muted">{s.says}</p>
+            </article>
+          ))}
+        </div>
+      )}
+
+      {data.deposits.deadlines?.length > 0 && (
+        <div className="panel mt-4">
+          <p className="stat-label">Deposit deadlines</p>
+          <ul className="mt-2 space-y-1">
+            {data.deposits.deadlines.map((d: any) => (
+              <li key={String(d.payDay)} className="text-[11px] text-etyme-muted tabular-nums">
+                paid {String(d.payDay).slice(0, 10)} → deposit by {String(d.dueOn).slice(0, 10)}
+                {d.shifted && ' (moved off a non-business day)'}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
   )
 }

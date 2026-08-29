@@ -442,6 +442,150 @@ export async function postAssertion(assertionId: string, byId?: string | null) {
   return out
 }
 
+// ── The bench reserve, written down ──────────────────────────────────
+//
+// `bench-policy.ts` has known how to compute a hold-back since it was
+// written, and nothing ever wrote one. A firm could configure a
+// reserve-funded bench, run payroll for a year, and have no record of
+// what was in anybody's pot — which is a setting with nothing behind it,
+// not a feature.
+//
+// The `RESERVE` posting kind and the 2300 liability account both already
+// existed for exactly this. The sign convention is stated once in
+// `bench-policy.ts` and honoured here: positive into the pot, negative
+// out of it.
+//
+// Deliberately posted to the project order the share was earned on. The
+// money held back came out of that project's pay, so the project is where
+// it left from — and `resultOf` excludes RESERVE from gross and net,
+// because holding somebody's own money is a movement between two of our
+// obligations rather than a cost of the work.
+
+export interface ReserveWrite {
+  projectOrderId: string
+  companyId: string
+  personId: string
+  buyContractId?: string | null
+  /** Signed cents. Positive into the pot, negative out. */
+  amountCents: number
+  /** The period the movement belongs to. */
+  postedAt: Date
+  /** Unique per movement, so a retried payroll run does not double it. */
+  sourceId: string
+  says: string
+  txCurrency: string
+  createdById?: string | null
+}
+
+/** One reserve movement, or nothing where it was already written. */
+export function postReserve(w: ReserveWrite) {
+  return write({
+    projectOrderId: w.projectOrderId,
+    companyId: w.companyId,
+    kind: 'RESERVE',
+    amountCents: w.amountCents,
+    personId: w.personId,
+    buyContractId: w.buyContractId ?? null,
+    postedAt: w.postedAt,
+    source: 'PAYROLL',
+    sourceId: w.sourceId,
+    says: w.says,
+    createdById: w.createdById ?? null,
+    txCurrency: w.txCurrency,
+  })
+}
+
+/** Every reserve movement for one person, oldest first. */
+export async function reserveMovementsFor(companyId: string, personId: string) {
+  return prisma.orderPosting.findMany({
+    where: { companyId, personId, kind: 'RESERVE', reversalOfId: null },
+    select: {
+      id: true, amountCents: true, currency: true, postedAt: true, says: true,
+      sourceId: true,
+    },
+    orderBy: { postedAt: 'asc' },
+    take: 2_000,
+  })
+}
+
+// ── Settlement ────────────────────────────────────────────────────────
+//
+// Always a pair. Moving a balance is the amount out of the order and the
+// same amount into wherever it went; writing only the first makes money
+// disappear from the group's books, which balances on the order and on
+// nothing above it.
+//
+// The pair is written directly rather than through `write()`, because
+// `write()` refuses to post into a SETTLED order — and settling is the
+// one act that has to reach across that door on its way to closing it.
+
+export async function postSettlement(args: {
+  projectOrderId: string
+  settlesToProjectOrderId: string | null
+  companyId: string
+  balanceCents: number
+  currency: string
+  postedAt: Date
+  saysOut: string
+  saysIn: string
+  createdById?: string | null
+}) {
+  const base = {
+    companyId: args.companyId,
+    kind: 'SETTLEMENT' as const,
+    currency: args.currency,
+    txCurrency: args.currency,
+    fxToOrder: 1,
+    postedAt: args.postedAt,
+    source: 'ALLOCATION' as const,
+    createdById: args.createdById ?? null,
+  }
+
+  const out = await prisma.orderPosting.upsert({
+    where: {
+      source_sourceId_kind: {
+        source: 'ALLOCATION',
+        sourceId: `settle:${args.projectOrderId}:out`,
+        kind: 'SETTLEMENT',
+      },
+    },
+    update: {},
+    create: {
+      ...base,
+      projectOrderId: args.projectOrderId,
+      amountCents: -args.balanceCents,
+      txAmountCents: -args.balanceCents,
+      sourceId: `settle:${args.projectOrderId}:out`,
+      says: args.saysOut,
+    },
+  })
+
+  // Where the cost centre has an order of its own to collect into, the
+  // other leg lands there. Where it does not, it lands on the same order
+  // as a matching contra so the pair still nets to nothing rather than a
+  // half-movement sitting on the books.
+  const into = await prisma.orderPosting.upsert({
+    where: {
+      source_sourceId_kind: {
+        source: 'ALLOCATION',
+        sourceId: `settle:${args.projectOrderId}:in`,
+        kind: 'SETTLEMENT',
+      },
+    },
+    update: {},
+    create: {
+      ...base,
+      projectOrderId: args.settlesToProjectOrderId ?? args.projectOrderId,
+      amountCents: args.balanceCents,
+      txAmountCents: args.balanceCents,
+      sourceId: `settle:${args.projectOrderId}:in`,
+      says: args.saysIn,
+    },
+  })
+
+  return [out, into]
+}
+
 /**
  * Cancels the postings behind an assertion that was superseded or
  * withdrawn.

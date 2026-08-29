@@ -55,14 +55,16 @@ const CREDIT_CHIP: Record<string, { chip: string; word: string }> = {
   BREACHED: { chip: 'chip--attention', word: 'over limit' },
 }
 
-type Tab = 'customers' | 'invoices' | 'disputes' | 'unapplied' | 'reminders'
+type Tab =
+  | 'customers' | 'invoices' | 'disputes' | 'unapplied' | 'reminders' | 'collections'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'customers', label: 'By customer' },
   { key: 'invoices', label: 'Invoices' },
-  { key: 'disputes', label: 'Short paid' },
+  { key: 'disputes', label: 'Arguments' },
   { key: 'unapplied', label: 'Cash we cannot place' },
   { key: 'reminders', label: 'What to send' },
+  { key: 'collections', label: 'Past the ladder' },
 ]
 
 export default function ArPage() {
@@ -203,6 +205,7 @@ export default function ArPage() {
           {tab === 'disputes' && <Disputes book={book} />}
           {tab === 'unapplied' && <Unapplied book={book} />}
           {tab === 'reminders' && <Reminders book={book} />}
+          {tab === 'collections' && <Collections />}
         </>
       )}
     </div>
@@ -214,8 +217,11 @@ function countFor(tab: Tab, book: any): number {
     case 'customers': return book.customers.length
     case 'invoices': return book.invoices.length
     case 'disputes': return book.disputes.length
-    case 'unapplied': return book.unapplied.length + book.unreconciled.length
+    case 'unapplied':
+      return book.unapplied.length + book.unreconciled.length + (book.orphanReceipts?.length ?? 0)
     case 'reminders': return book.dunning.send.length
+    // Loaded on its own, so the count is not known until the tab opens.
+    case 'collections': return 0
   }
 }
 
@@ -573,17 +579,108 @@ function Invoices({ book }: { book: any }) {
   )
 }
 
-// ── Short payments ───────────────────────────────────────────────────
+// ── Arguments: short payments and credit notes, in one list ──────────
+//
+// They are the same argument at two stages. A short payment is a client
+// deciding not to pay part of an invoice; a credit note is us agreeing
+// with them. A screen showing only one of the two lets somebody chase a
+// client for money an account manager has already agreed to credit.
+
+const CREDIT_REASON_WORD: Record<string, string> = {
+  RATE_WRONG: 'wrong rate',
+  HOURS_DISPUTED: 'hours not accepted',
+  WORK_REJECTED: 'work rejected',
+  DUPLICATE_BILLING: 'billed twice',
+  GOODWILL: 'goodwill',
+  CONTRACT_TERMS: 'a contract term',
+  OTHER_SAY_WHY: 'something else',
+}
+
+function CreditNotes() {
+  const [data, setData] = useState<any>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/ar/credit-notes')
+      .then(async (r) => {
+        const b = await r.json()
+        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        setData(b.data)
+      })
+      .catch((e) => setFailed(e.message))
+  }, [])
+
+  if (failed) {
+    return (
+      <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
+        <p className="text-[13px] text-etyme-attention">{failed}</p>
+      </div>
+    )
+  }
+  if (!data) return null
+
+  const credits: any[] = (data.rows ?? []).filter((r: any) => r.kind === 'CREDIT_NOTE')
+
+  return (
+    <div className="space-y-3">
+      <div className="panel">
+        <p className="stat-label">What we have credited, and why</p>
+        <p className="mt-2 max-w-[70ch] text-[13px] text-etyme-ink">{data.says}</p>
+        {data.byReason?.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 border-t border-etyme-rule pt-3">
+            {data.byReason.map((r: any) => (
+              <span key={r.code} className="text-[11px] text-etyme-muted">
+                <span
+                  className={`chip ${r.aboutHowWeBill ? 'chip--attention' : 'chip--passive'}`}
+                >
+                  {CREDIT_REASON_WORD[r.code] ?? r.code}
+                </span>{' '}
+                <span className="tabular-nums text-etyme-ink">{r.count}</span>
+              </span>
+            ))}
+          </div>
+        )}
+        <p className="mt-2 text-[11px] text-etyme-faint">
+          The clay ones say something about how we bill rather than about a client. A
+          quarter of them is a contract-amendment process that is not working.
+        </p>
+      </div>
+
+      {credits.map((c: any) => (
+        <article key={`${c.invoiceId}-${c.reasonCode}-${c.amountMinor}`} className="panel">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <p className="text-[15px] font-semibold text-etyme-ink">
+              {c.customerName} · {c.invoiceNumber}
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="chip chip--passive">
+                {CREDIT_REASON_WORD[c.reasonCode] ?? c.reasonCode}
+              </span>
+              <span className="chip chip--attention tabular-nums">
+                {compact(c.amountMinor, c.currency)} credited
+              </span>
+            </div>
+          </div>
+          <p className="mt-2 text-[13px] text-etyme-ink">{c.says}</p>
+          <p className="mt-2 text-[11px] text-etyme-faint tabular-nums">{c.ageDays}d ago</p>
+        </article>
+      ))}
+    </div>
+  )
+}
 
 function Disputes({ book }: { book: any }) {
   if (book.disputes.length === 0) {
     return (
-      <div className="panel">
-        <p className="text-[13px] text-etyme-muted">
-          Nobody has paid part of an invoice and stopped. When somebody does, it appears
-          here rather than in the reminder queue — a shortfall is a question about the
-          invoice, and a reminder answers a question nobody asked.
-        </p>
+      <div className="space-y-4">
+        <div className="panel">
+          <p className="text-[13px] text-etyme-muted">
+            Nobody has paid part of an invoice and stopped. When somebody does, it appears
+            here rather than in the reminder queue — a shortfall is a question about the
+            invoice, and a reminder answers a question nobody asked.
+          </p>
+        </div>
+        <CreditNotes />
       </div>
     )
   }
@@ -595,6 +692,7 @@ function Disputes({ book }: { book: any }) {
         the invoice — a rate, an expense line, an hour somebody did not approve — and it
         is answered by a person. None of them are chased automatically.
       </p>
+      <CreditNotes />
       {book.disputes.map((d: any) => (
         <article key={d.id} className="panel">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -623,8 +721,127 @@ function Disputes({ book }: { book: any }) {
 
 // ── Cash we cannot place ─────────────────────────────────────────────
 
+/**
+ * A receipt nobody has placed, and the act of placing it.
+ *
+ * The three things on the row are the three things a person actually
+ * matches by hand: who sent it, how much, and when it landed. Everything
+ * else is decoration on a job that is done by recognising a name.
+ */
+function OrphanReceipts({ book }: { book: any }) {
+  const receipts: any[] = book.orphanReceipts ?? []
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [invoiceNumber, setInvoiceNumber] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [said, setSaid] = useState<string | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
+
+  if (receipts.length === 0) return null
+
+  const invoicesById = new Map<string, any>(book.invoices.map((i: any) => [i.number, i]))
+
+  async function place(paymentId: string) {
+    const invoice = invoicesById.get(invoiceNumber.trim())
+    if (!invoice) {
+      setFailed(
+        `No open invoice numbered "${invoiceNumber.trim()}" in this book. A receipt is ` +
+          `placed against an invoice, not against a customer.`
+      )
+      return
+    }
+    setBusy(true)
+    setFailed(null)
+    try {
+      const res = await fetch('/api/ar/payments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId, invoiceId: invoice.id }),
+      })
+      const b = await res.json()
+      if (!res.ok) throw new Error(b.error?.message ?? `HTTP ${res.status}`)
+      setSaid(b.data.note)
+      setOpenId(null)
+      setInvoiceNumber('')
+    } catch (e: any) {
+      setFailed(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="max-w-[70ch] text-[13px] text-etyme-muted">
+        {book.orphanSays ??
+          'Money that arrived and was never keyed against an invoice. It is not netted ' +
+            'against what you are owed — until somebody says these are the same money, they ' +
+            'are two separate facts.'}
+      </p>
+
+      {said && (
+        <div className="panel" style={{ borderColor: 'var(--color-verified)' }}>
+          <p className="text-[13px] text-etyme-ink">{said}</p>
+          <p className="mt-1 text-[11px] text-etyme-faint">Reload to see the queue without it.</p>
+        </div>
+      )}
+      {failed && (
+        <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
+          <p className="text-[13px] text-etyme-attention">{failed}</p>
+        </div>
+      )}
+
+      {receipts.map((r) => (
+        <article key={r.id} className="panel">
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <p className="text-[15px] font-semibold text-etyme-ink">
+              {r.payerName ?? 'Nobody said who sent it'}
+            </p>
+            <span className="chip chip--attention tabular-nums">
+              {compact(r.amountMinor, book.currency)}
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-etyme-faint">
+            <span className="tabular-nums">
+              landed {new Date(r.receivedAt).toISOString().slice(0, 10)}
+            </span>
+            {r.reference && <span>ref {r.reference}</span>}
+            <button
+              className="ml-auto text-[11px] underline"
+              style={{ color: 'var(--color-action)' }}
+              onClick={() => setOpenId(openId === r.id ? null : r.id)}
+            >
+              {openId === r.id ? 'Cancel' : 'Place it'}
+            </button>
+          </div>
+
+          {openId === r.id && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-etyme-rule pt-3">
+              <input
+                className="rounded border border-etyme-rule bg-etyme-surface px-2 py-1 text-[13px]"
+                placeholder="Invoice number"
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+              />
+              <button className="btn-primary" disabled={busy} onClick={() => place(r.id)}>
+                {busy ? 'Placing…' : 'Place against this invoice'}
+              </button>
+              <span className="text-[11px] text-etyme-faint">
+                A receipt bigger than the balance is refused rather than absorbed — the
+                excess would exist nowhere.
+              </span>
+            </div>
+          )}
+        </article>
+      ))}
+    </div>
+  )
+}
+
 function Unapplied({ book }: { book: any }) {
-  const nothing = book.unapplied.length === 0 && book.unreconciled.length === 0
+  const nothing =
+    book.unapplied.length === 0 &&
+    book.unreconciled.length === 0 &&
+    (book.orphanReceipts?.length ?? 0) === 0
 
   if (nothing) {
     return (
@@ -640,6 +857,8 @@ function Unapplied({ book }: { book: any }) {
 
   return (
     <div className="space-y-4">
+      <OrphanReceipts book={book} />
+
       {book.unapplied.length > 0 && (
         <div className="space-y-3">
           <p className="text-[13px] text-etyme-muted">
@@ -834,6 +1053,210 @@ function Reminders({ book }: { book: any }) {
           </ul>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Past the ladder ──────────────────────────────────────────────────
+//
+// The dunning ladder above stops after four letters and hands to a
+// person. In most systems that is where the trail ends: the debt reaches
+// the end of an automated process, nobody takes it, and it ages quietly.
+//
+// This tab is that state made visible. Every case has a stage, a next
+// move in the imperative, and — where the arithmetic says so — a
+// recommendation to stop working, which is a recommendation and never an
+// action. There are people on site.
+
+const STAGE_CHIP: Record<string, { chip: string; word: string }> = {
+  IN_LADDER: { chip: 'chip--passive', word: 'still in the ladder' },
+  UNOWNED: { chip: 'chip--attention', word: 'nobody owns it' },
+  OWNED: { chip: 'chip--action', word: 'owned' },
+  PROMISED: { chip: 'chip--verified', word: 'promised' },
+  PROMISE_BROKEN: { chip: 'chip--attention', word: 'promise broken' },
+  STOP_WORK_ADVISED: { chip: 'chip--attention', word: 'stop-work advised' },
+  PLACED: { chip: 'chip--passive', word: 'placed' },
+  WRITTEN_OFF: { chip: 'chip--passive', word: 'written off' },
+}
+
+function Collections() {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [said, setSaid] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/ar/collections')
+      .then(async (r) => {
+        const b = await r.json()
+        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        setData(b.data)
+      })
+      .catch((e) => setFailed(e.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function act(c: any, step: string, extra: Record<string, unknown> = {}) {
+    setBusy(`${c.customerId}:${step}`)
+    setFailed(null)
+    try {
+      const res = await fetch('/api/ar/collections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          step,
+          clientCompanyId: c.customerId,
+          invoiceIds: c.invoices.map((i: any) => i.id),
+          ...extra,
+        }),
+      })
+      const b = await res.json()
+      if (!res.ok) throw new Error(b.error?.message ?? `HTTP ${res.status}`)
+      setSaid(b.data.note)
+    } catch (e: any) {
+      setFailed(e.message)
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="panel">
+        <p className="text-[13px] text-etyme-muted">Reading what is past the ladder…</p>
+      </div>
+    )
+  }
+
+  const cases: any[] = data?.cases ?? []
+
+  return (
+    <div className="space-y-4">
+      <p className="max-w-[70ch] text-[13px] text-etyme-muted">{data?.note}</p>
+
+      {data?.gaps?.length > 0 && (
+        <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
+          <p className="stat-label">What this cannot do yet</p>
+          <ul className="mt-2 space-y-1">
+            {data.gaps.map((g: string, i: number) => (
+              <li key={i} className="text-[13px] text-etyme-muted">— {g}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {said && (
+        <div className="panel" style={{ borderColor: 'var(--color-verified)' }}>
+          <p className="text-[13px] text-etyme-ink">{said}</p>
+        </div>
+      )}
+      {failed && (
+        <div className="panel" style={{ borderColor: 'var(--color-attention)' }}>
+          <p className="text-[13px] text-etyme-attention">{failed}</p>
+        </div>
+      )}
+
+      {cases.length === 0 && (
+        <div className="panel">
+          <p className="text-[13px] text-etyme-muted">
+            Nothing has run out of ladder. Every overdue account still has an automated
+            rung left, which is where a debt should be.
+          </p>
+        </div>
+      )}
+
+      {cases.map((c) => {
+        const chip = STAGE_CHIP[c.verdict.stage] ?? STAGE_CHIP.IN_LADDER
+        return (
+          <article
+            key={`${c.customerId}-${c.currency}`}
+            className="panel"
+            style={
+              c.verdict.recommendStopWork ? { borderColor: 'var(--color-attention)' } : undefined
+            }
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <p className="text-[15px] font-semibold text-etyme-ink">{c.customerName}</p>
+              <div className="flex items-center gap-2">
+                <span className={`chip ${chip.chip}`}>{chip.word}</span>
+                <span className="chip chip--passive tabular-nums">
+                  {compact(c.overdueMinor, c.currency)} overdue
+                </span>
+              </div>
+            </div>
+
+            <p className="mt-2 text-[15px] text-etyme-ink">{c.verdict.action}</p>
+            <p className="mt-1 max-w-[74ch] text-[13px] text-etyme-muted">{c.verdict.says}</p>
+
+            <div className="mt-3 flex flex-wrap gap-4 border-t border-etyme-rule pt-3 text-[11px] text-etyme-faint">
+              <span className="tabular-nums">oldest {c.oldestDaysOverdue}d</span>
+              <span className="tabular-nums">
+                {compact(c.exposureMinor, c.currency)} at stake in all
+              </span>
+              {c.disputedMinor > 0 && (
+                <span className="tabular-nums">
+                  {compact(c.disputedMinor, c.currency)} in dispute
+                </span>
+              )}
+              <span>{c.ownerName ? `owned by ${c.ownerName}` : 'no owner'}</span>
+            </div>
+
+            <p className="mt-2 text-[11px] text-etyme-faint">{c.factorable.says}</p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              {!c.ownerName && (
+                <button
+                  className="btn-primary"
+                  disabled={busy != null}
+                  onClick={() => act(c, 'OWNER_ASSIGNED')}
+                >
+                  Take this on
+                </button>
+              )}
+              {c.verdict.recommendStopWork && (
+                <button
+                  className="text-[13px] underline"
+                  style={{ color: 'var(--color-attention)' }}
+                  disabled={busy != null}
+                  onClick={() => act(c, 'STOP_WORK_ADVISED')}
+                >
+                  Record the stop-work recommendation
+                </button>
+              )}
+              {c.factorable.ok && (
+                <button
+                  className="text-[13px] underline"
+                  style={{ color: 'var(--color-action)' }}
+                  disabled={busy != null}
+                  onClick={() => act(c, 'FACTORED')}
+                >
+                  Record it as sold to a factor
+                </button>
+              )}
+              <button
+                className="text-[13px] underline text-etyme-muted"
+                disabled={busy != null}
+                onClick={() => {
+                  const reason = window.prompt(
+                    `Why are you writing off ${c.customerName}? One of: ` +
+                      (data?.writeOffReasons ?? []).map((r: any) => r.code).join(', ')
+                  )
+                  if (!reason) return
+                  const note = window.prompt('And a sentence somebody can read in six months')
+                  void act(c, 'WRITTEN_OFF', {
+                    reason,
+                    note,
+                    amountCents: c.overdueMinor,
+                  })
+                }}
+              >
+                Write it off
+              </button>
+            </div>
+          </article>
+        )
+      })}
     </div>
   )
 }

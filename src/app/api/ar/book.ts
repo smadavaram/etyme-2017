@@ -36,6 +36,10 @@ export async function loadReceivables(companyId: string) {
       id: true, number: true, currency: true, total: true, paid: true,
       dueAt: true, status: true, periodStart: true, periodEnd: true, issuedAt: true,
       payments: { select: { amount: true, receivedAt: true } },
+      // Credit notes come off the invoice before it is aged. An invoice
+      // credited in full and then chased for ninety days is the failure
+      // this join exists to prevent.
+      creditNotes: { select: { amount: true, appliedAt: true, reasonCode: true } },
       billTo: { select: { id: true, name: true } },
       engagement: {
         select: {
@@ -74,11 +78,25 @@ export function toArInvoices(raw: RawReceivable[]): ArInvoice[] {
       (d, p) => (d == null || p.receivedAt > d ? p.receivedAt : d),
       null
     )
+    // Only APPLIED credits reduce the debt. An issued-and-unapplied note
+    // is a promise somebody has made and not yet posted, and reducing a
+    // receivable on it would show a debt as smaller than the ledger says
+    // — the one direction an AR figure must never be wrong in.
+    //
+    // Applied as a reduction of the TOTAL rather than an addition to
+    // `paid`, because those are different facts: the client has not paid
+    // the credited part, we have agreed they never will.
+    const credited = i.creditNotes
+      .filter((c) => c.appliedAt != null)
+      .reduce((n, c) => n + fromPrismaDecimal(c.amount, i.currency).minor, 0)
+
+    const gross = fromPrismaDecimal(i.total, i.currency).minor
+
     return {
       id: i.id,
       number: i.number,
       currency: i.currency,
-      totalMinor: fromPrismaDecimal(i.total, i.currency).minor,
+      totalMinor: Math.max(0, gross - credited),
       paidMinor: fromPrismaDecimal(i.paid, i.currency).minor,
       dueAt: i.dueAt,
       customerId: i.engagement.msa.client.id,

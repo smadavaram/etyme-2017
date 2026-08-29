@@ -96,9 +96,49 @@ describe('Exposure is three numbers, and the smallest of them is the invoices', 
     })
 
     expect(e.minor).toBeGreaterThan(10_000_000)
-    expect(e.parts.map((p) => p.key)).toEqual(['RECEIVABLE', 'UNBILLED', 'COMMITTED'])
+    expect(e.parts.map((p) => p.key)).toEqual([
+      'RECEIVABLE', 'UNBILLED', 'COMMITTED', 'CASH_HELD',
+    ])
     expect(e.minor).toBe(10_000_000 + 3_000_000 + e.parts[2].minor!)
     expect(e.complete).toBe(true)
+  })
+
+  it('cash received from a customer and not yet placed comes off what we are carrying', () => {
+    const withCash = exposureOf({
+      ...base,
+      receivableMinor: 10_000_000,
+      unbilledMinor: 0,
+      committed: committedNone,
+      unappliedCashMinor: 2_500_000,
+    })
+    expect(withCash.minor).toBe(7_500_000)
+    // And it is still shown apart, never netted into the receivable.
+    expect(withCash.parts[0].minor).toBe(10_000_000)
+    expect(withCash.parts[3].minor).toBe(-2_500_000)
+    expect(withCash.parts[3].says).toContain('not netted into the receivable')
+  })
+
+  it('more unplaced cash than exposure reads as nothing carried, never as a negative risk', () => {
+    const e = exposureOf({
+      ...base,
+      receivableMinor: 1_000_000,
+      unbilledMinor: 0,
+      committed: committedNone,
+      unappliedCashMinor: 4_000_000,
+    })
+    expect(e.minor).toBe(0)
+  })
+
+  it('a receipt queue nobody read takes nothing off, and says so rather than assuming none', () => {
+    const e = exposureOf({
+      ...base,
+      receivableMinor: 1_000_000,
+      unbilledMinor: 0,
+      committed: committedNone,
+    })
+    expect(e.minor).toBe(1_000_000)
+    expect(e.parts[3].minor).toBeNull()
+    expect(e.parts[3].says).toContain('was not read')
   })
 
   it('a ledger nobody read leaves unbilled null, never zero, because zero is a claim', () => {

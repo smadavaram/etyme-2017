@@ -238,10 +238,23 @@ export interface ExposureInput {
    */
   unbilledMinor: number | null
   committed: Committed
+  /**
+   * Cash received from this customer that nobody has placed against an
+   * invoice yet, in minor units.
+   *
+   * It reduces exposure, because it is money we already hold. It is NOT
+   * netted into the receivable — the two are separate facts until
+   * somebody says they are the same money, and netting them would hide a
+   * debt and a stray receipt in one movement.
+   *
+   * Null means the receipt queue was not read, which is different from
+   * there being none.
+   */
+  unappliedCashMinor?: number | null
 }
 
 export interface ExposurePart {
-  key: 'RECEIVABLE' | 'UNBILLED' | 'COMMITTED'
+  key: 'RECEIVABLE' | 'UNBILLED' | 'COMMITTED' | 'CASH_HELD'
   label: string
   minor: number | null
   says: string
@@ -283,7 +296,17 @@ export function exposureOf(input: ExposureInput): Exposure {
     )
   }
 
-  const minor = input.receivableMinor + (input.unbilledMinor ?? 0) + input.committed.minor
+  const held = Math.max(0, input.unappliedCashMinor ?? 0)
+
+  // Money we already hold reduces what we are carrying. Floored at zero:
+  // more unplaced cash than exposure is a bookkeeping question, not a
+  // negative risk, and showing a negative exposure would read as a
+  // customer who owes us nothing when the truth is that nobody has
+  // matched their payments.
+  const minor = Math.max(
+    0,
+    input.receivableMinor + (input.unbilledMinor ?? 0) + input.committed.minor - held
+  )
 
   const parts: ExposurePart[] = [
     {
@@ -306,6 +329,19 @@ export function exposureOf(input: ExposureInput): Exposure {
       label: 'Committed and not yet worked',
       minor: input.committed.minor,
       says: input.committed.says,
+    },
+    {
+      key: 'CASH_HELD',
+      label: 'Their cash we hold and have not placed',
+      minor: input.unappliedCashMinor == null ? null : -held,
+      says:
+        input.unappliedCashMinor == null
+          ? 'The receipt queue was not read, so nothing is taken off for cash already in hand.'
+          : held === 0
+            ? 'Nothing of theirs is sitting unplaced.'
+            : 'Money from this customer that no invoice has claimed. It comes off the ' +
+              'exposure because we have it — but it is not netted into the receivable, ' +
+              'because nobody has yet said which debt it settles.',
     },
   ]
 
