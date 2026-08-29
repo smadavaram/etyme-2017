@@ -288,3 +288,99 @@ describe('An order with a ceiling says where it stands before the next commitmen
     expect(s.remainingCents).toBeNull()
   })
 })
+
+// ── Two currencies ──────────────────────────────────────────────────
+//
+// The sheet had an "Indian salary" line. People were paid offshore in
+// rupees while US clients were billed in dollars, and both belonged to
+// the same project.
+
+describe('Rupees and dollars are never added together', () => {
+
+  it('refuses to total an order carrying two currencies', () => {
+    // Conversion happens once, when the posting is written, at a rate
+    // stamped on the row. If two currencies reach this function something
+    // upstream stopped converting, and the sum would be a total of
+    // nothing that looks perfectly reasonable on a screen.
+    const mixed = [
+      post({ kind: 'REVENUE', amountCents: 100_000, currency: 'USD' }),
+      post({ kind: 'PAY', amountCents: -80_000, currency: 'INR' }),
+    ]
+    expect(() => resultOf(mixed)).toThrow(/USD and INR|INR and USD/)
+  })
+
+  it('totals happily where everything was converted on the way in', () => {
+    const ps = [
+      post({ kind: 'REVENUE', amountCents: 100_000, currency: 'USD', txCurrency: 'USD' }),
+      post({ kind: 'PAY', amountCents: -60_000, currency: 'USD', txCurrency: 'INR', txAmountCents: -5_000_000 }),
+    ]
+    expect(resultOf(ps).grossCents).toBe(40_000)
+  })
+})
+
+// ── Earned, and then actually settled ───────────────────────────────
+//
+// The sheet's second page was entirely this: "to pay 15,680 · paid
+// 11,760 · diff -3,920 · date paid". Carried by hand, month after month.
+
+describe('What was earned and what actually moved are two different numbers', () => {
+
+  it('shows a margin on work approved before anybody has paid for it', () => {
+    const r = resultOf(placement({ person: 'a', client: 'x', revenue: 1_000_000, pay: 750_000 }))
+    expect(r.grossCents).toBe(250_000)
+    expect(r.cashCents).toBe(0)
+  })
+
+  it('names what is still to collect and what is still owed to people', () => {
+    const r = resultOf(placement({ person: 'a', client: 'x', revenue: 1_000_000, pay: 750_000 }))
+    expect(r.owedToUsCents).toBe(1_000_000)
+    expect(r.weOweCents).toBe(750_000)
+    expect(r.cashSays).toBe('Nothing settled. $10,000.00 to collect, $7,500.00 to pay.')
+  })
+
+  it('carries a short payment to a consultant, which was the diff column', () => {
+    // Owed 15,680, paid 11,760. The -3,920 was kept by hand.
+    const ps = [
+      post({ kind: 'REVENUE', amountCents: 2_000_000, settledCents: 2_000_000, settledAt: new Date() }),
+      post({ kind: 'PAY', amountCents: -1_568_000, settledCents: -1_176_000, settledAt: new Date() }),
+    ]
+    const r = resultOf(ps)
+    expect(r.weOweCents).toBe(392_000)
+    expect(r.cashSays).toContain('$3,920.00 still owed to people')
+  })
+
+  it('a client paying late shows up as cash behind, not as a worse margin', () => {
+    const ps = [
+      post({ kind: 'REVENUE', amountCents: 1_000_000 }),
+      post({ kind: 'PAY', amountCents: -750_000, settledCents: -750_000, settledAt: new Date() }),
+    ]
+    const r = resultOf(ps)
+    expect(r.grossCents).toBe(250_000)
+    expect(r.cashCents).toBe(-750_000)
+    expect(r.owedToUsCents).toBe(1_000_000)
+  })
+})
+
+// ── Back office ─────────────────────────────────────────────────────
+
+describe('Back office, marketing and sales land on the consultants per head', () => {
+
+  it('splits evenly, not by revenue, because admin work does not scale with a rate', () => {
+    const targets = [
+      { key: 'big', label: 'big biller', revenueCents: 25_000_000, people: 1 },
+      { key: 'small', label: 'small biller', revenueCents: 8_000_000, people: 1 },
+    ]
+    const a = allocate(-2_000_000, targets)
+    expect(a.map((x) => x.amountCents)).toEqual([-1_000_000, -1_000_000])
+    expect(a[0].says).toContain('per head')
+  })
+
+  it('by revenue is still available where a firm wants it', () => {
+    const targets = [
+      { key: 'big', label: 'big biller', revenueCents: 30_000_000, people: 1 },
+      { key: 'small', label: 'small biller', revenueCents: 10_000_000, people: 1 },
+    ]
+    const a = allocate(-2_000_000, targets, 'REVENUE')
+    expect(a.map((x) => x.amountCents)).toEqual([-1_500_000, -500_000])
+  })
+})

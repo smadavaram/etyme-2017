@@ -25,9 +25,14 @@ import { DEFAULT_BURDEN, type ContractType } from '@/lib/profitability'
 /**
  * The order a placement belongs to, opened on first use.
  *
- * One per requisition, which is the level a customer actually thinks at:
- * a requisition for six people is one piece of work with six consultants
- * on it, and that is exactly the case the spreadsheet could not add up.
+ * One per project or statement of work, which is how SAP actually uses an
+ * internal order and how a client actually thinks: a project may run
+ * across several openings and several months, and everybody on it belongs
+ * to the same piece of work.
+ *
+ * Where no project has been named, it falls back to the requisition —
+ * blocking an award because nobody set up a project first would be a
+ * governance step slower than the workaround.
  *
  * Where the client gave us their own code — because their finance team
  * will reconcile against it — that code is used rather than one of ours.
@@ -44,7 +49,9 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
       startDate: true,
       endDate: true,
       requirementId: true,
+      billCurrency: true,
       clientCompany: { select: { name: true } },
+      engagement: { select: { id: true, title: true } },
       requirement: {
         select: { id: true, title: true, internalOrderId: true },
       },
@@ -54,6 +61,7 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
   if (sell.internalOrderId) return sell.internalOrderId
 
   // The requisition's own order, where the client's ERP already named one.
+  // Their code wins over ours — their finance team reconciles against it.
   if (sell.requirement?.internalOrderId) {
     await prisma.sellContract.update({
       where: { id: sell.id },
@@ -62,13 +70,19 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
     return sell.requirement.internalOrderId
   }
 
-  const code = sell.requirement
-    ? `IO-REQ-${sell.requirement.id.slice(-8).toUpperCase()}`
-    : `IO-SC-${sell.id.slice(-8).toUpperCase()}`
+  // The project, where there is one. Six consultants across three openings
+  // on the same project share a bucket, which is the whole point.
+  const code = sell.engagement
+    ? `IO-PRJ-${sell.engagement.id.slice(-8).toUpperCase()}`
+    : sell.requirement
+      ? `IO-REQ-${sell.requirement.id.slice(-8).toUpperCase()}`
+      : `IO-SC-${sell.id.slice(-8).toUpperCase()}`
 
-  const name = sell.requirement?.title
-    ? `${sell.requirement.title} — ${sell.clientCompany.name}`
-    : `Placement at ${sell.clientCompany.name}`
+  const name = sell.engagement?.title
+    ? `${sell.engagement.title} — ${sell.clientCompany.name}`
+    : sell.requirement?.title
+      ? `${sell.requirement.title} — ${sell.clientCompany.name}`
+      : `Placement at ${sell.clientCompany.name}`
 
   const order = await prisma.internalOrder.upsert({
     where: { companyId_code: { companyId: sell.companyId, code } },
@@ -79,6 +93,10 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
       name,
       orgUnitId: sell.orgUnitId,
       settlesToId: sell.costCenterId,
+      // The order's currency, which every posting is converted into. A
+      // total across two currencies is a total of nothing, so this is
+      // fixed when the order opens rather than inferred later.
+      currency: sell.billCurrency,
       opensAt: sell.startDate,
       closesAt: sell.endDate,
     },
@@ -103,6 +121,54 @@ export async function orderFor(sellContractId: string): Promise<string | null> {
   return order.id
 }
 
+/**
+ * The rate to use, or nothing.
+ *
+ * Looked up once, stamped on the posting, never re-run. A margin that
+ * moves because somebody reloaded the page in a different week is not a
+ * margin.
+ *
+ * Where no rate covers the date, this returns null and the posting is
+ * refused. Converting at 1 would produce a number that looks fine and is
+ * out by a factor of eighty, which is the sort of wrong nobody catches.
+ */
+export async function rateOn(
+  companyId: string,
+  from: string,
+  to: string,
+  on: Date
+): Promise<number | null> {
+  if (from === to) return 1
+
+  const row = await prisma.fxRate.findFirst({
+    where: {
+      companyId,
+      fromCurrency: from,
+      toCurrency: to,
+      effectiveOn: { lte: on },
+    },
+    orderBy: { effectiveOn: 'desc' },
+    select: { rate: true },
+  })
+  if (row) return Number(row.rate)
+
+  // The other way round, inverted. A firm that keeps USD→INR should not
+  // also have to keep INR→USD for the same day.
+  const back = await prisma.fxRate.findFirst({
+    where: {
+      companyId,
+      fromCurrency: to,
+      toCurrency: from,
+      effectiveOn: { lte: on },
+    },
+    orderBy: { effectiveOn: 'desc' },
+    select: { rate: true },
+  })
+  if (back && Number(back.rate) !== 0) return 1 / Number(back.rate)
+
+  return null
+}
+
 interface Write {
   internalOrderId: string
   companyId: string
@@ -117,12 +183,49 @@ interface Write {
   sourceId?: string | null
   says: string
   createdById?: string | null
+  /**
+   * What actually moved. A US client billed in dollars and an offshore
+   * consultant paid in rupees both belong to the same project, and the
+   * amount above is always the order's currency so a total means
+   * something.
+   */
+  txCurrency: string
+}
+
+export class NoRate extends Error {
+  constructor(public from: string, public to: string, public on: Date) {
+    super(
+      `No exchange rate from ${from} to ${to} on or before ` +
+        `${on.toISOString().slice(0, 10)}. Set one before posting to this order — ` +
+        `converting at par would be out by whatever the real rate is.`
+    )
+  }
 }
 
 /** One posting, or nothing where it was already written. */
 async function write(w: Write) {
-  const amount = signed(w.kind, w.amountCents)
-  if (amount === 0) return null
+  const order = await prisma.internalOrder.findUnique({
+    where: { id: w.internalOrderId },
+    select: { currency: true },
+  })
+  const orderCurrency = order?.currency ?? 'USD'
+
+  const fx = await rateOn(w.companyId, w.txCurrency, orderCurrency, w.postedAt)
+  if (fx == null) throw new NoRate(w.txCurrency, orderCurrency, w.postedAt)
+
+  const tx = signed(w.kind, w.amountCents)
+  const amount = Math.round(tx * fx)
+  if (tx === 0) return null
+
+  // The second valuation, where the firm keeps one. Beside, not instead
+  // of — a firm reporting in two currencies should not have to pick which
+  // of its own numbers is real.
+  const co = await prisma.company.findUnique({
+    where: { id: w.companyId },
+    select: { parallelCurrency: true },
+  })
+  const par = co?.parallelCurrency ?? null
+  const parFx = par ? await rateOn(w.companyId, w.txCurrency, par, w.postedAt) : null
 
   return prisma.orderPosting.upsert({
     where: {
@@ -138,6 +241,13 @@ async function write(w: Write) {
       companyId: w.companyId,
       kind: w.kind,
       amountCents: amount,
+      currency: orderCurrency,
+      txCurrency: w.txCurrency,
+      txAmountCents: tx,
+      fxToOrder: fx,
+      parallelCurrency: parFx == null ? null : par,
+      parallelAmountCents: parFx == null ? null : Math.round(tx * parFx),
+      fxToParallel: parFx,
       personId: w.personId ?? null,
       clientCompanyId: w.clientCompanyId ?? null,
       sellContractId: w.sellContractId ?? null,
@@ -149,6 +259,77 @@ async function write(w: Write) {
       createdById: w.createdById ?? null,
     },
   })
+}
+
+/**
+ * What burden actually costs this firm, worked out from its own books.
+ *
+ * Not a multiplier somebody picked. The rate is last year's real employer
+ * tax, workers' compensation and benefit spend divided by last year's real
+ * wages, which is a number the firm can defend to itself.
+ *
+ * The old spreadsheet had exactly this — a "Payroll Taxes" row sitting at
+ * the bottom of the page, unallocated, so no consultant's margin ever
+ * carried any of it.
+ *
+ * Until enough has posted to compute one, a published default is used and
+ * every figure derived from it says so out loud. An estimate presented as
+ * a measurement is worse than no figure at all.
+ */
+export async function burdenRate(
+  companyId: string,
+  contractType: string,
+  on: Date
+): Promise<{ rate: number; measured: boolean; says: string }> {
+  const from = new Date(Date.UTC(on.getUTCFullYear() - 1, 0, 1))
+  const to = new Date(Date.UTC(on.getUTCFullYear() + 1, 0, 1))
+
+  const [wages, burden] = await Promise.all([
+    prisma.orderPosting.aggregate({
+      where: { companyId, kind: 'PAY', postedAt: { gte: from, lt: to }, reversalOfId: null },
+      _sum: { amountCents: true },
+    }),
+    prisma.orderPosting.aggregate({
+      where: {
+        companyId,
+        kind: 'BURDEN',
+        postedAt: { gte: from, lt: to },
+        reversalOfId: null,
+        // Only burden somebody actually paid. Counting our own synthetic
+        // postings would make the rate confirm itself for ever.
+        source: { in: ['PAYROLL', 'MANUAL'] },
+      },
+      _sum: { amountCents: true },
+    }),
+  ])
+
+  const paid = Math.abs(wages._sum.amountCents ?? 0)
+  const carried = Math.abs(burden._sum.amountCents ?? 0)
+
+  // A handful of months is not a rate. Below this the number swings on a
+  // single payroll run and would be worse than the published default.
+  const ENOUGH_WAGES_CENTS = 5_000_000
+
+  if (paid >= ENOUGH_WAGES_CENTS && carried > 0) {
+    const rate = carried / paid
+    return {
+      rate,
+      measured: true,
+      says:
+        `Employer burden at ${(rate * 100).toFixed(1)}% of pay — your own figure, ` +
+        `from what you actually paid in taxes and benefits against what you paid in wages.`,
+    }
+  }
+
+  const fallback = DEFAULT_BURDEN[contractType as ContractType] ?? 0
+  return {
+    rate: fallback,
+    measured: false,
+    says:
+      `Employer burden at ${Math.round(fallback * 100)}% of pay — a published default ` +
+      `for ${contractType}, not your measured cost. Post what you actually pay in ` +
+      `payroll taxes and benefits and this becomes your own number.`,
+  }
 }
 
 /**
@@ -175,6 +356,7 @@ export async function postAssertion(assertionId: string, byId?: string | null) {
           sellContract: {
             select: {
               id: true, companyId: true, clientCompanyId: true, endClientCompanyId: true,
+              billCurrency: true,
             },
           },
         },
@@ -210,6 +392,9 @@ export async function postAssertion(assertionId: string, byId?: string | null) {
         ...common,
         kind: 'REVENUE',
         amountCents: gross,
+        // Billed in whatever the sell contract says, converted to the
+        // order's currency on the way in.
+        txCurrency: sell.billCurrency,
         says: `${Number(a.hours)} hours approved by the client.`,
       }),
     ]
@@ -223,7 +408,7 @@ export async function postAssertion(assertionId: string, byId?: string | null) {
       candidates: { some: { personId: a.timesheet.personId } },
     },
     orderBy: { startDate: 'desc' },
-    select: { id: true, contractType: true },
+    select: { id: true, contractType: true, payCurrency: true },
   })
 
   const out = [
@@ -232,21 +417,24 @@ export async function postAssertion(assertionId: string, byId?: string | null) {
       kind: 'PAY',
       buyContractId: buy?.id ?? null,
       amountCents: gross,
+      // Paid in whatever the buy contract says. An offshore consultant
+      // paid in rupees and a client billed in dollars belong to the same
+      // project, and adding those two numbers gives a total of nothing.
+      txCurrency: buy?.payCurrency ?? sell.billCurrency,
       says: `${Number(a.hours)} hours accepted for pay.`,
     }),
   ]
 
-  const rate = DEFAULT_BURDEN[(buy?.contractType ?? 'C2C') as ContractType] ?? 0
-  if (rate > 0) {
+  const b = await burdenRate(sell.companyId, buy?.contractType ?? 'C2C', at)
+  if (b.rate > 0) {
     out.push(
       await write({
         ...common,
         kind: 'BURDEN',
         buyContractId: buy?.id ?? null,
-        amountCents: Math.round(gross * rate),
-        says:
-          `Employer burden at ${Math.round(rate * 100)}% of pay — our default ` +
-          `for ${buy?.contractType ?? 'C2C'}, not a measured cost.`,
+        amountCents: Math.round(gross * b.rate),
+        txCurrency: buy?.payCurrency ?? sell.billCurrency,
+        says: b.says,
       })
     )
   }
@@ -286,6 +474,15 @@ export async function reversePostingsFor(
           companyId: p.companyId,
           kind: p.kind,
           amountCents: -p.amountCents,
+          currency: p.currency,
+          // The rate that was stamped on the original. A correction values
+          // at the rate the mistake was made at, not today's.
+          txCurrency: p.txCurrency,
+          txAmountCents: -p.txAmountCents,
+          fxToOrder: p.fxToOrder,
+          parallelCurrency: p.parallelCurrency,
+          parallelAmountCents: p.parallelAmountCents == null ? null : -p.parallelAmountCents,
+          fxToParallel: p.fxToParallel,
           personId: p.personId,
           clientCompanyId: p.clientCompanyId,
           sellContractId: p.sellContractId,

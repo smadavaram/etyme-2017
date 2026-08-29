@@ -71,6 +71,14 @@ export interface Posting {
   says: string
   /** Set where this posting cancels an earlier one. */
   reversalOfId?: string | null
+  /** The order's currency. Every amount above is already in it. */
+  currency?: string
+  /** What actually moved, before conversion. */
+  txCurrency?: string
+  txAmountCents?: number
+  /** When money actually moved, and how much of it. Null = still owed. */
+  settledAt?: Date | null
+  settledCents?: number | null
 }
 
 /** Costs that belong to a specific person or deal. */
@@ -94,6 +102,23 @@ export interface Result {
   /** Null where there is no revenue, or where no cost is on record. */
   grossPct: number | null
   netPct: number | null
+
+  // Earned, and then actually settled. The spreadsheet kept this by hand:
+  // "to pay 15,680 - paid 11,760 - diff -3,920 - date paid". Two profit
+  // numbers that disagree for months, and both are worth knowing: one
+  // says whether the work is worth doing, the other whether the bank
+  // account agrees yet.
+  /** Revenue actually collected. */
+  collectedCents: number
+  /** Billed and not yet collected. */
+  owedToUsCents: number
+  /** Costs actually paid out. */
+  paidOutCents: number
+  /** Owed to consultants and suppliers and not yet paid. */
+  weOweCents: number
+  /** Margin counting only money that has actually moved. */
+  cashCents: number
+  cashSays: string
   /**
    * True where money was billed and nothing says what it cost.
    *
@@ -125,6 +150,21 @@ export function live(postings: Posting[]): Posting[] {
 
 export function resultOf(all: Posting[]): Result {
   const ps = live(all)
+
+  // Every amount is already in the order's currency — conversion happens
+  // once, when the posting is written, at a rate stamped on the row. If
+  // two currencies ever reach this function, something upstream stopped
+  // converting and the sum below would be a total of nothing. Loudly, not
+  // quietly: a number that is out by a factor of eighty looks perfectly
+  // reasonable on a screen.
+  const currencies = new Set(ps.map((p) => p.currency).filter(Boolean))
+  if (currencies.size > 1) {
+    throw new Error(
+      `Postings on one order in ${[...currencies].join(' and ')}. ` +
+        `Amounts must be converted to the order's currency before they are ` +
+        `written, so this cannot be added up.`
+    )
+  }
   const sum = (k: PostingKind) =>
     ps.filter((p) => p.kind === k).reduce((n, p) => n + p.amountCents, 0)
 
@@ -148,6 +188,19 @@ export function resultOf(all: Posting[]): Result {
   // arithmetic still runs and produces a hundred per cent.
   const costUnknown = revenue > 0 && DIRECT.every((k) => sum(k) === 0)
 
+  const collected = ps
+    .filter((p) => p.amountCents > 0)
+    .reduce((n, p) => n + (p.settledCents ?? 0), 0)
+  const paidOut = ps
+    .filter((p) => p.amountCents < 0)
+    .reduce((n, p) => n + (p.settledCents ?? 0), 0)
+  const owedToUs = ps
+    .filter((p) => p.amountCents > 0)
+    .reduce((n, p) => n + (p.amountCents - (p.settledCents ?? 0)), 0)
+  const weOwe = -ps
+    .filter((p) => p.amountCents < 0)
+    .reduce((n, p) => n + (p.amountCents - (p.settledCents ?? 0)), 0)
+
   return {
     count: ps.length,
     revenueCents: revenue,
@@ -163,8 +216,33 @@ export function resultOf(all: Posting[]): Result {
     grossPct: costUnknown || revenue === 0 ? null : pct(gross, revenue),
     netPct: costUnknown || revenue === 0 ? null : pct(net, revenue),
     costUnknown,
+    collectedCents: collected,
+    owedToUsCents: owedToUs,
+    paidOutCents: paidOut,
+    weOweCents: weOwe,
+    cashCents: collected + paidOut,
+    cashSays: cashSaysFor(collected, paidOut, owedToUs, weOwe),
     says: saysFor(revenue, gross, net, overhead, costUnknown),
   }
+}
+
+function cashSaysFor(
+  collected: number,
+  paidOut: number,
+  owedToUs: number,
+  weOwe: number
+): string {
+  if (collected === 0 && paidOut === 0) {
+    return owedToUs === 0 && weOwe === 0
+      ? 'No money has moved on this yet.'
+      : `Nothing settled. ${money(owedToUs)} to collect, ${money(weOwe)} to pay.`
+  }
+  const bits = [`${money(collected + paidOut)} in the bank on this`]
+  if (owedToUs > 0) bits.push(`${money(owedToUs)} still to collect`)
+  // What the diff column was really about. Somebody is owed wages, and
+  // that is not the same problem as a slow client.
+  if (weOwe > 0) bits.push(`${money(weOwe)} still owed to people`)
+  return `${bits.join(', ')}.`
 }
 
 function pct(part: number, whole: number): number {
@@ -310,7 +388,12 @@ export interface Allocation {
 export function allocate(
   potCents: number,
   targets: AllocationTarget[],
-  basis: Basis = 'REVENUE'
+  // Per head by default. Back office, marketing and sales do roughly the
+  // same amount of work for a consultant billing eighty thousand as for
+  // one billing two hundred and fifty, so spreading by revenue would make
+  // the expensive consultant subsidise the cheap one. Even shares make a
+  // low-billing consultant look worse, which may simply be the truth.
+  basis: Basis = 'EVEN'
 ): Allocation[] {
   if (targets.length === 0 || potCents === 0) return []
 
@@ -346,7 +429,7 @@ export function allocate(
     ? 'split evenly — nothing to weigh it by'
     : basis === 'REVENUE' ? 'by share of revenue'
       : basis === 'HEADCOUNT' ? 'by headcount'
-        : 'split evenly'
+        : 'split evenly, per head'
 
   return targets.map((t, i) => ({
     key: t.key,

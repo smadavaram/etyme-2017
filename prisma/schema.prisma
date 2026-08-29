@@ -202,6 +202,27 @@ model Company {
   kind           CompanyKind
   entityType     String?
 
+  // ── House policy ────────────────────────────────────────────────────
+  //
+  // Every firm runs the bench differently and all of the ways are real:
+  // no bill no pay; full pay for two or three months and then release;
+  // a reduced holding rate; or hold back a slice of each share into the
+  // consultant's own pot and pay the bench from that. This is a software
+  // product, not one staffing firm, so these are settings.
+  benchPolicy    BenchPolicy   @default(NO_PAY)
+  /// Basis points of their billing pay, where the policy is a reduced rate.
+  benchRateBps   Int?
+  /// How long somebody is carried before being released. Null = no limit.
+  benchCarryDays Int?
+  /// Basis points of each share held back, where the bench is reserve funded.
+  reserveBps     Int?
+  reserveOnExit  ReserveOnExit @default(PAY_OUT)
+
+  /// The currency this company reports in, whatever it bills or pays in.
+  homeCurrency     String  @default("USD")
+  /// A second reporting currency, kept alongside rather than instead of.
+  parallelCurrency String?
+
   /// Who here may see the market outside this company.
   ///
   /// ALLOWED for a staffing vendor, whose business is outside. NAMED_ONLY
@@ -386,6 +407,8 @@ model Company {
 
   orderPostings       OrderPosting[]
   clientOrderPostings OrderPosting[] @relation("postingClient")
+
+  fxRates FxRate[]
 
   @@index([listedById])
 }
@@ -1907,11 +1930,27 @@ model BuyContract {
 
   candidates BuyContractCandidate[]
 
-  payCurrency  String           @default("USD")
-  contractType ContractType     @default(W2)
-  state        BuyContractState @default(DRAFT)
-  startDate    DateTime
-  endDate      DateTime?
+  payCurrency  String       @default("USD")
+  contractType ContractType @default(W2)
+
+  // ── How this person is actually paid ────────────────────────────────
+  //
+  // The dimension the 2019 spreadsheet did not have, and the one that
+  // explains its own numbers. Its rate pairs were 60/45, 62/46.50,
+  // 67/50.25, 68/54.40, 60/48 — seventy-five and eighty per cent, exactly.
+  // Those were not negotiated hourly rates. They were profit shares
+  // wearing an hourly disguise, and nothing on the sheet said so.
+  //
+  // It decides more than pay. Who absorbs a green card filing follows from
+  // it: a consultant on a share of the deal takes that hit, a consultant
+  // on a fixed wage does not. And a person paid a percentage of a number
+  // has to be able to see the number.
+  payModel  PayModel         @default(FIXED_HOURLY)
+  /// Basis points of the basis their model names. 7500 = 75%.
+  shareBps  Int?
+  state     BuyContractState @default(DRAFT)
+  startDate DateTime
+  endDate   DateTime?
 
   // Commission configuration — only for commission-type buy contracts
   commissionType CommissionType? // null = not a commission arrangement
@@ -2009,6 +2048,52 @@ model BuyContractCandidate {
   @@unique([buyContractId, personId])
   @@index([personId])
   @@index([buyContractId])
+}
+
+/// How a consultant's pay is worked out. Varies person to person inside
+/// one firm, so it lives on the contract rather than on the company.
+enum PayModel {
+  /// An agreed rate per hour. What the contract says is what they get.
+  FIXED_HOURLY
+  /// A percentage of what the client is billed. Bill 60, pay 45.
+  SHARE_OF_BILL
+  /// A percentage of what is left after burden, insurance and their own
+  /// costs. Fairer both ways, and their pay moves month to month.
+  SHARE_OF_MARGIN
+  /// A percentage of the bill, with their own costs — immigration, personal
+  /// insurance — deducted from that share afterwards.
+  SHARE_OF_BILL_LESS_COSTS
+}
+
+/// What a firm does with a consultant who is between projects.
+///
+/// All of these are real and none is more correct than the others, so it
+/// is a setting rather than a rule. Building one of them into the product
+/// would make it a product for one kind of staffing firm.
+enum BenchPolicy {
+  /// No bill, no pay. Common, and the whole cost is the recruiting to
+  /// place them again.
+  NO_PAY
+  /// Keep paying them in full. Where a carry limit is set, they are
+  /// released at the end of it rather than carried indefinitely.
+  FULL_PAY
+  /// Something less than their billing rate — enough to keep them, and
+  /// on some visas enough to stay lawful.
+  REDUCED_RATE
+  /// A slice of every share is held back into that person's own reserve
+  /// while they bill, and the bench is paid out of it.
+  RESERVE_FUNDED
+}
+
+/// What happens to an unspent reserve when somebody leaves.
+enum ReserveOnExit {
+  /// It was always their money, held back. Leaving triggers payment.
+  PAY_OUT
+  /// It was a contribution to a shared fund, not deferred pay.
+  COMPANY_KEEPS
+  /// Paid out on a release or a project ending, forfeited on a walk-out.
+  /// Needs the reason for leaving to be recorded honestly.
+  DEPENDS_ON_REASON
 }
 
 enum BuyContractState {
@@ -2373,6 +2458,33 @@ model InternalOrder {
 /// Postings are immutable. A wrong one is reversed by another posting
 /// carrying reversalOfId, never edited and never deleted, because the
 /// month it belonged to may already have been reported.
+/// An exchange rate a firm has decided to use.
+///
+/// Not fetched from anywhere at read time. A margin that changes because
+/// somebody reloaded the page in a different week is not a margin, so the
+/// rate is looked up once, stamped onto the posting, and never re-run.
+///
+/// Where no rate covers a posting's date, the posting is refused rather
+/// than converted at one. A wrong rate is invisible; a refusal is not.
+model FxRate {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// ISO codes. "INR" to "USD".
+  fromCurrency String
+  toCurrency   String
+  /// Units of toCurrency per one unit of fromCurrency.
+  rate         Decimal  @db.Decimal(18, 8)
+  /// The rate applies from this date until a later one supersedes it.
+  effectiveOn  DateTime
+  source       String? // "manual" · a provider name · a contract clause
+  createdAt    DateTime @default(now())
+
+  @@unique([companyId, fromCurrency, toCurrency, effectiveOn])
+  @@index([companyId, fromCurrency, toCurrency, effectiveOn])
+}
+
 model OrderPosting {
   id              String        @id @default(cuid())
   internalOrderId String
@@ -2383,11 +2495,46 @@ model OrderPosting {
 
   kind PostingKind
 
-  /// Signed, in cents. Positive is money into the firm, negative is money
-  /// out. Debit and credit would be more orthodox and much easier to get
-  /// backwards in a query; an order's result is the sum of this column.
+  /// Signed, in cents, IN THE ORDER'S CURRENCY. Positive is money into the
+  /// firm, negative is money out. Debit and credit would be more orthodox
+  /// and much easier to get backwards in a query; an order's result is the
+  /// sum of this column, which is only safe because it is one currency.
   amountCents Int
   currency    String @default("USD")
+
+  // ── What actually moved ─────────────────────────────────────────────
+  //
+  // A US client is billed in dollars and an offshore consultant is paid in
+  // rupees, and both belong to the same project. Adding those two numbers
+  // gives a total of nothing, so the amount above is always the order's
+  // currency and this is what really changed hands.
+  txCurrency    String
+  txAmountCents Int
+  /// Units of order currency per unit of transaction currency, stamped when
+  /// the posting was written and never re-run. A March margin stays what it
+  /// was in March even if the rupee moves in June.
+  fxToOrder     Decimal @default(1) @db.Decimal(18, 8)
+
+  // ── The parallel view ───────────────────────────────────────────────
+  //
+  // The same posting valued a second way — a group reporting currency, or
+  // a second statutory one. Kept beside rather than instead of, because a
+  // firm reporting in two currencies should not have to choose which of
+  // its own numbers is real.
+  parallelCurrency    String?
+  parallelAmountCents Int?
+  fxToParallel        Decimal? @db.Decimal(18, 8)
+
+  // ── Earned, then settled ────────────────────────────────────────────
+  //
+  // The spreadsheet carried this by hand: "to pay 15,680 · paid 11,760 ·
+  // diff -3,920 · date paid". Two different profit numbers that disagree
+  // for months, and both are worth knowing. The posting is earned when the
+  // work is approved and settled when money actually moves.
+  settledAt    DateTime?
+  /// In order currency. Short and partial settlements are ordinary, so this
+  /// is a number rather than a flag.
+  settledCents Int?
 
   /// The dimensions the spreadsheet could not hold. All optional: firm-wide
   /// overhead has no person and no customer, and that is a real posting too.
@@ -2431,6 +2578,7 @@ model OrderPosting {
   @@index([sellContractId])
   @@index([buyContractId])
   @@index([createdById])
+  @@index([settledAt])
   @@index([source, sourceId])
 }
 
@@ -2452,6 +2600,9 @@ enum PostingKind {
   /// Legal, advertising, training, rent, guest house. Belongs to the firm
   /// until somebody allocates it.
   OVERHEAD
+  /// Held back from a consultant's share into their own bench reserve, or
+  /// drawn out of it to pay them while they sit. Sign says which.
+  RESERVE
   /// Moves a balance from one order to another. Always in pairs.
   SETTLEMENT
 }

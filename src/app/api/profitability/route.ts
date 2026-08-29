@@ -59,6 +59,8 @@ export async function GET(request: NextRequest) {
     select: {
       id: true, kind: true, amountCents: true, postedAt: true, says: true,
       reversalOfId: true, sellContractId: true, buyContractId: true,
+      currency: true, txCurrency: true, txAmountCents: true,
+      settledAt: true, settledCents: true,
       personId: true, person: { select: { name: true } },
       clientCompanyId: true, clientCompany: { select: { name: true } },
       internalOrderId: true,
@@ -82,6 +84,11 @@ export async function GET(request: NextRequest) {
       postedAt: p.postedAt,
       says: p.says,
       reversalOfId: p.reversalOfId,
+      currency: p.currency,
+      txCurrency: p.txCurrency,
+      txAmountCents: p.txAmountCents,
+      settledAt: p.settledAt,
+      settledCents: p.settledCents,
     }))
 
     if (by === 'candidate') {

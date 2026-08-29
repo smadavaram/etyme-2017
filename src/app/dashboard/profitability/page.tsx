@@ -120,6 +120,22 @@ export default function ProfitabilityPage() {
               {pctOf(data.overall) == null ? '—' : `${pctOf(data.overall)}%`}
             </p>
           </div>
+
+          {/* Earned and settled are two different numbers and they
+              disagree for months at a time. One says whether the work is
+              worth doing, the other whether the bank account agrees yet.
+              The old sheet carried this by hand in a "diff" column. */}
+          {data.overall.cashCents != null && (
+            <div>
+              <p className="stat-label">In the bank</p>
+              <p
+                className="stat-value tabular-nums"
+                style={{ color: data.overall.cashCents < 0 ? 'var(--color-attention)' : 'var(--color-ink)' }}
+              >
+                {money(data.overall.cashCents)}
+              </p>
+            </div>
+          )}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {/* A placement nobody can price is a different problem from
                 one priced too thin, so it is counted separately. */}
@@ -135,6 +151,10 @@ export default function ProfitabilityPage() {
             )}
           </div>
         </div>
+      )}
+
+      {data?.overall?.cashSays && (
+        <p className="text-[13px] text-etyme-muted">{data.overall.cashSays}</p>
       )}
 
       {data?.note && <p className="text-[13px] text-etyme-muted">{data.note}</p>}
@@ -157,6 +177,7 @@ export default function ProfitabilityPage() {
             </div>
 
             <p className="mt-2 text-[13px] text-etyme-ink">{r.result.says}</p>
+            <p className="mt-1 text-[13px] text-etyme-muted">{r.result.cashSays}</p>
             {r.standing?.budgetCents != null && (
               <p className="mt-1 text-[13px] text-etyme-muted">{r.standing.says}</p>
             )}
