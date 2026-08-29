@@ -27,6 +27,7 @@ import { NextRequest, NextResponse } from 'next/server'
  * does not go out. Housekeeping last.
  */
 const JOBS = [
+  { path: 'auto-approve', does: 'approves the timesheets nobody responded to' },
   { path: 'due-cycles', does: 'generates the billing and pay cycles that fell due' },
   { path: 'rolloff-scan', does: 'finds assignments ending soon' },
   { path: 'visa-watch', does: 'finds permits expiring inside a contract' },

@@ -368,6 +368,11 @@ model Company {
 
   internalOrders InternalOrder[]
 
+  ordersSold   SalesOrder[] @relation("orderSeller")
+  ordersSoldTo SalesOrder[] @relation("orderSoldTo")
+  ordersBillTo SalesOrder[] @relation("orderBillTo")
+  ordersPayer  SalesOrder[] @relation("orderPayer")
+
   invoicesSoldTo Invoice[] @relation("invoiceSoldTo")
   invoicesBillTo Invoice[] @relation("invoiceBillTo")
   invoicesPayer  Invoice[] @relation("invoicePayer")
@@ -444,6 +449,127 @@ model Interview {
   @@index([submissionId])
 }
 
+/// The commercial terms for one engagement, separate from the people on it.
+///
+/// A contract says what one person costs. A sales order says how the work
+/// is billed: on a schedule or on delivery, at what ceiling, to whom, and
+/// how long the client has to approve a timesheet before silence counts.
+///
+/// Five contractors on one project is five contracts and one order. The
+/// order is what the invoice references and what a finance team recognises
+/// — and putting its terms on each contract instead means five places to
+/// change a payment term and four of them get missed.
+model SalesOrder {
+  id        String  @id @default(cuid())
+  /// The vendor selling.
+  companyId String
+  company   Company @relation("orderSeller", fields: [companyId], references: [id], onDelete: Cascade)
+
+  engagementId String?
+  engagement   Engagement?      @relation(fields: [engagementId], references: [id])
+  msaId        String?
+  msa          MasterAgreement? @relation(fields: [msaId], references: [id])
+
+  /// Their own reference — the number the client's AP team will quote.
+  number String
+  title  String
+
+  // ── Who is who ─────────────────────────────────────────────────────
+  //
+  // A large client signs in one entity, is billed through a shared
+  // services centre in another country, has the work done at a third
+  // site, and pays from a fourth. On the order because that is where the
+  // commercial relationship is agreed, and the invoice inherits it.
+
+  /// Who signed. Always present — somebody agreed to this.
+  soldToId String
+  soldTo   Company          @relation("orderSoldTo", fields: [soldToId], references: [id])
+  /// Where invoices go. Null = the sold-to.
+  billToId String?
+  billTo   Company?         @relation("orderBillTo", fields: [billToId], references: [id])
+  /// Where the work happens. Null = wherever each contract says.
+  shipToId String?
+  shipTo   CompanyLocation? @relation("orderShipTo", fields: [shipToId], references: [id])
+  /// Who settles. Null = the bill-to.
+  payerId  String?
+  payer    Company?         @relation("orderPayer", fields: [payerId], references: [id])
+
+  // ── How it is billed ───────────────────────────────────────────────
+
+  /// TIME · MILESTONE · BOTH — a project with a monthly retainer and
+  /// three delivery payments is ordinary, so both is a real answer.
+  billingBasis  String @default("TIME")
+  /// WEEKLY · BIWEEKLY · SEMIMONTHLY · MONTHLY · CUSTOM
+  billFrequency String @default("MONTHLY")
+  /// CALENDAR · CONTRACT_START · CUSTOM — where the period begins.
+  billAnchor    String @default("CALENDAR")
+  /// SPLIT · TO_EARLIER · TO_LATER — a week crossing a month end.
+  billStraddle  String @default("SPLIT")
+  /// Explicit dates, where the frequency is CUSTOM.
+  customDates   Json?
+
+  /// NET days. Cascades from the MSA, overridable here.
+  paymentTerms Int    @default(30)
+  currency     String @default("USD")
+  /// What the order may bill in total, cents. Null = uncapped.
+  ceilingCents Int?
+
+  // ── Approving the hours ────────────────────────────────────────────
+
+  /// Whether silence counts as approval after the window below.
+  autoApproveTimesheets Boolean @default(false)
+  /// Working days the client has before it does. Null = the default.
+  approvalWindowDays    Int?
+
+  status    String    @default("DRAFT") // DRAFT · OPEN · CLOSED · CANCELLED
+  startDate DateTime
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  milestones    OrderMilestone[]
+  sellContracts SellContract[]
+  invoices      Invoice[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([soldToId])
+  @@index([billToId])
+  @@index([shipToId])
+  @@index([payerId])
+  @@index([engagementId])
+  @@index([msaId])
+}
+
+/// A payment that falls due on delivery rather than on a date.
+///
+/// Kept separate from the order's schedule because the two coexist: a
+/// project can carry a monthly retainer and three delivery payments, and
+/// flattening them into one list loses which is which when somebody asks
+/// why an invoice is larger this month.
+model OrderMilestone {
+  id      String     @id @default(cuid())
+  orderId String
+  order   SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  name         String
+  amountCents  Int
+  /// When it is expected. Not when it becomes billable — that is
+  /// `acceptedAt`, and the gap between the two is the interesting part.
+  dueOn        DateTime?
+  /// The client agreeing the thing was delivered. Until this, no invoice.
+  acceptedAt   DateTime?
+  acceptedById String?
+  /// Said plainly where it slipped or was reduced.
+  note         String?
+  status       String    @default("PENDING") // PENDING · ACCEPTED · INVOICED · CANCELLED
+  sortOrder    Int       @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId, status])
+}
+
 /// An invitation to a firm that has never heard of us.
 ///
 /// Distinct from `RequirementInvitation`, which invites a company already
@@ -514,7 +640,8 @@ model CompanyLocation {
 
   sellContracts SellContract[] // contracts at this work site
 
-  invoicesShipTo Invoice[] @relation("invoiceShipTo")
+  invoicesShipTo Invoice[]    @relation("invoiceShipTo")
+  ordersShipTo   SalesOrder[] @relation("orderShipTo")
 
   @@index([companyId])
 }
@@ -787,6 +914,7 @@ model MasterAgreement {
   engagements   Engagement[]
   requirements  Requirement[]
   sellContracts SellContract[]
+  salesOrders   SalesOrder[]
 
   @@index([vendorId])
   @@index([clientId])
@@ -1551,6 +1679,16 @@ model SellContract {
   // traced back to the requisition that authorised it, seats cannot be
   // counted, and spend cannot be reconciled against the budget that was
   // approved. Null on contracts that did not come from a requisition.
+  /// The order this assignment bills under. Five contractors on one
+  /// project is five contracts and one order.
+  salesOrderId    String?
+  salesOrder      SalesOrder?              @relation(fields: [salesOrderId], references: [id])
+  /// Where the cost lands in the client's books. Either a standing
+  /// department or a project pot with an end date, never both.
+  costCenterId    String?
+  costCenter      CostCenter?              @relation(fields: [costCenterId], references: [id])
+  internalOrderId String?
+  internalOrder   InternalOrder?           @relation(fields: [internalOrderId], references: [id])
   requirementId   String?
   requirement     Requirement?             @relation(fields: [requirementId], references: [id])
   purchaseOrderId String?
@@ -1617,6 +1755,9 @@ model SellContract {
   /// the three-way match reads every contract on a PO
   @@index([purchaseOrderId])
   @@index([deliveryUnitId])
+  @@index([costCenterId])
+  @@index([internalOrderId])
+  @@index([salesOrderId])
 }
 
 enum SellContractState {
@@ -1800,6 +1941,7 @@ model Engagement {
   invoiceCycle  String          @default("MONTHLY")
   sellContracts SellContract[]
   invoices      Invoice[]
+  salesOrders   SalesOrder[]
 
   @@index([msaId])
 }
@@ -1848,8 +1990,18 @@ model Timesheet {
   // signature, and a prime billing on one it never collected.
 
   /// The end client saying the work happened. Gates billing.
-  clientApprovedById   String?
-  clientApprovedAt     DateTime?
+  /// When the contractor put it in. The approval window counts from
+  /// here, so it cannot be inferred from updatedAt — anything else
+  /// touching the row would restart somebody's clock.
+  submittedAt DateTime?
+
+  clientApprovedById String?
+  clientApprovedAt   DateTime?
+  /// True where the client's approval came from silence rather than a
+  /// person. Never inferred from a null id — somebody reading this in
+  /// four months needs it said, not deduced.
+  autoApproved       Boolean   @default(false)
+
   /// The employer saying this is the basis for pay. Gates payroll.
   employerAcceptedById String?
   employerAcceptedAt   DateTime?
@@ -1917,6 +2069,10 @@ model Invoice {
   // which is the ordinary case and should not need four rows of setup.
 
   /// Who signed the agreement this is issued under.
+  /// The order this invoice bills under, where there is one.
+  salesOrderId String?
+  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
+
   soldToId String?
   soldTo   Company?         @relation("invoiceSoldTo", fields: [soldToId], references: [id])
   /// Where the invoice is sent.
@@ -1937,6 +2093,7 @@ model Invoice {
   @@index([billToId])
   @@index([shipToId])
   @@index([payerId])
+  @@index([salesOrderId])
 }
 
 // Expenses — consolidates 2017 expense, client_expense, expense_account, contract_expense, expense_item.
@@ -2036,6 +2193,8 @@ model InternalOrder {
   allocations  ContractCostAllocation[]
   requisitions Requirement[]
 
+  sellContracts SellContract[]
+
   @@unique([companyId, code])
   @@index([companyId, isActive])
   @@index([orgUnitId])
@@ -2059,6 +2218,8 @@ model CostCenter {
   requisitions   Requirement[]
 
   settledFrom InternalOrder[]
+
+  sellContracts SellContract[]
 
   @@unique([companyId, code])
   @@index([companyId, isActive])

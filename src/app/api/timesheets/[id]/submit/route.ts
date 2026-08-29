@@ -68,6 +68,8 @@ export async function POST(
     data: {
       id,
       status: 'SUBMITTED',
+        // The approval window counts from here.
+        submittedAt: new Date(),
       totalHours: Number(timesheet.totalHours),
       message: `Timesheet submitted (${Number(timesheet.totalHours)} hours)`,
     },
