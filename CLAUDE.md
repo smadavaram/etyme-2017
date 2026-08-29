@@ -318,6 +318,62 @@ shared, the framing is not.
 
 ---
 
+## Agreement, order, contract — six objects, not two
+
+A recurring confusion, settled here so nobody has to guess: **a sell
+contract is not a sales order and a buy contract is not a purchase
+order.** Three layers, each answering a different question.
+
+| Layer | The question it answers | Sell side | Buy side |
+|---|---|---|---|
+| **Agreement** | Are we allowed to trade at all? | `MasterAgreement` | `MasterAgreement` |
+| **Order** | How much may be spent, on what, by when? | `SalesOrder` | `PurchaseOrder` |
+| **Contract** | What rate, for which person, for how long? | `SellContract` | `BuyContract` |
+
+Two sentences carry the whole distinction:
+
+- **An order carries a ceiling. A contract carries a rate.**
+- **An order is about money. A contract is about a person.**
+
+### Why collapsing them breaks real cases
+
+**A sell contract is per person; a sales order is not.** One sales order
+for a five-person project produces five sell contracts. Treating them as
+the same object makes a five-person project impossible to bill as one
+commitment.
+
+**A buy contract to a W2 employee has no purchase order.** You do not
+raise a PO to your own employee. This is the clearest proof they are
+different things: `BuyContract.purchaseOrderId` is nullable precisely
+because roughly half of all buy contracts have none. Where there *is* a
+sub-vendor, the buy contract and the PO describe the same commercial
+relationship from two angles — the contract carries the rate, the PO
+carries the ceiling it draws down — and linking them stops the two
+records disagreeing.
+
+**A purchase order belongs to whoever pays.** `PurchaseOrder.issuedById`
+is the payer, which is why the model appears on both sides:
+`SellContract.purchaseOrderId` is the *client's* PO authorising spend
+with us; `BuyContract.purchaseOrderId` is *our* PO authorising spend with
+a sub-vendor. Same model, opposite direction.
+
+### And the two that are neither
+
+- **`Engagement`** — the project or statement of work under an
+  agreement. Groups several people and several contracts.
+- **`ProjectOrder`** — the cost object that accumulates actual revenue
+  and cost. Not a commercial document at all; nobody signs one. See the
+  note on `InternalOrder`, which is the client's own coding and an
+  interface value only.
+
+### The invariant that is not yet enforced
+
+A `BuyContract` with `contractType: W2` and a `purchaseOrderId` set is a
+contradiction — a purchase order raised to an employee. Nothing currently
+refuses it. It belongs in `etyme-money`'s next piece of work.
+
+---
+
 ## Several agents at once
 
 Seven specialists own disjoint parts of the codebase and work at the same
