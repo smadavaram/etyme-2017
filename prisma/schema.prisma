@@ -62,11 +62,14 @@ model Person {
   doNotSubmit            DoNotSubmit[]
   resumes                Resume[]
 
-  identityA        IdentityMatch[] @relation("identityA")
-  identityB        IdentityMatch[] @relation("identityB")
-  orderPostings    OrderPosting[]
-  postingsAuthored OrderPosting[]  @relation("postingAuthor")
-  journalLines     JournalLine[]
+  identityA          IdentityMatch[]       @relation("identityA")
+  identityB          IdentityMatch[]       @relation("identityB")
+  orderPostings      OrderPosting[]
+  postingsAuthored   OrderPosting[]        @relation("postingAuthor")
+  journalLines       JournalLine[]
+  paymentsApplied    Payment[]             @relation("paymentApplier")
+  creditLimitsSet    CustomerCreditLimit[] @relation("creditLimitSetter")
+  dunningLettersSent DunningSend[]         @relation("dunningSender")
 }
 
 model Credential {
@@ -411,12 +414,20 @@ model Company {
 
   fxRates FxRate[]
 
-  projectOrders  ProjectOrder[]
-  projectClients ProjectOrder[]  @relation("projectClient")
-  ledgerAccounts LedgerAccount[]
-  journalEntries JournalEntry[]
-  journalClients JournalLine[]   @relation("journalClient")
-  erpAccountMaps ErpAccountMap[]
+  projectOrders    ProjectOrder[]
+  projectClients   ProjectOrder[]        @relation("projectClient")
+  ledgerAccounts   LedgerAccount[]
+  journalEntries   JournalEntry[]
+  journalClients   JournalLine[]         @relation("journalClient")
+  erpAccountMaps   ErpAccountMap[]
+  paymentsPaid     Payment[]             @relation("paymentPayer")
+  paymentsReceived Payment[]             @relation("paymentReceiver")
+  creditLimitsSet  CustomerCreditLimit[] @relation("creditLimitOwner")
+  creditLimitsOn   CustomerCreditLimit[] @relation("creditLimitSubject")
+  dunningSent      DunningSend[]         @relation("dunningSender")
+  dunningReceived  DunningSend[]         @relation("dunningSubject")
+  billsOwed        VendorBill[]          @relation("billPayer")
+  billsIssued      VendorBill[]          @relation("billIssuer")
 
   @@index([listedById])
 }
@@ -2032,6 +2043,7 @@ model BuyContract {
 
   projectOrderId String?
   projectOrder   ProjectOrder? @relation(fields: [projectOrderId], references: [id])
+  vendorBills    VendorBill[]
 
   @@index([companyId, state])
   @@index([vendorCompanyId])
@@ -2280,6 +2292,15 @@ model Invoice {
   total          Decimal                @db.Decimal(12, 2)
   paid           Decimal                @default(0) @db.Decimal(12, 2)
   dueAt          DateTime
+  /// The day this was actually billed.
+  ///
+  /// Days sales outstanding was counting back through `periodEnd`, which
+  /// is close and is not the same thing — a period ending on the 31st and
+  /// invoiced on the 6th of the next month is six days of ageing nobody
+  /// was counting. Nullable because rows raised before this existed have
+  /// no honest value, and guessing one would corrupt the history the
+  /// countback reads.
+  issuedAt       DateTime?
   status         String                 @default("ISSUED")
   submittedAt    DateTime?
   payments       Payment[]
@@ -2371,16 +2392,189 @@ model Expense {
 }
 
 model Payment {
-  id         String   @id @default(cuid())
-  invoiceId  String
-  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+  id String @id @default(cuid())
+
+  /// Nullable, because unapplied cash is ordinary rather than exceptional.
+  ///
+  /// Money hits the bank with a reference nobody recognises, or a client
+  /// pays four invoices in one wire. Requiring an invoice meant that cash
+  /// simply could not be recorded — so it sat in a bank statement,
+  /// invisible to every figure on every screen. Money you have and cannot
+  /// count is worse than money you are owed.
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+
+  /// Who sent it, where that is known but the invoice is not. The pair
+  /// (payer, amount, date) is usually enough for somebody to match it by
+  /// hand, which is the whole job of an unapplied cash queue.
+  payerCompanyId      String?
+  payerCompany        Company? @relation("paymentPayer", fields: [payerCompanyId], references: [id])
+  /// Whose bank account it landed in. Set on every row, so a payment can
+  /// be found without walking to an invoice that may not exist.
+  receivedByCompanyId String?
+  receivedByCompany   Company? @relation("paymentReceiver", fields: [receivedByCompanyId], references: [id])
+
   amount     Decimal  @db.Decimal(12, 2)
+  currency   String   @default("USD")
   method     String?
   reference  String?
   receivedAt DateTime @default(now())
 
+  /// Set when somebody decided which invoice this belongs to, and who.
+  appliedAt   DateTime?
+  appliedById String?
+  appliedBy   Person?   @relation("paymentApplier", fields: [appliedById], references: [id])
+
   /// every invoice screen sums its payments
   @@index([invoiceId])
+  @@index([payerCompanyId])
+  @@index([receivedByCompanyId])
+  @@index([appliedById])
+  @@index([appliedAt])
+}
+
+/// What a customer may owe us at once, before somebody has to approve it.
+///
+/// Per pair rather than per company: the same client is a different risk
+/// to a firm with two consultants there than to one with forty, and a
+/// limit set by one vendor is not a fact about the client.
+///
+/// A limit is a commercial judgement, never a legal one, so breaching it
+/// warns and demands a reason. It does not block. Until a row exists the
+/// answer is NO_LIMIT_SET, which is reported as its own outcome and never
+/// as a green tick.
+model CustomerCreditLimit {
+  id String @id @default(cuid())
+
+  /// Whose limit this is — the firm carrying the risk.
+  companyId       String
+  company         Company @relation("creditLimitOwner", fields: [companyId], references: [id], onDelete: Cascade)
+  /// Who it applies to.
+  clientCompanyId String
+  clientCompany   Company @relation("creditLimitSubject", fields: [clientCompanyId], references: [id])
+
+  limitCents Int
+  currency   String @default("USD")
+
+  /// Why this number. A limit with no reasoning is one nobody will defend
+  /// when it is breached at three o'clock on a Friday.
+  basis    String?
+  /// Limits go stale. A number set against a client's 2019 filings is not
+  /// a number about that client today.
+  reviewBy DateTime?
+
+  setById String?
+  setBy   Person?  @relation("creditLimitSetter", fields: [setById], references: [id])
+  setAt   DateTime @default(now())
+
+  @@unique([companyId, clientCompanyId])
+  @@index([companyId])
+  @@index([clientCompanyId])
+  @@index([setById])
+  @@index([reviewBy])
+}
+
+/// A rung of the dunning ladder that was actually climbed.
+///
+/// Without this the ladder can only show what WOULD go today; it cannot
+/// stop itself sending the same reminder every morning, which is how an
+/// AP clerk learns to filter you. The stop rule is unenforceable without
+/// a memory, so this is the memory.
+model DunningSend {
+  id String @id @default(cuid())
+
+  /// Whose ladder.
+  companyId       String
+  company         Company @relation("dunningSender", fields: [companyId], references: [id], onDelete: Cascade)
+  /// Who was chased. Recorded per customer rather than per invoice
+  /// because one letter lists eight invoices — eight letters is the bug.
+  clientCompanyId String
+  clientCompany   Company @relation("dunningSubject", fields: [clientCompanyId], references: [id])
+
+  /// Which rung. The ladder stops after the last one and hands to a person.
+  step       String
+  /// The invoices this letter named, so a reader can see what was said.
+  invoiceIds String[]
+
+  channel  String   @default("EMAIL")
+  sentAt   DateTime @default(now())
+  /// Null where it went automatically, which is most of them.
+  sentById String?
+  sentBy   Person?  @relation("dunningSender", fields: [sentById], references: [id])
+
+  @@index([companyId, clientCompanyId, sentAt])
+  @@index([clientCompanyId])
+  @@index([sentById])
+}
+
+/// What a supplier billed us, and when we actually paid it.
+///
+/// The other half of the money, and the half nobody models. Without it
+/// there is no way to ask how long each party in a chain takes to pay —
+/// and that question has an answer no single participant can compute,
+/// because each of them only sees their own hop.
+///
+/// A client pays the prime at day 75. The prime pays the sub at 45 from
+/// receipt. The sub pays the bench vendor at 30 from receipt. The bench
+/// vendor pays the consultant on the 15th, because a person has rent. The
+/// consultant is paid on day 15 for work funded on day 150, and the
+/// smallest firm in the chain finances the difference.
+model VendorBill {
+  id String @id @default(cuid())
+
+  /// Us — the party who owes.
+  companyId       String
+  company         Company @relation("billPayer", fields: [companyId], references: [id], onDelete: Cascade)
+  /// Them. May not be on the platform, which is the common case and the
+  /// reason this is a record of ours rather than a view of their invoice.
+  vendorCompanyId String
+  vendorCompany   Company @relation("billIssuer", fields: [vendorCompanyId], references: [id])
+
+  /// Their number, not ours.
+  number String
+
+  buyContractId   String?
+  buyContract     BuyContract?   @relation(fields: [buyContractId], references: [id])
+  /// The purchase order it draws down, where there is one.
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  /// Where the cost lands.
+  projectOrderId  String?
+  projectOrder    ProjectOrder?  @relation(fields: [projectOrderId], references: [id])
+
+  periodStart DateTime?
+  periodEnd   DateTime?
+  currency    String    @default("USD")
+  totalCents  Int
+  paidCents   Int       @default(0)
+
+  /// Three dates, because they are three different facts and collapsing
+  /// them is what makes a payment delay unmeasurable.
+  receivedAt DateTime
+  dueAt      DateTime
+  /// Null until money actually left. This is the field the whole model
+  /// exists for.
+  paidAt     DateTime?
+
+  /// RECEIVED · APPROVED · DISPUTED · PAID · CANCELLED
+  status      String  @default("RECEIVED")
+  /// Set where our own obligation is conditional on being paid first.
+  /// Generally unenforceable against a worker and enforceable between
+  /// companies, which is precisely why the float lands one layer above
+  /// the person and on whoever is smallest.
+  payWhenPaid Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, vendorCompanyId, number])
+  @@index([companyId, status])
+  @@index([vendorCompanyId])
+  @@index([buyContractId])
+  @@index([purchaseOrderId])
+  @@index([projectOrderId])
+  @@index([dueAt])
+  @@index([paidAt])
 }
 
 // Owed between legal entities of the same company. Derived, never hand maintained.
@@ -2753,6 +2947,7 @@ model ProjectOrder {
   sellContracts  SellContract[]
   buyContracts   BuyContract[]
   journalEntries JournalEntry[]
+  vendorBills    VendorBill[]
 
   @@unique([companyId, code])
   @@index([companyId, status])
@@ -3081,6 +3276,7 @@ model PurchaseOrder {
   sellContracts SellContract[]
   buyContracts  BuyContract[] // the issuer's own subcontracts drawing on it
   invoices      Invoice[]
+  vendorBills   VendorBill[]
 
   @@unique([issuedById, number])
   @@index([issuedToId, status])
