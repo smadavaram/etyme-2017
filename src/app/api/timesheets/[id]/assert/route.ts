@@ -6,6 +6,7 @@ import {
   chain, position, mayAssert, supersede, historyOf, gaps, live,
   type Assertion, type Record_, type Role,
 } from '@/lib/work-ledger'
+import { postAssertion, reversePostingsFor } from '@/lib/order-postings'
 
 /**
  * GET  /api/timesheets/:id/assert — where every party stands
@@ -288,6 +289,12 @@ export async function POST(
       }),
     ])
 
+    // The money follows the correction. The old postings are cancelled
+    // in the month they belonged to and the new ones written, so a
+    // month already reported does not silently change shape.
+    await reversePostingsFor(old.id, String(body.note).trim(), caller.person.id)
+    await postAssertion(added.id, caller.person.id)
+
     return NextResponse.json({ data: { assertionId: added.id, says: v.says } })
   }
 
@@ -317,6 +324,8 @@ export async function POST(
       where: { id: old.id },
       data: { state: 'WITHDRAWN', note: String(body.note).trim() },
     })
+
+    await reversePostingsFor(old.id, String(body.note).trim(), caller.person.id)
 
     return NextResponse.json({
       data: { says: `Withdrawn. ${old.companyName} no longer stands behind those hours.` },
@@ -370,6 +379,11 @@ export async function POST(
       note: body?.note ? String(body.note).trim() : null,
     },
   })
+
+  // Revenue when the client approves, pay and burden when the employer
+  // accepts. Posted to the month the work was done rather than the month
+  // somebody got round to signing it.
+  await postAssertion(created.id, caller.person.id)
 
   const after = chain(record, walked.legs, [...all, toAssertion(created, names)])
   const p = position(record, after)

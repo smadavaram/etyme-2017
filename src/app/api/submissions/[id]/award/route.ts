@@ -6,6 +6,7 @@ import { emit } from '@/lib/events'
 import { resolveBillingTerms } from '@/lib/billing-cascade'
 import { evaluateGovernance } from '@/lib/governance'
 import { assessAward, buySide, type AwardFacts } from '@/lib/award'
+import { orderFor } from '@/lib/order-postings'
 import { notify } from '@/lib/notify'
 import {
   checkClassification, checkCover, insuranceRestsWith, type WorkerType,
@@ -456,8 +457,22 @@ export async function POST(
       standDown = stood.count
     }
 
-    return { contract, standDown, passedOver }
+    return { contract, buyContract, standDown, passedOver }
   })
+
+  // ── The cost object ─────────────────────────────────────────────────
+  //
+  // Opened here so both sides of the deal land on the same order from the
+  // first day. A requisition for six people is one piece of work with six
+  // consultants on it — the case the old spreadsheet could not add up,
+  // because the customer lived inside the consultant's name.
+  const orderId = await orderFor(result.contract.id)
+  if (orderId) {
+    await prisma.buyContract.update({
+      where: { id: result.buyContract.id },
+      data: { internalOrderId: orderId },
+    })
+  }
 
   // The hold has done its job. Ending it matters as much as taking it:
   // a placed consultant who is still held cannot be put forward by

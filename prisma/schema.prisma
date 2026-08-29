@@ -62,8 +62,10 @@ model Person {
   doNotSubmit            DoNotSubmit[]
   resumes                Resume[]
 
-  identityA IdentityMatch[] @relation("identityA")
-  identityB IdentityMatch[] @relation("identityB")
+  identityA        IdentityMatch[] @relation("identityA")
+  identityB        IdentityMatch[] @relation("identityB")
+  orderPostings    OrderPosting[]
+  postingsAuthored OrderPosting[]  @relation("postingAuthor")
 }
 
 model Credential {
@@ -381,6 +383,9 @@ model Company {
   invoicesPayer  Invoice[]       @relation("invoicePayer")
   IdentityMatch  IdentityMatch[]
   WorkAssertion  WorkAssertion[]
+
+  orderPostings       OrderPosting[]
+  clientOrderPostings OrderPosting[] @relation("postingClient")
 
   @@index([listedById])
 }
@@ -1851,6 +1856,8 @@ model SellContract {
   /// SPLIT · END · START
   billStraddle  String @default("SPLIT")
 
+  orderPostings OrderPosting[]
+
   @@index([companyId, state])
   @@index([clientCompanyId])
   @@index([endClientCompanyId])
@@ -1928,6 +1935,16 @@ model BuyContract {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // The cost object this contract's spend lands on.
+  //
+  // The sell side has carried one since internal orders went in; the buy
+  // side never did, which meant cost and revenue could not meet anywhere
+  // except a pairwise ContractLink. One customer with six consultants
+  // has one sell contract and six buy contracts, and a pairwise link
+  // cannot add those up.
+  internalOrderId String?
+  internalOrder   InternalOrder? @relation(fields: [internalOrderId], references: [id])
+
   sellLinks ContractLink[] // linked sell contracts (for profitability)
   buyCycles Cycle[]        @relation("buyCycles")
   docs      DocInstance[]  @relation("buyDocs")
@@ -1958,11 +1975,14 @@ model BuyContract {
   /// SPLIT · END · START
   payStraddle  String @default("SPLIT")
 
+  orderPostings OrderPosting[]
+
   @@index([companyId, state])
   @@index([vendorCompanyId])
   @@index([endDate])
   @@index([entityId])
   @@index([purchaseOrderId])
+  @@index([internalOrderId])
 }
 
 // One person on a buy contract, at their own rate and dates.
@@ -2309,11 +2329,144 @@ model InternalOrder {
   requisitions Requirement[]
 
   sellContracts SellContract[]
+  buyContracts  BuyContract[]
+  postings      OrderPosting[]
 
   @@unique([companyId, code])
   @@index([companyId, isActive])
   @@index([orgUnitId])
   @@index([settlesToId])
+}
+
+/// Every money event on an internal order, in one line each.
+///
+/// ── Why this exists ──────────────────────────────────────────────────
+///
+/// The way this was done by hand, in a spreadsheet, was one row per
+/// consultant-assignment and fifteen month columns repeated five times
+/// over — billed, owed, paid, expenses, profit. It worked and it was
+/// wrong in ways that could not be fixed by being more careful:
+///
+///   · The customer lived inside the consultant's name — "Vani Pasala -
+///     wipro". One customer with six consultants could not be added up
+///     except by matching a string.
+///   · A rate change forked the row. The same person appeared three
+///     times and had no total.
+///   · Overtime and on-call were their own rows at their own rates.
+///   · Visa fees, legal, rent, advertising, payroll taxes and commission
+///     sat unallocated at the bottom, so per-consultant "profit" was
+///     gross margin and real profit was only knowable for the whole firm.
+///   · Adding a sixteenth month meant reshaping the sheet.
+///
+/// A pairwise ContractLink fixes none of that: it pairs one sell to one
+/// buy, and the interesting cases are one-to-many in both directions.
+///
+/// ── What replaces it ─────────────────────────────────────────────────
+///
+/// SAP's internal order: a cost object that collects actual revenue and
+/// cost for one discrete piece of work, then settles. Everything posts
+/// TO the order — the client invoice, the consultant's pay, the H1B
+/// filing fee, the recruiter's commission, a flight. Then you ask the
+/// order what it made, or ask it by person, or by customer, or by month.
+/// Contracts on either side no longer have to pair up.
+///
+/// Postings are immutable. A wrong one is reversed by another posting
+/// carrying reversalOfId, never edited and never deleted, because the
+/// month it belonged to may already have been reported.
+model OrderPosting {
+  id              String        @id @default(cuid())
+  internalOrderId String
+  internalOrder   InternalOrder @relation(fields: [internalOrderId], references: [id], onDelete: Cascade)
+  /// Whose books. Postings never cross a company wall.
+  companyId       String
+  company         Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  kind PostingKind
+
+  /// Signed, in cents. Positive is money into the firm, negative is money
+  /// out. Debit and credit would be more orthodox and much easier to get
+  /// backwards in a query; an order's result is the sum of this column.
+  amountCents Int
+  currency    String @default("USD")
+
+  /// The dimensions the spreadsheet could not hold. All optional: firm-wide
+  /// overhead has no person and no customer, and that is a real posting too.
+  personId        String?
+  person          Person?       @relation(fields: [personId], references: [id])
+  clientCompanyId String?
+  clientCompany   Company?      @relation("postingClient", fields: [clientCompanyId], references: [id])
+  sellContractId  String?
+  sellContract    SellContract? @relation(fields: [sellContractId], references: [id])
+  buyContractId   String?
+  buyContract     BuyContract?  @relation(fields: [buyContractId], references: [id])
+
+  /// The date the money BELONGS to, which is not always the date it was
+  /// written. A March timesheet accepted in May posts to March.
+  postedAt DateTime
+
+  /// What produced this, so a figure can always be walked back to its cause.
+  source   PostingSource
+  sourceId String?
+
+  /// Plain English, written when the posting is made rather than
+  /// reconstructed later by whoever is looking at the screen.
+  says String
+
+  /// Set on a posting that cancels an earlier one. Both stay.
+  reversalOfId String?       @unique
+  reversalOf   OrderPosting? @relation("reversal", fields: [reversalOfId], references: [id])
+  reverses     OrderPosting? @relation("reversal")
+
+  createdAt   DateTime @default(now())
+  createdById String?
+  createdBy   Person?  @relation("postingAuthor", fields: [createdById], references: [id])
+
+  /// One posting per source event per kind. An accepted timesheet writes
+  /// pay and burden and must not write them twice if the route is retried.
+  @@unique([source, sourceId, kind])
+  @@index([internalOrderId, postedAt])
+  @@index([companyId, postedAt])
+  @@index([personId])
+  @@index([clientCompanyId])
+  @@index([sellContractId])
+  @@index([buyContractId])
+  @@index([createdById])
+  @@index([source, sourceId])
+}
+
+enum PostingKind {
+  /// Billed to the customer.
+  REVENUE
+  /// The consultant's or sub-vendor's own pay for hours worked.
+  PAY
+  /// Employer taxes, workers' comp, benefits. Only where we employ them.
+  BURDEN
+  /// Overtime and on-call, which the sheet kept as separate consultant rows.
+  PREMIUM
+  /// Reimbursed to the person, or billed on to the client. Sign says which.
+  EXPENSE
+  /// Paid to whoever made the placement.
+  COMMISSION
+  /// Petition and filing fees. A real cost of a real person.
+  VISA
+  /// Legal, advertising, training, rent, guest house. Belongs to the firm
+  /// until somebody allocates it.
+  OVERHEAD
+  /// Moves a balance from one order to another. Always in pairs.
+  SETTLEMENT
+}
+
+enum PostingSource {
+  INVOICE
+  TIMESHEET
+  PAYROLL
+  EXPENSE
+  PURCHASE_ORDER
+  VISA_PETITION
+  /// Typed in by a person, who has to say why.
+  MANUAL
+  ALLOCATION
+  REVERSAL
 }
 
 model CostCenter {

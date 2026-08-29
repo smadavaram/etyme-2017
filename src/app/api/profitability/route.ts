@@ -6,9 +6,13 @@ import {
   profitOf, total, forCandidate, forCustomer, health, belowFloor,
   type Line, type ContractType,
 } from '@/lib/profitability'
+import {
+  resultOf, byPerson as postingsByPerson, byCustomer as postingsByCustomer,
+  byMonth, allocate, standing, type Posting,
+} from '@/lib/order'
 
 /**
- * GET /api/profitability?by=contract|candidate|customer
+ * GET /api/profitability?by=order|contract|candidate|customer
  *
  * What placements actually made, once burden, commission, expenses and
  * the bench are counted.
@@ -42,6 +46,140 @@ export async function GET(request: NextRequest) {
 
   const companyId = caller.company!.id
   const by = new URL(request.url).searchParams.get('by') ?? 'contract'
+
+  // ── The order, where anything has posted to one ─────────────────────
+  //
+  // Postings are the ledger. Where they exist they are what the money
+  // actually did, so they win over anything re-derived from a contract
+  // and a rate card. Where a company has none yet — nothing awarded
+  // since orders went in — the contract-derived views below still
+  // answer, and the note says which is being read.
+  const posted = await prisma.orderPosting.findMany({
+    where: { companyId },
+    select: {
+      id: true, kind: true, amountCents: true, postedAt: true, says: true,
+      reversalOfId: true, sellContractId: true, buyContractId: true,
+      personId: true, person: { select: { name: true } },
+      clientCompanyId: true, clientCompany: { select: { name: true } },
+      internalOrderId: true,
+      internalOrder: { select: { id: true, code: true, name: true, budgetCents: true } },
+    },
+    orderBy: { postedAt: 'asc' },
+    take: 20_000,
+  })
+
+  if (posted.length > 0 && (by === 'order' || by === 'candidate' || by === 'customer')) {
+    const ps: Posting[] = posted.map((p) => ({
+      id: p.id,
+      kind: p.kind as Posting['kind'],
+      amountCents: p.amountCents,
+      personId: p.personId,
+      personName: p.person?.name ?? null,
+      clientCompanyId: p.clientCompanyId,
+      clientName: p.clientCompany?.name ?? null,
+      sellContractId: p.sellContractId,
+      buyContractId: p.buyContractId,
+      postedAt: p.postedAt,
+      says: p.says,
+      reversalOfId: p.reversalOfId,
+    }))
+
+    if (by === 'candidate') {
+      return NextResponse.json({
+        data: {
+          by: 'candidate',
+          source: 'POSTINGS',
+          rows: postingsByPerson(ps),
+          overall: resultOf(ps),
+          note:
+            'One consultant, every customer and every rate they ever had. ' +
+            'A rate change no longer splits them in two.',
+        },
+      })
+    }
+
+    if (by === 'customer') {
+      return NextResponse.json({
+        data: {
+          by: 'customer',
+          source: 'POSTINGS',
+          rows: postingsByCustomer(ps),
+          overall: resultOf(ps),
+          note:
+            'One customer, every consultant placed there. ' +
+            'The customer is a field now, not part of a consultant\u2019s name.',
+        },
+      })
+    }
+
+    // by === 'order'
+    const orders = new Map<string, typeof posted>()
+    for (const p of posted) {
+      orders.set(p.internalOrderId, [...(orders.get(p.internalOrderId) ?? []), p])
+    }
+
+    const rows = [...orders.entries()].map(([orderId, theirs]) => {
+      const mine = ps.filter((x) => theirs.some((t) => t.id === x.id))
+      const meta = theirs[0].internalOrder
+      return {
+        orderId,
+        code: meta.code,
+        name: meta.name,
+        result: resultOf(mine),
+        standing: standing(meta.budgetCents, mine),
+        people: postingsByPerson(mine),
+        months: byMonth(mine),
+      }
+    })
+
+    // What the sheet left at the bottom of the page. Overhead belongs to
+    // the work that caused it, and the basis is stated rather than
+    // buried, because an allocated cost is an opinion.
+    const pot = ps
+      .filter((p) => p.kind === 'OVERHEAD' && !p.sellContractId)
+      .reduce((n, p) => n + p.amountCents, 0)
+
+    const spread = allocate(
+      pot,
+      rows.map((r) => ({
+        key: r.orderId,
+        label: r.name,
+        revenueCents: r.result.revenueCents,
+        people: r.people.length,
+      })),
+      'REVENUE'
+    )
+
+    return NextResponse.json({
+      data: {
+        by: 'order',
+        source: 'POSTINGS',
+        rows: rows
+          .map((r) => ({
+            ...r,
+            allocatedOverhead: spread.find((a) => a.key === r.orderId) ?? null,
+          }))
+          .sort((a, b) => b.result.revenueCents - a.result.revenueCents),
+        overall: resultOf(ps),
+        note:
+          'Everything posts to the order — what was billed, what was paid, ' +
+          'burden, expenses, commission. Ask it by person, by customer or by month.',
+      },
+    })
+  }
+
+  if (by === 'order') {
+    return NextResponse.json({
+      data: {
+        by: 'order',
+        source: 'NONE',
+        rows: [],
+        note:
+          'Nothing has posted to an order yet. Orders open when a candidate ' +
+          'is awarded, and fill as timesheets are approved and accepted.',
+      },
+    })
+  }
 
   const contracts = await prisma.sellContract.findMany({
     where: { companyId },

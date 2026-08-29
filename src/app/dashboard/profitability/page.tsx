@@ -16,7 +16,7 @@ import { useEffect, useState, useCallback } from 'react'
  * they have ever paid.
  */
 
-type By = 'contract' | 'candidate' | 'customer'
+type By = 'order' | 'contract' | 'candidate' | 'customer'
 
 const money = (c: number) =>
   `${c < 0 ? '-' : ''}$${Math.abs(Math.round(c / 100)).toLocaleString('en-US')}`
@@ -32,8 +32,14 @@ const TONE: Record<string, string> = {
 
 const CHIP_SAYS: Record<string, string> = { UNKNOWN: 'no cost on record' }
 
+// A posted result and a contract-derived one name their margin
+// differently. Reading both here rather than in five places stops a
+// blank appearing on the screen because the wrong field was asked for.
+const marginOf = (r: any) => (r?.grossCents ?? r?.marginCents ?? 0) as number
+const pctOf = (r: any) => (r?.grossPct ?? r?.marginPct ?? null) as number | null
+
 export default function ProfitabilityPage() {
-  const [by, setBy] = useState<By>('contract')
+  const [by, setBy] = useState<By>('order')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -69,7 +75,7 @@ export default function ProfitabilityPage() {
       </header>
 
       <div className="flex gap-1 border-b border-etyme-rule">
-        {(['contract', 'candidate', 'customer'] as By[]).map((t) => (
+        {(['order', 'contract', 'candidate', 'customer'] as By[]).map((t) => (
           <button
             key={t}
             onClick={() => setBy(t)}
@@ -103,15 +109,15 @@ export default function ProfitabilityPage() {
             <p className="stat-label">Margin</p>
             <p
               className="stat-value tabular-nums"
-              style={{ color: data.overall.marginCents < 0 ? 'var(--color-attention)' : 'var(--color-verified)' }}
+              style={{ color: marginOf(data.overall) < 0 ? 'var(--color-attention)' : 'var(--color-verified)' }}
             >
-              {money(data.overall.marginCents)}
+              {money(marginOf(data.overall))}
             </p>
           </div>
           <div>
             <p className="stat-label">Rate</p>
             <p className="stat-value tabular-nums">
-              {data.overall.marginPct == null ? '—' : `${data.overall.marginPct}%`}
+              {pctOf(data.overall) == null ? '—' : `${pctOf(data.overall)}%`}
             </p>
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -133,7 +139,91 @@ export default function ProfitabilityPage() {
 
       {data?.note && <p className="text-[13px] text-etyme-muted">{data.note}</p>}
 
-      {data?.rows?.map((r: any, i: number) => (
+      {/* ── The order ──────────────────────────────────────────────
+          Everything that happened on one piece of work, from the
+          postings themselves. Contracts on either side no longer have
+          to pair up for this to add. */}
+      {data?.by === 'order' && data.source === 'POSTINGS' &&
+        data.rows.map((r: any) => (
+          <article key={r.orderId} className="panel">
+            <div className="flex items-baseline justify-between gap-4">
+              <div>
+                <p className="text-[15px] font-semibold text-etyme-ink">{r.name}</p>
+                <p className="font-mono text-[11px] text-etyme-faint">{r.code}</p>
+              </div>
+              {r.standing?.overBudget && (
+                <span className="chip chip--attention">over budget</span>
+              )}
+            </div>
+
+            <p className="mt-2 text-[13px] text-etyme-ink">{r.result.says}</p>
+            {r.standing?.budgetCents != null && (
+              <p className="mt-1 text-[13px] text-etyme-muted">{r.standing.says}</p>
+            )}
+            {r.allocatedOverhead && r.allocatedOverhead.amountCents !== 0 && (
+              <p className="mt-1 text-[13px] text-etyme-muted">{r.allocatedOverhead.says}</p>
+            )}
+
+            {/* The two questions the spreadsheet could not answer, on
+                the same postings, without reshaping anything. */}
+            {r.people.length > 0 && (
+              <div className="mt-3 border-t border-etyme-rule pt-3">
+                <p className="stat-label">Who is on it</p>
+                <ul className="mt-1 space-y-1">
+                  {r.people.map((p: any) => (
+                    <li key={p.key} className="flex justify-between gap-4 text-[13px]">
+                      <span className="text-etyme-ink">{p.label}</span>
+                      <span className="tabular-nums text-etyme-muted">
+                        {money(p.revenueCents)} billed · {money(p.grossCents)}
+                        {p.grossPct == null ? '' : ` · ${p.grossPct}%`}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {r.months.length > 0 && (
+              <div className="mt-3 overflow-x-auto border-t border-etyme-rule pt-3">
+                <p className="stat-label">By month</p>
+                <table className="mt-1 w-full text-[12px]">
+                  <tbody>
+                    {r.months.map((m: any) => (
+                      <tr key={m.key}>
+                        <td className="py-0.5 pr-4 text-etyme-muted">{m.label}</td>
+                        <td className="py-0.5 pr-4 text-right tabular-nums text-etyme-ink">
+                          {money(m.revenueCents)}
+                        </td>
+                        <td
+                          className="py-0.5 text-right tabular-nums"
+                          style={{ color: m.grossCents < 0 ? 'var(--color-attention)' : 'var(--color-muted)' }}
+                        >
+                          {money(m.grossCents)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </article>
+        ))}
+
+      {/* A slice of the same postings, by person or by customer. */}
+      {data?.source === 'POSTINGS' && data.by !== 'order' &&
+        data.rows.map((r: any) => (
+          <article key={r.key} className="panel">
+            <div className="flex items-baseline justify-between gap-4">
+              <p className="text-[15px] font-semibold text-etyme-ink">{r.label}</p>
+              <p className="tabular-nums text-[13px] text-etyme-muted">
+                {r.grossPct == null ? '—' : `${r.grossPct}%`}
+              </p>
+            </div>
+            <p className="mt-2 text-[13px] text-etyme-ink">{r.says}</p>
+          </article>
+        ))}
+
+      {data?.source !== 'POSTINGS' && data?.rows?.map((r: any, i: number) => (
         <article key={i} className="panel">
           <div className="flex items-baseline justify-between gap-4">
             <div>
