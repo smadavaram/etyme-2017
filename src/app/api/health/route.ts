@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { senderStatus } from '@/lib/senders'
 
 /**
  * GET /api/health — is this deployment actually working
@@ -80,6 +81,14 @@ export async function GET() {
   if (process.env.AZURE_AD_CLIENT_ID) providers.push('Microsoft')
   if (process.env.EMAIL_SERVER) providers.push('Email link')
 
+  // Whether an invitation or a notification actually goes anywhere. This
+  // was missing from here entirely — RESEND_API_KEY and NOTIFY_FROM_EMAIL
+  // could be unset on a deployment that reported itself healthy, and the
+  // first anyone would learn of it is a consultant saying "I never got
+  // the invite". senderStatus() already answers this; this endpoint just
+  // was not calling it.
+  const senders = senderStatus()
+
   const ok = database.ok && configured.NEXTAUTH_SECRET
 
   return NextResponse.json(
@@ -92,6 +101,9 @@ export async function GET() {
           providers.length > 0
             ? `Sign-in via ${providers.join(', ')}.`
             : 'No sign-in provider configured — the only way in is the demo button.',
+        notifications: senders,
+        // The one line worth reading first if invitations seem to vanish.
+        email: senders.find((s) => s.channel === 'EMAIL')!.note,
         // The one model call in the product. Off is a valid state and
         // says so rather than failing quietly.
         model: process.env.ANTHROPIC_API_KEY
