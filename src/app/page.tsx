@@ -71,6 +71,62 @@ import Link from 'next/link'
  * order, the hours, the invoice, and the tenure that spans all three
  * suppliers who have ever supplied this person.
  */
+/**
+ * The header nav — Products, Industries, Compliance, Why Etyme.
+ *
+ * The flat six-word list it replaced ("Suppliers, Requisitions,
+ * Screening, Timesheets, Invoices, Compliance") named modules with
+ * nothing organising them. An enterprise buyer evaluating a system of
+ * record expects this shape — it's how Concur, Workday and every other
+ * layer like this one structure a header. Every item below links to a
+ * real section already on this page; nothing here promises a screen
+ * that doesn't exist.
+ *
+ * Industries is deliberately not a set of vertical product pages —
+ * CLAUDE.md is explicit that the core stays horizontal. The note under
+ * it says so directly, so the menu argues for the same positioning it
+ * could otherwise be read as contradicting.
+ */
+const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }[]; note?: string }[] = [
+  {
+    label: 'Products',
+    items: [
+      { t: 'Requisitions & sourcing', d: 'Roles arrive as seats — duplicates merge on their own.', href: '#lifecycle' },
+      { t: 'Screening & submissions', d: 'Rules run first, one judgement second.', href: '#lifecycle' },
+      { t: 'Timesheets & invoicing', d: 'Hours approved, invoices matched to the order.', href: '#monday' },
+      { t: 'Tenure ledger', d: 'One number, across every supplier a person has worked through.', href: '#tenure' },
+    ],
+  },
+  {
+    label: 'Industries',
+    items: [
+      { t: 'IT & engineering', href: '#who' },
+      { t: 'Healthcare & clinical', href: '#who' },
+      { t: 'Skilled trades & field services', href: '#who' },
+      { t: 'Professional & corporate services', href: '#who' },
+    ],
+    note: 'One product. No industry-specific version to buy.',
+  },
+  {
+    label: 'Compliance',
+    items: [
+      { t: 'Work authorisation', d: 'Blocked, not warned, where the law is behind it.', href: '#tenure' },
+      { t: 'Tenure & co-employment', d: 'Aggregated across every supplier, not per assignment.', href: '#tenure' },
+      { t: 'Document packets', d: 'Derived from the role — not a hardcoded checklist.', href: '#compliance' },
+      { t: 'Governance & approvals', d: 'Every override keeps the name of whoever gave it.', href: '#tenure' },
+    ],
+  },
+  {
+    label: 'Why Etyme',
+    items: [
+      { t: 'Never runs a bench, never places anybody', href: '#why' },
+      { t: 'Governance is never a paid tier', href: '#why' },
+      { t: 'Rules first, a model only on what is left', href: '#compliance' },
+      { t: 'Free while we prove it out', href: '#why' },
+    ],
+  },
+]
+
 const RECORD = [
   { when: 'Submitted', what: '2 Sep', detail: '$78/hr · screened and cleared' },
   { when: 'Interviewed', what: '9 Sep', detail: 'two rounds · offer made' },
@@ -282,19 +338,57 @@ export default function LandingPage() {
       {/* ── Hero ─────────────────────────────────────────────── */}
       <section className="bg-etyme-navy">
         <div className="mx-auto max-w-6xl px-6 pb-20 pt-8 md:pb-24">
-          <nav className="mb-14 flex flex-wrap items-center gap-x-8 gap-y-4 md:mb-16">
+          <nav className="mb-14 flex flex-wrap items-center gap-x-2 gap-y-4 md:mb-16">
             <EtymeLogo size="lg" inverted />
-            {/* The modules, named. Concur says Expense, Travel, Invoice
-                before it says anything clever, and you know what it is
-                in three words. A layer that shows one feature gets read
-                as that feature. */}
-            <ul className="hidden items-center gap-6 text-sm text-white/55 lg:flex">
-              {['Suppliers', 'Requisitions', 'Screening', 'Timesheets', 'Invoices', 'Compliance'].map(
-                (m) => (
-                  <li key={m}>{m}</li>
-                )
-              )}
+
+            {/* Products, Industries, Compliance, Why Etyme — see NAV_MENUS
+                above for why this shape and not a flat module list. */}
+            <ul className="ml-8 hidden items-center gap-1 text-sm lg:flex">
+              {NAV_MENUS.map((menu) => (
+                <li key={menu.label} className="group relative">
+                  <button
+                    type="button"
+                    className="rounded-md px-3 py-2 text-white/55 transition-colors
+                               hover:text-white focus-visible:text-white focus-visible:outline-none
+                               focus-visible:ring-2 focus-visible:ring-white/40"
+                  >
+                    {menu.label}
+                  </button>
+                  <div
+                    className="invisible absolute left-0 top-full z-20 w-72 -translate-y-1 pt-2
+                               opacity-0 transition-all duration-100
+                               group-hover:visible group-hover:translate-y-0 group-hover:opacity-100
+                               group-focus-within:visible group-focus-within:translate-y-0
+                               group-focus-within:opacity-100"
+                  >
+                    <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-2 shadow-2xl">
+                      {menu.items.map((item) => (
+                        <a
+                          key={item.t}
+                          href={item.href}
+                          className="block rounded-lg px-3 py-2.5 hover:bg-etyme-canvas"
+                        >
+                          <span className="block text-[13px] font-medium text-etyme-ink">
+                            {item.t}
+                          </span>
+                          {item.d && (
+                            <span className="mt-0.5 block text-[12px] leading-snug text-etyme-muted">
+                              {item.d}
+                            </span>
+                          )}
+                        </a>
+                      ))}
+                      {menu.note && (
+                        <p className="mt-1 border-t border-etyme-rule px-3 pt-2 text-[11px] text-etyme-faint">
+                          {menu.note}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
             </ul>
+
             <Link
               href="/login"
               className="ml-auto rounded-lg border border-white/10 px-5 py-2.5 text-sm font-medium
@@ -323,16 +417,21 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-wrap items-center gap-3">
+                {/* Not job-board language ("hiring", "a bench") — this
+                    isn't a job board. Both buttons open the same seeded
+                    workspace from a different seat in the chain, which
+                    is the actual product: a layer with a view for every
+                    party in it, not a tool for one of them. */}
                 <TryDemo
                   side="HIRING"
-                  label="I'm hiring →"
+                  label="See it as the company →"
                   className="rounded-lg bg-white px-6 py-3.5 text-sm font-semibold
                              text-etyme-navy shadow-lg shadow-white/10 transition-colors
                              hover:bg-white/90"
                 />
                 <TryDemo
                   side="BENCH"
-                  label="I have a bench →"
+                  label="See it as the supplier →"
                   className="rounded-lg border border-white/20 px-6 py-3.5 text-sm
                              font-semibold text-white/85 transition-colors
                              hover:border-white/40 hover:text-white"
@@ -399,7 +498,7 @@ export default function LandingPage() {
           the whole thing beats a paragraph describing it every time. This
           is the one section on the page that shows the product rather
           than talking about it. */}
-      <section className="border-b border-etyme-rule bg-etyme-surface">
+      <section id="lifecycle" className="border-b border-etyme-rule bg-etyme-surface scroll-mt-6">
         <div className="mx-auto max-w-6xl px-6 py-14 md:py-16">
           <p className="eyebrow mb-2">How a placement actually moves</p>
           <h2 className="max-w-[26ch] text-balance font-serif text-2xl leading-tight
@@ -446,7 +545,7 @@ export default function LandingPage() {
       {/* The page used to pick one reader — a client with eleven
           suppliers — and every other reader bounced. The product serves
           a chain, so the page says so. */}
-      <section className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+      <section id="who" className="mx-auto max-w-6xl px-6 py-16 md:py-24 scroll-mt-6">
         <p className="eyebrow mb-3">Who this is for</p>
         <h2 className="max-w-[22ch] text-balance font-serif text-3xl leading-tight
                        tracking-[-0.02em] text-etyme-ink md:text-4xl">
@@ -564,7 +663,7 @@ export default function LandingPage() {
       {/* ── Monday ───────────────────────────────────────────────── */}
       {/* Four questions a firm answers today with a phone call and a
           guess, and the four screens that answer them instead. */}
-      <section className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+      <section id="monday" className="mx-auto max-w-6xl px-6 py-16 md:py-24 scroll-mt-6">
         <p className="eyebrow mb-3">What changes on Monday</p>
         <h2 className="max-w-[24ch] text-balance font-serif text-3xl leading-tight
                        tracking-[-0.02em] text-etyme-ink md:text-4xl">
@@ -593,7 +692,7 @@ export default function LandingPage() {
       {/* The sharpest wedge, and it was the second of three bullets in a
           grid. Efficiency loses to "we are managing fine". A number
           nobody can produce and a lawyer wants does not. */}
-      <section className="border-y border-etyme-rule bg-etyme-surface">
+      <section id="tenure" className="border-y border-etyme-rule bg-etyme-surface scroll-mt-6">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
           <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
             <div>
@@ -666,7 +765,7 @@ export default function LandingPage() {
       {/* ── Rules first, model second ────────────────────────────── */}
       {/* Two cards instead of two paragraphs — the split itself is the
           point, so it should look split. */}
-      <section className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+      <section id="compliance" className="mx-auto max-w-6xl px-6 py-16 md:py-20 scroll-mt-6">
         <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <h2 className="max-w-[18ch] text-balance font-serif text-3xl leading-tight
                          tracking-[-0.02em] text-etyme-ink md:text-4xl">
@@ -701,7 +800,7 @@ export default function LandingPage() {
       {/* A page with no price makes a reader assume enterprise sales and
           leave. We do not have one yet, so it says that rather than
           nothing — and says what is settled, which is the shape. */}
-      <section className="border-y border-etyme-rule bg-etyme-surface">
+      <section id="why" className="border-y border-etyme-rule bg-etyme-surface scroll-mt-6">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
           <p className="eyebrow mb-3">What it costs</p>
           <h2 className="max-w-[22ch] text-balance font-serif text-3xl leading-tight
@@ -748,13 +847,13 @@ export default function LandingPage() {
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
             <TryDemo
               side="HIRING"
-              label="I'm hiring →"
+              label="See it as the company →"
               className="rounded-lg bg-etyme-action px-6 py-3.5 text-sm font-semibold text-white
                          transition-opacity hover:opacity-90"
             />
             <TryDemo
               side="BENCH"
-              label="I have a bench →"
+              label="See it as the supplier →"
               className="rounded-lg border border-etyme-rule px-6 py-3.5 text-sm font-semibold
                          text-etyme-ink transition-colors hover:border-etyme-ink"
             />

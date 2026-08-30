@@ -224,15 +224,22 @@ describe('Below the hero, the page says what the business is', () => {
     // rather than an argument for it. Pinned by count so a future edit
     // that quietly drops back to prose fails here instead of shipping.
     expect(PAGE).toContain('const LIFECYCLE')
-    const stageCount = (PAGE.match(/\{ t: '[^']+', d: '[^']+'/g) ?? []).length
+    // Scoped to the array itself: the header nav's Products/Compliance
+    // menus carry `{ t: ..., d: ... }` items in the same shape for the
+    // same reason (a label and a one-line description), and a bare
+    // whole-file match would count those too.
+    const arrayText = PAGE.slice(PAGE.indexOf('const LIFECYCLE'), PAGE.indexOf('const POSITIONS'))
+    const stageCount = (arrayText.match(/\{ t: '[^']+', d: '[^']+'/g) ?? []).length
     expect(stageCount).toBe(18)
   })
 
   it('marks exactly the four gates — a stage that can stop the deal, not only record it', () => {
     // Matched only inside an actual LIFECYCLE row, not the doc comment
     // above it that also says the words "gate: true" while explaining
-    // what the field means.
-    const gateCount = (PAGE.match(/\{ t: '[^']+', d: '[^']+', gate: true \}/g) ?? []).length
+    // what the field means — and not any other array with the same
+    // `{ t, d }` shape, such as the header nav's menu items.
+    const arrayText = PAGE.slice(PAGE.indexOf('const LIFECYCLE'), PAGE.indexOf('const POSITIONS'))
+    const gateCount = (arrayText.match(/\{ t: '[^']+', d: '[^']+', gate: true \}/g) ?? []).length
     expect(gateCount).toBe(4)
   })
 
@@ -328,6 +335,66 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('still passes the four positioning rules after the rewrite', () => {
     expect(verdict(live).ok).toBe(true)
+  })
+})
+
+// ── The header ────────────────────────────────────────────────────────
+//
+// "Organized by products, industries, compliance and why etyme" — a
+// founder instruction, not a guess. The header used to be a flat list of
+// six module names with nothing organising them; a company evaluating a
+// system of record expects the shape below.
+
+describe('The header reads as an enterprise product, not a job board', () => {
+
+  it('is organised into exactly Products, Industries, Compliance and Why Etyme', () => {
+    const menuStart = PAGE.indexOf('const NAV_MENUS')
+    const menuEnd = PAGE.indexOf('const RECORD')
+    const menus = PAGE.slice(menuStart, menuEnd)
+    for (const label of ['Products', 'Industries', 'Compliance', 'Why Etyme']) {
+      expect(menus, label).toContain(`label: '${label}'`)
+    }
+  })
+
+  it('never says "I\'m hiring" — that is job-board language, not an enterprise layer', () => {
+    // The CTA text lives in a `label` prop, invisible to copyFrom — this
+    // has to read the raw source to be a real guard against it coming back.
+    expect(PAGE).not.toContain("I'm hiring")
+    expect(PAGE).not.toContain('I have a bench')
+  })
+
+  it('lets a visitor pick a seat in the chain rather than announce a job to fill', () => {
+    // A TryDemo `label` prop, not JSX text — invisible to copyFrom, which
+    // only reads text nodes and single-quoted string literals. Checked
+    // against the raw source instead.
+    expect(PAGE).toContain('See it as the company')
+    expect(PAGE).toContain('See it as the supplier')
+  })
+
+  it('sends every header link to a section that actually exists on the page', () => {
+    const menuStart = PAGE.indexOf('const NAV_MENUS')
+    const menuEnd = PAGE.indexOf('const RECORD')
+    const menus = PAGE.slice(menuStart, menuEnd)
+    const hrefs = [...menus.matchAll(/href: '#([a-z]+)'/g)].map((m) => m[1])
+    expect(hrefs.length).toBeGreaterThan(0)
+    for (const anchor of new Set(hrefs)) {
+      expect(PAGE, `#${anchor}`).toContain(`id="${anchor}"`)
+    }
+  })
+
+  it('names industries as one product used across them, never a vertical feature', () => {
+    // CLAUDE.md: "Horizontal, never vertical." Listing industries is fine
+    // as an illustration of breadth; it would be wrong as a claim that a
+    // different product exists per industry, so the menu says so itself.
+    expect(PAGE).toContain('One product. No industry-specific version to buy.')
+  })
+
+  it('does not let the new header text shift the pinned hero words', () => {
+    // Every header/menu label above is rendered through {expr}, never as
+    // literal JSX text, specifically so it stays invisible to copyFrom's
+    // tag-text scan and the hero stays where it was pinned. This is the
+    // regression that scan would show: "Sign in" stops being first.
+    expect(words[0]).toBe('Sign in')
   })
 })
 
