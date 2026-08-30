@@ -27,6 +27,15 @@ type NavItem = {
   href: string
   icon: string  // emoji for now; SVG icons later
   badge?: number
+  /**
+   * Optional sub-heading inside a section. Operate had grown to 22 flat
+   * links with nothing between them — a founder note ("too many
+   * organized links") traced to exactly this section. This groups the
+   * same links under three quiet sub-labels rather than inventing new
+   * top-level sections, which would drift from the nav CLAUDE.md pins
+   * per company type.
+   */
+  group?: string
 }
 
 type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
@@ -68,40 +77,40 @@ const VENDOR_NAV: NavSection[] = [
   {
     label: 'Operate',
     items: [
-      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
-      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧' },
-      // Next to Invoices deliberately: same money, different question.
-      // One is what we sent, the other is what came back.
-      { label: 'Money owed to us', href: '/dashboard/ar', icon: '◧' },
-      // The other half of the same question. One screen says who owes us,
-      // this one says who is funding whom while everybody waits.
-      { label: 'Who is financing whom', href: '/dashboard/ap', icon: '◨' },
       // High in the list on purpose. It is a queue, not a report, and a
       // report is something somebody has to think to ask for.
       { label: 'Loose ends', href: '/dashboard/loose-ends', icon: '⛓' },
-      { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤' },
-      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫' },
-      { label: 'Payroll', href: '/dashboard/payroll', icon: '▩' },
-      { label: 'Check the checker', href: '/dashboard/checks', icon: '⊙' },
-      { label: 'Automation', href: '/dashboard/automation', icon: '⚙' },
-      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
-      { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱' },
+      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Money' },
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
+      // Next to Invoices deliberately: same money, different question.
+      // One is what we sent, the other is what came back.
+      { label: 'Money owed to us', href: '/dashboard/ar', icon: '◧', group: 'Money' },
+      // The other half of the same question. One screen says who owes us,
+      // this one says who is funding whom while everybody waits.
+      { label: 'Who is financing whom', href: '/dashboard/ap', icon: '◨', group: 'Money' },
+      { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
+      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Money' },
+      { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
+      { label: 'Check the checker', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
+      { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Checks & compliance' },
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Checks & compliance' },
+      { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱', group: 'Checks & compliance' },
       // The two directions belong adjacent. A vendor spends as much time
       // being screened as screening, and only one of those had a screen.
-      { label: 'Being screened', href: '/dashboard/outbound-pack', icon: '◲' },
-      { label: 'Blacklist', href: '/dashboard/blacklist', icon: '⊘' },
-      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻' },
-      { label: 'Companies', href: '/dashboard/companies', icon: '▣' },
+      { label: 'Being screened', href: '/dashboard/outbound-pack', icon: '◲', group: 'Checks & compliance' },
+      { label: 'Blacklist', href: '/dashboard/blacklist', icon: '⊘', group: 'Checks & compliance' },
+      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', group: 'Checks & compliance' },
+      { label: 'Companies', href: '/dashboard/companies', icon: '▣', group: 'Admin' },
       // The rolodex. A staffing business is a rolodex with invoicing
       // attached, and this is finally the rolodex.
-      { label: 'Who we work with', href: '/dashboard/contacts', icon: '☎' },
+      { label: 'Who we work with', href: '/dashboard/contacts', icon: '☎', group: 'Admin' },
       // Five onboardings, derived live from what exists.
-      { label: 'Getting set up', href: '/dashboard/onboarding', icon: '☑' },
+      { label: 'Getting set up', href: '/dashboard/onboarding', icon: '☑', group: 'Admin' },
       // The journal out to their books, and the statement back against ours.
-      { label: 'Your books, their books', href: '/dashboard/integrations', icon: '⇄' },
-      { label: 'Who can do what', href: '/dashboard/access', icon: '⚿' },
-      { label: 'Settings', href: '/dashboard/settings', icon: '⚙' },
-      { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓' },
+      { label: 'Your books, their books', href: '/dashboard/integrations', icon: '⇄', group: 'Admin' },
+      { label: 'Who can do what', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
+      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Admin' },
+      { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓', group: 'Admin' },
     ],
   },
   {
@@ -147,9 +156,14 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Dashboard', href: '/dashboard/program', icon: '◉' },
       { label: 'Requisitions', href: '/dashboard/requisitions', icon: '⊞' },
       { label: 'Open roles', href: '/dashboard/requirements', icon: '◈' },
-      { label: 'Candidates', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
-      // One record per person, however many suppliers are selling them.
+      // The one entry point for people, deliberately. This used to sit
+      // next to a "Candidates" link to /dashboard/submissions — the raw,
+      // one-row-per-submission feed — which is exactly what made the
+      // same person look duplicated: four vendors submitting one human
+      // rendered as four separate rows with four separate names. That
+      // link is gone; every submission is still here, merged onto the
+      // one person it belongs to and expandable per row.
       { label: 'People', href: '/dashboard/people', icon: '◍' },
       { label: 'Placements', href: '/dashboard/contracts', icon: '▤' },
       { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠' },
@@ -254,7 +268,14 @@ export function Sidebar({
             <div className="eyebrow px-2 pt-5 pb-1.5">
               {section.label}
             </div>
-            {section.items.map((item) => {
+            {section.items.map((item, i) => {
+              // A sub-group header prints once, the moment its name first
+              // differs from the item before it — not for every item that
+              // carries it. This is what turns 22 flat links into three
+              // named clusters without inventing a new top-level section.
+              const priorGroup = i > 0 ? section.items[i - 1].group : undefined
+              const showGroup = item.group !== undefined && item.group !== priorGroup
+
               // Handle hrefs with query params (e.g. /dashboard/contracts?side=sell)
               const [itemPath, itemQuery] = item.href.split('?')
               const active = item.href === dashboardHref
@@ -263,29 +284,36 @@ export function Sidebar({
                   ? pathname.startsWith(itemPath) && searchParams.get(itemQuery.split('=')[0]) === itemQuery.split('=')[1]
                   : pathname.startsWith(item.href)
               return (
-                <Link
-                  key={item.label}
-                  href={item.href as any}
-                  className={`
-                    flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px]
-                    transition-colors
-                    ${active
-                      ? 'bg-etyme-canvas text-etyme-ink font-medium'
-                      : 'text-etyme-muted hover:text-etyme-ink hover:bg-etyme-canvas/60'
-                    }
-                  `}
-                >
-                  <span className="w-4 text-center text-[11px] opacity-60">
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                  {item.badge !== undefined && (
-                    <span className="ml-auto text-[10px] font-semibold text-etyme-attention
-                                     bg-etyme-attention/10 px-1.5 py-0.5 rounded-full tabular-nums">
-                      {item.badge}
-                    </span>
+                <div key={item.label}>
+                  {showGroup && (
+                    <div className="px-2.5 pt-3 pb-1 text-[10px] font-medium uppercase
+                                    tracking-[0.06em] text-etyme-faint">
+                      {item.group}
+                    </div>
                   )}
-                </Link>
+                  <Link
+                    href={item.href as any}
+                    className={`
+                      flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px]
+                      transition-colors
+                      ${active
+                        ? 'bg-etyme-canvas text-etyme-ink font-medium'
+                        : 'text-etyme-muted hover:text-etyme-ink hover:bg-etyme-canvas/60'
+                      }
+                    `}
+                  >
+                    <span className="w-4 text-center text-[11px] opacity-60">
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                    {item.badge !== undefined && (
+                      <span className="ml-auto text-[10px] font-semibold text-etyme-attention
+                                       bg-etyme-attention/10 px-1.5 py-0.5 rounded-full tabular-nums">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                </div>
               )
             })}
           </div>
