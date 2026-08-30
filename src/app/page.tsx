@@ -97,26 +97,29 @@ const POSITIONS = [
   {
     who: 'The company hiring',
     sees:
-      'Eleven suppliers and eleven spreadsheets. Knows what each contract cost. ' +
-      'Cannot say what any one person cost, or how long they have been here.',
+      'Eleven suppliers, eleven spreadsheets. You know what each contract costs. ' +
+      'You don’t know what any one person actually costs you, or how long ' +
+      'they’ve really been on site.',
   },
   {
     who: 'The prime',
     sees:
-      'Holds the client and the agreement that says the client may not be named ' +
-      'further down. Forwards the role anyway, because the alternative is retyping it.',
+      'Holds the client relationship, and an agreement that says don’t name ' +
+      'the client further down the chain. Forwards the raw email anyway — ' +
+      'redacting it properly is more work than most people bother with.',
   },
   {
     who: 'The sub',
     sees:
-      'Answers a role it cannot see the end of. Prices it from a title, a rate ' +
+      'Answers a role with half the picture. Prices it off a title, a rate, ' +
       'and a guess about who is really behind it.',
   },
   {
     who: 'The bench operator',
     sees:
-      'Has the person. Cannot see the seat. Learns the client name only when there ' +
-      'is a right to represent on file, which is the whole reason benches distrust portals.',
+      'Has the person, can’t see the job. Only learns the client’s name ' +
+      'once there is a signed right to represent — which is exactly why ' +
+      'benches don’t trust portals.',
   },
 ]
 
@@ -132,32 +135,33 @@ const MONDAY = [
     screen: 'Leads',
     q: 'A role arrived. Is it four roles, or one role four times?',
     a:
-      'Adverts and forwarded emails collapse into seats. Three primes carrying the ' +
-      'same seat show as one, because submitting the same person down all three is ' +
-      'how a client sees the name three times and rejects all three.',
+      'Adverts and forwarded emails turn into seats on their own. Three primes ' +
+      'carrying the same seat show up as one — because submitting your person ' +
+      'through all three just gets them rejected three times.',
   },
   {
     screen: 'Bench',
     q: 'Do we have anybody, and what is the bench costing while it waits?',
     a:
-      'Who is free, who comes free and when, and what a day of waiting costs — ' +
-      'per person and in total, against the roles currently open.',
+      'Who’s free right now, who’s about to be, and what every idle ' +
+      'day is costing you — per person and across the whole bench, against ' +
+      'what’s actually open.',
   },
   {
     screen: 'Profitability',
     q: 'What does this placement actually make?',
     a:
-      'Not bill minus pay times hours. The client approved forty hours and the ' +
-      'employer accepted thirty-eight, and the margin is neither rate times either ' +
-      'number. Every figure comes off the work ledger.',
+      'Not bill rate minus pay rate times hours. The client signed off on forty ' +
+      'hours, you accepted thirty-eight — the real margin is neither of those ' +
+      'simple numbers. Every figure comes straight off what actually happened.',
   },
   {
     screen: 'Payables',
     q: 'Who owes us, and whose work are we financing?',
     a:
-      'A client pays at day 75 against sixty-day terms while you pay your sub at ' +
-      'day 30. The difference is your own cash funding somebody else’s work, and ' +
-      'nobody invoices you for that.',
+      'Your client pays you on day 75 against 60-day terms. You pay your sub on ' +
+      'day 30. That gap is your own cash funding somebody else’s payroll — and ' +
+      'nobody sends you a bill for it.',
   },
 ]
 
@@ -180,22 +184,25 @@ const DECIDED = [
   {
     t: 'Governance is never a paid tier',
     p:
-      'Tenure caps, approval chains and the record of who approved what are in the ' +
-      'product for everybody. Any company with two hiring managers needs them, and ' +
-      'charging extra for them loses the deal at evaluation rather than at negotiation.',
+      'Tenure caps, approval chains, the record of who approved what — ' +
+      'everybody gets these, full stop. Any company with two hiring ' +
+      'managers needs them. Charge extra for this and you lose the deal ' +
+      'before you even get to negotiate.',
   },
   {
     t: 'Etyme never runs a bench and never places anybody',
     p:
-      'It sits between the firms that do. The moment it competes with its own ' +
-      'suppliers, the suppliers stop putting their people in it and the network ' +
-      'stops growing. That is a structural commitment, not a policy we could revise.',
+      'We sit between the firms that do. The moment we start competing ' +
+      'with our own suppliers, they stop putting their people in the ' +
+      'system and the whole network stalls. This isn’t a policy we might ' +
+      'change later — it’s built into how the thing works.',
   },
   {
     t: 'Looking around costs nothing and needs no card',
     p:
-      'A seeded workspace with a worked example in it, yours to break. If it is not ' +
-      'obviously useful in that workspace, no price would have made it useful.',
+      'You get a live workspace with a real worked example — go break it. ' +
+      'If it’s not obviously useful in there, no price tag was going to ' +
+      'fix that.',
   },
 ]
 
@@ -238,10 +245,10 @@ export default function LandingPage() {
                 Every contractor. Every supplier. One record.
               </h1>
               <p className="mb-9 max-w-xl text-lg leading-relaxed text-white/55 md:text-xl">
-                Etyme is the system of record for the people you employ through
-                somebody else — from the requisition to the invoice, across every
-                staffing supplier you use. That record does not exist anywhere
-                today, which is why nobody can tell you how long a contractor has
+                You hire contractors through staffing firms — one, five, eleven of
+                them. Nobody has one record that follows a person from the job
+                posting to the invoice, across every firm you use. That’s the
+                gap. That’s why nobody can tell you how long someone has
                 actually been on site.
               </p>
 
@@ -351,16 +358,16 @@ export default function LandingPage() {
           A role goes down a chain. A person comes back up it.
         </h2>
         <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-muted">
-          Client, managed service provider, prime, sub, bench vendor. At every hop
-          somebody forwards an email containing more than they were allowed to
-          send — not maliciously, but because the alternative is retyping it. Every
-          firm in that chain is keeping its own partial record of the same
-          contractor, and none of them can see the whole one.
+          Client, MSP, prime, sub, bench vendor — a role passes through all of
+          them. At every hop, someone forwards an email with more in it than they
+          should send, because retyping it properly takes too long. Every firm
+          ends up holding its own half of the same contractor’s story.
+          Nobody has the whole thing.
         </p>
         <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-ink">
           Prime, sub and bench are positions on a deal, not kinds of company. The
-          same firm is a prime on one role and a sub on the next, in the same week.
-          That is why this is one product and not four.
+          same firm can be a prime this week and a sub next week — same people,
+          different deal. That’s why this is one product, not four.
         </p>
 
         <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -386,41 +393,42 @@ export default function LandingPage() {
                 Keep your ATS, your VMS and every supplier you already use
               </h2>
               <p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted">
-                Etyme sits in front of the tools and the supply chain you have, not
-                instead of them. There is nothing to switch off, no supplier
-                onboarding project and nobody to displace — the record it keeps is
-                the one that spans them, which is the one none of them keeps.
+                Etyme sits in front of what you already use — it doesn’t
+                replace it. Nothing to switch off, no supplier onboarding
+                project, nobody to kick out. It just keeps the one record that
+                spans everything else, which none of your other tools do.
               </p>
             </div>
 
             <ul className="space-y-6">
               <li className="border-t border-etyme-rule pt-4">
                 <p className="text-[15px] font-semibold text-etyme-ink">
-                  Roles arrive the way they already arrive
+                  Roles arrive the way they already do
                 </p>
                 <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
-                  A forwarded email, an advert, five of them at once. Paste them and
-                  they come back as seats, with the duplicates already collapsed.
-                  Nobody has to change how they send you work.
+                  Paste in a forwarded email, an advert, five of them at once —
+                  they come back as seats, duplicates already merged. Nobody
+                  has to change how they send you work.
                 </p>
               </li>
               <li className="border-t border-etyme-rule pt-4">
                 <p className="text-[15px] font-semibold text-etyme-ink">
-                  Your suppliers become reachable without signing up
+                  Your suppliers don’t need to sign up first
                 </p>
                 <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
-                  Paste the distribution list you already email. Every firm on it
-                  becomes somebody you can send a role to today, whether or not they
-                  have heard of us.
+                  Paste the distribution list you already use. Every firm on
+                  it, you can send a role to today — whether they’ve
+                  heard of Etyme or not.
                 </p>
               </li>
               <li className="border-t border-etyme-rule pt-4">
                 <p className="text-[15px] font-semibold text-etyme-ink">
-                  What is yours stays yours
+                  What’s yours stays yours
                 </p>
                 <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
-                  Your bench, your rates and your client relationships. The lists
-                  export to CSV from the screen, without asking us for them.
+                  Your bench, your rates, your client relationships — all
+                  yours. Every list exports to CSV straight from the screen.
+                  You never have to ask us for your own data.
                 </p>
               </li>
             </ul>
@@ -438,9 +446,9 @@ export default function LandingPage() {
           Four questions, answered before lunch instead of by Thursday
         </h2>
         <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
-          Every one of these is answered today with a phone call, a spreadsheet and
-          a guess. They are four screens, and they are the reason a firm keeps
-          paying after the first month.
+          Right now, every one of these gets answered with a phone call, a
+          spreadsheet and a guess. Here, they’re four screens — and
+          they’re why firms keep paying after month one.
         </p>
 
         <div className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2">
@@ -470,21 +478,24 @@ export default function LandingPage() {
                 Nobody can tell you how long a contractor has actually been on site
               </h2>
               <p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted">
-                Ask each supplier and each tells you the truth about its own
-                contract. Fourteen months. Three. Two. The person has been at the
-                same client for nineteen, and no supplier can compute that number
-                because none of them can see the other two.
+                Ask each supplier and each one tells you the truth — about
+                their own contract. Fourteen months. Three months. Two
+                months. But the person’s actually been at that client
+                for nineteen months straight. No single supplier can add
+                that up, because none of them can see the other two.
               </p>
               <p className="mt-4 max-w-[52ch] text-[17px] leading-relaxed text-etyme-ink">
-                It is an exposure rather than a saving, which is why we lead with
-                it. A company that is managing fine on efficiency is still carrying
-                this, and finds out about it from a lawyer.
+                It is an exposure rather than a saving, and that’s
+                exactly why we lead with it. A company doing fine on
+                efficiency is still carrying this risk — and usually finds
+                out about it from a lawyer, not from us.
               </p>
               <p className="mt-4 max-w-[52ch] text-[15px] leading-relaxed text-etyme-muted">
-                Where a cap is legally grounded the system blocks and says why. Rate
-                bands, headcount plans and vendor tiers warn, take a reason and let
-                you proceed. Nothing is ever silently permitted, and every override
-                keeps the name of whoever gave it.
+                Where a cap is legally grounded, the system blocks and says
+                why. Rate bands, headcount plans, vendor tiers — those just
+                warn, ask for a reason, and let you proceed. Nothing here is
+                ever silently allowed, and every override keeps the name of
+                whoever gave it.
               </p>
             </div>
 
@@ -538,16 +549,18 @@ export default function LandingPage() {
           </h2>
           <div>
             <p className="max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
-              The checks that matter — rate against the band, an expiring permit, a
-              missing document, the same person submitted twice — are plain rules.
-              They are right every time, they cost nothing to run, and each one
-              explains itself in a sentence you can argue with.
+              The checks that actually matter — rate against the band, an
+              expiring permit, a missing document, the same person submitted
+              twice — are plain rules. They’re right every time, cost
+              nothing to run, and each one explains itself in one sentence
+              you can push back on.
             </p>
             <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
-              A model reads CVs and drafts messages. It never decides work
-              authorisation. Every score carries what it was made of, what it was
-              based on and what it could not find — a bare number is treated here as
-              a bug, not a feature.
+              A model reads CVs and drafts messages. It never decides
+              whether someone can legally work. Every score comes with what
+              it’s made of, what it’s based on, and what it
+              couldn’t find — a bare number with no explanation is a
+              bug here, not a feature.
             </p>
           </div>
         </div>
@@ -565,16 +578,16 @@ export default function LandingPage() {
             There is no price on this page because we have not settled one
           </h2>
           <p className="mt-5 max-w-[58ch] text-[17px] leading-relaxed text-etyme-muted">
-            The decision, made deliberately: Etyme is free while we prove it with
-            the first five firms. Founding firms keep whatever terms we agree
-            when a price exists — in writing, before you start, not as a promise
-            in a paragraph like this one. A number invented for a landing page is
-            a number we would have to take back, and you would be right to hold
-            it against us.
+            Here’s the actual decision: Etyme is free while we prove it
+            out with the first five firms. Founding firms keep whatever
+            terms we agree — in writing, before you start, not as a vague
+            promise in a paragraph like this one. Making up a number for a
+            landing page is a number we’d have to walk back later, and
+            you’d be right to hold that against us.
           </p>
           <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-ink">
-            Three things about the commercials are settled, and they are the ones
-            that would be expensive to change later.
+            Three things about the money side are settled already — the
+            ones that would be expensive to change later.
           </p>
 
           <div className="mt-12 grid gap-8 md:grid-cols-3">
@@ -596,9 +609,9 @@ export default function LandingPage() {
             Start with one role and one supplier you already use
           </h2>
           <p className="mx-auto mt-4 max-w-[48ch] text-[17px] leading-relaxed text-etyme-muted">
-            We are building this with a small number of firms rather than launching
-            at everybody, which means you get the people writing it and they get a
-            real chain to build against.
+            We’re building this with a small number of firms instead
+            of launching to everyone. You get direct access to the people
+            building it. We get a real chain to build against.
           </p>
 
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">

@@ -257,10 +257,28 @@ describe('Below the hero, the page says what the business is', () => {
     expect(all).not.toContain('within an hour')
   })
 
-  it('keeps the hero the founder said was fine', () => {
+  it('keeps the eyebrow and headline the founder said were fine', () => {
+    // The subhead under the headline is not pinned word for word — it
+    // was rewritten once already, in plainer English on the founder's
+    // own instruction, and pinning prose that is expected to keep
+    // getting plainer is how a test starts fighting the person it
+    // exists to serve. The eyebrow and the headline are the two lines
+    // that were explicitly signed off and are pinned exactly.
     expect(words[1]).toBe('Contingent workforce management')
     expect(words[2]).toBe('Every contractor. Every supplier. One record.')
-    expect(words[3]).toContain('the system of record for the people you employ through somebody else')
+  })
+
+  it('says the hero subhead in plain, spoken English — short sentences, no jargon', () => {
+    // "the system of record for the people you employ through somebody
+    // else" was the Oxford-professor version. This is the plain one:
+    // short sentences, the reader addressed as "you", no throat-clearing.
+    const sub = words[3]
+    expect(sub).toContain('You hire contractors through staffing firms')
+    expect(sub).toContain('Nobody has one record')
+    // Plain means short sentences. A subhead built from one 44-word
+    // sentence is not what "bring it down to earth" asked for.
+    const longestSentence = Math.max(...sub.split(/[.!?]/).map((s: string) => s.trim().split(/\s+/).filter(Boolean).length))
+    expect(longestSentence).toBeLessThanOrEqual(24)
   })
 
   it('still passes the four positioning rules after the rewrite', () => {
