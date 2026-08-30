@@ -79,10 +79,37 @@ const RECORD = [
   { when: 'Invoiced', what: '$11,856', detail: '45 day terms · matched to the PO' },
 ]
 
-/** The span, in the order the work actually happens. */
-const CHAIN = [
-  'Requisition', 'Suppliers', 'Submissions', 'Screening', 'Interviews',
-  'Onboarding', 'Timesheets', 'Invoices', 'Compliance',
+/**
+ * The contingent contract lifecycle. Eighteen stages, in order.
+ *
+ * This is the actual visual proof of the product — not a list of nine
+ * module names with arrows between them, which told a visitor nothing
+ * about how a placement actually moves. Eighteen numbered stages does:
+ * it is the closest thing on the page to opening the app.
+ *
+ * gate: true marks the four stages that can stop the deal rather than
+ * only record it — the same four the internal delivery matrix marks in
+ * clay, for the same reason.
+ */
+const LIFECYCLE: { t: string; d: string; gate?: boolean }[] = [
+  { t: 'Demand raised', d: 'A manager needs somebody' },
+  { t: 'Approved to source', d: 'Budget, headcount, rate band', gate: true },
+  { t: 'Released to suppliers', d: 'Who sees it, at what rate band' },
+  { t: 'Submitted', d: 'CV, rate, availability, right to represent' },
+  { t: 'Screened', d: 'Rules first, then one judgement' },
+  { t: 'Interviewed', d: 'Three-party scheduling and feedback' },
+  { t: 'Selected', d: 'The client picks' },
+  { t: 'Awarded', d: 'Seat closes, others stood down', gate: true },
+  { t: 'Papered', d: 'MSA, SOW, PO, sell and buy contracts' },
+  { t: 'Cleared', d: 'Work authorisation, checks, insurance', gate: true },
+  { t: 'Started', d: 'Badge, access, first day on site' },
+  { t: 'Working', d: 'Time and expense, approved and accepted' },
+  { t: 'Billed', d: 'Invoice raised against the order' },
+  { t: 'Paid', d: 'Consultant paid, client collected' },
+  { t: 'Changed', d: 'Rate change, extension, transfer', gate: true },
+  { t: 'Rolled off', d: 'Notice, handover, releasing-soon pool' },
+  { t: 'Settled', d: 'Order closed, balance to the cost centre' },
+  { t: 'Alumni', d: 'Tenure ledger keeps counting' },
 ]
 
 /**
@@ -120,6 +147,49 @@ const POSITIONS = [
       'Has the person, can’t see the job. Only learns the client’s name ' +
       'once there is a signed right to represent — which is exactly why ' +
       'benches don’t trust portals.',
+  },
+]
+
+/**
+ * The same four parties, said as what they get rather than what they
+ * are missing. Concur's own homepage does this: one card per audience,
+ * three lines each, nothing to scroll past to find your own name.
+ *
+ * Every line is a real screen or a real rule already built — nothing
+ * here is a feature promised for later.
+ */
+const GETS = [
+  {
+    who: 'The company hiring',
+    lines: [
+      'One record per contractor, across every supplier they use',
+      'Real tenure and real margin — not what a vendor self-reports',
+      'Approvals that clear on their own, inside the policy you set',
+    ],
+  },
+  {
+    who: 'The prime',
+    lines: [
+      'Forward a role without leaking who the client is',
+      'See a duplicate submission before your client does',
+      'Bill the moment a milestone is signed off, not a guess later',
+    ],
+  },
+  {
+    who: 'The sub',
+    lines: [
+      'Know the real band before you price a role',
+      'One submission, never sent twice by accident',
+      'Paid on hours that were actually approved, not disputed later',
+    ],
+  },
+  {
+    who: 'The bench operator',
+    lines: [
+      'Your bench stays private until there is a signed right to represent',
+      'See exactly what a day of waiting is costing you',
+      'One profile, submitted anywhere, tracked everywhere it goes',
+    ],
   },
 ]
 
@@ -324,24 +394,49 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── The span ─────────────────────────────────────────────── */}
-      {/* A layer is proved by breadth, not by argument. One strip does
-          more than a paragraph ever will. */}
+      {/* ── The lifecycle ────────────────────────────────────────── */}
+      {/* A layer is proved by breadth, not by argument, and a picture of
+          the whole thing beats a paragraph describing it every time. This
+          is the one section on the page that shows the product rather
+          than talking about it. */}
       <section className="border-b border-etyme-rule bg-etyme-surface">
-        <div className="mx-auto max-w-6xl px-6 py-8">
-          <ul className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            {CHAIN.map((step, i) => (
-              <li key={step} className="flex items-center gap-3">
-                <span className="text-[13px] text-etyme-ink">{step}</span>
-                {i < CHAIN.length - 1 && (
-                  <span className="text-etyme-faint" aria-hidden>
-                    →
-                  </span>
-                )}
-              </li>
+        <div className="mx-auto max-w-6xl px-6 py-14 md:py-16">
+          <p className="eyebrow mb-2">How a placement actually moves</p>
+          <h2 className="max-w-[26ch] text-balance font-serif text-2xl leading-tight
+                         tracking-[-0.02em] text-etyme-ink md:text-3xl">
+            Eighteen stages, one record the whole way through
+          </h2>
+          <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-etyme-muted">
+            The four in clay can stop the deal. Everything else just
+            records what happened.
+          </p>
+
+          <div className="mt-8 grid grid-cols-1 gap-px overflow-hidden rounded-lg
+                          border border-etyme-rule bg-etyme-rule sm:grid-cols-2
+                          md:grid-cols-3 lg:grid-cols-6">
+            {LIFECYCLE.map((s, i) => (
+              <div
+                key={s.t}
+                className="p-3.5"
+                style={{
+                  background: s.gate ? 'var(--color-raised)' : 'var(--color-surface)',
+                  boxShadow: s.gate ? 'inset 3px 0 0 var(--color-attention)' : undefined,
+                }}
+              >
+                <span className="block font-mono text-[10px] text-etyme-faint">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className="mt-0.5 block text-[13px] font-semibold leading-snug text-etyme-ink">
+                  {s.t}
+                </span>
+                <span className="mt-0.5 block text-[11.5px] leading-snug text-etyme-muted">
+                  {s.d}
+                </span>
+              </div>
             ))}
-          </ul>
-          <p className="mt-3 text-[13px] text-etyme-muted">
+          </div>
+
+          <p className="mt-4 text-[13px] text-etyme-muted">
             One record, end to end — one company, or nine of them in a chain.
           </p>
         </div>
@@ -377,6 +472,36 @@ export default function LandingPage() {
               <p className="text-[15px] leading-relaxed text-etyme-muted">{p.sees}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── What each one gets ───────────────────────────────────── */}
+      {/* The Concur move: one card per audience, three lines each, and
+          you find your own name in one glance instead of reading four
+          paragraphs to work out which one is you. */}
+      <section className="border-y border-etyme-rule bg-etyme-surface">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+          <p className="eyebrow mb-3">What each one gets</p>
+          <h2 className="max-w-[20ch] text-balance font-serif text-3xl leading-tight
+                         tracking-[-0.02em] text-etyme-ink md:text-4xl">
+            Find yourself below — that&rsquo;s what you get
+          </h2>
+
+          <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {GETS.map((g) => (
+              <div key={g.who} className="rounded-xl border border-etyme-rule bg-etyme-raised p-5">
+                <h3 className="mb-3 text-[15px] font-semibold text-etyme-ink">{g.who}</h3>
+                <ul className="space-y-2.5">
+                  {g.lines.map((line) => (
+                    <li key={line} className="flex gap-2 text-[13.5px] leading-snug text-etyme-muted">
+                      <span aria-hidden style={{ color: 'var(--color-verified)' }}>✓</span>
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -539,29 +664,35 @@ export default function LandingPage() {
       </section>
 
       {/* ── Rules first, model second ────────────────────────────── */}
-      {/* Short on purpose. It is in there, it does real work, and it is
-          the least defensible thing in the product. */}
+      {/* Two cards instead of two paragraphs — the split itself is the
+          point, so it should look split. */}
       <section className="mx-auto max-w-6xl px-6 py-16 md:py-20">
         <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <h2 className="max-w-[18ch] text-balance font-serif text-3xl leading-tight
                          tracking-[-0.02em] text-etyme-ink md:text-4xl">
             About half of what looks like AI here is not
           </h2>
-          <div>
-            <p className="max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
-              The checks that actually matter — rate against the band, an
-              expiring permit, a missing document, the same person submitted
-              twice — are plain rules. They’re right every time, cost
-              nothing to run, and each one explains itself in one sentence
-              you can push back on.
-            </p>
-            <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
-              A model reads CVs and drafts messages. It never decides
-              whether someone can legally work. Every score comes with what
-              it’s made of, what it’s based on, and what it
-              couldn’t find — a bare number with no explanation is a
-              bug here, not a feature.
-            </p>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-5">
+              <p className="stat-label" style={{ color: 'var(--color-verified)' }}>
+                Plain rules
+              </p>
+              <p className="mt-2 text-[15px] leading-relaxed text-etyme-muted">
+                Rate against the band. An expiring permit. A missing
+                document. The same person submitted twice. Right every
+                time, free to run, and each one explains itself in a
+                sentence you can push back on.
+              </p>
+            </div>
+            <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-5">
+              <p className="stat-label">A model, on what&rsquo;s left</p>
+              <p className="mt-2 text-[15px] leading-relaxed text-etyme-muted">
+                Reads CVs, drafts messages. Never decides whether someone
+                can legally work. Every score comes with what it&rsquo;s
+                made of and what it couldn&rsquo;t find — a bare number
+                with no explanation is a bug here, not a feature.
+              </p>
+            </div>
           </div>
         </div>
       </section>

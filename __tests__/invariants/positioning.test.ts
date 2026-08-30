@@ -217,6 +217,51 @@ describe('Below the hero, the page says what the business is', () => {
     expect(body).toContain('Nobody can tell you how long a contractor has actually been on site')
   })
 
+  it('shows the lifecycle as a real numbered grid, not a paragraph pretending to be one', () => {
+    // The page used to prove its span with a nine-word arrow-strip under
+    // 13px grey text. Replaced with the same eighteen-stage lifecycle the
+    // internal delivery matrix already uses — a picture of the product
+    // rather than an argument for it. Pinned by count so a future edit
+    // that quietly drops back to prose fails here instead of shipping.
+    expect(PAGE).toContain('const LIFECYCLE')
+    const stageCount = (PAGE.match(/\{ t: '[^']+', d: '[^']+'/g) ?? []).length
+    expect(stageCount).toBe(18)
+  })
+
+  it('marks exactly the four gates — a stage that can stop the deal, not only record it', () => {
+    // Matched only inside an actual LIFECYCLE row, not the doc comment
+    // above it that also says the words "gate: true" while explaining
+    // what the field means.
+    const gateCount = (PAGE.match(/\{ t: '[^']+', d: '[^']+', gate: true \}/g) ?? []).length
+    expect(gateCount).toBe(4)
+  })
+
+  it('renders the lifecycle as a grid element, not a bulleted list of text', () => {
+    expect(PAGE).toContain('LIFECYCLE.map')
+    expect(PAGE).toMatch(/grid grid-cols-1[^"]*sm:grid-cols-2/)
+  })
+
+  it('shows what each of the four parties gets, in one glance, not four paragraphs', () => {
+    // The Concur move — a value card per audience — was missing
+    // entirely. "Who this is for" described the pain each party has
+    // today; nothing on the page said what changes for them. Pinned so
+    // it cannot quietly shrink back to prose.
+    expect(PAGE).toContain('const GETS')
+    expect(PAGE).toContain('GETS.map')
+    for (const who of ['The company hiring', 'The prime', 'The sub', 'The bench operator']) {
+      expect(PAGE, who).toContain(`who: '${who}'`)
+    }
+  })
+
+  it('gives each party exactly three concrete lines, not a paragraph in disguise', () => {
+    const linesBlocks = PAGE.match(/lines: \[([\s\S]*?)\],\n  \},/g) ?? []
+    expect(linesBlocks.length).toBe(4)
+    for (const block of linesBlocks) {
+      const count = (block.match(/'\S[^']*',?\n/g) ?? []).length
+      expect(count, block.slice(0, 40)).toBe(3)
+    }
+  })
+
   it('puts tenure as a legal exposure rather than as a saving', () => {
     // Efficiency pitches lose to "we are managing fine". Exposure does not.
     expect(body).toContain('exposure rather than a saving')
