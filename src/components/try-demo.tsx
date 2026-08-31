@@ -28,7 +28,7 @@ export function TryDemo({
    * hiring" into a staffing agency's bench would be demonstrating a
    * product they did not ask about.
    */
-  side?: 'HIRING' | 'BENCH'
+  side?: 'HIRING' | 'BENCH' | 'CANDIDATE'
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)

@@ -438,7 +438,12 @@ export default function LandingPage() {
                 />
               </div>
               <p className="mt-4 font-mono text-xs text-white/55">
-                No card, no sign-up. Your own worked example, seeded and yours to break.
+                No card, no sign-up. Your own worked example, seeded and yours to break.{' '}
+                <TryDemo
+                  side="CANDIDATE"
+                  label="See it as a candidate →"
+                  className="text-white/70 underline underline-offset-2 hover:text-white"
+                />
               </p>
             </div>
 
@@ -856,6 +861,12 @@ export default function LandingPage() {
               label="See it as the supplier →"
               className="rounded-lg border border-etyme-rule px-6 py-3.5 text-sm font-semibold
                          text-etyme-ink transition-colors hover:border-etyme-ink"
+            />
+            <TryDemo
+              side="CANDIDATE"
+              label="See it as a candidate →"
+              className="px-2 py-3.5 text-sm font-medium text-etyme-muted underline
+                         underline-offset-2 transition-colors hover:text-etyme-ink"
             />
           </div>
 

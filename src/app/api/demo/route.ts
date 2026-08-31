@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { prisma } from '@/lib/db'
 import { seedDemoCompany, DEMO_DAYS } from '@/lib/demo-seed'
 import { seedDemoClientCompany } from '@/lib/demo-seed-client'
+import { seedDemoConsultant } from '@/lib/demo-seed-consultant'
 import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor } from '@/lib/demo-session'
 
 /**
@@ -27,7 +28,7 @@ import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor } from '@/lib/demo-ses
  * pretended one account could be both would be demonstrating a product
  * we do not sell.
  */
-export type Side = 'HIRING' | 'BENCH'
+export type Side = 'HIRING' | 'BENCH' | 'CANDIDATE'
 
 /** Names that read like a staffing firm without naming a real one. */
 const NAMES = [
@@ -63,11 +64,14 @@ export async function POST(request: NextRequest) {
   // demand side is the one being sold first, and a visitor who arrives
   // with no preference should land where the product is sharpest.
   const body = await request.json().catch(() => ({}))
-  const side: Side = body?.side === 'BENCH' ? 'BENCH' : 'HIRING'
+  const side: Side =
+    body?.side === 'BENCH' ? 'BENCH' : body?.side === 'CANDIDATE' ? 'CANDIDATE' : 'HIRING'
 
   const handle = randomBytes(6).toString('hex')
   const email = addressFor(handle)
-  const pool = side === 'BENCH' ? NAMES : BUYERS
+  // CANDIDATE names its own agency inside seedDemoConsultant — the visitor
+  // is not in charge of a company on that side, so this pick is unused.
+  const pool = side === 'BENCH' ? NAMES : side === 'CANDIDATE' ? NAMES : BUYERS
   const companyName = pool[Math.floor(Math.random() * pool.length)]
   const slug = `demo-${handle}`
 
@@ -86,7 +90,10 @@ export async function POST(request: NextRequest) {
       data: { name: 'You', primaryEmail: email },
     })
 
-    const fill = side === 'BENCH' ? seedDemoCompany : seedDemoClientCompany
+    const fill =
+      side === 'BENCH' ? seedDemoCompany
+      : side === 'CANDIDATE' ? seedDemoConsultant
+      : seedDemoClientCompany
     seeded = await fill({
       personId: person.id,
       personName: person.name,
@@ -129,7 +136,10 @@ export async function POST(request: NextRequest) {
       companyName: seeded.companyName,
       counts: seeded.counts,
       side,
-      landing: side === 'BENCH' ? '/dashboard' : '/dashboard/program',
+      landing:
+        side === 'BENCH' ? '/dashboard'
+        : side === 'CANDIDATE' ? '/dashboard/my-work'
+        : '/dashboard/program',
       expiresInDays: DEMO_DAYS,
       resumed: false,
     },
