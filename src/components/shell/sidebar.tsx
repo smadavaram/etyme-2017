@@ -130,21 +130,30 @@ const VENDOR_NAV: NavSection[] = [
 
 // A consultant is a person, not a company. CLAUDE.md gives them
 // "You → Grow" — their own work first, then what they could become.
+//
+// Grow is empty for now, on purpose. It used to point at "Training" —
+// /dashboard/training — which is the vendor's own skill-gap analysis
+// across a whole bench ("demand from open requirements vs supply from
+// bench listings"), not a candidate's page. A consultant landing there
+// saw every number at zero, because none of it was about them. A wrong
+// link is worse than a missing section; this comes back once there is
+// a real, candidate-scoped training screen to put here.
 const CONSULTANT_NAV: NavSection[] = [
   {
     label: 'You',
     items: [
       { label: 'Your work', href: '/dashboard/my-work', icon: '◉' },
-      { label: 'Your profile', href: '/dashboard/consultants', icon: '◌' },
+      // Not a separate "Your profile" link to /dashboard/consultants —
+      // that is the vendor staff's bench-management screen, gated on
+      // consultants.read, and a consultant hitting it saw a red
+      // "You need consultants.read permission" where their own profile
+      // should have been. /dashboard/my-page already IS the self-service
+      // editor (headline, intro, skills) plus the public-page toggle;
+      // having a second, broken link to a different page was the bug,
+      // not a missing feature.
       { label: 'Your page', href: '/dashboard/my-page', icon: '◐' },
       { label: 'Who has you', href: '/dashboard/my-benches', icon: '◈' },
       { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
-    ],
-  },
-  {
-    label: 'Grow',
-    items: [
-      { label: 'Training', href: '/dashboard/training', icon: '◪' },
     ],
   },
 ]

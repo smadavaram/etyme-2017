@@ -55,6 +55,31 @@ describe('a client viewing People never sees the same human twice under two diff
   })
 })
 
+describe('a candidate never lands on the vendor staff\'s own screens', () => {
+  // Found by the functional-walkthrough agent (scripts/walkthrough.mjs)
+  // clicking through as a real candidate: "Your profile" pointed at
+  // /dashboard/consultants — the vendor's bench-management list, gated
+  // on consultants.read — and rendered a red "You need consultants.read
+  // permission" where a candidate's own profile should have been.
+  // "Training" pointed at the vendor's company-wide skill-gap analysis,
+  // which showed every number at zero because none of it was about the
+  // person looking at it.
+  const consultantNav = extractArray('CONSULTANT_NAV')
+
+  it('has no link into the vendor staff\'s consultant list', () => {
+    expect(consultantNav).not.toContain("href: '/dashboard/consultants'")
+  })
+
+  it('has no link into the vendor\'s bench-wide training analytics', () => {
+    expect(consultantNav).not.toContain("href: '/dashboard/training'")
+  })
+
+  it('gives a candidate exactly one place to edit their own profile', () => {
+    const matches = consultantNav.match(/href:\s*'\/dashboard\/my-page'/g) ?? []
+    expect(matches.length).toBe(1)
+  })
+})
+
 describe('the vendor Operate section reads as three named clusters, not one wall of links', () => {
   const vendorNav = extractArray('VENDOR_NAV')
   const operateStart = vendorNav.indexOf("label: 'Operate'")

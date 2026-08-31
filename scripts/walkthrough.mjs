@@ -288,7 +288,19 @@ async function main() {
   // download a version matched to whatever @playwright/test happens to
   // be pinned to in package.json, which can drift from what is on disk.
   const preinstalled = findPreinstalledChrome()
-  const browser = await chromium.launch(preinstalled ? { executablePath: preinstalled } : {})
+  // Chromium does not pick up HTTPS_PROXY from the environment on its
+  // own the way curl/Node's own fetch do — it has to be told explicitly,
+  // or every request it makes tries a direct connection this sandbox's
+  // network does not allow, and dies a few seconds in.
+  // Skip the proxy when the target is local — the sandbox's proxy only
+  // speaks HTTPS CONNECT, and a plain-HTTP localhost request through it
+  // is refused outright rather than just failing to help.
+  const isLocalTarget = /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(BASE_URL)
+  const proxyServer = isLocalTarget ? null : (process.env.HTTPS_PROXY ?? process.env.https_proxy)
+  const browser = await chromium.launch({
+    ...(preinstalled ? { executablePath: preinstalled } : {}),
+    ...(proxyServer ? { proxy: { server: proxyServer } } : {}),
+  })
   const results = []
   for (const persona of PERSONAS) {
     console.log(`  → ${persona.name}`)
