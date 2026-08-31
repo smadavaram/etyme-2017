@@ -282,6 +282,35 @@ export function worthAsking(matches: Match[], capMonths: number | null): Match[]
 }
 
 /**
+ * Every person's single strongest match, keyed by personId.
+ *
+ * Built for a register that shows one row per person and has room to
+ * flag at most one thing about them — /dashboard/people, not the
+ * identity review queue. Compares every candidate against every other
+ * once (O(n²), fine at the size of one client's own register) and keeps
+ * whichever pairing scored highest for each side.
+ *
+ * A touch stricter than `worthAsking`'s own IGNORE_BELOW: this surfaces
+ * on a screen a client opens by default, not one they chose to visit to
+ * go looking, so the bar for interrupting it is POSSIBLE and up rather
+ * than everything not yet ruled out.
+ */
+export function bestMatchPerPerson(candidates: Candidate[]): Map<string, Match> {
+  const best = new Map<string, Match>()
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const m = compare(candidates[i], candidates[j])
+      if (m.confidence === 'UNLIKELY') continue
+      for (const id of [m.aId, m.bId]) {
+        const current = best.get(id)
+        if (!current || m.score > current.score) best.set(id, m)
+      }
+    }
+  }
+  return best
+}
+
+/**
  * The line above the queue.
  *
  * Names the consequence rather than the count. Nobody works a list of

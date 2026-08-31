@@ -39,6 +39,7 @@ interface Row {
   stints: { months: number; endedAt: string | null; vendorName: string }[]
   says: string
   unknowns: string[]
+  possibleDuplicate?: { personId: string; name: string; confidence: string; says: string } | null
 }
 
 function money(cents: number | null): string {
@@ -135,6 +136,25 @@ export default function PeoplePage() {
           >
             {r.says}
           </p>
+
+          {/* The duplication merge() can't catch: this row and another
+              one below are different Person records, and might be one
+              human two suppliers each know a piece of. Never merged —
+              a link to confirm it, same as CLAUDE.md requires. */}
+          {r.possibleDuplicate && (
+            <a
+              href="/dashboard/identity"
+              className="mt-2 flex items-start gap-2 rounded-md p-2 text-[12.5px] leading-snug
+                         hover:opacity-90"
+              style={{ background: '#F7EDE6', color: 'var(--color-attention)' }}
+            >
+              <span aria-hidden>⧉</span>
+              <span>
+                Might be the same person as <strong>{r.possibleDuplicate.name}</strong>, also on
+                this list. {r.possibleDuplicate.says} Check →
+              </span>
+            </a>
+          )}
 
           <button
             onClick={() => setOpen(open === r.personId ? null : r.personId)}

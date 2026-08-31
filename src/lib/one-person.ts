@@ -88,6 +88,20 @@ export interface Merged {
   says: string
   /** What this record cannot account for. */
   unknowns: string[]
+  /**
+   * Another row on this same register that might be this same human under
+   * a different Person record — two different emails, two different
+   * suppliers, nothing here ever joined them.
+   *
+   * This is the duplication one supplier submitting the same personId
+   * twice never causes — `merge()` already collapses that. This is the
+   * other kind: two *different* personIds that are, offline, one person,
+   * which is exactly the case identity-resolution.ts exists to surface
+   * and never to merge silently. Populated by the API route, not here —
+   * finding it means comparing every row against every other row, which
+   * needs the whole register at once, not one Person at a time.
+   */
+  possibleDuplicate?: { personId: string; name: string; confidence: string; says: string } | null
 }
 
 /** Order of how far along somebody is. Highest wins on a merged record. */

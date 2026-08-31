@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   compare, ifConfirmed, worthAsking, summarise, normalName, normalPhone,
-  SURFACE_AT, IGNORE_BELOW, type Candidate,
+  bestMatchPerPerson, SURFACE_AT, IGNORE_BELOW, type Candidate,
 } from '@/lib/identity-resolution'
 
 /**
@@ -163,6 +163,67 @@ describe('which ones get a person’s time', () => {
       person({ personId: 'p2', location: 'Austin, TX', skills: [], stints: [] })
     )
     expect(worthAsking([weak], 18)).toHaveLength(0)
+  })
+})
+
+describe('a client\'s own people register can flag its one best guess per row', () => {
+  // /dashboard/people shows one row per personId, merged from that
+  // person's own submissions — but two suppliers who have never met can
+  // each hold a *different* Person record for the same human, and no
+  // amount of merging by personId ever joins those two rows. This is
+  // what lets the register say so, on the row itself, rather than only
+  // on a separate identity-review screen nobody thought to visit.
+
+  it('flags two different personIds sharing a mobile number, on both sides', () => {
+    const rows = [
+      person({ personId: 'p1', mobile: '3035552000' }),
+      person({ personId: 'p2', mobile: '3035552000' }),
+    ]
+    const best = bestMatchPerPerson(rows)
+    expect(best.get('p1')?.confidence).toBe('CERTAIN')
+    expect(best.get('p2')?.confidence).toBe('CERTAIN')
+  })
+
+  it('says nothing about a person nobody on the register resembles', () => {
+    const rows = [
+      person({ personId: 'p1', name: 'Rohan Menon' }),
+      person({ personId: 'p2', name: 'Priya Sharma', skills: ['Nursing'], stints: [] }),
+    ]
+    expect(bestMatchPerPerson(rows).has('p2')).toBe(false)
+  })
+
+  it('never flags two people who are plainly different, however much else lines up', () => {
+    const rows = [
+      person({ personId: 'p1', name: 'Rohan Menon' }),
+      person({ personId: 'p2', name: 'Priya Sharma' }),
+    ]
+    expect(bestMatchPerPerson(rows).size).toBe(0)
+  })
+
+  it('keeps only the single strongest match when a person resembles two others', () => {
+    const rows = [
+      person({ personId: 'p1', mobile: '3035552000' }),
+      // A weak, circumstantial resemblance to p1 — same name only.
+      person({ personId: 'p2', stints: [] }),
+      // The strong one — a shared mobile number.
+      person({ personId: 'p3', mobile: '3035552000', stints: [] }),
+    ]
+    const best = bestMatchPerPerson(rows)
+    const p1Match = best.get('p1')!
+    expect([p1Match.aId, p1Match.bId]).toContain('p3')
+  })
+
+  it('never merges the rows — only ever a pointer for a person to go check', () => {
+    // CLAUDE.md: "probabilistic matches surfaced for human confirmation,
+    // never silently merged." bestMatchPerPerson only ever returns Match
+    // objects to look at; nothing here writes anything or joins two rows.
+    const rows = [
+      person({ personId: 'p1', mobile: '3035552000' }),
+      person({ personId: 'p2', mobile: '3035552000' }),
+    ]
+    const before = rows.map((r) => r.personId)
+    bestMatchPerPerson(rows)
+    expect(rows.map((r) => r.personId)).toEqual(before)
   })
 })
 
