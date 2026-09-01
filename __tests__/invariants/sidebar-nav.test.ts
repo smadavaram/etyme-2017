@@ -80,6 +80,28 @@ describe('a candidate never lands on the vendor staff\'s own screens', () => {
   })
 })
 
+/**
+ * A group split across two non-adjacent blocks would print its own
+ * sub-header twice — the render in sidebar.tsx only starts a new header
+ * when a group name differs from the item right before it. Shared by
+ * both the vendor and client checks below.
+ */
+function assertGroupsAreContiguous(sectionText: string) {
+  const groups = [...sectionText.matchAll(/group:\s*'([^']+)'/g)].map((m) => m[1])
+  const seen = new Set<string>()
+  let previous: string | null = null
+  for (const g of groups) {
+    if (g !== previous) {
+      expect(
+        seen.has(g),
+        `group "${g}" reappears after another group started — its header would print twice`
+      ).toBe(false)
+      seen.add(g)
+    }
+    previous = g
+  }
+}
+
 describe('the vendor Operate section reads as three named clusters, not one wall of links', () => {
   const vendorNav = extractArray('VENDOR_NAV')
   const operateStart = vendorNav.indexOf("label: 'Operate'")
@@ -98,18 +120,73 @@ describe('the vendor Operate section reads as three named clusters, not one wall
   })
 
   it('keeps each group as one contiguous block, so its header prints once', () => {
-    const groups = [...operate.matchAll(/group:\s*'([^']+)'/g)].map((m) => m[1])
-    const seen = new Set<string>()
-    let previous: string | null = null
-    for (const g of groups) {
-      if (g !== previous) {
-        expect(
-          seen.has(g),
-          `group "${g}" reappears after another group started — its header would print twice`
-        ).toBe(false)
-        seen.add(g)
-      }
-      previous = g
+    assertGroupsAreContiguous(operate)
+  })
+})
+
+describe('a client\'s nav reads as the sequence of a placement, not a wall of links', () => {
+  // Founder report, verbatim: "so many duplicates in left navigation
+  // like candidates and people, almost missing is contacts and the
+  // interface is not user friendly. You mixed admin setup to daily
+  // operational activity like timesheets approve - the whole left
+  // navigation should be better streamlined to reflect sequence of
+  // steps." Four real complaints, fixed together in one pass.
+  const clientNav = extractArray('CLIENT_NAV')
+  const programStart = clientNav.indexOf("label: 'Program'")
+  const governanceStart = clientNav.indexOf("label: 'Governance'")
+  const program = clientNav.slice(programStart, governanceStart)
+  const governance = clientNav.slice(governanceStart)
+
+  it('has a Contacts link — the rolodex vendors already had, clients did not', () => {
+    expect(clientNav).toContain("href: '/dashboard/contacts'")
+  })
+
+  it('groups Requisitions and Open roles as one sequence, not two competing entry points', () => {
+    // Neither page changed or merged — a requisition is the need before
+    // approval, an open role is the same need after release to
+    // suppliers. Sitting flat and adjacent with similar names was what
+    // read as duplicated; grouped under one label in order, it reads as
+    // two steps instead.
+    const hireStart = program.indexOf("group: 'Hire'")
+    const requisitionsIdx = program.indexOf("label: 'Requisitions'")
+    const openRolesIdx = program.indexOf("label: 'Open roles'")
+    expect(hireStart).toBeGreaterThan(-1)
+    expect(requisitionsIdx).toBeLessThan(openRolesIdx)
+    const between = program.slice(requisitionsIdx, openRolesIdx)
+    expect(between).toContain("group: 'Hire'")
+    expect(program.slice(openRolesIdx, openRolesIdx + 80)).toContain("group: 'Hire'")
+  })
+
+  it('keeps Timesheets and Invoices out of the same group as Settings and access', () => {
+    // The founder's exact complaint: admin setup mixed into daily
+    // operational work. Timesheets/Invoices now live under Program's
+    // Operate group; Settings/access now live under Governance's Setup
+    // group — never the same group, in the same section or not.
+    const groupOf = (nav: string, label: string) => {
+      const idx = nav.indexOf(`label: '${label}'`)
+      expect(idx, `${label} not found`).toBeGreaterThan(-1)
+      const line = nav.slice(idx, nav.indexOf('\n', idx))
+      return line.match(/group:\s*'([^']+)'/)?.[1] ?? null
     }
+    const timesheetsGroup = groupOf(program, 'Timesheets')
+    const settingsGroup = groupOf(governance, 'Settings')
+    const accessGroup = groupOf(governance, 'Who can do what')
+    expect(timesheetsGroup).not.toBeNull()
+    expect(timesheetsGroup).not.toBe(settingsGroup)
+    expect(timesheetsGroup).not.toBe(accessGroup)
+  })
+
+  it('gives every item a named group except the dashboard entry point at the top', () => {
+    const itemLines = clientNav
+      .split('\n')
+      .filter((l) => /href:\s*'\/dashboard/.test(l))
+    const ungrouped = itemLines.filter((l) => !/group:\s*'/.test(l))
+    expect(ungrouped.length).toBe(1)
+    expect(ungrouped[0]).toContain('Dashboard')
+  })
+
+  it('keeps each group as one contiguous block in both sections', () => {
+    assertGroupsAreContiguous(program)
+    assertGroupsAreContiguous(governance)
   })
 })

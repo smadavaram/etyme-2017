@@ -158,14 +158,32 @@ const CONSULTANT_NAV: NavSection[] = [
   },
 ]
 
+// Streamlined on a founder note: "so many duplicates... Contacts almost
+// missing... mixed admin setup to daily operational activity... should
+// reflect sequence of steps." Four real, separate problems, all fixed
+// the same way this session fixed vendor's Operate section — group,
+// don't rename or delete.
+//
+// Requisitions and Open roles read as duplicates because they sat flat
+// and adjacent with no signal they were two STEPS, not two competing
+// entry points: a requisition is the need before it's approved, an open
+// role is the same need after it's released to suppliers. Neither page
+// changed — the "Hire" group below says what they actually are, in
+// order. Same for the rest: every group is a real phase of the
+// lifecycle this product tracks (raise → source → evaluate → engage →
+// operate week to week → offboard), and the one thing done rarely
+// — Settings, access, a spreadsheet import — is its own group at the
+// bottom, not mixed into the middle of a page a client opens every
+// Friday to approve timesheets.
 const CLIENT_NAV: NavSection[] = [
   {
     label: 'Program',
     items: [
       { label: 'Dashboard', href: '/dashboard/program', icon: '◉' },
-      { label: 'Requisitions', href: '/dashboard/requisitions', icon: '⊞' },
-      { label: 'Open roles', href: '/dashboard/requirements', icon: '◈' },
-      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
+      { label: 'Requisitions', href: '/dashboard/requisitions', icon: '⊞', group: 'Hire' },
+      { label: 'Open roles', href: '/dashboard/requirements', icon: '◈', group: 'Hire' },
+      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷', group: 'Hire' },
+      { label: 'Placements', href: '/dashboard/contracts', icon: '▤', group: 'Hire' },
       // The one entry point for people, deliberately. This used to sit
       // next to a "Candidates" link to /dashboard/submissions — the raw,
       // one-row-per-submission feed — which is exactly what made the
@@ -173,37 +191,41 @@ const CLIENT_NAV: NavSection[] = [
       // rendered as four separate rows with four separate names. That
       // link is gone; every submission is still here, merged onto the
       // one person it belongs to and expandable per row.
-      { label: 'People', href: '/dashboard/people', icon: '◍' },
-      { label: 'Placements', href: '/dashboard/contracts', icon: '▤' },
-      { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠' },
-      { label: 'Worked here before', href: '/dashboard/alumni', icon: '◎' },
+      { label: 'People', href: '/dashboard/people', icon: '◍', group: 'People & suppliers' },
       // The growth loop. A client arrives with twelve suppliers already
       // and an MSA with each; until those are reachable in here, none of
       // the rest of this nav has anything to work on.
-      { label: 'Your suppliers', href: '/dashboard/suppliers', icon: '⬡' },
+      { label: 'Your suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'People & suppliers' },
+      // The rolodex — the one thing this whole nav was missing. Vendor
+      // has had it for a while as "Who we work with"; a client asks the
+      // same question about the people at their own suppliers just as
+      // often, and had no way in.
+      { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'People & suppliers' },
+      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Operate' },
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Operate' },
+      { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤', group: 'Operate' },
+      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Operate' },
+      { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard' },
+      { label: 'Worked here before', href: '/dashboard/alumni', icon: '◎', group: 'Offboard' },
     ],
   },
   {
     label: 'Governance',
     items: [
-      { label: 'Org view', href: '/dashboard/program/org', icon: '⬢' },
-      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦' },
-      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧' },
-      { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤' },
-      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫' },
-      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆' },
-      { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱' },
-      { label: 'Tenure', href: '/dashboard/tenure', icon: '▩' },
+      { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Oversight' },
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight' },
+      { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },
+      { label: 'Tenure', href: '/dashboard/tenure', icon: '▩', group: 'Oversight' },
       // Only computable here. No supplier can work these out about
       // themselves — they cannot see what the other eleven did with the
       // same role — and no supplier's own numbers are ever bad.
-      { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈' },
+      { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈', group: 'Oversight' },
       // Where a chain we can only see part of makes one person look like
       // two, and the tenure number quietly goes wrong.
-      { label: 'Same person, twice?', href: '/dashboard/identity', icon: '⧉' },
-      { label: 'Who can do what', href: '/dashboard/access', icon: '⚿' },
-      { label: 'Settings', href: '/dashboard/settings', icon: '⚙' },
-      { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓' },
+      { label: 'Same person, twice?', href: '/dashboard/identity', icon: '⧉', group: 'Oversight' },
+      { label: 'Who can do what', href: '/dashboard/access', icon: '⚿', group: 'Setup' },
+      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Setup' },
+      { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓', group: 'Setup' },
     ],
   },
 ]
