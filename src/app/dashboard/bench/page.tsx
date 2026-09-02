@@ -44,7 +44,22 @@ interface BenchEntry {
   availableFrom: string | null
   visibility: string
   grantedAt: string
+  /** Whose bench this listing actually lives on. Always your own company
+   *  in scope=company; a partner's, in scope=network. */
+  companyId: string
+  companyName: string
 }
+
+/**
+ * Your own team, or the network you have a real relationship with.
+ * `/api/bench` already carries both (scope=company | scope=network) —
+ * this page only ever asked for the first. "network" here is
+ * deliberately MARKETING-tier only, from active counterparties: a
+ * partner's RETAINED bench is theirs to keep private, and a company
+ * with no partners added under Your suppliers sees an honest empty
+ * state, not a wall error.
+ */
+type BenchScope = 'company' | 'network'
 
 interface BurnData {
   burn: { daily: number; weekly: number; monthly: number; toDate: number }
@@ -386,6 +401,7 @@ export default function BenchPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
+  const [scope, setScope] = useState<BenchScope>('company')
   const [entries, setEntries] = useState<BenchEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -396,6 +412,12 @@ export default function BenchPage() {
   const [burnData, setBurnData] = useState<BurnData | null>(null)
   const [burnLoading, setBurnLoading] = useState(true)
 
+  // Guards against a slower "your team" response landing after a faster
+  // "your network" one (or the reverse) and silently overwriting it —
+  // whichever scope was requested last wins, not whichever request
+  // happened to finish last.
+  const requestId = useRef(0)
+
   // Open modal from ?new=1 link
   useEffect(() => {
     if (searchParams.get('new') === '1') {
@@ -404,11 +426,12 @@ export default function BenchPage() {
     }
   }, [searchParams, router])
 
-  const fetchBench = useCallback(async () => {
+  const fetchBench = useCallback(async (forScope: BenchScope) => {
+    const thisRequest = ++requestId.current
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/bench?scope=company')
+      const res = await fetch(`/api/bench?scope=${forScope}`)
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error?.message ?? `HTTP ${res.status}`)
@@ -437,22 +460,29 @@ export default function BenchPage() {
             availableFrom: l.consultant.availableFrom,
             visibility: l.consultant.visibility,
             grantedAt: l.grantedAt,
+            companyId: l.company.id,
+            companyName: l.company.name,
           })
         }
       }
 
+      // A tab clicked twice in quick succession fires two requests; only
+      // the most recent one is allowed to write state, whichever answers
+      // first.
+      if (thisRequest !== requestId.current) return
       setEntries(flat)
     } catch (err: any) {
+      if (thisRequest !== requestId.current) return
       setError(err.message)
       setEntries([])
     } finally {
-      setLoading(false)
+      if (thisRequest === requestId.current) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    fetchBench()
-  }, [fetchBench])
+    fetchBench(scope)
+  }, [fetchBench, scope])
 
   // Fetch bench burn data (separate endpoint — requires cost permission)
   useEffect(() => {
@@ -522,6 +552,21 @@ export default function BenchPage() {
       sortValue: (row) => row.name,
       width: 'min-w-[200px]',
     },
+    // Only in network scope — every row is your own company otherwise,
+    // and a column that always says the same thing is not information.
+    ...(scope === 'network'
+      ? [
+          {
+            key: 'company',
+            label: 'Supplier',
+            render: (row: BenchEntry) => (
+              <span className="text-[12px] text-etyme-ink">{row.companyName}</span>
+            ),
+            sortValue: (row: BenchEntry) => row.companyName,
+            hideOnMobile: true,
+          } as Column<BenchEntry>,
+        ]
+      : []),
     {
       key: 'skills',
       label: 'Skills',
@@ -605,7 +650,10 @@ export default function BenchPage() {
   function handleListingCreated(msg: string) {
     setToast({ message: msg, type: 'success' })
     setTimeout(() => setToast(null), 3500)
-    fetchBench()
+    // Adding a listing always adds to your own bench — switch back to it
+    // so the new row is somewhere the visitor can actually see it.
+    setScope('company')
+    fetchBench('company')
   }
 
   return (
@@ -618,12 +666,36 @@ export default function BenchPage() {
             Bench
           </h1>
           <p className="text-body-sm text-etyme-muted">
-            Your consultant bench — retained and marketing listings.
+            {scope === 'company'
+              ? 'Your own team — retained and marketing listings.'
+              : 'What your suppliers have offered to show you — marketing-tier only, and only from firms on Your suppliers.'}
           </p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="btn-primary mt-3 shrink-0">
           Add to bench
         </button>
+      </div>
+
+      {/* Your team / your network — two different benches, never merged.
+          A GSI holds both hats at once (src/lib/persona.ts): its own
+          people, and whatever its sub-vendors have marketed to it. */}
+      <div className="flex items-center gap-1 bg-etyme-canvas rounded-md p-0.5 mb-6 w-fit">
+        {([
+          { key: 'company', label: 'Your team' },
+          { key: 'network', label: 'Your network' },
+        ] as { key: BenchScope; label: string }[]).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setScope(key)}
+            className={`px-3.5 py-1.5 text-[12px] font-medium rounded transition-colors ${
+              scope === key
+                ? 'bg-white text-etyme-ink shadow-sm'
+                : 'text-etyme-muted hover:text-etyme-ink'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Stats row */}
@@ -655,11 +727,20 @@ export default function BenchPage() {
           row.email.toLowerCase().includes(q) ||
           row.skills.some((s) => s.toLowerCase().includes(q)) ||
           (row.headline?.toLowerCase().includes(q) ?? false) ||
-          (row.location?.toLowerCase().includes(q) ?? false)
+          (row.location?.toLowerCase().includes(q) ?? false) ||
+          row.companyName.toLowerCase().includes(q)
         }
-        searchPlaceholder="Search by name, skill, location…"
-        emptyMessage="No consultants on bench."
-        emptyDetail="Import consultant data or add them manually to start building your bench."
+        searchPlaceholder={
+          scope === 'company'
+            ? 'Search by name, skill, location…'
+            : 'Search by name, skill, location, supplier…'
+        }
+        emptyMessage={scope === 'company' ? 'No consultants on bench.' : 'Nothing shared yet.'}
+        emptyDetail={
+          scope === 'company'
+            ? 'Import consultant data or add them manually to start building your bench.'
+            : 'Add a firm under Your suppliers, and whatever they mark as marketing-visible shows up here — nothing does until then.'
+        }
         exportName="etyme-bench"
         bulkActions={(selected) => (
           <>
