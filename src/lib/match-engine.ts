@@ -9,7 +9,8 @@ import { record } from '@/lib/agent-run'
  * CLAUDE.md: "Match scores always carry factors, basis, confidence and unknowns.
  *             A bare number is a bug."
  *
- * Takes a Requirement and finds the best-fit consultants from the bench.
+ * Takes a Requirement and finds the best-fit consultants from the
+ * requirement owner's own bench — never anybody else's.
  * Uses Claude for semantic skill matching (e.g., "React" ↔ "Next.js"),
  * then scores on five dimensions:
  *   1. Skill overlap (semantic, not string equality)
@@ -119,8 +120,21 @@ export async function runMatchEngine(
     await prisma.match.deleteMany({ where: { requirementId } })
   }
 
-  // 3. Load candidate pool — consultants with active bench listings
-  //    Exclude people already submitted to this requirement
+  // 3. Load candidate pool — consultants with active bench listings AT
+  //    THIS COMPANY, whoever raised the requirement.
+  //
+  //    This was unscoped: a bare `revokedAt: null` with no companyId,
+  //    which searched every bench listing on the platform regardless of
+  //    who it belonged to. "The bench operator... only learns the
+  //    client's name once there is a signed right to represent" — this
+  //    call sits before any invitation or hold exists, so an unscoped
+  //    pool was showing one company a stranger's private bench: names,
+  //    headlines, skills, location, none of it consented to. Fixed to
+  //    the requirement owner's own bench, which is also the actual
+  //    feature this was meant to be — "do we have anybody, before we go
+  //    looking outside" — not a platform-wide search dressed up as one.
+  //
+  //    Exclude people already submitted to this requirement.
   const existingSubmissions = await prisma.submission.findMany({
     where: { requirementId },
     select: { personId: true },
@@ -129,6 +143,7 @@ export async function runMatchEngine(
 
   const listings = await prisma.benchListing.findMany({
     where: {
+      companyId: requirement.companyId,
       revokedAt: null,
       consultant: {
         person: {
@@ -148,7 +163,7 @@ export async function runMatchEngine(
   })
 
   if (listings.length === 0) {
-    return { matches: [], basis: 'No candidates with active bench listings found' }
+    return { matches: [], basis: 'Nobody on your own bench has an active listing right now' }
   }
 
   // 4. Deduplicate by person (a consultant may have multiple listings)

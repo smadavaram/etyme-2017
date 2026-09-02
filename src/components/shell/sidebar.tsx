@@ -12,7 +12,8 @@ import { EtymeMark } from '@/components/logo'
  *   GSI        → Deliver → Supply → Operate
  *   Client     → Program → Governance
  *
- * Phase 1 ships both Vendor and Client views.
+ * Phase 1 ships Vendor and Client. GSI is Phase 3/4 by that same rule —
+ * built ahead of it on explicit instruction, not by drift (see GSI_NAV).
  * href is typed as `string` because most pages are not yet built —
  * Next.js typedRoutes would reject them. Tighten when pages exist.
  */
@@ -124,6 +125,84 @@ const VENDOR_NAV: NavSection[] = [
       // manners. It decides who gets the next role, so it is not a
       // secret from the firm it is about.
       { label: 'How clients see you', href: '/dashboard/my-standing', icon: '◈' },
+    ],
+  },
+]
+
+/**
+ * GSI — the delivery-and-supply nav CLAUDE.md names ("Deliver → Supply
+ * → Operate") and VENDOR_NAV's own comment deferred: "MSP and GSI both
+ * sit on the supply side of a placement, so they take the vendor nav
+ * until their own sections are specified." Specified now, on explicit
+ * instruction — this is Phase 3/4 scope built ahead of the five-vendor
+ * bar CLAUDE.md sets, done knowingly rather than by drift.
+ *
+ * A GSI holds both hats at once on the same deal: prime to the client
+ * (Deliver) and buyer from its own sub-vendor pool and bench (Supply).
+ * src/lib/persona.ts built the `side` field on Context specifically for
+ * this — "the same person runs both... a GSI holds two contexts at one
+ * company and switches between them."
+ *
+ * Every route below already exists and is already company-agnostic —
+ * grepped the requisition, requirement and submission APIs for a
+ * company-kind gate and found none. Nothing new here except the
+ * grouping: same pages VENDOR_NAV already uses for its own Sell and
+ * Talent sections, relabeled to name what a GSI is actually doing with
+ * them rather than what a plain vendor is.
+ */
+const GSI_NAV: NavSection[] = [
+  {
+    label: 'Deliver',
+    items: [
+      { label: 'Dashboard', href: '/dashboard', icon: '◉' },
+      // What the end client sent — a GSI is prime here, the same seat a
+      // vendor sits in when it receives a role.
+      { label: 'Invitations', href: '/dashboard/invitations', icon: '✉' },
+      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
+      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
+      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
+      { label: 'Sell Contracts', href: '/dashboard/contracts?side=sell', icon: '▤' },
+      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
+    ],
+  },
+  {
+    label: 'Supply',
+    items: [
+      // The GSI's own roster — checked first, on the requirement detail
+      // page, before a role a GSI is delivering ever reaches a
+      // sub-vendor. See match-engine.ts: that check is scoped to this
+      // company's own bench and nobody else's.
+      { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
+      { label: 'Candidates', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Keeping the bench honest', href: '/dashboard/texts', icon: '✆' },
+      { label: 'Buy Contracts', href: '/dashboard/contracts?side=buy', icon: '▥' },
+    ],
+  },
+  {
+    label: 'Operate',
+    items: [
+      { label: 'Loose ends', href: '/dashboard/loose-ends', icon: '⛓' },
+      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Money' },
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
+      { label: 'Money owed to us', href: '/dashboard/ar', icon: '◧', group: 'Money' },
+      { label: 'Who is financing whom', href: '/dashboard/ap', icon: '◨', group: 'Money' },
+      { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
+      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Money' },
+      { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
+      { label: 'Check the checker', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
+      { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Checks & compliance' },
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Checks & compliance' },
+      { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱', group: 'Checks & compliance' },
+      { label: 'Being screened', href: '/dashboard/outbound-pack', icon: '◲', group: 'Checks & compliance' },
+      { label: 'Blacklist', href: '/dashboard/blacklist', icon: '⊘', group: 'Checks & compliance' },
+      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', group: 'Checks & compliance' },
+      { label: 'Companies', href: '/dashboard/companies', icon: '▣', group: 'Admin' },
+      { label: 'Who we work with', href: '/dashboard/contacts', icon: '☎', group: 'Admin' },
+      { label: 'Getting set up', href: '/dashboard/onboarding', icon: '☑', group: 'Admin' },
+      { label: 'Your books, their books', href: '/dashboard/integrations', icon: '⇄', group: 'Admin' },
+      { label: 'Who can do what', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
+      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Admin' },
+      { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓', group: 'Admin' },
     ],
   },
 ]
@@ -244,8 +323,10 @@ function getNavForKind(
   if (isConsultant || !kind) return CONSULTANT_NAV
   switch (kind) {
     case 'CLIENT': return CLIENT_NAV
+    case 'GSI': return GSI_NAV
+    // MSP has no nav of its own specified in CLAUDE.md's table — unlike
+    // GSI, which is. Falls through to the vendor nav until one is.
     case 'MSP':
-    case 'GSI':
     // A company of one is a vendor with one person on the bench. It
     // sells, so it gets the seller's nav rather than a fifth shell
     // nobody asked for.

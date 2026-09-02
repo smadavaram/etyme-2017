@@ -417,14 +417,17 @@ export default function RequirementDetailPage() {
         </div>
       )}
 
-      {/* Match results — the decision surface */}
+      {/* Match results — the decision surface. Deliberately your own
+          bench only (see match-engine.ts) and deliberately placed above
+          Distribute: the question this answers is whether you already
+          have somebody, before a role goes to anyone outside. */}
       <div className="mb-4">
         <h2 className="headline-serif text-[18px] text-etyme-ink mb-1">
-          Bench matches
+          Your own bench, checked first
         </h2>
         <p className="text-[12px] text-etyme-muted">
-          {matches.length} consultant{matches.length !== 1 ? 's' : ''} scored against this requirement.
-          Click a row to see reasoning.
+          {matches.length} consultant{matches.length !== 1 ? 's' : ''} on your own bench, scored
+          against this requirement — before it goes to anyone outside. Click a row to see reasoning.
         </p>
       </div>
 
@@ -444,7 +447,7 @@ export default function RequirementDetailPage() {
           <div className="text-3xl mb-3">🧠</div>
           <p className="text-sm text-etyme-ink font-medium mb-1">No matches yet</p>
           <p className="text-xs text-etyme-muted mb-4">
-            Run the AI match engine to find the best-fit consultants from your bench.
+            Check your own bench for a fit before this goes to anyone outside.
           </p>
           {(requirement.status === 'OPEN' || requirement.status === 'DRAFT') && (
             <button

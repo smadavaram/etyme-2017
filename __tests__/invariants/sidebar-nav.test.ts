@@ -190,3 +190,53 @@ describe('a client\'s nav reads as the sequence of a placement, not a wall of li
     assertGroupsAreContiguous(governance)
   })
 })
+
+describe('a GSI gets the Deliver / Supply / Operate nav CLAUDE.md names, not the vendor nav', () => {
+  // Built on explicit instruction, ahead of the five-vendor bar CLAUDE.md
+  // sets for Phase 3/4 — done knowingly, so this pins that it actually
+  // shipped rather than half-landing.
+  const gsiNav = extractArray('GSI_NAV')
+
+  it('has exactly the three sections CLAUDE.md names, in order', () => {
+    const labels = [...gsiNav.matchAll(/label:\s*'(Deliver|Supply|Operate)'/g)].map((m) => m[1])
+    expect(labels).toEqual(['Deliver', 'Supply', 'Operate'])
+  })
+
+  it('routes a GSI company to GSI_NAV rather than falling back to the vendor nav', () => {
+    expect(SOURCE).toMatch(/case 'GSI':\s*return GSI_NAV/)
+  })
+
+  it('does not send a GSI onto a client-only or consultant-only screen', () => {
+    for (const href of ['/dashboard/program', '/dashboard/requisitions', '/dashboard/my-work', '/dashboard/my-page']) {
+      expect(gsiNav, href).not.toContain(`href: '${href}'`)
+    }
+  })
+
+  it('checks a GSI\'s own bench before a role reaches a sub-vendor, same as any vendor', () => {
+    // The requirement page's own-bench check lives behind "Requirements",
+    // reused rather than rebuilt — see match-engine.ts for the scope fix
+    // that makes "own bench" actually mean the GSI's own bench.
+    expect(gsiNav).toContain("href: '/dashboard/requirements'")
+    expect(gsiNav).toContain("href: '/dashboard/bench'")
+  })
+
+  it('keeps every Operate item except the queue grouped, same as the vendor section it was copied from', () => {
+    const operateStart = gsiNav.indexOf("label: 'Operate'")
+    const operate = gsiNav.slice(operateStart)
+    const itemLines = operate.split('\n').filter((l) => /href:\s*'\/dashboard\//.test(l))
+    const ungrouped = itemLines.filter((l) => !/group:\s*'/.test(l))
+    expect(ungrouped.length).toBe(1)
+    expect(ungrouped[0]).toContain('Loose ends')
+    assertGroupsAreContiguous(operate)
+  })
+})
+
+describe('MSP still falls back to the vendor nav — GSI is specified, MSP is not', () => {
+  it('is the only other company kind case that reaches the vendor-nav fallthrough', () => {
+    const switchBody = SOURCE.slice(
+      SOURCE.indexOf('function getNavForKind'),
+      SOURCE.indexOf('export function Sidebar')
+    )
+    expect(switchBody).toMatch(/case 'MSP':\s*\/\//)
+  })
+})
