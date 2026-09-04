@@ -252,6 +252,19 @@ export function rolesFor(kind: CompanyKind): RoleSeed[] {
           blurb: 'Hires contractors from outside. The only people here who see the market.',
           permissions: uniq(SEE_PEOPLE, ['consultants.write'], SEE_DEMAND, SEND_SUPPLY, SEE_WORK, SEE_OUTSIDE, ['vendors.read']),
         },
+        // No timesheets.approve, deliberately — not even Delivery Manager
+        // has that, above. A Team Lead's approval rights come entirely
+        // from being named as SellContract.approverPersonId, one contract
+        // at a time, by whoever runs it (see src/lib/timesheet-authority.ts).
+        // The role exists so that grant shows up as somebody real on the
+        // access screen — "who can do what" — rather than a person with
+        // no company-wide rights at all, which reads as an oversight
+        // instead of the narrow, deliberate thing it is.
+        {
+          name: 'Team Lead',
+          blurb: 'Runs one project. Approves that project\'s timesheets — nothing company-wide.',
+          permissions: uniq(SEE_PEOPLE, SEE_WORK),
+        },
       ]
     case 'VENDOR':
     default:

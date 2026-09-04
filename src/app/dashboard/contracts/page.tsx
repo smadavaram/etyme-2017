@@ -24,6 +24,9 @@ import { pageFraming } from '@/lib/page-framing'
 interface Contract {
   id: string
   side: 'sell' | 'buy'
+  /** The employer on a sell contract — whose company this actually is. */
+  companyId: string
+  personId: string
   personName: string
   counterpartyName: string | null
   endClientName: string | null  // where the consultant actually works
@@ -35,6 +38,9 @@ interface Contract {
   startDate: string
   endDate: string | null
   daysUntilEnd: number | null
+  /** The team lead named to approve this contract's timesheets, if any. */
+  approverId: string | null
+  approverName: string | null
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -103,6 +109,122 @@ interface ClientCompanyOption {
 interface ConsultantOption {
   personId: string
   name: string
+}
+
+/**
+ * "As a delivery I will have team leads assigned to manage and approve
+ * timesheets for the project." — this is the assigning. Anybody named
+ * here can approve this one contract's timesheets on the employer's
+ * side without needing timesheets.approve at all; see
+ * src/lib/timesheet-authority.ts.
+ */
+function ApproverModal({
+  contract,
+  onClose,
+  onAssigned,
+}: {
+  contract: Contract
+  onClose: () => void
+  onAssigned: (message: string) => void
+}) {
+  const [members, setMembers] = useState<{ id: string; name: string }[]>([])
+  const [loadingMembers, setLoadingMembers] = useState(true)
+  const [selected, setSelected] = useState(contract.approverId ?? '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch('/api/access')
+        const body = await res.json()
+        if (!res.ok) throw new Error(body.error?.message ?? 'Could not load your team')
+        const list = (body.data?.people ?? [])
+          .map((g: any) => g.person)
+          .filter((p: any) => p && p.id !== contract.personId)
+        // De-duplicated — one person can hold more than one context.
+        const byId = new Map<string, { id: string; name: string }>(
+          list.map((p: { id: string; name: string }) => [p.id, p])
+        )
+        setMembers([...byId.values()])
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setLoadingMembers(false)
+      }
+    }
+    load()
+  }, [contract.personId])
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/contracts/${contract.id}/approver`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ approverPersonId: selected || null }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error?.message ?? 'Could not save')
+      onAssigned(body.data?.message ?? 'Saved')
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div className="card w-full max-w-sm mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Who approves this contract's hours?</h2>
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <p className="text-xs text-etyme-muted mb-4">
+          {contract.personName}'s timesheets on this contract. Left blank, anybody at your
+          company with approval rights can approve it, same as today.
+        </p>
+
+        {error && (
+          <div className="mb-4 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">
+            {error}
+          </div>
+        )}
+
+        {loadingMembers ? (
+          <div className="text-sm text-etyme-muted animate-pulse py-6 text-center">Loading your team…</div>
+        ) : (
+          <select
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
+                       focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action mb-4"
+          >
+            <option value="">— Anyone with approval rights —</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        )}
+
+        <div className="flex gap-2">
+          <button onClick={onClose} className="btn-secondary flex-1 text-sm" disabled={saving}>
+            Cancel
+          </button>
+          <button onClick={handleSave} className="btn-primary flex-1 text-sm" disabled={saving || loadingMembers}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function CreateContractModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
@@ -905,6 +1027,7 @@ export default function ContractsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<ViewTab>(initialSide)
+  const [assigningApprover, setAssigningApprover] = useState<Contract | null>(null)
   const framing = pageFraming(company?.kind ?? 'VENDOR', tab === 'sell' ? 'contracts.sell' : 'contracts.buy')
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
   const [showCreate, setShowCreate] = useState(false)
@@ -959,6 +1082,8 @@ export default function ContractsPage() {
         return {
           id: c.id,
           side: c.side ?? tab,
+          companyId: c.companyId,
+          personId: c.personId ?? c.person?.id,
           personName: c.person?.name ?? 'Unknown',
           counterpartyName: tab === 'sell'
             ? (endClientName ?? c.clientCompany?.name ?? null)
@@ -974,6 +1099,8 @@ export default function ContractsPage() {
           daysUntilEnd: c.endDate
             ? Math.ceil((new Date(c.endDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
             : null,
+          approverId: c.approver?.id ?? null,
+          approverName: c.approver?.name ?? null,
         }
       }))
     } catch (err: any) {
@@ -1049,6 +1176,34 @@ export default function ContractsPage() {
       ),
       sortValue: (row) => row.rate,
     },
+    // Only on your own sell contracts — assigning who approves a
+    // contract's timesheets is the employer's call, never the client's,
+    // and buy contracts have no timesheets of their own to approve.
+    ...(tab === 'sell'
+      ? [
+          {
+            key: 'approver',
+            label: 'Approver',
+            render: (row: Contract) =>
+              row.companyId === company?.id ? (
+                <button
+                  onClick={() => setAssigningApprover(row)}
+                  className="text-[12px] text-left hover:underline"
+                >
+                  {row.approverName ? (
+                    <span className="text-etyme-ink">{row.approverName}</span>
+                  ) : (
+                    <span className="text-etyme-faint">Assign a team lead</span>
+                  )}
+                </button>
+              ) : (
+                <span className="text-[12px] text-etyme-faint">—</span>
+              ),
+            sortValue: (row: Contract) => row.approverName ?? '',
+            hideOnMobile: true,
+          } as Column<Contract>,
+        ]
+      : []),
     {
       key: 'startDate',
       label: 'Start',
@@ -1273,6 +1428,19 @@ export default function ContractsPage() {
           onClose={() => setShowCreate(false)}
           onCreated={() => {
             setToast({ type: 'success', message: 'Contract created successfully.' })
+            fetchContracts()
+          }}
+        />
+      )}
+
+      {/* Assign this contract's timesheet approver */}
+      {assigningApprover && (
+        <ApproverModal
+          contract={assigningApprover}
+          onClose={() => setAssigningApprover(null)}
+          onAssigned={(message) => {
+            setAssigningApprover(null)
+            setToast({ type: 'success', message })
             fetchContracts()
           }}
         />

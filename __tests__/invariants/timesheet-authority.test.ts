@@ -96,3 +96,43 @@ describe('approving hours', () => {
     expect(mayApprove(actor({ companyId: 'terumo', permissions: ['*'] }), CONTRACT).ok).toBe(true)
   })
 })
+
+describe('a team lead named on one contract', () => {
+  // "As a delivery I will have team leads assigned to manage and
+  // approve timesheets for the project" — the narrower path a delivery
+  // manager hands somebody instead of company-wide timesheets.approve.
+  const withApprover = { ...CONTRACT, approverPersonId: 'priya' }
+
+  it('lets the named person approve, holding no blanket permission at all', () => {
+    const v = mayApprove(actor({ personId: 'priya', companyId: 'cloudepa', permissions: [] }), withApprover)
+    expect(v.ok).toBe(true)
+    expect(v.reason).toMatch(/named on this contract/i)
+  })
+
+  it('says nothing about the named approver when nobody was named', () => {
+    // approverPersonId is undefined on CONTRACT — falls straight through
+    // to the existing company-wide check, unchanged.
+    expect(mayApprove(actor({ personId: 'priya', companyId: 'cloudepa', permissions: [] }), CONTRACT).ok).toBe(false)
+  })
+
+  it('does not let somebody else at the company use the named approver\'s door', () => {
+    // Being at the right company is not the grant — being the specific
+    // person named is. Everyone else still needs the blanket permission.
+    const v = mayApprove(actor({ personId: 'someone-else', companyId: 'cloudepa', permissions: [] }), withApprover)
+    expect(v.ok).toBe(false)
+  })
+
+  it('still lets the company-wide permission holder approve too — additive, not exclusive', () => {
+    // Naming a team lead narrows nothing for everyone else; it only adds
+    // a second door in for somebody who would otherwise have none.
+    expect(mayApprove(actor({ companyId: 'terumo' }), withApprover).ok).toBe(true)
+  })
+
+  it('never lets the named approver approve their own hours', () => {
+    // approvingOwnHours is checked before mayApprove in the route, and
+    // does not know or care about approverPersonId — it just compares
+    // personId, which is the point.
+    const selfNamed = { ...CONTRACT, personId: 'priya', approverPersonId: 'priya' }
+    expect(approvingOwnHours(actor({ personId: 'priya' }), selfNamed)).toBe(true)
+  })
+})

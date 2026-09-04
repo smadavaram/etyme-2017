@@ -40,7 +40,7 @@ export async function POST(
       sellContract: {
         select: {
           id: true, companyId: true, billRate: true, billCurrency: true,
-          clientCompanyId: true, endClientCompanyId: true,
+          clientCompanyId: true, endClientCompanyId: true, approverPersonId: true,
         },
       },
     },
@@ -62,6 +62,7 @@ export async function POST(
       vendorCompanyId: timesheet.sellContract.companyId,
       clientCompanyId: timesheet.sellContract.clientCompanyId,
       endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+      approverPersonId: timesheet.sellContract.approverPersonId,
     }
   )
   if (!allowed.ok) {

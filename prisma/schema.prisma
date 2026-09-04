@@ -50,6 +50,7 @@ model Person {
   documentSharesCreated  DocumentShare[]        @relation("shareCreator")
   documentSharesAbout    DocumentShare[]        @relation("shareSubject")
   managedContracts       SellContract[]         @relation("hiringManager") // Addendum E: contracts this person owns at the client
+  timesheetsToApprove    SellContract[]         @relation("timesheetApprover") // the team lead assigned to approve this contract's hours, on the employer side
   eventsCaused           Event[]                @relation("eventActor")
   rulesAuthored          ApprovalRule[]         @relation("ruleAuthor")
   ruleVersions           ApprovalRuleVersion[]  @relation("ruleVersionAuthor")
@@ -1973,6 +1974,18 @@ model SellContract {
   orgUnitId       String? // the end client's department / cost centre
   orgUnit         OrgUnit? @relation(fields: [orgUnitId], references: [id])
 
+  /// The one person a delivery manager can name to approve this
+  /// contract's timesheets on the employer's side, without handing them
+  /// `timesheets.approve` company-wide.
+  ///
+  /// Null by anyone holding that permission at the employer company
+  /// keeps approving exactly as before — this only adds a second, named
+  /// path in. A "Team Lead" role can carry no blanket approval
+  /// permission at all and still approve, but only the contracts they
+  /// are actually named on here.
+  approverPersonId String?
+  approver         Person?  @relation("timesheetApprover", fields: [approverPersonId], references: [id])
+
   /// Which account or practice inside the SELLING firm this belongs to.
   ///
   /// A contract has two org sides and they belong to different companies:
@@ -2079,6 +2092,7 @@ model SellContract {
   @@index([internalOrderId])
   @@index([salesOrderId])
   @@index([projectOrderId])
+  @@index([approverPersonId])
 }
 
 enum SellContractState {

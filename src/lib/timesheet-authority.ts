@@ -32,6 +32,13 @@ export interface Parties {
   clientCompanyId: string
   /** Where the work happens, when that differs. */
   endClientCompanyId: string | null
+  /**
+   * The one person a delivery manager named to approve this contract's
+   * hours, on the employer's side — SellContract.approverPersonId.
+   * Null on every contract that has not named one, which is most of
+   * them; those keep approving exactly as they always have.
+   */
+  approverPersonId?: string | null
 }
 
 export interface Actor {
@@ -74,6 +81,16 @@ export function mayEnter(a: Actor, t: Parties): Verdict {
  * that weakness quietly.
  */
 export function mayApprove(a: Actor, t: Parties): Verdict {
+  // A team lead named on this specific contract may approve it — on the
+  // employer's side, for this contract only, and without needing the
+  // blanket timesheets.approve permission at all. This is the narrower
+  // path a delivery manager hands somebody instead of company-wide
+  // reach: "manage and approve timesheets for the project," not
+  // "approve anything at Infosys."
+  if (t.approverPersonId != null && a.personId === t.approverPersonId) {
+    return { ok: true, reason: 'The team lead named on this contract.' }
+  }
+
   if (!holds(a, 'timesheets.approve')) {
     return { ok: false, reason: 'Approving hours needs the timesheets.approve permission.' }
   }

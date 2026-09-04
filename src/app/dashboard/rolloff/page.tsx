@@ -133,6 +133,7 @@ export default function RolloffPage() {
   const [window, setWindow] = useState<WindowDays>(30)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const [claiming, setClaiming] = useState<string | null>(null)
+  const [resolving, setResolving] = useState<string | null>(null)
 
   const fetchRolloffs = useCallback(async () => {
     setLoading(true)
@@ -213,6 +214,32 @@ export default function RolloffPage() {
       setTimeout(() => setToast(null), 4000)
     } finally {
       setClaiming(null)
+    }
+  }
+
+  // ── Resolve rolloff — what actually happened ────────────────
+  //
+  // "Firing people with a notice from the project which also means
+  // bringing them to bench" — BENCH requests the same bench listing
+  // any other request-then-grant flow does; it does not skip consent.
+  async function handleResolve(rolloffId: string, outcome: 'REDEPLOYED' | 'BENCH' | 'LOST') {
+    setResolving(rolloffId)
+    try {
+      const res = await fetch(`/api/rolloff/${rolloffId}/resolve`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ outcome }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error?.message ?? 'Could not resolve this rolloff')
+      setToast({ message: body.data?.message ?? 'Resolved', type: 'success' })
+      setTimeout(() => setToast(null), 4000)
+      fetchRolloffs()
+    } catch (err: any) {
+      setToast({ message: err.message, type: 'error' })
+      setTimeout(() => setToast(null), 4000)
+    } finally {
+      setResolving(null)
     }
   }
 
@@ -414,6 +441,43 @@ export default function RolloffPage() {
                         >
                           {claiming === event.id ? 'Claiming…' : 'Claim'}
                         </button>
+                      )}
+                      {/* What actually happened. Resolving claims it too,
+                          if nobody has yet — one action instead of a
+                          forced two clicks to record the same decision. */}
+                      {!event.outcome && (
+                        <div className="flex flex-col items-end gap-1">
+                          <p className="text-[10px] text-etyme-faint">What happened?</p>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleResolve(event.id, 'REDEPLOYED')}
+                              disabled={resolving === event.id}
+                              className="text-[11px] px-2.5 py-1 rounded border border-etyme-rule
+                                         text-etyme-verified hover:bg-emerald-50 transition-colors
+                                         disabled:opacity-50"
+                            >
+                              Redeployed
+                            </button>
+                            <button
+                              onClick={() => handleResolve(event.id, 'BENCH')}
+                              disabled={resolving === event.id}
+                              className="text-[11px] px-2.5 py-1 rounded border border-etyme-rule
+                                         text-etyme-attention hover:bg-amber-50 transition-colors
+                                         disabled:opacity-50"
+                            >
+                              {resolving === event.id ? '…' : 'Back on bench'}
+                            </button>
+                            <button
+                              onClick={() => handleResolve(event.id, 'LOST')}
+                              disabled={resolving === event.id}
+                              className="text-[11px] px-2.5 py-1 rounded border border-etyme-rule
+                                         text-etyme-muted hover:bg-etyme-canvas transition-colors
+                                         disabled:opacity-50"
+                            >
+                              Lost
+                            </button>
+                          </div>
+                        </div>
                       )}
                       <div className="text-right">
                         <p className="text-sm font-medium tabular-nums">
