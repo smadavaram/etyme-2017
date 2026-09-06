@@ -439,7 +439,6 @@ export async function GET(request: NextRequest) {
         engagement: { select: { id: true, title: true } },
         _count: { select: { timesheets: true, sellCycles: true } },
         rolloff: { select: { id: true, endDate: true, outcome: true } },
-        approver: { select: { id: true, name: true } },
       },
       orderBy: { startDate: 'desc' },
       skip: (page - 1) * limit,
@@ -470,10 +469,6 @@ export async function GET(request: NextRequest) {
         timesheets: c._count.timesheets,
         cycles: c._count.sellCycles,
         rolloff: c.rolloff ? { id: c.rolloff.id, endDate: c.rolloff.endDate.toISOString(), outcome: c.rolloff.outcome } : null,
-        // The team lead named to approve this contract's timesheets, if
-        // anyone has been. Null means it works exactly as it always
-        // has — whoever at the employer company holds timesheets.approve.
-        approver: c.approver,
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       // Said plainly when somebody is seeing less than the whole firm. A
