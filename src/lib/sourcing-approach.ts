@@ -248,3 +248,160 @@ export const LINKEDIN_RULE =
 export function checkIsAllowed(by: 'PERSON' | 'AUTOMATED'): boolean {
   return by === 'PERSON'
 }
+
+// ── Etyme pushing a vendor to engage ──────────────────────────────────
+
+/**
+ * When the platform may put a sourced contact in front of a vendor.
+ *
+ * ── The distinction this whole section turns on ──────────────────────
+ *
+ * "Etyme eventually becomes the talent pool" has two readings and only
+ * one of them survives contact with CLAUDE.md.
+ *
+ *   Etyme *is* the talent pool — it holds candidates, and vendors come
+ *   to it for people. That is Etyme running a bench, which the
+ *   positioning forbids in as many words: neutrality is absolute, and
+ *   the moment it competes with its own suppliers the network stops
+ *   growing.
+ *
+ *   Etyme is *where* the talent pool lives — every consultant belongs
+ *   to the vendor or vendors whose bench they sit on, and the platform
+ *   holds the record. That is the system of record for contingent
+ *   workers, which is the positioning exactly.
+ *
+ * The second one is the strategy and the first one is how it dies. They
+ * are one sentence apart, which is why it is written here rather than
+ * remembered.
+ *
+ * Everything below keeps the product on the right side of it by
+ * construction: a nudge surfaces a person *to a vendor*, and if they
+ * answer they join *that vendor's* bench. The platform never holds
+ * anybody, never represents anybody, and never places anybody.
+ *
+ * ── Why the nudge needs its own restraint ────────────────────────────
+ *
+ * `mayApproach` protects the person: one message, ever, across every
+ * vendor. That is the hard cap and it is not enough on its own, because
+ * the platform prompting a thousand vendors to go and source is how a
+ * polite system manufactures volume without breaking a single rule.
+ *
+ * So a nudge needs a live need behind it. Not "you should be sourcing"
+ * — a vendor with an open requirement, a person whose recorded skills
+ * fit it, and nobody nearer to hand.
+ *
+ * ── How it retires itself ────────────────────────────────────────────
+ *
+ * The bought list is the last resort, checked after the vendor's own
+ * bench and after the network. As more vendors arrive, the network
+ * covers more requirements, the shortfall closes and the nudges stop on
+ * their own — which is the same movement `lib/sourcing-exit` measures
+ * and eventually acts on. The feature is built to run out of reasons to
+ * exist.
+ */
+
+/** Nudges a vendor may receive in a week, however many contacts fit. */
+export const NUDGE_CAP_PER_WEEK = 5
+
+export interface Need {
+  /** Open requirements this vendor is working. Zero means no live need. */
+  openRequirements: number
+  /** Skills those requirements call for. */
+  skills: string[]
+  /** People on this vendor's own bench who fit. */
+  ownBenchFits: number
+  /** People on other vendors' benches, reachable through the network. */
+  networkFits: number
+}
+
+export interface NudgeState {
+  nudgesThisWeek: number
+  /** Whether this vendor has already been shown this person. */
+  alreadyShown: boolean
+}
+
+export type NudgeRefusal =
+  | 'NO_LIVE_NEED'
+  | 'BENCH_COVERS_IT'
+  | 'NETWORK_COVERS_IT'
+  | 'ALREADY_SHOWN'
+  | 'ENOUGH_THIS_WEEK'
+  | 'CANNOT_APPROACH'
+
+export interface NudgeVerdict {
+  ok: boolean
+  refusal: NudgeRefusal | null
+  reason: string
+}
+
+/**
+ * Whether to show this vendor this person, now.
+ *
+ * Order matters and is not arbitrary: the cheapest and least intrusive
+ * reasons to say no are checked first, so a vendor whose own bench
+ * already covers a role is never told about a stranger at all.
+ */
+export function worthNudging(
+  c: Contact,
+  vendorCompanyId: string,
+  need: Need,
+  state: NudgeState
+): NudgeVerdict {
+  if (need.openRequirements === 0) {
+    // The difference between a prompt and a nag. "You should be
+    // sourcing" is a nag, and a vendor who receives enough of them stops
+    // reading all of it.
+    return {
+      ok: false,
+      refusal: 'NO_LIVE_NEED',
+      reason: 'They have no open requirement. A nudge with nothing behind it is a nag.',
+    }
+  }
+
+  if (need.ownBenchFits > 0) {
+    return {
+      ok: false,
+      refusal: 'BENCH_COVERS_IT',
+      reason: `Their own bench has ${need.ownBenchFits} who fit. Their people come first, always.`,
+    }
+  }
+
+  if (need.networkFits > 0) {
+    // The mechanism by which this feature retires itself. As more
+    // vendors arrive the network covers more roles, and the bought list
+    // is reached for less often until it is not reached for at all.
+    return {
+      ok: false,
+      refusal: 'NETWORK_COVERS_IT',
+      reason:
+        `${need.networkFits} on other benches here fit, and a consultant somebody already knows ` +
+        `beats a stranger who has to be found.`,
+    }
+  }
+
+  if (state.alreadyShown) {
+    return { ok: false, refusal: 'ALREADY_SHOWN', reason: 'This vendor has already seen them.' }
+  }
+
+  if (state.nudgesThisWeek >= NUDGE_CAP_PER_WEEK) {
+    return {
+      ok: false,
+      refusal: 'ENOUGH_THIS_WEEK',
+      reason: `${NUDGE_CAP_PER_WEEK} this week already. More than that and the screen becomes noise.`,
+    }
+  }
+
+  const allowed = mayApproach(c, vendorCompanyId, need.skills)
+  if (!allowed.ok) {
+    // No point showing somebody they are not permitted to write to.
+    return { ok: false, refusal: 'CANNOT_APPROACH', reason: allowed.reason }
+  }
+
+  return {
+    ok: true,
+    refusal: null,
+    reason:
+      'An open role, nobody nearer to hand, and a person whose recorded work fits it. ' +
+      'If they answer, they join this vendor\'s bench — never ours.',
+  }
+}

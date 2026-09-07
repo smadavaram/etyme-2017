@@ -170,3 +170,106 @@ describe('checking LinkedIn before writing', () => {
     expect(LINKEDIN_RULE).toMatch(/not worth the leads/i)
   })
 })
+
+// ── Etyme pushing a vendor to engage ──────────────────────────────────
+
+import { worthNudging, NUDGE_CAP_PER_WEEK, type Need, type NudgeState } from '@/lib/sourcing-approach'
+
+/**
+ * "Etyme eventually becomes the talent pool" has two readings and only
+ * one survives CLAUDE.md.
+ *
+ * Etyme *is* the pool — it holds candidates and vendors come to it for
+ * people — is Etyme running a bench, which the positioning forbids in as
+ * many words. Etyme is *where* the pool lives — every consultant belongs
+ * to the vendor whose bench they sit on, and the platform holds the
+ * record — is the system of record for contingent workers, which is the
+ * positioning exactly.
+ *
+ * One sentence apart. These tests keep the product on the second one.
+ */
+
+const need = (over: Partial<Need> = {}): Need => ({
+  openRequirements: 2,
+  skills: ['SAP FICO', 'Java'],
+  ownBenchFits: 0,
+  networkFits: 0,
+  ...over,
+})
+
+const state = (over: Partial<NudgeState> = {}): NudgeState => ({
+  nudgesThisWeek: 0,
+  alreadyShown: false,
+  ...over,
+})
+
+describe('the platform only pushes a vendor toward somebody when there is a live need', () => {
+  it('shows them a fitting contact when a role is open and nobody is nearer', () => {
+    const v = worthNudging(contact(), VENDOR, need(), state())
+    expect(v.ok).toBe(true)
+  })
+
+  it('says the person joins the vendor’s bench, never the platform’s', () => {
+    // The whole neutrality question, in the sentence the recruiter reads.
+    expect(worthNudging(contact(), VENDOR, need(), state()).reason)
+      .toMatch(/join this vendor's bench — never ours/i)
+  })
+
+  it('refuses to nudge a vendor with no open requirement', () => {
+    // "You should be sourcing" is a nag, and a vendor who gets enough of
+    // them stops reading all of it.
+    const v = worthNudging(contact(), VENDOR, need({ openRequirements: 0 }), state())
+    expect(v.refusal).toBe('NO_LIVE_NEED')
+    expect(v.reason).toMatch(/a nag/i)
+  })
+})
+
+describe('the bought list is the last resort, which is how it retires itself', () => {
+  it('never mentions a stranger while the vendor’s own bench covers the role', () => {
+    const v = worthNudging(contact(), VENDOR, need({ ownBenchFits: 3 }), state())
+    expect(v.refusal).toBe('BENCH_COVERS_IT')
+    expect(v.reason).toMatch(/Their people come first, always/i)
+  })
+
+  it('prefers somebody on another vendor’s bench over the bought list', () => {
+    // The mechanism the whole strategy rests on. As vendors arrive the
+    // network covers more roles, the shortfall closes, and the list is
+    // reached for less until it is not reached for at all.
+    const v = worthNudging(contact(), VENDOR, need({ networkFits: 4 }), state())
+    expect(v.refusal).toBe('NETWORK_COVERS_IT')
+    expect(v.reason).toMatch(/beats a stranger who has to be found/i)
+  })
+
+  it('checks the vendor’s bench before the network, and both before the list', () => {
+    const both = worthNudging(contact(), VENDOR, need({ ownBenchFits: 1, networkFits: 9 }), state())
+    expect(both.refusal).toBe('BENCH_COVERS_IT')
+  })
+})
+
+describe('and the push itself is capped, because the platform is what makes the volume', () => {
+  it('stops after five in a week, however many contacts would fit', () => {
+    // mayApproach caps what one person receives. This caps what the
+    // platform manufactures — prompting a thousand vendors to go and
+    // source is how a polite system produces spam without breaking a
+    // single rule.
+    const v = worthNudging(contact(), VENDOR, need(), state({ nudgesThisWeek: NUDGE_CAP_PER_WEEK }))
+    expect(v.refusal).toBe('ENOUGH_THIS_WEEK')
+    expect(v.reason).toMatch(/the screen becomes noise/i)
+  })
+
+  it('never shows the same vendor the same person twice', () => {
+    const v = worthNudging(contact(), VENDOR, need(), state({ alreadyShown: true }))
+    expect(v.refusal).toBe('ALREADY_SHOWN')
+  })
+
+  it('does not show somebody the vendor would not be allowed to write to', () => {
+    const v = worthNudging(contact({ optedOutAt: new Date('2026-03-01') }), VENDOR, need(), state())
+    expect(v.refusal).toBe('CANNOT_APPROACH')
+    expect(v.reason).toMatch(/binds every vendor/i)
+  })
+
+  it('does not show somebody another vendor is already talking to', () => {
+    const v = worthNudging(contact({ heldByCompanyId: 'someone-else' }), VENDOR, need(), state())
+    expect(v.refusal).toBe('CANNOT_APPROACH')
+  })
+})

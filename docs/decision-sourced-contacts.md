@@ -80,6 +80,54 @@ And it is not a campaign tool: no sequence, no follow-up, no drip. One
 message. Either they answer and become an ordinary consultant with a
 bench listing and consent, or nothing further ever happens.
 
+## "Etyme eventually becomes the talent pool"
+
+Two readings, one sentence apart, and only one survives CLAUDE.md.
+
+**Etyme *is* the talent pool** — it holds candidates, and vendors come to
+it for people. That is Etyme running a bench, which the positioning
+forbids in as many words: *neutrality is absolute, and the moment it
+competes with its own suppliers the network stops growing.*
+
+**Etyme is *where* the talent pool lives** — every consultant belongs to
+the vendor or vendors whose bench they sit on, and the platform holds the
+record. That is the system of record for contingent workers, which is the
+positioning exactly.
+
+The second is the strategy. The first is how it dies. This is written
+down because positioning has no test, and CLAUDE.md's own account of the
+landing page says what happens to a decision that lives only in a chat
+log.
+
+`worthNudging` keeps the product on the right side by construction: a
+nudge surfaces a person **to a vendor**, and if they answer they join
+**that vendor's** bench. The platform never holds anybody, never
+represents anybody, never places anybody.
+
+## Pushing vendors to engage
+
+`mayApproach` protects the person — one message, ever, across every
+vendor. That is the hard cap and it is not sufficient on its own, because
+the platform prompting a thousand vendors to go and source is how a
+polite system manufactures volume without breaking a single rule.
+
+So a nudge needs a live need behind it, and the bought list is the last
+thing reached for:
+
+| Checked in order | |
+|---|---|
+| An open requirement | No live need is a nag, and a vendor who gets enough nags stops reading all of it |
+| Their own bench | Their people come first, always |
+| The network | A consultant somebody already knows beats a stranger who has to be found |
+| Already shown, or five nudges this week | More than that and the screen becomes noise |
+| Whether they may write at all | No point surfacing somebody they cannot contact |
+
+**That ordering is how the feature retires itself.** As more vendors
+arrive, the network covers more requirements, the shortfall closes, and
+the nudges stop on their own — the same movement `lib/sourcing-exit`
+measures and eventually acts on. It is built to run out of reasons to
+exist.
+
 ## LinkedIn
 
 Checking a profile before writing is a good instinct — a 2020 record
