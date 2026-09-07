@@ -26,6 +26,7 @@ is the most expensive kind of bug.
 12. [Routing & API Surface](#12-routing--api-surface)
 13. [Background Jobs & Workers](#13-background-jobs--workers)
 14. [Seed Data & Constants](#14-seed-data--constants)
+15. [The Candidate Portal](#15-the-candidate-portal)
 
 ---
 
@@ -974,6 +975,132 @@ PaperTrail enabled on:
 - `candidates` — tracks `address` changes only
 
 ---
+
+## 15. The Candidate Portal
+
+Twenty-six controllers under `legacy-app/controllers/candidate/`. This
+section exists because the rest of this document did not cover them, and
+a portal was rebuilt from inference that was already sitting in the
+repository — including a timeline screen that filters the same two cycle
+kinds, under the same names.
+
+### 15.1 Candidate onboarding — nine steps and a gate
+
+The `candidates` table carries the checklist as boolean columns, and
+`is_profile_active` is the gate the others open:
+
+| Column | The step |
+|---|---|
+| `is_number_verify` | Phone confirmed |
+| `is_personal_info_update` | Name, address, date of birth |
+| `is_social_media` | LinkedIn and the rest, pasted by them |
+| `is_education_detail_update` | Degrees, as records |
+| `is_skill_update` | Skills, as records |
+| `is_client_info_update` | Where they have worked |
+| `is_designate_update` | Their title accepted — `designations#accept` |
+| `is_documents_submit` | Right-to-work and the rest |
+| **`is_profile_active`** | **The gate. Nothing is visible until it opens.** |
+
+The point is not the nine flags, it is that **a profile was inert until
+finished**. A half-built record could not be marketed, which is the
+opposite of a bench full of stubs nobody can submit.
+
+`ConsultantProfile` in the new schema has no equivalent. No completion
+state, no gate, and no way to tell a finished record from an empty one.
+
+### 15.2 Bench consent was asked for and answered
+
+`job_invitations#accept_bench` and `#reject_bench`, plus
+`benchs#accept_bench`. A vendor invited; the candidate answered; the
+record moved:
+
+- **accepted** → the join row goes to `hot_candidate`, and
+  `associated_company` becomes that vendor
+- **rejected** → back to `normal`, and `associated_company` reverts to
+  the freelancer company
+
+Two things worth keeping. The consent was **an answer to an invitation**,
+not a flag a vendor could set. And rejection **restored a prior state**
+rather than deleting anything.
+
+`BenchListing.grantedAt` now defaults to `now()` at creation, so a
+listing is granted the instant a vendor makes one and nobody is asked.
+`CLAUDE.md` states the invariant — *a Submission requires a live
+BenchListing granted by the consultant* — and this is the half that went
+missing.
+
+### 15.3 Rate negotiation, and it ran through the conversation
+
+`job_applications#rate_negotiation` and `#accept_rate`, via
+`CandidateApplicationService`:
+
+1. Refuses outright if `accept_rate` is already true — *"You cannot
+   change the rate once accepted by you."* Accepting is final.
+2. Writes the counter with `rate_initiator` set to the candidate's name,
+   and clears both `accept_rate` and `accept_rate_by_company`, so a
+   counter reopens the question on both sides.
+3. Demotes every prior `rate_confirmation` message in that conversation
+   to `job_conversation`, so **only the live offer stands** and the
+   thread cannot be read two ways.
+4. Posts the counter as a message: *"X has countered $Y/hr with
+   reference to the Z job."*
+
+That third step is the interesting one. The negotiation and the record of
+it are the same object.
+
+Nothing in the new build lets a consultant answer a rate at all.
+
+### 15.4 Interviews were accepted, not merely proposed
+
+`job_applications#interview` and `#accept_interview`, and
+`schedule_interview` on the same service — the candidate picks a slot,
+`accept` is set true while `accepted_by_recruiter` and
+`accepted_by_company` reset, and the same demote-then-post pattern
+threads it into the conversation.
+
+`/api/me/pipeline` shows proposed slots and offers no way to answer them.
+
+### 15.5 Conversations were scoped to a job application
+
+`conversations` · `conversation_messages` · `messages` · `chats`, with
+`set_activity_for_job_application` tying a thread to the application it
+is about. Candidates got `add_to_favourite`, `mute`, `leave_group`,
+title editing, file messages and `share_message`.
+
+This settles a question that was treated as open: a candidate is a
+participant in the thread **about their own application** — not in the
+vendor's internal notes about them. The wall is per-thread, and the
+thread is the application.
+
+### 15.6 Timesheets, expenses and documents
+
+`timesheets` — `add_hrs`, `create`, `submit_timesheet`,
+`submitted_timesheets`, `approve_timesheets`, with `check_valid_dates`
+guarding the period.
+
+`contracts#timeline` — contract cycles filtered on `TimesheetSubmit` and
+`TimesheetApprove`, which is the pair the new `/api/me/work` arrived at
+independently.
+
+`expenses` and `client_expenses` — their own expenses, and the ones
+billed on to a client with their own approval state.
+
+`document_signs#upload_document` and `contracts#request_document` — a
+signed document uploaded back, setting `is_sign_done` and `signed_file`.
+
+`educations`, `experiences`, `portfolios` — structured records, not a CV
+blob. These are what fed the `is_*_update` flags in 15.1.
+
+### 15.7 What this says about the tests
+
+The new build passes several thousand tests without any of the above,
+because a test can only find something that is broken. It cannot find
+something that was never built. Coverage measures the code that exists
+against itself.
+
+The check that would have caught this is not another test. It is reading
+`legacy-app/controllers/` for the surface being rebuilt, before
+rebuilding it.
 
 ## Known Bugs in 2017 Codebase
 
