@@ -7,8 +7,8 @@ import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
 import { clientOf, maySubmit, askFor, takeHold } from '@/lib/holds'
 import { missingNote } from '@/lib/resumes'
 import { tellThem } from '@/lib/representation'
-import { consentText, mayText } from '@/lib/texts'
-import { send as sendText } from '@/lib/sms'
+import { consentText, mayMessage } from '@/lib/texts'
+import { send as sendMessage } from '@/lib/messages'
 
 /**
  * POST /api/submissions
@@ -192,7 +192,9 @@ export async function POST(request: NextRequest) {
       // 1. Verify person exists
       const person = await prisma.person.findUnique({
         where: { id: personId },
-        select: { id: true, name: true },
+        // The address is here because the consent ask goes by email, and
+        // asking before submitting is the whole point of the message.
+        select: { id: true, name: true, primaryEmail: true },
       })
 
       if (!person) {
@@ -418,12 +420,12 @@ export async function POST(request: NextRequest) {
       if (held) {
         const profile = await prisma.consultantProfile.findFirst({
           where: { personId },
-          select: { mobile: true, textsOffAt: true },
+          select: { textsOffAt: true },
         })
 
-        const canText = mayText({
+        const canWrite = mayMessage({
           name: person.name,
-          mobile: profile?.mobile ?? null,
+          email: person.primaryEmail ?? null,
           textsOffAt: profile?.textsOffAt ?? null,
           confirmedAt: null,
           askedAt: null,
@@ -431,26 +433,29 @@ export async function POST(request: NextRequest) {
           onBench: true,
         })
 
-        if (canText.ok) {
+        if (canWrite.ok) {
           await prisma.representation.update({
             where: { id: held.id },
             data: { consentAskedAt: new Date() },
           })
 
-          void sendText({
+          const message = consentText({
+            personName: person.name,
+            vendorName,
+            clientLabel: clientName,
+            title: requirement.title,
+            location: requirement.location,
+            rateCents: rate,
+            startsOn: requirement.startDate,
+          })
+
+          void sendMessage({
             companyId: fromCompanyId,
             personId,
             kind: 'CONSENT',
-            to: profile!.mobile,
-            body: consentText({
-              personName: person.name,
-              vendorName,
-              clientLabel: clientName,
-              title: requirement.title,
-              location: requirement.location,
-              rateCents: rate,
-              startsOn: requirement.startDate,
-            }),
+            to: person.primaryEmail,
+            subject: message.subject,
+            body: message.body,
             aboutType: 'SUBMISSION',
             aboutId: submission.id,
           })

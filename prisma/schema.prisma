@@ -1080,7 +1080,12 @@ model ConsultantProfile {
   askedAt      DateTime?
   /// Consecutive asks with no answer. Reset by any reply.
   unanswered   Int       @default(0)
-  /// Their mobile, for the three texts. Null means email only.
+  /// Their mobile.
+  ///
+  /// Not a messaging channel. The three consultant messages go by email
+  /// and nothing here sends a text — this is kept because a shared mobile
+  /// number is the strongest deterministic signal in cross-vendor
+  /// identity resolution, which is what tenure aggregation rests on.
   mobile       String?
   /// Set when they reply STOP. Nothing is ever sent again.
   textsOffAt   DateTime?

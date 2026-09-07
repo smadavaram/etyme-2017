@@ -73,14 +73,14 @@ describe('naming the real fix', () => {
     expect(found[0].reallyFix).not.toMatch(/^Attach a CV/)
   })
 
-  it('sends a consent failure at the missing mobile numbers', () => {
+  it('sends a consent failure at the missing email addresses', () => {
     const found = patterns(['a', 'b', 'c', 'd'].map((s) => fail('CONSENT', s)), 8)
     expect(found[0].reallyFix).toMatch(/somebody without one is asked by nobody/)
   })
 
-  it('sends a stale-availability failure at the fortnightly text', () => {
+  it('sends a stale-availability failure at the fortnightly check-in', () => {
     const found = patterns(['a', 'b', 'c', 'd'].map((s) => fail('AVAILABLE_IN_WINDOW', s)), 8)
-    expect(found[0].reallyFix).toMatch(/the fortnightly text is what fixes that/)
+    expect(found[0].reallyFix).toMatch(/the fortnightly check-in is what fixes that/)
   })
 
   it('has something to say about a code it has never seen', () => {

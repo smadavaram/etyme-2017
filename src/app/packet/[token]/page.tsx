@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, use } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 /**
  * The page a stranger opens.
@@ -39,8 +39,8 @@ interface Packet {
   items: Item[]
 }
 
-export default function PacketPage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = use(params)
+export default function PacketPage({ params }: { params: { token: string } }) {
+  const { token } = params
   const [packet, setPacket] = useState<Packet | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  mayText, dueAPing, freshnessText, consentText, outcomeText, placedText,
+  mayMessage, dueAPing, freshnessText, consentText, outcomeText, placedText,
   readReply, applyReply, PING_EVERY_DAYS, GIVE_UP_AFTER, type Person,
 } from '@/lib/texts'
 
@@ -13,9 +13,14 @@ import {
  * wrong, all of it produces confident nonsense faster than a human could
  * produce it slowly.
  *
- * Three texts. Not a portal — a working consultant already has six of
+ * Three emails. Not a portal — a working consultant already has six of
  * those, and one nobody uses is worse than none because it makes you
  * believe the data is fresh.
+ *
+ * And email rather than SMS, which is what CLAUDE.md said all along: a
+ * text to a number somebody never handed over carries statutory damages
+ * per message, and the exposure grows with the bench we are trying to
+ * grow.
  */
 
 const NOW = new Date('2026-08-21T00:00:00Z')
@@ -23,7 +28,7 @@ const NOW = new Date('2026-08-21T00:00:00Z')
 function person(over: Partial<Person> = {}): Person {
   return {
     name: 'Ravi Patel',
-    mobile: '+13035550142',
+    email: 'ravi.patel@gmail.com',
     textsOffAt: null,
     confirmedAt: new Date('2026-08-01'),
     askedAt: null,
@@ -33,19 +38,29 @@ function person(over: Partial<Person> = {}): Person {
   }
 }
 
-describe('may we text them at all', () => {
+describe('may we write to them at all', () => {
   it('yes, normally', () => {
-    expect(mayText(person()).ok).toBe(true)
+    expect(mayMessage(person()).ok).toBe(true)
   })
 
   it('never again once they have said stop', () => {
-    const v = mayText(person({ textsOffAt: new Date('2026-01-01') }))
+    const v = mayMessage(person({ textsOffAt: new Date('2026-01-01') }))
     expect(v.ok).toBe(false)
     expect(v.reason).toMatch(/asked us to stop/)
   })
 
-  it('says email instead when there is no mobile, which is not a failure', () => {
-    expect(mayText(person({ mobile: null })).reason).toMatch(/Email instead/)
+  it('offers no second channel to fall back to, now that email is the only one', () => {
+    // It used to say "email instead" when there was no mobile. Saying
+    // that now would be a lie, and the kind of lie that reads as a
+    // working fallback on a dashboard.
+    const v = mayMessage(person({ email: null }))
+    expect(v.ok).toBe(false)
+    expect(v.reason).toMatch(/nowhere to send/)
+  })
+
+  it('sends nothing at all to somebody who asked us to stop — no other channel is tried', () => {
+    expect(mayMessage(person({ textsOffAt: new Date('2026-01-01') })).reason)
+      .not.toMatch(/email|text/i)
   })
 })
 
@@ -76,26 +91,36 @@ describe('who is due a check-in', () => {
 })
 
 describe('the freshness ping', () => {
-  it('asks one question and offers three replies, with no link to open', () => {
-    // A message that needs a browser is a message answered at the weekend
-    // or never.
+  it('asks one question, and asks it in the subject line too', () => {
+    // Half the people who answer will answer from the subject line in a
+    // notification, without opening anything.
     const t = freshnessText({ personName: 'Ravi Patel', vendorName: 'Cloudepa', rateCents: 7800 })
-    expect(t).toBe(
-      'Hi Ravi — Cloudepa here. Still looking for your next contract? Still around $78/hr?\n' +
-        "Reply 1 yes, all the same · 2 something's changed · 3 stop texting me"
+    expect(t.subject).toBe('Cloudepa: still looking for your next contract?')
+    expect(t.body).toBe(
+      'Hi Ravi — Cloudepa here. Still looking for your next contract? Still around $78/hr?'
     )
+  })
+
+  it('never tells somebody to reply 1, because nothing is listening for that', () => {
+    // It said exactly that when these went by SMS and a webhook read the
+    // digit. Over email there is no webhook, so the instruction would be
+    // a lie that costs us the answer. The buttons are added by the
+    // sender — see lib/reply-link.
+    const t = freshnessText({ personName: 'Ravi', vendorName: 'Cloudepa', rateCents: 7800 })
+    expect(t.body).not.toMatch(/reply 1|reply yes|stop texting/i)
   })
 
   it('goes out in the vendor’s name, never ours', () => {
     // The moment a vendor suspects disintermediation, benches stop being
     // uploaded, and with no benches there is nothing to score.
     const t = freshnessText({ personName: 'Ravi Patel', vendorName: 'Cloudepa', rateCents: null })
-    expect(t).toMatch(/Cloudepa here/)
-    expect(t).not.toMatch(/Etyme/i)
+    expect(t.body).toMatch(/Cloudepa here/)
+    expect(t.body).not.toMatch(/Etyme/i)
+    expect(t.subject).not.toMatch(/Etyme/i)
   })
 
   it('leaves the rate out when we do not have one, rather than asking about nothing', () => {
-    expect(freshnessText({ personName: 'Ravi', vendorName: 'Cloudepa', rateCents: null }))
+    expect(freshnessText({ personName: 'Ravi', vendorName: 'Cloudepa', rateCents: null }).body)
       .not.toMatch(/\$/)
   })
 })
@@ -111,10 +136,19 @@ describe('the consent ask, before every submission', () => {
       rateCents: 8000,
       startsOn: new Date('2026-03-03'),
     })
-    expect(t).toBe(
+    expect(t.body).toBe(
       'Dallas · SAP FICO Consultant · $80/hr · starts 2026-03-03 · a large bank.\n' +
-        'OK for Cloudepa to submit you? Reply YES or NO'
+        'OK for Cloudepa to submit you?'
     )
+  })
+
+  it('names the role in the subject, so it can be told apart from the last one', () => {
+    const t = consentText({
+      personName: 'Ravi Patel', vendorName: 'Cloudepa', clientLabel: 'a large bank',
+      title: 'SAP FICO Consultant', location: 'Dallas', rateCents: 8000,
+      startsOn: new Date('2026-03-03'),
+    })
+    expect(t.subject).toBe('Cloudepa: OK to put you forward for SAP FICO Consultant?')
   })
 
   it('works on a blind role, where the client has no name to give', () => {
@@ -127,7 +161,7 @@ describe('the consent ask, before every submission', () => {
       rateCents: null,
       startsOn: null,
     })
-    expect(t).toBe('Java Developer · this client.\nOK for Cloudepa to submit you? Reply YES or NO')
+    expect(t.body).toBe('Java Developer · this client.\nOK for Cloudepa to submit you?')
   })
 })
 
@@ -142,8 +176,8 @@ describe('the outcome notice, always, even when it is bad', () => {
       location: 'Dallas',
       reason: 'RATE',
     })
-    expect(t).toMatch(/they went with someone at a lower rate/)
-    expect(t).not.toMatch(/RATE/)
+    expect(t.body).toMatch(/they went with someone at a lower rate/)
+    expect(t.body).not.toMatch(/RATE/)
   })
 
   it('says the profile stays active, because that is the useful part', () => {
@@ -151,7 +185,7 @@ describe('the outcome notice, always, even when it is bad', () => {
       personName: 'Ravi', vendorName: 'Cloudepa', title: 'Java role',
       location: null, reason: 'INTERVIEW',
     })
-    expect(t).toMatch(/Your profile stays active with Cloudepa/)
+    expect(t.body).toMatch(/Your profile stays active with Cloudepa/)
   })
 
   it('is honest when the client simply never came back', () => {
@@ -159,21 +193,22 @@ describe('the outcome notice, always, even when it is bad', () => {
       personName: 'Ravi', vendorName: 'Cloudepa', title: 'Java role',
       location: null, reason: 'NO_REPLY',
     })
-    expect(t).toMatch(/we have not heard back and are treating it as closed/)
+    expect(t.body).toMatch(/we have not heard back and are treating it as closed/)
   })
 
   it('has something to say when they got the job', () => {
-    // A product that only texts people bad news is one people learn to
-    // dread.
+    // A product that only writes to people with bad news is one people
+    // learn to dread.
     const t = placedText({
       personName: 'Ravi', vendorName: 'Cloudepa', title: 'Java role', location: 'Dallas',
     })
-    expect(t).toMatch(/You got the Dallas Java role/)
-    expect(t).toMatch(/Congratulations/)
+    expect(t.subject).toMatch(/^You got the Dallas Java role/)
+    expect(t.body).toMatch(/You got the Dallas Java role/)
+    expect(t.body).toMatch(/Congratulations/)
   })
 })
 
-describe('reading what comes back', () => {
+describe('reading a reply somebody typed instead of clicking', () => {
   it('understands "1"', () => {
     expect(readReply('1', 'FRESHNESS')).toBe('SAME')
   })
@@ -242,14 +277,27 @@ describe('what a reply does to the record', () => {
     // has confirmed.
     const a = applyReply('CHANGED', NOW)
     expect(a.confirmedAt).toBeNull()
-    expect(a.sendLink).toBe(true)
-    expect(a.says).toMatch(/No password needed/)
+    expect(a.needsFollowUp).toBe(true)
   })
 
-  it('turns texts off permanently and says email instead', () => {
+  it('promises no self-service page, because there is not one', () => {
+    // It used to say "here is a link to update your rate and
+    // availability". Over SMS the missing link was in a message that was
+    // never built either; on a page the person is already looking at, an
+    // absent link is visible. It now says what actually happens.
+    const a = applyReply('CHANGED', NOW)
+    expect(a.says).not.toMatch(/link|password/i)
+    expect(a.says).toMatch(/somebody will be in touch/i)
+  })
+
+  it('stops everything permanently, and does not promise another channel', () => {
+    // It used to say "no more texts, we will email you instead". Email is
+    // now the only channel, so that sentence would have been a promise to
+    // keep contacting somebody who just asked us not to.
     const a = applyReply('STOP', NOW)
     expect(a.textsOffAt).toBe(NOW)
-    expect(a.says).toMatch(/no more texts/)
+    expect(a.says).toBe('Done — you will not hear from us again.')
+    expect(a.says).not.toMatch(/email|text/i)
   })
 
   it('counts a no as a confirmation, because they just told us they are there', () => {

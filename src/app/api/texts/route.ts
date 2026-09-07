@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { statusNote, configured } from '@/lib/sms'
+import { statusNote, configured } from '@/lib/messages'
 import { PING_EVERY_DAYS } from '@/lib/texts'
 
 /**
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
       select: {
         consultant: {
           select: {
-            confirmedAt: true, unanswered: true, mobile: true, textsOffAt: true,
-            person: { select: { name: true } },
+            confirmedAt: true, unanswered: true, textsOffAt: true,
+            person: { select: { name: true, primaryEmail: true } },
           },
         },
       },
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       bench: {
         total: bench.length,
         unconfirmed: stale.length,
-        noMobile: bench.filter((b) => !b.consultant.mobile).length,
+        noEmail: bench.filter((b) => !b.consultant.person.primaryEmail).length,
         optedOut: bench.filter((b) => b.consultant.textsOffAt).length,
         says:
           bench.length === 0

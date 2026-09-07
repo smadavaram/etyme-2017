@@ -62,7 +62,7 @@ const UPSTREAM: Record<string, string> = {
   CV_ATTACHED:
     'Ask for a CV when somebody joins the bench, not when a role turns up. The recruiter is doing it at submission time because nothing asked earlier.',
   CONSENT:
-    'The consent text is not reaching people. Check who has a mobile on file — somebody without one is asked by nobody.',
+    'The consent ask is not reaching people. Check who has an email address on file — somebody without one is asked by nobody.',
   DOCS_PRESENT:
     'The paperwork is being chased per submission. Move it to onboarding and it stops being a per-role problem.',
   RATE_IN_RANGE:
@@ -70,7 +70,7 @@ const UPSTREAM: Record<string, string> = {
   WORK_AUTH:
     'Work authorisation is not recorded for enough of the bench. It is one field and it decides whether somebody can be submitted at all.',
   AVAILABLE_IN_WINDOW:
-    'People are being put forward for roles that start before they are free. The availability dates on the bench are probably stale — the fortnightly text is what fixes that.',
+    'People are being put forward for roles that start before they are free. The availability dates on the bench are probably stale — the fortnightly check-in is what fixes that.',
   SKILLS_EVIDENCED:
     'Profiles claim skills the CVs do not evidence. Either the profiles are aspirational or the CVs are out of date, and a client will notice before you do.',
 }

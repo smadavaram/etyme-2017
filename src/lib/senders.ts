@@ -16,7 +16,7 @@ import type { Sender } from '@/lib/notification-delivery'
  * company, which is per-company rather than per-deployment.
  */
 
-function emailSender(): Sender | null {
+export function emailSender(): Sender | null {
   const resend = process.env.RESEND_API_KEY
   const sendgrid = process.env.SENDGRID_API_KEY
   const from = process.env.NOTIFY_FROM_EMAIL

@@ -1,5 +1,5 @@
 /**
- * Three text messages, and why they are the most important thing here.
+ * Three messages, and why they are the most important thing here.
  *
  * A bench record says somebody is free, wants $78 an hour, and knows Java
  * and AWS. That was true three weeks ago. Since then they took a contract,
@@ -14,6 +14,23 @@
  * Consultant engagement is not a feature. It is the data integrity layer
  * for the whole supply side.
  *
+ * ── Why email, and not SMS ───────────────────────────────────────────
+ *
+ * These three went by text once. Email is now the only channel, which is
+ * what CLAUDE.md said all along: candidates sign in with a consumer email
+ * and are reached by email, business users are reached on Teams. Nobody
+ * is reached on a phone number.
+ *
+ * That is a product decision and also a legal one. A phone number belongs
+ * to a person rather than to a relationship, and an unsolicited text to
+ * one carries statutory damages per message with no proof of harm
+ * required. An unsolicited email carries an unsubscribe obligation we
+ * meet anyway, in the "stop" answer below.
+ *
+ * The cost is real: a text is read in ninety seconds and an email is read
+ * in a day. What is bought is a channel we can operate at scale without
+ * an exposure that grows linearly with the bench.
+ *
  * ── Why not a portal ─────────────────────────────────────────────────
  *
  * A working consultant already has accounts on Dice, LinkedIn, Monster and
@@ -22,8 +39,8 @@
  * fresh.
  *
  * We have built the portal. It is not wasted: it is the page a magic link
- * lands on. What was missing is the front door, which is a text message
- * with one question and one tap.
+ * lands on. What was missing is the front door, which is one question and
+ * one click, with no password in between.
  *
  * ── The three, and why the third one matters most ────────────────────
  *
@@ -33,8 +50,8 @@
  *
  * The outcome notice is why the other two get answered. Never hearing back
  * is the single most common complaint in this industry, and fixing it
- * costs nothing. Once your texts are the ones that actually tell somebody
- * something, they stop being ignored.
+ * costs nothing. Once your messages are the ones that actually tell
+ * somebody something, they stop being ignored.
  *
  * ── The wall ─────────────────────────────────────────────────────────
  *
@@ -55,7 +72,16 @@ export const GIVE_UP_AFTER = 2
 
 export interface Person {
   name: string
-  mobile: string | null
+  /** Where to write to them. Null means there is nowhere to send. */
+  email: string | null
+  /**
+   * Set when they ask us to stop. Permanent, and it covers everything.
+   *
+   * The database column is still called `textsOffAt`, from when these
+   * went by SMS. It means "no more of these messages", whatever channel
+   * carries them; renaming a live column to say so is not worth a
+   * migration, and the meaning has not changed.
+   */
   textsOffAt: Date | null
   confirmedAt: Date | null
   askedAt: Date | null
@@ -70,25 +96,25 @@ export interface Verdict {
 }
 
 /**
- * May we text this person at all.
+ * May we write to this person at all.
  *
- * STOP is permanent and immediate. No mobile means email, which is a
- * different channel and not a failure.
+ * Stop is permanent and immediate, and there is no second channel to fall
+ * back to — that was the point of removing the first one.
  */
-export function mayText(p: Person): Verdict {
+export function mayMessage(p: Person): Verdict {
   if (p.textsOffAt) {
-    return { ok: false, reason: 'They asked us to stop texting. Email only.' }
+    return { ok: false, reason: 'They asked us to stop. Nothing further is sent.' }
   }
-  if (!p.mobile) {
-    return { ok: false, reason: 'No mobile on file. Email instead.' }
+  if (!p.email) {
+    return { ok: false, reason: 'No email address on file, so there is nowhere to send this.' }
   }
-  return { ok: true, reason: 'Fine to text.' }
+  return { ok: true, reason: 'Fine to write to them.' }
 }
 
 /**
  * Is this person due a freshness ping.
  *
- * Only while they are on the bench — texting somebody every fortnight
+ * Only while they are on the bench — writing to somebody every fortnight
  * during a twelve-month contract is how you teach them to ignore you.
  *
  * And only twice. A third ask after two silences is not going to work, and
@@ -96,7 +122,7 @@ export function mayText(p: Person): Verdict {
  * says so, rather than being deleted or believed.
  */
 export function dueAPing(p: Person, now: Date): Verdict {
-  const allowed = mayText(p)
+  const allowed = mayMessage(p)
   if (!allowed.ok) return allowed
 
   if (!p.onBench) {
@@ -123,6 +149,18 @@ export function dueAPing(p: Person, now: Date): Verdict {
 
 // ── What the messages actually say ────────────────────────────────────
 
+/**
+ * One message. A subject and a body, because that is what an email is.
+ *
+ * The answer buttons are not in here. They are signed links, they need a
+ * person id and a deployment URL, and building them belongs to the thing
+ * that sends rather than the thing that writes. See `lib/reply-link`.
+ */
+export interface Message {
+  subject: string
+  body: string
+}
+
 export interface Freshness {
   personName: string
   vendorName: string
@@ -133,19 +171,21 @@ export interface Freshness {
 /**
  * "Still looking? Still around $78?"
  *
- * One question, three replies, no link required. A message that needs a
- * browser is a message answered at the weekend or never.
+ * One question and three answers, each of them a single click. No
+ * password, no account, no form — a message that needs somebody to
+ * remember a login is a message answered at the weekend or never.
  *
  * The rate is in it on purpose. It is the single field most likely to be
  * stale and the one somebody will correct without being asked twice.
  */
-export function freshnessText(f: Freshness): string {
+export function freshnessText(f: Freshness): Message {
   const rate = f.rateCents ? ` Still around $${Math.round(f.rateCents / 100)}/hr?` : ''
-  return (
-    `Hi ${firstName(f.personName)} — ${f.vendorName} here. ` +
-    `Still looking for your next contract?${rate}\n` +
-    `Reply 1 yes, all the same · 2 something's changed · 3 stop texting me`
-  )
+  return {
+    subject: `${f.vendorName}: still looking for your next contract?`,
+    body:
+      `Hi ${firstName(f.personName)} — ${f.vendorName} here. ` +
+      `Still looking for your next contract?${rate}`,
+  }
 }
 
 export interface Consent {
@@ -171,7 +211,7 @@ export interface Consent {
  * Enough detail to answer without a phone call. Not so much that it
  * becomes the advert.
  */
-export function consentText(c: Consent): string {
+export function consentText(c: Consent): Message {
   const bits = [
     c.location,
     c.title,
@@ -180,10 +220,10 @@ export function consentText(c: Consent): string {
     c.clientLabel,
   ].filter(Boolean)
 
-  return (
-    `${bits.join(' · ')}.\n` +
-    `OK for ${c.vendorName} to submit you? Reply YES or NO`
-  )
+  return {
+    subject: `${c.vendorName}: OK to put you forward for ${c.title}?`,
+    body: `${bits.join(' · ')}.\nOK for ${c.vendorName} to submit you?`,
+  }
 }
 
 export interface Outcome {
@@ -202,14 +242,14 @@ export interface Outcome {
  * single most common complaint in this business, and fixing it costs
  * nothing.
  *
- * This is why the other two messages get answered. Once your texts are the
- * ones that actually tell somebody something, they stop being ignored.
+ * This is why the other two messages get answered. Once your messages are
+ * the ones that actually tell somebody something, they stop being ignored.
  *
  * The reason is said plainly and without blame. "Rate" becomes "they went
  * with someone at a lower rate", not "you were too expensive" — and never
  * a code.
  */
-export function outcomeText(o: Outcome): string {
+export function outcomeText(o: Outcome): Message {
   const role = o.location ? `the ${o.location} ${o.title} role` : `the ${o.title} role`
 
   const said: Record<string, string> = {
@@ -225,24 +265,28 @@ export function outcomeText(o: Outcome): string {
 
   const why = o.reason ? said[o.reason] ?? 'they went a different way' : 'they went a different way'
 
-  return (
-    `Update on ${role} — ${why}.\n` +
-    `Your profile stays active with ${o.vendorName}. We'll be in touch when something fits.`
-  )
+  return {
+    subject: `Update on ${role} — ${o.vendorName}`,
+    body:
+      `Update on ${role} — ${why}.\n` +
+      `Your profile stays active with ${o.vendorName}. We'll be in touch when something fits.`,
+  }
 }
 
 /**
  * The one they get when they land the job.
  *
- * Worth its own message. A product that only texts people bad news is a
- * product people learn to dread.
+ * Worth its own message. A product that only writes to people with bad
+ * news is a product people learn to dread.
  */
-export function placedText(o: Omit<Outcome, 'reason'>): string {
+export function placedText(o: Omit<Outcome, 'reason'>): Message {
   const role = o.location ? `the ${o.location} ${o.title} role` : `the ${o.title} role`
-  return (
-    `You got ${role}. ${o.vendorName} will be in touch today with start details.\n` +
-    `Congratulations.`
-  )
+  return {
+    subject: `You got ${role}`,
+    body:
+      `You got ${role}. ${o.vendorName} will be in touch today with start details.\n` +
+      `Congratulations.`,
+  }
 }
 
 // ── Reading what comes back ───────────────────────────────────────────
@@ -250,7 +294,7 @@ export function placedText(o: Omit<Outcome, 'reason'>): string {
 export type Reply =
   /** Nothing has changed. Re-stamp the record. */
   | 'SAME'
-  /** Something has changed. Send them the link. */
+  /** Something has changed. Clear the confirmation and get a person on it. */
   | 'CHANGED'
   /** Stop. Permanently. */
   | 'STOP'
@@ -264,22 +308,30 @@ export type Reply =
 /**
  * What they meant.
  *
- * People do not reply "1". They reply "1 thanks", "yes still looking",
- * "Yes", "STOP", "no im on a contract till march". Read generously, and
- * where it genuinely cannot be told, say so and let a person look —
- * guessing NO on an unclear reply loses a placement, and guessing YES on
- * one submits somebody who said no.
+ * The buttons carry the answer, so this is not the main path any more —
+ * a signed link says SAME or STOP without anybody having to interpret it,
+ * and UNCLEAR cannot happen there at all.
+ *
+ * It still matters, because people reply to emails. Somebody who writes
+ * back "no im on a contract till march" instead of clicking has answered
+ * the question perfectly well, and treating that as silence is how a
+ * responsive consultant gets pushed down the rankings for being polite.
+ *
+ * So: read generously, and where it genuinely cannot be told, say so and
+ * let a person look — guessing NO on an unclear reply loses a placement,
+ * and guessing YES on one submits somebody who said no.
  */
 export function readReply(raw: string, asked: Kind): Reply {
   const t = raw.trim().toLowerCase()
 
   // The leading digit, where there is one.
   //
-  // Nobody replies with a bare "1". They reply "1 yes still looking
-  // thanks" and "2 - just started a contract". Matching only on equality
-  // read both of those as unintelligible, which meant the loop asked the
-  // same person again a fortnight later and the bench never got any
-  // fresher — the exact failure the whole thing exists to prevent.
+  // A numbered menu is a habit from the SMS era and people still use it,
+  // because plenty of the messages they get elsewhere still work that
+  // way. Reading "1 yes still looking thanks" as unintelligible meant the
+  // loop asked the same person again a fortnight later and the bench
+  // never got any fresher — the exact failure the whole thing exists to
+  // prevent.
   const digit = t.match(/^([123])\b/)?.[1] ?? null
 
   // Stop always wins, wherever it appears and whatever was asked.
@@ -311,8 +363,16 @@ export function readReply(raw: string, asked: Kind): Reply {
  *
  * SAME re-stamps it as confirmed today, which is the whole point of the
  * loop. CHANGED does not guess at the new values — it clears the
- * confirmation and sends a link, because a rate somebody said had changed
- * is worse than a rate nobody has confirmed.
+ * confirmation, because a rate somebody has just said is wrong is worse
+ * than a rate nobody has confirmed.
+ *
+ * CHANGED used to promise a link to a page where they could put the new
+ * numbers in themselves. There is no such page. Saying so was harmless
+ * over SMS, where the link arrived in a later message that was never
+ * built either; on a screen the person is already looking at, an absent
+ * link is visible. So it says what actually happens instead: the record
+ * is marked unconfirmed, their vendor sees that, and a person follows
+ * up. Self-service is worth building and is not this change.
  */
 export function applyReply(
   reply: Reply,
@@ -321,7 +381,8 @@ export function applyReply(
   confirmedAt: Date | null
   unanswered: number | null
   textsOffAt: Date | null
-  sendLink: boolean
+  /** Somebody has to go and ask them what changed. */
+  needsFollowUp: boolean
   says: string
 } {
   switch (reply) {
@@ -330,7 +391,7 @@ export function applyReply(
         confirmedAt: now,
         unanswered: 0,
         textsOffAt: null,
-        sendLink: false,
+        needsFollowUp: false,
         says: 'Thanks — we have got you down as still looking.',
       }
 
@@ -339,8 +400,8 @@ export function applyReply(
         confirmedAt: null,
         unanswered: 0,
         textsOffAt: null,
-        sendLink: true,
-        says: 'Here is a link to update your rate and availability. No password needed.',
+        needsFollowUp: true,
+        says: 'Thanks for saying so. We have marked your details as out of date so nobody puts you forward on the old ones, and somebody will be in touch to get them right.',
       }
 
     case 'STOP':
@@ -348,8 +409,11 @@ export function applyReply(
         confirmedAt: null,
         unanswered: 0,
         textsOffAt: now,
-        sendLink: false,
-        says: 'Done — no more texts. We will email you instead.',
+        // Nothing further, on any channel. There is no second channel to
+        // offer them, which is the honest position now that email is the
+        // only one.
+        needsFollowUp: false,
+        says: 'Done — you will not hear from us again.',
       }
 
     case 'YES':
@@ -357,7 +421,7 @@ export function applyReply(
         confirmedAt: now,
         unanswered: 0,
         textsOffAt: null,
-        sendLink: false,
+        needsFollowUp: false,
         says: 'Thanks — putting you forward now.',
       }
 
@@ -366,7 +430,7 @@ export function applyReply(
         confirmedAt: now,
         unanswered: 0,
         textsOffAt: null,
-        sendLink: false,
+        needsFollowUp: false,
         says: 'Understood, we will not submit you for this one.',
       }
 
@@ -375,7 +439,7 @@ export function applyReply(
         confirmedAt: null,
         unanswered: 0,
         textsOffAt: null,
-        sendLink: false,
+        needsFollowUp: true,
         says: 'Somebody will read this one.',
       }
   }

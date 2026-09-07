@@ -31,7 +31,7 @@ interface Message {
 
 interface Feed {
   messages: Message[]
-  bench: { total: number; unconfirmed: number; noMobile: number; optedOut: number; says: string }
+  bench: { total: number; unconfirmed: number; noEmail: number; optedOut: number; says: string }
   provider: string
 }
 
@@ -93,8 +93,8 @@ export default function TextsPage() {
               </p>
             </div>
             <div>
-              <p className="stat-label">No mobile</p>
-              <p className="stat-value">{f.bench.noMobile}</p>
+              <p className="stat-label">No email</p>
+              <p className="stat-value">{f.bench.noEmail}</p>
             </div>
             <div>
               <p className="stat-label">Asked us to stop</p>
@@ -106,8 +106,9 @@ export default function TextsPage() {
 
           {f.provider.startsWith('not set up') && (
             <div className="rounded-md border border-etyme-rule bg-etyme-canvas px-4 py-3 text-[13px] text-etyme-ink">
-              Messages are being written down but not sent — no SMS provider
-              is set up yet. Everything below is what would have gone out.
+              Messages are being written down but not sent — no email
+              provider is set up yet. Everything below is what would have
+              gone out.
             </div>
           )}
         </>

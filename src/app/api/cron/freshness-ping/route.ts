@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { dueAPing, freshnessText, mayText, PING_EVERY_DAYS, GIVE_UP_AFTER } from '@/lib/texts'
-import { send, configured } from '@/lib/sms'
+import { dueAPing, freshnessText, PING_EVERY_DAYS, GIVE_UP_AFTER } from '@/lib/texts'
+import { send, configured } from '@/lib/messages'
 
 /**
  * GET /api/cron/freshness-ping
@@ -14,12 +14,13 @@ import { send, configured } from '@/lib/sms'
  * record produces confident nonsense faster than a human could produce it
  * slowly.
  *
- * Reply 1 and the record is re-stamped as confirmed today. Reply 2 and
+ * One click and the record is re-stamped as confirmed today. Another and
  * they get a link. No reply after two asks and the record is marked
  * unconfirmed and quietly drops down the rankings — the silence is
  * information too, and it is never mistaken for a yes.
  *
- * Sent in the vendor's name, one message per bench they are actually on.
+ * Sent by email, in the vendor's name, one message per bench they are
+ * actually on.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -35,17 +36,17 @@ export async function GET(request: NextRequest) {
       company: { select: { id: true, name: true } },
       consultant: {
         select: {
-          id: true, rateFloor: true, mobile: true, textsOffAt: true,
+          id: true, rateFloor: true, textsOffAt: true,
           confirmedAt: true, askedAt: true, unanswered: true,
-          person: { select: { id: true, name: true } },
+          person: { select: { id: true, name: true, primaryEmail: true } },
         },
       },
     },
   })
 
   // One ask per person, whatever they are on the bench of. Two vendors
-  // texting the same consultant the same fortnight is how a helpful loop
-  // becomes spam — and it would also tell the person they are on two
+  // writing to the same consultant the same fortnight is how a helpful
+  // loop becomes spam — and it would also tell the person they are on two
   // benches, which is the vendors' business and not ours to reveal.
   const seen = new Set<string>()
 
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
     const verdict = dueAPing(
       {
         name: c.person.name,
-        mobile: c.mobile,
+        email: c.person.primaryEmail,
         textsOffAt: c.textsOffAt,
         confirmedAt: c.confirmedAt,
         askedAt: c.askedAt,
@@ -81,16 +82,19 @@ export async function GET(request: NextRequest) {
 
     seen.add(c.person.id)
 
+    const message = freshnessText({
+      personName: c.person.name,
+      vendorName: listing.company.name,
+      rateCents: c.rateFloor,
+    })
+
     const out = await send({
       companyId: listing.company.id,
       personId: c.person.id,
       kind: 'FRESHNESS',
-      to: c.mobile,
-      body: freshnessText({
-        personName: c.person.name,
-        vendorName: listing.company.name,
-        rateCents: c.rateFloor,
-      }),
+      to: c.person.primaryEmail,
+      subject: message.subject,
+      body: message.body,
       aboutType: 'LISTING',
       aboutId: listing.id,
     })
