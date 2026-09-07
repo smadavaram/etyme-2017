@@ -47,6 +47,57 @@ of real work only ever falls.
 Success is measured by the thing shrinking, which is unusual enough to
 state plainly: a sourcing feature that is growing is failing.
 
+## Keeping it from being what it looks like
+
+It is creepy, and saying otherwise would be the first step to building
+something that deserves the word. Somebody's details were bought. They
+did not give them to us. `src/lib/sourcing-approach.ts` holds the four
+rules that keep the distance between *a vendor found me* and *I am on a
+list being farmed* — a distance good intentions do not maintain.
+
+**One approach per person, across every vendor.** Not one per vendor —
+one, full stop. A thousand vendors each allowed a polite first message
+is a thousand messages to one person, with every sender behaving
+perfectly. This is the rule that matters most and the only one that
+cannot be reconstructed from ordinary politeness.
+
+**Say where the details came from, in the message.** The difference
+between a recruiter who found you and a stranger who bought you is
+whether they admit which one they are. `provenanceIsSaid` refuses the
+evasion everybody reaches for — "publicly available sources" tells the
+reader nothing, which is why it gets written.
+
+**Only people who actually contracted, about work they actually did.**
+A former SAP contractor hearing about SAP contract work is a relevant
+approach. The same message to a record that says nothing is a mailshot
+with a nicer tone. An empty record is a reason to leave somebody alone,
+not a licence.
+
+**Stop binds the platform, not the vendor who was told.** It is checked
+before every other rule so it can never be reached around.
+
+And it is not a campaign tool: no sequence, no follow-up, no drip. One
+message. Either they answer and become an ordinary consultant with a
+bench listing and consent, or nothing further ever happens.
+
+## LinkedIn
+
+Checking a profile before writing is a good instinct — a 2020 record
+saying somebody contracts in SAP may be six years stale, and the
+cheapest way to avoid writing to somebody who moved on is to look.
+
+**A person looking at a public profile is fine. Software doing it is
+not.** Automated collection breaches LinkedIn's terms, they enforce
+them, and the case usually cited as permission does not say what it is
+remembered as saying: hiQ v. LinkedIn found scraping public pages was
+not unauthorised access under the CFAA, and hiQ then lost on breach of
+contract. Not a crime, and still a losing lawsuit.
+
+So the rule is the one CLAUDE.md already sets — LinkedIn is a field
+somebody pastes in, never something the system fetches. A recruiter may
+open a profile and record what they saw; the product may not do it for
+them at a thousand records an hour.
+
 ## When to take it down
 
 `src/lib/sourcing-exit.ts` turns "we will remove it later" into a number,
