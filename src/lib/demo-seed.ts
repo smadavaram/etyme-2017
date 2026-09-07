@@ -140,9 +140,9 @@ export async function seedDemoCompany(input: {
 
     const fresh =
       i % 3 === 0
-        ? { confirmedAt: daysAgo(3), confirmedVia: 'SMS', unanswered: 0, askedAt: daysAgo(3) }
+        ? { confirmedAt: daysAgo(3), confirmedVia: 'EMAIL', unanswered: 0, askedAt: daysAgo(3) }
         : i % 3 === 1
-          ? { confirmedAt: daysAgo(34), confirmedVia: 'SMS', unanswered: 0, askedAt: daysAgo(34) }
+          ? { confirmedAt: daysAgo(34), confirmedVia: 'EMAIL', unanswered: 0, askedAt: daysAgo(34) }
           : { confirmedAt: null, unanswered: 2, askedAt: daysAgo(15) }
 
     const profile = await prisma.consultantProfile.create({

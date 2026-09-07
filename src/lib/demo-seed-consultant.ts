@@ -88,7 +88,7 @@ export async function seedDemoConsultant(input: {
       availableFrom: daysAgo(60),
       visibility: 'VERIFIED',
       confirmedAt: daysAgo(4),
-      confirmedVia: 'SMS',
+      confirmedVia: 'EMAIL',
       mobile: '+13035557890',
     },
   })

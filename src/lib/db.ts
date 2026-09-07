@@ -15,8 +15,13 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    // Query logging is a development convenience and a liability under
+    // load: the stress simulation issues millions of statements and
+    // printing every one of them costs more than the queries do.
+    // PRISMA_QUIET turns it off without pretending to be production,
+    // which the auth bypass still depends on.
     log:
-      process.env.NODE_ENV === 'development'
+      process.env.NODE_ENV === 'development' && !process.env.PRISMA_QUIET
         ? ['query', 'warn', 'error']
         : ['warn', 'error'],
   })

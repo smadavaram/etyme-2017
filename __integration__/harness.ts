@@ -39,9 +39,22 @@ export async function resetDatabase() {
       '-c "CREATE DATABASE etyme_test;"',
     { stdio: 'pipe' }
   )
-  execSync('psql -h localhost -U postgres -d etyme_test -c "CREATE EXTENSION IF NOT EXISTS vector;"', {
-    stdio: 'pipe',
-  })
+  // Best-effort, and deliberately not fatal.
+  //
+  // CLAUDE.md names pgvector in the stack and the schema has not adopted
+  // it yet — there is no vector column anywhere in schema.prisma. This
+  // line was hard-failing every integration run on any machine without
+  // the extension installed, which meant the suite could not be run at
+  // all rather than running without embeddings. When a vector column
+  // does arrive, this goes back to being required and the failure
+  // becomes correct again.
+  try {
+    execSync('psql -h localhost -U postgres -d etyme_test -c "CREATE EXTENSION IF NOT EXISTS vector;"', {
+      stdio: 'pipe',
+    })
+  } catch {
+    // No pgvector here. Nothing in the schema needs it.
+  }
   execSync('npx prisma db push --skip-generate', {
     stdio: 'pipe',
     env: { ...process.env, DATABASE_URL: 'postgresql://postgres@localhost:5432/etyme_test' },
