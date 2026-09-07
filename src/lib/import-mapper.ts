@@ -9,6 +9,8 @@
  * credentials are configured, this switches to AI-powered mapping.
  */
 
+import { sortsByOrigin, originRefusal } from '@/lib/work-authorisation'
+
 export interface ColumnMapping {
   sourceColumn: string
   targetField: string | null
@@ -20,6 +22,15 @@ export interface MappingResult {
   mappings: ColumnMapping[]
   unmapped: string[]
   warnings: string[]
+  /**
+   * Columns or sheets dropped because they sort people by where they
+   * are from, and what was said about each.
+   *
+   * Separate from `warnings` on purpose. A warning is something somebody
+   * may override; these are not overridable and the list is the record
+   * that they were removed.
+   */
+  refused: string[]
 }
 
 // Known field aliases → canonical Etyme field name
@@ -116,13 +127,35 @@ const FIELD_ALIASES: Record<string, string> = {
  *   0.85 — partial/fuzzy match (flagged)
  *   0.0 — no match (unmapped)
  */
-export function mapColumns(headers: string[]): MappingResult {
+/**
+ * Map a spreadsheet's columns onto Etyme fields.
+ *
+ * `sheetName` is optional and matters more than it looks. Real uploads
+ * to this project arrived as "Tier 1 Prime Vendors (Indians)" beside
+ * "Tier 1 American Prime Vendors", and a sheet headed "DESI CLIENTS".
+ * The rows in those files are ordinary business contacts and are fine;
+ * it is the grouping that has no lawful use, and a sheet name is the
+ * grouping written down. Importing it without comment would make it
+ * ours and hand a plaintiff a document that explains itself.
+ */
+export function mapColumns(headers: string[], sheetName?: string): MappingResult {
   const mappings: ColumnMapping[] = []
   const unmapped: string[] = []
   const warnings: string[] = []
+  const refused: string[] = []
   const usedTargets = new Set<string>()
 
+  if (sheetName && sortsByOrigin(sheetName)) {
+    refused.push(originRefusal(sheetName))
+  }
+
   for (const header of headers) {
+    if (sortsByOrigin(header)) {
+      // Nothing in Etyme records national origin, so there is no field
+      // for this to land in even if somebody wanted one.
+      refused.push(originRefusal(header))
+      continue
+    }
     const normalized = header.toLowerCase().trim().replace(/[_\-]+/g, ' ')
 
     // Exact alias match
@@ -168,7 +201,7 @@ export function mapColumns(headers: string[]): MappingResult {
     }
   }
 
-  return { mappings, unmapped, warnings }
+  return { mappings, unmapped, warnings, refused }
 }
 
 /**

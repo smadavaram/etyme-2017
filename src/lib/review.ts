@@ -41,7 +41,7 @@ export const WORRY_BELOW = 80
 export interface Reviewable {
   id: string
   code: string
-  verdict: 'PASS' | 'FAIL'
+  verdict: 'PASS' | 'FAIL' | 'WARN'
   reason: string
   evidence: string | null
   at: Date
@@ -64,15 +64,18 @@ export interface Reviewable {
 export function drawSample(all: Reviewable[], size: number = SAMPLE_SIZE): Reviewable[] {
   const unreviewed = all.filter((c) => c.agreed === null)
 
-  const fails = unreviewed
-    .filter((c) => c.verdict === 'FAIL')
-    .sort((a, b) => a.at.getTime() - b.at.getTime())
+  const byAge = (a: Reviewable, b: Reviewable) => a.at.getTime() - b.at.getTime()
 
-  const passes = unreviewed
-    .filter((c) => c.verdict === 'PASS')
-    .sort((a, b) => a.at.getTime() - b.at.getTime())
+  const fails = unreviewed.filter((c) => c.verdict === 'FAIL').sort(byAge)
 
-  return [...fails, ...passes].slice(0, size)
+  // Warnings sit between the two, and they are the ones most worth a
+  // person's eye: a WARN is the machine saying it has a concern and no
+  // ground to act on it, which is exactly the judgement it cannot make.
+  const warns = unreviewed.filter((c) => c.verdict === 'WARN').sort(byAge)
+
+  const passes = unreviewed.filter((c) => c.verdict === 'PASS').sort(byAge)
+
+  return [...fails, ...warns, ...passes].slice(0, size)
 }
 
 export interface Agreement {
@@ -175,9 +178,12 @@ function startOfWeek(now: Date): Date {
  * else.
  */
 export function question(c: Reviewable): { asks: string; shows: string } {
-  const decided = c.verdict === 'PASS' ? 'passed' : 'failed'
+  // A warning is not a failure and must not be described as one — the
+  // reviewer is being asked about a concern, not a refusal.
+  const decided =
+    c.verdict === 'PASS' ? 'passed this' : c.verdict === 'WARN' ? 'flagged this' : 'failed this'
   return {
-    asks: `The check ${decided} this. Do you agree?`,
+    asks: `The check ${decided}. Do you agree?`,
     shows: c.evidence ? `${c.reason}\n\nIt read: ${c.evidence}` : c.reason,
   }
 }

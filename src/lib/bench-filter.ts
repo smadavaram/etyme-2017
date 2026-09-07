@@ -154,14 +154,31 @@ export function freeInTime(role: Role, c: Candidate): boolean {
 /**
  * Does the permit match.
  *
- * Only where the role actually names one, and only on an exact match of
- * what was recorded. A role that says nothing about work authorisation
- * excludes nobody — which is most roles.
+ * It no longer decides who is dropped, and that is the point.
+ *
+ * This used to return false on any mismatch and the caller removed the
+ * person from the list without telling anybody. A role saying
+ * "US citizens only" therefore erased every lawful permanent resident,
+ * asylee, refugee and visa holder from a recruiter's bench, silently,
+ * on the strength of a sentence somebody typed into an advert.
+ *
+ * In the United States that is citizenship-status discrimination under
+ * INA §274B unless a law requires the restriction — and nothing here
+ * records whether one does. Addendum E's own rule settles what to do
+ * without that: BLOCK only where legally grounded, WARN everywhere
+ * else. An ungrounded restriction is not grounded, so it warns.
+ *
+ * The mismatch is not lost. `lib/checks` surfaces it against the person,
+ * where a recruiter sees it and decides, instead of never seeing them.
+ * When Requirement carries a recorded lawful basis, this becomes a real
+ * gate again by consulting `authDecision` — see lib/work-authorisation.
  */
 export function authWorks(role: Role, c: Candidate): boolean {
   if (!role.workAuth) return true
   if (!c.workAuth) return true // unknown is not a no
-  return role.workAuth.toUpperCase() === c.workAuth.toUpperCase()
+  // Deliberately always true. Kept as a function, and kept called, so
+  // the day a basis exists there is one place to change.
+  return true
 }
 
 /**
@@ -232,6 +249,8 @@ export function sift(
       continue
     }
 
+    // No `continue` here any more. A work authorisation mismatch is a
+    // thing to show a recruiter, not a reason to make somebody vanish.
     if (!authWorks(role, c)) {
       dropped.push({
         personId: c.personId,

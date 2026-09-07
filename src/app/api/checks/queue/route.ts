@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     candidates.map((c) => ({
       id: c.id,
       code: c.code,
-      verdict: c.verdict as 'PASS' | 'FAIL',
+      verdict: c.verdict as 'PASS' | 'FAIL' | 'WARN',
       reason: c.reason,
       evidence: c.evidence,
       at: c.at,

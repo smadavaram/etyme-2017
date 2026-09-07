@@ -69,6 +69,7 @@ export const DOMAINS: Domain[] = [
       'app/api/shared', 'app/api/packet', 'app/packet',
       'lib/document-stages', 'lib/packets', 'lib/packet-derivation', 'lib/attestation',
       'lib/worker-classification', 'lib/holds', 'lib/representation',
+      'lib/work-authorisation',
       'lib/governance', 'lib/governance-authorship', 'lib/governance-horizon',
       'lib/requisition-approval', 'lib/document-share', 'lib/template-packs',
       'lib/access-log', 'lib/access-grant', 'lib/walls', 'lib/account-walls',

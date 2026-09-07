@@ -44,7 +44,21 @@ export type { RecordType }
 export interface Finding {
   code: string
   checker: Checker
-  verdict: 'PASS' | 'FAIL'
+  /**
+   * PASS, FAIL, or WARN.
+   *
+   * WARN is the verdict Addendum E requires and this type did not have:
+   * "BLOCK where legally grounded, WARN and capture a reason everywhere
+   * else, never silently permit." Without it, a rule with a real concern
+   * and no legal ground to stop on had to pick between failing — which
+   * removed somebody — and passing, which said nothing. The work
+   * authorisation check was picking FAIL, and doing it to people it had
+   * no lawful basis to exclude.
+   *
+   * A WARN does not fail the package. It is shown to the person
+   * deciding, which is the whole of its job.
+   */
+  verdict: 'PASS' | 'FAIL' | 'WARN'
   /** What to do about it, in words somebody would use. */
   reason: string
   /** What it read to decide. Without this a person cannot review it. */
@@ -158,6 +172,9 @@ export async function runLoop<T>(
       recordType: spec.recordType,
       recordId: ctx.recordId,
       attempt: ctx.attempt,
+      // Only a FAIL fails the package. A WARN is surfaced, not fatal —
+      // said explicitly rather than relying on the comparison happening
+      // to fall the right way.
       verdict: findings.some((f) => f.verdict === 'FAIL') ? 'FAIL' : 'PASS',
       // Rules cost nothing, and the zero is the point: it is what makes
       // the free half of the work visible next to the expensive half.

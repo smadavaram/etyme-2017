@@ -213,6 +213,16 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
   }
 
   // ── Work authorisation ──
+  // A mismatch is a WARN, not a FAIL, until somebody records why the
+  // role may restrict at all.
+  //
+  // FAIL removed the person. On a restriction nobody has justified, that
+  // is citizenship-status discrimination under INA §274B carried out by
+  // a rule engine — and "US citizens or green card holders only" is the
+  // most commonly cited form of it in staffing. Addendum E: BLOCK where
+  // legally grounded, WARN and capture a reason everywhere else.
+  //
+  // The recruiter still sees it. They see the person too.
   if (
     p.workAuthRequired &&
     p.workAuth &&
@@ -221,16 +231,18 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
-      verdict: 'FAIL',
-      reason: `Role needs ${p.workAuthRequired}; they are ${p.workAuth}.`,
+      verdict: 'WARN',
+      reason:
+        `The role names ${p.workAuthRequired}; they are ${p.workAuth}. No lawful reason for the ` +
+        `restriction is recorded, so this does not rule them out. Record one before turning anybody away.`,
       evidence: `${p.workAuth} ≠ ${p.workAuthRequired}`,
     })
   } else if (p.workAuthRequired && !p.workAuth) {
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
-      verdict: 'FAIL',
-      reason: `Role needs ${p.workAuthRequired} and nothing is recorded for them. Ask before sending.`,
+      verdict: 'WARN',
+      reason: `The role names ${p.workAuthRequired} and nothing is recorded for them. Ask before sending.`,
     })
   } else {
     out.push({

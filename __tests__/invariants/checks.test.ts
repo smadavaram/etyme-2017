@@ -132,23 +132,31 @@ describe('the permit', () => {
     expect(find(ruleChecks(pkg(), NOW), 'WORK_AUTH').verdict).toBe('PASS')
   })
 
-  it('fails a mismatch', () => {
+  it('warns on a mismatch instead of failing it, and says a reason must be recorded first', () => {
+    // FAIL removed the person. On a restriction nobody has justified
+    // that is INA §274B discrimination carried out by a rule engine,
+    // and "US citizens or green card holders only" is the most commonly
+    // cited form of it in staffing.
     const f = find(
       ruleChecks(pkg({ workAuthRequired: 'US_CITIZEN', workAuth: 'H1B' }), NOW),
       'WORK_AUTH'
     )
-    expect(f.verdict).toBe('FAIL')
-    expect(f.reason).toBe('Role needs US_CITIZEN; they are H1B.')
+    expect(f.verdict).toBe('WARN')
+    expect(f.verdict).not.toBe('FAIL')
+    expect(f.reason).toMatch(/does not rule them out/i)
+    expect(f.reason).toMatch(/Record one before turning anybody away/i)
   })
 
-  it('fails when the role names one and we have recorded nothing', () => {
+  it('warns and says to ask when nothing is recorded, rather than dropping them unasked', () => {
     // Sending somebody without knowing is how a placement collapses in
-    // week two. Ask first.
+    // week two, so this still has to be raised. But not knowing
+    // somebody's status is a question, never a refusal — dropping them
+    // is how a recruiter never finds out they were a citizen all along.
     const f = find(
       ruleChecks(pkg({ workAuthRequired: 'US_CITIZEN', workAuth: null }), NOW),
       'WORK_AUTH'
     )
-    expect(f.verdict).toBe('FAIL')
+    expect(f.verdict).toBe('WARN')
     expect(f.reason).toMatch(/Ask before sending/)
   })
 })

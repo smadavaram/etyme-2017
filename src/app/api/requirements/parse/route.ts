@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { mayApplyFromAdvert } from '@/lib/work-authorisation'
 import { getSessionEmail } from '@/lib/api-context'
 
 /**
@@ -138,19 +139,31 @@ function extractFields(text: string): Record<string, FieldResult> {
     fields.startDate = { value: null, confidence: 0, flagged: true }
   }
 
-  // Work auth requirement
+  // Work auth requirement — read, never adopted.
+  //
+  // This used to set US_CITIZEN at 0.92 confidence with flagged: false,
+  // which meant an advert saying "USC/GC only" silently became a hard
+  // filter that dropped every lawful permanent resident, asylee, refugee
+  // and visa holder off the list without telling anybody.
+  //
+  // That is citizenship-status discrimination under INA §274B, and doing
+  // it automatically is worse than doing it by hand: it scales, and it
+  // leaves a record of having done it deliberately.
+  //
+  // The advert is evidence of what somebody wrote, not evidence they
+  // were entitled to write it. So the phrase is surfaced, always
+  // flagged, at a confidence that reflects what it actually is — a
+  // sentence needing a human and a lawful basis before it restricts
+  // anybody. See lib/work-authorisation.
   const authMatch = text.match(/(?:work\s*auth|visa|authorization|citizenship|green\s*card|h1b|gc|us\s*citizen)/i)
-  if (authMatch) {
+  if (authMatch && !mayApplyFromAdvert()) {
     const authLower = authMatch[0].toLowerCase()
-    if (authLower.includes('citizen')) {
-      fields.workAuth = { value: 'US_CITIZEN', confidence: 0.92, flagged: false }
-    } else if (authLower.includes('gc') || authLower.includes('green card')) {
-      fields.workAuth = { value: 'GC', confidence: 0.9, flagged: false }
-    } else if (authLower.includes('h1b')) {
-      fields.workAuth = { value: 'H1B', confidence: 0.95, flagged: false }
-    } else {
-      fields.workAuth = { value: authMatch[0], confidence: 0.6, flagged: true }
-    }
+    const read =
+      authLower.includes('citizen') ? 'US_CITIZEN'
+      : authLower.includes('gc') || authLower.includes('green card') ? 'GC'
+      : authLower.includes('h1b') ? 'H1B'
+      : authMatch[0]
+    fields.workAuth = { value: read, confidence: 0, flagged: true }
   } else {
     fields.workAuth = { value: null, confidence: 0, flagged: true }
   }

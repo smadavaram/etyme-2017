@@ -111,8 +111,22 @@ describe('does the permit match', () => {
     expect(authWorks(role({ workAuth: null }), person({ workAuth: 'H1B' }))).toBe(true)
   })
 
-  it('drops a mismatch when the role does name one', () => {
-    expect(authWorks(role({ workAuth: 'US_CITIZEN' }), person({ workAuth: 'H1B' }))).toBe(false)
+  it('no longer drops a mismatch, because nothing here records why the role may restrict', () => {
+    // This test used to assert false, and the caller then removed the
+    // person from the recruiter's list without saying so. A role reading
+    // "US citizens only" therefore erased every lawful permanent
+    // resident, asylee, refugee and visa holder — on the strength of a
+    // sentence somebody typed into an advert.
+    //
+    // In the United States that is citizenship-status discrimination
+    // under INA §274B unless a law requires the restriction, and no
+    // lawful basis is recorded anywhere in this schema. Addendum E
+    // settles what to do without one: BLOCK where legally grounded,
+    // WARN everywhere else.
+    //
+    // The mismatch is not lost — lib/checks raises it against the person,
+    // where a recruiter sees both the concern and the candidate.
+    expect(authWorks(role({ workAuth: 'US_CITIZEN' }), person({ workAuth: 'H1B' }))).toBe(true)
   })
 
   it('treats unknown as not-a-no, rather than guessing', () => {
