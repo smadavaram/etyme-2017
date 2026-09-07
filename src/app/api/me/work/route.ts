@@ -40,6 +40,28 @@ export async function GET(request: NextRequest) {
     take: 26,
   })
 
+  // When the next one is due.
+  //
+  // A consultant asking "when do I have to submit by" had nowhere to
+  // look, and the answer already existed: cycle dates are generated per
+  // contract and already shifted off weekends and the company's own
+  // holidays. Not showing them meant the one party with a deadline was
+  // the only party who could not see it.
+  const cycles = await prisma.cycle.findMany({
+    where: {
+      sellContractId: { in: contracts.map((c) => c.id) },
+      completedAt: null,
+      // Both deadlines, because a consultant asked for both: when they
+      // must submit, and when it should have been signed off. The second
+      // is somebody else's deadline and still theirs to know — an
+      // approval that has not happened is money that has not started
+      // moving.
+      kind: { in: ['TIMESHEET_SUBMIT', 'TIMESHEET_APPROVE'] },
+    },
+    orderBy: { dueOn: 'asc' },
+    take: 12,
+  })
+
   // What has been sent about them, and to whom. A consultant should not
   // have to ask whether their passport went to a stranger.
   const sharedAbout = await prisma.documentShare.findMany({
@@ -119,6 +141,58 @@ export async function GET(request: NextRequest) {
         approvedNotBilled: timesheets.filter(t => t.status === 'APPROVED' && !t.invoiceLine).length,
         endingSoon: live.filter(c => c.endDate && (c.endDate.getTime() - now.getTime()) / 86_400_000 <= 60).length,
       },
+
+      // Deadlines, soonest first, and only the ones still open.
+      due: cycles.map((c) => ({
+        contractId: c.sellContractId,
+        whose: c.kind === 'TIMESHEET_SUBMIT' ? 'YOU' : 'THEM',
+        what:
+          c.kind === 'TIMESHEET_SUBMIT'
+            ? 'Your hours are due'
+            : 'They should have approved it by',
+        dueOn: c.dueOn.toISOString().slice(0, 10),
+        daysAway: Math.ceil((c.dueOn.getTime() - now.getTime()) / 86_400_000),
+        overdue: c.dueOn < now,
+      })),
+
+      // What they are owed for work already signed off.
+      //
+      // Approved hours at their own pay rate, and only approved: a
+      // submitted timesheet is a claim, an approved one is a debt, and
+      // showing the two as one number would tell somebody they are owed
+      // money that nobody has agreed to yet.
+      //
+      // Silent where the rate is not recorded rather than guessed. A
+      // consultant planning around a number this product invented is
+      // worse off than one who knows it is not here.
+      owed: (() => {
+        const byContract = new Map(contracts.map((c) => [c.id, c.companyId]))
+        let cents = 0
+        let hours = 0
+        let unknownRate = 0
+        for (const t of timesheets) {
+          if (t.status !== 'APPROVED') continue
+          const pay = payByCompany.get(byContract.get(t.sellContractId) ?? '')
+          if (!pay?.payRate) { unknownRate++; continue }
+          hours += Number(t.totalHours)
+          cents += Number(t.totalHours) * pay.payRate
+        }
+        return {
+          hours,
+          cents,
+          currency: contracts[0] ? payByCompany.get(contracts[0].companyId)?.payCurrency ?? null : null,
+          // Weeks whose rate is not on Etyme, so the figure is short and
+          // says so rather than quietly under-reporting.
+          weeksWithNoRate: unknownRate,
+          says:
+            hours === 0 && unknownRate === 0
+              ? 'Nothing approved and unpaid right now.'
+              : unknownRate > 0
+                ? `${hours} approved hours here. ${unknownRate} more week${unknownRate === 1 ? '' : 's'} ` +
+                  `approved with no rate recorded on Etyme — your agency has those.`
+                : `${hours} approved hours, not yet paid.`,
+        }
+      })(),
     },
   })
 }

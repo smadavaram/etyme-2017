@@ -221,6 +221,48 @@ export async function seedDemoConsultant(input: {
     timesheetCount++
   }
 
+  // ── What they are actually paid, and when things are due ────────────
+  //
+  // Both were missing and both are things a consultant asked for by
+  // name. Without the buy side their own rate reads "not recorded on
+  // Etyme" and the money they are owed cannot be worked out at all;
+  // without cycles, the one party with a deadline is the only party who
+  // cannot see it.
+  const buy = await prisma.buyContract.create({
+    data: {
+      companyId: agency.id,
+      payCurrency: 'USD',
+      contractType: 'W2',
+      startDate: contract.startDate,
+      candidates: {
+        create: {
+          personId: input.personId,
+          // Below the bill rate, which is the point of a margin, and a
+          // real number rather than a round one.
+          payRate: 9600,
+          startDate: contract.startDate,
+        },
+      },
+    },
+  })
+
+  await prisma.contractLink.create({
+    data: {
+      sellContractId: contract.id,
+      buyContractId: buy.id,
+      effectiveFrom: contract.startDate,
+    },
+  })
+
+  // Four fortnights of deadlines, theirs and the client's, some already
+  // passed so the overdue state is visible rather than theoretical.
+  await prisma.cycle.createMany({
+    data: [-1, 0, 1, 2].flatMap((n) => [
+      { sellContractId: contract.id, kind: 'TIMESHEET_SUBMIT', dueOn: daysAhead(n * 14 + 2) },
+      { sellContractId: contract.id, kind: 'TIMESHEET_APPROVE', dueOn: daysAhead(n * 14 + 5) },
+    ]),
+  })
+
   // ── The other two benches, and who is holding you ───────────────────
   //
   // A listing says a vendor may market you. A representation says one of
