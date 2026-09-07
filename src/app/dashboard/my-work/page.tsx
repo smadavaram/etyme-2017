@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import { compact, rate as fmtRate } from '@/lib/money-display'
 
@@ -67,9 +69,17 @@ function YourCV() {
   const [err, setErr] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/me/resumes')
-    const body = await res.json()
-    if (res.ok) setData(body.data)
+    // `if (res.ok)` and nothing else meant a failure showed the reader
+    // nothing at all — no CVs, no explanation, no way to tell an empty
+    // list from an ended session. There is an error state right there;
+    // it just was not being set.
+    try {
+      const body = await readJson(await fetch('/api/me/resumes'))
+      setData(body.data)
+      setErr(null)
+    } catch (e: any) {
+      setErr(e.message)
+    }
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -80,8 +90,7 @@ function YourCV() {
       const form = new FormData()
       form.append('file', file)
       const res = await fetch('/api/me/resumes', { method: 'POST', body: form })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setMsg(body.data.message)
       await load()
     } catch (e: any) {
@@ -95,8 +104,7 @@ function YourCV() {
     setBusy(true); setErr(null); setMsg(null)
     try {
       const res = await fetch(`/api/me/resumes?id=${id}`, { method: 'DELETE' })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setMsg(body.data.message)
       await load()
     } catch (e: any) {
@@ -114,8 +122,7 @@ function YourCV() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setMsg(body.data.message)
       await load()
     } catch (e: any) {
@@ -215,8 +222,7 @@ export default function MyWorkPage() {
     setLoading(true); setError(null)
     try {
       const res = await fetch('/api/me/work')
-      const j = await res.json()
-      if (!res.ok) throw new Error(j.error?.message ?? 'Could not load your work')
+      const j = await readJson(res)
       setData(j.data)
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }
   }, [])
@@ -227,8 +233,13 @@ export default function MyWorkPage() {
     const res = await fetch(`/api/timesheets/${id}/submit`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
     })
-    const j = await res.json()
-    if (!res.ok) { alert(j.error?.message ?? 'Could not send it'); return }
+    let j: any
+    try {
+      j = await readJson(res)
+    } catch (e: any) {
+      alert(e.message)
+      return
+    }
     await load()
   }
 

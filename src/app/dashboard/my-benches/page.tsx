@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -91,8 +93,7 @@ export default function MyBenchesPage() {
     setError(null)
     try {
       const res = await fetch('/api/me/benches')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setData(body.data)
     } catch (e: any) {
       setError(e.message)
@@ -113,8 +114,7 @@ export default function MyBenchesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setFlash(body.data?.message ?? 'Saved.')
       await load()
     } catch (e: any) {

@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -82,8 +84,7 @@ export default function MyPagePage() {
     setError(null)
     try {
       const res = await fetch('/api/me/portfolio')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       const d: MyPage = body.data
       setData(d)
       setAddress(d.address ?? d.suggestion ?? '')
@@ -108,8 +109,7 @@ export default function MyPagePage() {
         headers: { 'Content-Type': 'application/json' },
         body: payload ? JSON.stringify(payload) : undefined,
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setFlash(body.data?.message ?? body.data?.note ?? 'Saved.')
       await load()
     } catch (e: any) {

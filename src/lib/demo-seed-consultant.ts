@@ -18,6 +18,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { seedProfile } from '@/lib/candidate-fixture'
 import { defaultPostureFor } from '@/lib/walls'
 import { DEMO_DAYS } from '@/lib/demo-seed'
 import type { Seeded } from '@/lib/demo-seed'
@@ -71,6 +72,34 @@ export async function seedDemoConsultant(input: {
       demoExpiresAt: expiresAt,
     },
   })
+
+  // ── The other two who also have you ─────────────────────────────────
+  //
+  // "Who has you" is the one page in the consultant portal that cannot be
+  // demonstrated with one vendor, and it was seeded with one. A
+  // consultant on a single bench sees a list of length one and learns
+  // nothing; a consultant on three sees the thing the page exists for —
+  // who is representing them, for what, and who is holding them right
+  // now. It is also the cross-vendor case tenure aggregation rests on.
+  //
+  // They never learn from us that the other two exist in each other's
+  // sight. This is the consultant's own view of their own
+  // representation, which is the one place the whole picture belongs.
+  const alsoHaveYou = await Promise.all(
+    ['Northlane Partners', 'Verrick Staffing'].map((name, i) =>
+      prisma.company.create({
+        data: {
+          name,
+          slug: `${input.slug}-agency-${i + 2}`,
+          kind: 'VENDOR',
+          currency: 'USD',
+          outsideAccess: defaultPostureFor('VENDOR'),
+          isDemo: true,
+          demoExpiresAt: expiresAt,
+        },
+      })
+    )
+  )
 
   // ── You, as a candidate rather than as an owner ──────────────────────
   //
@@ -192,6 +221,109 @@ export async function seedDemoConsultant(input: {
     timesheetCount++
   }
 
+  // ── The other two benches, and who is holding you ───────────────────
+  //
+  // A listing says a vendor may market you. A representation says one of
+  // them is actively putting you somewhere, and only one may at a time
+  // for a given client — which is the thing that stops two vendors
+  // sending the same person to one client and getting both rejected.
+  for (const [i, other] of alsoHaveYou.entries()) {
+    await prisma.benchListing.create({
+      data: {
+        consultantId: profile.id,
+        companyId: other.id,
+        // Marketing rather than retained: they may put you forward, they
+        // are not holding you exclusively. Two vendors both claiming a
+        // retained listing is the state that should never exist.
+        tier: 'MARKETING',
+        grantedAt: daysAgo(40 + i * 25),
+      },
+    })
+  }
+
+  await prisma.representation.create({
+    data: {
+      personId: input.personId,
+      companyId: agency.id,
+      clientCompanyId: client.id,
+      state: 'HELD',
+      takenAt: daysAgo(9),
+      // A hold is temporary by design. One that never expires is a
+      // vendor owning somebody, which is what right-to-represent exists
+      // to prevent.
+      expiresAt: daysAhead(21),
+      consentedAt: daysAgo(9),
+      consentVia: 'EMAIL',
+      holdKey: `${input.personId}:${client.id}`,
+    },
+  })
+
+  // ── Two CVs, because everybody keeps more than one ──────────────────
+  //
+  // The general one and the one tailored to the role they actually want.
+  // /api/me/resumes returned an empty list before this, so the page it
+  // drives rendered a working screen with nothing on it — which passes
+  // every test and shows a consultant nothing.
+  await prisma.resume.createMany({
+    data: [
+      {
+        personId: input.personId,
+        label: `${profile.headline} 2026`,
+        fileName: 'cv-general-2026.pdf',
+        contentType: 'application/pdf',
+        sizeBytes: 184_320,
+        storage: 'DB',
+      },
+      {
+        personId: input.personId,
+        label: 'Tailored — platform work',
+        fileName: 'cv-platform-2026.pdf',
+        contentType: 'application/pdf',
+        sizeBytes: 171_008,
+        storage: 'DB',
+      },
+    ],
+  })
+
+  // ── Things that have happened to you ────────────────────────────────
+  //
+  // Also empty before. A notifications page with nothing in it is
+  // indistinguishable from a broken one.
+  await prisma.notification.createMany({
+    data: [
+      {
+        personId: input.personId,
+        companyId: agency.id,
+        type: 'TIMESHEET',
+        title: 'Your week was approved',
+        body: `${client.name} approved your hours. It will be on the next invoice.`,
+        channel: 'IN_APP',
+        status: 'READ',
+        createdAt: daysAgo(3),
+      },
+      {
+        personId: input.personId,
+        companyId: agency.id,
+        type: 'SUBMISSION',
+        title: 'You were put forward',
+        body: `${agency.name} submitted you for a role after you said yes.`,
+        channel: 'IN_APP',
+        status: 'UNREAD',
+        createdAt: daysAgo(9),
+      },
+      {
+        personId: input.personId,
+        companyId: alsoHaveYou[0].id,
+        type: 'BENCH',
+        title: `${alsoHaveYou[0].name} added you to their bench`,
+        body: 'They can now put you forward for roles. You can revoke this at any time.',
+        channel: 'IN_APP',
+        status: 'UNREAD',
+        createdAt: daysAgo(40),
+      },
+    ],
+  })
+
   return {
     companyId: agency.id,
     companyName: agency.name,
@@ -199,6 +331,8 @@ export async function seedDemoConsultant(input: {
       placements: 1,
       openSubmissions: 1,
       timesheets: timesheetCount,
+      benches: 1 + alsoHaveYou.length,
+      resumes: 2,
     },
   }
 }
