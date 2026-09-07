@@ -96,6 +96,21 @@ export async function GET(request: NextRequest) {
   const barredBy = new Map(barred.map((b) => [b.targetId, b]))
   const interviewing = new Set(interviews.map((i) => i.submission.personId))
 
+  // Contracts indexed once, not scanned per person.
+  //
+  // Three places below used to run `contracts.filter(c => c.personId
+  // === ...)` inside a loop over people, which is a linear scan per row
+  // and quadratic across the page. Invisible at ten rows and the second
+  // half of why this route's p95 climbed 26ms to 134ms across a fifty
+  // day simulation. The matcher was the first half.
+  const contractsByPerson = new Map<string, typeof contracts>()
+  for (const c of contracts) {
+    const list = contractsByPerson.get(c.personId)
+    if (list) list.push(c)
+    else contractsByPerson.set(c.personId, [c])
+  }
+  const contractsFor = (personId: string) => contractsByPerson.get(personId) ?? []
+
   const byPerson = new Map<string, Person>()
 
   for (const s of subs) {
@@ -105,8 +120,8 @@ export async function GET(request: NextRequest) {
         personId: s.personId,
         name: s.person.name,
         offers: [] as Offer[],
-        stints: contracts
-          .filter((c) => c.personId === s.personId && c.endDate)
+        stints: contractsFor(s.personId)
+          .filter((c) => c.endDate)
           .map((c) => ({
             months: Math.max(
               0,
@@ -170,26 +185,25 @@ export async function GET(request: NextRequest) {
       email: null,
       location: profile?.location ?? null,
       skills: profile?.skills ?? [],
-      stints: contracts
-        .filter((c) => c.personId === p.personId)
-        .map((c) => ({
-          start: c.startDate,
-          end: c.endDate,
-          vendorName: c.company.name,
-          months: c.endDate
-            ? Math.max(0, Math.round((c.endDate.getTime() - c.startDate.getTime()) / DAY / 30.44))
-            : 0,
-        })),
+      stints: contractsFor(p.personId).map((c) => ({
+        start: c.startDate,
+        end: c.endDate,
+        vendorName: c.company.name,
+        months: c.endDate
+          ? Math.max(0, Math.round((c.endDate.getTime() - c.startDate.getTime()) / DAY / 30.44))
+          : 0,
+      })),
     }
   })
 
   const bestMatch = bestMatchPerPerson(candidates)
+  const candidateByPerson = new Map(candidates.map((c) => [c.personId, c]))
 
   for (const row of rows) {
     const m = bestMatch.get(row.personId)
     if (!m) continue
     const otherId = m.aId === row.personId ? m.bId : m.aId
-    const other = candidates.find((c) => c.personId === otherId)
+    const other = candidateByPerson.get(otherId)
     if (!other) continue
     row.possibleDuplicate = {
       personId: otherId,

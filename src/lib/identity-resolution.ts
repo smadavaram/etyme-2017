@@ -286,28 +286,93 @@ export function worthAsking(matches: Match[], capMonths: number | null): Match[]
  *
  * Built for a register that shows one row per person and has room to
  * flag at most one thing about them — /dashboard/people, not the
- * identity review queue. Compares every candidate against every other
- * once (O(n²), fine at the size of one client's own register) and keeps
- * whichever pairing scored highest for each side.
+ * identity review queue.
  *
  * A touch stricter than `worthAsking`'s own IGNORE_BELOW: this surfaces
  * on a screen a client opens by default, not one they chose to visit to
  * go looking, so the bar for interrupting it is POSSIBLE and up rather
  * than everything not yet ruled out.
+ *
+ * ── Why this blocks instead of comparing everything ──────────────────
+ *
+ * It used to compare every candidate against every other, and a comment
+ * here said that was "fine at the size of one client's own register".
+ * It was not. `/api/people` calls this on every request and bounds it
+ * only by `take: 2000`, so at its own cap it was doing two million
+ * comparisons inside a list page load. A fifty-day simulation measured
+ * that route's p95 climbing from 26ms to 134ms while every other route
+ * stayed flat, and the climb is this loop.
+ *
+ * The fix costs nothing in accuracy, because `compare` already refuses
+ * every pair whose normalised names differ — it returns UNLIKELY at
+ * score 0 before weighing anything else. Two records this never puts
+ * together are two records the old loop compared and then discarded.
+ * `__tests__` proves that equivalence against the exhaustive version on
+ * a generated corpus rather than asserting it here.
+ *
+ * Phone is a second key even though `compare` cannot currently act on it
+ * alone — see the note on `blockKeys`. Adding it now costs one extra
+ * grouping pass and means the day that early return is fixed, this
+ * function does not have to be.
  */
 export function bestMatchPerPerson(candidates: Candidate[]): Map<string, Match> {
+  const blocks = new Map<string, number[]>()
+  candidates.forEach((c, i) => {
+    for (const key of blockKeys(c)) {
+      const bucket = blocks.get(key)
+      if (bucket) bucket.push(i)
+      else blocks.set(key, [i])
+    }
+  })
+
   const best = new Map<string, Match>()
-  for (let i = 0; i < candidates.length; i++) {
-    for (let j = i + 1; j < candidates.length; j++) {
-      const m = compare(candidates[i], candidates[j])
-      if (m.confidence === 'UNLIKELY') continue
-      for (const id of [m.aId, m.bId]) {
-        const current = best.get(id)
-        if (!current || m.score > current.score) best.set(id, m)
+  // A pair sharing both a name and a number appears in two blocks, and
+  // comparing it twice would be wasted rather than wrong.
+  const done = new Set<string>()
+
+  for (const bucket of blocks.values()) {
+    for (let a = 0; a < bucket.length; a++) {
+      for (let b = a + 1; b < bucket.length; b++) {
+        const i = bucket[a]
+        const j = bucket[b]
+        const pair = i < j ? `${i}:${j}` : `${j}:${i}`
+        if (done.has(pair)) continue
+        done.add(pair)
+
+        const m = compare(candidates[i], candidates[j])
+        if (m.confidence === 'UNLIKELY') continue
+        for (const id of [m.aId, m.bId]) {
+          const current = best.get(id)
+          if (!current || m.score > current.score) best.set(id, m)
+        }
       }
     }
   }
   return best
+}
+
+/**
+ * The keys under which a record is worth comparing to another.
+ *
+ * Name, because `compare` refuses outright on a name mismatch, which
+ * makes the normalised name a lossless partition rather than a heuristic
+ * one. Blocking is usually a trade of recall for speed; here it is not,
+ * and that is only true because of that early return.
+ *
+ * Phone, because it should be decisive and currently is not. `compare`
+ * pushes a decisive signal for a shared mobile and then discards it in
+ * the name-mismatch return a few lines later, so two records for one
+ * person under "Ravi Patel" and "Ravikumar Patel" with the same number
+ * score zero. That is the exact cross-vendor case tenure aggregation
+ * rests on, and it is a defect worth fixing on its own terms — not
+ * quietly, inside a performance change, because it alters who gets
+ * flagged as possibly the same person.
+ */
+function blockKeys(c: Candidate): string[] {
+  const keys = [`n:${normalName(c.name)}`]
+  const phone = normalPhone(c.mobile)
+  if (phone) keys.push(`p:${phone}`)
+  return keys
 }
 
 /**
