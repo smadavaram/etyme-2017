@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { daysFor } from '@/lib/contract-links'
 import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
 import { rateInForce } from '@/lib/contract-rate'
 
@@ -135,17 +136,38 @@ export async function GET(request: NextRequest) {
     )
 
     return bc.candidates.map((cand) => {
+      // The link windows, so a timesheet is only counted for the period
+      // this contract was actually paying for. effectiveFrom and
+      // effectiveTo were written by award, convert and import and read
+      // by nothing — see lib/contract-links.
+      const links = bc.sellLinks.map((l) => ({
+        buyContractId: bc.id,
+        sellContractId: l.sellContractId,
+        effectiveFrom: l.effectiveFrom,
+        effectiveTo: l.effectiveTo,
+      }))
+
       const linkedTimesheets = bc.sellLinks.flatMap((link) =>
         link.sellContract.timesheets
           .filter((ts) => ts.personId === cand.personId)
-          .map((ts) => ({
+          .map((ts) => {
+            const all = (ts.days as Record<string, number>) ?? {}
+            // Narrowed to the days this contract was in force for.
+            //
+            // The map rather than the total, because the pay-period
+            // calculation below re-derives hours from `days` — handing
+            // it a corrected total would lose the correction on the
+            // next line.
+            const mineDays = Object.keys(all).length > 0 ? daysFor(bc.id, links, all) : all
+            const mineHours = Object.keys(all).length > 0
+              ? Object.values(mineDays).reduce((a, b) => a + Number(b || 0), 0)
+              : Number(ts.assertions[0]?.hours ?? ts.acceptedHours ?? ts.totalHours)
+            return {
             id: ts.id,
-            totalHours: Number(
-              ts.assertions[0]?.hours ?? ts.acceptedHours ?? ts.totalHours
-            ),
+            totalHours: mineHours,
             rawStart: ts.periodStart,
             rawEnd: ts.periodEnd,
-            days: (ts.days as Record<string, number>) ?? {},
+            days: mineDays,
             periodStart: ts.periodStart.toISOString(),
             periodEnd: ts.periodEnd.toISOString(),
             approvedAt: ts.approvedAt?.toISOString() ?? null,
@@ -153,7 +175,8 @@ export async function GET(request: NextRequest) {
             clientCompany: link.sellContract.clientCompany,
             engagement: link.sellContract.engagement,
             billRate: link.sellContract.billRate,
-          }))
+            }
+          })
       )
 
       // ── The pay period the contract says it is ────────────────────

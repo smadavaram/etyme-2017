@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { theLinkFor } from '@/lib/contract-links'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import {
@@ -173,7 +174,9 @@ export async function POST(request: NextRequest) {
     select: {
       id: true, companyId: true, payCurrency: true,
       candidates: { select: { personId: true, person: { select: { name: true } } } },
-      sellLinks: { select: { sellContractId: true } },
+      // The window too. Picking a link without it is picking one by
+      // whatever order Postgres returned.
+      sellLinks: { select: { sellContractId: true, effectiveFrom: true, effectiveTo: true } },
     },
   })
   if (!buy || buy.companyId !== companyId) {
@@ -213,7 +216,24 @@ export async function POST(request: NextRequest) {
 
   // Where the movement posts. The share it came out of was earned on a
   // project, so that is where it leaves from.
-  const sellContractId = buy.sellLinks[0]?.sellContractId ?? null
+  // `buy.sellLinks[0]` — the first link in whatever order Postgres
+  // returned, when there can legitimately be several. Right by luck.
+  //
+  // `theLinkFor` returns null rather than a guess when the answer is
+  // none or more than one, and a reserve that cannot say which project
+  // it came out of should stop rather than post to a plausible one.
+  const now = new Date()
+  const chosen = theLinkFor(
+    buy.sellLinks.map((l) => ({
+      buyContractId: buy.id,
+      sellContractId: l.sellContractId,
+      effectiveFrom: l.effectiveFrom,
+      effectiveTo: l.effectiveTo,
+    })),
+    now,
+    now
+  )
+  const sellContractId = chosen?.sellContractId ?? null
   const projectOrderId = sellContractId ? await orderFor(sellContractId) : null
   if (!projectOrderId) {
     return NextResponse.json(

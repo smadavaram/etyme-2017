@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { hoursFor } from '@/lib/contract-links'
 
 /**
  * POST /api/payroll/run
@@ -71,7 +72,10 @@ export async function POST(request: NextRequest) {
             include: {
               timesheets: {
                 where: { status: 'APPROVED' },
-                select: { id: true, personId: true, totalHours: true },
+                // `days` and the link window, because a week is no
+                // longer treated as indivisible — somebody who moved
+                // sub-vendor on the Wednesday is split by day.
+                select: { id: true, personId: true, totalHours: true, days: true },
               },
             },
           },
@@ -133,14 +137,31 @@ export async function POST(request: NextRequest) {
         // person — paying everyone on the agreement at one rate would be a
         // real financial error once a contract carries more than one person.
         for (const cand of bc.candidates) {
-          const approvedHours = bc.sellLinks.reduce(
-            (sum, link) =>
+          // Only the hours this contract was actually in force for.
+          //
+          // This summed every timesheet on every linked sell contract
+          // regardless of the link's window — which effectiveFrom and
+          // effectiveTo exist to express and nothing read. A consultant
+          // moving sub-vendor mid-assignment left the old vendor being
+          // paid for hours worked under the new one, reconciling
+          // cleanly on both sides against a number that was already
+          // wrong. See lib/contract-links.
+          const links = bc.sellLinks.map((l) => ({
+            buyContractId: bc.id,
+            sellContractId: l.sellContractId,
+            effectiveFrom: l.effectiveFrom,
+            effectiveTo: l.effectiveTo,
+          }))
+          const approvedHours = bc.sellLinks.reduce((sum, link) => {
+            const mine = link.sellContract.timesheets.filter((ts) => ts.personId === cand.personId)
+            return (
               sum +
-              link.sellContract.timesheets
-                .filter((ts) => ts.personId === cand.personId)
-                .reduce((s, ts) => s + Number(ts.totalHours), 0),
-            0
-          )
+              mine.reduce(
+                (s, ts) => s + hoursFor(bc.id, links, (ts.days as Record<string, number>) ?? {}),
+                0
+              )
+            )
+          }, 0)
 
           processed.push({
             buyContractId: bc.id,

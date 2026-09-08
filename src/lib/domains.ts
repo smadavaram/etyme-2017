@@ -93,7 +93,7 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/rate-history', 'app/dashboard/reports',
       'app/api/rate-history', 'app/api/holidays', 'app/api/contracts',
       'app/dashboard/contracts',
-      'lib/order', 'lib/order-postings', 'lib/gl', 'lib/profitability',
+      'lib/order', 'lib/order-postings', 'lib/gl', 'lib/contract-links', 'lib/profitability',
       'lib/pay-model', 'lib/bench-policy', 'lib/money', 'lib/money-display',
       'lib/periods', 'lib/recurring', 'lib/cycle-generator', 'lib/holidays',
       'lib/invoice-loop', 'lib/invoice-match', 'lib/billing-cascade', 'lib/billing-plan',
