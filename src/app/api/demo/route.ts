@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'node:crypto'
 import { prisma } from '@/lib/db'
+import { seedChain, type Seat } from '@/lib/demo-chain'
 import { seedDemoCompany, DEMO_DAYS } from '@/lib/demo-seed'
 import { seedDemoClientCompany } from '@/lib/demo-seed-client'
 import { seedDemoConsultant } from '@/lib/demo-seed-consultant'
@@ -28,7 +29,20 @@ import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor } from '@/lib/demo-ses
  * pretended one account could be both would be demonstrating a product
  * we do not sell.
  */
-export type Side = 'HIRING' | 'BENCH' | 'CANDIDATE'
+/**
+ * Which door somebody came through.
+ *
+ * HIRING and BENCH are kept because the home page has linked to them
+ * since it existed, and a demo link that stops working is worse than a
+ * coarse one. They now mean "the client's chair" and "the bench
+ * vendor's chair" — the two ends of the chain.
+ *
+ * The five seats are the real answer. The schema knows five kinds of
+ * company and the demo offered three doors, so an MSP and a GSI had no
+ * way in at all and a prime and a bench vendor got the same world
+ * despite sitting on opposite sides of the same trade.
+ */
+export type Side = 'HIRING' | 'BENCH' | 'CANDIDATE' | Seat
 
 /** Names that read like a staffing firm without naming a real one. */
 const NAMES = [
@@ -64,8 +78,22 @@ export async function POST(request: NextRequest) {
   // demand side is the one being sold first, and a visitor who arrives
   // with no preference should land where the product is sharpest.
   const body = await request.json().catch(() => ({}))
+  const asked = String(body?.side ?? '').toUpperCase()
+  // 'BENCH' is both the old door and the bench vendor's seat. They mean
+  // the same thing, so the collision is harmless and the old links keep
+  // working.
+  const SEATS: Seat[] = ['CLIENT', 'MSP', 'GSI', 'PRIME', 'BENCH']
   const side: Side =
-    body?.side === 'BENCH' ? 'BENCH' : body?.side === 'CANDIDATE' ? 'CANDIDATE' : 'HIRING'
+    SEATS.includes(asked as Seat) ? (asked as Seat)
+    : asked === 'BENCH' ? 'BENCH'
+    : asked === 'CANDIDATE' ? 'CANDIDATE'
+    : 'HIRING'
+
+  // The old two doors, mapped onto their seats in the chain.
+  const seat: Seat | null =
+    SEATS.includes(side as Seat) ? (side as Seat)
+    : side === 'HIRING' ? 'CLIENT'
+    : null
 
   const handle = randomBytes(6).toString('hex')
   const email = addressFor(handle)
@@ -90,16 +118,19 @@ export async function POST(request: NextRequest) {
       data: { name: 'You', primaryEmail: email },
     })
 
-    const fill =
-      side === 'BENCH' ? seedDemoCompany
-      : side === 'CANDIDATE' ? seedDemoConsultant
-      : seedDemoClientCompany
-    seeded = await fill({
-      personId: person.id,
-      personName: person.name,
-      companyName,
-      slug,
-    })
+    if (seat) {
+      // One chain, entered from the seat they picked. Every firm is
+      // created either way — a chain with four of its five links missing
+      // is the two-party demo again.
+      seeded = await seedChain({ personId: person.id, personName: person.name, seat, slug })
+    } else {
+      seeded = await seedDemoConsultant({
+        personId: person.id,
+        personName: person.name,
+        companyName,
+        slug,
+      })
+    }
   } catch (err: any) {
     // A half-built workspace is worse than none: the visitor lands on
     // screens that are empty for the wrong reason. Clear it and say so.

@@ -424,6 +424,7 @@ export default function LandingPage() {
                     party in it, not a tool for one of them. */}
                 <TryDemo
                   side="HIRING"
+                  asks="BUYING"
                   label="See it as the company →"
                   className="rounded-lg bg-white px-6 py-3.5 text-sm font-semibold
                              text-etyme-navy shadow-lg shadow-white/10 transition-colors
@@ -431,6 +432,7 @@ export default function LandingPage() {
                 />
                 <TryDemo
                   side="BENCH"
+                  asks="SUPPLYING"
                   label="See it as the supplier →"
                   className="rounded-lg border border-white/20 px-6 py-3.5 text-sm
                              font-semibold text-white/85 transition-colors
