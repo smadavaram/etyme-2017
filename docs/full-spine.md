@@ -131,10 +131,14 @@ the same company.
 
 **Step 18 · CloudEPA invoices Computer Systems $4,400, and is paid.**
 
-**Step 19 · And here the chain stops, one hop short of Adobe.**
+**Step 19 · The same week reaches Adobe, at Adobe's rate.** Computer
+Systems invoices $5,400 — forty hours at **$135**, not at CloudEPA's
+$110 — drawn down against the purchase order that authorised it, and
+Adobe pays. The hours were never copied: one timesheet, two invoice
+lines, one per leg.
 
-**Step 20 · What each firm made.** CloudEPA $1,000 on the week. Computer
-Systems nothing yet, which is honest rather than optimistic.
+**Step 20 · What each firm made.** CloudEPA $1,000 on the week, Computer
+Systems the same $1,000, and neither can see the other's.
 
 ---
 
@@ -201,6 +205,78 @@ payroll reserve, profitability and **recording a payment** all returned
 
 ---
 
+## The one it found and fixed afterwards — the chain reaching the client
+
+The first version of this walk stopped at Step 18. CloudEPA was paid,
+CloudEPA invoiced Computer Systems, and there the money stopped: Computer
+Systems had nothing to invoice Adobe from, and $259,200 of purchase order
+sat undrawn against work that had been done and signed off.
+
+The stated fix at the time was to move the timesheet onto `Engagement`.
+That was wrong, and the reason is worth writing down: **an `Engagement`
+hangs off a `MasterAgreement`, which has one vendor and one client.** It
+is per firm-pair, exactly as a sell contract is. Moving the hours there
+would have left them on CloudEPA's engagement with Computer Systems' still
+empty — the same problem one table across.
+
+### What the ladder was missing
+
+The chain was walkable one rung and then stopped:
+
+```
+SellContract  --ContractLink-->  BuyContract      ✓ in the schema
+BuyContract   --???-->           SellContract     ✗ nothing
+```
+
+`BuyContract.vendorCompanyId` names the firm we buy from. It does not name
+the contract, and two people from the same sub-vendor on two roles are two
+sell contracts — guessing between them by person and date is the kind of
+join that is right in testing and wrong in March.
+
+**`BuyContract.supplierSellContractId`** is that edge, nullable for exactly
+the reason `purchaseOrderId` is: null means the person is our own employee
+and there is no rung below. With it the ladder reads from any rung:
+
+```
+CS.sell(→Adobe) → CS.buy(CloudEPA) → CloudEPA.sell(→CS) → CloudEPA.buy(Priya, W2)
+                                                          ▲
+                                            the hours are filed here, once
+```
+
+`src/lib/work-chain.ts` does the walking and is pure. It descends and never
+ascends — a firm learns which contracts sit below it, because that is where
+its hours are; it learns nothing about what sits above, because that is
+somebody else's margin.
+
+### And one billing per leg, rather than one ever
+
+`InvoiceLine.timesheetId` was `@unique` — *one timesheet, one line, ever*.
+Right between two parties, and wrong the moment a prime stands between the
+client and the employer: one week of somebody's life is then legitimately
+billed twice, by different firms at different rates. That is not a
+duplicate; it is two commercial facts about one physical fact.
+
+It is now `@@unique([timesheetId, sellContractId])`. The guard worth
+keeping — the same week billed twice on the same contract — is exactly
+what that says, and the walk asserts a second run of the invoice job
+refuses.
+
+### What still holds
+
+**The hours are still one row.** Nothing is copied, nothing is filed twice,
+and a correction still has one place to land. What repeats per hop is the
+*billing*, which is the thing that genuinely differs per hop.
+
+### What this did not do
+
+Nothing writes a `PASS_THROUGH` assertion. The ledger has had the role from
+the start and the prime in the middle has nowhere to record "I accept these
+forty hours at my rate" — it bills on the end client's approval instead,
+which is commercially right but leaves that leg unstated. A prime pressing
+approve today gets a correct refusal with a slightly wrong reason. Adding a
+third signature means a third state to a two-column machine, and it is
+better done deliberately than folded into this.
+
 ## What the walk found and did not fix
 
 ### The award lands on a copy of the requisition, not on the requisition
@@ -229,26 +305,6 @@ The fix crosses two domains and the schema, so it is reported rather than
 attempted: requirements created from an invitation should carry
 `mirroredFromId`, and forwarding should rejoin the original when the
 destination is the company the chain started at.
-
-### One timesheet can only bill one hop
-
-`Timesheet.sellContractId` is a single required foreign key. The week is
-filed against CloudEPA's sell contract, so CloudEPA pays and invoices from
-it — and Computer Systems' sell contract, the one that bills Adobe $135,
-has **no hours against it at all**.
-
-To its credit the invoice route refuses rather than raising an invoice for
-nothing. But the result is that the money chain stops one hop short of
-the client, and $259,200 of purchase order sits undrawn against work that
-was actually done.
-
-Filing the week twice would make both hops billable and create two records
-of one fact. They agree today and will not after the first correction. The
-unique constraint is on `(sellContractId, periodStart)`, so nothing
-prevents it.
-
-**The fix is to move the timesheet onto `Engagement`.** It needs a schema
-change and belongs to `etyme-architect`.
 
 ### Adobe can see CloudEPA on its compliance page
 

@@ -66,45 +66,60 @@ $1,000 margin on the week, derived from the one timesheet through
 
 ---
 
-## Step 8 — where one timesheet stops being enough
+## Step 8 — one week of hours, billed once at each hop
 
-`Timesheet.sellContractId` is a **single required foreign key**.
+`Timesheet.sellContractId` is still a single foreign key, and that is
+correct: the hours belong to the contract of the firm that actually
+employs the person, because that is where the person actually works. The
+week is filed against Contract 2's sell side, once, and nothing is ever
+copied.
 
-The week is filed against Contract 2's sell side, so CloudEPA can invoice
-and pay from it. **Contract 1's sell side — the one that bills Adobe
-$135 — has no hours at all.** Computer Futures can pay CloudEPA and
-cannot bill Adobe.
+What was missing was a way for Computer Futures to *reach* it.
 
-The obvious workaround is the dangerous one. Filing the same week again
-against Contract 1 makes both hops billable, and the walk proves nothing
-stops you: the unique constraint is `(sellContractId, periodStart)`, so a
-second row on a *different* sell contract is perfectly legal.
+```
+SellContract  --ContractLink-->  BuyContract      ✓ in the schema
+BuyContract   --???-->           SellContract     ✗ nothing
+```
 
-Two records of one fact. They agree today. They will not after the first
-correction — somebody amends one, the other keeps the old number, and
-the gap appears at invoice-versus-bill weeks later with nobody able to
-say which is right.
+`BuyContract.vendorCompanyId` names the firm we buy from. It does not
+name the contract, and two people from the same sub-vendor on two roles
+are two sell contracts.
 
-**So the model handles a one-hop chain completely and a two-hop chain
-only up to the second invoice.**
+**`BuyContract.supplierSellContractId`** is that edge — null when the
+person is our own employee, which is where the ladder ends, the same
+reason `purchaseOrderId` is nullable. The walk asserts both: Contract
+1's buy side points at Contract 2's sell side, and Contract 2's buy side
+points at nobody.
 
-### What fixes it
+`src/lib/work-chain.ts` walks it, and descends only. A firm learns which
+contracts sit below it, because that is where its hours are. It learns
+nothing about what sits above, because that is somebody else's margin.
 
-Move the timesheet off the contract and onto the work. `Engagement`
-already groups several sell contracts and is the natural owner.
+### One billing per leg, not one ever
 
-- One assignment, four firms → **one** timesheet. Each firm derives
-  through its own `ContractLink`, as payroll already does.
-- Two assignments → two timesheets, unambiguously.
-- The person files once per *place they worked*, which is how they
-  already think about it.
+`InvoiceLine.timesheetId` used to be `@unique` — *one timesheet, one
+line, ever*. Right between two parties, and wrong the moment a prime
+stands between the client and the employer: one week is then
+legitimately billed twice, by different firms at different rates. That
+is not a duplicate. It is two commercial facts about one physical fact.
 
-Contracts change constantly — a sub-vendor is swapped, a rate amended, a
-link closed. If hours hang off the contract graph, every one of those
-changes rewrites history about work already done. **Hours are a fact;
-contracts are opinions about who pays for the fact.** Keeping them apart
+It is now `@@unique([timesheetId, sellContractId])`. The guard worth
+keeping — the same week billed twice on the same contract — is exactly
+what that says.
+
+### Why the hours stay on the contract rather than moving to `Engagement`
+
+The earlier version of this document said the fix was to move the
+timesheet onto `Engagement`. It was wrong. An `Engagement` hangs off a
+`MasterAgreement`, which has one vendor and one client — it is per
+firm-pair, exactly as a sell contract is. The hours would have sat on
+CloudEPA's engagement with Computer Futures' still empty: the same
+problem, one table across.
+
+**Hours are a fact; contracts are opinions about who pays for the fact.**
+Keeping the fact in one place and letting each opinion reach it is what
 means amending a contract can never change what somebody did last
 Tuesday.
 
-That is a schema change and it is not made here. This walk exists to
-show the gap with evidence rather than describe it.
+The full five-party version of this walk, from requisition to cash, is
+in `docs/full-spine.md`.

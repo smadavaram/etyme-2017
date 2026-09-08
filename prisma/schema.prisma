@@ -80,8 +80,7 @@ model Person {
   classificationsMade  ClassificationCall[]  @relation("classificationDecider")
   reconRunsMade        ReconciliationRun[]   @relation("reconRunner")
   /// Contracts whose timesheets they were named to approve.
-  approvesContracts SellContract[] @relation("contractApprover")
-
+  approvesContracts    SellContract[]        @relation("contractApprover")
 }
 
 model Credential {
@@ -1188,15 +1187,15 @@ enum BenchTier {
 }
 
 model VisaPetition {
-  id         String         @id @default(cuid())
-  personId   String
-  person     Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
-  type       String // H1B · L1 · GC · TN · SKILLED_WORKER
-  country    String
-  status     String // FILED · RFE · APPROVED · STAMPED · ACTIVE · EXPIRING · EXPIRED
-  filedAt    DateTime?
-  approvedAt DateTime?
-  expiresAt  DateTime?
+  id              String         @id @default(cuid())
+  personId        String
+  person          Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
+  type            String // H1B · L1 · GC · TN · SKILLED_WORKER
+  country         String
+  status          String // FILED · RFE · APPROVED · STAMPED · ACTIVE · EXPIRING · EXPIRED
+  filedAt         DateTime?
+  approvedAt      DateTime?
+  expiresAt       DateTime?
   /// The area of intended employment on the approved petition.
   ///
   /// An opaque key from an MSA table, never a city string — Santa Clara
@@ -1207,12 +1206,12 @@ model VisaPetition {
   /// amended petition filed before they start (Matter of Simeio
   /// Solutions, 26 I&N Dec. 542). Null means nobody recorded it, and
   /// lib/visa-worksite blocks the move rather than guessing.
-  petitionedArea String?
+  petitionedArea  String?
   /// The site as written on the petition, for a human to check against.
   worksiteAddress String?
-  transferOk Boolean        @default(false)
-  documents  VisaDocument[]
-  events     VisaEvent[]
+  transferOk      Boolean        @default(false)
+  documents       VisaDocument[]
+  events          VisaEvent[]
 
   @@index([personId, status])
 }
@@ -2032,7 +2031,6 @@ model SellContract {
   orgUnitId       String? // the end client's department / cost centre
   orgUnit         OrgUnit? @relation(fields: [orgUnitId], references: [id])
 
-
   /// Which account or practice inside the SELLING firm this belongs to.
   ///
   /// A contract has two org sides and they belong to different companies:
@@ -2088,6 +2086,9 @@ model SellContract {
   approver         Person? @relation("contractApprover", fields: [approverPersonId], references: [id])
 
   buyLinks     ContractLink[] // linked buy contracts (for profitability)
+  /// Buy contracts, at whichever firm is above us, that this contract is
+  /// the supply side of. One hop up the ladder.
+  suppliesBuys BuyContract[]  @relation("suppliedBy")
   timesheets   Timesheet[]
   invoiceLines InvoiceLine[]
   sellCycles   Cycle[]        @relation("sellCycles")
@@ -2172,13 +2173,31 @@ enum SellContractState {
 // people on one agreement, each at their own rate and their own dates.
 // Per-candidate terms live on BuyContractCandidate.
 model BuyContract {
-  id              String       @id @default(cuid())
+  id              String   @id @default(cuid())
   companyId       String // the company paying
-  company         Company      @relation("buyer", fields: [companyId], references: [id])
+  company         Company  @relation("buyer", fields: [companyId], references: [id])
   vendorCompanyId String? // who they're buying from (null = direct employment)
-  vendorCompany   Company?     @relation("buyVendor", fields: [vendorCompanyId], references: [id])
-  entityId        String? // legal entity for payroll (Infosys India vs Infosys US)
-  entity          LegalEntity? @relation(fields: [entityId], references: [id])
+  vendorCompany   Company? @relation("buyVendor", fields: [vendorCompanyId], references: [id])
+
+  /// The supplier's own sell contract — the other side of this deal.
+  ///
+  /// `vendorCompanyId` says which firm we buy from. This says which of
+  /// their contracts, and it is the one edge that was missing from the
+  /// ladder. Without it a chain is walkable downwards only as far as our
+  /// own buy contract, and the hours — which are filed once, against the
+  /// contract of the firm that actually employs the person — are
+  /// unreachable from every hop above.
+  ///
+  /// The consequence was not subtle: a prime could pay its sub and had
+  /// nothing at all to invoice its client from, so the money chain
+  /// stopped one hop short of the person paying for the work.
+  ///
+  /// Null where there is no supplier, which is exactly when the person is
+  /// our own employee — the same reason `purchaseOrderId` is nullable.
+  supplierSellContractId String?
+  supplierSellContract   SellContract? @relation("suppliedBy", fields: [supplierSellContractId], references: [id])
+  entityId               String? // legal entity for payroll (Infosys India vs Infosys US)
+  entity                 LegalEntity?  @relation(fields: [entityId], references: [id])
 
   candidates BuyContractCandidate[]
 
@@ -2277,6 +2296,7 @@ model BuyContract {
   @@index([endDate])
   @@index([entityId])
   @@index([purchaseOrderId])
+  @@index([supplierSellContractId])
   @@index([internalOrderId])
   @@index([projectOrderId])
 }
@@ -2493,9 +2513,10 @@ model Timesheet {
   /// but new code should use the two above.
   approvedById String?
   approvedAt   DateTime?
-  // Billing is expressed by InvoiceLine, which the database constrains to one
-  // line per timesheet. The old loose invoiceId string enforced nothing.
-  invoiceLine  InvoiceLine?
+  // Billing is expressed by InvoiceLine, one per contract that bills these
+  // hours. The old loose invoiceId string enforced nothing, and the
+  // one-line-ever constraint that replaced it could not describe a chain.
+  invoiceLines InvoiceLine[]
 
   /// Every company's position on these hours. Billing and pay both
   /// derive from here rather than from the columns above, which remain
@@ -3457,7 +3478,8 @@ model InvoiceLine {
   invoiceId String
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
-  timesheetId String    @unique // one timesheet, one line, ever
+  /// One line per timesheet PER CONTRACT — see the unique at the foot.
+  timesheetId String
   timesheet   Timesheet @relation(fields: [timesheetId], references: [id])
 
   sellContractId String
@@ -3478,9 +3500,23 @@ model InvoiceLine {
   taxRateBps     Int?
   taxAmountCents Int?
 
+  /// One line per timesheet per contract.
+  ///
+  /// This was `timesheetId @unique` — "one timesheet, one line, ever" —
+  /// which is right in a two-party world and wrong the moment a prime
+  /// stands between the client and the employer. One week of somebody's
+  /// life is then legitimately billed twice: the sub bills the prime at
+  /// its rate and the prime bills the client at its own. Two invoices,
+  /// two lines, one week. That is not a duplicate, it is two different
+  /// commercial facts about the same physical fact.
+  ///
+  /// The guard worth keeping is the one against billing the same week
+  /// twice on the same contract, and that is what this says.
+  @@unique([timesheetId, sellContractId])
   @@index([invoiceId])
   @@index([sellContractId])
   @@index([personId])
+  @@index([timesheetId])
 }
 
 // An exception an AP clerk recorded against a failed match.

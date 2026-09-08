@@ -67,7 +67,7 @@ const it_ = {
   poNumber: 'PO-ADBE-88104', po: '',
   primeSell: '', primeBuy: '', subSell: '', subBuy: '',
   primeEngagement: '', subEngagement: '',
-  timesheet: '', subInvoice: '',
+  timesheet: '', subInvoice: '', primeInvoice: '',
 }
 
 const rate = (cents: number) => `$${(cents / 100).toFixed(0)}/hr`
@@ -921,36 +921,89 @@ describe('Step 18 — CloudEPA invoices Computer Systems, and is paid', () => {
   })
 })
 
-describe('Step 19 — and here the chain stops, one hop short of Adobe', () => {
-  it('gives Computer Systems no hours to bill Adobe from', async () => {
-    // The limitation the two-hop walk found, reconfirmed at full length.
-    //
-    // Timesheet.sellContractId is a single required foreign key. The
-    // week is filed against CloudEPA's sell contract, so CloudEPA can
-    // pay and invoice from it. Computer Systems' sell contract — the one
-    // that bills Adobe $135 — has no hours against it at all.
+describe('Step 19 — the same week reaches Adobe, at Adobe’s rate', () => {
+  it('still has the hours filed nowhere but on CloudEPA’s contract', async () => {
+    // Nothing was copied. One week of Priya's life, one row, exactly as
+    // before — Computer Systems' own contract has no timesheet on it and
+    // never will.
     const onPrime = await prisma.timesheet.count({ where: { sellContractId: it_.primeSell } })
     expect(onPrime).toBe(0)
+    const everywhere = await prisma.timesheet.count({ where: { personId: who.priya } })
+    expect(everywhere).toBe(1)
   })
 
-  it('refuses to invoice Adobe rather than invoicing nothing', async () => {
+  it('reaches them through the rung below, which the award wrote down', async () => {
+    // BuyContract.supplierSellContractId — the edge that makes the
+    // ladder walkable. Without it a prime can pay its sub and has
+    // nothing to invoice its client from.
+    const buy = await prisma.buyContract.findUniqueOrThrow({ where: { id: it_.primeBuy } })
+    expect(buy.supplierSellContractId).toBe(it_.subSell)
+
+    // And it ends where the person is employed, rather than going on
+    // forever.
+    const bottom = await prisma.buyContract.findUniqueOrThrow({ where: { id: it_.subBuy } })
+    expect(bottom.supplierSellContractId).toBeNull()
+  })
+
+  it('invoices Adobe $5,400 — forty hours at $135, not at CloudEPA’s $110', async () => {
+    as(PRIME)
+    const r = await json(await generateInvoice(req('POST', '/api/invoices/generate', {
+      engagementId: it_.primeEngagement, periodStart: WEEK.start, periodEnd: WEEK.end,
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    it_.primeInvoice = r.body.data.invoice?.id ?? r.body.data.invoices?.[0]?.id
+    const inv = await prisma.invoice.findUniqueOrThrow({
+      where: { id: it_.primeInvoice }, include: { invoiceLines: true },
+    })
+    expect(Number(inv.total)).toBe(5_400)
+    expect(inv.invoiceLines).toHaveLength(1)
+    expect(inv.invoiceLines[0].rateCents).toBe(13_500)
+    // Billed under Computer Systems' own contract, not the sub's.
+    expect(inv.invoiceLines[0].sellContractId).toBe(it_.primeSell)
+  })
+
+  it('is one week of hours carrying two billings, one per leg', async () => {
+    const lines = await prisma.invoiceLine.findMany({
+      where: { timesheetId: it_.timesheet }, orderBy: { rateCents: 'asc' },
+    })
+    expect(lines).toHaveLength(2)
+    expect(lines.map(l => l.rateCents)).toEqual([11_000, 13_500])
+    expect(lines.map(l => l.sellContractId)).toEqual([it_.subSell, it_.primeSell])
+  })
+
+  it('refuses to bill the same week twice on the same contract', async () => {
     as(PRIME)
     const r = await json(await generateInvoice(req('POST', '/api/invoices/generate', {
       engagementId: it_.primeEngagement, periodStart: WEEK.start, periodEnd: WEEK.end,
     })))
     expect(r.status).toBe(422)
-    const invoicesToAdobe = await prisma.invoice.count({
-      where: { engagement: { msa: { clientId: co.adobe } } },
-    })
-    expect(invoicesToAdobe).toBe(0)
+    expect(r.body.error.code).toBe('NO_TIMESHEETS')
   })
 
-  it('leaves $259,200 of purchase order undrawn against work that was actually done', async () => {
+  it('draws the invoice down against the purchase order that authorised it', async () => {
     const po = await prisma.purchaseOrder.findUniqueOrThrow({
       where: { id: it_.po }, include: { invoices: true },
     })
-    expect(po.invoices).toHaveLength(0)
-    expect(po.status).toBe('OPEN')
+    expect(po.invoices.map(i => i.id)).toEqual([it_.primeInvoice])
+  })
+
+  it('records Adobe’s money arriving', async () => {
+    as(PRIME)
+    const r = await json(await recordReceipt(req('POST', '/api/ar/payments', {
+      invoiceId: it_.primeInvoice, amount: 5_400, currency: 'USD',
+      method: 'ACH', reference: 'ADBE-AP-771204', receivedAt: '2026-11-02',
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const inv = await prisma.invoice.findUniqueOrThrow({ where: { id: it_.primeInvoice } })
+    expect(Number(inv.paid)).toBe(5_400)
+  })
+
+  it('has moved $5,400 from Adobe to $3,400 in Priya’s hands, with $1,000 kept at each hop', async () => {
+    const adobePaid = 5_400
+    const cloudepaPaid = 4_400
+    const priyaPaid = 40 * 85
+    expect(adobePaid - cloudepaPaid).toBe(1_000)
+    expect(cloudepaPaid - priyaPaid).toBe(1_000)
   })
 })
 
@@ -962,17 +1015,25 @@ describe('Step 20 — what each firm made', () => {
     expect(40 * 11_000 - 40 * 8_500).toBe(100_000)
   }, 60_000)
 
-  it('shows Computer Systems nothing yet, which is honest rather than optimistic', async () => {
-    // No hours reached their sell contract, so there is no revenue to
-    // report. The number that would be wrong here is $1,000 of margin
-    // on hours nobody billed.
+  it('shows Computer Systems the same $1,000 — $5,400 in, $4,400 out', async () => {
     as(PRIME)
     const r = await json(await profitability(req('GET', '/api/profitability?by=candidate')))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
-    const billed = await prisma.workAssertion.count({
-      where: { role: 'CLIENT_APPROVAL', timesheet: { sellContractId: it_.primeSell } },
-    })
-    expect(billed).toBe(0)
+    expect(40 * 13_500 - 40 * 11_000).toBe(100_000)
+  }, 60_000)
+
+  it('tells Computer Systems what it owes CloudEPA, which it could not see before', async () => {
+    // Payroll reads its own sell side for a W2 placement and the
+    // supplier's for a corp-to-corp one. Reaching only its own, a prime
+    // reported a supplier as owed nothing for work that had been done
+    // and signed off.
+    as(PRIME)
+    const r = await json(await payroll(req('GET', '/api/payroll')))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const row = (r.body.data.payItems ?? []).find((x: any) => x.buyContractId === it_.primeBuy)
+    expect(row, 'Computer Systems cannot see what it owes CloudEPA').toBeTruthy()
+    expect(Number(row.totalApprovedHours)).toBe(40)
+    expect(Number(row.grossPay)).toBe(40 * 11_000)
   }, 60_000)
 
   it('leaves Adobe unable to see CloudEPA anywhere in its own programme', async () => {

@@ -54,6 +54,30 @@ export async function GET(request: NextRequest) {
       },
       vendorCompany: { select: { id: true, name: true } },
       entity: { select: { id: true, name: true } },
+      // The rung below, where this firm buys from another. The hours are
+      // filed on the supplier's contract, so a corp-to-corp buy contract
+      // reaching only its own sell side finds nothing and reports a
+      // supplier as owed zero. See lib/work-chain.
+      supplierSellContract: {
+        select: {
+          id: true,
+          timesheets: {
+            where: { assertions: { some: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' } } },
+            select: {
+              id: true, personId: true, totalHours: true, acceptedHours: true,
+              periodStart: true, periodEnd: true, days: true, approvedAt: true,
+              assertions: {
+                where: { role: 'EMPLOYER_ACCEPTANCE', state: 'LIVE' },
+                select: { hours: true, rateCents: true },
+                take: 1,
+              },
+            },
+          },
+          clientCompany: { select: { id: true, name: true } },
+          engagement: { select: { id: true, title: true } },
+          billRate: true,
+        },
+      },
       sellLinks: {
         include: {
           sellContract: {
@@ -147,7 +171,32 @@ export async function GET(request: NextRequest) {
         effectiveTo: l.effectiveTo,
       }))
 
-      const linkedTimesheets = bc.sellLinks.flatMap((link) =>
+      // Our own sell side, plus the supplier's where we buy from one.
+      //
+      // Both are legitimate sources of the same week: on a W2 placement
+      // the hours sit on our own contract, and on a corp-to-corp one
+      // they sit on the supplier's, because that is the firm the person
+      // actually works for.
+      type Source = {
+        sellContractId: string
+        sellContract: (typeof bc.sellLinks)[number]['sellContract']
+      }
+      const sources: Source[] = [
+        ...bc.sellLinks.map((l) => ({
+          sellContractId: l.sellContractId,
+          sellContract: l.sellContract,
+        })),
+        ...(bc.supplierSellContract
+          ? [{
+              sellContractId: bc.supplierSellContract.id,
+              // The supplier's contract is read with the same fields this
+              // loop uses and nothing more — never their margin.
+              sellContract: bc.supplierSellContract as unknown as Source['sellContract'],
+            }]
+          : []),
+      ]
+
+      const linkedTimesheets = sources.flatMap((link) =>
         link.sellContract.timesheets
           .filter((ts) => ts.personId === cand.personId)
           .map((ts) => {

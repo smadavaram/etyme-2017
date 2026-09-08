@@ -142,7 +142,11 @@ export async function GET(request: NextRequest) {
     const sheets = await prisma.timesheet.findMany({
       where: {
         sellContract: { companyId },
-        invoiceLine: { is: null },
+        // Not billed *by us*. A line now exists per contract rather than
+        // per timesheet, because in a chain one week is legitimately
+        // billed at each hop — so "has a line" is no longer the
+        // question. "Has a line on our own contract" is.
+        invoiceLines: { none: { sellContract: { companyId } } },
         assertions: { some: { state: 'LIVE', role: 'CLIENT_APPROVAL' } },
       },
       select: {

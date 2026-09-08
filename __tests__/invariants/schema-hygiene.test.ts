@@ -38,10 +38,19 @@ describe('the invariants CLAUDE.md puts in the database', () => {
     expect(model('DoNotSubmit')).toMatch(/@@unique\(\[personId,\s*companyId\]\)/)
   })
 
-  it('bills a timesheet at most once, ever', () => {
+  it('bills a timesheet at most once on any one contract', () => {
     // Anti-double-billing lives in the column, not in a check somebody can
     // forget to call.
-    expect(model('InvoiceLine')).toMatch(/timesheetId\s+String\s+@unique/)
+    //
+    // It used to say `timesheetId @unique` — once, ever — which is right
+    // between two parties and wrong the moment a prime stands between the
+    // client and the employer. One week is then billed at each hop, by
+    // different firms at different rates, and refusing the second one
+    // stopped the money chain a hop short of the client. What must not
+    // happen is the same week billed twice on the same contract, and that
+    // is what this says.
+    expect(model('InvoiceLine')).toMatch(/@@unique\(\[timesheetId,\s*sellContractId\]\)/)
+    expect(model('InvoiceLine')).not.toMatch(/timesheetId\s+String\s+@unique/)
   })
 
   it('gives every company one address that nobody else can hold', () => {

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
   const timesheets = await prisma.timesheet.findMany({
     where: { personId },
-    include: { invoiceLine: { select: { id: true } } },
+    include: { invoiceLines: { select: { id: true } } },
     orderBy: { periodStart: 'desc' },
     take: 26,
   })
@@ -119,7 +119,9 @@ export async function GET(request: NextRequest) {
         // Billed means the client has been invoiced for it. That is the
         // question behind "when do I get paid", so it is answered rather
         // than left to be inferred from a status word.
-        billed: t.invoiceLine !== null,
+        // Any hop having billed for it. The consultant does not care
+        // which one, and in a chain there is more than one.
+        billed: t.invoiceLines.length > 0,
       })),
       sharedAboutMe: sharedAbout.map(s => ({
         by: s.company.name,
@@ -138,7 +140,7 @@ export async function GET(request: NextRequest) {
           .reduce((n, t) => n + Number(t.totalHours), 0),
         awaitingApproval: timesheets.filter(t => t.status === 'SUBMITTED').length,
         // The one that matters: approved work nobody has invoiced.
-        approvedNotBilled: timesheets.filter(t => t.status === 'APPROVED' && !t.invoiceLine).length,
+        approvedNotBilled: timesheets.filter(t => t.status === 'APPROVED' && t.invoiceLines.length === 0).length,
         endingSoon: live.filter(c => c.endDate && (c.endDate.getTime() - now.getTime()) / 86_400_000 <= 60).length,
       },
 

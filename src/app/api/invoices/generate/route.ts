@@ -9,6 +9,8 @@ import {
   type Place, type Party,
 } from '@/lib/billing-cascade'
 import { minorPerUnit } from '@/lib/money'
+import { whereHoursLive } from '@/lib/work-chain'
+import { ladderFor } from '@/lib/work-chain-read'
 
 /**
  * POST /api/invoices/generate
@@ -92,8 +94,26 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Find approved, uninvoiced timesheets under this engagement's sell contracts
-  const contractIds = engagement.sellContracts.map((sc) => sc.id)
+  // ── Which hours does each of our contracts bill? ────────────────────
+  //
+  // Not necessarily its own. Hours are filed once, against the contract
+  // of the firm that actually employs the person, and everybody above
+  // bills the same week at their own rate. A prime's own contract
+  // therefore has no timesheets on it and never will — which used to
+  // mean a prime could pay its sub and had nothing to invoice its client
+  // from, so the money chain stopped one hop short of the person paying
+  // for the work.
+  //
+  // The ladder descends from our contracts to the ones carrying the
+  // hours. On a direct placement it descends nowhere and this is the
+  // identity, which is the ordinary case and stays the ordinary case.
+  const ownIds = engagement.sellContracts.map((sc) => sc.id)
+  const rungs = await ladderFor(ownIds)
+
+  /** Where the hours are → which of our contracts bills them. */
+  const billedBy = new Map<string, string>()
+  for (const own of ownIds) billedBy.set(whereHoursLive(own, rungs), own)
+  const contractIds = [...billedBy.keys()]
 
   const timesheetWhere: any = {
     sellContractId: { in: contractIds },
@@ -105,9 +125,12 @@ export async function POST(request: NextRequest) {
     assertions: {
       some: { role: 'CLIENT_APPROVAL', state: 'LIVE' },
     },
-    // Not yet billed. Expressed as the absence of an InvoiceLine rather
-    // than a loose flag, so it cannot disagree with what was invoiced.
-    invoiceLine: null,
+    // Not yet billed *by us*. A line exists per contract rather than per
+    // timesheet, because one week in a chain is legitimately billed at
+    // each hop — the sub to the prime at its rate, the prime to the
+    // client at its own. So the question is not whether anybody has
+    // billed these hours; it is whether we have.
+    invoiceLines: { none: { sellContractId: { in: ownIds } } },
   }
 
   // Anything that *overlaps* the requested window, not only what sits
@@ -141,6 +164,33 @@ export async function POST(request: NextRequest) {
     orderBy: { periodStart: 'asc' },
   })
 
+  // Read through our own contract from here on.
+  //
+  // The hours are the sub's; the rate, the currency, the billing period
+  // and the purchase order are ours. Everything below this line groups
+  // and prices by `sellContract`, so doing the substitution once here —
+  // rather than in six places — is what keeps a prime from accidentally
+  // invoicing its client at its sub's rate.
+  const ourContract = new Map(engagement.sellContracts.map((sc) => [sc.id, sc]))
+  const billing = timesheets.map((ts) => {
+    const ours = ourContract.get(billedBy.get(ts.sellContractId) ?? ts.sellContractId)
+    if (!ours) return ts
+    return {
+      ...ts,
+      sellContractId: ours.id,
+      sellContract: {
+        id: ours.id,
+        billRate: ours.billRate,
+        billCurrency: ours.billCurrency,
+        purchaseOrderId: ours.purchaseOrderId,
+        startDate: ours.startDate,
+        billFrequency: ours.billFrequency,
+        billAnchor: ours.billAnchor,
+        billStraddle: ours.billStraddle,
+      },
+    }
+  })
+
   if (timesheets.length === 0) {
     return NextResponse.json(
       { error: { code: 'NO_TIMESHEETS', message: 'No approved uninvoiced timesheets found for this engagement and period' } },
@@ -170,7 +220,7 @@ export async function POST(request: NextRequest) {
   //
   // Which period: the one containing the date asked for, or the one
   // containing the most recent work when nobody asked.
-  const first = timesheets[0]
+  const first = billing[0]
   const terms: Terms = {
     frequency: first.sellContract.billFrequency as Terms['frequency'],
     anchor: first.sellContract.billAnchor as Terms['anchor'],
@@ -180,11 +230,11 @@ export async function POST(request: NextRequest) {
 
   const askedAbout = periodStart
     ? new Date(periodStart)
-    : timesheets.reduce((latest, t) => (t.periodEnd > latest ? t.periodEnd : latest), timesheets[0].periodEnd)
+    : billing.reduce((latest, t) => (t.periodEnd > latest ? t.periodEnd : latest), billing[0].periodEnd)
 
   const period = periodFor(askedAbout, terms)
 
-  for (const ts of timesheets) {
+  for (const ts of billing) {
     const rate = ts.sellContract.billRate // cents per hour
 
     // How much of this timesheet belongs to the period being billed.
@@ -432,18 +482,20 @@ export async function POST(request: NextRequest) {
           payerId: partners.payer.party.id,
           // Inherit the PO the work was authorised under. Without it the
           // three-way match has only two records to compare.
-          purchaseOrderId: timesheets.find(t => t.sellContract.purchaseOrderId)
+          purchaseOrderId: billing.find(t => t.sellContract.purchaseOrderId)
             ?.sellContract.purchaseOrderId ?? null,
         },
       })
 
-      // One InvoiceLine per timesheet — one receipt, one line. The JSON
-      // above stays as a display cache grouped by person; these rows are
-      // what the three-way match reads, and what the database constrains
-      // to a single billing per timesheet.
+      // One InvoiceLine per timesheet per contract. The JSON above stays
+      // as a display cache grouped by person; these rows are what the
+      // three-way match reads, and what the database constrains to a
+      // single billing per timesheet *on this contract* — a prime
+      // billing the same week its sub billed is two facts, not a
+      // duplicate.
       for (const group of lines) {
         for (const tsId of group.timesheetIds) {
-          const ts = timesheets.find((t) => t.id === tsId)
+          const ts = billing.find((t) => t.id === tsId)
           if (!ts) continue
           const hours = Number(ts.totalHours)
           const rateCents = ts.sellContract.billRate

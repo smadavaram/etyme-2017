@@ -340,7 +340,22 @@ export async function POST(
   const suppliedBy = submission.parentSubmissionId
     ? await prisma.submission.findUnique({
         where: { id: submission.parentSubmissionId },
-        select: { fromCompanyId: true, rate: true },
+        select: { id: true, fromCompanyId: true, rate: true, requirementId: true },
+      })
+    : null
+
+  // Their contract, where the hop below has already been awarded. Either
+  // order happens in practice — a client can award before its prime has
+  // settled with the sub, or after — so the edge is written from
+  // whichever end arrives second. See lib/work-chain.
+  const supplierContract = suppliedBy
+    ? await prisma.sellContract.findFirst({
+        where: {
+          companyId: suppliedBy.fromCompanyId,
+          personId: submission.personId,
+          requirementId: suppliedBy.requirementId,
+        },
+        select: { id: true },
       })
     : null
 
@@ -406,6 +421,9 @@ export async function POST(
         // nobody has agreed is not ready to pay against, and pretending
         // otherwise is how the wrong number reaches a payroll file.
         state: 'DRAFT',
+        // The rung below, so the hours this firm bills for can be found
+        // at all. Null on a W2 placement, where there is no rung below.
+        supplierSellContractId: supplierContract?.id ?? null,
         startDate: start,
         endDate: end,
       },
@@ -435,6 +453,33 @@ export async function POST(
         effectiveTo: end,
       },
     })
+
+    // The other direction. This award has just created a sell contract
+    // for a firm that somebody above may already have raised a buy
+    // contract against — the client awarded first and the prime settled
+    // with its sub afterwards, which is the ordinary order of events.
+    // The edge is completed here rather than left null, because a null
+    // there means "we employ them" and this is the case where we do not.
+    const above = await tx.submission.findMany({
+      where: { parentSubmissionId: id, status: 'PLACED' },
+      select: { fromCompanyId: true, requirementId: true },
+    })
+    for (const hop of above) {
+      const theirSell = await tx.sellContract.findFirst({
+        where: {
+          companyId: hop.fromCompanyId,
+          personId: submission.personId,
+          requirementId: hop.requirementId,
+        },
+        select: { buyLinks: { select: { buyContractId: true } } },
+      })
+      for (const link of theirSell?.buyLinks ?? []) {
+        await tx.buyContract.updateMany({
+          where: { id: link.buyContractId, supplierSellContractId: null },
+          data: { supplierSellContractId: contract.id },
+        })
+      }
+    }
 
     // Cost coding, so spend reconciles against the budget that approved it.
     if (req.costCenterId) {

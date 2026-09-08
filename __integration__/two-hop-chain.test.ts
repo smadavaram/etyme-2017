@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { GET as payroll } from '@/app/api/payroll/route'
 import { splitByLink, hoursFor } from '@/lib/contract-links'
+import { descend, whereHoursLive } from '@/lib/work-chain'
+import { ladderFor } from '@/lib/work-chain-read'
 
 /**
  * L4 — one placement, two contract pairs, walked step by step.
@@ -130,6 +132,13 @@ beforeAll(async () => {
   ids.buy1 = buy1.id
   await prisma.contractLink.create({
     data: { sellContractId: sell1.id, buyContractId: buy1.id, effectiveFrom: new Date('2026-08-01') },
+  })
+
+  // The rung below. Computer Futures buys from CloudEPA, and this says
+  // which of CloudEPA's contracts — the edge that lets the hours filed
+  // at the bottom be found from the top.
+  await prisma.buyContract.update({
+    where: { id: buy1.id }, data: { supplierSellContractId: sell2.id },
   })
 }, 240_000)
 
@@ -267,22 +276,31 @@ describe('Step 7 — CloudEPA is paid and pays', () => {
   })
 })
 
-describe('Step 8 — and here is where one timesheet stops being enough', () => {
-  it('gives Computer Futures nothing to invoice Adobe from', async () => {
-    // The finding this whole walk exists to produce.
-    //
-    // Timesheet.sellContractId is a single required foreign key. The
-    // week is filed against Contract 2's sell side, so CloudEPA can
-    // invoice and pay from it. Contract 1's sell side — the one that
-    // bills Adobe $135 — has no hours at all.
+describe('Step 8 — one week of hours, billed once at each hop', () => {
+  it('leaves the hours where they were filed, on the employer’s contract', async () => {
+    // Nothing is copied. Contract 1's sell side — the one that bills
+    // Adobe $135 — has no timesheet on it and never will.
     const onCF = await prisma.timesheet.count({ where: { sellContractId: ids.sell1 } })
     expect(onCF).toBe(0)
+    const anywhere = await prisma.timesheet.count({ where: { personId: ids.person } })
+    expect(anywhere).toBe(1)
   })
 
-  it('leaves Computer Futures able to pay CloudEPA but not to bill Adobe', async () => {
-    // Their buy side works, because payroll walks ContractLink back to a
-    // sell contract that does have hours. It walks *their own* link,
-    // which points at Contract 1's sell — and that is empty.
+  it('lets Computer Futures reach them anyway, one rung down', async () => {
+    const rungs = await ladderFor([ids.sell1])
+    expect(descend(ids.sell1, rungs)).toEqual([ids.sell1, ids.sell2])
+    expect(whereHoursLive(ids.sell1, rungs)).toBe(ids.sell2)
+  })
+
+  it('ends the ladder at the firm that employs the person, rather than going on forever', async () => {
+    const bottom = await prisma.buyContract.findUniqueOrThrow({ where: { id: ids.buy2 } })
+    expect(bottom.supplierSellContractId).toBeNull()
+
+    const rungs = await ladderFor([ids.sell2])
+    expect(descend(ids.sell2, rungs)).toEqual([ids.sell2])
+  })
+
+  it('still pays CloudEPA from its own link window', async () => {
     const links = await prisma.contractLink.findMany({ where: { buyContractId: ids.buy1 } })
     expect(links).toHaveLength(1)
     expect(links[0].sellContractId).toBe(ids.sell1)
@@ -296,37 +314,23 @@ describe('Step 8 — and here is where one timesheet stops being enough', () => 
       })),
       ts.days as Record<string, number>
     )
-    // The hours exist, on the wrong contract for this firm to see them.
     expect(owed).toBe(40)
     expect(Number(ts.totalHours)).toBe(40)
   })
 
-  it('would need a second timesheet, which is the thing that must not happen', async () => {
-    // Filing the same week again against Contract 1 makes both hops
-    // billable and creates two records of one fact. They agree today and
-    // will not after the first correction — somebody amends one, the
-    // other keeps the old number, and the gap appears at
-    // invoice-versus-bill weeks later with nobody able to say which is
+  it('never needs a second timesheet, which is the thing that must not happen', async () => {
+    // A second row for the same week was how a chain used to be made
+    // billable at both hops, and it creates two records of one fact.
+    // They agree today and will not after the first correction —
+    // somebody amends one, the other keeps the old number, and the gap
+    // surfaces at invoice-versus-bill with nobody able to say which is
     // right.
     //
-    // Nothing in the schema prevents it. The unique constraint is on
-    // (sellContractId, periodStart), so a second row on a *different*
-    // sell contract is perfectly legal.
-    const dup = await prisma.timesheet.create({
-      data: {
-        sellContractId: ids.sell1, personId: ids.person,
-        periodStart: new Date('2026-09-07'), periodEnd: new Date('2026-09-11'),
-        days: { '2026-09-07': 8, '2026-09-08': 8, '2026-09-09': 8, '2026-09-10': 8, '2026-09-11': 8 },
-        totalHours: 40, status: 'APPROVED',
-      },
-    })
-    expect(dup.id).toBeTruthy()
-
+    // The billing, not the hours, is what repeats per hop now: one
+    // InvoiceLine per timesheet per contract.
     const forOneWeek = await prisma.timesheet.count({
       where: { personId: ids.person, periodStart: new Date('2026-09-07') },
     })
-    expect(forOneWeek).toBe(2)
-
-    await prisma.timesheet.delete({ where: { id: dup.id } })
+    expect(forOneWeek).toBe(1)
   })
 })
