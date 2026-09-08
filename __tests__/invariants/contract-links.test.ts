@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { splitByLink, hoursFor, theLinkFor, covers, type Link } from '@/lib/contract-links'
+import { splitByLink, hoursFor, theLinkFor, covers, fractionFor, type Link } from '@/lib/contract-links'
 
 /**
  * ContractLink carries effectiveFrom and effectiveTo. Award, convert and
@@ -134,5 +134,45 @@ describe('where a caller genuinely needs one link, it refuses to guess', () => {
 
   it('returns nothing when no link covers the period', () => {
     expect(theLinkFor([link('a', '2026-01-01', '2026-08-01')], d('2026-09-07'), d('2026-09-11'))).toBeNull()
+  })
+})
+
+describe('an employer acceptance is apportioned, not recomputed', () => {
+  it('gives a contract its share of what the employer actually stood behind', () => {
+    // The employer accepted 36 of the 40 hours submitted. That 36 still
+    // has to be divided when the week spans two contracts, and the only
+    // defensible divider is the day breakdown the person filed.
+    const links = [
+      link('buy-old', '2026-01-01', '2026-09-08'),
+      link('buy-new', '2026-09-09', null),
+    ]
+    expect(fractionFor('buy-old', links, WEEK)).toBeCloseTo(16 / 40)
+    expect(36 * fractionFor('buy-old', links, WEEK)).toBeCloseTo(14.4)
+    expect(36 * fractionFor('buy-new', links, WEEK)).toBeCloseTo(21.6)
+  })
+
+  it('adds back up to the whole acceptance, never more', () => {
+    // The failure this replaces: both contracts saw the full figure, so
+    // the three-way match vouched for twice what was owed.
+    const links = [
+      link('buy-old', '2026-01-01', '2026-09-08'),
+      link('buy-new', '2026-09-09', null),
+    ]
+    const total = 36 * fractionFor('buy-old', links, WEEK) + 36 * fractionFor('buy-new', links, WEEK)
+    expect(total).toBeCloseTo(36)
+  })
+
+  it('leaves a single-contract week exactly as it was', () => {
+    expect(fractionFor('buy', [link('buy', '2026-01-01', null)], WEEK)).toBe(1)
+  })
+
+  it('claims nothing where the contract covered none of the days', () => {
+    expect(fractionFor('buy-old', [link('buy-old', '2026-01-01', '2026-08-31')], WEEK)).toBe(0)
+  })
+
+  it('falls back to the whole figure when there is no day breakdown to divide by', () => {
+    // An older timesheet with no days map is not a reason to pay
+    // nothing.
+    expect(fractionFor('buy', [link('buy', '2026-01-01', null)], {})).toBe(1)
   })
 })

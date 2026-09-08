@@ -207,3 +207,25 @@ export function daysFor(buyContractId: string, links: Link[], days: Days): Days 
   }
   return out
 }
+
+/**
+ * The fraction of a timesheet that belongs to one buy contract.
+ *
+ * For callers holding a figure that is not the raw day total — an
+ * employer acceptance, say, where the employer stood behind 36 of the 40
+ * hours submitted. That 36 still has to be divided when the week spans
+ * two contracts, and the only defensible divider is the day breakdown
+ * the person actually filed.
+ *
+ * Returns 1 when there is no breakdown to divide by, which keeps a
+ * single-contract week exactly as it was.
+ */
+export function fractionFor(buyContractId: string, links: Link[], days: Days): number {
+  const total = Object.values(days).reduce((a, b) => a + (Number(b) || 0), 0)
+  if (total === 0) return 1
+  const mine = Object.values(daysFor(buyContractId, links, days)).reduce(
+    (a, b) => a + (Number(b) || 0),
+    0
+  )
+  return mine / total
+}

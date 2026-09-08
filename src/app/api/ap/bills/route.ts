@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { fractionFor } from '@/lib/contract-links'
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { decimalsFor } from '@/lib/money'
@@ -340,7 +341,21 @@ export async function POST(request: NextRequest) {
       },
       select: {
         hours: true, rateCents: true,
-        timesheet: { select: { periodStart: true, periodEnd: true } },
+        timesheet: {
+          select: {
+            periodStart: true, periodEnd: true,
+            // The day breakdown and the link windows, so a week spanning
+            // two buy contracts is divided rather than counted twice.
+            days: true,
+            sellContract: {
+              select: {
+                buyLinks: {
+                  select: { buyContractId: true, sellContractId: true, effectiveFrom: true, effectiveTo: true },
+                },
+              },
+            },
+          },
+        },
       },
       take: 2_000,
     })
@@ -351,7 +366,21 @@ export async function POST(request: NextRequest) {
     })
 
     if (assertions.length > 0) {
-      const hours = assertions.reduce((n, a) => n + Number(a.hours), 0)
+      // `buyLinks: { some: { buyContractId } }` matched any link that
+      // ever existed, with no regard for the window it was in force
+      // for — the same defect payroll had, and worse here, because this
+      // is the number the three-way match compares a vendor's invoice
+      // against. The system vouched for a figure that was too big and
+      // somebody approved the overbill on its word.
+      //
+      // The employer's acceptance is not the raw day total — they may
+      // have stood behind 36 of 40 — so it is apportioned by the day
+      // breakdown rather than recomputed from it.
+      const hours = assertions.reduce((n, a) => {
+        const days = (a.timesheet.days as Record<string, number>) ?? {}
+        const links = a.timesheet.sellContract?.buyLinks ?? []
+        return n + Number(a.hours) * fractionFor(buyContractId, links, days)
+      }, 0)
       accepted = {
         hours,
         contractRateCents: candidate?.payRate ?? assertions[0].rateCents,

@@ -1,6 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { theLinkFor } from '@/lib/contract-links'
+
+/**
+ * The buy contract in force on a date, or nothing.
+ *
+ * Null rather than a guess where there are none or several — an
+ * off-cycle payment posted against the wrong contract is a payment to
+ * the wrong company, and it reconciles cleanly on both sides.
+ */
+function pickBuy<T extends { buyContractId?: string; sellContractId?: string; effectiveFrom: Date; effectiveTo: Date | null; buyContract: any }>(
+  links: T[],
+  on: Date
+): any | null {
+  const chosen = theLinkFor(
+    links.map((l) => ({
+      buyContractId: l.buyContract?.id ?? l.buyContractId ?? '',
+      sellContractId: l.sellContractId ?? '',
+      effectiveFrom: l.effectiveFrom,
+      effectiveTo: l.effectiveTo,
+    })),
+    on,
+    on
+  )
+  if (!chosen) return null
+  return links.find((l) => (l.buyContract?.id ?? l.buyContractId) === chosen.buyContractId)?.buyContract ?? null
+}
 import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { checkOffCycle, carryLedger, OFF_CYCLE_LABEL, type CarryPeriod } from '@/lib/pay-model'
@@ -65,7 +91,10 @@ export async function GET(request: NextRequest) {
       id: true, billRate: true, billCurrency: true, personId: true,
       person: { select: { name: true } },
       buyLinks: {
+        // effectiveFrom/To, so the pick below is not "whatever Postgres
+        // returned first".
         select: {
+          buyContractId: true, sellContractId: true, effectiveFrom: true, effectiveTo: true,
           buyContract: {
             select: { id: true, payModel: true, shareBps: true, payCurrency: true },
           },
@@ -80,7 +109,11 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const buy = sell.buyLinks[0]?.buyContract ?? null
+  // `buyLinks[0]` was the first link in whatever order Postgres
+  // returned. A consultant who changed sub-vendor has two, and which
+  // one carries a share of the bill is not a coin toss.
+  const asOf = new Date()
+  const buy = pickBuy(sell.buyLinks, asOf)
   if (!buy || buy.payModel !== 'SHARE_OF_BILL_LESS_COSTS') {
     return NextResponse.json({
       data: {
@@ -195,7 +228,12 @@ export async function POST(request: NextRequest) {
     where: { id: sellContractId, companyId },
     select: {
       id: true, billCurrency: true, clientCompanyId: true, endClientCompanyId: true,
-      buyLinks: { select: { buyContract: { select: { id: true, payCurrency: true } } } },
+      buyLinks: {
+        select: {
+          sellContractId: true, buyContractId: true, effectiveFrom: true, effectiveTo: true,
+          buyContract: { select: { id: true, payCurrency: true } },
+        },
+      },
     },
   })
   if (!sell) {
@@ -238,7 +276,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const buy = sell.buyLinks[0]?.buyContract ?? null
+  const buy = pickBuy(sell.buyLinks, payOn)
   const amountCents = Math.round(Number(body.amountCents))
 
   // Deterministic, so a retried request does not pay somebody twice. The
