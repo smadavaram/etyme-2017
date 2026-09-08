@@ -79,6 +79,9 @@ model Person {
   classificationsAbout ClassificationCall[]  @relation("classificationSubject")
   classificationsMade  ClassificationCall[]  @relation("classificationDecider")
   reconRunsMade        ReconciliationRun[]   @relation("reconRunner")
+  /// Contracts whose timesheets they were named to approve.
+  approvesContracts SellContract[] @relation("contractApprover")
+
 }
 
 model Credential {
@@ -1129,6 +1132,29 @@ model BenchListing {
   tier         BenchTier
   rateMin      Int?
   rateMax      Int?
+  /// INVITED · GRANTED · DECLINED
+  ///
+  /// The invariant CLAUDE.md states most firmly is that a submission
+  /// needs a listing *granted by the consultant*, and until now nothing
+  /// carried the grant: grantedAt defaulted to now() the moment a vendor
+  /// created the row, so every listing was born consented and nobody was
+  /// ever asked.
+  ///
+  /// 2017 had the missing half — job_invitations#accept_bench and
+  /// #reject_bench, where a vendor invited and the record moved on the
+  /// candidate's answer.
+  ///
+  /// Defaults to GRANTED so every existing row keeps the meaning it was
+  /// written with. New invitations start at INVITED and only a
+  /// consultant moves them.
+  state        String            @default("GRANTED")
+  /// When the vendor asked. Null on a listing that predates asking.
+  invitedAt    DateTime?
+  /// When the consultant answered, either way.
+  respondedAt  DateTime?
+  /// Their reason for declining, in their own words. Never shown to
+  /// other vendors.
+  declinedNote String?
   grantedAt    DateTime          @default(now()) // by the consultant, not the company
   revokedAt    DateTime?
 
@@ -1153,6 +1179,7 @@ model BenchListing {
 
   @@unique([consultantId, companyId])
   @@index([companyId, revokedAt])
+  @@index([consultantId, state])
 }
 
 enum BenchTier {
@@ -1170,6 +1197,19 @@ model VisaPetition {
   filedAt    DateTime?
   approvedAt DateTime?
   expiresAt  DateTime?
+  /// The area of intended employment on the approved petition.
+  ///
+  /// An opaque key from an MSA table, never a city string — Santa Clara
+  /// and San Jose are one area, Kansas City KS and MO are also one, and
+  /// no comparison of words gets either right.
+  ///
+  /// Moving somebody outside it is a material change requiring an
+  /// amended petition filed before they start (Matter of Simeio
+  /// Solutions, 26 I&N Dec. 542). Null means nobody recorded it, and
+  /// lib/visa-worksite blocks the move rather than guessing.
+  petitionedArea String?
+  /// The site as written on the petition, for a human to check against.
+  worksiteAddress String?
   transferOk Boolean        @default(false)
   documents  VisaDocument[]
   events     VisaEvent[]
@@ -1342,6 +1382,20 @@ model Requirement {
   /// cheapest thing to check and the most expensive to discover in week
   /// two of an assignment.
   workAuthRequired String?
+  /// Why this role may restrict who holds it.
+  ///
+  /// EXPORT_CONTROL · FEDERAL_CONTRACT_CLAUSE · SECURITY_CLEARANCE ·
+  /// STATUTE_OR_REGULATION · SPONSORSHIP_UNAVAILABLE
+  ///
+  /// Null means nobody recorded one, and then the restriction warns
+  /// rather than blocks. Restricting by citizenship status with no
+  /// lawful reason is discrimination under INA §274B, and the product
+  /// used to do it automatically off a phrase in an advert. See
+  /// lib/work-authorisation.
+  workAuthBasis    String?
+  /// The clause, regulation or contract relied on. What makes the basis
+  /// checkable by somebody other than whoever typed it.
+  workAuthCite     String?
   justification    String?
 
   // Approval is separate from status: a requisition can be APPROVED and still
@@ -2023,6 +2077,16 @@ model SellContract {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
+  /// Somebody named to approve this contract's timesheets without
+  /// company-wide timesheets.approve.
+  ///
+  /// A delivery manager hands one project to a team lead, and the lead
+  /// signs off that project's hours and nothing else. Rolled back once
+  /// when the column shipped ahead of its migration and took the demo
+  /// down; the Team Lead role has been waiting for it since.
+  approverPersonId String?
+  approver         Person? @relation("contractApprover", fields: [approverPersonId], references: [id])
+
   buyLinks     ContractLink[] // linked buy contracts (for profitability)
   timesheets   Timesheet[]
   invoiceLines InvoiceLine[]
@@ -2073,6 +2137,7 @@ model SellContract {
   @@index([personId])
   @@index([endDate])
   @@index([hiringManagerId])
+  @@index([approverPersonId])
   @@index([orgUnitId])
   @@index([requirementId])
   @@index([engagementId])
@@ -4819,4 +4884,71 @@ model ReconciliationRun {
   @@index([companyId, runAt])
   @@index([againstCompanyId])
   @@index([runById])
+}
+
+/// A bought contact, kept outside everything else so it can be deleted.
+///
+/// Not a Person and deliberately not one. Scaffolding: it brings traffic
+/// and gives a vendor with a thin bench somebody to put forward, and at
+/// a thousand vendors — roughly two years — all of it goes, table
+/// included. See docs/decision-sourced-contacts.md and
+/// lib/sourcing-exit.
+///
+/// Three reasons it is not in Person. The source has no unique index on
+/// email and carries about 15% duplicates, which in Person is the tenure
+/// ledger counting one worker twice. The unpaginated reads across the
+/// product stay small only because Person is small. And a purchased
+/// record has consented to nothing, so keeping the populations apart
+/// makes that structural — a sourced contact cannot be submitted
+/// because it has no listing to grant.
+///
+/// A row leaves here at one moment only: when the person answers and
+/// grants a listing to a named vendor. Nothing in the core points back,
+/// and __tests__/invariants/sourcing-is-removable.test.ts fails on the
+/// commit that breaks that.
+model SourcedContact {
+  id        String   @id @default(cuid())
+  /// Lowercased. Not unique — the source is full of duplicates and
+  /// pretending otherwise would drop rows on import rather than surface
+  /// the problem.
+  email     String
+  name      String?
+  /// Free text, as it arrived. Normalising on import loses what was
+  /// actually said about somebody.
+  skills    String[]
+  location  String?
+  /// Cents per hour where the source stated one.
+  rateCents Int?
+  /// Which file and sheet this came from. The provenance the first
+  /// message has to disclose — a firm that cannot say where it got
+  /// somebody's details should not be writing to them.
+  source    String
+
+  /// Whether the source shows them contracting, rather than merely
+  /// existing. False means they are not approachable at all.
+  wasConsultant Boolean @default(false)
+
+  /// When anybody on the platform approached them. One approach per
+  /// person across every vendor, not one per vendor.
+  approachedAt    DateTime?
+  /// The vendor holding that one approach, while they hold it.
+  ///
+  /// A plain id with no relation, deliberately. A foreign key would put
+  /// a back-relation on Company, and then deleting this table in two
+  /// years is a migration against a core model rather than a drop.
+  /// sourcing-is-removable.test caught exactly that on the commit that
+  /// introduced it, which is what it was written for.
+  heldByCompanyId String?
+  /// Set when they ask to be left alone. Binds every vendor here.
+  optedOutAt      DateTime?
+
+  /// Set when they answered and became a real Person. The row stays as
+  /// the record of where they came from, and stops being approachable.
+  graduatedPersonId String?
+
+  importedAt DateTime @default(now())
+
+  @@index([email])
+  @@index([optedOutAt, approachedAt])
+  @@index([heldByCompanyId])
 }

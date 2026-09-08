@@ -33,6 +33,8 @@ function pkg(over: Partial<Package> = {}): Package {
     startDate: new Date('2026-09-01'),
     workAuth: 'US_CITIZEN',
     workAuthRequired: null,
+  workAuthBasis: null,
+  workAuthCite: null,
     consented: true,
     ...over,
   }
@@ -143,8 +145,43 @@ describe('the permit', () => {
     )
     expect(f.verdict).toBe('WARN')
     expect(f.verdict).not.toBe('FAIL')
-    expect(f.reason).toMatch(/does not rule them out/i)
-    expect(f.reason).toMatch(/Record one before turning anybody away/i)
+    expect(f.reason).toMatch(/no lawful reason is recorded/i)
+    expect(f.reason).toMatch(/Record a reason before turning anybody away/i)
+  })
+
+  it('now blocks where a lawful reason IS recorded, which it could never do before', () => {
+    // Requirement.workAuthBasis exists as of this commit, so the rules
+    // written against it can finally reach BLOCK. Until the column
+    // landed, a genuine clearance requirement could only warn — safe in
+    // the right direction, and wrong.
+    const f = find(
+      ruleChecks(
+        pkg({
+          workAuthRequired: 'US_CITIZEN',
+          workAuth: 'H1B',
+          workAuthBasis: 'SECURITY_CLEARANCE',
+          workAuthCite: 'DoD Secret',
+        }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('FAIL')
+    expect(f.reason).toContain('DoD Secret')
+  })
+
+  it('still refuses a citizens-only restriction that cites export control', () => {
+    // Export control's "US person" includes lawful permanent residents,
+    // so the role is narrower than its own stated reason.
+    const f = find(
+      ruleChecks(
+        pkg({ workAuthRequired: 'US_CITIZEN', workAuth: 'GC', workAuthBasis: 'EXPORT_CONTROL' }),
+        NOW
+      ),
+      'WORK_AUTH'
+    )
+    expect(f.verdict).toBe('WARN')
+    expect(f.reason).toMatch(/narrower than the reason given/i)
   })
 
   it('warns and says to ask when nothing is recorded, rather than dropping them unasked', () => {

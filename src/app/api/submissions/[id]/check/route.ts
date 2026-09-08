@@ -125,6 +125,11 @@ export async function POST(
     startDate: submission.requirement.startDate,
     workAuth: profile?.workAuth ?? null,
     workAuthRequired: null,
+    // Not read here yet. The requirement carries the basis; this route
+    // does not load it, and passing null keeps the rule at WARN rather
+    // than inventing a lawful reason it was never given.
+    workAuthBasis: null,
+    workAuthCite: null,
     consented: hold?.consentedAt != null,
   }
 

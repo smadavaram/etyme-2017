@@ -50,6 +50,7 @@
  */
 
 import type { Finding, Step } from '@/lib/loop'
+import { authDecision, type LawfulBasis, type WorkAuth } from '@/lib/work-authorisation'
 
 export type Code =
   /** The rate we are asking is inside what the role will pay. */
@@ -93,6 +94,9 @@ export interface Package {
   startDate: Date | null
   workAuth: string | null
   workAuthRequired: string | null
+  /** Why the role may restrict. Null means nobody recorded one. */
+  workAuthBasis: string | null
+  workAuthCite: string | null
   /** Whether the person said yes to this specific submission. */
   consented: boolean
 }
@@ -223,18 +227,23 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
   // legally grounded, WARN and capture a reason everywhere else.
   //
   // The recruiter still sees it. They see the person too.
-  if (
-    p.workAuthRequired &&
-    p.workAuth &&
-    p.workAuthRequired.toUpperCase() !== p.workAuth.toUpperCase()
-  ) {
+  if (p.workAuthRequired && p.workAuth) {
+    // The basis column exists now, so the rules that were written
+    // against it can finally reach BLOCK. Until it did, a genuine
+    // clearance requirement could only warn.
+    const d = authDecision(
+      {
+        requires: [p.workAuthRequired.toUpperCase() as WorkAuth],
+        basis: (p.workAuthBasis ?? null) as LawfulBasis | null,
+        cite: p.workAuthCite,
+      },
+      p.workAuth.toUpperCase() as WorkAuth
+    )
     out.push({
       code: 'WORK_AUTH',
       checker: 'RULE',
-      verdict: 'WARN',
-      reason:
-        `The role names ${p.workAuthRequired}; they are ${p.workAuth}. No lawful reason for the ` +
-        `restriction is recorded, so this does not rule them out. Record one before turning anybody away.`,
+      verdict: d.verdict === 'BLOCK' ? 'FAIL' : d.verdict === 'WARN' ? 'WARN' : 'PASS',
+      reason: d.reason,
       evidence: `${p.workAuth} ≠ ${p.workAuthRequired}`,
     })
   } else if (p.workAuthRequired && !p.workAuth) {

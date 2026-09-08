@@ -8,6 +8,7 @@ import { clientOf, maySubmit, askFor, takeHold } from '@/lib/holds'
 import { missingNote } from '@/lib/resumes'
 import { tellThem } from '@/lib/representation'
 import { consentText, mayMessage } from '@/lib/texts'
+import { mayMarket, type State } from '@/lib/bench-consent'
 import { send as sendMessage } from '@/lib/messages'
 
 /**
@@ -229,6 +230,22 @@ export async function POST(request: NextRequest) {
       if (!listing) {
         item.status = 'error'
         item.error = 'No active bench listing from this company. The consultant must grant a listing first.'
+        results.push(item)
+        continue
+      }
+
+      // And has the consultant actually agreed to it.
+      //
+      // The listing existing was never the point. `grantedAt` used to be
+      // stamped the moment a vendor created the row, so this check
+      // passed on a listing nobody had ever been asked about — which
+      // made CLAUDE.md's firmest invariant true in letter and empty in
+      // substance. A listing now starts INVITED and only the consultant
+      // moves it.
+      const consented = mayMarket({ state: listing.state as State, revokedAt: listing.revokedAt })
+      if (!consented.ok) {
+        item.status = 'error'
+        item.error = consented.reason
         results.push(item)
         continue
       }
