@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useMemo, useState } from 'react'
 import { DataTable, type Column } from '@/components/data-table'
 import { compact, amount } from '@/lib/money-display'
@@ -603,8 +605,7 @@ function CreditNotes() {
   useEffect(() => {
     fetch('/api/ar/credit-notes')
       .then(async (r) => {
-        const b = await r.json()
-        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        const b = await readJson(r)
         setData(b.data)
       })
       .catch((e) => setFailed(e.message))
@@ -757,8 +758,7 @@ function OrphanReceipts({ book }: { book: any }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentId, invoiceId: invoice.id }),
       })
-      const b = await res.json()
-      if (!res.ok) throw new Error(b.error?.message ?? `HTTP ${res.status}`)
+      const b = await readJson(res)
       setSaid(b.data.note)
       setOpenId(null)
       setInvoiceNumber('')
@@ -942,8 +942,7 @@ function Reminders({ book }: { book: any }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(clientCompanyId ? { clientCompanyId } : {}),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setResult(body.data.note)
     } catch (e: any) {
       setFailed(e.message)
@@ -1089,8 +1088,7 @@ function Collections() {
   useEffect(() => {
     fetch('/api/ar/collections')
       .then(async (r) => {
-        const b = await r.json()
-        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        const b = await readJson(r)
         setData(b.data)
       })
       .catch((e) => setFailed(e.message))
@@ -1111,8 +1109,7 @@ function Collections() {
           ...extra,
         }),
       })
-      const b = await res.json()
-      if (!res.ok) throw new Error(b.error?.message ?? `HTTP ${res.status}`)
+      const b = await readJson(res)
       setSaid(b.data.note)
     } catch (e: any) {
       setFailed(e.message)

@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback, useMemo } from 'react'
 
 /**
@@ -121,8 +123,7 @@ export default function GovernancePage() {
     setLoading(true); setError(null)
     try {
       const res = await fetch(`/api/governance/horizon?days=${days}`)
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error?.message ?? 'Could not load the horizon')
+      const json = await readJson(res)
       setData(json.data)
     } catch (e: any) {
       setError(e.message)

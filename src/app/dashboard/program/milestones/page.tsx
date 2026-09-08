@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 
@@ -92,8 +94,7 @@ export default function MilestonesPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/program/milestones')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setData(body.data)
       setError(null)
     } catch (e: any) {
@@ -118,8 +119,7 @@ export default function MilestonesPage() {
       headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
     })
-    const parsed = await res.json()
-    if (!res.ok) throw new Error(parsed.error?.message ?? 'That did not work')
+    const parsed = await readJson(res)
     return parsed.data
   }
 

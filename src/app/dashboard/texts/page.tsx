@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState } from 'react'
 
 /**
@@ -59,8 +61,7 @@ export default function TextsPage() {
   useEffect(() => {
     fetch('/api/texts')
       .then(async (r) => {
-        const body = await r.json()
-        if (!r.ok) throw new Error(body.error?.message ?? `HTTP ${r.status}`)
+        const body = await readJson(r)
         setF(body.data)
       })
       .catch((e) => setError(e.message))

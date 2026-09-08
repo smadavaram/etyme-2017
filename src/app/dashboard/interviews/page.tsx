@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -57,8 +59,7 @@ export default function InterviewsPage() {
     setLoading(true)
     try {
       const res = await fetch('/api/interviews')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setRows(body.data.interviews)
       setSummary(body.data.summary)
       setError(null)
@@ -80,8 +81,7 @@ export default function InterviewsPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setDeciding(null)
       setFeedback('')
       load()

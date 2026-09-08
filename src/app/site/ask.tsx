@@ -75,7 +75,11 @@ export function Ask({ source = 'HOME_PAGE' }: { source?: 'HOME_PAGE' | 'GENERATE
           filledInMs: Date.now() - shownAt.current,
         }),
       })
-      const json = await res.json()
+      // A safe parse rather than readJson: this branch needs the
+      // error object itself (the sender sees their own words back), and readJson throws an
+      // Error, which would lose it. An empty body must still
+      // not produce a parser error on screen.
+      const json = await res.json().catch(() => ({}) as any)
       if (!res.ok) {
         setState('idle')
         setSays(json?.error?.message ?? 'That did not send. Try again, or write to us directly.')

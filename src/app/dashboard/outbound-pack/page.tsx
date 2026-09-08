@@ -113,7 +113,11 @@ export default function OutboundPackPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ packKey, recipientEmail: email }),
       })
-      const body = await res.json()
+      // A safe parse rather than readJson: this branch needs the
+      // error object itself (branches on error.code), and readJson throws an
+      // Error, which would lose it. An empty body must still
+      // not produce a parser error on screen.
+      const body = await res.json().catch(() => ({}) as any)
       if (!res.ok) {
         if (body.error?.code === 'NOT_SENDABLE') setRefusal(body.error)
         else setError(body.error?.message ?? `HTTP ${res.status}`)

@@ -107,7 +107,10 @@ function AddConsultantModal({ onClose, onCreated }: { onClose: () => void; onCre
       })
 
       if (!res.ok) {
-        const body = await res.json()
+        // Parsed inside the failure branch, so an empty body threw
+        // from the error handler itself and the message below never
+        // ran.
+        const body = await res.json().catch(() => ({}) as any)
         setError(body.error?.message ?? 'Failed to create consultant')
         // The API says which field it refused. Showing it beside the
         // field beats a banner the eye has already skipped.

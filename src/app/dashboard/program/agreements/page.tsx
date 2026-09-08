@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { DataTable, type Column } from '@/components/data-table'
@@ -88,8 +90,7 @@ export default function AgreementsPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/program/agreements')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setData(body.data)
       setError(null)
     } catch (e: any) {
@@ -444,8 +445,7 @@ function Terms({
           signedAt: signed.trim() === '' ? null : signed,
         }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? 'Could not save')
+      const body = await readJson(res)
       onChanged(body.data.says)
     } catch (e: any) {
       onFailed(e.message)
@@ -605,8 +605,7 @@ function Sow({
           sowSignedAt: signed.trim() === '' ? null : signed,
         }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? 'Could not save')
+      const body = await readJson(res)
       onDone(body.data.says)
     } catch (e: any) {
       onFailed(e.message)
@@ -668,8 +667,7 @@ function NewEngagement({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ msaId, title, statementOfWork: scope || null }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? 'Could not create')
+      const body = await readJson(res)
       onDone(body.data.says)
     } catch (e: any) {
       onFailed(e.message)

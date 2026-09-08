@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { EtymeLogo } from '@/components/logo'
@@ -64,8 +66,7 @@ export default function AnswerPage() {
     setToken(t)
     try {
       const res = await fetch(`/api/answer/${t}`)
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setD(body.data)
     } catch (e: any) {
       setError(e.message)
@@ -90,8 +91,7 @@ export default function AnswerPage() {
           mayRepresent,
         }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setSent({ says: body.data.says, takeAccount: body.data.takeAccount })
       setCv(''); setName(''); setEmail(''); setRate(''); setWorkAuth(''); setMayRepresent(false)
       setOpen(null)

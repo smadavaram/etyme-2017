@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { compact as money } from '@/lib/money-display'
@@ -177,8 +179,7 @@ function DistributePanel({ reqId, billMax, invited, onSent }: {
           })),
         }),
       })
-      const j = await res.json()
-      if (!res.ok) throw new Error(j.error?.message ?? 'Could not send')
+      const j = await readJson(res)
       setPicked({})
       onSent()
     } catch (e: any) { setError(e.message) } finally { setBusy(false) }
@@ -244,8 +245,7 @@ export default function RequisitionDetail() {
     setLoading(true); setError(null)
     try {
       const res = await fetch(`/api/requisitions/${id}`)
-      const j = await res.json()
-      if (!res.ok) throw new Error(j.error?.message ?? 'Could not load')
+      const j = await readJson(res)
       setData(j.data)
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }
   }, [id])
@@ -261,8 +261,15 @@ export default function RequisitionDetail() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, reason }),
     })
-    const j = await res.json()
-    if (!res.ok) { alert(j.error?.message ?? 'Could not record that'); return }
+    let j: any
+    try {
+      j = await readJson(res)
+    } catch (e: any) {
+      // The server's own words where it sent any, and a sentence
+      // rather than a parser error where it sent nothing.
+      alert(e.message)
+      return
+    }
     await load()
   }
 
@@ -279,7 +286,11 @@ export default function RequisitionDetail() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rate: cents }),
     })
-    const j = await res.json()
+    // A safe parse rather than readJson: this branch needs the
+    // error object itself (lists the failed checks), and readJson throws an
+    // Error, which would lose it. An empty body must still
+    // not produce a parser error on screen.
+    const j = await res.json().catch(() => ({}) as any)
     if (!res.ok) {
       const checks = (j.error?.checks ?? []).map((x: any) => `· ${x.reason}`).join('\n')
       alert(`${j.error?.message ?? 'Could not place them'}${checks ? '\n\n' + checks : ''}`)

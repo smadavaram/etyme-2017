@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -231,8 +233,7 @@ function RaiseModal({ onClose, onRaised }: {
           costCenterId: form.costCenterId || null,
         }),
       })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error?.message ?? 'Could not raise the requisition')
+      const json = await readJson(res)
       onRaised(json.data.decision)
       onClose()
     } catch (e: any) {
@@ -355,8 +356,7 @@ export default function RequisitionsPage() {
     setError(null)
     try {
       const res = await fetch('/api/requisitions')
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error?.message ?? 'Could not load requisitions')
+      const json = await readJson(res)
       setReqs(json.data.requisitions)
       setSummary(json.data.summary)
     } catch (e: any) {
@@ -378,8 +378,15 @@ export default function RequisitionsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, reason }),
     })
-    const json = await res.json()
-    if (!res.ok) { alert(json.error?.message ?? 'Could not record your decision'); return }
+    let json: any
+    try {
+      json = await readJson(res)
+    } catch (e: any) {
+      // The server's own words where it sent any, and a sentence
+      // rather than a parser error where it sent nothing.
+      alert(e.message)
+      return
+    }
     await load()
   }
 

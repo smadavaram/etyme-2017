@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -73,8 +75,7 @@ export default function PacketsPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/packets')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setPackets(body.data.packets)
       setAvailable(body.data.available)
       setCounts({
@@ -112,8 +113,7 @@ export default function PacketsPage() {
           ...(spec?.subject === 'COMPANY' ? { subjectCompanyId } : {}),
         }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setFlash(body.data.message)
       if (body.data.link) setLink(body.data.link)
       if (body.data.created) {

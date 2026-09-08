@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -49,8 +51,7 @@ export default function PacketPage({ params }: { params: { token: string } }) {
   const load = useCallback(async () => {
     try {
       const res = await fetch(`/api/packet/${token}`)
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? 'This link is not valid.')
+      const body = await readJson(res)
       setPacket(body.data)
       setError(null)
     } catch (e: any) {
@@ -76,8 +77,7 @@ export default function PacketPage({ params }: { params: { token: string } }) {
           fileName: file.name,
         }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? 'Could not send that')
+      const body = await readJson(res)
       setFlash(body.data.message)
       await load()
     } catch (e: any) {

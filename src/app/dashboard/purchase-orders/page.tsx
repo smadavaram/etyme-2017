@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -77,8 +79,7 @@ export default function PurchaseOrdersPage() {
     setError(null)
     try {
       const res = await fetch('/api/purchase-orders')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setPos(body.data.purchaseOrders)
       setCanRaise(body.data.canRaise)
       setNeedsAttention(body.data.needsAttention)
@@ -110,8 +111,7 @@ export default function PurchaseOrdersPage() {
           endDate: endDate || null,
         }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setFlash(body.data.message)
       setNumber(''); setSupplierId(''); setAmount(''); setEndDate(''); setAdding(false)
       load()

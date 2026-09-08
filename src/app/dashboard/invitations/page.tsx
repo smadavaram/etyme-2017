@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import { compact as money } from '@/lib/money-display'
 
@@ -145,8 +147,7 @@ function AnswerBox({ inv, onSent }: { inv: Invitation; onSent: () => void }) {
           mayRepresent,
         }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setSent(body.data.says)
       setCv(''); setName(''); setEmail(''); setRate(''); setWorkAuth(''); setMayRepresent(false)
       onSent()
@@ -451,8 +452,7 @@ export default function InvitationsPage() {
     setError(null)
     try {
       const res = await fetch('/api/invitations')
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error?.message ?? 'Could not load invitations')
+      const json = await readJson(res)
       setInvitations(json.data.invitations)
       setSummary(json.data.summary)
     } catch (e: any) {
@@ -470,8 +470,7 @@ export default function InvitationsPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, reason }),
     })
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.error?.message ?? 'Could not send your answer')
+    const json = await readJson(res)
     await load()
   }
 

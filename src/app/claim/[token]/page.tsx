@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -42,8 +44,7 @@ export default function ClaimPage() {
     if (!token) return
     try {
       const res = await fetch(`/api/claim/${token}`)
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setClaim(body.data)
     } catch (err: any) {
       setError(err.message)
@@ -59,8 +60,7 @@ export default function ClaimPage() {
     setError(null)
     try {
       const res = await fetch(`/api/claim/${token}`, { method: 'POST' })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       router.push(body.data.landing)
     } catch (err: any) {
       setError(err.message)

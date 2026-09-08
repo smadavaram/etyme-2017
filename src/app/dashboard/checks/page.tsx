@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -53,8 +55,7 @@ export default function ChecksPage() {
     setLoading(true)
     try {
       const res = await fetch('/api/checks/queue')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setQ(body.data)
       setAt(0)
       setError(null)
@@ -102,8 +103,7 @@ export default function ChecksPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ same }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       load()
     } catch (err: any) {
       setError(err.message)
@@ -122,8 +122,7 @@ export default function ChecksPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ agreed, note: agreed ? null : note }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
 
       setNote('')
       setDisagreeing(false)

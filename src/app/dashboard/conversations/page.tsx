@@ -150,7 +150,10 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
       })
 
       if (!res.ok) {
-        const body = await res.json()
+        // Parsed inside the failure branch, so an empty body threw
+        // from the error handler itself and the message below never
+        // ran.
+        const body = await res.json().catch(() => ({}) as any)
         setError(body.error?.message ?? 'Failed to create conversation')
         return
       }

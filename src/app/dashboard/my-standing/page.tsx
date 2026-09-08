@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -51,8 +53,7 @@ export default function MyStandingPage() {
     setLoading(true)
     try {
       const res = await fetch('/api/me/scorecard')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setCards(body.data.clients)
       setSummary(body.data.summary)
       setError(null)

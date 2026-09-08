@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
@@ -491,8 +493,7 @@ function SendOnModal({
           rate: onwardCents,
         }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       onSent(
         body.data?.message ??
           `${submission.person.name} sent on to ${body.data?.to ?? 'them'}.`
@@ -1192,8 +1193,7 @@ export default function SubmissionsPage() {
                   ...(payRate ? { payRate: Math.round(payRate * 100) } : {}),
                 }),
               })
-              const body = await res.json()
-              if (!res.ok) throw new Error(body.error?.message ?? 'Conversion failed')
+              const body = await readJson(res)
 
               setToast({ message: body.data?.message ?? 'Contract created', type: 'success' })
               setTimeout(() => setToast(null), 3500)

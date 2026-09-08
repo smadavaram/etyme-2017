@@ -159,9 +159,25 @@ for (const p of PERSONAS) {
 // all five arrived as the same company-less user and got the
 // consultant's four links.
 const distinct = new Set(seen.values())
+const first = [...seen.values()][0] ?? ''
+const count = first === '' ? 0 : first.split('|').length
+
+if (seen.size > 1 && count === 0) {
+  // No links at all is not "every persona sees the same thing" — it is
+  // the sidebar rendering nothing, which means the page under it did not
+  // come up. Usually a stale dev server holding the port, so the run
+  // never reached the code it was meant to check.
+  console.error(
+    `\nNo persona saw any navigation at all.\n` +
+    `The shell did not render — check the server is the one you just started ` +
+    `(a stale process holding the port will answer happily and serve old code).\n`
+  )
+  process.exit(2)
+}
+
 if (seen.size > 1 && distinct.size === 1) {
   console.error(
-    `\nEvery persona saw the same ${[...seen.values()][0].split('|').length} destinations.\n` +
+    `\nEvery persona saw the same ${count} destinations.\n` +
     `That is a broken harness, not a passing app — check DEV_BYPASS_AUTH is unset.\n`
   )
   process.exit(2)

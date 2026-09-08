@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useState, useEffect, useCallback } from 'react'
 
 /**
@@ -59,8 +61,7 @@ export default function SuppliersPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/suppliers')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setSuppliers(body.data.suppliers)
       setListSummary(body.data.summary)
 
@@ -86,8 +87,7 @@ export default function SuppliersPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ text }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setRows(body.data.rows)
       setReadSummary(body.data.summary)
       setSkipped(body.data.skipped)
@@ -108,8 +108,7 @@ export default function SuppliersPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ rows }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setDone(body.data.summary)
       setRows(null)
       setText('')
@@ -130,8 +129,7 @@ export default function SuppliersPage() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ keepId, foldId }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setDone(body.data.says)
       load()
     } catch (err: any) {

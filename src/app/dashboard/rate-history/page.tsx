@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { amount as formatRate, compact } from '@/lib/money-display'
 import { DataTable, type Column } from '@/components/data-table'
@@ -248,8 +250,15 @@ export default function RateHistoryPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, reason }),
     })
-    const j = await res.json()
-    if (!res.ok) { alert(j.error?.message ?? 'Could not record that'); return }
+    let j: any
+    try {
+      j = await readJson(res)
+    } catch (e: any) {
+      // The server's own words where it sent any, and a sentence
+      // rather than a parser error where it sent nothing.
+      alert(e.message)
+      return
+    }
     // Say what the decision just unblocked — an approval that quietly makes
     // three held invoices payable is worth stating.
     alert(j.data.message)

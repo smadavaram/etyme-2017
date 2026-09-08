@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState } from 'react'
 
 /**
@@ -30,8 +32,7 @@ export default function LooseEndsPage() {
   useEffect(() => {
     fetch('/api/loose-ends')
       .then(async (r) => {
-        const b = await r.json()
-        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        const b = await readJson(r)
         setData(b.data)
       })
       .catch((e) => setError(e.message))

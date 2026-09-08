@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState } from 'react'
 import { compact } from '@/lib/money-display'
 import Link from 'next/link'
@@ -225,8 +227,7 @@ export default function ProgramPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ months: 3 }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? 'Extension failed')
+      const body = await readJson(res)
       setToast({ message: body.data.message, type: 'success' })
       loadData()
     } catch (err: any) {
@@ -238,8 +239,7 @@ export default function ProgramPage() {
   async function handleRolloff(contractId: string) {
     try {
       const res = await fetch(`/api/contracts/${contractId}/rolloff`, { method: 'POST' })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? 'Rolloff failed')
+      const body = await readJson(res)
       setToast({ message: body.data.message, type: 'success' })
       loadData()
     } catch (err: any) {

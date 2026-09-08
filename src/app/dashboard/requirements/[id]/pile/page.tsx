@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
@@ -79,8 +81,7 @@ export default function PilePage() {
     setLoading(true)
     try {
       const res = await fetch(`/api/requirements/${id}/screen`)
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setPile(body.data)
       setError(null)
     } catch (err: any) {
@@ -98,8 +99,7 @@ export default function PilePage() {
     setError(null)
     try {
       const res = await fetch(`/api/requirements/${id}/screen`, { method: 'POST' })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setPile((prev) => ({ ...(prev ?? {}), ...body.data }))
     } catch (err: any) {
       setError(err.message)

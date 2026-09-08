@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DataTable, type Column } from '@/components/data-table'
 import { compact, amount } from '@/lib/money-display'
@@ -537,8 +539,7 @@ function Exceptions() {
   useEffect(() => {
     fetch('/api/ap/bills')
       .then(async (r) => {
-        const b = await r.json()
-        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        const b = await readJson(r)
         setData(b.data)
       })
       .catch((e) => setFailed(e.message))
@@ -647,8 +648,7 @@ function PaymentRuns({ currency }: { currency: string }) {
       const r = await fetch(
         `/api/ap/payment-runs?currency=${encodeURIComponent(currency)}&scheduledFor=${payOn}`
       )
-      const b = await r.json()
-      if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+      const b = await readJson(r)
       setData(b.data)
     } catch (e: any) {
       setFailed(e.message)
@@ -668,8 +668,7 @@ function PaymentRuns({ currency }: { currency: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currency, scheduledFor: payOn }),
       })
-      const b = await r.json()
-      if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+      const b = await readJson(r)
       setSaid(b.data.note)
       await load()
     } catch (e: any) {
@@ -688,8 +687,7 @@ function PaymentRuns({ currency }: { currency: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action }),
       })
-      const b = await r.json()
-      if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+      const b = await readJson(r)
       setSaid(b.data.note)
       await load()
     } catch (e: any) {

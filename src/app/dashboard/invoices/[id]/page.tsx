@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { amount } from '@/lib/money-display'
@@ -130,8 +132,7 @@ export default function InvoiceDetail() {
     setLoading(true); setError(null)
     try {
       const res = await fetch(`/api/invoices/${id}`)
-      const j = await res.json()
-      if (!res.ok) throw new Error(j.error?.message ?? 'Could not load')
+      const j = await readJson(res)
       setData(j.data)
     } catch (e: any) { setError(e.message) } finally { setLoading(false) }
   }, [id])
@@ -147,8 +148,15 @@ export default function InvoiceDetail() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, reason }),
     })
-    const j = await res.json()
-    if (!res.ok) { alert(j.error?.message ?? 'Could not record that'); return }
+    let j: any
+    try {
+      j = await readJson(res)
+    } catch (e: any) {
+      // The server's own words where it sent any, and a sentence
+      // rather than a parser error where it sent nothing.
+      alert(e.message)
+      return
+    }
     await load()
   }
 
@@ -163,7 +171,11 @@ export default function InvoiceDetail() {
     const res = await fetch(`/api/invoices/${id}/submit`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
     })
-    const j = await res.json()
+    // A safe parse rather than readJson: this branch needs the
+    // error object itself (lists the failed checks), and readJson throws an
+    // Error, which would lose it. An empty body must still
+    // not produce a parser error on screen.
+    const j = await res.json().catch(() => ({}) as any)
     if (!res.ok) {
       const cs = (j.error?.checks ?? []).map((c: any) => `· ${c.reason}`).join('\n')
       alert(`${j.error?.message ?? 'Could not submit'}${cs ? '\n\n' + cs : ''}`)

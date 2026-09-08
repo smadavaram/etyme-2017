@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -51,8 +53,7 @@ export default function IdentityPage() {
     setLoading(true)
     try {
       const res = await fetch('/api/identity')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setMatches(body.data.matches)
       setSummary(body.data.summary)
       setError(null)
@@ -79,8 +80,7 @@ export default function IdentityPage() {
           note: same ? undefined : note,
         }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setDone(body.data.says)
       setNote('')
       setDismissing(null)

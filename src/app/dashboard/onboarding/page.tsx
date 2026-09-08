@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState } from 'react'
 
 /**
@@ -29,8 +31,7 @@ export default function OnboardingPage() {
     setLoading(true)
     try {
       const res = await fetch('/api/onboarding/readiness')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setData(body.data)
       setError(null)
     } catch (e: any) {

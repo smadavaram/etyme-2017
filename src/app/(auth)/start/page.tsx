@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState } from 'react'
 
 /**
@@ -38,8 +40,7 @@ export default function StartPage() {
   useEffect(() => {
     fetch('/api/onboarding')
       .then(async r => {
-        const j = await r.json()
-        if (!r.ok) throw new Error(j.error?.message ?? 'Could not check your account')
+        const j = await readJson(r)
         setState(j.data)
         if (j.data.suggestedName) setName(j.data.suggestedName)
       })
@@ -55,8 +56,7 @@ export default function StartPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, name }),
       })
-      const j = await res.json()
-      if (!res.ok) throw new Error(j.error?.message ?? 'Could not finish setting up')
+      const j = await readJson(res)
       setDone(j.data)
     } catch (e: any) { setError(e.message) } finally { setBusy(false) }
   }

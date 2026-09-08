@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -175,8 +177,7 @@ export default function ScorecardsPage() {
     setLoading(true)
     try {
       const res = await fetch('/api/vendors/scorecards')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setCards(body.data.suppliers)
       setSummary(body.data.summary)
       setOrderedBy(body.data.orderedBy)
@@ -195,8 +196,7 @@ export default function ScorecardsPage() {
   const loadRisk = useCallback(async () => {
     try {
       const res = await fetch('/api/vendors/risk')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setList(body.data.watchlist)
       setRiskNote(body.data.note ?? null)
       setRiskError(null)
@@ -208,8 +208,7 @@ export default function ScorecardsPage() {
   const loadShape = useCallback(async () => {
     try {
       const res = await fetch('/api/vendors/concentration')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setReport(body.data.report)
       setShapeGaps(body.data.gaps ?? [])
       setShapeError(null)

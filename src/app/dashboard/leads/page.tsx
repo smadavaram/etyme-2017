@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -84,8 +86,7 @@ function PasteBox({ onRead }: { onRead: (summary: string) => void }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ text }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setText('')
       onRead(body.data.summary)
     } catch (err: any) {
@@ -144,8 +145,7 @@ function Seat({ seat, onWrittenUp }: { seat: Opening; onWrittenUp: (note: string
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({}),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       onWrittenUp(body.data.note)
       router.push(`/dashboard/requirements?id=${body.data.requirement.id}`)
     } catch (err: any) {
@@ -285,8 +285,7 @@ export default function LeadsPage() {
     setLoading(true)
     try {
       const res = await fetch('/api/openings')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setSeats(body.data.openings)
       setError(null)
     } catch (err: any) {

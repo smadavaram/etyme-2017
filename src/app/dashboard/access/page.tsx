@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -111,8 +113,7 @@ function CanTheySee({ people }: { people: Person[] }) {
     setAsking(true)
     try {
       const res = await fetch(`/api/why/${parsed.type}/${parsed.id}?person=${personId}`)
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setAnswer(body.data)
     } catch (e: any) {
       setErr(e.message)
@@ -237,8 +238,15 @@ export default function AccessPage() {
         reason: form.reason,
       }),
     })
-    const j = await res.json()
-    if (!res.ok) { alert(j.error?.message ?? 'Could not grant that'); return }
+    let j: any
+    try {
+      j = await readJson(res)
+    } catch (e: any) {
+      // The server's own words where it sent any, and a sentence
+      // rather than a parser error where it sent nothing.
+      alert(e.message)
+      return
+    }
     const notes = j.data.notes?.length ? '\n\n' + j.data.notes.join('\n') : ''
     alert(j.data.message + notes)
     setGranting(null); setForm({ roleId: '', days: '', reason: '' })

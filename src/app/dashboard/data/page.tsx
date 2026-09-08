@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -94,8 +96,7 @@ export default function DataPage() {
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/imports/sheets')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setSheets(body.data.sheets)
       setNote(body.data.note)
     } catch (e: any) {

@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState } from 'react'
 
 /**
@@ -33,8 +35,7 @@ export default function ReplyPage({ params }: { params: { token: string } }) {
   useEffect(() => {
     fetch(`/api/reply/${token}`)
       .then(async (res) => {
-        const body = await res.json()
-        if (!res.ok) throw new Error(body.error?.message ?? 'This link is not valid.')
+        const body = await readJson(res)
         setAsk(body.data)
       })
       .catch((e: any) => setError(e.message))
@@ -44,8 +45,7 @@ export default function ReplyPage({ params }: { params: { token: string } }) {
     setBusy(true)
     try {
       const res = await fetch(`/api/reply/${token}`, { method: 'POST' })
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? 'That did not go through.')
+      const body = await readJson(res)
       setDone(body.data.said)
     } catch (e: any) {
       setError(e.message)

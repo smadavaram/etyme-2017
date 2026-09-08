@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -68,8 +70,7 @@ export default function PeoplePage() {
     setLoading(true)
     try {
       const res = await fetch('/api/people')
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setRows(body.data.people)
       setSummary(body.data.summary)
       setError(null)

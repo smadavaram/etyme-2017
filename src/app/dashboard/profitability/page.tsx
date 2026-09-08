@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 
 /**
@@ -48,8 +50,7 @@ export default function ProfitabilityPage() {
     setLoading(true)
     try {
       const res = await fetch(`/api/profitability?by=${by}`)
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setData(body.data)
       setError(null)
     } catch (e: any) {
@@ -346,8 +347,7 @@ function CloseOrder({ row, onDone }: { row: any; onDone: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectOrderId: row.orderId, ...body }),
       })
-      const b = await res.json()
-      if (!res.ok) throw new Error(b.error?.message ?? `HTTP ${res.status}`)
+      const b = await readJson(res)
       return b.data
     } catch (e: any) {
       setFailed(e.message)

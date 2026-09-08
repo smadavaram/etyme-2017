@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import { range } from '@/lib/money-display'
 import { useParams } from 'next/navigation'
@@ -209,10 +211,7 @@ export default function RequirementDetailPage() {
         }),
       })
 
-      const body = await res.json()
-      if (!res.ok) {
-        throw new Error(body.error?.message ?? 'Submission failed')
-      }
+      const body = await readJson(res)
 
       const results = body.data?.results ?? []
       const succeeded = results.filter((r: any) => r.status === 'created').length
@@ -244,10 +243,7 @@ export default function RequirementDetailPage() {
         body: JSON.stringify({ limit: 20, forceRefresh }),
       })
 
-      const body = await res.json()
-      if (!res.ok) {
-        throw new Error(body.error?.message ?? 'Match engine failed')
-      }
+      const body = await readJson(res)
 
       setMatchResult(body.data?.message ?? `${body.data?.matchCount ?? 0} matches found`)
       // Refresh match data
@@ -745,10 +741,7 @@ function DistributeModal({
         }),
       })
 
-      const body = await res.json()
-      if (!res.ok) {
-        throw new Error(body.error?.message ?? 'Distribution failed')
-      }
+      const body = await readJson(res)
 
       onSuccess(body.data?.message ?? `Distributed to ${body.data?.distributed} vendor(s)`)
     } catch (err: any) {

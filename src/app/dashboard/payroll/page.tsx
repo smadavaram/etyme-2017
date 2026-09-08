@@ -1,5 +1,7 @@
 'use client'
 
+import { readJson } from '@/lib/read-response'
+
 import { useEffect, useState, useCallback } from 'react'
 import { compact as formatRate } from '@/lib/money-display'
 import { DataTable, type Column } from '@/components/data-table'
@@ -129,8 +131,7 @@ function CarryCell({ sellContractId }: { sellContractId: string | null }) {
     setState('loading')
     try {
       const res = await fetch(`/api/payroll/off-cycle?sellContractId=${sellContractId}`)
-      const body = await res.json()
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`)
+      const body = await readJson(res)
       setCents(body.data?.carriedCents ?? body.data?.outstandingCents ?? 0)
       setSays(body.data?.says ?? null)
       setState('done')
@@ -656,8 +657,7 @@ function BenchReserves() {
   useEffect(() => {
     fetch('/api/payroll/reserve')
       .then(async (r) => {
-        const b = await r.json()
-        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        const b = await readJson(r)
         setData(b.data)
       })
       .catch((e) => setFailed(e.message))
@@ -744,8 +744,7 @@ function Statutory() {
   useEffect(() => {
     fetch(`/api/payroll/statutory?year=${year}`)
       .then(async (r) => {
-        const b = await r.json()
-        if (!r.ok) throw new Error(b.error?.message ?? `HTTP ${r.status}`)
+        const b = await readJson(r)
         setData(b.data)
       })
       .catch((e) => setFailed(e.message))
