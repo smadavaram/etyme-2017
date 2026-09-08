@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { invitation } from '@/lib/bench-consent'
+import { inviteUrl, inviteText } from '@/lib/bench-invite'
+import { send } from '@/lib/messages'
 import { getCallerContext } from '@/lib/api-context'
 import {
   hasPermission,
@@ -326,12 +329,17 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // 4. Create BenchListing — pending until the consultant grants it.
-      //    grantedAt is set to epoch-zero as a sentinel; the grant endpoint
-      //    sets the real timestamp. revokedAt is NOT set because the listing
-      //    is in a "pending" state (not yet granted, not yet revoked).
-      //    A pending listing has grantedAt in the past but is conceptually
-      //    waiting for the consultant to confirm.
+      // 4. Create the BenchListing as an invitation.
+      //
+      // The comment here used to describe an epoch-zero sentinel marking
+      // a listing "pending until the consultant grants it". No such
+      // sentinel was ever written: grantedAt was not set at all, so it
+      // defaulted to now() and every listing was born granted. The
+      // intent was recorded twice — here and in the other create path's
+      // automation log — and built neither time.
+      //
+      // BenchListing.state carries it now. INVITED, and only the
+      // consultant moves it.
       const listing = await tx.benchListing.create({
         data: {
           consultantId: profile.id,
@@ -339,6 +347,7 @@ export async function POST(request: NextRequest) {
           tier: tier as 'RETAINED' | 'MARKETING',
           rateMin: rateMin != null ? parseInt(String(rateMin), 10) : null,
           rateMax: rateMax != null ? parseInt(String(rateMax), 10) : null,
+          ...invitation(new Date()),
         },
       })
 
@@ -371,6 +380,30 @@ export async function POST(request: NextRequest) {
       return { person, profile, listing }
     })
 
+    // Ask them, in the vendor's name.
+    //
+    // Outside the transaction: a slow mail provider must not roll back a
+    // consultant who was correctly created. The invitation is recorded
+    // either way and can be resent.
+    const url = inviteUrl(result.listing.id)
+    if (url && result.person.primaryEmail) {
+      const msg = inviteText({
+        personName: result.person.name,
+        vendorName: caller.company!.name,
+        url,
+      })
+      void send({
+        companyId,
+        personId: result.person.id,
+        kind: 'LINK',
+        to: result.person.primaryEmail,
+        subject: msg.subject,
+        body: msg.body,
+        aboutType: 'LISTING',
+        aboutId: result.listing.id,
+      })
+    }
+
     return NextResponse.json(
       {
         data: {
@@ -394,7 +427,7 @@ export async function POST(request: NextRequest) {
             tier: result.listing.tier,
             rateMin: result.listing.rateMin,
             rateMax: result.listing.rateMax,
-            status: 'PENDING_GRANT',
+            status: result.listing.state,
           },
           message: `Consultant "${result.person.name}" created. Bench listing is pending consultant grant.`,
         },

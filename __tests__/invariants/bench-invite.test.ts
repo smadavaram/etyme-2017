@@ -117,3 +117,57 @@ describe('what the invitation says', () => {
     expect(msg.subject).not.toMatch(/Etyme/i)
   })
 })
+
+// ── every path that creates a listing has to ask ──────────────────────
+
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+describe('no route creates a bench listing without asking', () => {
+  /**
+   * There were two create paths and only one of them asked.
+   *
+   * `bench/listings` was wired to invite; `consultants` created a
+   * listing as a side effect of adding somebody and left it granted —
+   * with a comment describing an epoch-zero sentinel marking it
+   * "pending until the consultant grants it" that was never written, and
+   * a response saying `status: 'PENDING_GRANT'` that was not true
+   * either. The intent was recorded twice and built neither time.
+   *
+   * Found by clicking through production rather than by any test, which
+   * is why this one exists: a third create path is a matter of time, and
+   * it will be added by somebody who has never read this file.
+   */
+  const ROOT = process.cwd()
+  const CREATORS = [
+    'src/app/api/bench/listings/route.ts',
+    'src/app/api/consultants/route.ts',
+  ]
+
+  it('finds the routes it is meant to be checking', () => {
+    for (const f of CREATORS) {
+      expect(readFileSync(join(ROOT, f), 'utf8')).toContain('benchListing.create')
+    }
+  })
+
+  it('every route that creates one marks it as an invitation', () => {
+    const offenders = CREATORS.filter((f) => {
+      const src = readFileSync(join(ROOT, f), 'utf8')
+      return src.includes('benchListing.create') && !src.includes('invitation(')
+    })
+    expect(
+      offenders,
+      'these create a bench listing without inviting the consultant:\n  ' + offenders.join('\n  ')
+    ).toEqual([])
+  })
+
+  it('and sends the invitation, because an unanswerable one is a deadlock', () => {
+    // A consultant on a bench has no seat. A listing that starts INVITED
+    // with no link sent is permanently unsubmittable.
+    const offenders = CREATORS.filter((f) => {
+      const src = readFileSync(join(ROOT, f), 'utf8')
+      return src.includes('invitation(') && !src.includes('inviteUrl(')
+    })
+    expect(offenders, 'these invite without sending the link:\n  ' + offenders.join('\n  ')).toEqual([])
+  })
+})
