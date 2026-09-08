@@ -31,6 +31,8 @@ interface ConsultantOption {
 interface BenchEntry {
   id: string
   tier: 'RETAINED' | 'MARKETING'
+  /** INVITED · GRANTED · DECLINED — whether they agreed to be marketed. */
+  consent?: string
   consultantId: string
   personId: string
   name: string
@@ -460,6 +462,12 @@ export default function BenchPage() {
             availableFrom: l.consultant.availableFrom,
             visibility: l.consultant.visibility,
             grantedAt: l.grantedAt,
+            // Copied explicitly, like everything else here. The row is
+            // rebuilt field by field rather than spread, so a field the
+            // API adds is invisible until it is named on this list —
+            // which is how the contracts Approver column shipped showing
+            // a dash for every row.
+            consent: l.consent,
             companyId: l.company.id,
             companyName: l.company.name,
           })
@@ -627,9 +635,22 @@ export default function BenchPage() {
       key: 'tier',
       label: 'Tier',
       render: (row) => (
+        row.consent && row.consent !== 'GRANTED' ? (
+          // Said here rather than at the submission.
+          //
+          // The gate refuses to put somebody forward on an unanswered
+          // invitation, and without this the row looked exactly like a
+          // consented one — so the refusal arrived later, at the moment
+          // of submitting, phrased as a surprise. A recruiter should
+          // know before they build a shortlist around somebody.
+          <span className="chip chip--attention text-[9px]">
+            {row.consent === 'INVITED' ? 'Not answered yet' : 'Declined'}
+          </span>
+        ) : (
         <span className={`chip text-[9px] ${row.tier === 'RETAINED' ? 'chip--verified' : 'chip--action'}`}>
           {row.tier === 'RETAINED' ? 'Retained' : 'Marketing'}
         </span>
+        )
       ),
       sortValue: (row) => row.tier,
     },

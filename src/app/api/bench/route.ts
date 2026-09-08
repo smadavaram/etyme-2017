@@ -195,6 +195,14 @@ export async function GET(request: NextRequest) {
     const item = {
       id: l.id,
       tier: l.tier,
+      // Whether they have actually agreed to be marketed.
+      //
+      // The gate refuses a submission on an unanswered invitation, and
+      // until this was returned the bench gave a recruiter no warning —
+      // the row looked identical to a consented one and the refusal
+      // arrived later, at the submission, phrased as a surprise.
+      consent: l.state,
+      invitedAt: l.invitedAt?.toISOString() ?? null,
       rateMin: showRate ? l.rateMin : undefined,
       rateMax: showRate ? l.rateMax : undefined,
       grantedAt: l.grantedAt.toISOString(),

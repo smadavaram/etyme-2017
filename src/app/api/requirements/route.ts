@@ -146,22 +146,48 @@ export async function GET(request: NextRequest) {
  * Manual create. BUILD.md: "manual create"
  */
 export async function POST(request: NextRequest) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  // The full context rather than just an address, because this needs to
+  // know which company the caller belongs to — see below.
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const body = await request.json()
   const { companyId, title, skills, location, billMin, billMax, months, startDate, msaId, marginClass, rateVisible } = body
 
-  if (!companyId || typeof companyId !== 'string') {
+  // The caller's own company, unless they said otherwise — and they may
+  // not say otherwise.
+  //
+  // Two things were wrong here. This demanded companyId from the body
+  // and the New requirement form never sent it, so raising a
+  // requirement through the screen was impossible: 422 "companyId is
+  // required", shown to a person as those words. Every page rendered,
+  // every test passed, and the button did not work.
+  //
+  // And it was taken on trust. The check below confirms the company
+  // exists; nothing confirmed it was the caller's, so anybody signed in
+  // could raise a requirement under anybody else's name.
+  //
+  // Taking it from the session fixes both. An MSP raising one on a
+  // client's behalf is a real case and not this one — it needs a
+  // recorded relationship saying so, and inventing that silently here
+  // is how the hole got made.
+  const mine = caller.company?.id
+  if (!mine) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'companyId is required', field: 'companyId' } },
-      { status: 422 }
+      { error: { code: 'NO_COMPANY', message: 'You need to belong to a company to raise a requirement.' } },
+      { status: 403 }
+    )
+  }
+  if (companyId && companyId !== mine) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'You can only raise a requirement for your own company.',
+          field: 'companyId',
+        },
+      },
+      { status: 403 }
     )
   }
 
@@ -173,21 +199,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Verify company exists
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { id: true },
-  })
-
-  if (!company) {
-    return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Company not found' } },
-      { status: 404 }
-    )
-  }
 
   const requirement = await prisma.requirement.create({
     data: {
-      companyId,
+      companyId: mine,
       // A vendor answering somebody else's advert is not raising a
       // requisition against their own budget. Approval belongs to whoever
       // owns the demand, and on most of these roles that is not them.
