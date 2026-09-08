@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Counterparty risk')
   if (notStaff) return notStaff
 
-  if (!caller.permissions.includes('vendors.read')) {
+  if (!hasPermission(caller.permissions, 'vendors.read')) {
     return NextResponse.json(
       {
         error: {
@@ -90,7 +91,7 @@ export async function GET(request: NextRequest) {
   }
 
   const seesMoney =
-    caller.permissions.includes('margin.read') || caller.permissions.includes('pnl.read')
+    hasPermission(caller.permissions, 'margin.read') || hasPermission(caller.permissions, 'pnl.read')
 
   const companyId = caller.company!.id
   const now = new Date()

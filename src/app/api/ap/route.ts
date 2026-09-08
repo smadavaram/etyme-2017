@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -89,8 +90,8 @@ export async function GET(request: NextRequest) {
   // firm owes, and how long it holds money before paying, is the same
   // class of fact as what a placement earns.
   if (
-    !caller.permissions.includes('margin.read') &&
-    !caller.permissions.includes('pnl.read')
+    !hasPermission(caller.permissions, 'margin.read') &&
+    !hasPermission(caller.permissions, 'pnl.read')
   ) {
     return NextResponse.json(
       {

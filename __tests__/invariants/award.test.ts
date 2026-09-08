@@ -217,9 +217,9 @@ describe('Awarding a person creates both sides of the deal, not just the price',
 
   it('a person supplied by another firm is bought from that firm', () => {
     const b = buySide({
-      fromCompanyId: 'supplier',
-      awardingCompanyId: 'us',
-      submittedRateCents: 8_000,
+      awardedCompanyId: 'us',
+      suppliedByCompanyId: 'supplier',
+      suppliedRateCents: 8_000,
     })
     expect(b.vendorCompanyId).toBe('supplier')
     expect(b.contractType).toBe('C2C')
@@ -227,9 +227,9 @@ describe('Awarding a person creates both sides of the deal, not just the price',
 
   it('what the supplier asked for is what the placement costs', () => {
     const b = buySide({
-      fromCompanyId: 'supplier',
-      awardingCompanyId: 'us',
-      submittedRateCents: 8_000,
+      awardedCompanyId: 'us',
+      suppliedByCompanyId: 'supplier',
+      suppliedRateCents: 8_000,
     })
     expect(b.payRateCents).toBe(8_000)
     expect(b.rateKnown).toBe(true)
@@ -238,9 +238,9 @@ describe('Awarding a person creates both sides of the deal, not just the price',
 
   it('a rate agreed on the award beats the rate that was asked for', () => {
     const b = buySide({
-      fromCompanyId: 'supplier',
-      awardingCompanyId: 'us',
-      submittedRateCents: 8_000,
+      awardedCompanyId: 'us',
+      suppliedByCompanyId: 'supplier',
+      suppliedRateCents: 8_000,
       agreedRateCents: 7_500,
     })
     expect(b.payRateCents).toBe(7_500)
@@ -249,9 +249,9 @@ describe('Awarding a person creates both sides of the deal, not just the price',
 
   it('our own employee is not bought from a vendor', () => {
     const b = buySide({
-      fromCompanyId: 'us',
-      awardingCompanyId: 'us',
-      submittedRateCents: 8_000,
+      awardedCompanyId: 'us',
+      suppliedByCompanyId: null,
+      suppliedRateCents: 8_000,
     })
     expect(b.vendorCompanyId).toBeNull()
     expect(b.contractType).toBe('W2')
@@ -259,19 +259,33 @@ describe('Awarding a person creates both sides of the deal, not just the price',
 
   it('nothing in a submission says what we pay our own employee', () => {
     const b = buySide({
-      fromCompanyId: 'us',
-      awardingCompanyId: 'us',
-      submittedRateCents: 8_000,
+      awardedCompanyId: 'us',
+      suppliedByCompanyId: null,
+      suppliedRateCents: 8_000,
     })
     expect(b.rateKnown).toBe(false)
     expect(b.payRateCents).toBe(0)
   })
 
+  it('never records a firm as buying a person from itself', () => {
+    // What the old comparison produced on every single chained award:
+    // the buy contract belonged to the supplier and named the supplier
+    // as its own vendor, at the price it was charging rather than the
+    // cost it was paying. Margin came out at zero everywhere.
+    const b = buySide({
+      awardedCompanyId: 'computer-systems',
+      suppliedByCompanyId: 'computer-systems',
+      suppliedRateCents: 13_500,
+    })
+    expect(b.vendorCompanyId).toBeNull()
+    expect(b.contractType).toBe('W2')
+  })
+
   it('a missing pay rate is left visibly missing rather than guessed', () => {
     const b = buySide({
-      fromCompanyId: 'supplier',
-      awardingCompanyId: 'us',
-      submittedRateCents: null,
+      awardedCompanyId: 'us',
+      suppliedByCompanyId: 'supplier',
+      suppliedRateCents: null,
     })
     expect(b.rateKnown).toBe(false)
     expect(b.says).toBe(

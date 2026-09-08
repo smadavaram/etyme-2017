@@ -207,13 +207,39 @@ export function assessAward(f: AwardFacts): AwardDecision {
 // buy side is decided here, in one readable place, and the route builds
 // the rows from it.
 
+/**
+ * ── Whose cost is this, and who is it owed to ────────────────────────
+ *
+ * The buy contract raised on an award belongs to the firm that was just
+ * awarded, and it records what *they* pay. So the only question worth
+ * asking is who supplied the person to them.
+ *
+ * That is answered by the chain, not by the award. A submission that was
+ * forwarded carries a parent, and the parent's sender is the supplier —
+ * CloudEPA put Priya forward to Computer Systems, Computer Systems put
+ * her forward to Adobe, so when Adobe awards, Computer Systems buys from
+ * CloudEPA at what CloudEPA asked for. A submission with no parent is a
+ * firm's own person, which is a W2 employee and no purchase order.
+ *
+ * This used to be decided by comparing the supplier with the awarding
+ * company, which are never the same — the route refuses that case
+ * explicitly, one screen up. So the "our own employee" branch was
+ * unreachable, every buy contract named its owner as its own supplier,
+ * and the cost recorded was the price charged. Margin came out at zero on
+ * every chained placement, which is at least a number somebody queries;
+ * a company buying from itself is not.
+ */
 export interface BuySideFacts {
-  /** The firm supplying the person. */
-  fromCompanyId: string
-  /** The firm doing the awarding — us. */
-  awardingCompanyId: string
-  /** What the supplier asked for, in cents per hour. */
-  submittedRateCents: number | null
+  /** The firm that has just been awarded. This cost is theirs. */
+  awardedCompanyId: string
+  /**
+   * Who supplied the person to them, from the hop below. Null where
+   * nobody did, which means the person is their own.
+   */
+  suppliedByCompanyId: string | null
+  /** What that supplier asked for, in cents per hour. Their price is this
+   *  firm's cost, which is the whole arrangement. */
+  suppliedRateCents: number | null
   /** A rate somebody typed on the award itself, if they did. */
   agreedRateCents?: number | null
 }
@@ -230,21 +256,21 @@ export interface BuySide {
 }
 
 export function buySide(f: BuySideFacts): BuySide {
-  const ourOwn = f.fromCompanyId === f.awardingCompanyId
+  const ourOwn =
+    f.suppliedByCompanyId === null || f.suppliedByCompanyId === f.awardedCompanyId
 
-  // Where the submission came from another firm, what they asked for IS
-  // the cost. That is the whole arrangement, so defaulting to it is
-  // right rather than lazy. Where we employ the person ourselves,
-  // nothing in the submission tells us what we pay them.
+  // Where the person came up the chain from another firm, what that firm
+  // asked for IS the cost. Where we employ them ourselves, nothing in the
+  // chain tells us what we pay them and a guess would be worse than a gap.
   const agreed =
     typeof f.agreedRateCents === 'number' && f.agreedRateCents > 0 ? f.agreedRateCents : null
-  const fallback = !ourOwn && f.submittedRateCents && f.submittedRateCents > 0
-    ? f.submittedRateCents
+  const fallback = !ourOwn && f.suppliedRateCents && f.suppliedRateCents > 0
+    ? f.suppliedRateCents
     : null
   const rate = agreed ?? fallback
 
   return {
-    vendorCompanyId: ourOwn ? null : f.fromCompanyId,
+    vendorCompanyId: ourOwn ? null : f.suppliedByCompanyId,
     contractType: ourOwn ? 'W2' : 'C2C',
     payRateCents: rate ?? 0,
     rateKnown: rate !== null,

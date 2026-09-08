@@ -32,6 +32,8 @@
  * that absence is the deliberate act.
  */
 
+import { hasPermission } from '@/lib/permissions'
+
 // ── Looking out ───────────────────────────────────────────────────────
 
 export type OutsidePosture =
@@ -95,7 +97,7 @@ export function maySeeOutside(input: {
 
   // Anything that is not plainly ALLOWED is treated as named-only. A
   // typo in a column should narrow the door rather than open it.
-  if (input.posture !== 'ALLOWED' && !input.permissions.includes('network.read')) {
+  if (input.posture !== 'ALLOWED' && !hasPermission(input.permissions, 'network.read')) {
     return {
       ok: false,
       reason: 'Seeing people and suppliers outside your own company is kept to named people here. Your role does not include it.',

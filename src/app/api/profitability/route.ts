@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Profitability')
   if (notStaff) return notStaff
 
-  if (!caller.permissions.includes('margin.read') && !caller.permissions.includes('pnl.read')) {
+  if (!hasPermission(caller.permissions, 'margin.read') && !hasPermission(caller.permissions, 'pnl.read')) {
     return NextResponse.json(
       {
         error: {

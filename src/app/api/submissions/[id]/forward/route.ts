@@ -136,6 +136,17 @@ export async function POST(
           // then aggregated against the prime instead of the client.
           endClientCompanyId: mirrored.endClientCompanyId,
           status: 'OPEN',
+          // Nobody approves a role that arrives from a supplier — the
+          // budget was signed off wherever the demand started, not here.
+          //
+          // Left at the default of DRAFT, which is what happened, the
+          // award route's own approval gate then refused every single
+          // forwarded candidate with "Requisition is draft — nobody can
+          // be placed against it yet". So a chain could be built all the
+          // way to the client and then never closed. The manual
+          // requirement path already sets this and says why; the
+          // forwarding path is the same case and was missed.
+          approvalState: 'AUTO_APPROVED',
           source: 'NETWORK',
           mirroredFromId: mirrored.mirroredFromRequirementId,
           openingId: submission.requirement.openingId,

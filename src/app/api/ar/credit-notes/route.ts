@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
-import { hasPermission } from '@/lib/permissions'
 import { fromPrismaDecimal, decimalsFor } from '@/lib/money'
 import {
   checkCreditNote, disputesView, ageInvoice, creditsByInvoice, netOfCredits,
@@ -54,8 +54,8 @@ export async function GET(request: NextRequest) {
     )
   }
   if (
-    !caller.permissions.includes('margin.read') &&
-    !caller.permissions.includes('pnl.read')
+    !hasPermission(caller.permissions, 'margin.read') &&
+    !hasPermission(caller.permissions, 'pnl.read')
   ) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'You cannot see what has been credited away.' } },

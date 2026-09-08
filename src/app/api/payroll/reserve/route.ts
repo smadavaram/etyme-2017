@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   }
-  if (!hasPermission(caller.permissions, 'payroll.run') && !caller.permissions.includes('pnl.read')) {
+  if (!hasPermission(caller.permissions, 'payroll.run') && !hasPermission(caller.permissions, 'pnl.read')) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'Seeing what the firm holds for people needs payroll.run' } },
       { status: 403 }

@@ -334,6 +334,16 @@ export async function POST(
       select: { id: true },
     }))
 
+  // The hop below, where there is one. A submission that was forwarded
+  // to us came from somebody, and that somebody is who this firm buys
+  // from — at what they asked for.
+  const suppliedBy = submission.parentSubmissionId
+    ? await prisma.submission.findUnique({
+        where: { id: submission.parentSubmissionId },
+        select: { fromCompanyId: true, rate: true },
+      })
+    : null
+
   const result = await prisma.$transaction(async (tx) => {
     // The contract carries the demand-side coding forward. This is the
     // whole point: an invoice raised in four months matches a purchase
@@ -375,9 +385,12 @@ export async function POST(
     // another firm, what they asked for IS the cost — that is the whole
     // arrangement, and defaulting to it is right rather than lazy.
     const buy = buySide({
-      fromCompanyId: submission.fromCompanyId,
-      awardingCompanyId: payerId,
-      submittedRateCents: submission.rate,
+      awardedCompanyId: submission.fromCompanyId,
+      // Who supplied the person to them, read off the chain rather than
+      // inferred. A forwarded submission carries its parent; the parent's
+      // sender is the supplier and the parent's rate is the cost.
+      suppliedByCompanyId: suppliedBy?.fromCompanyId ?? null,
+      suppliedRateCents: suppliedBy?.rate ?? null,
       agreedRateCents: typeof body?.payRate === 'number' ? body.payRate : null,
     })
 
@@ -470,7 +483,14 @@ export async function POST(
   if (orderId) {
     await prisma.buyContract.update({
       where: { id: result.buyContract.id },
-      data: { internalOrderId: orderId },
+      // The project order, which is what orderFor opens and returns.
+      //
+      // Written to internalOrderId, which is the *client's* own coding
+      // and a different table entirely, this violated the foreign key
+      // and threw — after the transaction above had already committed.
+      // So every award through this route returned a 500 to the person
+      // who pressed the button while quietly having placed somebody.
+      data: { projectOrderId: orderId },
     })
   }
 
