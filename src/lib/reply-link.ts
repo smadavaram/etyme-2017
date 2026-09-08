@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
+import { sign, read, baseUrl as sharedBaseUrl } from '@/lib/signed-link'
 import type { Kind, Reply } from '@/lib/texts'
 
 /**
@@ -34,39 +34,21 @@ export interface ReplyToken {
   reply: Reply
 }
 
-function secret(): string {
-  const s = process.env.NEXTAUTH_SECRET
-  if (!s) throw new Error('NEXTAUTH_SECRET is required to sign reply links')
-  return s
-}
-
-function mac(body: string): string {
-  return createHmac('sha256', secret()).update(body).digest('base64url')
-}
-
+/**
+ * Signing moved to lib/signed-link, which every stranger-facing token
+ * now shares. The `REPLY` prefix is what stops one of these being
+ * posted to the endpoint that accepts a bench invitation — same secret,
+ * same person, different meaning.
+ */
 export function signReply(t: ReplyToken): string {
-  const body = Buffer.from(`${t.personId}:${t.asked}:${t.reply}`).toString('base64url')
-  return `${body}.${mac(body)}`
+  return sign('REPLY', [t.personId, t.asked, t.reply])
 }
 
 /** The token's contents, or null for anything that is not exactly ours. */
 export function readReplyToken(token: string | undefined | null): ReplyToken | null {
-  if (!token || typeof token !== 'string') return null
-  const [body, sig] = token.split('.')
-  if (!body || !sig) return null
-
-  let expected: string
-  try {
-    expected = mac(body)
-  } catch {
-    return null
-  }
-
-  const a = Buffer.from(sig)
-  const b = Buffer.from(expected)
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null
-
-  const [personId, asked, reply] = Buffer.from(body, 'base64url').toString('utf8').split(':')
+  const parts = read('REPLY', token)
+  if (!parts || parts.length < 3) return null
+  const [personId, asked, reply] = parts
   if (!personId || !asked || !reply) return null
   return { personId, asked: asked as Kind, reply: reply as Reply }
 }
@@ -79,10 +61,7 @@ export function readReplyToken(token: string | undefined | null): ReplyToken | n
  * out rather than sending somebody a broken link.
  */
 export function baseUrl(): string {
-  const explicit = process.env.NEXTAUTH_URL
-  if (explicit) return explicit.replace(/\/$/, '')
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return ''
+  return sharedBaseUrl()
 }
 
 /** The answers offered for each question, in the order they are shown. */

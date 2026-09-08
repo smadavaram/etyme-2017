@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { invitation } from '@/lib/bench-consent'
+import { inviteUrl, inviteText } from '@/lib/bench-invite'
+import { send } from '@/lib/messages'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 
@@ -72,7 +75,7 @@ export async function POST(request: NextRequest) {
       id: true,
       personId: true,
       rateFloor: true,
-      person: { select: { name: true } },
+      person: { select: { name: true, primaryEmail: true } },
     },
   })
 
@@ -126,8 +129,12 @@ export async function POST(request: NextRequest) {
             tier: tier as 'RETAINED' | 'MARKETING',
             rateMin: rateMin != null ? parseInt(String(rateMin), 10) : null,
             rateMax: rateMax != null ? parseInt(String(rateMax), 10) : null,
-            grantedAt: new Date(), // reset — will be updated on grant
+            // Asked again, not re-granted. Somebody who revoked a
+            // listing has to be asked afresh; silently restoring it
+            // would make revoking a suggestion.
+            ...invitation(new Date()),
             revokedAt: null,
+            declinedNote: null,
           },
         })
       } else {
@@ -138,6 +145,13 @@ export async function POST(request: NextRequest) {
             tier: tier as 'RETAINED' | 'MARKETING',
             rateMin: rateMin != null ? parseInt(String(rateMin), 10) : null,
             rateMax: rateMax != null ? parseInt(String(rateMax), 10) : null,
+            // INVITED, not granted.
+            //
+            // The log line below has said "Pending consultant grant"
+            // since this route was written — the intent was always
+            // right and there was no mechanism behind it. grantedAt
+            // defaulted to now() and nobody was ever asked.
+            ...invitation(new Date()),
           },
         })
       }
@@ -162,6 +176,34 @@ export async function POST(request: NextRequest) {
 
       return listing
     })
+
+    // And actually ask them.
+    //
+    // Outside the transaction on purpose: a mail provider being slow or
+    // down must not roll back a listing that was correctly created. The
+    // invitation is recorded either way and can be resent; a lost
+    // listing cannot be recovered from an email that never sent.
+    //
+    // Sent in the vendor's name. A consultant on two benches never
+    // learns that from us.
+    const url = inviteUrl(result.id)
+    if (url && consultant.person.primaryEmail) {
+      const msg = inviteText({
+        personName: consultant.person.name,
+        vendorName: caller.company!.name,
+        url,
+      })
+      void send({
+        companyId,
+        personId: consultant.personId,
+        kind: 'LINK',
+        to: consultant.person.primaryEmail,
+        subject: msg.subject,
+        body: msg.body,
+        aboutType: 'LISTING',
+        aboutId: result.id,
+      })
+    }
 
     return NextResponse.json(
       {
