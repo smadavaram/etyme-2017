@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { readiness, saysToVendor } from '@/lib/profile-readiness'
 import { getCallerContext } from '@/lib/api-context'
 import { maySeeOutside } from '@/lib/walls'
 import { emit } from '@/lib/events'
@@ -162,6 +163,21 @@ export async function GET(request: NextRequest) {
     orderBy: { grantedAt: 'desc' },
   })
 
+  const now = new Date()
+
+  // How many CVs each of them has, counted once.
+  //
+  // Readiness needs it and a per-row query would be a scan per person.
+  const resumeCounts = new Map<string, number>()
+  if (listings.length > 0) {
+    const counted = await prisma.resume.groupBy({
+      by: ['personId'],
+      where: { personId: { in: listings.map((l) => l.consultant.personId) } },
+      _count: { _all: true },
+    })
+    for (const c of counted) resumeCounts.set(c.personId, c._count._all)
+  }
+
   // Field-level filtering
   const fieldCtx: FieldContext = {
     permissions: caller.permissions,
@@ -203,6 +219,41 @@ export async function GET(request: NextRequest) {
         availableFrom: l.consultant.availableFrom?.toISOString() ?? null,
         visibility: l.consultant.visibility,
       },
+      // Whether this record is finished enough to sell.
+      //
+      // 2017 kept nine boolean columns for this and a profile was
+      // invisible until all nine were set. Derived here instead, so it
+      // cannot disagree with the record it describes and needs no
+      // migration when a step is added — and narrowed to what a client
+      // genuinely cannot decide without, because the all-or-nothing
+      // version is why benches filled with records nobody finished.
+      ready: (() => {
+        const r = readiness(
+          {
+            name: l.consultant.person.name,
+            email: l.consultant.person.primaryEmail,
+            headline: l.consultant.headline,
+            skills: l.consultant.skills,
+            location: l.consultant.location,
+            workAuth: l.consultant.workAuth,
+            rateFloorCents: l.consultant.rateFloor,
+            availableFrom: l.consultant.availableFrom,
+            resumeCount: resumeCounts.get(l.consultant.personId) ?? 0,
+            confirmedAt: l.consultant.confirmedAt,
+            ownCompanyId: l.consultant.ownCompanyId,
+          },
+          now
+        )
+        return {
+          marketable: r.marketable,
+          blocking: r.blocking,
+          weakening: r.weakening,
+          // The consultant reads their own coaching on their own page;
+          // a recruiter reads whether they can send this person.
+          says: isSubject ? r.says : saysToVendor(r, l.consultant.person.name),
+          next: r.next?.label ?? null,
+        }
+      })(),
     }
 
     const tier = l.tier as string
