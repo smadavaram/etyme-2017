@@ -187,10 +187,46 @@ export async function seedWorld(): Promise<{
       })
     }
 
-    for (const d of [{ code: 'ENG', name: 'Engineering' }, { code: 'OPS', name: 'Operations' }]) {
+    // A real shape, not two flat departments. Indirect procurement and HR
+    // sit across all of it; each team has its own money and its own lead;
+    // and R&D has two groups under it, so a rule on the parent has
+    // something to be responsible for.
+    //
+    //   Technology
+    //     Apps · Security · Infrastructure · SaaS
+    //     R&D
+    //       R&D 1 · R&D 2
+    const tree: { code: string; name: string; kind: string; parent?: string }[] = [
+      { code: 'TECH', name: 'Technology', kind: 'BU' },
+      { code: 'APPS', name: 'Apps', kind: 'DEPARTMENT', parent: 'Technology' },
+      { code: 'SEC', name: 'Security', kind: 'DEPARTMENT', parent: 'Technology' },
+      { code: 'INFRA', name: 'Infrastructure', kind: 'DEPARTMENT', parent: 'Technology' },
+      { code: 'SAAS', name: 'SaaS', kind: 'DEPARTMENT', parent: 'Technology' },
+      { code: 'RND', name: 'R&D', kind: 'DEPARTMENT', parent: 'Technology' },
+      { code: 'RND1', name: 'R&D 1', kind: 'PROJECT', parent: 'R&D' },
+      { code: 'RND2', name: 'R&D 2', kind: 'PROJECT', parent: 'R&D' },
+    ]
+    const unitByName = new Map<string, { id: string }>()
+    for (const t of tree) {
+      const existing = await db.orgUnit.findFirst({ where: { companyId: c.id, name: t.name } })
       const unit =
-        (await db.orgUnit.findFirst({ where: { companyId: c.id, name: d.name } })) ??
-        (await db.orgUnit.create({ data: { companyId: c.id, name: d.name, kind: 'DEPARTMENT' } }))
+        existing ??
+        (await db.orgUnit.create({
+          data: {
+            companyId: c.id, name: t.name, kind: t.kind,
+            parentId: t.parent ? unitByName.get(t.parent)?.id ?? null : null,
+          },
+        }))
+      unitByName.set(t.name, unit)
+    }
+
+    // Budgets on the teams that actually spend, not on the parent.
+    for (const d of [
+      { code: 'APPS', name: 'Apps' },
+      { code: 'SEC', name: 'Security' },
+      { code: 'RND1', name: 'R&D 1' },
+    ]) {
+      const unit = unitByName.get(d.name)!
 
       const code = `${d.code}-${f.slug.slice(0, 4).toUpperCase()}-4100`
       const cc =
@@ -207,8 +243,8 @@ export async function seedWorld(): Promise<{
         await db.headcountPlan.create({
           data: {
             costCenterId: cc.id, period: '2026',
-            approvedHeads: d.code === 'ENG' ? 6 : 3,
-            annualBudget: d.code === 'ENG' ? 2_400_000 : 900_000,
+            approvedHeads: d.code === 'APPS' ? 6 : 3,
+            annualBudget: d.code === 'APPS' ? 2_400_000 : 900_000,
             currency: 'USD',
           },
         })
@@ -231,6 +267,19 @@ export async function seedWorld(): Promise<{
     // routes and matches nothing else. Without one, a requisition
     // flagged for being over plan has nobody to go to and clears itself
     // — an approval chain with a hole in it.
+    // Scoped to Technology. A requisition raised in R&D 1 must reach this
+    // person through R&D and Technology, without the rule being copied
+    // onto either.
+    if (!(await db.approvalRule.findFirst({ where: { companyId: c.id, name: 'Technology — over $80k' } }))) {
+      await db.approvalRule.create({
+        data: {
+          companyId: c.id, name: 'Technology — over $80k', thresholdAmount: 80_000,
+          approverId: approver.id, rank: 1, isActive: true, authoredById: p.id,
+          orgUnitId: unitByName.get('Technology')!.id,
+        },
+      })
+    }
+
     if (!(await db.approvalRule.findFirst({ where: { companyId: c.id, name: 'Programme lead' } }))) {
       await db.approvalRule.create({
         data: {

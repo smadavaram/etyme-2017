@@ -11,6 +11,7 @@ import {
   type ApprovalRuleFacts,
 } from '@/lib/requisition-approval'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
+import { ancestry } from '@/lib/org-tree'
 
 /**
  * GET  /api/requisitions   — what this client has open, with its approval state
@@ -193,11 +194,47 @@ export async function POST(request: NextRequest) {
       : null,
   }
 
+  // ── Which team's work this is ───────────────────────────────────────
+  //
+  // Taken from the budget when nobody said. A cost centre already names
+  // the department it funds, so asking twice for something the budget
+  // knows is a question with a wrong answer available.
+  const team = orgUnitId ?? costCenter?.orgUnitId ?? null
+
+  // ── And who that makes responsible ─────────────────────────────────
+  //
+  // A rule attached to this team, or to any team above it, or to nobody
+  // in particular — which is how indirect procurement and HR sit across
+  // Apps, Security, Infrastructure, SaaS and both R&D groups at once
+  // while each of those still has its own lead.
+  //
+  // Two things were wrong here. The match was exact, so a rule on
+  // Technology never caught work raised in R&D 1 and had to be copied
+  // onto every leaf; OrgUnit has carried a parentId from the first
+  // commit and nothing walked it.
+  //
+  // And `orgUnitId ?? undefined` is not "no team". Prisma drops an
+  // undefined filter, so that branch became {} and matched EVERY rule —
+  // a requisition naming no team was sent to every team's approver.
+  // Since the form has never set one, that was the ordinary path.
+  const orgUnits = await prisma.orgUnit.findMany({
+    where: { companyId: client.id },
+    select: { id: true, parentId: true },
+  })
+  const responsible = ancestry(orgUnits, team)
+
   const ruleRows = await prisma.approvalRule.findMany({
     where: {
       companyId: client.id,
       isActive: true,
-      OR: [{ orgUnitId: null }, { orgUnitId: orgUnitId ?? undefined }],
+      OR: [
+        // Company-wide: the central functions.
+        { orgUnitId: null },
+        // This team and everyone above it. Absent when the work names no
+        // team, which leaves the company-wide rules alone rather than
+        // everybody.
+        ...(responsible.length > 0 ? [{ orgUnitId: { in: responsible } }] : []),
+      ],
     },
     include: { approver: { select: { id: true, name: true } } },
     orderBy: { rank: 'asc' },
@@ -239,7 +276,7 @@ export async function POST(request: NextRequest) {
         budgetCents: Number.isFinite(budget) && Number(budget) > 0 ? Number(budget) : null,
         hoursPerWeek: Number.isFinite(hoursPerWeek) && Number(hoursPerWeek) > 0 ? Number(hoursPerWeek) : null,
         costCenterId: costCenter?.id ?? null,
-        orgUnitId: orgUnitId ?? null,
+        orgUnitId: team,
         raisedById: raisedById ?? caller.person.id,
         approvalState: decision.state,
         // Only an approved requisition reaches the market.
