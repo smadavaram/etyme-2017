@@ -42,7 +42,25 @@ a wall of add/add conflicts on files you never touched, and reads like
 the branches have diverged when nothing is wrong.
 
 `<last-deployed>` is the commit in *your* repo matching the tip of
-`deploy/main` — match them by commit message, since the shas differ.
+`deploy/main`. **It is not the sha `git log deploy/main` shows you.**
+The replay creates new commit objects, so the same change carries one
+sha on `deploy/main` and a different one on your branch. Use the
+production-side sha as the base and the range resolves to the entire
+2017 history — it is not reachable from that sha — and the cherry-pick
+tries to replay a Rails hotfix, failing with add/add conflicts on
+`.gitignore` and `README.md`. That is exactly what it looks like, and it
+has happened.
+
+Get the local sha by message, never by copying:
+
+```
+base=$(git log --format=%H --grep='<subject of the deploy/main tip>' -1 <your-branch>)
+git -C /tmp/deploy-wt cherry-pick "$base"..<your-branch>
+```
+
+`git log --oneline "$base"..<your-branch>` before the pick should list
+only the commits you mean to ship. If it lists hundreds, the base is
+wrong.
 
 Then verify before pushing. Both of these must hold:
 
