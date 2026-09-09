@@ -66,7 +66,7 @@ export async function GET(
       names,
       rounds: submission.interviews.map((row) => ({
         ...shape(row),
-        says: headline(asInterview(row), now, names),
+        says: headline(asInterview(row), now, names, caller.person.timezone),
       })),
     },
   })

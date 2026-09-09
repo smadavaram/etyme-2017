@@ -20,7 +20,7 @@ import type { CallerContext } from '@/lib/api-context'
 
 function staff(over: Partial<CallerContext> = {}): CallerContext {
   return {
-    person: { id: 'rec-1', name: 'Ravi', primaryEmail: 'ravi@cloudepa.com' },
+    person: { id: 'rec-1', name: 'Ravi', primaryEmail: 'ravi@cloudepa.com', timezone: null },
     context: { id: 'ctx', type: 'EMPLOYEE', companyId: 'cloudepa', roleId: 'role-1' },
     company: {
       id: 'cloudepa', name: 'Cloudepa Inc.', slug: 'cloudepa', kind: 'VENDOR',
@@ -34,7 +34,7 @@ function staff(over: Partial<CallerContext> = {}): CallerContext {
 function onTheBench(over: Partial<CallerContext> = {}): CallerContext {
   return {
     ...staff(),
-    person: { id: 'anita', name: 'Anita Desai', primaryEmail: 'anita@cloudepa.com' },
+    person: { id: 'anita', name: 'Anita Desai', primaryEmail: 'anita@cloudepa.com', timezone: null },
     // The agency's id, because she is listed there. No role, because she
     // does not work there.
     context: { id: 'ctx', type: 'CONSULTANT', companyId: 'cloudepa', roleId: null },

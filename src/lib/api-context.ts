@@ -19,6 +19,12 @@ export interface CallerContext {
     id: string
     name: string
     primaryEmail: string
+    /**
+     * Where they are, for text the server writes them. Null until
+     * somebody sets it, and lib/when falls back to UTC and says so
+     * rather than guessing.
+     */
+    timezone: string | null
   }
   context: {
     id: string
@@ -155,7 +161,7 @@ export async function getCallerContext(
 
   const person = await prisma.person.findUnique({
     where: { primaryEmail: sessionEmail },
-    select: { id: true, name: true, primaryEmail: true },
+    select: { id: true, name: true, primaryEmail: true, timezone: true },
   })
 
   if (!person) {
@@ -339,6 +345,9 @@ async function callerFromApiKey(
         id: `service:${account.id}`,
         name: `${account.name} (integration)`,
         primaryEmail: `service+${account.id}@etyme.local`,
+        // A machine is nowhere. UTC is the honest answer for anything it
+        // writes, which is what null already means.
+        timezone: null,
       },
       // Shaped like a person's context so nothing has to special-case a
       // machine, but honestly labelled. Nothing reads this today; leaving

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 
 /**
@@ -111,6 +111,71 @@ export async function GET(request: NextRequest) {
               : null,
           }
         : null,
+    },
+  })
+}
+
+/**
+ * PATCH /api/me — the few things about you that are yours to set.
+ *
+ * Deliberately not /api/settings. That is the company's: address,
+ * approval rules, cost centres, the holiday calendar, all of it behind
+ * settings.manage so one admin changes them for everybody. Where you are
+ * is not that. It needs no permission beyond being you, and putting it
+ * behind settings.manage would mean either an admin sets your timezone
+ * or you can edit the company's holidays.
+ *
+ * One field today. The rest of user preferences — digests, channels,
+ * what you want to hear about — is deferred, and this is the door they
+ * will come through when they arrive.
+ */
+export async function PATCH(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const body = await request.json().catch(() => ({}))
+
+  if (!('timezone' in body)) {
+    return NextResponse.json(
+      { error: { code: 'NOTHING_TO_DO', message: 'Nothing to change.' } },
+      { status: 422 }
+    )
+  }
+
+  const zone = body.timezone === null ? null : String(body.timezone).trim()
+
+  // Checked against the runtime rather than a list we maintain. A typo
+  // saved here reappears as a wrong date in somebody's calendar invite
+  // weeks later, and by then nobody connects the two.
+  if (zone) {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: zone })
+    } catch {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'UNKNOWN_ZONE',
+            message: `"${zone}" is not a timezone this system knows. Use a name like "America/New_York" or "Asia/Kolkata".`,
+            field: 'timezone',
+          },
+        },
+        { status: 422 }
+      )
+    }
+  }
+
+  const saved = await prisma.person.update({
+    where: { id: caller.person.id },
+    data: { timezone: zone || null },
+    select: { id: true, timezone: true },
+  })
+
+  return NextResponse.json({
+    data: {
+      timezone: saved.timezone,
+      message: saved.timezone
+        ? `Times will be shown to you in ${saved.timezone}.`
+        : 'Cleared. Times will be shown to you in UTC, and said so.',
     },
   })
 }

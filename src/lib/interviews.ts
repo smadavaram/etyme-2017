@@ -35,6 +35,8 @@
  * turn up — which is a thing only the layer between them can hold.
  */
 
+import { momentFor } from '@/lib/when'
+
 /** Where an interview has got to. */
 export type State =
   /** Slots offered, not everybody has agreed. */
@@ -319,11 +321,19 @@ export function said(hours: number): string {
 export function headline(
   i: Interview,
   now: Date,
-  names: { vendor: string; client: string; consultant: string }
+  names: { vendor: string; client: string; consultant: string },
+  /**
+   * Where the reader is.
+   *
+   * This line said UTC to everybody, so an interview at 9am Pacific told
+   * somebody in London the wrong day whenever the boundary crossed — and
+   * it looked right to whoever wrote it, because their own machine
+   * agreed. Null keeps the old behaviour and names UTC out loud, which
+   * is what lib/when does with an unset zone.
+   */
+  timezone?: string | null
 ): string {
-  const when = i.scheduledAt
-    ? i.scheduledAt.toISOString().slice(0, 16).replace('T', ' ') + ' UTC'
-    : null
+  const when = i.scheduledAt ? momentFor(i.scheduledAt, timezone ?? null) : null
 
   switch (i.state) {
     case 'CANCELLED':

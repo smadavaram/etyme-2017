@@ -215,7 +215,25 @@ describe('the line at the top', () => {
       state: 'CONFIRMED',
       scheduledAt: new Date('2026-08-26T14:00:00Z'),
     })
-    expect(headline(i, NOW, NAMES)).toBe('Round 1, 2026-08-26 14:00 UTC. In all three diaries.')
+    // Readable, and still UTC when nobody has said where the reader is —
+    // which the line names rather than leaving to be assumed.
+    expect(headline(i, NOW, NAMES)).toBe('Round 1, Wed 26 Aug, 14:00 UTC. In all three diaries.')
+  })
+
+  it('tells a reader in their own zone once we know where they are', () => {
+    // 14:00 UTC is 07:00 in Los Angeles, and on a different day for
+    // anybody far enough east. Saying UTC to everybody looked right to
+    // whoever wrote it because their own machine agreed.
+    const i = interview({
+      vendor: { at: NOW, via: 'SELF' },
+      consultant: { at: NOW, via: 'SELF' },
+      state: 'CONFIRMED',
+      scheduledAt: new Date('2026-08-26T14:00:00Z'),
+    })
+    const there = headline(i, NOW, NAMES, 'America/Los_Angeles')
+    expect(there).toContain('07:00')
+    expect(there).not.toContain('14:00')
+    expect(there).not.toBe(headline(i, NOW, NAMES))
   })
 
   it('names who it is waiting on when it is not real yet', () => {

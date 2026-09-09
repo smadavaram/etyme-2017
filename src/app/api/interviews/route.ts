@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       requirementId: row.submission.requirement.id,
       submissionId: row.submission.id,
       rateCents: row.submission.rate,
-      says: headline(i, now, names),
+      says: headline(i, now, names, caller.person.timezone),
       // Whether this row is waiting on the person reading it. The only
       // thing that turns a list into a to-do.
       yours:

@@ -123,7 +123,7 @@ export async function POST(
     const saved = await prisma.interview.update({ where: { id: row.id }, data, include: { submission: false } as any })
 
     return NextResponse.json({
-      data: { ...shape(saved), says: headline(asInterview(saved), now, names) },
+      data: { ...shape(saved), says: headline(asInterview(saved), now, names, caller.person.timezone) },
     })
   }
 

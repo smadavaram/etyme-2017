@@ -46,7 +46,7 @@ function caller(overrides: {
   } = overrides
 
   return {
-    person: { id: 'person-1', name: 'Test Caller', primaryEmail: 'caller@example.com' },
+    person: { id: 'person-1', name: 'Test Caller', primaryEmail: 'caller@example.com', timezone: null },
     context: { id: 'ctx-1', type: 'EMPLOYEE', companyId: hasCompany ? companyId : null, roleId: 'role-1' },
     company: hasCompany
       ? {
