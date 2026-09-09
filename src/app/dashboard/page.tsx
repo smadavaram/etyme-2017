@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 /**
  * Vendor Dashboard — the "Today" view.
@@ -203,6 +204,32 @@ function TheBar() {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
+  // Whose dashboard this is.
+  //
+  // /dashboard is the vendor's Today view; /dashboard/program is the
+  // client's programme overview. Two pages for two company types, and
+  // this one rendered vendor content for whoever arrived — so a client
+  // following a stale link, or typing the bare URL, got somebody else's
+  // product with their own data in it and nothing said so.
+  const [sendingOn, setSendingOn] = useState(true)
+
+  useEffect(() => {
+    let live = true
+    ;(async () => {
+      const res = await fetch('/api/me/context')
+      const body = await res.json().catch(() => null)
+      if (!live) return
+      const kind = body?.data?.contexts?.[0]?.company?.kind
+      if (kind === 'CLIENT' || kind === 'MSP' || kind === 'GSI') {
+        router.replace('/dashboard/program')
+        return
+      }
+      setSendingOn(false)
+    })()
+    return () => { live = false }
+  }, [router])
+
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -295,7 +322,9 @@ export default function DashboardPage() {
     fetchDashboard()
   }, [fetchDashboard])
 
-  if (loading) {
+  // Held until we know whose dashboard this is, so a client never sees a
+  // frame of the vendor's before being sent to their own.
+  if (sendingOn || loading) {
     return (
       <div className="animate-fade-in py-20 text-center text-etyme-muted">
         Loading dashboard…

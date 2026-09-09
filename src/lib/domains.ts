@@ -219,6 +219,7 @@ export const DOMAINS: Domain[] = [
       // and money in one answer, so it belongs to none of them and is
       // owned here by the same rule the schema is.
       'app/api/placements', 'app/dashboard/placements',
+      'lib/seed-world', 'app/api/seed-world',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix',
       'lib/contacts', 'lib/counterparty', 'lib/party-onboarding', 'lib/reconciliation',

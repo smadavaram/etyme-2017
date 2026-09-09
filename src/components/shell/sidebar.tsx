@@ -256,7 +256,18 @@ const CONSULTANT_NAV: NavSection[] = [
 // Friday to approve timesheets.
 const CLIENT_NAV: NavSection[] = [
   {
-    label: 'Program',
+    // "Program" was the label and it names nothing.
+    //
+    // There is no Program model — /api/program is an aggregate view of
+    // this client's contractors, suppliers and spend. So a client read a
+    // section header that looked like a countable noun and reasonably
+    // asked which one, and how many they could have. None: it is not a
+    // thing you can have.
+    //
+    // Their workforce is. The countable things under it — agreements,
+    // engagements, milestones, org units — are all real models, and this
+    // is the word that covers them without inventing an entity.
+    label: 'Workforce',
     items: [
       { label: 'Dashboard', href: '/dashboard/program', icon: '◉' },
       // One entry, not two.

@@ -133,7 +133,7 @@ describe('a client\'s nav reads as the sequence of a placement, not a wall of li
   // navigation should be better streamlined to reflect sequence of
   // steps." Four real complaints, fixed together in one pass.
   const clientNav = extractArray('CLIENT_NAV')
-  const programStart = clientNav.indexOf("label: 'Program'")
+  const programStart = clientNav.indexOf("label: 'Workforce'")
   const governanceStart = clientNav.indexOf("label: 'Governance'")
   const program = clientNav.slice(programStart, governanceStart)
   const governance = clientNav.slice(governanceStart)

@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         {
           error: {
             code: 'NOT_SEEDED',
-            message: `No seat at ${asWorld}. Run scripts/seed-world.mjs against this database first.`,
+            message: `No seat at ${asWorld}. POST /api/seed-world to build it first.`,
           },
         },
         { status: 404 }
@@ -123,7 +123,15 @@ export async function POST(request: NextRequest) {
     const res = NextResponse.json({
       data: {
         companyId: company.id, companyName: company.name, kind: company.kind,
-        world: asWorld, landing: '/dashboard',
+        world: asWorld,
+        // Where this seat belongs. /dashboard is the vendor's Today view
+        // and /dashboard/program is the client's programme overview —
+        // two pages for two company types, not two versions of one. A
+        // flat '/dashboard' here dropped a client onto the vendor's.
+        landing:
+          company.kind === 'CLIENT' || company.kind === 'MSP' || company.kind === 'GSI'
+            ? '/dashboard/program'
+            : '/dashboard',
       },
     })
     res.cookies.set(DEMO_COOKIE, sign(email), {

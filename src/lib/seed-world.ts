@@ -1,12 +1,12 @@
 /**
  * One market, twenty firms, seen from every side.
  *
- * Every demo so far built a private five-company copy per visitor, so
- * signing in as CloudEPA and signing in as Harlow Health showed two
- * unrelated worlds with the same placeholder names. Nothing lined up,
- * because nothing was the same data.
+ * Every demo built a private five-company copy per visitor, so signing in
+ * as CloudEPA and signing in as Harlow Health showed two unrelated worlds
+ * with the same placeholder names. Nothing lined up, because nothing was
+ * the same data.
  *
- * This seeds one world instead. A consultant CloudEPA sourced sits at
+ * This builds one world instead. A consultant CloudEPA sourced sits at
  * Harlow Health through Computer Systems, and each of those three firms
  * sees its own true side of that one placement:
  *
@@ -19,27 +19,41 @@
  *                      consultant $86, keeps $26. It cannot see what
  *                      Harlow Health pays.
  *
- * Nothing is duplicated to make that work — it is one contract chain
- * read from three positions, which is the whole product.
+ * Nothing is duplicated to make that work — it is one contract chain read
+ * from three positions, which is the whole product.
  *
  * ── Not a demo copy ──────────────────────────────────────────────────
  *
- * These twenty are `isDemo: false` deliberately. A demo company is
- * reaped after a fortnight and is deleted outright by the "start again
- * with clean data" button; this world has to survive both. It is
- * reference data that many people look at, not one visitor's sandbox.
+ * These twenty are `isDemo: false` deliberately. A demo company is reaped
+ * after a fortnight and deleted outright by the "start again with clean
+ * data" button; this world has to survive both. It is reference data many
+ * people look at, not one visitor\'s sandbox.
  *
- * Idempotent by slug. Run it twice and you have one world.
- *
- *   node scripts/seed-world.mjs
+ * Idempotent by slug: run it twice and there is one world. That also
+ * makes it safe to re-run after a timeout — it picks up where it stopped.
  */
 
-import { PrismaClient } from '@prisma/client'
+import { prisma as db } from '@/lib/db'
 
-const db = new PrismaClient()
 const DOMAIN = 'demo.etyme.local'          // the domain the signed demo cookie accepts
 const PREFIX = 'world-'                    // marks a company as part of this world
-const day = (n) => new Date(Date.now() + n * 86_400_000)
+/**
+ * Whole days, anchored to midnight UTC.
+ *
+ * This was `Date.now() + n * 86_400_000`, which made every date carry the
+ * time of day the seed happened to run at. A second run computed
+ * different timestamps, so the "does this timesheet already exist" lookup
+ * missed, fresh weeks were written, and their invoice collided with the
+ * first run's number. The seed claimed to be idempotent and was not —
+ * which only showed up on the second call.
+ *
+ * Normalised, a re-run on the same day is a true no-op, and a re-run
+ * later adds that period rather than colliding with it.
+ */
+const day = (n: number): Date => {
+  const d = new Date(Date.now() + n * 86_400_000)
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+}
 
 // ── The market ───────────────────────────────────────────────────────
 //
@@ -47,7 +61,9 @@ const day = (n) => new Date(Date.now() + n * 86_400_000)
 // six bench vendors. The shape of the contingent market, small enough to
 // hold in your head and wide enough that every seat has somebody above
 // and below it.
-const FIRMS = [
+type Kind = 'CLIENT' | 'MSP' | 'GSI' | 'VENDOR'
+interface Firm { slug: string; name: string; kind: Kind; seat: string }
+const FIRMS: Firm[] = [
   { slug: 'harlow-health',    name: 'Harlow Health',        kind: 'CLIENT',  seat: 'Programme office' },
   { slug: 'meridian-bank',    name: 'Meridian Bank',        kind: 'CLIENT',  seat: 'Contingent programme' },
   { slug: 'corveldt',         name: 'Corveldt Aerospace',   kind: 'CLIENT',  seat: 'Engineering resourcing' },
@@ -81,7 +97,11 @@ const FIRMS = [
 // holds no contract — which is what an agent MSP actually is.
 //
 // Rates descend: the client pays the first, each hop keeps the gap.
-const PLACEMENTS = [
+interface Placement {
+  role: string; skills: string[]; loc: string
+  routedBy?: string; via: string[]; rates: number[]
+}
+const PLACEMENTS: Placement[] = [
   { role: 'SAP FICO consultant',        skills: ['SAP FICO', 'S/4HANA'],       loc: 'San Jose, CA',
     routedBy: 'aptiva',  via: ['harlow-health', 'computer-systems', 'cloudepa'], rates: [13800, 11200, 8600] },
   { role: 'Epic Ambulatory analyst',    skills: ['Epic', 'Ambulatory'],        loc: 'Madison, WI',
@@ -100,17 +120,23 @@ const PLACEMENTS = [
     via: ['nordway', 'pinnacle', 'bluecrest'],                                   rates: [14500, 11800, 9200] },
 ]
 
-const NAMES = [
+const NAMES: string[] = [
   'Priya Raman', 'Daniel Osei', 'Anjali Mehta', 'Marcus Whitfield',
   'Ravi Subramanian', 'Elena Castillo', 'Thomas Okonkwo', 'Sneha Kulkarni',
   'Grace Lindqvist', 'Arjun Nair', 'Yusuf Demir', 'Claire Beaumont',
   'Vikram Joshi', 'Naomi Adeyemi', 'Peter Halloran', 'Divya Rangan',
 ]
 
-const firmBySlug = new Map()
-const seatBySlug = new Map()
+export async function seedWorld(): Promise<{
+  firms: number; placements: number; consultants: number
+  roster: { kind: string; name: string; slug: string }[]
+  }> {
+  // Scoped to the call, not the module: a long-lived server would
+  // otherwise carry one run's ids into the next.
+  const firmBySlug = new Map<string, { id: string }>()
+  const seatBySlug = new Map<string, { personId: string; email: string }>()
 
-async function firm(f) {
+  async function firm(f: Firm) {
   const slug = PREFIX + f.slug
   const c = await db.company.upsert({
     where: { slug },
@@ -138,17 +164,17 @@ async function firm(f) {
   firmBySlug.set(f.slug, c)
   seatBySlug.set(f.slug, { personId: p.id, email })
   return c
-}
+  }
 
-async function trade(a, b, relationship) {
-  const A = firmBySlug.get(a).id, B = firmBySlug.get(b).id
+  async function trade(a: string, b: string, relationship: string) {
+  const A = firmBySlug.get(a)!.id, B = firmBySlug.get(b)!.id
   if (!(await db.counterparty.findFirst({ where: { companyId: A, otherCompanyId: B, relationship } }))) {
     await db.counterparty.create({ data: { companyId: A, otherCompanyId: B, relationship } })
   }
-}
+  }
 
-async function agreement(vendorSlug, clientSlug, title) {
-  const vendorId = firmBySlug.get(vendorSlug).id, clientId = firmBySlug.get(clientSlug).id
+  async function agreement(vendorSlug: string, clientSlug: string, title: string) {
+  const vendorId = firmBySlug.get(vendorSlug)!.id, clientId = firmBySlug.get(clientSlug)!.id
   const msa =
     (await db.masterAgreement.findFirst({ where: { vendorId, clientId } })) ??
     (await db.masterAgreement.create({
@@ -158,13 +184,13 @@ async function agreement(vendorSlug, clientSlug, title) {
     (await db.engagement.findFirst({ where: { msaId: msa.id, title } })) ??
     (await db.engagement.create({ data: { msaId: msa.id, title, invoiceCycle: 'MONTHLY' } }))
   return { msa, eng }
-}
+  }
 
-/** One placement's whole life: paper, clearances, hours, money. */
-async function place(spec, personName, index) {
+  /** One placement's whole life: paper, clearances, hours, money. */
+  async function place(spec: Placement, personName: string, index: number) {
   const [clientSlug, ...suppliers] = spec.via
   const employerSlug = suppliers[suppliers.length - 1]
-  const client = firmBySlug.get(clientSlug)
+  const client = firmBySlug.get(clientSlug)!
 
   // The person, and the bench they sit on.
   const email = `${personName.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
@@ -179,7 +205,7 @@ async function place(spec, personName, index) {
         visibility: 'VERIFIED', workAuth: index % 3 === 0 ? 'GC' : index % 3 === 1 ? 'H1B' : 'USC',
       },
     }))
-  const employer = firmBySlug.get(employerSlug)
+  const employer = firmBySlug.get(employerSlug)!
   if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: employer.id } }))) {
     await db.benchListing.create({
       data: {
@@ -202,11 +228,11 @@ async function place(spec, personName, index) {
 
   // A contract pair per supplier, each buying from the one below it.
   let supplierSellContractId = null
-  const contracts = []
+  const contracts: any[] = []
   for (let i = suppliers.length - 1; i >= 0; i--) {
     const sellerSlug = suppliers[i]
     const buyerSlug = i === 0 ? clientSlug : suppliers[i - 1]
-    const seller = firmBySlug.get(sellerSlug), buyer = firmBySlug.get(buyerSlug)
+    const seller = firmBySlug.get(sellerSlug)!, buyer = firmBySlug.get(buyerSlug)!
     const sellRate = spec.rates[i + 1] !== undefined && i > 0 ? spec.rates[i] : spec.rates[i]
     const payRate = spec.rates[i + 1]
 
@@ -228,7 +254,7 @@ async function place(spec, personName, index) {
     const buy = await db.buyContract.create({
       data: {
         companyId: seller.id,
-        vendorCompanyId: employsThem ? null : firmBySlug.get(suppliers[i + 1]).id,
+        vendorCompanyId: employsThem ? null : firmBySlug.get(suppliers[i + 1])!.id,
         payCurrency: 'USD', contractType: employsThem ? 'W2' : 'C2C',
         state: 'IN_PROGRESS', startDate: day(-90), endDate: day(275),
         // The rung below — what makes the hours reachable from up here.
@@ -249,7 +275,7 @@ async function place(spec, personName, index) {
   }
 
   // How they reached the client, and who met them.
-  const topSeller = firmBySlug.get(suppliers[0])
+  const topSeller = firmBySlug.get(suppliers[0])!
   const sub =
     (await db.submission.findFirst({ where: { requirementId: requirement.id, personId: person.id } })) ??
     (await db.submission.create({
@@ -272,27 +298,34 @@ async function place(spec, personName, index) {
         proposedSlots: [], durationMins: 45,
         scheduledAt: day(r.at), decidedAt: day(r.at),
         clientConfirmedAt: day(r.at), vendorConfirmedAt: day(r.at),
-        requestedById: seatBySlug.get(clientSlug).personId,
-        decidedById: seatBySlug.get(clientSlug).personId,
+        requestedById: seatBySlug.get(clientSlug)!.personId,
+        decidedById: seatBySlug.get(clientSlug)!.personId,
         feedback: r.says,
       },
     })
   }
 
   // Cleared to work.
-  const employerSeat = seatBySlug.get(employerSlug).personId
-  for (const v of [
+  const employerSeat = seatBySlug.get(employerSlug)!.personId
+  // Two on the person — the one that blocks and the one that warns — and
+  // the supplier's cover, which is what lets it place anybody at all.
+  const clearances: {
+    personId?: string; companyId?: string
+    type: 'I9_EVERIFY' | 'BACKGROUND_CHECK' | 'INSURANCE_GL' | 'INSURANCE_WC'
+    provider: string; expiresAt: Date | null
+  }[] = [
     { personId: person.id, type: 'I9_EVERIFY', provider: 'E-Verify', expiresAt: null },
     { personId: person.id, type: 'BACKGROUND_CHECK', provider: 'Sterling', expiresAt: day(250) },
     { companyId: employer.id, type: 'INSURANCE_GL', provider: 'Hartford', expiresAt: day(200) },
     { companyId: employer.id, type: 'INSURANCE_WC', provider: 'Hartford', expiresAt: day(200) },
-  ]) {
+  ]
+  for (const v of clearances) {
     const where = v.personId ? { personId: v.personId, type: v.type } : { companyId: v.companyId, type: v.type }
     if (await db.verification.findFirst({ where })) continue
     await db.verification.create({
       data: {
         ...v, status: 'CLEAR', issuedAt: day(-92),
-        uploadedById: employerSeat, verifiedById: seatBySlug.get(clientSlug).personId, verifiedAt: day(-91),
+        uploadedById: employerSeat, verifiedById: seatBySlug.get(clientSlug)!.personId, verifiedAt: day(-91),
         result: { outcome: 'CLEAR' },
       },
     })
@@ -301,10 +334,10 @@ async function place(spec, personName, index) {
   // Hours, filed once against the contract of the firm that employs them,
   // and signed by the client above and the employer below.
   const bottom = contracts[0]
-  const sheets = []
+  const sheets: any[] = []
   for (let w = 4; w >= 1; w--) {
     const start = day(-(w * 7 + 4)), end = day(-(w * 7))
-    const days = {}
+    const days: Record<string, number> = {}
     for (let d = 0; d < 5; d++) days[day(-(w * 7 + 4) + d).toISOString().slice(0, 10)] = 8
     const already = await db.timesheet.findFirst({ where: { sellContractId: bottom.id, periodStart: start } })
     if (already) { sheets.push(already); continue }
@@ -317,7 +350,7 @@ async function place(spec, personName, index) {
     await db.workAssertion.createMany({
       data: [
         { timesheetId: ts.id, companyId: client.id, role: 'CLIENT_APPROVAL',
-          hours: 40, rateCents: spec.rates[0], state: 'LIVE', byId: seatBySlug.get(clientSlug).personId },
+          hours: 40, rateCents: spec.rates[0], state: 'LIVE', byId: seatBySlug.get(clientSlug)!.personId },
         { timesheetId: ts.id, companyId: employer.id, role: 'EMPLOYER_ACCEPTANCE',
           hours: 40, rateCents: spec.rates[spec.rates.length - 1], state: 'LIVE', byId: employerSeat },
       ],
@@ -328,7 +361,7 @@ async function place(spec, personName, index) {
   // Each hop bills its own leg for the same weeks — one week of work,
   // one invoice line per contract, which is what the chain actually does.
   for (const sell of contracts) {
-    const unbilled = []
+    const unbilled: any[] = []
     for (const t of sheets.slice(0, 3)) {
       if (await db.invoiceLine.findFirst({ where: { timesheetId: t.id, sellContractId: sell.id } })) continue
       unbilled.push(t)
@@ -337,7 +370,13 @@ async function place(spec, personName, index) {
     const cents = unbilled.length * 40 * sell.billRate
     const inv = await db.invoice.create({
       data: {
-        engagementId: sell.engagementId, number: `IN-${sell.id.slice(-6).toUpperCase()}`,
+        engagementId: sell.engagementId, // Per contract AND per period. Keyed on the contract alone, a
+          // later run covering a new week collided with the first run's
+          // invoice on Invoice.number, which is unique.
+          number: `IN-${sell.id.slice(-6).toUpperCase()}-${unbilled[0].periodStart
+            .toISOString()
+            .slice(0, 10)
+            .replace(/-/g, '')}`,
         periodStart: unbilled[0].periodStart, periodEnd: unbilled[unbilled.length - 1].periodEnd,
         currency: 'USD', total: cents / 100, paid: cents / 100,
         dueAt: day(20), issuedAt: day(-10), status: 'PAID',
@@ -360,66 +399,66 @@ async function place(spec, personName, index) {
   }
 
   return { person, requirement }
-}
-
-// ── Build it ─────────────────────────────────────────────────────────
-
-for (const f of FIRMS) await firm(f)
-
-// Who trades with whom. An MSP routes and holds no contract, so it is a
-// counterparty of the client and of the primes, and of nobody's money.
-for (const p of PLACEMENTS) {
-  const [client, ...suppliers] = p.via
-  for (let i = 0; i < suppliers.length; i++) {
-    const above = i === 0 ? client : suppliers[i - 1]
-    await trade(suppliers[i], above, i === 0 ? 'CLIENT' : 'PRIME')
-    await trade(above, suppliers[i], 'SUPPLIER')
   }
-  if (p.routedBy) {
-    await trade(client, p.routedBy, 'MSP')
-    await trade(p.routedBy, client, 'CLIENT')
-    await trade(p.routedBy, suppliers[0], 'SUPPLIER')
-    await trade(suppliers[0], p.routedBy, 'MSP')
+
+  // ── Build it ─────────────────────────────────────────────────────────
+
+  for (const f of FIRMS) await firm(f)
+
+  // Who trades with whom. An MSP routes and holds no contract, so it is a
+  // counterparty of the client and of the primes, and of nobody's money.
+  for (const p of PLACEMENTS) {
+    const [client, ...suppliers] = p.via
+    for (let i = 0; i < suppliers.length; i++) {
+      const above = i === 0 ? client : suppliers[i - 1]
+      await trade(suppliers[i], above, i === 0 ? 'CLIENT' : 'PRIME')
+      await trade(above, suppliers[i], 'SUPPLIER')
+    }
+    if (p.routedBy) {
+      await trade(client, p.routedBy, 'MSP')
+      await trade(p.routedBy, client, 'CLIENT')
+      await trade(p.routedBy, suppliers[0], 'SUPPLIER')
+      await trade(suppliers[0], p.routedBy, 'MSP')
+    }
   }
-}
 
-const placed = []
-for (const [i, p] of PLACEMENTS.entries()) placed.push(await place(p, NAMES[i], i))
+  const placed = []
+  for (const [i, p] of PLACEMENTS.entries()) placed.push(await place(p, NAMES[i], i))
 
-// Bench nobody has placed yet, so a bench vendor's list is not just the
-// one person who is already out.
-const benchVendors = ['cloudepa', 'consultis', 'nimbus', 'sahasra', 'orchid', 'bluecrest']
-for (const [i, name] of NAMES.slice(PLACEMENTS.length).entries()) {
-  const co = firmBySlug.get(benchVendors[i % benchVendors.length])
-  const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
-  const person = await db.person.upsert({
-    where: { primaryEmail: email }, update: {}, create: { name, primaryEmail: email },
-  })
-  const profile =
-    (await db.consultantProfile.findFirst({ where: { personId: person.id } })) ??
-    (await db.consultantProfile.create({
-      data: {
-        personId: person.id,
-        skills: PLACEMENTS[i % PLACEMENTS.length].skills,
-        location: PLACEMENTS[i % PLACEMENTS.length].loc,
-        visibility: 'VERIFIED', workAuth: i % 2 ? 'H1B' : 'GC',
-      },
-    }))
-  if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: co.id } }))) {
-    await db.benchListing.create({
-      data: {
-        consultantId: profile.id, companyId: co.id, tier: 'MARKETING', state: 'GRANTED',
-        invitedAt: day(-60), respondedAt: day(-59), grantedAt: day(-59),
-      },
+  // Bench nobody has placed yet, so a bench vendor's list is not just the
+  // one person who is already out.
+  const benchVendors = ['cloudepa', 'consultis', 'nimbus', 'sahasra', 'orchid', 'bluecrest']
+  for (const [i, name] of NAMES.slice(PLACEMENTS.length).entries()) {
+    const co = firmBySlug.get(benchVendors[i % benchVendors.length])!
+    const email = `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
+    const person = await db.person.upsert({
+      where: { primaryEmail: email }, update: {}, create: { name, primaryEmail: email },
     })
+    const profile =
+      (await db.consultantProfile.findFirst({ where: { personId: person.id } })) ??
+      (await db.consultantProfile.create({
+        data: {
+          personId: person.id,
+          skills: PLACEMENTS[i % PLACEMENTS.length].skills,
+          location: PLACEMENTS[i % PLACEMENTS.length].loc,
+          visibility: 'VERIFIED', workAuth: i % 2 ? 'H1B' : 'GC',
+        },
+      }))
+    if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: co.id } }))) {
+      await db.benchListing.create({
+        data: {
+          consultantId: profile.id, companyId: co.id, tier: 'MARKETING', state: 'GRANTED',
+          invitedAt: day(-60), respondedAt: day(-59), grantedAt: day(-59),
+        },
+      })
+    }
+  }
+
+
+  return {
+    firms: FIRMS.length,
+    placements: placed.length,
+    consultants: NAMES.length,
+    roster: FIRMS.map((f) => ({ kind: f.kind as string, name: f.name, slug: PREFIX + f.slug })),
   }
 }
-
-// ── Say what was built, and how to get in ────────────────────────────
-console.log(`\n  ${FIRMS.length} firms · ${placed.length} placements · ${NAMES.length} consultants\n`)
-console.log('  Sign in as any of these — same world, their own side of it:\n')
-for (const f of FIRMS) {
-  console.log(`    ${f.kind.padEnd(7)} ${f.name.padEnd(22)} ${PREFIX}${f.slug}`)
-}
-console.log(`\n  POST /api/demo  {"as":"${PREFIX}cloudepa"}   to enter as that firm\n`)
-await db.$disconnect()

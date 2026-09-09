@@ -285,12 +285,12 @@ attention. What changes is density and voice.
 | Vendor | Today → Sell → Procure → Operate → Grow |
 | Consultant | You → Grow |
 | GSI (Infosys) | Deliver → Supply → Operate |
-| Client (Enterprise) | Program → Governance |
+| Client (Enterprise) | Workforce → Governance |
 
 **Eyebrow labels are company-type-specific.** The current build is vendor-only
 (Phase 1). Pages show eyebrows like "Sell" and "Operate" that make sense for
 a staffing vendor. A client company (Nike, Terumo BCT) would see the same data
-under different section labels (e.g. "Program" instead of "Sell"). When the
+under different section labels (e.g. "Workforce" instead of "Sell"). When the
 client portal is built (Phase 4), the eyebrow, nav section, and page subtitle
 must adapt to the viewer's company type — the underlying data and pages are
 shared, the framing is not.
