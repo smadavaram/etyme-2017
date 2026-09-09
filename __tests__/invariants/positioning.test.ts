@@ -367,8 +367,13 @@ describe('The header reads as an enterprise product, not a job board', () => {
     // A TryDemo `label` prop, not JSX text — invisible to copyFrom, which
     // only reads text nodes and single-quoted string literals. Checked
     // against the raw source instead.
-    expect(PAGE).toContain('See it as the company')
-    expect(PAGE).toContain('See it as the supplier')
+    // One company door, not a company door and a supplier door. The
+    // split forked the front page on demand-vs-supply, which is a
+    // position on a deal and not a property of a firm; the five seats
+    // now sit behind one button. A supplier is a company.
+    expect(PAGE).toContain('See it as a company')
+    expect(PAGE).not.toContain('See it as the supplier')
+    expect(PAGE).not.toContain('See it as the company')
   })
 
   it('sends every header link to a section that actually exists on the page', () => {

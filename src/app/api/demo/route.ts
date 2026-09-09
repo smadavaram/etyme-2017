@@ -58,20 +58,77 @@ const BUYERS = [
   'Ravensmere Energy', 'Stanmore Logistics', 'Ashcombe Financial',
 ]
 
+/** The five company seats, plus the one that is not a company. */
+type Held = Seat | 'CANDIDATE'
+
+/**
+ * Which seat a request is asking for, normalised.
+ *
+ * Shared by the resume check and the seeding below so the two cannot
+ * disagree about what "the same seat" means. HIRING is the old buyer's
+ * door and maps to CLIENT; BENCH is both the old supplier's door and the
+ * bench vendor's seat, and they mean the same thing.
+ */
+function seatAsked(body: any): Held {
+  const asked = String(body?.side ?? '').toUpperCase()
+  if (asked === 'CANDIDATE') return 'CANDIDATE'
+  if (asked === 'MSP' || asked === 'GSI' || asked === 'PRIME' || asked === 'BENCH') return asked
+  return 'CLIENT'
+}
+
+/**
+ * Which seat a demo cookie already holds.
+ *
+ * The seat is recoverable without a column: seedChain writes the
+ * visitor's own firm with a slug ending in the seat name, and a
+ * candidate's only context is a CONSULTANT one on somebody else's
+ * agency — which is exactly why they must not be resumed into a company
+ * seat: contexts[0].company is the agency, and handing them that would
+ * put a candidate in charge of the firm that lists them.
+ */
+function seatHeld(contextType: string, slug: string): Held | null {
+  if (contextType === 'CONSULTANT') return 'CANDIDATE'
+  const m = /-(client|msp|gsi|prime|bench)$/.exec(slug)
+  return m ? (m[1].toUpperCase() as Seat) : null
+}
+
 export async function POST(request: NextRequest) {
-  // Already in one? Send them back to it rather than making another. A
+  const body = await request.json().catch(() => ({}))
+
+  // Already in one? Send them back to it rather than making another — a
   // visitor who refreshes should not accumulate workspaces.
+  //
+  // But only back to the SAME seat. This resumed whatever the cookie
+  // held regardless of what was just picked, so the first click seated
+  // somebody as Oxford Corp and every later click — MSP, integrator,
+  // prime, bench — silently landed them back in Oxford Corp's book. The
+  // seat picker was a form whose answer was thrown away. A different
+  // seat is an explicit intent and gets a workspace of its own; the old
+  // one is reaped with the rest.
+  const wanted = seatAsked(body)
   const existing = read(request.cookies.get(DEMO_COOKIE)?.value)
   if (existing) {
     const person = await prisma.person.findUnique({
       where: { primaryEmail: existing },
-      select: { contexts: { where: { revokedAt: null }, select: { company: { select: { id: true, name: true, isDemo: true } } } } },
+      select: {
+        contexts: {
+          where: { revokedAt: null },
+          select: {
+            type: true,
+            company: { select: { id: true, name: true, slug: true, isDemo: true } },
+          },
+        },
+      },
     })
-    const company = person?.contexts[0]?.company
-    if (company?.isDemo) {
-      return NextResponse.json({
-        data: { companyId: company.id, companyName: company.name, resumed: true },
-      })
+    const ctx = person?.contexts[0]
+    const company = ctx?.company
+    if (ctx && company?.isDemo) {
+      const held = seatHeld(ctx.type, company.slug)
+      if (held === wanted) {
+        return NextResponse.json({
+          data: { companyId: company.id, companyName: company.name, seat: held, resumed: true },
+        })
+      }
     }
   }
 
@@ -89,7 +146,6 @@ export async function POST(request: NextRequest) {
   // `isDemo: false`, so the reset button below leaves them alone: this
   // world is reference data many people look at, not one visitor's
   // sandbox to break.
-  const body = await request.json().catch(() => ({}))
   const asWorld = typeof (body as any)?.as === 'string' ? String((body as any).as) : null
   if (asWorld) {
     if (!asWorld.startsWith('world-')) {

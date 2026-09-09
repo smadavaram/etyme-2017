@@ -422,21 +422,19 @@ export default function LandingPage() {
                     workspace from a different seat in the chain, which
                     is the actual product: a layer with a view for every
                     party in it, not a tool for one of them. */}
+                {/* One door for companies, not two. Demand and supply are
+                    positions on a deal, not properties of a firm — a prime
+                    is demand toward its sub and supply toward its client
+                    on the same placement — so a page that forked on it
+                    asked a question a third of the market cannot answer.
+                    The five seats are behind this one button, grouped. */}
                 <TryDemo
                   side="HIRING"
-                  asks="BUYING"
-                  label="See it as the company →"
+                  asks
+                  label="See it as a company →"
                   className="rounded-lg bg-white px-6 py-3.5 text-sm font-semibold
                              text-etyme-navy shadow-lg shadow-white/10 transition-colors
                              hover:bg-white/90"
-                />
-                <TryDemo
-                  side="BENCH"
-                  asks="SUPPLYING"
-                  label="See it as the supplier →"
-                  className="rounded-lg border border-white/20 px-6 py-3.5 text-sm
-                             font-semibold text-white/85 transition-colors
-                             hover:border-white/40 hover:text-white"
                 />
               </div>
               <p className="mt-4 font-mono text-xs text-white/55">
@@ -852,17 +850,16 @@ export default function LandingPage() {
           </p>
 
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            {/* Same one door as the hero. These two had no picker at
+                all — they seeded straight into CLIENT or BENCH — so a
+                visitor who scrolled past the hero got fewer seats than
+                one who did not. */}
             <TryDemo
               side="HIRING"
-              label="See it as the company →"
+              asks
+              label="See it as a company →"
               className="rounded-lg bg-etyme-action px-6 py-3.5 text-sm font-semibold text-white
                          transition-opacity hover:opacity-90"
-            />
-            <TryDemo
-              side="BENCH"
-              label="See it as the supplier →"
-              className="rounded-lg border border-etyme-rule px-6 py-3.5 text-sm font-semibold
-                         text-etyme-ink transition-colors hover:border-etyme-ink"
             />
             <TryDemo
               side="CANDIDATE"

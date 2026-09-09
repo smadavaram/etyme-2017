@@ -41,25 +41,39 @@ export function TryDemo({
    * Asked on click rather than as five buttons on the page: a hero with
    * five calls to action converts worse than one with two, and the
    * question only matters once somebody has decided to look.
+   *
+   * One picker, not two. This used to take BUYING or SUPPLYING and show
+   * three seats or two, behind two buttons — which put a fork in the
+   * front door on a distinction the product exists to say is not a
+   * property of a firm. Computer Systems is supply toward its client and
+   * demand toward its sub-vendor on the same placement. So: one door,
+   * five seats, and demand/supply survives as a heading inside the
+   * choice rather than a question asked before it.
    */
-  asks?: 'BUYING' | 'SUPPLYING'
+  asks?: boolean
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [asking, setAsking] = useState(false)
 
-  const SEATS =
-    asks === 'BUYING'
-      ? [
-          { seat: 'CLIENT', label: 'A company hiring contractors', note: 'You buy the work.' },
-          { seat: 'MSP', label: 'An MSP running the programme', note: 'You are invoiced. You never touch a CV.' },
-          { seat: 'GSI', label: 'A systems integrator delivering a project', note: 'Your own people, and bought ones.' },
-        ]
-      : [
-          { seat: 'PRIME', label: 'A prime vendor', note: 'You hold the paper on people you did not source.' },
-          { seat: 'BENCH', label: 'A staffing firm with a bench', note: 'You sourced them. You are furthest from the money.' },
-        ]
+  const GROUPS: { heading: string; seats: { seat: string; label: string; note: string }[] }[] = [
+    {
+      heading: 'You buy the work',
+      seats: [
+        { seat: 'CLIENT', label: 'A company hiring contractors', note: 'You pay for it. You never touch a CV.' },
+        { seat: 'MSP', label: 'An MSP running the programme', note: 'You run it on the client\'s behalf.' },
+        { seat: 'GSI', label: 'A systems integrator delivering a project', note: 'Your own people, and bought ones.' },
+      ],
+    },
+    {
+      heading: 'You supply it',
+      seats: [
+        { seat: 'PRIME', label: 'A prime vendor', note: 'You hold the paper on people you did not source.' },
+        { seat: 'BENCH', label: 'A staffing firm with a bench', note: 'You sourced them. You are furthest from the money.' },
+      ],
+    },
+  ]
 
   async function start(pick?: string) {
     setBusy(true)
@@ -90,15 +104,25 @@ export function TryDemo({
         <span className="text-[11px] uppercase tracking-[0.08em] text-white/55">
           Which one are you?
         </span>
-        {SEATS.map((s) => (
-          <button
-            key={s.seat}
-            onClick={() => start(s.seat)}
-            className="text-left text-sm text-white/85 transition-colors hover:text-white"
-          >
-            {s.label}
-            <span className="block text-xs text-white/45">{s.note}</span>
-          </button>
+        {GROUPS.map((g) => (
+          <span key={g.heading} className="flex flex-col items-start gap-2">
+            {/* The demand/supply line, demoted from a door to a heading.
+                It is still true of a seat on one deal; it was never true
+                of a firm, which is why it no longer forks the front. */}
+            <span className="mt-1 text-[10px] uppercase tracking-[0.1em] text-white/35">
+              {g.heading}
+            </span>
+            {g.seats.map((s) => (
+              <button
+                key={s.seat}
+                onClick={() => start(s.seat)}
+                className="text-left text-sm text-white/85 transition-colors hover:text-white"
+              >
+                {s.label}
+                <span className="block text-xs text-white/45">{s.note}</span>
+              </button>
+            ))}
+          </span>
         ))}
         <button
           onClick={() => setAsking(false)}
