@@ -55,6 +55,30 @@ const day = (n: number): Date => {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
 }
 
+/**
+ * Onto a working day.
+ *
+ * The offsets are counted in whole days from whenever the seed runs, so
+ * a screen booked "three days out" landed on a Saturday one run in seven,
+ * and a screen recorded as held landed on a Sunday just as often. Nobody
+ * interviews at the weekend, and a demo that says they did is one more
+ * thing the founder has to explain away.
+ *
+ * Forward for a round still ahead, backward for one already held —
+ * nudging a past round forward would move it into the future, where it
+ * would read as upcoming.
+ */
+const weekday = (d: Date, back: boolean): Date => {
+  const g = d.getUTCDay()
+  if (g !== 0 && g !== 6) return d
+  const days = g === 6 ? (back ? 1 : 2) : back ? 2 : 1
+  return new Date(d.getTime() + days * (back ? -86_400_000 : 86_400_000))
+}
+
+/** An hour on a working day, absolute. Same normalisation as `day`. */
+const at = (n: number, hourUtc: number): Date =>
+  new Date(weekday(day(n), n < 0).getTime() + hourUtc * 3_600_000)
+
 // ── The market ───────────────────────────────────────────────────────
 //
 // Four buyers, two programme offices, two delivery firms, six primes and
@@ -129,6 +153,8 @@ const NAMES: string[] = [
 
 export async function seedWorld(): Promise<{
   firms: number; placements: number; consultants: number
+  /// Chains still mid-flight — open requirements with rounds not yet held.
+  live: number
   roster: { kind: string; name: string; slug: string }[]
   }> {
   // Scoped to the call, not the module: a long-lived server would
@@ -414,8 +440,8 @@ export async function seedWorld(): Promise<{
       },
     }))
   for (const r of [
-    { round: 1, stage: 'SCREEN', mode: 'PHONE', at: -106, says: 'Passed.' },
-    { round: 2, stage: 'TECHNICAL', mode: 'VIDEO', at: -101, says: 'Strong. Offer.' },
+    { round: 1, stage: 'SCREEN', mode: 'PHONE', at: -106, hour: 15, says: 'Passed.' },
+    { round: 2, stage: 'TECHNICAL', mode: 'VIDEO', at: -101, hour: 17, says: 'Strong. Offer.' },
   ]) {
     if (await db.interview.findFirst({ where: { submissionId: sub.id, round: r.round } })) continue
     await db.interview.create({
@@ -423,8 +449,8 @@ export async function seedWorld(): Promise<{
         submissionId: sub.id, companyId: client.id, vendorId: topSeller.id,
         round: r.round, stage: r.stage, mode: r.mode, state: 'DONE',
         proposedSlots: [], durationMins: 45,
-        scheduledAt: day(r.at), decidedAt: day(r.at),
-        clientConfirmedAt: day(r.at), vendorConfirmedAt: day(r.at),
+        scheduledAt: at(r.at, r.hour), decidedAt: at(r.at, r.hour + 1),
+        clientConfirmedAt: day(r.at - 2), vendorConfirmedAt: day(r.at - 2),
         requestedById: seatBySlug.get(clientSlug)!.personId,
         decidedById: seatBySlug.get(clientSlug)!.personId,
         feedback: r.says,
@@ -582,10 +608,238 @@ export async function seedWorld(): Promise<{
   }
 
 
+  // ── Work still in flight ─────────────────────────────────────────────
+  //
+  // Every placement above is finished: requirement FILLED, submission
+  // PLACED, both rounds DONE. A world where nothing is pending reads as
+  // an archive — the interviews queue showed five completed rounds and no
+  // reason to open it, and the line that prints a round's time and zone
+  // was never reached, because no round had a time still ahead of it.
+  //
+  // So three chains stopped mid-way, each at a different station: a
+  // screen confirmed for later this week, a technical round the client
+  // has offered slots for and nobody has picked one, and a round two
+  // confirmed after a round one that passed.
+  //
+  // Each runs bench vendor → prime → client, which needs two requirements
+  // and two submissions: Submission is unique on (requirementId,
+  // personId), so the same person cannot be submitted twice against one
+  // requirement. The prime posts its own, carrying endClientCompanyId, and
+  // that is the mirror the bench vendor answers.
+  interface Round {
+    round: number
+    stage: string
+    mode: string
+    /// PROPOSED · CONFIRMED · DONE
+    state: string
+    /// Days from now. Negative is a round that already happened.
+    inDays: number
+    /// Whole hour UTC. Deliberately not local — stored absolute, read in
+    /// whatever zone the reader set.
+    atHourUtc: number
+    interviewers: string[]
+    outcome?: string
+    feedback?: string
+  }
+  interface Live {
+    role: string
+    skills: string[]
+    loc: string
+    /// client ← prime ← bench vendor.
+    client: string
+    prime: string
+    bench: string
+    name: string
+    /// What the client will pay, what the prime quotes it, what the bench
+    /// vendor quotes the prime. In cents, as everywhere else.
+    band: [number, number]
+    primeRate: number
+    benchRate: number
+    rounds: Round[]
+  }
+  const LIVE: Live[] = [
+    {
+      role: 'Epic Beaker analyst', skills: ['Epic', 'Beaker', 'LIS'], loc: 'Madison, WI',
+      client: 'harlow-health', prime: 'computer-systems', bench: 'cloudepa',
+      name: 'Ifeoma Balogun', band: [11000, 13000], primeRate: 12400, benchRate: 9900,
+      rounds: [
+        {
+          round: 1, stage: 'SCREEN', mode: 'PHONE', state: 'CONFIRMED',
+          inDays: 3, atHourUtc: 15,
+          interviewers: ['Anne Whitfield, Lab Systems', 'Ravi Menon, Clinical Apps'],
+        },
+      ],
+    },
+    {
+      role: 'Python market risk developer', skills: ['Python', 'Pandas', 'Market risk'],
+      loc: 'Charlotte, NC',
+      client: 'meridian-bank', prime: 'vertex-global', bench: 'sahasra',
+      name: 'Tobias Lindgren', band: [12000, 14000], primeRate: 13200, benchRate: 10400,
+      rounds: [
+        {
+          round: 1, stage: 'SCREEN', mode: 'PHONE', state: 'DONE', inDays: -6, atHourUtc: 14,
+          interviewers: ['Sarah Kwan, Risk Technology'],
+          outcome: 'ADVANCE', feedback: 'Knows the book. Send to the desk.',
+        },
+        {
+          round: 2, stage: 'TECHNICAL', mode: 'VIDEO', state: 'PROPOSED', inDays: 6, atHourUtc: 18,
+          interviewers: ['Miguel Ortiz, Quant Dev', 'Sarah Kwan, Risk Technology'],
+        },
+      ],
+    },
+    {
+      role: 'DO-178C verification engineer', skills: ['DO-178C', 'Embedded C', 'LDRA'],
+      loc: 'Wichita, KS',
+      client: 'corveldt', prime: 'teleworld', bench: 'nimbus',
+      name: 'Meera Balakrishnan', band: [13000, 15000], primeRate: 14100, benchRate: 11300,
+      rounds: [
+        {
+          round: 1, stage: 'SCREEN', mode: 'VIDEO', state: 'DONE', inDays: -4, atHourUtc: 16,
+          interviewers: ['Karl Vogt, Software Assurance'],
+          outcome: 'ADVANCE', feedback: 'Certification experience is real. Bring them in.',
+        },
+        {
+          round: 2, stage: 'TECHNICAL', mode: 'ONSITE', state: 'CONFIRMED',
+          inDays: 2, atHourUtc: 16,
+          interviewers: [
+            'Karl Vogt, Software Assurance',
+            'Dana Reyes, Avionics Integration',
+            'Priyanka Sethi, DER',
+          ],
+        },
+      ],
+    },
+  ]
+
+  for (const l of LIVE) {
+    const client = firmBySlug.get(l.client)!
+    const prime = firmBySlug.get(l.prime)!
+    const bench = firmBySlug.get(l.bench)!
+
+    const email = `${l.name.toLowerCase().replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
+    const person = await db.person.upsert({
+      where: { primaryEmail: email }, update: {}, create: { name: l.name, primaryEmail: email },
+    })
+    const profile =
+      (await db.consultantProfile.findFirst({ where: { personId: person.id } })) ??
+      (await db.consultantProfile.create({
+        data: {
+          personId: person.id, skills: l.skills, location: l.loc,
+          visibility: 'VERIFIED', workAuth: 'H1B',
+        },
+      }))
+    // RETAINED, because the kind of a submission is computed from the
+    // tier: their own bench reads BENCH, anybody else's reads NETWORK.
+    if (!(await db.benchListing.findFirst({ where: { consultantId: profile.id, companyId: bench.id } }))) {
+      await db.benchListing.create({
+        data: {
+          consultantId: profile.id, companyId: bench.id, tier: 'RETAINED', state: 'GRANTED',
+          invitedAt: day(-45), respondedAt: day(-44), grantedAt: day(-44),
+        },
+      })
+    }
+
+    // The client's own requirement, still open.
+    const req =
+      (await db.requirement.findFirst({ where: { companyId: client.id, title: l.role } })) ??
+      (await db.requirement.create({
+        data: {
+          companyId: client.id, title: l.role, skills: l.skills, location: l.loc,
+          billMin: l.band[0], billMax: l.band[1], months: 12, headcount: 1,
+          status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL', neededBy: day(30),
+        },
+      }))
+
+    // The prime's mirror. Its band is what it will pay a supplier, which
+    // is not what the client pays it — the whole reason this is a second
+    // row and not a flag on the first.
+    const mirror =
+      (await db.requirement.findFirst({ where: { companyId: prime.id, title: l.role } })) ??
+      (await db.requirement.create({
+        data: {
+          companyId: prime.id, title: l.role, skills: l.skills, location: l.loc,
+          billMin: l.benchRate - 800, billMax: l.benchRate + 400, months: 12, headcount: 1,
+          status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'NETWORK', neededBy: day(30),
+          endClientCompanyId: client.id,
+        },
+      }))
+
+    const up =
+      (await db.submission.findFirst({ where: { requirementId: mirror.id, personId: person.id } })) ??
+      (await db.submission.create({
+        data: {
+          requirementId: mirror.id, personId: person.id,
+          fromCompanyId: bench.id, toCompanyId: prime.id, kind: 'BENCH',
+          rate: l.benchRate, status: 'SHORTLISTED', checkState: 'SENT', screenState: 'READY',
+          submittedAt: day(-14), forwardedAt: day(-12), forwardedVia: 'ONWARD',
+          forwardedById: seatBySlug.get(l.bench)!.personId,
+        },
+      }))
+
+    // The hop onward, carrying the prime's rate and the prime's decision
+    // date. A flag on the first row could carry neither.
+    const sub =
+      (await db.submission.findFirst({ where: { requirementId: req.id, personId: person.id } })) ??
+      (await db.submission.create({
+        data: {
+          requirementId: req.id, personId: person.id,
+          fromCompanyId: prime.id, toCompanyId: client.id, kind: 'NETWORK',
+          rate: l.primeRate, status: 'SHORTLISTED', checkState: 'SENT', screenState: 'READY',
+          submittedAt: day(-12), parentSubmissionId: up.id,
+        },
+      }))
+
+    for (const r of l.rounds) {
+      if (await db.interview.findFirst({ where: { submissionId: sub.id, round: r.round } })) continue
+      const when = at(r.inDays, r.atHourUtc)
+      const proposed = r.state === 'PROPOSED'
+      await db.interview.create({
+        data: {
+          submissionId: sub.id, companyId: client.id, vendorId: prime.id,
+          round: r.round, stage: r.stage, mode: r.mode, state: r.state,
+          // A proposal is slots and no time; anything further along is a
+          // time and no slots. Setting both would say the diary is booked
+          // and still asking.
+          proposedSlots: proposed
+            ? [
+                { start: when.toISOString(), end: at(r.inDays, r.atHourUtc + 1).toISOString() },
+                // Three days apart, not one: a nudge off a weekend moves a
+                // date by at most two, so a one-day gap can collapse to
+                // the same slot offered twice.
+                {
+                  start: at(r.inDays + 3, r.atHourUtc).toISOString(),
+                  end: at(r.inDays + 3, r.atHourUtc + 1).toISOString(),
+                },
+              ]
+            : [],
+          scheduledAt: proposed ? null : when,
+          durationMins: r.stage === 'SCREEN' ? 30 : 60,
+          location: r.mode === 'ONSITE' ? l.loc : 'https://meet.example.invalid/etyme-demo',
+          requestedById: seatBySlug.get(l.client)!.personId,
+          interviewers: r.interviewers,
+          // A proposal nobody has answered in nine days reads as neglect
+          // rather than a live queue; a confirmed round was arranged a
+          // while back, which is ordinary.
+          proposedAt: proposed ? day(-3) : day(-9),
+          clientConfirmedAt: proposed ? null : day(-8),
+          vendorConfirmedAt: proposed ? null : day(-8),
+          consultantConfirmedAt: proposed ? null : day(-8),
+          consultantConfirmedVia: proposed ? null : 'VENDOR_ASSERTED',
+          outcome: r.outcome ?? null,
+          feedback: r.feedback ?? null,
+          decidedAt: r.state === 'DONE' ? when : null,
+          decidedById: r.state === 'DONE' ? seatBySlug.get(l.client)!.personId : null,
+        },
+      })
+    }
+  }
+
+
   return {
     firms: FIRMS.length,
     placements: placed.length,
-    consultants: NAMES.length,
+    consultants: NAMES.length + LIVE.length,
+    live: LIVE.length,
     roster: FIRMS.map((f) => ({ kind: f.kind as string, name: f.name, slug: PREFIX + f.slug })),
   }
 }
