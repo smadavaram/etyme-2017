@@ -295,7 +295,6 @@ const CLIENT_NAV: NavSection[] = [
       // submissions list links into it — removing the entry without that
       // link would have orphaned it, since nothing else pointed there.
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇', group: 'Hire' },
-      { label: 'Placements', href: '/dashboard/contracts', icon: '▤', group: 'Hire' },
       // The one entry point for people, deliberately. This used to sit
       // next to a "Candidates" link to /dashboard/submissions — the raw,
       // one-row-per-submission feed — which is exactly what made the
@@ -313,6 +312,13 @@ const CLIENT_NAV: NavSection[] = [
       // same question about the people at their own suppliers just as
       // often, and had no way in.
       { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'People & suppliers' },
+      // The contracts list, under the name a client uses for it. It sat
+      // under Hire, which is where the trail that produces a placement
+      // ends — but the record itself is the parent of everything below
+      // it here: a timesheet, an invoice, a PO and an expense each draw
+      // on one contract. First in Operate, because the rest of the
+      // section is what happens to it.
+      { label: 'Placements', href: '/dashboard/contracts', icon: '▤', group: 'Operate' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Operate' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Operate' },
       { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Operate' },
