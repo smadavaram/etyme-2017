@@ -32,8 +32,14 @@ git remote add deploy https://github.com/smadavaram/etyme2040   # once
 git fetch deploy main
 
 git worktree add -b deploy-main /tmp/deploy-wt deploy/main
-git -C /tmp/deploy-wt cherry-pick <last-deployed>..<your-tip>
+git -C /tmp/deploy-wt cherry-pick <last-deployed>..<your-branch-name>
 ```
+
+**Name the branch, never write `HEAD`.** Inside the worktree `HEAD` is
+`deploy-main`, so `<last-deployed>..HEAD` resolves to the replayed
+history and git tries to cherry-pick it onto itself — which surfaces as
+a wall of add/add conflicts on files you never touched, and reads like
+the branches have diverged when nothing is wrong.
 
 `<last-deployed>` is the commit in *your* repo matching the tip of
 `deploy/main` — match them by commit message, since the shas differ.
