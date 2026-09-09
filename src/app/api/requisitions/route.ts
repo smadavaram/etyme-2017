@@ -37,12 +37,19 @@ export async function GET(request: NextRequest) {
   )
   if (clientError) return clientError
 
+  // Archived rows are off the working list unless asked for. Filed as a
+  // date rather than a status, so putting one away never overwrites what
+  // actually happened to it — a cancelled requisition that is archived is
+  // still cancelled.
+  const includeArchived = request.nextUrl.searchParams.get('archived') === 'true'
+
   const requisitions = await prisma.requirement.findMany({
     where: {
       OR: [
         { companyId: client.id },
         { msa: { clientId: client.id } },
       ],
+      ...(includeArchived ? {} : { archivedAt: null }),
     },
     include: {
       raisedBy: { select: { id: true, name: true } },
@@ -73,6 +80,11 @@ export async function GET(request: NextRequest) {
         justification: r.justification,
         status: r.status,
         approvalState: r.approvalState,
+        // Whether it has been put away, and why it was called off. The
+        // list could not tell either, so a cancelled requisition read as
+        // an ordinary one and an archived one could not be put back.
+        archivedAt: r.archivedAt?.toISOString() ?? null,
+        cancelReason: r.cancelReason,
         raisedBy: r.raisedBy,
         orgUnit: r.orgUnit,
         costCenter: r.costCenter,

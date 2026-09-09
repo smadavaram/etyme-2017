@@ -319,7 +319,7 @@ export default function RequisitionDetail() {
 
   return (
     <div className="max-w-3xl">
-      <a href="/dashboard/requisitions" className="text-sm text-etyme-action hover:underline">← Requisitions</a>
+      <a href="/dashboard/requisitions" className="text-sm text-etyme-action hover:underline">← Requirements</a>
 
       <div className="mt-4 mb-8">
         <Lbl>{r.costCenter ? `${r.costCenter.code} · ${r.costCenter.name}` : 'No cost centre'}</Lbl>

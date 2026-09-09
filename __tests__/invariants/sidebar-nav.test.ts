@@ -304,6 +304,10 @@ describe('a retired name is retired everywhere, not just in the menu', () => {
     'Getting set up', 'What we made', 'How clients see you',
     'Same person, twice?', 'Who can do what', 'Loose ends', 'Open items',
     'Data gaps', 'Open roles',
+    // Third time this class has reached a founder: the requisitions page
+    // was still headed "Requisitions" under an eyebrow saying "Program",
+    // while the menu that opens it said Requirements under Workforce.
+    'Requisitions',
   ]
 
   /** Every UI file — the screens and the shell, not the libraries. */
@@ -312,12 +316,21 @@ describe('a retired name is retired everywhere, not just in the menu', () => {
   it('has no screen still headed by a name the menu has dropped', () => {
     const offenders: string[] = []
     for (const file of files) {
-      const src = readFileSync(file, 'utf8')
+      // JSX comments explain why a name was retired and would otherwise
+      // report themselves. Blanked rather than deleted so line numbers
+      // still point where a reader can look.
+      const src = readFileSync(file, 'utf8').replace(
+        /\{\/\*[\s\S]*?\*\/\}/g,
+        (m) => m.replace(/[^\n]/g, ' ')
+      )
       src.split('\n').forEach((line, i) => {
         const code = line.replace(/\/\/.*$/, '')
         if (/^\s*\*/.test(line)) return // a docblock may recount the history
         for (const name of RETIRED) {
-          if (code.includes(name)) offenders.push(`${file}:${i + 1} — ${name}`)
+          // Word boundaries, so an identifier is not a label:
+          // `RequisitionsPage` is a function name and nobody reads it.
+          const shows = new RegExp(`(^|[^A-Za-z0-9_])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^A-Za-z0-9_]|$)`)
+          if (shows.test(code)) offenders.push(`${file}:${i + 1} — ${name}`)
         }
       })
     }

@@ -56,6 +56,7 @@ interface Requisition {
   raisedBy: { id: string; name: string } | null
   orgUnit: { id: string; name: string } | null
   costCenter: { id: string; code: string; name: string } | null
+  archivedAt: string | null
   approvals: Approval[]
   counts: { submissions: number; invitations: number }
   createdAt: string
@@ -445,6 +446,7 @@ export default function RequisitionsPage() {
   const [error, setError] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [stage, setStage] = useState<Stage>('ALL')
+  const [busyId, setBusyId] = useState<string | null>(null)
   const [raising, setRaising] = useState(false)
   const [decision, setDecision] = useState<any>(null)
 
@@ -501,6 +503,58 @@ export default function RequisitionsPage() {
     : r.status === 'OPEN' ? 'OPEN'
     : 'DRAFT'
 
+  /**
+   * Calling one off. A reason is required by the route, and rightly:
+   * every supplier still working it is stood down, and being stood down
+   * without being told why is the part they remember.
+   */
+  async function cancel(id: string, title: string) {
+    const reason = window.prompt(
+      `Why is "${title}" being cancelled?\n\nSuppliers sourcing against it will be stood down and shown this.`
+    )
+    if (reason === null) return
+    if (!reason.trim()) {
+      setError('Say why — suppliers sourcing against this are owed a reason.')
+      return
+    }
+    setBusyId(id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/requisitions/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', reason: reason.trim() }),
+      })
+      const body = await readJson(res)
+      if (!res.ok) throw new Error(body?.error?.message ?? 'It could not be cancelled.')
+      await load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  /** Off the working list, or back onto it. Changes nothing else. */
+  async function putAway(id: string, action: 'archive' | 'unarchive') {
+    setBusyId(id)
+    setError(null)
+    try {
+      const res = await fetch(`/api/requisitions/${id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const body = await readJson(res)
+      if (!res.ok) throw new Error(body?.error?.message ?? 'That did not work.')
+      await load()
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   const term = q.trim().toLowerCase()
   const visible = reqs.filter(r =>
     (stage === 'ALL' || stageOf(r) === stage)
@@ -516,9 +570,14 @@ export default function RequisitionsPage() {
     <div className="max-w-4xl">
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <Lbl>Program</Lbl>
+          {/* The eyebrow and the heading both said something the menu no
+              longer says — "Program" for a section now called Workforce,
+              "Requisitions" for an entry now called Requirements. A menu
+              item and the heading of the page it opens are one promise
+              made twice. */}
+          <Lbl>Workforce</Lbl>
           <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
-            Requisitions
+            Requirements
           </h1>
           <p className="text-etyme-muted mt-2 max-w-2xl">
             What your managers need. Most clear the moment they are raised — only
@@ -624,6 +683,33 @@ export default function RequisitionsPage() {
                     {r.counts.invitations} vendor{r.counts.invitations === 1 ? '' : 's'} invited
                     {' · '}{r.counts.submissions} candidate{r.counts.submissions === 1 ? '' : 's'} submitted
                   </div>
+                  {/* Called off, or put away.
+                      The route has existed since the edit work and nothing
+                      called it, so a requisition could be raised and never
+                      withdrawn — a supplier goes on sourcing against a role
+                      that no longer exists and is told nothing. */}
+                  {!pending && r.status !== 'CANCELLED' && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      {r.status !== 'FILLED' && (
+                        <button
+                          onClick={() => cancel(r.id, r.title)}
+                          disabled={busyId === r.id}
+                          className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-attention hover:border-etyme-attention"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      {r.status !== 'OPEN' && (
+                        <button
+                          onClick={() => putAway(r.id, r.archivedAt ? 'unarchive' : 'archive')}
+                          disabled={busyId === r.id}
+                          className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink"
+                        >
+                          {r.archivedAt ? 'Put back' : 'Archive'}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {pending && (
                     <div className="flex items-center gap-2 shrink-0">
                       <button onClick={() => decide(r.id, 'approve')}
