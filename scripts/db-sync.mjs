@@ -20,10 +20,30 @@
 
 import { execSync } from 'node:child_process'
 
-const asked = process.env.DB_PUSH_ON_BUILD === '1'
+// Any of the ordinary ways somebody says yes.
+//
+// This was `=== '1'` exactly. Setting it to `true` in a dashboard — which
+// is what most people type — meant the sync silently did not run, the
+// build succeeded, and the new code went live against the old schema.
+// Every contract, invoice and payroll screen then returns 500: a failed
+// deploy wearing the face of a successful one.
+//
+// The gate is unchanged in substance. Nothing here runs unless somebody
+// deliberately set the variable; this only stops the deliberate act
+// being defeated by a spelling.
+const said = String(process.env.DB_PUSH_ON_BUILD ?? '').trim().toLowerCase()
+const asked = ['1', 'true', 'yes', 'on'].includes(said)
 
 if (!asked) {
-  console.log('db-sync: DB_PUSH_ON_BUILD is not set — leaving the database alone.')
+  // Said exactly, because this line is the one somebody reads in a build
+  // log to decide whether the deploy is safe. "Not set" when it is in
+  // fact set to something unrecognised sends them to look in the wrong
+  // place.
+  console.log(
+    said === ''
+      ? 'db-sync: DB_PUSH_ON_BUILD is not set — leaving the database alone.'
+      : `db-sync: DB_PUSH_ON_BUILD is "${said}", which is not a yes — leaving the database alone.`
+  )
   process.exit(0)
 }
 
@@ -32,7 +52,7 @@ if (!process.env.DATABASE_URL) {
   process.exit(1)
 }
 
-console.log('db-sync: DB_PUSH_ON_BUILD=1 — reconciling the database to the schema.')
+console.log(`db-sync: DB_PUSH_ON_BUILD=${said} — reconciling the database to the schema.`)
 
 try {
   execSync('npx prisma db push --skip-generate --accept-data-loss', { stdio: 'inherit' })
