@@ -215,6 +215,10 @@ export const DOMAINS: Domain[] = [
       'app/(auth)',
       'app/api/settings', 'app/api/imports', 'app/api/integrations',
       'app/api/onboarding', 'app/api/automation',
+      // One placement, end to end. It reads demand, supply, compliance
+      // and money in one answer, so it belongs to none of them and is
+      // owned here by the same rule the schema is.
+      'app/api/placements', 'app/dashboard/placements',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix',
       'lib/contacts', 'lib/counterparty', 'lib/party-onboarding', 'lib/reconciliation',

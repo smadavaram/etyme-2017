@@ -23,6 +23,7 @@ import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
 import { POST as recordReceipt } from '@/app/api/ar/payments/route'
 import { GET as complianceView } from '@/app/api/compliance/route'
 import { GET as profitability } from '@/app/api/profitability/route'
+import { GET as placement } from '@/app/api/placements/[id]/route'
 
 /**
  * L4 — the whole spine, one placement, walked in the order it happens.
@@ -1040,5 +1041,107 @@ describe('Step 20 — what each firm made', () => {
     const seen = await prisma.counterparty.findMany({ where: { companyId: co.adobe } })
     expect(seen.map(c => c.otherCompanyId).sort()).toEqual([co.magnit, co.prime].sort())
     expect(seen.map(c => c.otherCompanyId)).not.toContain(co.sub)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════
+// Part six — and all of it on one screen
+// ═══════════════════════════════════════════════════════════════════
+
+describe('Step 21 — one placement, opened, top to bottom', () => {
+  it('gives CloudEPA the whole thread for Priya in one answer', async () => {
+    // The screen the demo did not have. Sixty lists and four things you
+    // could open meant a vendor could be shown sets of records and could
+    // not follow one person through their working life.
+    as(SUB)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.subSell}`),
+      { params: Promise.resolve({ id: it_.subSell }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const d = r.body.data
+
+    expect(d.person.name).toBe('Priya Raman')
+    expect(d.origin.title).toContain('SAP FICO')
+    expect(d.submission.from.name).toBe('CloudEPA')
+    expect(d.contracts.sell.billRate).toBe(110)
+    expect(d.contracts.buy.payRate).toBe(85)
+    expect(d.contracts.buy.vendor).toBeNull()      // they employ her
+    expect(d.timesheets).toHaveLength(1)
+    expect(d.timesheets[0].hours).toBe(40)
+    expect(d.money.margin).toBe(1_000)
+  })
+
+  it('shows both signatures, from the two companies that actually made them', async () => {
+    as(SUB)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.subSell}`),
+      { params: Promise.resolve({ id: it_.subSell }) }
+    ))
+    const week = r.body.data.timesheets[0]
+    expect(week.clientApproved.hours).toBe(40)
+    expect(week.employerAccepted.hours).toBe(40)
+    expect(week.billedByUs).toBe(true)
+  })
+
+  it('shows Computer Systems their own leg — $135 in, $110 out — and not CloudEPA’s', async () => {
+    as(PRIME)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.primeSell}`),
+      { params: Promise.resolve({ id: it_.primeSell }) }
+    ))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const d = r.body.data
+    expect(d.contracts.sell.billRate).toBe(135)
+    expect(d.contracts.buy.payRate).toBe(110)
+    expect(d.contracts.buy.vendor.name).toBe('CloudEPA')
+    // One firm below them, and what CloudEPA pays Priya is not in here.
+    expect(d.chain.hopsBelow).toBe(1)
+    expect(JSON.stringify(d)).not.toContain('8500')
+  })
+
+  it('finds the hours through the chain, on a contract that carries none of its own', async () => {
+    as(PRIME)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.primeSell}`),
+      { params: Promise.resolve({ id: it_.primeSell }) }
+    ))
+    // Computer Systems' own contract has no timesheet on it and never
+    // will — the money still reads, because the invoice does.
+    expect(r.body.data.money.invoices).toHaveLength(1)
+    expect(r.body.data.money.billed).toBe(5_400)
+  })
+
+  it('refuses a firm that is not a party, without confirming the placement exists', async () => {
+    // 404 rather than 403. Telling a stranger that a placement is there
+    // is itself the leak.
+    as(MSP)
+    const r = await json(await placement(
+      req('GET', `/api/placements/${it_.subSell}`),
+      { params: Promise.resolve({ id: it_.subSell }) }
+    ))
+    expect(r.status).toBe(404)
+    expect(r.body.error.message).toBe('No placement by that id.')
+  })
+
+  it('writes an access log row for the refusal as well as the read', async () => {
+    // Access logging is deliberately fire-and-forget: a read must not
+    // wait on its own audit row. So this waits for the write rather than
+    // assuming it has landed — asserting immediately passes on a quiet
+    // machine and fails on a busy one, which is the worst kind of test.
+    let allowed = false
+    let refused = false
+    for (let attempt = 0; attempt < 40 && !(allowed && refused); attempt++) {
+      const rows = await prisma.accessLog.findMany({
+        where: { subjectId: who.priya, action: 'CONTRACT_VIEW' },
+        select: { allowed: true },
+      })
+      allowed = rows.some(r => r.allowed)
+      refused = rows.some(r => !r.allowed)
+      if (allowed && refused) break
+      await new Promise(r => setTimeout(r, 50))
+    }
+    expect(allowed, 'no permitted read was logged').toBe(true)
+    expect(refused, 'the refusal was not logged').toBe(true)
   })
 })

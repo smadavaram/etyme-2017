@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
@@ -1025,9 +1026,27 @@ export default function ContractsPage() {
     {
       key: 'personName',
       label: 'Consultant',
-      render: (row) => (
-        <span className="font-medium text-etyme-ink">{row.personName}</span>
-      ),
+      // The way into the placement — one person, top to bottom.
+      //
+      // A row that cannot be opened is why a demo of this looked like a
+      // database with a menu: you could show somebody sets of records
+      // and could not follow one person through their working life.
+      //
+      // Only on the sell side, because a placement is a sell contract
+      // and a buy contract id would open nothing. The row click still
+      // opens the drawer, so nothing that worked before stops working.
+      render: (row) =>
+        row.side === 'sell' ? (
+          <Link
+            href={`/dashboard/placements/${row.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="font-medium text-etyme-action hover:underline"
+          >
+            {row.personName}
+          </Link>
+        ) : (
+          <span className="font-medium text-etyme-ink">{row.personName}</span>
+        ),
       sortValue: (row) => row.personName,
     },
     {

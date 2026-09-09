@@ -1,0 +1,428 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { logAccess } from '@/lib/access-log'
+import { canReadPayRate, canReadBillRate, canReadMargin } from '@/lib/permissions'
+import { descend } from '@/lib/work-chain'
+import { ladderFor } from '@/lib/work-chain-read'
+
+/**
+ * GET /api/placements/:id
+ *
+ * One person, one client, top to bottom — the whole life of a placement
+ * in a single answer.
+ *
+ * ── Why this exists ──────────────────────────────────────────────────
+ *
+ * The build had sixty list screens and four things you could open. A
+ * vendor could see sets of records and could not follow one placement
+ * through its life, which is the only thing anybody actually wants to
+ * do: where did this person come from, who sent them, what did we
+ * agree, are they cleared to work, did they file their hours, have we
+ * been paid, and what did we make.
+ *
+ * Every one of those facts already existed. None of them was reachable
+ * from the others.
+ *
+ * ── What a placement is here ─────────────────────────────────────────
+ *
+ * A `SellContract`. It is the row that says this person, at this client,
+ * from this date, at this rate — so it is the spine everything else
+ * hangs off, and the id in the URL is its id.
+ *
+ * ── What each viewer is allowed to see ───────────────────────────────
+ *
+ * Three rules, applied here rather than in the screen, because a screen
+ * that filters is a screen somebody can read around.
+ *
+ *   Only a party may open it at all — the supplier, the payer or the end
+ *   client. Anybody else gets 404 rather than 403: confirming that a
+ *   placement exists is itself a leak.
+ *
+ *   Rates follow the field permissions that already exist. A recruiter
+ *   deliberately cannot see what a placement earns.
+ *
+ *   The chain descends and never ascends. A firm sees its own leg and
+ *   what it pays the hop below, because that is its own cost. It never
+ *   sees what the firm above charges, because that is their margin and
+ *   the whole network stops working the day it leaks.
+ */
+
+const money = (cents: number | null | undefined) =>
+  cents == null ? null : Math.round(cents) / 100
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const { id } = await params
+  const mine = caller.company?.id
+
+  if (!mine) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'You need to belong to a company to open a placement.' } },
+      { status: 403 }
+    )
+  }
+
+  const placement = await prisma.sellContract.findUnique({
+    where: { id },
+    include: {
+      person: {
+        select: {
+          id: true, name: true, primaryEmail: true,
+          consultant: { select: { id: true, skills: true, location: true, workAuth: true } },
+        },
+      },
+      company: { select: { id: true, name: true } },
+      clientCompany: { select: { id: true, name: true } },
+      endClientCompany: { select: { id: true, name: true } },
+      hiringManager: { select: { id: true, name: true } },
+      engagement: { select: { id: true, title: true } },
+      purchaseOrder: { select: { id: true, number: true, amount: true, currency: true } },
+      requirement: {
+        select: {
+          id: true, title: true, skills: true, location: true,
+          billMin: true, billMax: true, neededBy: true, approvalState: true,
+          company: { select: { id: true, name: true } },
+        },
+      },
+      buyLinks: {
+        select: {
+          effectiveFrom: true, effectiveTo: true,
+          buyContract: {
+            select: {
+              id: true, contractType: true, state: true, payCurrency: true,
+              supplierSellContractId: true,
+              vendorCompany: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+      timesheets: {
+        orderBy: { periodStart: 'desc' },
+        take: 12,
+        select: {
+          id: true, periodStart: true, periodEnd: true, totalHours: true, status: true,
+          assertions: {
+            where: { state: 'LIVE' },
+            select: { role: true, hours: true, rateCents: true, companyId: true, at: true, auto: true },
+          },
+          invoiceLines: { select: { id: true, sellContractId: true, amountCents: true } },
+        },
+      },
+    },
+  })
+
+  // A placement that is not ours is a placement that does not exist.
+  const isParty =
+    placement != null &&
+    (placement.companyId === mine ||
+      placement.clientCompanyId === mine ||
+      placement.endClientCompanyId === mine)
+
+  if (!placement || !isParty) {
+    // The refusal is logged too. CLAUDE.md: every read of another
+    // person's data writes an AccessLog row, including refusals.
+    if (placement) {
+      logAccess({
+        subjectId: placement.personId,
+        actorPersonId: caller.person.id,
+        actorCompanyId: mine,
+        action: 'CONTRACT_VIEW',
+        allowed: false,
+        reason: 'Not a party to this placement',
+      })
+    }
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'No placement by that id.' } },
+      { status: 404 }
+    )
+  }
+
+  logAccess({
+    subjectId: placement.personId,
+    actorPersonId: caller.person.id,
+    actorCompanyId: mine,
+    action: 'CONTRACT_VIEW',
+    allowed: true,
+    reason: 'Party to this placement',
+  })
+
+  const isSupplier = placement.companyId === mine
+  const perms = {
+    permissions: caller.permissions,
+    isClientOnMsa: placement.clientCompanyId === mine,
+  }
+  const seeBill = canReadBillRate(perms)
+  const seePay = canReadPayRate(perms)
+  const seeMargin = canReadMargin(perms)
+
+  // ── How this person reached us ──────────────────────────────────────
+  //
+  // The submission, and the one below it where somebody sent them on to
+  // us. A sub-vendor learns nothing new from this; a prime learns who
+  // put the person forward, which they already knew.
+  const submission = placement.requirementId
+    ? await prisma.submission.findFirst({
+        where: { requirementId: placement.requirementId, personId: placement.personId },
+        select: {
+          id: true, rate: true, status: true, submittedAt: true, forwardedAt: true,
+          checkState: true, screenState: true,
+          fromCompany: { select: { id: true, name: true } },
+          toCompany: { select: { id: true, name: true } },
+          parentSubmission: {
+            select: {
+              id: true, rate: true, submittedAt: true,
+              fromCompany: { select: { id: true, name: true } },
+            },
+          },
+          interviews: {
+            orderBy: { round: 'asc' },
+            select: {
+              id: true, round: true, stage: true, mode: true, state: true,
+              scheduledAt: true, feedback: true, decidedAt: true,
+            },
+          },
+        },
+      })
+    : null
+
+  // The band we were given, which is ours alone to read.
+  const invitation = placement.requirementId
+    ? await prisma.requirementInvitation.findFirst({
+        where: { requirementId: placement.requirementId, toCompanyId: mine },
+        select: { payMin: true, payMax: true, message: true, expiresAt: true, status: true },
+      })
+    : null
+
+  // ── The chain, downwards only ───────────────────────────────────────
+  const rungs = await ladderFor([placement.id])
+  const below = descend(placement.id, rungs).slice(1)
+  const ourBuy = placement.buyLinks[0]?.buyContract ?? null
+  const seat = ourBuy
+    ? await prisma.buyContractCandidate.findFirst({
+        where: { buyContractId: ourBuy.id, personId: placement.personId },
+        select: { payRate: true, payCurrency: true, startDate: true, endDate: true },
+      })
+    : null
+
+  // ── Cleared to work ─────────────────────────────────────────────────
+  const [personChecks, supplierCover] = await Promise.all([
+    prisma.verification.findMany({
+      where: { personId: placement.personId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, type: true, status: true, provider: true, issuedAt: true, expiresAt: true },
+    }),
+    ourBuy?.vendorCompany
+      ? prisma.verification.findMany({
+          where: {
+            companyId: ourBuy.vendorCompany.id,
+            type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] },
+          },
+          select: { id: true, type: true, status: true, expiresAt: true },
+        })
+      : Promise.resolve([]),
+  ])
+
+  // ── Money ───────────────────────────────────────────────────────────
+  const invoiceLines = await prisma.invoiceLine.findMany({
+    where: { sellContractId: placement.id },
+    orderBy: { createdAt: 'desc' },
+    take: 12,
+    select: {
+      id: true, hours: true, rateCents: true, amountCents: true,
+      invoice: { select: { id: true, number: true, status: true, total: true, paid: true, dueAt: true, issuedAt: true } },
+    },
+  })
+
+  const billedCents = invoiceLines.reduce((n, l) => n + l.amountCents, 0)
+  const paidCents = invoiceLines.reduce(
+    (n, l) => n + Math.round(Number(l.invoice.paid) * 100 >= l.amountCents ? l.amountCents : 0),
+    0
+  )
+  const hoursAccepted = placement.timesheets.reduce((n, t) => {
+    const employer = t.assertions.find((a) => a.role === 'EMPLOYER_ACCEPTANCE')
+    const client = t.assertions.find((a) => a.role === 'CLIENT_APPROVAL')
+    return n + Number(employer?.hours ?? client?.hours ?? 0)
+  }, 0)
+
+  const costCents = seat ? Math.round(hoursAccepted * seat.payRate) : null
+  const revenueCents = Math.round(hoursAccepted * placement.billRate)
+
+  return NextResponse.json({
+    data: {
+      id: placement.id,
+      // ── Who and where ──
+      person: {
+        id: placement.person.id,
+        name: placement.person.name,
+        skills: placement.person.consultant?.skills ?? [],
+        location: placement.person.consultant?.location ?? null,
+        workAuth: placement.person.consultant?.workAuth ?? null,
+      },
+      supplier: placement.company,
+      client: placement.clientCompany,
+      endClient: placement.endClientCompany,
+      hiringManager: placement.hiringManager,
+      engagement: placement.engagement,
+      state: placement.state,
+      startDate: placement.startDate?.toISOString() ?? null,
+      endDate: placement.endDate?.toISOString() ?? null,
+      paymentTerms: placement.paymentTerms,
+      currency: placement.billCurrency,
+      viewer: { isSupplier, seeBill, seePay, seeMargin },
+
+      // ── Station 1 · where the work came from ──
+      origin: placement.requirement
+        ? {
+            id: placement.requirement.id,
+            title: placement.requirement.title,
+            skills: placement.requirement.skills,
+            location: placement.requirement.location,
+            raisedBy: placement.requirement.company,
+            neededBy: placement.requirement.neededBy?.toISOString() ?? null,
+            approvalState: placement.requirement.approvalState,
+          }
+        : null,
+      invitation: invitation
+        ? {
+            status: invitation.status,
+            // Our own band. Never anybody else's — it lives on the
+            // invitation for exactly this reason.
+            payMin: money(invitation.payMin),
+            payMax: money(invitation.payMax),
+            message: invitation.message,
+          }
+        : null,
+
+      // ── Station 2 · how they reached us ──
+      submission: submission
+        ? {
+            id: submission.id,
+            status: submission.status,
+            rate: seeBill ? money(submission.rate) : null,
+            submittedAt: submission.submittedAt?.toISOString() ?? null,
+            forwardedAt: submission.forwardedAt?.toISOString() ?? null,
+            from: submission.fromCompany,
+            to: submission.toCompany,
+            checkState: submission.checkState,
+            sentOnBy: submission.parentSubmission
+              ? {
+                  company: submission.parentSubmission.fromCompany,
+                  at: submission.parentSubmission.submittedAt?.toISOString() ?? null,
+                  // Their asking price is our cost, so we may see it.
+                  rate: seePay ? money(submission.parentSubmission.rate) : null,
+                }
+              : null,
+          }
+        : null,
+
+      // ── Station 3 · who met them ──
+      interviews: (submission?.interviews ?? []).map((i) => ({
+        id: i.id,
+        round: i.round,
+        stage: i.stage,
+        mode: i.mode,
+        state: i.state,
+        scheduledAt: i.scheduledAt?.toISOString() ?? null,
+        decidedAt: i.decidedAt?.toISOString() ?? null,
+        feedback: i.feedback,
+      })),
+
+      // ── Station 4 · what was agreed, on both sides ──
+      contracts: {
+        sell: {
+          id: placement.id,
+          billRate: seeBill ? money(placement.billRate) : null,
+          state: placement.state,
+          purchaseOrder: placement.purchaseOrder
+            ? {
+                number: placement.purchaseOrder.number,
+                amount: Number(placement.purchaseOrder.amount),
+                currency: placement.purchaseOrder.currency,
+              }
+            : null,
+        },
+        buy: ourBuy
+          ? {
+              id: ourBuy.id,
+              contractType: ourBuy.contractType,
+              state: ourBuy.state,
+              // Null means we employ them. That is the fact, not a gap.
+              vendor: ourBuy.vendorCompany,
+              payRate: seePay && seat ? money(seat.payRate) : null,
+            }
+          : null,
+      },
+
+      // ── Station 5 · the chain below us ──
+      //
+      // How many firms stand between us and the person. Ids only, and
+      // only downwards — what sits above is somebody else's margin.
+      chain: {
+        hopsBelow: below.length,
+        weEmployThem: ourBuy?.vendorCompany == null,
+      },
+
+      // ── Station 6 · cleared to work ──
+      compliance: {
+        person: personChecks.map((v) => ({
+          type: v.type,
+          status: v.status,
+          provider: v.provider,
+          expiresAt: v.expiresAt?.toISOString() ?? null,
+        })),
+        supplierCover: supplierCover.map((v) => ({
+          type: v.type,
+          status: v.status,
+          expiresAt: v.expiresAt?.toISOString() ?? null,
+        })),
+      },
+
+      // ── Station 7 · the hours ──
+      timesheets: placement.timesheets.map((t) => {
+        const client = t.assertions.find((a) => a.role === 'CLIENT_APPROVAL')
+        const employer = t.assertions.find((a) => a.role === 'EMPLOYER_ACCEPTANCE')
+        return {
+          id: t.id,
+          periodStart: t.periodStart.toISOString().slice(0, 10),
+          periodEnd: t.periodEnd.toISOString().slice(0, 10),
+          hours: Number(t.totalHours),
+          status: t.status,
+          // Two signatures, shown as two, because in a chain they are
+          // almost never the same company.
+          clientApproved: client ? { hours: Number(client.hours), at: client.at.toISOString() } : null,
+          employerAccepted: employer ? { hours: Number(employer.hours), at: employer.at.toISOString() } : null,
+          billedByUs: t.invoiceLines.some((l) => l.sellContractId === placement.id),
+        }
+      }),
+
+      // ── Station 8 · the money ──
+      money: {
+        hoursAccepted,
+        invoices: invoiceLines.map((l) => ({
+          id: l.invoice.id,
+          number: l.invoice.number,
+          status: l.invoice.status,
+          hours: Number(l.hours),
+          amount: seeBill ? money(l.amountCents) : null,
+          total: Number(l.invoice.total),
+          paid: Number(l.invoice.paid),
+          dueAt: l.invoice.dueAt.toISOString().slice(0, 10),
+        })),
+        billed: seeBill ? money(billedCents) : null,
+        collected: seeBill ? money(paidCents) : null,
+        // Blank rather than a guess. A margin shown as the whole invoice
+        // because nobody set a cost is the kind of wrong that looks like
+        // good news.
+        revenue: seeBill ? money(revenueCents) : null,
+        cost: seePay ? money(costCents) : null,
+        margin: seeMargin && costCents != null ? money(revenueCents - costCents) : null,
+      },
+    },
+  })
+}
