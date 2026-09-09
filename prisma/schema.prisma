@@ -84,6 +84,18 @@ model Person {
 
   /// Budgets this person is answerable for.
   costCentresOwned CostCenter[] @relation("costCentreOwner")
+
+  /// Where this person is, for text the server writes.
+  ///
+  /// Screens render dates in the browser's locale and are fine. Anything
+  /// the server composes — a notification body, an email — formatted in
+  /// UTC, so an interview at 9am Pacific told a reader in London the
+  /// wrong day whenever the boundary crossed. An IANA name, "America/
+  /// Los_Angeles". Null means we have not asked, and UTC is used and said.
+  ///
+  /// On the person rather than the seat: somebody is in one place
+  /// whoever they work for.
+  timezone String?
 }
 
 model Credential {
@@ -1302,6 +1314,22 @@ model Requirement {
   /// as a commitment. It becomes the purchase order's ceiling after the
   /// award — the same money, one stage later.
   budgetCents Int?
+
+  /// Why this was called off. Present whenever status is CANCELLED.
+  ///
+  /// A requisition withdrawn without a reason costs every supplier that
+  /// sourced against it real work, and they are told nothing. Addendum E
+  /// says never silently permit; the same applies to never silently
+  /// withdraw.
+  cancelReason String?
+
+  /// Put away, not decided.
+  ///
+  /// Distinct from cancelled on purpose. Cancelling says the need went
+  /// away and stands the suppliers down; archiving only takes a settled
+  /// requisition off the working list. Filed as a date rather than a
+  /// status so it cannot overwrite what actually happened to it.
+  archivedAt DateTime?
 
   /// Hours a week this seat actually works. Null means full time.
   ///
