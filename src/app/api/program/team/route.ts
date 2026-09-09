@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
   const companyId = caller.company.id
 
-  const [seats, rules, costCentres] = await Promise.all([
+  const [seats, rules, orgUnits, costCentres] = await Promise.all([
     prisma.context.findMany({
       where: { companyId, revokedAt: null, NOT: { roleId: null } },
       orderBy: { grantedAt: 'asc' },
@@ -65,6 +65,11 @@ export async function GET(request: NextRequest) {
         approver: { select: { id: true, name: true } },
         orgUnit: { select: { id: true, name: true } },
       },
+    }),
+    prisma.orgUnit.findMany({
+      where: { companyId },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, kind: true, parentId: true },
     }),
     prisma.costCenter.findMany({
       where: { companyId, isActive: true },
@@ -130,6 +135,12 @@ export async function GET(request: NextRequest) {
               annualBudget: Number(c.headcountPlans[0].annualBudget),
             }
           : null,
+      })),
+      // The teams a rule can be scoped to. A rule on a parent is
+      // responsible for everything beneath it, so the whole tree is
+      // offered rather than only the units that happen to hold a budget.
+      teams: orgUnits.map((u) => ({
+        id: u.id, name: u.name, kind: u.kind, parentId: u.parentId,
       })),
       people: seats.map((s) => ({
         contextId: s.id,

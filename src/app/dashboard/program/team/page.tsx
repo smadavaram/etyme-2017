@@ -34,6 +34,7 @@ interface Team {
     department: { id: string; name: string } | null
     plan: { period: string; approvedHeads: number; annualBudget: number } | null
   }[]
+  teams: { id: string; name: string; kind: string; parentId: string | null }[]
   people: {
     contextId: string
     person: { id: string; name: string; primaryEmail: string }
@@ -48,6 +49,75 @@ const cash = (n: number) => `$${n.toLocaleString('en-US', { maximumFractionDigit
 export default function ProgramTeamPage() {
   const [team, setTeam] = useState<Team | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [draft, setDraft] = useState({ name: '', approverId: '', threshold: '', teamId: '' })
+
+  const reload = async () => {
+    const res = await fetch('/api/program/team')
+    const body = await readJson(res)
+    if (res.ok) setTeam(body.data)
+  }
+
+  /**
+   * Adding somebody to the chain.
+   *
+   * A blank threshold means "anything a check routes" — which is the lead,
+   * not a rule with no effect. Said in the form rather than left to be
+   * discovered, because an empty box usually means nothing happens.
+   */
+  async function addRule(e: React.FormEvent) {
+    e.preventDefault()
+    if (!draft.name.trim() || !draft.approverId) {
+      setError('A rule needs a name and somebody to approve it.')
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/settings/approval-rules', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: draft.name.trim(),
+          approverId: draft.approverId,
+          thresholdDollars: draft.threshold.trim() === '' ? null : Number(draft.threshold),
+          orgUnitId: draft.teamId || null,
+        }),
+      })
+      const body = await readJson(res)
+      // The route refuses a chain that would leave one person approving
+      // their own work. Its words, not mine — it knows why.
+      if (!res.ok) throw new Error(body?.error?.message ?? 'That rule was refused.')
+      setDraft({ name: '', approverId: '', threshold: '', teamId: '' })
+      setAdding(false)
+      await reload()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function removeRule(id: string, who: string) {
+    const why = window.prompt(`Why is ${who} coming off the chain?`)
+    if (why === null) return
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch(
+        `/api/settings/approval-rules?id=${encodeURIComponent(id)}&reason=${encodeURIComponent(why.trim())}`,
+        { method: 'DELETE' }
+      )
+      const body = await readJson(res)
+      if (!res.ok) throw new Error(body?.error?.message ?? 'That could not be removed.')
+      await reload()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   useEffect(() => {
     let live = true
@@ -118,11 +188,12 @@ export default function ProgramTeamPage() {
                 <th className="lbl pb-2">Who</th>
                 <th className="lbl pb-2">Asked when</th>
                 <th className="lbl pb-2">Department</th>
+                <th className="lbl pb-2"></th>
               </tr>
             </thead>
             <tbody>
               {team.approvers.length === 0 && (
-                <tr><td colSpan={4} className="py-3 text-etyme-muted">
+                <tr><td colSpan={5} className="py-3 text-etyme-muted">
                   Nobody approves anything, so every requisition clears itself.
                 </td></tr>
               )}
@@ -142,11 +213,96 @@ export default function ProgramTeamPage() {
                       : `over ${cash(a.thresholdDollars)} a year`}
                   </td>
                   <td className="py-2 text-etyme-muted">{a.department?.name ?? 'everywhere'}</td>
+                  <td className="py-2 text-right">
+                    <button
+                      onClick={() => removeRule(a.id, a.approver.name)}
+                      disabled={busy}
+                      className="text-[12px] text-etyme-faint hover:text-etyme-danger"
+                    >
+                      Remove
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {error && (
+          <p className="mt-3 text-[13px] text-etyme-danger">{error}</p>
+        )}
+
+        {!adding ? (
+          <button onClick={() => setAdding(true)} className="mt-4 btn-secondary text-[13px]">
+            Add an approver
+          </button>
+        ) : (
+          <form onSubmit={addRule} className="mt-4 card grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <div className="lbl">What to call it</div>
+              <input
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                placeholder="Technology — over $80k"
+                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px]
+                           text-etyme-ink placeholder:text-etyme-faint focus:border-etyme-action focus:outline-none"
+              />
+            </label>
+            <label className="block">
+              <div className="lbl">Who approves</div>
+              <select
+                value={draft.approverId}
+                onChange={(e) => setDraft({ ...draft, approverId: e.target.value })}
+                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px] text-etyme-ink"
+              >
+                <option value="">— pick somebody —</option>
+                {team.people.map((p) => (
+                  <option key={p.person.id} value={p.person.id}>{p.person.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <div className="lbl">Asked when it is over ($ a year)</div>
+              <input
+                type="number" min="0" step="1000"
+                value={draft.threshold}
+                onChange={(e) => setDraft({ ...draft, threshold: e.target.value })}
+                placeholder="80000"
+                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px]
+                           tabular-nums text-etyme-ink placeholder:text-etyme-faint focus:border-etyme-action focus:outline-none"
+              />
+              <p className="mt-1 text-[11px] text-etyme-muted">
+                Leave it blank to make them the lead — asked whenever a check
+                routes something and no threshold catches it.
+              </p>
+            </label>
+            <label className="block">
+              <div className="lbl">Which team</div>
+              <select
+                value={draft.teamId}
+                onChange={(e) => setDraft({ ...draft, teamId: e.target.value })}
+                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px] text-etyme-ink"
+              >
+                <option value="">Everywhere</option>
+                {team.teams.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-etyme-muted">
+                A rule on a team is responsible for everything beneath it too.
+              </p>
+            </label>
+            <div className="flex items-center gap-2 sm:col-span-2">
+              <button type="submit" disabled={busy} className="btn-primary text-[13px]">
+                {busy ? 'Adding…' : 'Add'}
+              </button>
+              <button type="button" onClick={() => { setAdding(false); setError(null) }}
+                className="text-[13px] text-etyme-muted hover:text-etyme-ink">
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
       </section>
 
       {/* ── Whose money ── */}
