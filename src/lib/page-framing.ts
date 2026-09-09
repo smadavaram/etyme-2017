@@ -84,12 +84,12 @@ const VENDOR: Record<PageKey, PageFraming> = {
 const CLIENT: Record<PageKey, PageFraming> = {
   'contracts.sell': {
     eyebrow: 'Program',
-    title: 'Placements',
+    title: 'Contracts',
     subtitle: 'Everyone working at your sites, across every vendor. Rates, end dates, and where they sit.',
   },
   'contracts.buy': {
     eyebrow: 'Program',
-    title: 'Placements',
+    title: 'Contracts',
     subtitle: 'Everyone working at your sites, across every vendor.',
   },
   requirements: {

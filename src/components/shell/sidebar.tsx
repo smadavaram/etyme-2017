@@ -318,7 +318,7 @@ const CLIENT_NAV: NavSection[] = [
       // it here: a timesheet, an invoice, a PO and an expense each draw
       // on one contract. First in Operate, because the rest of the
       // section is what happens to it.
-      { label: 'Placements', href: '/dashboard/contracts', icon: '▤', group: 'Operate' },
+      { label: 'Contracts', href: '/dashboard/contracts', icon: '▤', group: 'Operate' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Operate' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Operate' },
       { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Operate' },

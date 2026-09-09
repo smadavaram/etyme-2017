@@ -40,9 +40,13 @@ describe('A vendor sees supply-side framing', () => {
 
 describe('A client sees demand-side framing', () => {
 
-  it('sell contracts are framed as placements at the client\'s sites', () => {
+  it('sell contracts are framed as contracts at the client\'s sites', () => {
+    // Renamed from "Placements": the nav label points at the same page
+    // and has to say the same thing the h1 does, or a client clicks
+    // "Contracts" and lands on a screen headed "Placements" — the same
+    // contradiction the chip-vs-tab fix on Requirements existed to close.
     const f = pageFraming('CLIENT', 'contracts.sell')
-    expect(f.title).toBe('Placements')
+    expect(f.title).toBe('Contracts')
     expect(f.eyebrow).toBe('Program')
   })
 
