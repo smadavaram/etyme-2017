@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
+import { STAGES, stageOf, mayEdit, type Stage } from '@/lib/requisition-stage'
 
 /**
  * Requisitions — the demand side.
@@ -29,16 +30,179 @@ interface Approval {
   reason: string
   decidedAt: string | null
 }
-/** Where a requirement has got to. One row's whole life, in four words. */
-type Stage = 'ALL' | 'DRAFT' | 'AWAITING' | 'OPEN' | 'FILLED'
+/**
+ * Changing one back while it is still yours to change.
+ *
+ * The route has accepted an edit since the cancel-and-archive work and
+ * nothing ever called it, so an approver could ask for changes and the
+ * person who raised it had no way to make any — the request was a dead
+ * end with a note attached. Same omission as cancel and archive, one
+ * release later.
+ *
+ * Only the fields the route accepts, so the form cannot offer something
+ * the server will silently drop. The window is the route's own: a draft,
+ * or one an approver has handed back.
+ */
+function EditRequisition({
+  req,
+  onClose,
+  onSaved,
+}: {
+  req: Requisition
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const [title, setTitle] = useState(req.title)
+  const [skills, setSkills] = useState(req.skills.join(', '))
+  const [location, setLocation] = useState(req.location ?? '')
+  const [headcount, setHeadcount] = useState(String(req.headcount))
+  const [billMin, setBillMin] = useState(req.billMin != null ? String(req.billMin / 100) : '')
+  const [billMax, setBillMax] = useState(req.billMax != null ? String(req.billMax / 100) : '')
+  const [months, setMonths] = useState(req.months != null ? String(req.months) : '')
+  const [neededBy, setNeededBy] = useState(req.neededBy ? req.neededBy.slice(0, 10) : '')
+  const [justification, setJustification] = useState(req.justification ?? '')
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
 
-const STAGES: Array<[Stage, string]> = [
-  ['ALL', 'All'],
-  ['AWAITING', 'Awaiting approval'],
-  ['OPEN', 'Open to suppliers'],
-  ['FILLED', 'Filled'],
-  ['DRAFT', 'Draft'],
-]
+  /** Empty means "no figure", which is not the same as zero. */
+  const cents = (v: string) => (v.trim() === '' ? null : Math.round(Number(v) * 100))
+  const whole = (v: string) => (v.trim() === '' ? null : Number(v))
+
+  async function save() {
+    if (title.trim().length < 3) {
+      setErr('Give it a title somebody else would recognise.')
+      return
+    }
+    const min = cents(billMin)
+    const max = cents(billMax)
+    if (min !== null && max !== null && min > max) {
+      setErr('The bottom of the rate band is above the top of it.')
+      return
+    }
+    setSaving(true)
+    setErr(null)
+    try {
+      const res = await fetch(`/api/requisitions/${req.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'edit',
+          title: title.trim(),
+          skills: skills.split(',').map(x => x.trim()).filter(Boolean),
+          location: location.trim() || null,
+          headcount: Number(headcount) || 1,
+          billMin: min,
+          billMax: max,
+          months: whole(months),
+          neededBy: neededBy || null,
+          justification: justification.trim() || null,
+        }),
+      })
+      const body = await readJson(res)
+      if (!res.ok) throw new Error(body?.error?.message ?? 'That did not save.')
+      onSaved()
+    } catch (e: any) {
+      setErr(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const field = 'w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-white'
+  const label = 'block text-[10px] uppercase tracking-wider text-etyme-muted mb-1'
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/30 flex items-start justify-center z-50 p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-etyme-surface rounded-lg border border-etyme-rule w-full max-w-lg my-8 p-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 className="font-serif text-xl text-etyme-ink">Edit requisition</h2>
+        <p className="text-xs text-etyme-muted mt-1">
+          {req.approvalState === 'CHANGES_REQUESTED'
+            ? 'Handed back for changes. Saving sends it round again.'
+            : 'Still a draft. Nobody has been asked to look at it yet.'}
+        </p>
+
+        {err && (
+          <p className="mt-3 text-sm text-etyme-attention border border-etyme-attention rounded px-3 py-2">
+            {err}
+          </p>
+        )}
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className={label}>Role</label>
+            <input className={field} value={title} onChange={e => setTitle(e.target.value)} />
+          </div>
+          <div>
+            <label className={label}>Skills, comma separated</label>
+            <input className={field} value={skills} onChange={e => setSkills(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={label}>Where</label>
+              <input className={field} value={location} onChange={e => setLocation(e.target.value)} />
+            </div>
+            <div>
+              <label className={label}>Positions</label>
+              <input className={field} type="number" min="1" value={headcount}
+                onChange={e => setHeadcount(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={label}>Rate from ($/hr)</label>
+              <input className={field} type="number" value={billMin}
+                onChange={e => setBillMin(e.target.value)} placeholder="none" />
+            </div>
+            <div>
+              <label className={label}>Rate to ($/hr)</label>
+              <input className={field} type="number" value={billMax}
+                onChange={e => setBillMax(e.target.value)} placeholder="none" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={label}>Months</label>
+              <input className={field} type="number" value={months}
+                onChange={e => setMonths(e.target.value)} placeholder="none" />
+            </div>
+            <div>
+              <label className={label}>Needed by</label>
+              <input className={field} type="date" value={neededBy}
+                onChange={e => setNeededBy(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label className={label}>Why this is needed</label>
+            <textarea className={field} rows={3} value={justification}
+              onChange={e => setJustification(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-etyme-muted hover:text-etyme-ink">
+            Cancel
+          </button>
+          <button onClick={save} disabled={saving}
+            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Where a requirement has got to. One row's whole life, in four words. */
+type Tab = 'ALL' | Stage
+
+const TABS: Array<[Tab, string]> = [['ALL', 'All'], ...STAGES]
+
 
 interface Requisition {
   id: string
@@ -103,12 +267,26 @@ function Chip({ children, tone = 'passive' }: {
   )
 }
 
-function stateChip(state: string) {
-  if (state === 'AUTO_APPROVED') return <Chip tone="verified">Cleared automatically</Chip>
-  if (state === 'APPROVED') return <Chip tone="verified">Approved</Chip>
-  if (state === 'PENDING_APPROVAL') return <Chip tone="attention">Waiting on approval</Chip>
-  if (state === 'REJECTED') return <Chip tone="attention">Rejected</Chip>
-  return <Chip>Draft</Chip>
+/**
+ * The one chip on the card, saying the same thing as the tab it sits under.
+ *
+ * This read `approvalState` while the tabs read `status`, so a row whose
+ * approval had never been started but which was open to suppliers showed
+ * a "Draft" chip inside the "Open to suppliers" tab. Both were true about
+ * different columns and together they read as a contradiction. The
+ * approval detail did not disappear — it is in Why, where the whole chain
+ * is, rather than competing with the stage on the same line.
+ */
+function stageChip(r: Requisition) {
+  if (r.archivedAt) return <Chip>Archived</Chip>
+  switch (stageOf(r)) {
+    case 'CANCELLED': return <Chip tone="attention">Cancelled</Chip>
+    case 'AWAITING':  return <Chip tone="attention">Waiting on approval</Chip>
+    case 'CHANGES':   return <Chip tone="attention">Needs changes</Chip>
+    case 'FILLED':    return <Chip tone="verified">Filled</Chip>
+    case 'OPEN':      return <Chip tone="action">Open to suppliers</Chip>
+    default:          return <Chip>Draft</Chip>
+  }
 }
 
 /**
@@ -116,9 +294,31 @@ function stateChip(state: string) {
  * A manager whose requisition cleared does not need the arithmetic; one
  * whose requisition routed needs exactly it.
  */
-function Why({ approvals }: { approvals: Approval[] }) {
+function Why({ approvals, state }: { approvals: Approval[]; state: string }) {
   const [open, setOpen] = useState(false)
-  if (approvals.length === 0) return null
+
+  // An empty chain is not an absent answer — it is the answer.
+  //
+  // This returned null, so the requisitions that matter most to the
+  // founder's own claim ("most requisitions clear without a human") were
+  // the ones that explained themselves least: a row that sailed through
+  // showed no reasoning at all, and looked broken rather than fast.
+  if (approvals.length === 0) {
+    if (state === 'AUTO_APPROVED') {
+      return (
+        <p className="mt-3 text-sm text-etyme-muted">
+          Cleared the moment it was raised — inside plan, inside budget, inside the
+          going rate. No approver was needed.
+        </p>
+      )
+    }
+    return (
+      <p className="mt-3 text-sm text-etyme-faint">
+        Not sent for approval yet. Nobody has been asked to look at this.
+      </p>
+    )
+  }
+
   const headline = approvals[0]
 
   return (
@@ -445,7 +645,17 @@ export default function RequisitionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [q, setQ] = useState('')
-  const [stage, setStage] = useState<Stage>('ALL')
+  const [stage, setStage] = useState<Tab>('ALL')
+  /**
+   * Archived rows are off the working list by default.
+   *
+   * That is the whole meaning of archiving — it is filed as a date rather
+   * than a status precisely so it cannot overwrite what actually happened
+   * to a row. Hiding them is what makes the button worth pressing; before
+   * this, archiving changed a label and nothing else.
+   */
+  const [showArchived, setShowArchived] = useState(false)
+  const [editing, setEditing] = useState<Requisition | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [raising, setRaising] = useState(false)
   const [decision, setDecision] = useState<any>(null)
@@ -467,11 +677,20 @@ export default function RequisitionsPage() {
 
   useEffect(() => { load() }, [load])
 
-  async function decide(id: string, action: 'approve' | 'reject') {
-    const reason = action === 'reject'
-      ? window.prompt('Why are you rejecting this? The person who raised it will see this.')
+  async function decide(id: string, action: 'approve' | 'reject' | 'changes') {
+    // Rejecting kills it; asking for changes hands it back. Both are read
+    // by the person who raised it, so both have to say something — the
+    // route refuses either without a reason, and asking here rather than
+    // letting the server refuse means they do not lose the click.
+    const asks = action === 'reject' || action === 'changes'
+    const reason = asks
+      ? window.prompt(
+          action === 'reject'
+            ? 'Why are you rejecting this? The person who raised it will see this.'
+            : 'What needs to change? The person who raised it will see this and can edit.'
+        )
       : window.prompt('Any note for the record? (optional)') ?? ''
-    if (action === 'reject' && !reason) return
+    if (asks && !reason?.trim()) return
     const res = await fetch(`/api/requisitions/${id}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -497,11 +716,6 @@ export default function RequisitionsPage() {
   // read as competing entry points, because that is what they looked
   // like. The stage belongs here, as a filter, where somebody can see
   // all of it at once and narrow when they want to.
-  const stageOf = (r: Requisition): Stage =>
-    r.approvalState === 'PENDING_APPROVAL' ? 'AWAITING'
-    : r.status === 'FILLED' ? 'FILLED'
-    : r.status === 'OPEN' ? 'OPEN'
-    : 'DRAFT'
 
   /**
    * Calling one off. A reason is required by the route, and rightly:
@@ -556,7 +770,8 @@ export default function RequisitionsPage() {
   }
 
   const term = q.trim().toLowerCase()
-  const visible = reqs.filter(r =>
+  const onTheList = reqs.filter(r => showArchived || !r.archivedAt)
+  const visible = onTheList.filter(r =>
     (stage === 'ALL' || stageOf(r) === stage)
   ).filter(r =>
     term.length === 0 ||
@@ -604,8 +819,9 @@ export default function RequisitionsPage() {
       )}
 
       <div className="mb-4 flex flex-wrap gap-2">
-        {STAGES.map(([key, label]) => {
-          const n = key === 'ALL' ? reqs.length : reqs.filter(r => stageOf(r) === key).length
+        {TABS.map(([key, label]) => {
+          // Counted over the same set the tab will show, or the number lies.
+          const n = key === 'ALL' ? onTheList.length : onTheList.filter(r => stageOf(r) === key).length
           return (
             <button
               key={key}
@@ -616,6 +832,17 @@ export default function RequisitionsPage() {
             </button>
           )
         })}
+        {reqs.some(r => r.archivedAt) && (
+          <label className="ml-auto flex items-center gap-2 text-xs text-etyme-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={e => setShowArchived(e.target.checked)}
+              className="accent-etyme-action"
+            />
+            Show archived ({reqs.filter(r => r.archivedAt).length})
+          </label>
+        )}
       </div>
 
       <input
@@ -666,7 +893,7 @@ export default function RequisitionsPage() {
                     </div>
                   </div>
                   <div className="shrink-0 text-right space-y-1">
-                    {stateChip(r.approvalState)}
+                    {stageChip(r)}
                     {r.billMax != null && (
                       <div className="font-serif text-lg text-etyme-ink tabular-nums">
                         ${Math.round(r.billMax / 100)}
@@ -676,7 +903,7 @@ export default function RequisitionsPage() {
                   </div>
                 </div>
 
-                <Why approvals={r.approvals} />
+                <Why approvals={r.approvals} state={r.approvalState} />
 
                 <div className="mt-4 pt-4 border-t border-etyme-rule flex items-center justify-between gap-4">
                   <div className="text-xs text-etyme-muted">
@@ -690,6 +917,19 @@ export default function RequisitionsPage() {
                       that no longer exists and is told nothing. */}
                   {!pending && r.status !== 'CANCELLED' && (
                     <div className="flex items-center gap-2 shrink-0">
+                      {/* Editable exactly while the route says so: a draft,
+                          or one an approver handed back. Open to suppliers
+                          is deliberately not editable — moving the rate
+                          underneath people already sourcing it is a
+                          different requisition, not an edit. */}
+                      {mayEdit(r) && (
+                        <button
+                          onClick={() => setEditing(r)}
+                          className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink"
+                        >
+                          Edit
+                        </button>
+                      )}
                       {r.status !== 'FILLED' && (
                         <button
                           onClick={() => cancel(r.id, r.title)}
@@ -716,8 +956,16 @@ export default function RequisitionsPage() {
                         className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
                         Approve
                       </button>
-                      <button onClick={() => decide(r.id, 'reject')}
+                      {/* The middle answer. Without it an approver who
+                          only wants the rate moved has to reject the whole
+                          thing, which stands the suppliers down and makes
+                          somebody raise it again from nothing. */}
+                      <button onClick={() => decide(r.id, 'changes')}
                         className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink">
+                        Ask for changes
+                      </button>
+                      <button onClick={() => decide(r.id, 'reject')}
+                        className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-attention hover:border-etyme-attention">
                         Reject
                       </button>
                     </div>
@@ -731,6 +979,14 @@ export default function RequisitionsPage() {
 
       {raising && (
         <RaiseModal onClose={() => setRaising(false)} onRaised={d => { setDecision(d); load() }} />
+      )}
+
+      {editing && (
+        <EditRequisition
+          req={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); load() }}
+        />
       )}
     </div>
   )
