@@ -9,6 +9,7 @@ import { DataTable, type Column } from '@/components/data-table'
 import { rate as showRate } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
+import { recall, remember } from '@/lib/remember'
 
 /**
  * Submissions working surface — the vendor's outbound pipeline.
@@ -44,6 +45,8 @@ interface Submission {
 
 type StatusFilter = 'ALL' | 'SUBMITTED' | 'SHORTLISTED' | 'INTERVIEW' | 'OFFERED' | 'PLACED' | 'REJECTED' | 'WITHDRAWN'
 type DirectionFilter = 'sent' | 'received'
+/** The list of valid stored values, so a stale one is ignored not obeyed. */
+const DIRECTIONS: readonly DirectionFilter[] = ['sent', 'received']
 
 // ── Status styling ───────────────────────────────────
 
@@ -725,7 +728,11 @@ export default function SubmissionsPage() {
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [direction, setDirection] = useState<DirectionFilter>('sent')
+  // Null until we know who is reading. A client whose list defaulted to
+  // "Sent" saw an empty outbound pipeline they never use and clicked the
+  // toggle every morning; a vendor's is the other way round. Resolved in
+  // an effect below rather than here, because the seat arrives async.
+  const [direction, setDirection] = useState<DirectionFilter | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [acting, setActing] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
@@ -759,8 +766,36 @@ export default function SubmissionsPage() {
       .catch(() => {})
   }, [])
 
+  // Which way this list faces, and what they last chose.
+  //
+  // The default is the side of the trade they are on: a company that buys
+  // contract labour reads submissions coming in, a company that supplies
+  // it reads the ones going out. An MSP receives on its client's behalf,
+  // so it reads inbound too.
+  //
+  // The default is only ever a starting point. The moment somebody
+  // switches, that is the answer for them from then on — which is why the
+  // stored choice wins over the company's kind, not the other way round.
+  useEffect(() => {
+    if (direction !== null || !companyId) return
+    const facing: DirectionFilter =
+      company?.kind === 'CLIENT' || company?.kind === 'MSP' ? 'received' : 'sent'
+    setDirection(recall(`submissions.direction.${companyId}`, facing, DIRECTIONS))
+  }, [direction, companyId, company?.kind])
+
+  /** Switch the list, and keep the choice for next time. */
+  const faceThisWay = useCallback(
+    (next: DirectionFilter) => {
+      setDirection(next)
+      if (companyId) remember(`submissions.direction.${companyId}`, next)
+    },
+    [companyId]
+  )
+
   const fetchSubmissions = useCallback(async () => {
     if (!companyId && !urlRequirementId) return
+    // Nothing to ask for until we know which way the list faces.
+    if (!urlRequirementId && direction === null) return
     setLoading(true)
     setError(null)
     try {
@@ -769,7 +804,7 @@ export default function SubmissionsPage() {
         // Filter by specific requirement — skip company/direction
         params.set('requirementId', urlRequirementId)
       } else {
-        params.set('direction', direction)
+        params.set('direction', direction!)
         params.set('companyId', companyId!)
       }
       if (statusFilter !== 'ALL') params.set('status', statusFilter)
@@ -1034,7 +1069,7 @@ export default function SubmissionsPage() {
           {/* Direction toggle — prototype segmented control */}
           <div className="flex bg-etyme-canvas rounded-md p-0.5">
             <button
-              onClick={() => { setDirection('sent'); setStatusFilter('ALL') }}
+              onClick={() => { faceThisWay('sent'); setStatusFilter('ALL') }}
               className={`px-4 py-2 text-[13px] font-medium rounded transition-colors ${
                 direction === 'sent'
                   ? 'bg-white shadow-sm text-etyme-ink'
@@ -1044,7 +1079,7 @@ export default function SubmissionsPage() {
               Sent
             </button>
             <button
-              onClick={() => { setDirection('received'); setStatusFilter('ALL') }}
+              onClick={() => { faceThisWay('received'); setStatusFilter('ALL') }}
               className={`px-4 py-2 text-[13px] font-medium rounded transition-colors ${
                 direction === 'received'
                   ? 'bg-white shadow-sm text-etyme-ink'

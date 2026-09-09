@@ -225,7 +225,7 @@ export const DOMAINS: Domain[] = [
       'lib/contacts', 'lib/counterparty', 'lib/party-onboarding', 'lib/reconciliation',
       'app/dashboard/onboarding', 'app/dashboard/integrations',
       'app/api/contacts', 'app/api/counterparties', 'app/dashboard/contacts',
-      'lib/feedback',
+      'lib/feedback', 'lib/remember',
       'lib/demo-placement',
       'lib/company-defaults', 'lib/company-domains', 'lib/domains-owned',
       'lib/registrable-domain', 'lib/account-lifecycle',
