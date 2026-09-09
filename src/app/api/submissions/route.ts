@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { supplierCoverGate } from '@/lib/document-stages'
 import { emit } from '@/lib/events'
@@ -10,6 +10,7 @@ import { tellThem } from '@/lib/representation'
 import { consentText, mayMessage } from '@/lib/texts'
 import { mayMarket, type State } from '@/lib/bench-consent'
 import { send as sendMessage } from '@/lib/messages'
+import { submissionScope } from '@/lib/resolve-client-company'
 
 /**
  * POST /api/submissions
@@ -618,14 +619,10 @@ export async function POST(request: NextRequest) {
  * BUILD.md: direction=sent|received
  */
 export async function GET(request: NextRequest) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  // Was `getSessionEmail` alone, which answers "is somebody signed in"
+  // and nothing else. The seat is what says which submissions are theirs.
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const url = request.nextUrl
   const direction = url.searchParams.get('direction') ?? 'sent'
@@ -644,7 +641,23 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const where: any = {}
+  // Every filter below comes from the query string, and until now the
+  // whole WHERE did: `?personId=` returned one person's entire history
+  // across every firm in the market with rates attached, and `?companyId=`
+  // returned a competitor's outbound pipeline. The caller was
+  // authenticated and never authorised.
+  //
+  // Prisma ANDs top-level keys, so the scope's OR binds the caller into
+  // every query below rather than replacing what was asked for.
+  const scope = submissionScope(caller)
+  if (!scope) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { status: 403 }
+    )
+  }
+
+  const where: any = { ...scope }
 
   if (filterPersonId) {
     where.personId = filterPersonId

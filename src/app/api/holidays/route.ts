@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { resolveOwnCompany } from '@/lib/resolve-client-company'
 
 /**
  * GET /api/holidays
@@ -16,7 +17,14 @@ export async function GET(request: NextRequest) {
   if (error) return error
 
   const url = request.nextUrl
-  const companyId = url.searchParams.get('companyId') ?? caller.company?.id
+  // Same rule as payroll: the URL may name the caller's own company and
+  // nothing else. A holiday calendar is not the most sensitive thing in
+  // here, but it is business-day arithmetic for whoever owns it.
+  const { companyId, error: notYours } = resolveOwnCompany(
+    caller,
+    url.searchParams.get('companyId')
+  )
+  if (notYours) return notYours
   const year = url.searchParams.get('year')
 
   if (!companyId) {

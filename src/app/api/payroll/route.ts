@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
+import { resolveOwnCompany } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 import { daysFor } from '@/lib/contract-links'
 import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
@@ -31,16 +32,18 @@ export async function GET(request: NextRequest) {
   }
 
   const url = request.nextUrl
-  const companyId = url.searchParams.get('companyId') ?? caller.company?.id
+  // `payroll.read` says this person may read payroll. It does not say
+  // whose — and this took the company straight from the query string, so
+  // any owner (who holds `*`) could read any other firm's pay rates by
+  // editing the URL. The screen sends back the id the server gave it, so
+  // requiring it to match costs nothing.
+  const { companyId, error: notYours } = resolveOwnCompany(
+    caller,
+    url.searchParams.get('companyId')
+  )
+  if (notYours) return notYours
   const status = url.searchParams.get('status')
   const period = url.searchParams.get('period') // YYYY-MM
-
-  if (!companyId) {
-    return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'companyId required' } },
-      { status: 422 }
-    )
-  }
 
   // Find all active buy contracts for this company
   const buyContracts = await prisma.buyContract.findMany({

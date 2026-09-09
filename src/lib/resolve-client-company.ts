@@ -344,3 +344,84 @@ export function raisedIt(
 ): boolean {
   return !isConsultantSeat(caller) && caller.company?.id === requirement.companyId
 }
+
+// ── The company the URL is allowed to name ────────────────────────────
+//
+// A route that authenticates the caller and then reads whichever company
+// its query string names has not authorised anything. The permission
+// check does not save it: a vendor owner holds `*` inside their own
+// company, so `payroll.read` passes and the route then hands over
+// somebody else's book.
+//
+// This is the same fault `resolveClientCompany` was written for, in the
+// routes that helper was never applied to.
+
+/**
+ * The company whose own book this caller may read.
+ *
+ * `named` is whatever the URL asked for, and it is allowed to say only
+ * one thing: the caller's own company. The screens that send it are
+ * sending back the id the server gave them, so nothing legitimate is
+ * lost — and a request naming anybody else is refused out loud rather
+ * than quietly answered with the caller's own data, which would leave
+ * somebody staring at figures that are not the ones they asked for.
+ */
+export function resolveOwnCompany(
+  caller: CallerContext,
+  named: string | null
+):
+  | { companyId: string; error: null }
+  | { companyId: null; error: NextResponse } {
+  const mine = caller.company?.id ?? null
+  if (!mine) {
+    return {
+      companyId: null,
+      error: NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'No company context' } },
+        { status: 403 }
+      ),
+    }
+  }
+  if (named && named !== mine) {
+    return {
+      companyId: null,
+      error: NextResponse.json(
+        {
+          error: {
+            code: 'FORBIDDEN',
+            message: 'You can only read your own company here.',
+          },
+        },
+        { status: 403 }
+      ),
+    }
+  }
+  return { companyId: mine, error: null }
+}
+
+/**
+ * Prisma WHERE fragment for Submission reads.
+ *
+ * A submission has two parties and both may read it: the supplier who
+ * sent it and the company it was sent to. Nobody else, which is the part
+ * that was missing — the list route built its filter entirely from query
+ * parameters, so `?personId=` returned one person's whole history across
+ * every firm in the market, rates included, and `?companyId=` returned a
+ * competitor's outbound pipeline.
+ *
+ * Not `payerScope`. A client legitimately reads submissions addressed to
+ * it, and it is the `toCompanyId` on those rows rather than a party to
+ * any contract yet, so the contract-shaped scopes do not describe this.
+ *
+ * A consultant sees the submissions that are about them and no others.
+ * Their context points at the agency whose bench they sit on, and read
+ * as membership it would hand them that agency's entire pipeline.
+ */
+export function submissionScope(
+  caller: CallerContext
+): Record<string, unknown> | null {
+  if (isConsultantSeat(caller)) return { personId: caller.person.id }
+  if (!caller.company) return null
+  const id = caller.company.id
+  return { OR: [{ fromCompanyId: id }, { toCompanyId: id }] }
+}
