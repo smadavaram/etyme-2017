@@ -6,7 +6,7 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import {
   evaluateRequisition,
-  annualisedValueCents,
+  annualValue,
   type RequisitionFacts,
   type ApprovalRuleFacts,
 } from '@/lib/requisition-approval'
@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
   const {
     title, skills, location, headcount, billMin, billMax, months,
     neededBy, justification, costCenterId, orgUnitId, raisedById,
+    budget, hoursPerWeek,
   } = body
 
   if (!title || typeof title !== 'string' || title.trim().length < 3) {
@@ -161,14 +162,19 @@ export async function POST(request: NextRequest) {
   // makes a rate check meaningful rather than an abstract band.
   const skillMedianCents = await medianRateForSkills(client.id, Array.isArray(skills) ? skills : [])
 
-  const annualValueCents = annualisedValueCents({
+  // A stated budget beats an estimate, and the answer says which it was.
+  const value = annualValue({
+    budgetCents: Number.isFinite(budget) ? Number(budget) : null,
     billMaxCents: billMax ?? null,
     headcount: heads,
     months: months ?? null,
+    hoursPerWeek: Number.isFinite(hoursPerWeek) ? Number(hoursPerWeek) : null,
   })
 
   const facts: RequisitionFacts = {
-    annualValueCents,
+    annualValueCents: value.cents,
+    valueBasis: value.basis,
+    valueSays: value.says,
     headcount: heads,
     billMaxCents: billMax ?? null,
     skillMedianCents,
@@ -230,6 +236,8 @@ export async function POST(request: NextRequest) {
         headcount: heads,
         neededBy: neededBy ? new Date(neededBy) : null,
         justification: justification ?? null,
+        budgetCents: Number.isFinite(budget) && Number(budget) > 0 ? Number(budget) : null,
+        hoursPerWeek: Number.isFinite(hoursPerWeek) && Number(hoursPerWeek) > 0 ? Number(hoursPerWeek) : null,
         costCenterId: costCenter?.id ?? null,
         orgUnitId: orgUnitId ?? null,
         raisedById: raisedById ?? caller.person.id,
@@ -274,7 +282,8 @@ export async function POST(request: NextRequest) {
         payload: {
           requirementId: req.id,
           checks: decision.checks as any,
-          annualValueCents,
+          annualValueCents: value.cents,
+          valueBasis: value.basis,
           route: decision.route.map(r => ({ approverId: r.approverId, name: r.approverName })),
         },
         reversible: true,
@@ -296,7 +305,7 @@ export async function POST(request: NextRequest) {
     payload: {
       title: title.trim(),
       heads,
-      annualValueCents,
+      annualValueCents: value.cents,
       // Whether it needed a human at all. The headline number for any
       // programme is the share that cleared without one.
       autoCleared: decision.state === 'AUTO_APPROVED',
@@ -334,7 +343,12 @@ export async function POST(request: NextRequest) {
           checks: decision.checks,
           route: decision.route.map(r => ({ approverId: r.approverId, name: r.approverName, rank: r.rank })),
         },
-        annualValue: annualValueCents / 100,
+        // The figure, and where it came from — so the person reading a
+        // routing decision can see whether it rests on their own budget
+        // or on an estimate.
+        annualValue: value.cents / 100,
+        valueBasis: value.basis,
+        valueSays: value.says,
         message: decision.state === 'AUTO_APPROVED'
           ? `Requisition open — ${decision.summary}`
           : `Requisition raised — ${decision.summary}`,

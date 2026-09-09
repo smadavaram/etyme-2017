@@ -1275,24 +1275,45 @@ model MasterAgreement {
 }
 
 model Requirement {
-  id          String           @id @default(cuid())
-  companyId   String // whoever owns the demand
-  company     Company          @relation(fields: [companyId], references: [id])
-  msaId       String?
-  msa         MasterAgreement? @relation(fields: [msaId], references: [id])
-  title       String
-  skills      String[]
-  location    String?
-  billMin     Int?
-  billMax     Int?
-  months      Int?
-  startDate   DateTime?
-  status      String           @default("OPEN") // DRAFT · OPEN · FILLED · CLOSED
-  source      String           @default("MANUAL") // MANUAL · EMAIL · VMS · NETWORK
-  parseConf   Json? // per field confidence when it came from a parser
+  id        String           @id @default(cuid())
+  companyId String // whoever owns the demand
+  company   Company          @relation(fields: [companyId], references: [id])
+  msaId     String?
+  msa       MasterAgreement? @relation(fields: [msaId], references: [id])
+  title     String
+  skills    String[]
+  location  String?
+  billMin   Int?
+  billMax   Int?
+
+  /// What finance actually committed, in cents. Not to exceed.
+  ///
+  /// The figure that decides who has to approve a requisition used to be
+  /// derived — billMax x 160 hours x months x heads — so nobody typed it
+  /// and nobody could see it. A manager who had $200,000 signed off and a
+  /// system that computed $288,000 from the rate disagreed silently, and
+  /// the system's number won.
+  ///
+  /// Null where nobody stated one, which is ordinary: the estimate is
+  /// then used and the decision says so, rather than presenting a guess
+  /// as a commitment. It becomes the purchase order's ceiling after the
+  /// award — the same money, one stage later.
+  budgetCents Int?
+
+  /// Hours a week this seat actually works. Null means full time.
+  ///
+  /// The estimate assumed 160 hours a month for everybody, so a
+  /// twenty-hour validation seat was valued at twice its cost and routed
+  /// for an approval it did not need.
+  hoursPerWeek Int?
+  months       Int?
+  startDate    DateTime?
+  status       String    @default("OPEN") // DRAFT · OPEN · FILLED · CLOSED
+  source       String    @default("MANUAL") // MANUAL · EMAIL · VMS · NETWORK
+  parseConf    Json? // per field confidence when it came from a parser
   // Addendum D: rate transparency per requirement
-  marginClass String? // ARBITRAGE · EXPERTISE — distinguishes opacity-based vs capability-based margin
-  rateVisible Boolean          @default(false) // vendor rate visibility setting, inherited by contracts
+  marginClass  String? // ARBITRAGE · EXPERTISE — distinguishes opacity-based vs capability-based margin
+  rateVisible  Boolean   @default(false) // vendor rate visibility setting, inherited by contracts
 
   /// Whether any supplier may see this, or only the ones invited.
   ///

@@ -205,6 +205,7 @@ function RaiseModal({ onClose, onRaised }: {
   const [form, setForm] = useState({
     title: '', skills: '', location: '', headcount: '1',
     billMin: '', billMax: '', months: '', neededBy: '', justification: '', costCenterId: '',
+    budget: '', hoursPerWeek: '',
   })
   const [costCenters, setCostCenters] = useState<{ id: string; code: string; name: string }[]>([])
   const [approvers, setApprovers] = useState<
@@ -260,6 +261,8 @@ function RaiseModal({ onClose, onRaised }: {
           location: form.location.trim() || null,
           headcount: parseInt(form.headcount, 10) || 1,
           // Rates are entered in dollars and stored in cents.
+          budget: form.budget ? Math.round(parseFloat(form.budget) * 100) : null,
+          hoursPerWeek: form.hoursPerWeek ? parseInt(form.hoursPerWeek, 10) : null,
           billMin: form.billMin ? Math.round(parseFloat(form.billMin) * 100) : null,
           billMax: form.billMax ? Math.round(parseFloat(form.billMax) * 100) : null,
           months: form.months ? parseInt(form.months, 10) : null,
@@ -333,11 +336,33 @@ function RaiseModal({ onClose, onRaised }: {
                 placeholder="130" className={`${field} mt-1 tabular-nums`} />
             </label>
             <label className="block">
+              <Lbl>Hours a week</Lbl>
+              <input type="number" min="1" max="60" step="1" value={form.hoursPerWeek}
+                onChange={e => setForm({ ...form, hoursPerWeek: e.target.value })}
+                placeholder="40" className={`${field} mt-1 tabular-nums`} />
+            </label>
+            <label className="block">
               <Lbl>Needed by</Lbl>
               <input type="date" value={form.neededBy}
                 onChange={e => setForm({ ...form, neededBy: e.target.value })} className={`${field} mt-1`} />
             </label>
           </div>
+
+          {/* The money, stated rather than inferred.
+              The figure that decides who has to approve was derived from
+              the rate and a hardcoded 160 hours a month, so nobody typed
+              it and nobody could see it. Stated, it wins; left blank, the
+              estimate still answers and says that it is one. */}
+          <label className="block">
+            <Lbl>Budget for it ($, optional)</Lbl>
+            <input type="number" min="0" step="1000" value={form.budget}
+              onChange={e => setForm({ ...form, budget: e.target.value })}
+              placeholder="200000" className={`${field} mt-1 tabular-nums`} />
+            <p className="text-xs text-etyme-muted mt-1">
+              What has actually been signed off. Left blank, we estimate it
+              from the rate and the duration, and say so.
+            </p>
+          </label>
 
           <label className="block">
             <Lbl>Which budget pays for it</Lbl>

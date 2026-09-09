@@ -17,7 +17,7 @@
 export type CheckOutcome = 'PASS' | 'ROUTE' | 'BLOCK'
 
 export interface RequisitionCheck {
-  code: 'HEADCOUNT_PLAN' | 'BUDGET' | 'RATE_BAND' | 'COST_CENTER' | 'DURATION'
+  code: 'HEADCOUNT_PLAN' | 'BUDGET' | 'RATE_BAND' | 'COST_CENTER' | 'DURATION' | 'VALUE'
   outcome: CheckOutcome
   /** Plain English, always present — this is what the approver reads. */
   reason: string
@@ -26,6 +26,15 @@ export interface RequisitionCheck {
 export interface RequisitionFacts {
   /** Annualised value of the requisition, in cents. */
   annualValueCents: number
+  /**
+   * Where that figure came from, and how it reads in a sentence.
+   *
+   * Carried so a routed requisition can say which number routed it.
+   * Somebody told they need a VP's approval is entitled to know whether
+   * that rests on a budget they stated or an estimate the system made.
+   */
+  valueBasis?: ValueBasis
+  valueSays?: string
   headcount: number
   /** Highest hourly rate the client will pay, in cents. Null = not stated. */
   billMaxCents: number | null
@@ -197,6 +206,25 @@ export function evaluateRequisition(
   const byThreshold = rules.filter(
     r => r.thresholdCents !== null && facts.annualValueCents > r.thresholdCents
   )
+
+  // Say which number did it, and whether anybody typed that number.
+  //
+  // A requisition routed on an estimate the system made from a rate is a
+  // different conversation from one routed on a budget somebody signed
+  // off, and the person being asked to wait cannot tell the two apart
+  // unless it is written down.
+  if (byThreshold.length > 0 && facts.valueSays) {
+    checks.push({
+      code: 'VALUE',
+      outcome: 'ROUTE',
+      reason:
+        facts.valueBasis === 'ESTIMATE'
+          ? `Routed on ${facts.valueSays} — state a budget and it routes on that instead`
+          : `Routed on ${facts.valueSays}`,
+    })
+  } else if (facts.valueSays) {
+    checks.push({ code: 'VALUE', outcome: 'PASS', reason: facts.valueSays })
+  }
   // Catch-all rules apply only when something actually routed.
   const byCheck = routed.length > 0
     ? rules.filter(r => r.thresholdCents === null)
@@ -338,12 +366,87 @@ export function mayDistribute(approvalState: string): boolean {
   return approvalState === 'APPROVED' || approvalState === 'AUTO_APPROVED'
 }
 
+/** Where the number that routes a requisition came from. */
+export type ValueBasis =
+  /** Somebody stated a budget. Their number, used as given. */
+  | 'BUDGET'
+  /** Nobody did, so it was estimated from the rate and the duration. */
+  | 'ESTIMATE'
+  /** Neither a budget nor a rate. Nothing to measure. */
+  | 'UNKNOWN'
+
+export interface AnnualValue {
+  cents: number
+  basis: ValueBasis
+  /** One line, for the person being told why they need an approval. */
+  says: string
+}
+
 /**
- * Annualised value of a requisition, in cents.
+ * Annualised value of a requisition, in cents, and where it came from.
  *
- * Uses the stated ceiling because that is what the budget must cover; the
- * actual placement usually lands lower. Duration is capped at twelve months
- * so a three-year requisition does not consume three years of one budget.
+ * A stated budget wins. It is what finance actually committed, and until
+ * this existed the figure that decided who had to approve was derived
+ * from a rate and a hardcoded 160 hours a month — so a manager with
+ * $200,000 signed off and a system computing $288,000 disagreed silently,
+ * and the system's number won without ever being shown.
+ *
+ * Where nobody stated one, the estimate still answers, and the basis says
+ * that it is an estimate. A guess presented as a commitment is the part
+ * that was wrong, not the guess.
+ *
+ * Duration is capped at twelve months either way, so a three-year
+ * requisition does not consume three years of one budget.
+ */
+export function annualValue(input: {
+  budgetCents?: number | null
+  billMaxCents: number | null
+  headcount: number
+  months: number | null
+  /** Hours a week this seat works. Null or absent means full time. */
+  hoursPerWeek?: number | null
+}): AnnualValue {
+  const { budgetCents, billMaxCents, headcount, months, hoursPerWeek } = input
+  const effectiveMonths = Math.min(months ?? 12, 12)
+
+  if (budgetCents && budgetCents > 0) {
+    const over = months ?? 12
+    // A budget spanning more than a year is spread across the years it
+    // covers, so a two-year commitment does not read as twice the annual
+    // spend it actually is.
+    const cents = over > 12 ? Math.round((budgetCents * 12) / over) : budgetCents
+    return {
+      cents,
+      basis: 'BUDGET',
+      says:
+        over > 12
+          ? `$${Math.round(cents / 100).toLocaleString()} a year, from the $${Math.round(budgetCents / 100).toLocaleString()} budget stated over ${over} months`
+          : `$${Math.round(cents / 100).toLocaleString()}, the budget stated`,
+    }
+  }
+
+  if (!billMaxCents || billMaxCents <= 0) {
+    return { cents: 0, basis: 'UNKNOWN', says: 'No budget and no rate ceiling, so there is nothing to measure' }
+  }
+
+  // Four weeks to the month, which is where the old constant of 160 came
+  // from. Kept exactly so a full-time seat values the same as it always
+  // did, and a part-time one finally values as itself.
+  const hoursPerMonth = (hoursPerWeek && hoursPerWeek > 0 ? hoursPerWeek : 40) * 4
+  const cents = billMaxCents * hoursPerMonth * effectiveMonths * headcount
+  return {
+    cents,
+    basis: 'ESTIMATE',
+    says:
+      `about $${Math.round(cents / 100).toLocaleString()}, estimated from ` +
+      `$${Math.round(billMaxCents / 100)}/hr at ${hoursPerMonth / 4} hours a week ` +
+      `for ${effectiveMonths} month${effectiveMonths === 1 ? '' : 's'}` +
+      `${headcount > 1 ? ` across ${headcount} people` : ''}`,
+  }
+}
+
+/**
+ * The older shape, kept so callers that only want the number still work.
  */
 export function annualisedValueCents(input: {
   billMaxCents: number | null

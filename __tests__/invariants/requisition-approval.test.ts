@@ -20,6 +20,7 @@ import { describe, it, expect } from 'vitest'
 import {
   evaluateRequisition,
   annualisedValueCents,
+  annualValue,
   advanceApprovalChain,
   mayDistribute,
   type PendingApproval,
@@ -353,5 +354,72 @@ describe('Only an approved requisition reaches vendors', () => {
 
   it('a draft may not be shown to vendors', () => {
     expect(mayDistribute('DRAFT')).toBe(false)
+  })
+})
+
+// ── The number that routes it, and who typed it ──────────────────────
+//
+// Founder question: "should we have separate rate range field and budget
+// field like $200000". Yes, and the absence was worse than a missing
+// field: the figure deciding who had to approve was derived from the
+// rate and a hardcoded 160 hours a month, so a manager with $200,000
+// signed off and a system computing $288,000 disagreed silently.
+
+describe('what a requisition is worth, and where that figure came from', () => {
+  it('uses the budget somebody stated rather than a number nobody typed', () => {
+    const v = annualValue({
+      budgetCents: 20_000_000, billMaxCents: 15_000, headcount: 1, months: 12,
+    })
+    expect(v.cents).toBe(20_000_000)
+    expect(v.basis).toBe('BUDGET')
+  })
+
+  it('spreads a budget that runs past a year over the years it covers', () => {
+    // $200k across 24 months is $100k a year, not a $200k annual
+    // commitment — otherwise a long engagement routes for approval twice
+    // as often as the spend deserves.
+    const v = annualValue({ budgetCents: 20_000_000, billMaxCents: null, headcount: 1, months: 24 })
+    expect(v.cents).toBe(10_000_000)
+  })
+
+  it('still answers when nobody stated a budget, and says that it is an estimate', () => {
+    const v = annualValue({ billMaxCents: 15_000, headcount: 1, months: 12 })
+    expect(v.basis).toBe('ESTIMATE')
+    expect(v.says).toContain('estimated from')
+  })
+
+  it('values a full-time seat exactly as it always did', () => {
+    // 160 hours a month, unchanged, so nothing that cleared yesterday
+    // routes today.
+    const v = annualValue({ billMaxCents: 15_000, headcount: 1, months: 12 })
+    expect(v.cents).toBe(15_000 * 160 * 12)
+  })
+
+  it('stops valuing a twenty-hour seat as if it were full time', () => {
+    // The reason part-time work routed for approvals it did not need.
+    const half = annualValue({ billMaxCents: 15_000, headcount: 1, months: 12, hoursPerWeek: 20 })
+    const full = annualValue({ billMaxCents: 15_000, headcount: 1, months: 12, hoursPerWeek: 40 })
+    expect(half.cents).toBe(full.cents / 2)
+  })
+
+  it('measures nothing when there is neither a budget nor a rate', () => {
+    const v = annualValue({ billMaxCents: null, headcount: 1, months: 12 })
+    expect(v.basis).toBe('UNKNOWN')
+    expect(v.cents).toBe(0)
+  })
+
+  it('tells somebody routed on an estimate that stating a budget would change it', () => {
+    const decision = evaluateRequisition(
+      {
+        annualValueCents: 28_800_000,
+        valueBasis: 'ESTIMATE',
+        valueSays: 'about $288,000, estimated from $150/hr at 40 hours a week for 12 months',
+        headcount: 1, billMaxCents: 15_000, skillMedianCents: null, months: 12, costCenter: null,
+      },
+      [{ id: 'r1', name: 'Over $250k', approverId: 'vp', approverName: 'Dana', thresholdCents: 25_000_000, rank: 1 }]
+    )
+    expect(decision.state).toBe('PENDING_APPROVAL')
+    const value = decision.checks.find(c => c.code === 'VALUE')
+    expect(value?.reason).toContain('state a budget')
   })
 })
