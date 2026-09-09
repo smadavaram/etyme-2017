@@ -491,7 +491,7 @@ export default function InvitationsPage() {
       <div className="mb-8">
         <Lbl>Sell</Lbl>
         <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">
-          Invitations
+          Shared with you
         </h1>
         <p className="text-etyme-muted mt-2 max-w-2xl">
           Requirements clients have put in front of you. The rate band on each is

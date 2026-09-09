@@ -174,7 +174,7 @@ const SEARCH_SECTIONS: { type: string; label: string; href: string }[] = [
   { type: 'page', label: 'Compliance', href: '/dashboard/compliance' },
   { type: 'page', label: 'Notifications', href: '/dashboard/notifications' },
   { type: 'page', label: 'Conversations', href: '/dashboard/conversations' },
-  { type: 'page', label: 'Decisions', href: '/dashboard/decisions' },
+  { type: 'page', label: 'Needs attention', href: '/dashboard/decisions' },
   { type: 'page', label: 'Reports', href: '/dashboard/reports' },
   { type: 'page', label: 'Import', href: '/dashboard/import' },
   { type: 'page', label: 'Program', href: '/dashboard/program' },

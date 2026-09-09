@@ -48,14 +48,14 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'Dashboard', href: '/dashboard', icon: '◉' },
       { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
       { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' },
-      { label: 'Decisions', href: '/dashboard/decisions', icon: '⬡' },
+      { label: 'Needs attention', href: '/dashboard/decisions', icon: '⬡' },
     ],
   },
   {
     label: 'Sell',
     items: [
       { label: 'Leads', href: '/dashboard/leads', icon: '⌁' },
-      { label: 'Invitations', href: '/dashboard/invitations', icon: '✉' },
+      { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
       { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       // The supplier's side of the same rows: what they have been asked
@@ -157,7 +157,7 @@ const GSI_NAV: NavSection[] = [
       { label: 'Dashboard', href: '/dashboard', icon: '◉' },
       // What the end client sent — a GSI is prime here, the same seat a
       // vendor sits in when it receives a role.
-      { label: 'Invitations', href: '/dashboard/invitations', icon: '✉' },
+      { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
       { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },

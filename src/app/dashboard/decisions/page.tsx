@@ -215,7 +215,7 @@ export default function DecisionsPage() {
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
           <p className="eyebrow">Today</p>
-          <h1>Decisions</h1>
+          <h1>Needs attention</h1>
           <p>Items that need your attention right now — approvals, reviews, and actions across all working surfaces.</p>
         </div>
 
