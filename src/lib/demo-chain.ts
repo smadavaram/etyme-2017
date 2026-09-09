@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { rolesFor } from '@/lib/company-defaults'
 import { defaultPostureFor } from '@/lib/walls'
+import { completePlacement } from '@/lib/demo-placement'
 
 /**
  * One supply chain, entered from whichever seat you actually occupy.
@@ -247,23 +248,54 @@ export async function seedChain(input: {
     },
   })
 
-  // The placement, papered at the visitor's own hop where there is one.
-  const sellerSeat = seatFor(input.seat).buysFrom
+  // ── The placement, papered at the visitor's own hop ─────────────────
+  //
+  // Whichever side of it they are on. Every seat but the last buys from
+  // somebody below; the last one sells to whoever is above. Keying only
+  // off `buysFrom` left the bench vendor — the seat this product is
+  // being sold to first — with no placements at all, so the one visitor
+  // whose day it most needed to show saw an empty book.
+  const below = seatFor(input.seat).buysFrom
+  const above = CHAIN.find((f) => f.buysFrom === input.seat)
+
+  const sellerId = below ? made.get(below)!.id : mine.id
+  const buyerId = below ? mine.id : above ? made.get(above.seat)!.id : null
+
   let contracts = 0
-  if (sellerSeat) {
-    const seller = made.get(sellerSeat)!
-    await prisma.sellContract.create({
+  if (buyerId) {
+    const placement = await prisma.sellContract.create({
       data: {
-        companyId: seller.id,
+        companyId: sellerId,
         personId: consultants[0].personId,
-        clientCompanyId: mine.id,
+        clientCompanyId: buyerId,
+        // Carried, so the placement can be read back to the work that
+        // caused it — station one of the placement screen, and the first
+        // question anybody asks about somebody on site.
+        requirementId: requirement.id,
+        endClientCompanyId: client.id,
         billRate: 12500,
         billCurrency: 'USD',
         startDate: daysAgo(45),
         state: 'IN_PROGRESS',
+        paymentTerms: 45,
       },
     })
     contracts = 1
+
+    // And a life behind it: the buy side, the clearances, four weeks of
+    // hours signed by both companies, and an invoice that was paid.
+    //
+    // Without this the demo listed a placement and opening it showed
+    // seven of eight stations reading "nothing recorded yet" — which is
+    // how a working product comes across as an unfinished one.
+    await completePlacement({
+      sellContractId: placement.id,
+      supplierCompanyId: sellerId,
+      clientCompanyId: buyerId,
+      personId: consultants[0].personId,
+      billRateCents: 12500,
+      payRateCents: 9400,
+    })
   }
 
   return {

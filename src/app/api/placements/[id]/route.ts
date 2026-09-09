@@ -166,12 +166,25 @@ export async function GET(
   // The submission, and the one below it where somebody sent them on to
   // us. A sub-vendor learns nothing new from this; a prime learns who
   // put the person forward, which they already knew.
-  const submission = placement.requirementId
-    ? await prisma.submission.findFirst({
-        where: { requirementId: placement.requirementId, personId: placement.personId },
+  // Matched on the requirement where the contract carries one, and on
+  // the parties where it does not.
+  //
+  // A contract raised outside the award path — imported, back-filled,
+  // seeded — has no requirementId, and requiring one meant a placement
+  // whose submission plainly exists reported "no submission behind it".
+  // The pair (this person, this supplier, this buyer) identifies it
+  // without inventing a link that is not there.
+  const submission = await prisma.submission.findFirst({
+        where: placement.requirementId
+          ? { requirementId: placement.requirementId, personId: placement.personId }
+          : {
+              personId: placement.personId,
+              fromCompanyId: placement.companyId,
+              toCompanyId: placement.clientCompanyId,
+            },
         select: {
           id: true, rate: true, status: true, submittedAt: true, forwardedAt: true,
-          checkState: true, screenState: true,
+          checkState: true, screenState: true, requirementId: true,
           fromCompany: { select: { id: true, name: true } },
           toCompany: { select: { id: true, name: true } },
           parentSubmission: {
@@ -188,13 +201,14 @@ export async function GET(
             },
           },
         },
+        orderBy: { submittedAt: 'desc' },
       })
-    : null
 
   // The band we were given, which is ours alone to read.
-  const invitation = placement.requirementId
+  const invitationOn = placement.requirementId ?? submission?.requirementId ?? null
+  const invitation = invitationOn
     ? await prisma.requirementInvitation.findFirst({
-        where: { requirementId: placement.requirementId, toCompanyId: mine },
+        where: { requirementId: invitationOn, toCompanyId: mine },
         select: { payMin: true, payMax: true, message: true, expiresAt: true, status: true },
       })
     : null
@@ -404,16 +418,33 @@ export async function GET(
       // ── Station 8 · the money ──
       money: {
         hoursAccepted,
-        invoices: invoiceLines.map((l) => ({
-          id: l.invoice.id,
-          number: l.invoice.number,
-          status: l.invoice.status,
-          hours: Number(l.hours),
-          amount: seeBill ? money(l.amountCents) : null,
-          total: Number(l.invoice.total),
-          paid: Number(l.invoice.paid),
-          dueAt: l.invoice.dueAt.toISOString().slice(0, 10),
-        })),
+        // Grouped by invoice, not by line.
+        //
+        // One invoice covering four weeks has four lines, and rendering
+        // a row per line showed the same invoice number four times —
+        // which reads as four invoices for the same work, the exact
+        // thing anybody looking at a billing screen is watching for.
+        invoices: [...invoiceLines
+          .reduce((acc, l) => {
+            const at = acc.get(l.invoice.id) ?? {
+              id: l.invoice.id,
+              number: l.invoice.number,
+              status: l.invoice.status,
+              hours: 0,
+              amountCents: 0,
+              total: Number(l.invoice.total),
+              paid: Number(l.invoice.paid),
+              dueAt: l.invoice.dueAt.toISOString().slice(0, 10),
+              weeks: 0,
+            }
+            at.hours += Number(l.hours)
+            at.amountCents += l.amountCents
+            at.weeks += 1
+            acc.set(l.invoice.id, at)
+            return acc
+          }, new Map<string, any>())
+          .values()]
+          .map((i) => ({ ...i, amount: seeBill ? money(i.amountCents) : null })),
         billed: seeBill ? money(billedCents) : null,
         collected: seeBill ? money(paidCents) : null,
         // Blank rather than a guess. A margin shown as the whole invoice

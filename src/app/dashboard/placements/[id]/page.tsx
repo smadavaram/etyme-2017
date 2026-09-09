@@ -79,7 +79,7 @@ interface Placement {
   }>
   money: {
     hoursAccepted: number
-    invoices: Array<{ id: string; number: string; status: string; hours: number; amount: number | null; total: number; paid: number; dueAt: string }>
+    invoices: Array<{ id: string; number: string; status: string; hours: number; weeks: number; amount: number | null; total: number; paid: number; dueAt: string }>
     billed: number | null; collected: number | null
     revenue: number | null; cost: number | null; margin: number | null
   }
@@ -206,18 +206,25 @@ export default function PlacementPage() {
           ))}
         </div>
 
+        {/* What a client is shown, and what it is not.
+            A buyer sees the rate it pays and the hours it approved. What
+            the supplier pays underneath, and what it keeps, is the
+            supplier's business — showing a buyer an empty "Paying" column
+            invites exactly the question the column cannot answer. */}
         <div className="mt-6 grid grid-cols-1 gap-6 border-t border-etyme-rule pt-5 sm:grid-cols-2 lg:grid-cols-4">
-          <Fact label="Billing" value={rate(p.contracts.sell.billRate)} />
-          <Fact label="Paying" value={rate(p.contracts.buy?.payRate ?? null)} />
+          <Fact label={p.viewer.isSupplier ? 'Billing' : 'You pay'} value={rate(p.contracts.sell.billRate)} />
+          {p.viewer.isSupplier && <Fact label="Paying" value={rate(p.contracts.buy?.payRate ?? null)} />}
           <Fact label="Hours accepted" value={p.money.hoursAccepted || '—'} />
-          <Fact
-            label="Margin"
-            value={
-              p.money.margin == null
-                ? <span className="text-etyme-faint">not set</span>
-                : cash(p.money.margin)
-            }
-          />
+          {p.viewer.isSupplier && (
+            <Fact
+              label="Margin"
+              value={
+                p.money.margin == null
+                  ? <span className="text-etyme-faint">not set</span>
+                  : cash(p.money.margin)
+              }
+            />
+          )}
         </div>
       </div>
 
@@ -314,13 +321,21 @@ export default function PlacementPage() {
       <Station n={4} title="What was agreed, on both sides" subtitle={chainLine}>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="card">
-            <div className="lbl mb-2">You sell to {p.client.name}</div>
+            <div className="lbl mb-2">
+              {p.viewer.isSupplier
+                ? `You sell to ${p.client.name}`
+                : `${p.supplier.name} sells to you`}
+            </div>
             <div className="stat-value">{rate(p.contracts.sell.billRate)}</div>
             <p className="mt-2 text-[13px] text-etyme-muted">
               {p.paymentTerms ? `Net ${p.paymentTerms}` : 'Terms not set'}
               {p.contracts.sell.purchaseOrder ? ` · PO ${p.contracts.sell.purchaseOrder.number}` : ' · no purchase order'}
             </p>
           </div>
+          {/* The buy side belongs to the supplier and is shown only to
+              them. A client reading "You employ them" about somebody
+              another firm employs is worse than a gap. */}
+          {p.viewer.isSupplier && (
           <div className="card">
             <div className="lbl mb-2">
               {p.contracts.buy?.vendor ? `You buy from ${p.contracts.buy.vendor.name}` : 'You employ them'}
@@ -334,6 +349,7 @@ export default function PlacementPage() {
                 : 'No buy contract yet, so this placement has a price and no cost.'}
             </p>
           </div>
+          )}
         </div>
       </Station>
 
@@ -402,16 +418,26 @@ export default function PlacementPage() {
         n={7}
         title="The money"
         subtitle={
-          p.money.margin == null
-            ? 'Margin stays blank until somebody sets a cost. A number here that nobody agreed would look like good news.'
-            : 'What this placement brought in, what it cost, and what is left.'
+          !p.viewer.isSupplier
+            ? 'What this placement has been invoiced at, and what has been settled.'
+            : p.money.margin == null
+              ? 'Margin stays blank until somebody sets a cost. A number here that nobody agreed would look like good news.'
+              : 'What this placement brought in, what it cost, and what is left.'
         }
       >
         <div className="card mb-3 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <Fact label="Revenue" value={cash(p.money.revenue)} />
-          <Fact label="Cost" value={cash(p.money.cost)} />
-          <Fact label="Margin" value={cash(p.money.margin)} />
-          <Fact label="Collected" value={cash(p.money.collected)} />
+          {/* Two different numbers, and the label has to match the one
+              shown. Revenue is what the hours are worth; billed is what
+              has actually gone out on an invoice. A buyer reading
+              "invoiced to you" beside the accrued figure is being told
+              they owe more than anybody has asked them for. */}
+          <Fact
+            label={p.viewer.isSupplier ? 'Revenue' : 'Invoiced to you'}
+            value={cash(p.viewer.isSupplier ? p.money.revenue : p.money.billed)}
+          />
+          {p.viewer.isSupplier && <Fact label="Cost" value={cash(p.money.cost)} />}
+          {p.viewer.isSupplier && <Fact label="Margin" value={cash(p.money.margin)} />}
+          <Fact label={p.viewer.isSupplier ? 'Collected' : 'Paid'} value={cash(p.money.collected)} />
         </div>
 
         {p.money.invoices.length === 0 ? (
@@ -424,7 +450,9 @@ export default function PlacementPage() {
                   {inv.number}
                 </Link>
                 <div className="flex items-center gap-4">
-                  <span className="text-[13px] tabular-nums text-etyme-muted">{inv.hours} hrs</span>
+                  <span className="text-[13px] tabular-nums text-etyme-muted">
+                    {inv.hours} hrs{inv.weeks > 1 ? ` · ${inv.weeks} weeks` : ''}
+                  </span>
                   <span className="text-[14px] tabular-nums text-etyme-ink">{cash(inv.amount)}</span>
                   <span className="text-[13px] tabular-nums text-etyme-muted">due {inv.dueAt}</span>
                   <span className={`chip ${tone(inv.status)}`}>{words(inv.status)}</span>
