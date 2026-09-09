@@ -254,7 +254,17 @@ describe('a nav label names a thing, in the words the trade uses', () => {
   //
   // A label is a noun phrase. Three words is plenty for one, and a
   // question mark means a sentence got in.
-  const LABELS = [...SOURCE.matchAll(/label:\s*'([^']+)'/g)].map((m) => m[1])
+  // Both nav surfaces, not just the sidebar.
+  //
+  // The header carries its own list — the ⌘K destinations and the + New
+  // menu — and scanning only the sidebar is exactly how it kept saying
+  // "Candidates" and "Who can do what" after the sidebar stopped. A
+  // guard that covers one of two doors is not a guard.
+  const HEADER = readFileSync(
+    join(process.cwd(), 'src/components/shell/header.tsx'),
+    'utf8'
+  )
+  const LABELS = [...(SOURCE + HEADER).matchAll(/label:\s*'([^']+)'/g)].map((m) => m[1])
 
   it('has labels, and they are short enough to be names', () => {
     expect(LABELS.length).toBeGreaterThan(30)

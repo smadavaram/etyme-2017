@@ -160,11 +160,11 @@ const SEARCH_SECTIONS: { type: string; label: string; href: string }[] = [
   { type: 'page', label: 'Dashboard', href: '/dashboard' },
   { type: 'page', label: 'Requirements', href: '/dashboard/requirements' },
   { type: 'page', label: 'Submissions', href: '/dashboard/submissions' },
-  { type: 'page', label: 'Sell Contracts', href: '/dashboard/contracts?side=sell' },
-  { type: 'page', label: 'Buy Contracts', href: '/dashboard/contracts?side=buy' },
+  { type: 'page', label: 'Sell contracts', href: '/dashboard/contracts?side=sell' },
+  { type: 'page', label: 'Buy contracts', href: '/dashboard/contracts?side=buy' },
   { type: 'page', label: 'Rolloff', href: '/dashboard/rolloff' },
   { type: 'page', label: 'Bench', href: '/dashboard/bench' },
-  { type: 'page', label: 'Candidates', href: '/dashboard/consultants' },
+  { type: 'page', label: 'Consultants', href: '/dashboard/consultants' },
   { type: 'page', label: 'Training', href: '/dashboard/training' },
   { type: 'page', label: 'Timesheets', href: '/dashboard/timesheets' },
   { type: 'page', label: 'Invoices', href: '/dashboard/invoices' },
@@ -179,7 +179,7 @@ const SEARCH_SECTIONS: { type: string; label: string; href: string }[] = [
   { type: 'page', label: 'Import', href: '/dashboard/import' },
   { type: 'page', label: 'Program', href: '/dashboard/program' },
   { type: 'page', label: 'Org view', href: '/dashboard/program/org' },
-  { type: 'page', label: 'Alumni', href: '/dashboard/alumni' },
+  { type: 'page', label: 'Past contractors', href: '/dashboard/alumni' },
   { type: 'page', label: 'Tenure', href: '/dashboard/tenure' },
 ]
 
@@ -453,7 +453,7 @@ export function Header({ title }: HeaderProps) {
               className="w-full text-left px-4 py-2.5 text-[13px] text-etyme-ink
                          hover:bg-etyme-canvas transition-colors"
             >
-              Who can do what
+              Users & permissions
             </button>
 
             <button

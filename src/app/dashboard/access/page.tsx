@@ -269,7 +269,7 @@ export default function AccessPage() {
     <div className="max-w-3xl">
       <div className="mb-8">
         <Lbl>Settings</Lbl>
-        <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Who can do what</h1>
+        <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">Users & permissions</h1>
         <p className="text-etyme-muted mt-2 max-w-2xl">
           Anyone signing in on your company&apos;s email domain joins automatically and
           can see nothing until somebody here decides what they may do.
