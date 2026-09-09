@@ -288,8 +288,13 @@ const CLIENT_NAV: NavSection[] = [
       // submit — and the list already defaults to what was sent TO the
       // caller, so a client sees its inbox rather than a vendor's
       // outbox.
+      // Interviews are reached from the candidate they are about, not
+      // from a menu of everybody's rounds. A programme office does not
+      // think "show me all interviews"; it opens a submission and asks
+      // what happened to that person. The page still exists and the
+      // submissions list links into it — removing the entry without that
+      // link would have orphaned it, since nothing else pointed there.
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇', group: 'Hire' },
-      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷', group: 'Hire' },
       { label: 'Placements', href: '/dashboard/contracts', icon: '▤', group: 'Hire' },
       // The one entry point for people, deliberately. This used to sit
       // next to a "Candidates" link to /dashboard/submissions — the raw,

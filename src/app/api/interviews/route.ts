@@ -18,6 +18,7 @@ import {
  * that everybody has already agreed to.
  */
 export async function GET(request: NextRequest) {
+  const onlySubmission = request.nextUrl.searchParams.get('submission')
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
@@ -28,7 +29,17 @@ export async function GET(request: NextRequest) {
   const now = new Date()
 
   const rows = await prisma.interview.findMany({
-    where: { OR: [{ companyId }, { vendorId: companyId }] },
+    where: {
+      OR: [{ companyId }, { vendorId: companyId }],
+      // One person's rounds, when asked for. Interviews left the client's
+      // menu because a programme office opens a candidate and asks what
+      // happened to them, rather than reading a list of everybody's
+      // rounds — so the list has to be able to answer that narrower
+      // question. Still scoped to the caller's own company either way: a
+      // submission id from elsewhere returns nothing rather than
+      // somebody else's panel.
+      ...(onlySubmission ? { submissionId: onlySubmission } : {}),
+    },
     include: {
       submission: {
         select: {

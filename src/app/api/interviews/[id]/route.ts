@@ -157,6 +157,102 @@ export async function POST(
     })
   }
 
+  // ── Who is in the room ──────────────────────────────────────────────
+  //
+  // Set once when the round was proposed and never changeable after,
+  // which is not how interviews go: somebody drops out the morning of,
+  // an architect is pulled in, a panel of two becomes three. The list
+  // was write-once for no reason other than that nothing had been
+  // written to change it.
+  //
+  // Names, not seats — plenty of interviewers have no account here, and
+  // requiring one would mean the client's own principal engineer cannot
+  // be listed.
+  if (action === 'interviewers') {
+    // The side running the round owns its panel. A supplier does not
+    // decide who at the client will be in the room.
+    if (!isClient) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_YOURS',
+            message: 'Only the company running the interview decides who is in it.',
+          },
+        },
+        { status: 403 }
+      )
+    }
+
+    if (row.state === 'CANCELLED' || row.state === 'DONE' || row.state === 'NO_SHOW') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'FINISHED',
+            message: 'That round is over. Changing who was in it now would be rewriting it.',
+          },
+        },
+        { status: 409 }
+      )
+    }
+
+    const current = row.interviewers ?? []
+    const add = (Array.isArray(body?.add) ? body.add : [])
+      .map((n: unknown) => String(n ?? '').trim())
+      .filter(Boolean)
+    const remove = (Array.isArray(body?.remove) ? body.remove : [])
+      .map((n: unknown) => String(n ?? '').trim())
+      .filter(Boolean)
+    const replace: string[] | null = Array.isArray(body?.interviewers)
+      ? body.interviewers.map((n: unknown) => String(n ?? '').trim()).filter(Boolean)
+      : null
+
+    if (!replace && add.length === 0 && remove.length === 0) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOTHING_TO_DO',
+            message: 'Say who to add or who to take off.',
+            field: 'interviewers',
+          },
+        },
+        { status: 422 }
+      )
+    }
+
+    // Case-insensitive on removal and on the duplicate check, because
+    // "Dana Okafor" and "dana okafor" are one person and a panel that
+    // lists them twice is a panel somebody has to explain.
+    const lower = (n: string) => n.toLowerCase()
+    const next: string[] = replace ?? [
+      ...current.filter((n) => !remove.some((r: string) => lower(r) === lower(n))),
+      ...add.filter(
+        (n: string) =>
+          !current.some((c) => lower(c) === lower(n)) &&
+          !add.slice(0, add.indexOf(n)).some((a: string) => lower(a) === lower(n))
+      ),
+    ]
+
+    const saved = await prisma.interview.update({
+      where: { id: row.id },
+      data: { interviewers: next },
+    })
+
+    const gone = current.filter((n) => !next.some((x) => lower(x) === lower(n)))
+    const joined = next.filter((n) => !current.some((x) => lower(x) === lower(n)))
+
+    return NextResponse.json({
+      data: {
+        ...shape(saved),
+        says:
+          next.length === 0
+            ? `Round ${row.round} has nobody listed. The interview still stands; the panel is simply not recorded.`
+            : `Round ${row.round}: ${next.join(', ')}` +
+              (joined.length ? ` · added ${joined.join(', ')}` : '') +
+              (gone.length ? ` · removed ${gone.join(', ')}` : ''),
+      },
+    })
+  }
+
   // ── What happened ───────────────────────────────────────────────────
   if (action === 'outcome') {
     // Only the side that ran it may say what came of it. A supplier

@@ -27,6 +27,7 @@ interface Row {
   names: { vendor: string; client: string; consultant: string }
   role: string
   says: string
+  interviewers: string[]
   yours: boolean
   overdue: boolean
   outcome: string | null
@@ -54,6 +55,11 @@ export default function InterviewsPage() {
   const [busy, setBusy] = useState<string | null>(null)
   const [deciding, setDeciding] = useState<string | null>(null)
   const [feedback, setFeedback] = useState('')
+  // Who is in the room. Set once when a round was proposed and never
+  // changeable after, which is not how interviews go — somebody drops
+  // out the morning of, an architect is pulled in.
+  const [panelFor, setPanelFor] = useState<string | null>(null)
+  const [adding, setAdding] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -232,6 +238,66 @@ export default function InterviewsPage() {
                     </button>
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Who is in the room ──
+              Only the side running the round decides its panel, and only
+              while the round is still ahead of them. Names, not seats:
+              plenty of interviewers have no account here, and requiring
+              one would mean a client's own principal engineer cannot be
+              listed. */}
+          {r.you === 'CLIENT' && !['DONE', 'CANCELLED', 'NO_SHOW'].includes(r.state) && (
+            <div className="mt-4 border-t border-etyme-rule pt-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="lbl">Panel</span>
+                {(r.interviewers ?? []).length === 0 && (
+                  <span className="text-[12px] text-etyme-faint">nobody listed yet</span>
+                )}
+                {(r.interviewers ?? []).map((name) => (
+                  <span key={name} className="chip chip--passive">
+                    {name}
+                    <button
+                      onClick={() => act(r.id, { action: 'interviewers', remove: [name] })}
+                      disabled={busy === r.id}
+                      aria-label={`Take ${name} off round ${r.round}`}
+                      className="ml-1 text-etyme-faint hover:text-etyme-danger"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <button
+                  onClick={() => setPanelFor(panelFor === r.id ? null : r.id)}
+                  className="text-[12px] text-etyme-action hover:underline"
+                >
+                  {panelFor === r.id ? 'Done' : 'Add somebody'}
+                </button>
+              </div>
+
+              {panelFor === r.id && (
+                <form
+                  className="mt-2 flex flex-wrap items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    const name = adding.trim()
+                    if (!name) return
+                    act(r.id, { action: 'interviewers', add: [name] })
+                    setAdding('')
+                  }}
+                >
+                  <input
+                    value={adding}
+                    onChange={(e) => setAdding(e.target.value)}
+                    placeholder="Their name"
+                    className="rounded border border-etyme-rule bg-etyme-surface px-2 py-1 text-[13px]
+                               text-etyme-ink placeholder:text-etyme-faint focus:border-etyme-action focus:outline-none"
+                  />
+                  <button type="submit" disabled={busy === r.id} className="btn-secondary text-[12px]">
+                    Add
+                  </button>
+                </form>
               )}
             </div>
           )}

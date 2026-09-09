@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import Link from 'next/link'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -848,9 +849,18 @@ export default function SubmissionsPage() {
     {
       key: 'person',
       label: 'Consultant',
+      // The way into a person's rounds, now that Interviews has left the
+      // client's menu. Without this the interviews page had nothing at
+      // all pointing at it.
       render: (row) => (
         <div>
-          <p className="font-medium text-etyme-ink">{row.person.name}</p>
+          <Link
+            href={`/dashboard/interviews?submission=${row.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="font-medium text-etyme-action hover:underline"
+          >
+            {row.person.name}
+          </Link>
           <p className="text-[11px] text-etyme-faint">{row.kind === 'INTERNAL' ? 'Internal' : row.fromCompany.name}</p>
         </div>
       ),
