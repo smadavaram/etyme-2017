@@ -67,7 +67,7 @@ export default function ProfitabilityPage() {
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <header>
         <p className="eyebrow">Grow</p>
-        <h1 className="headline-serif text-[30px] leading-tight">What we made</h1>
+        <h1 className="headline-serif text-[30px] leading-tight">Profitability</h1>
         <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
           From what was actually approved and accepted, not from a rate card.
           Employer burden, commission and expenses are counted — and on the

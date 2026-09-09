@@ -72,7 +72,7 @@ export default function TextsPage() {
     <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
       <header>
         <p className="eyebrow">Talent</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Keeping the bench honest</h1>
+        <h1 className="headline-serif text-[30px] leading-tight">Bench check-ins</h1>
         <p className="mt-1 max-w-[60ch] text-[13px] text-etyme-muted">
           A record that says somebody is free at $78 was true three weeks
           ago. Everything else here sits on top of it, so we ask — one

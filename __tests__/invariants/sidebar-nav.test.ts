@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { globSync } from 'fs'
 
 /**
  * The founder's own words: "apps on client side seems to be duplicating
@@ -112,11 +113,11 @@ describe('the vendor Operate section reads as three named clusters, not one wall
     const itemLines = operate
       .split('\n')
       .filter((l) => /href:\s*'\/dashboard\//.test(l))
-    // Data gaps is deliberately ungrouped — it is a queue, sitting above
+    // Missing paperwork is deliberately ungrouped — it is a queue, sitting above
     // the clusters, not inside one.
     const ungrouped = itemLines.filter((l) => !/group:\s*'/.test(l))
     expect(ungrouped.length).toBe(1)
-    expect(ungrouped[0]).toContain('Data gaps')
+    expect(ungrouped[0]).toContain('Missing paperwork')
   })
 
   it('keeps each group as one contiguous block, so its header prints once', () => {
@@ -227,7 +228,7 @@ describe('a GSI gets the Deliver / Supply / Operate nav CLAUDE.md names, not the
     const itemLines = operate.split('\n').filter((l) => /href:\s*'\/dashboard\//.test(l))
     const ungrouped = itemLines.filter((l) => !/group:\s*'/.test(l))
     expect(ungrouped.length).toBe(1)
-    expect(ungrouped[0]).toContain('Data gaps')
+    expect(ungrouped[0]).toContain('Missing paperwork')
     assertGroupsAreContiguous(operate)
   })
 })
@@ -284,5 +285,45 @@ describe('a nav label names a thing, in the words the trade uses', () => {
     // different words, none of them "people".
     expect(LABELS).not.toContain('People')
     expect(LABELS).not.toContain('Candidates')
+  })
+})
+
+describe('a retired name is retired everywhere, not just in the menu', () => {
+  // Renaming the sidebar and stopping there left twelve screens whose own
+  // heading still said the old thing: the menu offered "AR" and the page
+  // it opened was headed "Money owed to us". One screen — loose-ends —
+  // answered to three different names at once.
+  //
+  // A menu entry and the heading of the page it opens are the same
+  // promise made twice. The heading may spell out what the menu
+  // abbreviates; it may never say something else.
+  const RETIRED = [
+    'Money owed to us', 'Who is financing whom', 'Keeping the bench honest',
+    'Check the checker', 'Being screened', 'Documents asked for',
+    'Who we work with', 'Your books, their books', 'Load a spreadsheet',
+    'Getting set up', 'What we made', 'How clients see you',
+    'Same person, twice?', 'Who can do what', 'Loose ends', 'Open items',
+    'Data gaps', 'Open roles',
+  ]
+
+  /** Every UI file — the screens and the shell, not the libraries. */
+  const files = globSync('src/{app/dashboard,components/shell}/**/*.tsx')
+
+  it('has no screen still headed by a name the menu has dropped', () => {
+    const offenders: string[] = []
+    for (const file of files) {
+      const src = readFileSync(file, 'utf8')
+      src.split('\n').forEach((line, i) => {
+        const code = line.replace(/\/\/.*$/, '')
+        if (/^\s*\*/.test(line)) return // a docblock may recount the history
+        for (const name of RETIRED) {
+          if (code.includes(name)) offenders.push(`${file}:${i + 1} — ${name}`)
+        }
+      })
+    }
+    expect(
+      offenders,
+      `these still show a retired name:\n  ${offenders.join('\n  ')}`
+    ).toEqual([])
   })
 })

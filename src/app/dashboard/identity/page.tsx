@@ -96,7 +96,7 @@ export default function IdentityPage() {
     <div className="mx-auto max-w-[760px] space-y-6 px-4 py-6">
       <header>
         <p className="eyebrow">Governance</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Same person, twice?</h1>
+        <h1 className="headline-serif text-[30px] leading-tight">Duplicate check</h1>
         <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
           When a supplier in the middle of a chain is not on Etyme, one
           contractor can arrive twice under two records — and their tenure here

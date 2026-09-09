@@ -43,7 +43,7 @@ export default function LooseEndsPage() {
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <header>
         <p className="eyebrow">Operate</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Loose ends</h1>
+        <h1 className="headline-serif text-[30px] leading-tight">Missing paperwork</h1>
         <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
           Placements missing the link that makes them add up. Worst first, then
           oldest — because a gap found this week is a phone call and the same

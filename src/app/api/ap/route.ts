@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
           'No supplier bills have been recorded, so there is nothing to measure on the way ' +
           'out. This screen fills as bills from sub-vendors are entered against their ' +
           'contracts. Until then the only half of the chain visible is what clients owe us, ' +
-          'which is on Money owed to us.',
+          'which is on AR.',
       },
     })
   }

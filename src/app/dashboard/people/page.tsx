@@ -191,7 +191,7 @@ export default function PeoplePage() {
               {/* Time here, through whoever. The only place it exists. */}
               {r.stints.length > 0 && (
                 <div>
-                  <p className="stat-label">Worked here before</p>
+                  <p className="stat-label">Past contractors</p>
                   <ul className="mt-1.5 space-y-1">
                     {r.stints.map((s, i) => (
                       <li key={i} className="text-[12px] text-etyme-muted">

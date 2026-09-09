@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 
 /**
- * Being screened — the other direction.
+ * Screening packs — the other direction.
  *
  * Every other document screen here asks somebody else for papers. This
  * one answers the question a client's procurement team asks us, and
@@ -140,7 +140,7 @@ export default function OutboundPackPage() {
       <div className="mx-auto max-w-[900px] px-4 py-6">
         <header className="page-head">
           <p className="eyebrow">Operate</p>
-          <h1>Being screened</h1>
+          <h1>Screening packs</h1>
         </header>
         <div className="panel">
           <p className="text-[13px] text-etyme-ink">{denied}</p>
@@ -156,7 +156,7 @@ export default function OutboundPackPage() {
     <div className="mx-auto max-w-[1000px] space-y-6 px-4 py-6">
       <header className="page-head">
         <p className="eyebrow">Operate</p>
-        <h1>Being screened</h1>
+        <h1>Screening packs</h1>
         <p>
           A vendor spends as much time being screened as screening. This is what we can
           put in front of a client&rsquo;s procurement team today — and what would stop

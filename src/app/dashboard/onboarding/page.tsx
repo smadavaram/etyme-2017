@@ -67,7 +67,7 @@ export default function OnboardingPage() {
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <header>
         <p className="eyebrow">Operate</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Getting set up</h1>
+        <h1 className="headline-serif text-[30px] leading-tight">Setup</h1>
         <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
           One word, five processes. Each list is derived from what actually
           exists right now — nothing here is a ticked box that can drift from

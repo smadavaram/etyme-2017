@@ -7,7 +7,7 @@ import { DataTable, type Column } from '@/components/data-table'
 import { compact, amount } from '@/lib/money-display'
 
 /**
- * Money owed to us.
+ * Accounts receivable.
  *
  * A working surface, not a decision surface. Nobody comes here to be
  * persuaded of anything — they come to find the four clients who have
@@ -102,7 +102,7 @@ export default function ArPage() {
     <div className="mx-auto max-w-[1200px] space-y-6 px-4 py-6">
       <header>
         <p className="eyebrow">Operate</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Money owed to us</h1>
+        <h1 className="headline-serif text-[30px] leading-tight">Accounts receivable</h1>
         <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">
           Aged from the day each invoice fell due, so a client on sixty-day terms is
           not shown as late on day forty-five. A part payment is chased for the

@@ -270,7 +270,7 @@ export default function ProgramPage() {
     { key: 'approvals', label: 'Approvals', count: s.pendingApprovals || undefined },
     { key: 'contractors', label: 'Contractors' },
     { key: 'vendors', label: 'Vendors' },
-    { key: 'roles', label: 'Open roles', count: s.openRoles || undefined },
+    { key: 'roles', label: 'Open requirements', count: s.openRoles || undefined },
   ]
 
   return (
@@ -338,7 +338,7 @@ export default function ProgramPage() {
           value={s.vendors}
         />
         <StatCard
-          label="Open roles"
+          label="Open requirements"
           value={s.openRoles}
           tone={s.openRoles > 0 ? 'action' : undefined}
         />
@@ -578,10 +578,10 @@ function OverviewTab({ data, onExtend, onRolloff }: {
           </div>
         </div>
 
-        {/* Open roles */}
+        {/* Open requirements */}
         {data.openRoles.length > 0 && (
           <div className="card">
-            <h2 className="text-sm font-semibold mb-3">Open roles</h2>
+            <h2 className="text-sm font-semibold mb-3">Open requirements</h2>
             <div className="space-y-2">
               {data.openRoles.map(r => (
                 <div key={r.id} className="flex items-center justify-between py-2 border-b border-etyme-rule last:border-0">

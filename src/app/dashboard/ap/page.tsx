@@ -7,7 +7,7 @@ import { DataTable, type Column } from '@/components/data-table'
 import { compact, amount } from '@/lib/money-display'
 
 /**
- * Who is financing whom.
+ * Accounts payable.
  *
  * ── Why this screen is not "accounts payable" ────────────────────────
  *
@@ -36,7 +36,7 @@ import { compact, amount } from '@/lib/money-display'
 type Tab = 'chains' | 'hops' | 'clause' | 'exceptions' | 'runs'
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'chains', label: 'Who is financing whom' },
+  { key: 'chains', label: 'Accounts payable' },
   { key: 'hops', label: 'Every hop' },
   { key: 'clause', label: 'Pay when paid' },
   { key: 'exceptions', label: 'Bills that did not match' },
@@ -82,7 +82,7 @@ export default function ApPage() {
     <div className="mx-auto max-w-[1200px] space-y-6 px-4 py-6">
       <header>
         <p className="eyebrow">Operate</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Who is financing whom</h1>
+        <h1 className="headline-serif text-[30px] leading-tight">Accounts payable</h1>
         <p className="mt-2 max-w-[64ch] text-[13px] text-etyme-muted">
           Being late is actual against agreed. Float is your cash out against your cash
           in — and a firm can be perfectly on time on every hop and still fund four

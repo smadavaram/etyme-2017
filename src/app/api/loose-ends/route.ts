@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const notStaff = staffOnly(caller, 'Loose ends')
+  const notStaff = staffOnly(caller, 'Missing paperwork')
   if (notStaff) return notStaff
 
   const companyId = caller.company!.id

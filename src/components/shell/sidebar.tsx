@@ -80,7 +80,7 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       // High in the list on purpose. It is a queue, not a report, and a
       // report is something somebody has to think to ask for.
-      { label: 'Data gaps', href: '/dashboard/loose-ends', icon: '⛓' },
+      { label: 'Missing paperwork', href: '/dashboard/loose-ends', icon: '⛓' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Money' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
       // Next to Invoices deliberately: same money, different question.
@@ -181,7 +181,7 @@ const GSI_NAV: NavSection[] = [
   {
     label: 'Operate',
     items: [
-      { label: 'Data gaps', href: '/dashboard/loose-ends', icon: '⛓' },
+      { label: 'Missing paperwork', href: '/dashboard/loose-ends', icon: '⛓' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Money' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
       { label: 'AR', href: '/dashboard/ar', icon: '◧', group: 'Money' },

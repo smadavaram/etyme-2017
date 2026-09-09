@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const notStaff = staffOnly(caller, 'Money owed to us')
+  const notStaff = staffOnly(caller, 'Accounts receivable')
   if (notStaff) return notStaff
 
   if (!hasPermission(caller.permissions, 'margin.read') && !hasPermission(caller.permissions, 'pnl.read')) {

@@ -143,7 +143,7 @@ export default function ChecksPage() {
     <div className="mx-auto max-w-[720px] space-y-6 px-4 py-6">
       <header>
         <p className="eyebrow">Operate</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Check the checker</h1>
+        <h1 className="headline-serif text-[30px] leading-tight">Check queue</h1>
         <p className="mt-1 max-w-[58ch] text-[13px] text-etyme-muted">
           Ten a week. Never let the machine be the only thing checking the
           machine — it will report ninety-six percent while your clients

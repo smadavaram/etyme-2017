@@ -141,7 +141,7 @@ export default function DataPage() {
     <>
       <div className="page-head mb-6">
         <p className="eyebrow">Settings</p>
-        <h1>Load a spreadsheet</h1>
+        <h1>Import</h1>
         <p>
           Cost centres, work sites, purchase orders, holidays, people. Matched on a key, so
           loading the same file twice changes nothing the second time.

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 /**
- * Who we work with, and who to call there.
+ * Contacts, and who to call there.
  *
  * Two tabs over one idea. Companies is the register — who they are to
  * us, whether an agreement backs it, whether anything is live between
@@ -57,7 +57,7 @@ export default function ContactsPage() {
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-6">
       <header>
         <p className="eyebrow">Operate</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Who we work with</h1>
+        <h1 className="headline-serif text-[30px] leading-tight">Contacts</h1>
         <p className="mt-2 max-w-[60ch] text-[13px] text-etyme-muted">
           The register of firms and the people at them. Private to this
           company — a rolodex is a commercial asset, and nobody else&rsquo;s
