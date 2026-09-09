@@ -423,3 +423,62 @@ describe('what a requisition is worth, and where that figure came from', () => {
     expect(value?.reason).toContain('state a budget')
   })
 })
+
+// ── Handing it back ──────────────────────────────────────────────────
+//
+// Founder: "how do you record the approvals, notes and changes requested
+// by fellow team mates". There were two moves and rejection was terminal,
+// so a reviewer wanting "bring it to $120 and I'll sign" had to refuse it
+// or approve something they disagreed with. People do the second.
+
+describe('a reviewer can ask for a change without refusing it', () => {
+  const chain: PendingApproval[] = [
+    { id: 'a1', approverId: 'manager', rank: 1, outcome: 'APPROVED' },
+    { id: 'a2', approverId: 'finance', rank: 2, outcome: 'PENDING' },
+    { id: 'a3', approverId: 'vp', rank: 3, outcome: 'PENDING' },
+  ]
+
+  it('sends it back to whoever raised it rather than closing it', () => {
+    const a = advanceApprovalChain(chain, 'changes', 'finance')
+    expect(a.nextState).toBe('CHANGES_REQUESTED')
+    expect(a.completesChain).toBe(false)
+  })
+
+  it('does not open it to suppliers on the way past', () => {
+    const a = advanceApprovalChain(chain, 'changes', 'finance')
+    expect(a.nextStatus).toBeNull()
+  })
+
+  it('leaves the ranks above unasked while it is away', () => {
+    // The VP is not troubled with a version finance has already said is
+    // wrong.
+    const a = advanceApprovalChain(chain, 'changes', 'finance')
+    expect(a.remaining.map(r => r.approverId)).toEqual(['vp'])
+  })
+
+  it('resumes at the rank that asked, not back at the beginning', () => {
+    // Finance asked, so finance decides when it returns — rank 1 already
+    // approved a version that was smaller or cheaper than this one, and
+    // re-asking them for a change they did not request is how people
+    // learn to stop reading these.
+    const returned: PendingApproval[] = [
+      { id: 'a1', approverId: 'manager', rank: 1, outcome: 'APPROVED' },
+      { id: 'a2', approverId: 'finance', rank: 2, outcome: 'PENDING' },
+      { id: 'a3', approverId: 'vp', rank: 3, outcome: 'PENDING' },
+    ]
+    const next = advanceApprovalChain(returned, 'approve', 'finance')
+    expect(next.current?.approverId).toBe('finance')
+    expect(next.refusal).toBeNull()
+  })
+
+  it('still refuses somebody else’s rank', () => {
+    const a = advanceApprovalChain(chain, 'changes', 'vp')
+    expect(a.refusal).toBe('NOT_YOUR_APPROVAL')
+  })
+
+  it('is not a rejection — the ranks below keep their approvals', () => {
+    const a = advanceApprovalChain(chain, 'changes', 'finance')
+    expect(a.nextState).not.toBe('REJECTED')
+    expect(chain[0].outcome).toBe('APPROVED')
+  })
+})

@@ -30,9 +30,30 @@ export async function POST(
   const body = await request.json()
   const { action, reason } = body
 
-  if (action !== 'approve' && action !== 'reject') {
+  if (action !== 'approve' && action !== 'reject' && action !== 'changes') {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: "action must be 'approve' or 'reject'", field: 'action' } },
+      {
+        error: {
+          code: 'VALIDATION',
+          message: "action must be 'approve', 'reject' or 'changes'",
+          field: 'action',
+        },
+      },
+      { status: 422 }
+    )
+  }
+
+  // Handing something back without saying what to change is a refusal
+  // wearing politer words, and the person who raised it cannot act on it.
+  if (action === 'changes' && (!reason || String(reason).trim().length === 0)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'VALIDATION',
+          message: 'Say what needs to change — otherwise this is a rejection with a softer name',
+          field: 'reason',
+        },
+      },
       { status: 422 }
     )
   }
@@ -94,15 +115,23 @@ export async function POST(
   const current = advance.current!
 
   const now = new Date()
-  const decisionReason = String(reason ?? '').trim() || `${action === 'approve' ? 'Approved' : 'Rejected'} by ${caller.person.name}`
+  const decisionReason =
+    String(reason ?? '').trim() ||
+    `${action === 'approve' ? 'Approved' : action === 'changes' ? 'Changes requested' : 'Rejected'} by ${caller.person.name}`
 
   const result = await prisma.$transaction(async (tx) => {
     await tx.requirementApproval.update({
       where: { id: current.id },
       data: {
-        outcome: action === 'approve' ? 'APPROVED' : 'REJECTED',
+        outcome:
+          action === 'approve' ? 'APPROVED'
+          : action === 'changes' ? 'CHANGES_REQUESTED'
+          : 'REJECTED',
         reason: decisionReason,
-        decidedAt: now,
+        // A change request is not a decision — this rank is still owed
+        // one, and gets it back at this rank when the requisition
+        // returns. Left undecided so `pending` picks it up again.
+        decidedAt: action === 'changes' ? null : now,
       },
     })
 
@@ -132,8 +161,13 @@ export async function POST(
   await prisma.automationLog.create({
     data: {
       companyId: requisition.companyId,
-      action: action === 'approve' ? 'REQUISITION_APPROVED' : 'REQUISITION_REJECTED',
-      summary: `${requisition.title} — ${action === 'approve' ? 'approved' : 'rejected'} by ${caller.person.name}`,
+      action:
+        action === 'approve' ? 'REQUISITION_APPROVED'
+        : action === 'changes' ? 'REQUISITION_CHANGES_REQUESTED'
+        : 'REQUISITION_REJECTED',
+      summary: `${requisition.title} — ${
+        action === 'approve' ? 'approved' : action === 'changes' ? 'sent back for changes' : 'rejected'
+      } by ${caller.person.name}`,
       reason: decisionReason,
       payload: {
         requirementId: id,
@@ -141,9 +175,11 @@ export async function POST(
         fullyApproved: result.fullyApproved,
         remainingRanks: result.remaining,
       },
-      // An approval can be withdrawn before anyone is placed; a rejection
-      // is reversed by raising a fresh requisition, not by undoing this one.
-      reversible: action === 'approve',
+      // An approval can be withdrawn before anyone is placed. A rejection
+      // is reversed by raising a fresh requisition, not by undoing this
+      // one. A change request reverses itself the moment the raiser
+      // resubmits, which is the point of having it.
+      reversible: action !== 'reject',
     },
   })
 
@@ -168,14 +204,19 @@ export async function POST(
       personId: requisition.raisedById,
       companyId: requisition.companyId,
       type: 'SYSTEM',
-      title: action === 'approve'
-        ? (result.fullyApproved ? `Requisition approved: ${requisition.title}` : `Requisition cleared one approval: ${requisition.title}`)
-        : `Requisition rejected: ${requisition.title}`,
-      body: result.fullyApproved
-        ? `${caller.person.name} approved it. It is now open to your vendors.`
+      title:
+        action === 'changes' ? `Changes wanted on: ${requisition.title}`
         : action === 'approve'
-          ? `${caller.person.name} approved it. ${result.remaining} further approval(s) to go.`
-          : `${caller.person.name} rejected it: ${decisionReason}`,
+          ? (result.fullyApproved ? `Requisition approved: ${requisition.title}` : `Requisition cleared one approval: ${requisition.title}`)
+          : `Requisition rejected: ${requisition.title}`,
+      body:
+        action === 'changes'
+          ? `${caller.person.name} wants a change before approving: ${decisionReason}. Edit it and send it back — it returns to them, not to the start.`
+          : result.fullyApproved
+            ? `${caller.person.name} approved it. It is now open to your vendors.`
+            : action === 'approve'
+              ? `${caller.person.name} approved it. ${result.remaining} further approval(s) to go.`
+              : `${caller.person.name} rejected it: ${decisionReason}`,
       entityId: id,
       data: { requirementId: id, action },
     })
@@ -207,7 +248,9 @@ export async function POST(
       remainingApprovals: result.remaining,
       decidedBy: caller.person.name,
       reason: decisionReason,
-      message: action === 'reject'
+      message:
+        action === 'changes' ? `Sent back to ${requisition.raisedBy?.name ?? 'whoever raised it'}: ${decisionReason}`
+        : action === 'reject'
         ? `Requisition rejected: ${decisionReason}`
         : result.fullyApproved
           ? 'Requisition approved — now open to vendors'

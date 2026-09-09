@@ -277,7 +277,7 @@ export interface ChainAdvance {
   /** Ranks still to be asked after this decision. */
   remaining: PendingApproval[]
   /** Requirement state after the decision. */
-  nextState: 'APPROVED' | 'REJECTED' | 'PENDING_APPROVAL' | null
+  nextState: 'APPROVED' | 'REJECTED' | 'PENDING_APPROVAL' | 'CHANGES_REQUESTED' | null
   /** Requirement status after the decision. Only an approved chain opens it. */
   nextStatus: 'OPEN' | 'CLOSED' | null
 }
@@ -293,9 +293,28 @@ export interface ChainAdvance {
  * Rejection is terminal. Later ranks are never asked, because a request
  * that has already been refused is not improved by more signatures.
  */
+/**
+ * ── Handing it back ──────────────────────────────────────────────────
+ *
+ * There were two moves, approve and reject, and rejection was terminal.
+ * So a reviewer who wanted to say "bring it to $120 an hour and I will
+ * sign" had to either refuse it — forcing a fresh requisition and losing
+ * the thread — or approve something they disagreed with. People do the
+ * second, and the control quietly stops meaning anything.
+ *
+ * `changes` is neither. It returns the requisition to whoever raised it,
+ * editable, with a note saying what to change, and nobody further up is
+ * asked in the meantime.
+ *
+ * When it comes back it RESUMES at the rank that asked, rather than
+ * starting again at rank one. Re-asking rank one for a change rank two
+ * requested is how people learn to stop reading these — and rank one
+ * already said yes to a version that was cheaper or smaller than the one
+ * now in front of them, so their approval still stands.
+ */
 export function advanceApprovalChain(
   approvals: PendingApproval[],
-  action: 'approve' | 'reject',
+  action: 'approve' | 'reject' | 'changes',
   callerPersonId: string
 ): ChainAdvance {
   const pending = approvals
@@ -328,6 +347,21 @@ export function advanceApprovalChain(
   }
 
   const remaining = pending.slice(1)
+
+  if (action === 'changes') {
+    return {
+      current,
+      refusal: null,
+      // Nothing is settled — this rank stays owed a decision, and gets
+      // it back at this rank when the requisition returns.
+      completesChain: false,
+      remaining,
+      nextState: 'CHANGES_REQUESTED',
+      // Back to a draft its raiser can edit. It was never open, so
+      // nothing is being withdrawn from a supplier.
+      nextStatus: null,
+    }
+  }
 
   if (action === 'reject') {
     return {
