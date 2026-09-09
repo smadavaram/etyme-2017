@@ -112,11 +112,11 @@ describe('the vendor Operate section reads as three named clusters, not one wall
     const itemLines = operate
       .split('\n')
       .filter((l) => /href:\s*'\/dashboard\//.test(l))
-    // Loose ends is deliberately ungrouped — it is a queue, sitting above
+    // Data gaps is deliberately ungrouped — it is a queue, sitting above
     // the clusters, not inside one.
     const ungrouped = itemLines.filter((l) => !/group:\s*'/.test(l))
     expect(ungrouped.length).toBe(1)
-    expect(ungrouped[0]).toContain('Loose ends')
+    expect(ungrouped[0]).toContain('Data gaps')
   })
 
   it('keeps each group as one contiguous block, so its header prints once', () => {
@@ -141,20 +141,21 @@ describe('a client\'s nav reads as the sequence of a placement, not a wall of li
     expect(clientNav).toContain("href: '/dashboard/contacts'")
   })
 
-  it('groups Requisitions and Open roles as one sequence, not two competing entry points', () => {
-    // Neither page changed or merged — a requisition is the need before
-    // approval, an open role is the same need after release to
-    // suppliers. Sitting flat and adjacent with similar names was what
-    // read as duplicated; grouped under one label in order, it reads as
-    // two steps instead.
-    const hireStart = program.indexOf("group: 'Hire'")
-    const requisitionsIdx = program.indexOf("label: 'Requisitions'")
-    const openRolesIdx = program.indexOf("label: 'Open roles'")
-    expect(hireStart).toBeGreaterThan(-1)
-    expect(requisitionsIdx).toBeLessThan(openRolesIdx)
-    const between = program.slice(requisitionsIdx, openRolesIdx)
-    expect(between).toContain("group: 'Hire'")
-    expect(program.slice(openRolesIdx, openRolesIdx + 80)).toContain("group: 'Hire'")
+  it('offers one way into a requirement, not two that read as rivals', () => {
+    // Raised twice by the founder. The first fix grouped "Requisitions"
+    // and "Open roles" under one header and left both entries standing,
+    // on the reasoning that they are two steps rather than two things.
+    // They are the same Requirement row before approval and after
+    // release, and a header did not stop them reading as duplicates —
+    // the second report was "what is the difference between requisitions
+    // and open roles".
+    //
+    // So there is one entry now and the stage is a filter on the screen.
+    // Asserted as an absence, because that is the thing that must not
+    // come back.
+    expect(program).toContain("label: 'Requirements'")
+    expect(program).not.toContain("label: 'Open roles'")
+    expect(program).not.toContain("label: 'Requisitions'")
   })
 
   it('keeps Timesheets and Invoices out of the same group as Settings and access', () => {
@@ -170,7 +171,7 @@ describe('a client\'s nav reads as the sequence of a placement, not a wall of li
     }
     const timesheetsGroup = groupOf(program, 'Timesheets')
     const settingsGroup = groupOf(governance, 'Settings')
-    const accessGroup = groupOf(governance, 'Who can do what')
+    const accessGroup = groupOf(governance, 'Users & permissions')
     expect(timesheetsGroup).not.toBeNull()
     expect(timesheetsGroup).not.toBe(settingsGroup)
     expect(timesheetsGroup).not.toBe(accessGroup)
@@ -226,7 +227,7 @@ describe('a GSI gets the Deliver / Supply / Operate nav CLAUDE.md names, not the
     const itemLines = operate.split('\n').filter((l) => /href:\s*'\/dashboard\//.test(l))
     const ungrouped = itemLines.filter((l) => !/group:\s*'/.test(l))
     expect(ungrouped.length).toBe(1)
-    expect(ungrouped[0]).toContain('Loose ends')
+    expect(ungrouped[0]).toContain('Data gaps')
     assertGroupsAreContiguous(operate)
   })
 })
@@ -238,5 +239,40 @@ describe('MSP still falls back to the vendor nav — GSI is specified, MSP is no
       SOURCE.indexOf('export function Sidebar')
     )
     expect(switchBody).toMatch(/case 'MSP':\s*\/\//)
+  })
+})
+
+describe('a nav label names a thing, in the words the trade uses', () => {
+  // Founder report, verbatim: "the left navigation menu literally is out
+  // of context for Indian English speakers — by people do you mean
+  // candidates or business contacts — everything is off."
+  //
+  // The labels had drifted into descriptions: "Money owed to us", "Who is
+  // financing whom", "Keeping the bench honest", "Same person, twice?".
+  // Each reads pleasantly and none is what a bench sales recruiter would
+  // ever say, so the product read as a toy to the people being sold it.
+  //
+  // A label is a noun phrase. Three words is plenty for one, and a
+  // question mark means a sentence got in.
+  const LABELS = [...SOURCE.matchAll(/label:\s*'([^']+)'/g)].map((m) => m[1])
+
+  it('has labels, and they are short enough to be names', () => {
+    expect(LABELS.length).toBeGreaterThan(30)
+    const wordy = LABELS.filter((l) => l.split(/\s+/).length > 3)
+    expect(wordy, `these read as descriptions rather than names: ${wordy.join(' · ')}`).toEqual([])
+  })
+
+  it('never asks the reader a question', () => {
+    const asking = LABELS.filter((l) => l.includes('?'))
+    expect(asking, `a nav item is not a question: ${asking.join(' · ')}`).toEqual([])
+  })
+
+  it('does not offer both "Candidates" and "People", which nobody could tell apart', () => {
+    // The founder's first report named this pair exactly. A person on the
+    // bench is a consultant; a person at a client is a contractor; a name
+    // and a phone number is a contact. Three different things, three
+    // different words, none of them "people".
+    expect(LABELS).not.toContain('People')
+    expect(LABELS).not.toContain('Candidates')
   })
 })

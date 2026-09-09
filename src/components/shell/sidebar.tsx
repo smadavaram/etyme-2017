@@ -61,7 +61,7 @@ const VENDOR_NAV: NavSection[] = [
       // The supplier's side of the same rows: what they have been asked
       // to confirm, and for whom.
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
-      { label: 'Sell Contracts', href: '/dashboard/contracts?side=sell', icon: '▤' },
+      { label: 'Sell contracts', href: '/dashboard/contracts?side=sell', icon: '▤' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
     ],
   },
@@ -69,10 +69,10 @@ const VENDOR_NAV: NavSection[] = [
     label: 'Talent',
     items: [
       { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
-      { label: 'Candidates', href: '/dashboard/consultants', icon: '◌' },
-      { label: 'Keeping the bench honest', href: '/dashboard/texts', icon: '✆' },
+      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆' },
       { label: 'Training', href: '/dashboard/training', icon: '◪' },
-      { label: 'Buy Contracts', href: '/dashboard/contracts?side=buy', icon: '▥' },
+      { label: 'Buy contracts', href: '/dashboard/contracts?side=buy', icon: '▥' },
     ],
   },
   {
@@ -80,38 +80,38 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       // High in the list on purpose. It is a queue, not a report, and a
       // report is something somebody has to think to ask for.
-      { label: 'Loose ends', href: '/dashboard/loose-ends', icon: '⛓' },
+      { label: 'Data gaps', href: '/dashboard/loose-ends', icon: '⛓' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Money' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
       // Next to Invoices deliberately: same money, different question.
       // One is what we sent, the other is what came back.
-      { label: 'Money owed to us', href: '/dashboard/ar', icon: '◧', group: 'Money' },
+      { label: 'AR', href: '/dashboard/ar', icon: '◧', group: 'Money' },
       // The other half of the same question. One screen says who owes us,
       // this one says who is funding whom while everybody waits.
-      { label: 'Who is financing whom', href: '/dashboard/ap', icon: '◨', group: 'Money' },
-      { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
+      { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
+      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Money' },
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
-      { label: 'Check the checker', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
+      { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
       { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Checks & compliance' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Checks & compliance' },
-      { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱', group: 'Checks & compliance' },
+      { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Checks & compliance' },
       // The two directions belong adjacent. A vendor spends as much time
       // being screened as screening, and only one of those had a screen.
-      { label: 'Being screened', href: '/dashboard/outbound-pack', icon: '◲', group: 'Checks & compliance' },
-      { label: 'Blacklist', href: '/dashboard/blacklist', icon: '⊘', group: 'Checks & compliance' },
+      { label: 'Screening packs', href: '/dashboard/outbound-pack', icon: '◲', group: 'Checks & compliance' },
+      { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', group: 'Checks & compliance' },
       { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', group: 'Checks & compliance' },
       { label: 'Companies', href: '/dashboard/companies', icon: '▣', group: 'Admin' },
       // The rolodex. A staffing business is a rolodex with invoicing
       // attached, and this is finally the rolodex.
-      { label: 'Who we work with', href: '/dashboard/contacts', icon: '☎', group: 'Admin' },
+      { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'Admin' },
       // Five onboardings, derived live from what exists.
-      { label: 'Getting set up', href: '/dashboard/onboarding', icon: '☑', group: 'Admin' },
+      { label: 'Setup', href: '/dashboard/onboarding', icon: '☑', group: 'Admin' },
       // The journal out to their books, and the statement back against ours.
-      { label: 'Your books, their books', href: '/dashboard/integrations', icon: '⇄', group: 'Admin' },
-      { label: 'Who can do what', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
+      { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', group: 'Admin' },
+      { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Admin' },
-      { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓', group: 'Admin' },
+      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Admin' },
     ],
   },
   {
@@ -119,12 +119,12 @@ const VENDOR_NAV: NavSection[] = [
     items: [
       // Gated on margin.read — a Recruiter role deliberately cannot see
       // what a placement earns.
-      { label: 'What we made', href: '/dashboard/profitability', icon: '◑' },
+      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑' },
       { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
       // A scorecard the supplier cannot see is a blacklist with better
       // manners. It decides who gets the next role, so it is not a
       // secret from the firm it is about.
-      { label: 'How clients see you', href: '/dashboard/my-standing', icon: '◈' },
+      { label: 'Your scorecard', href: '/dashboard/my-standing', icon: '◈' },
     ],
   },
 ]
@@ -161,7 +161,7 @@ const GSI_NAV: NavSection[] = [
       { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
-      { label: 'Sell Contracts', href: '/dashboard/contracts?side=sell', icon: '▤' },
+      { label: 'Sell contracts', href: '/dashboard/contracts?side=sell', icon: '▤' },
       { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
     ],
   },
@@ -173,36 +173,36 @@ const GSI_NAV: NavSection[] = [
       // sub-vendor. See match-engine.ts: that check is scoped to this
       // company's own bench and nobody else's.
       { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
-      { label: 'Candidates', href: '/dashboard/consultants', icon: '◌' },
-      { label: 'Keeping the bench honest', href: '/dashboard/texts', icon: '✆' },
-      { label: 'Buy Contracts', href: '/dashboard/contracts?side=buy', icon: '▥' },
+      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆' },
+      { label: 'Buy contracts', href: '/dashboard/contracts?side=buy', icon: '▥' },
     ],
   },
   {
     label: 'Operate',
     items: [
-      { label: 'Loose ends', href: '/dashboard/loose-ends', icon: '⛓' },
+      { label: 'Data gaps', href: '/dashboard/loose-ends', icon: '⛓' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Money' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
-      { label: 'Money owed to us', href: '/dashboard/ar', icon: '◧', group: 'Money' },
-      { label: 'Who is financing whom', href: '/dashboard/ap', icon: '◨', group: 'Money' },
-      { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
+      { label: 'AR', href: '/dashboard/ar', icon: '◧', group: 'Money' },
+      { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
+      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Money' },
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
-      { label: 'Check the checker', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
+      { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
       { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Checks & compliance' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Checks & compliance' },
-      { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱', group: 'Checks & compliance' },
-      { label: 'Being screened', href: '/dashboard/outbound-pack', icon: '◲', group: 'Checks & compliance' },
-      { label: 'Blacklist', href: '/dashboard/blacklist', icon: '⊘', group: 'Checks & compliance' },
+      { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Checks & compliance' },
+      { label: 'Screening packs', href: '/dashboard/outbound-pack', icon: '◲', group: 'Checks & compliance' },
+      { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', group: 'Checks & compliance' },
       { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', group: 'Checks & compliance' },
       { label: 'Companies', href: '/dashboard/companies', icon: '▣', group: 'Admin' },
-      { label: 'Who we work with', href: '/dashboard/contacts', icon: '☎', group: 'Admin' },
-      { label: 'Getting set up', href: '/dashboard/onboarding', icon: '☑', group: 'Admin' },
-      { label: 'Your books, their books', href: '/dashboard/integrations', icon: '⇄', group: 'Admin' },
-      { label: 'Who can do what', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
+      { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'Admin' },
+      { label: 'Setup', href: '/dashboard/onboarding', icon: '☑', group: 'Admin' },
+      { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', group: 'Admin' },
+      { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Admin' },
-      { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓', group: 'Admin' },
+      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Admin' },
     ],
   },
 ]
@@ -259,8 +259,15 @@ const CLIENT_NAV: NavSection[] = [
     label: 'Program',
     items: [
       { label: 'Dashboard', href: '/dashboard/program', icon: '◉' },
-      { label: 'Requisitions', href: '/dashboard/requisitions', icon: '⊞', group: 'Hire' },
-      { label: 'Open roles', href: '/dashboard/requirements', icon: '◈', group: 'Hire' },
+      // One entry, not two.
+      //
+      // "Requisitions" and "Open roles" were the same Requirement row at
+      // two stages — before approval and after release — and no amount of
+      // grouping stopped them reading as competing entry points. A client
+      // thinks in one list of roles it is hiring for, with a status on
+      // each, so that is what it gets: the stage is a filter on the
+      // screen rather than a fork in the menu.
+      { label: 'Requirements', href: '/dashboard/requisitions', icon: '⊞', group: 'Hire' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷', group: 'Hire' },
       { label: 'Placements', href: '/dashboard/contracts', icon: '▤', group: 'Hire' },
       // The one entry point for people, deliberately. This used to sit
@@ -270,11 +277,11 @@ const CLIENT_NAV: NavSection[] = [
       // rendered as four separate rows with four separate names. That
       // link is gone; every submission is still here, merged onto the
       // one person it belongs to and expandable per row.
-      { label: 'People', href: '/dashboard/people', icon: '◍', group: 'People & suppliers' },
+      { label: 'Contractors', href: '/dashboard/people', icon: '◍', group: 'People & suppliers' },
       // The growth loop. A client arrives with twelve suppliers already
       // and an MSA with each; until those are reachable in here, none of
       // the rest of this nav has anything to work on.
-      { label: 'Your suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'People & suppliers' },
+      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'People & suppliers' },
       // The rolodex — the one thing this whole nav was missing. Vendor
       // has had it for a while as "Who we work with"; a client asks the
       // same question about the people at their own suppliers just as
@@ -282,10 +289,10 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'People & suppliers' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Operate' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Operate' },
-      { label: 'Purchase orders', href: '/dashboard/purchase-orders', icon: '▤', group: 'Operate' },
+      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Operate' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Operate' },
       { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard' },
-      { label: 'Worked here before', href: '/dashboard/alumni', icon: '◎', group: 'Offboard' },
+      { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎', group: 'Offboard' },
     ],
   },
   {
@@ -293,7 +300,7 @@ const CLIENT_NAV: NavSection[] = [
     items: [
       { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Oversight' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight' },
-      { label: 'Documents asked for', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },
+      { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },
       { label: 'Tenure', href: '/dashboard/tenure', icon: '▩', group: 'Oversight' },
       // Only computable here. No supplier can work these out about
       // themselves — they cannot see what the other eleven did with the
@@ -301,10 +308,10 @@ const CLIENT_NAV: NavSection[] = [
       { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈', group: 'Oversight' },
       // Where a chain we can only see part of makes one person look like
       // two, and the tenure number quietly goes wrong.
-      { label: 'Same person, twice?', href: '/dashboard/identity', icon: '⧉', group: 'Oversight' },
-      { label: 'Who can do what', href: '/dashboard/access', icon: '⚿', group: 'Setup' },
+      { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉', group: 'Oversight' },
+      { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Setup' },
       { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Setup' },
-      { label: 'Load a spreadsheet', href: '/dashboard/data', icon: '⤓', group: 'Setup' },
+      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Setup' },
     ],
   },
 ]

@@ -29,6 +29,17 @@ interface Approval {
   reason: string
   decidedAt: string | null
 }
+/** Where a requirement has got to. One row's whole life, in four words. */
+type Stage = 'ALL' | 'DRAFT' | 'AWAITING' | 'OPEN' | 'FILLED'
+
+const STAGES: Array<[Stage, string]> = [
+  ['ALL', 'All'],
+  ['AWAITING', 'Awaiting approval'],
+  ['OPEN', 'Open to suppliers'],
+  ['FILLED', 'Filled'],
+  ['DRAFT', 'Draft'],
+]
+
 interface Requisition {
   id: string
   title: string
@@ -348,6 +359,7 @@ export default function RequisitionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [q, setQ] = useState('')
+  const [stage, setStage] = useState<Stage>('ALL')
   const [raising, setRaising] = useState(false)
   const [decision, setDecision] = useState<any>(null)
 
@@ -390,8 +402,24 @@ export default function RequisitionsPage() {
     await load()
   }
 
+  // The whole life of a requirement, on one screen.
+  //
+  // This was two nav entries — "Requisitions" for the ones awaiting
+  // approval and "Open roles" for the ones released to suppliers —
+  // pointing at two screens showing the same rows at two stages. They
+  // read as competing entry points, because that is what they looked
+  // like. The stage belongs here, as a filter, where somebody can see
+  // all of it at once and narrow when they want to.
+  const stageOf = (r: Requisition): Stage =>
+    r.approvalState === 'PENDING_APPROVAL' ? 'AWAITING'
+    : r.status === 'FILLED' ? 'FILLED'
+    : r.status === 'OPEN' ? 'OPEN'
+    : 'DRAFT'
+
   const term = q.trim().toLowerCase()
   const visible = reqs.filter(r =>
+    (stage === 'ALL' || stageOf(r) === stage)
+  ).filter(r =>
     term.length === 0 ||
     r.title.toLowerCase().includes(term) ||
     (r.costCenter?.code ?? '').toLowerCase().includes(term) ||
@@ -430,6 +458,21 @@ export default function RequisitionsPage() {
           <Stat label="All requisitions" value={summary.total} />
         </div>
       )}
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {STAGES.map(([key, label]) => {
+          const n = key === 'ALL' ? reqs.length : reqs.filter(r => stageOf(r) === key).length
+          return (
+            <button
+              key={key}
+              onClick={() => setStage(key)}
+              className={`filter-tab ${stage === key ? 'filter-tab--active' : 'filter-tab--inactive'}`}
+            >
+              {label} <span className="tabular-nums opacity-60">{n}</span>
+            </button>
+          )
+        })}
+      </div>
 
       <input
         value={q}
