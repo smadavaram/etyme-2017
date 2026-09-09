@@ -268,6 +268,16 @@ const CLIENT_NAV: NavSection[] = [
       // each, so that is what it gets: the stage is a filter on the
       // screen rather than a fork in the menu.
       { label: 'Requirements', href: '/dashboard/requisitions', icon: '⊞', group: 'Hire' },
+      // The step where people actually arrive.
+      //
+      // Hire read Requirements → Interviews → Placements, which skips
+      // the highest-volume screen a programme office has: the
+      // candidates suppliers put forward, waiting to be looked at. Not
+      // "applications" — nobody applies to you here, your suppliers
+      // submit — and the list already defaults to what was sent TO the
+      // caller, so a client sees its inbox rather than a vendor's
+      // outbox.
+      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇', group: 'Hire' },
       { label: 'Interviews', href: '/dashboard/interviews', icon: '◷', group: 'Hire' },
       { label: 'Placements', href: '/dashboard/contracts', icon: '▤', group: 'Hire' },
       // The one entry point for people, deliberately. This used to sit

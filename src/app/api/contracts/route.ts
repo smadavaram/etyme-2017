@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
 import type { CycleDefinition } from '@/lib/cycle-generator'
 import { getTemplatePack } from '@/lib/template-packs'
-import { sellContractScope, buyContractScope } from '@/lib/resolve-client-company'
+import { payerScope, sellContractScope, buyContractScope } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
 import { canAttachPoToBuyContract } from '@/lib/purchase-order'
@@ -402,7 +402,7 @@ export async function GET(request: NextRequest) {
   // Default: sell contracts — scoped to whichever side of the placement
   // the caller sits on. A client sees contracts at their sites; a vendor
   // sees the ones they sell.
-  const scope = sellContractScope(caller)
+  const scope = payerScope(caller)
   if (!scope) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'No company context' } },

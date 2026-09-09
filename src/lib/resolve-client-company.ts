@@ -94,6 +94,33 @@ async function hasPlacementRelationship(
  * Without this, a list route with no `?companyId=` built an empty WHERE and
  * returned every contract in the database to any authenticated caller.
  */
+/**
+ * The same scope, for a list that carries rates.
+ *
+ * A client legitimately sees everybody working at its site — that is how
+ * tenure aggregates across suppliers and how it answers for
+ * co-employment, and `sellContractScope` gives it exactly that.
+ *
+ * It must not see what they cost. In a chain the sub-vendor's contract
+ * also carries the client as its end client, so the broad filter handed
+ * a client the row where CloudEPA sells to Computer Systems at $112 —
+ * next to the row where Computer Systems sells to the client at $138.
+ * Subtracting one from the other is the prime's whole margin, and a
+ * prime whose margin its client can read has no business left.
+ *
+ * So a rate-bearing list is scoped to what the client is actually billed
+ * for. Who is on site is a different question, asked on the screens
+ * built for it.
+ */
+export function payerScope(caller: CallerContext): Record<string, unknown> | null {
+  if (isConsultantSeat(caller)) return { personId: caller.person.id }
+  if (!caller.company) return null
+
+  const id = caller.company.id
+  if (caller.company.kind === 'CLIENT') return { clientCompanyId: id }
+  return sellContractScope(caller)
+}
+
 export function sellContractScope(
   caller: CallerContext
 ): Record<string, unknown> | null {

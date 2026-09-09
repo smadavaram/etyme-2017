@@ -74,10 +74,69 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // ── The seeded world ────────────────────────────────────────────
+  //
+  // `{ as: "world-cloudepa" }` takes a seat in the twenty-firm market
+  // scripts/seed-world.mjs builds, rather than minting another private
+  // five-company copy. That is what makes signing in as CloudEPA and
+  // signing in as Harlow Health two views of the same placement instead
+  // of two unrelated worlds with the same placeholder names.
+  //
+  // Three things it will not do. It creates nothing — the seat must
+  // already exist. It only ever names a `world-` company, so a signed
+  // cookie cannot be talked into a real one. And those companies are
+  // `isDemo: false`, so the reset button below leaves them alone: this
+  // world is reference data many people look at, not one visitor's
+  // sandbox to break.
+  const body = await request.json().catch(() => ({}))
+  const asWorld = typeof (body as any)?.as === 'string' ? String((body as any).as) : null
+  if (asWorld) {
+    if (!asWorld.startsWith('world-')) {
+      return NextResponse.json(
+        { error: { code: 'NOT_A_WORLD_SEAT', message: 'Only a seeded world company can be taken this way.' } },
+        { status: 400 }
+      )
+    }
+    const company = await prisma.company.findUnique({
+      where: { slug: asWorld },
+      select: {
+        id: true, name: true, kind: true,
+        contexts: {
+          where: { revokedAt: null, NOT: { roleId: null } },
+          select: { person: { select: { primaryEmail: true } } },
+          take: 1,
+        },
+      },
+    })
+    const email = company?.contexts[0]?.person.primaryEmail
+    if (!company || !email) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_SEEDED',
+            message: `No seat at ${asWorld}. Run scripts/seed-world.mjs against this database first.`,
+          },
+        },
+        { status: 404 }
+      )
+    }
+    const res = NextResponse.json({
+      data: {
+        companyId: company.id, companyName: company.name, kind: company.kind,
+        world: asWorld, landing: '/dashboard',
+      },
+    })
+    res.cookies.set(DEMO_COOKIE, sign(email), {
+      httpOnly: true, sameSite: 'lax', path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: COOKIE_DAYS * 24 * 60 * 60,
+    })
+    return res
+  }
+
   // Which door they came through. Defaults to the buyer's chair: the
   // demand side is the one being sold first, and a visitor who arrives
   // with no preference should land where the product is sharpest.
-  const body = await request.json().catch(() => ({}))
   const asked = String(body?.side ?? '').toUpperCase()
   // 'BENCH' is both the old door and the bench vendor's seat. They mean
   // the same thing, so the collision is harmless and the old links keep
