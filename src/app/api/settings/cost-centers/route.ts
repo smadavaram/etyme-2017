@@ -18,6 +18,75 @@ import { hasPermission } from '@/lib/permissions'
  * a rejected file, not a warning.
  */
 
+/**
+ * GET — the budgets a requisition can be charged to.
+ *
+ * There was no way to list them. The new-requisition form reached for
+ * /api/program/org, which returns managers, vendors and spend and has
+ * never returned a cost centre, so "which budget pays for it" was empty
+ * on every deployment however many existed. Raising a requisition
+ * therefore always left the spend unowned, which sent it for approval —
+ * the opposite of what the page promises.
+ *
+ * Reading is not changing: this asks for requirements.write rather than
+ * settings.manage, because the person raising a requisition has to see
+ * the codes and is usually not the person who maintains them.
+ */
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  if (!caller.company) {
+    return NextResponse.json(
+      { error: { code: 'NO_COMPANY', message: 'Cost centres belong to a company' } },
+      { status: 403 }
+    )
+  }
+  if (
+    !hasPermission(caller.permissions, 'requirements.write') &&
+    !hasPermission(caller.permissions, 'settings.manage')
+  ) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'Seeing the budgets needs requirements.write' } },
+      { status: 403 }
+    )
+  }
+
+  const costCenters = await prisma.costCenter.findMany({
+    where: { companyId: caller.company.id, isActive: true },
+    orderBy: { code: 'asc' },
+    select: {
+      id: true, code: true, name: true,
+      orgUnit: { select: { id: true, name: true } },
+      headcountPlans: {
+        orderBy: { period: 'desc' },
+        take: 1,
+        select: { period: true, approvedHeads: true, annualBudget: true, currency: true },
+      },
+    },
+  })
+
+  return NextResponse.json({
+    data: {
+      costCenters: costCenters.map((c) => ({
+        id: c.id,
+        code: c.code,
+        name: c.name,
+        // The department the budget funds, so a requisition can carry it
+        // without asking twice for something the budget already knows.
+        orgUnit: c.orgUnit,
+        plan: c.headcountPlans[0]
+          ? {
+              period: c.headcountPlans[0].period,
+              approvedHeads: c.headcountPlans[0].approvedHeads,
+              annualBudget: Number(c.headcountPlans[0].annualBudget),
+              currency: c.headcountPlans[0].currency,
+            }
+          : null,
+      })),
+    },
+  })
+}
+
 async function guard(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return { caller: null, error }

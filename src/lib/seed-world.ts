@@ -163,6 +163,66 @@ export async function seedWorld(): Promise<{
   }
   firmBySlug.set(f.slug, c)
   seatBySlug.set(f.slug, { personId: p.id, email })
+
+  // ── What a client needs before governance means anything ──────────
+  //
+  // Cost centres, a headcount plan, departments and a delegation of
+  // authority. Without them the "which budget pays for it" list is
+  // empty, every requisition clears itself, and the approval engine —
+  // which is built and tested — can never be reached. The demo showed a
+  // governance product with the governance switched off.
+  if (f.kind === 'CLIENT') {
+    const approverEmail = `${slug}-vp@${DOMAIN}`
+    const approver = await db.person.upsert({
+      where: { primaryEmail: approverEmail },
+      update: {},
+      create: { name: 'VP, ' + f.name.split(' ')[0], primaryEmail: approverEmail },
+    })
+    if (!(await db.context.findFirst({ where: { personId: approver.id, companyId: c.id } }))) {
+      await db.context.create({
+        data: {
+          personId: approver.id, companyId: c.id, roleId: role.id,
+          type: 'EMPLOYEE', grantReason: 'Seeded world — approver',
+        },
+      })
+    }
+
+    for (const d of [{ code: 'ENG', name: 'Engineering' }, { code: 'OPS', name: 'Operations' }]) {
+      const unit =
+        (await db.orgUnit.findFirst({ where: { companyId: c.id, name: d.name } })) ??
+        (await db.orgUnit.create({ data: { companyId: c.id, name: d.name, kind: 'DEPARTMENT' } }))
+
+      const code = `${d.code}-${f.slug.slice(0, 4).toUpperCase()}-4100`
+      const cc =
+        (await db.costCenter.findFirst({ where: { companyId: c.id, code } })) ??
+        (await db.costCenter.create({
+          data: { companyId: c.id, code, name: `${d.name} — contingent`, orgUnitId: unit.id },
+        }))
+      if (!(await db.headcountPlan.findFirst({ where: { costCenterId: cc.id, period: '2026' } }))) {
+        await db.headcountPlan.create({
+          data: {
+            costCenterId: cc.id, period: '2026',
+            approvedHeads: d.code === 'ENG' ? 6 : 3,
+            annualBudget: d.code === 'ENG' ? 2_400_000 : 900_000,
+            currency: 'USD',
+          },
+        })
+      }
+    }
+
+    // Anything over $250k a year is the VP's. Most requisitions fall
+    // under it and clear themselves, which is the point — governance
+    // slower than the workaround produces the workaround.
+    if (!(await db.approvalRule.findFirst({ where: { companyId: c.id, name: 'Over $250k' } }))) {
+      await db.approvalRule.create({
+        data: {
+          companyId: c.id, name: 'Over $250k', thresholdAmount: 250_000,
+          approverId: approver.id, rank: 1, isActive: true, authoredById: p.id,
+        },
+      })
+    }
+  }
+
   return c
   }
 

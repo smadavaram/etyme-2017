@@ -204,18 +204,41 @@ function RaiseModal({ onClose, onRaised }: {
 }) {
   const [form, setForm] = useState({
     title: '', skills: '', location: '', headcount: '1',
-    billMax: '', months: '', neededBy: '', justification: '', costCenterId: '',
+    billMin: '', billMax: '', months: '', neededBy: '', justification: '', costCenterId: '',
   })
   const [costCenters, setCostCenters] = useState<{ id: string; code: string; name: string }[]>([])
+  const [approvers, setApprovers] = useState<
+    { id: string; approverName: string; thresholdAmount: number | null }[]
+  >([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/program/org')
+    // The budgets themselves. This asked /api/program/org, which returns
+    // managers, vendors and spend and has never carried a cost centre —
+    // so the list was empty however many existed.
+    fetch('/api/settings/cost-centers')
       .then(r => r.json())
       .then(j => {
         const ccs = j?.data?.costCenters ?? []
         setCostCenters(ccs.map((c: any) => ({ id: c.id, code: c.code, name: c.name })))
+      })
+      .catch(() => {})
+
+    // The delegation of authority, read before anything is raised.
+    fetch('/api/settings/approval-rules')
+      .then(r => r.json())
+      .then(j => {
+        const rules = j?.data?.rules ?? j?.data?.approvalRules ?? []
+        setApprovers(
+          rules
+            .filter((r: any) => r.isActive !== false)
+            .map((r: any) => ({
+              id: r.id,
+              approverName: r.approver?.name ?? r.approverName ?? 'somebody',
+              thresholdAmount: r.thresholdDollars != null ? Number(r.thresholdDollars) : null,
+            }))
+        )
       })
       .catch(() => {})
   }, [])
@@ -237,6 +260,7 @@ function RaiseModal({ onClose, onRaised }: {
           location: form.location.trim() || null,
           headcount: parseInt(form.headcount, 10) || 1,
           // Rates are entered in dollars and stored in cents.
+          billMin: form.billMin ? Math.round(parseFloat(form.billMin) * 100) : null,
           billMax: form.billMax ? Math.round(parseFloat(form.billMax) * 100) : null,
           months: form.months ? parseInt(form.months, 10) : null,
           neededBy: form.neededBy || null,
@@ -289,9 +313,21 @@ function RaiseModal({ onClose, onRaised }: {
             </label>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* A range, not a ceiling.
+              Requirement carries billMin and billMax and the form only
+              ever sent the max, so every requisition was raised with no
+              floor — and a supplier reading one could not tell whether
+              $60/hr was welcome or insulting. The floor is also what
+              makes the rate check on approval mean anything. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <label className="block">
-              <Lbl>Most you will pay ($/hr)</Lbl>
+              <Lbl>Rate from ($/hr)</Lbl>
+              <input type="number" min="0" step="1" value={form.billMin}
+                onChange={e => setForm({ ...form, billMin: e.target.value })}
+                placeholder="105" className={`${field} mt-1 tabular-nums`} />
+            </label>
+            <label className="block">
+              <Lbl>Up to ($/hr)</Lbl>
               <input type="number" min="0" step="1" value={form.billMax}
                 onChange={e => setForm({ ...form, billMax: e.target.value })}
                 placeholder="130" className={`${field} mt-1 tabular-nums`} />
@@ -316,6 +352,30 @@ function RaiseModal({ onClose, onRaised }: {
               Without one, nobody owns the spend and it goes for approval.
             </p>
           </label>
+
+          {/* Who would be asked, before it is raised rather than after.
+              The page promised "you will see which, and why, as soon as
+              you raise it", which is true and a beat too late: somebody
+              deciding whether to round a rate down to stay inside their
+              own authority needs to know where the line is first. */}
+          {approvers.length > 0 && (
+            <div className="card">
+              <Lbl>Who has to approve</Lbl>
+              <ul className="mt-2 space-y-1">
+                {approvers.map(a => (
+                  <li key={a.id} className="text-[13px] text-etyme-muted">
+                    <span className="text-etyme-ink">{a.approverName}</span>
+                    {a.thresholdAmount != null
+                      ? ` — anything over $${Math.round(a.thresholdAmount).toLocaleString()} a year`
+                      : ' — whenever a check routes it'}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-etyme-faint mt-2">
+                Most requisitions stay under this and clear themselves.
+              </p>
+            </div>
+          )}
 
           <label className="block">
             <Lbl>Skills (comma separated)</Lbl>
