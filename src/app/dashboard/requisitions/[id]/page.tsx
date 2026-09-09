@@ -331,6 +331,9 @@ export default function RequisitionDetail() {
           {r.billMax != null && ` · up to ${money(r.billMax)}/hr`}
           {r.raisedBy && ` · raised by ${r.raisedBy.name}`}
         </div>
+        {r.description && (
+          <div className="mt-4 text-sm text-etyme-ink whitespace-pre-line max-w-prose">{r.description}</div>
+        )}
         {r.justification && <p className="text-sm text-etyme-muted mt-3 italic">{r.justification}</p>}
       </div>
 

@@ -231,7 +231,7 @@ export const DOMAINS: Domain[] = [
       'lib/company-defaults', 'lib/company-domains', 'lib/domains-owned',
       'lib/registrable-domain', 'lib/account-lifecycle',
       'lib/service-accounts', 'lib/import-mapper', 'lib/importable',
-      'lib/loop', 'lib/agent-run', 'lib/demo-seed', 'lib/demo-chain', 'lib/demo-seed-client',
+      'lib/loop', 'lib/agent-run', 'lib/demo-seed', 'lib/demo-chain', 'lib/demo-volume', 'lib/demo-seed-client',
       'lib/demo-seed-consultant', 'lib/demo-session',
       'app/layout', 'app/login', 'app/start',
       'app/dashboard/layout', 'app/dashboard/settings', 'app/dashboard/companies',

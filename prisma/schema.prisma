@@ -1297,6 +1297,23 @@ model Requirement {
   msa       MasterAgreement? @relation(fields: [msaId], references: [id])
   title     String
   skills    String[]
+
+  /// The role as a human would describe it, in their own words.
+  ///
+  /// `title` and `skills` are what the matcher reads; this is what a
+  /// consultant reads before deciding whether to be put forward. Neither
+  /// substitutes for the other — a skills array cannot say the team is
+  /// three people, the stack is being replaced, or that the manager wants
+  /// somebody who has done a cutover before, and those are the sentences
+  /// that decide whether the right person applies.
+  ///
+  /// Free text on purpose. Every attempt to structure a job description
+  /// ends with the interesting half in an "additional notes" box.
+  ///
+  /// Null where nobody wrote one, which is ordinary for a requirement
+  /// parsed out of an email or a VMS feed rather than typed.
+  description String? @db.Text
+
   location  String?
   billMin   Int?
   billMax   Int?

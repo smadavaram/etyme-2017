@@ -241,10 +241,19 @@ export async function seedChain(input: {
       title: 'SAP FICO Consultant',
       skills: ['SAP FICO'],
       location: 'Dallas, Texas',
+      description:
+        'Finance is moving off ECC and the current team has done configuration ' +
+        'but never a cutover. We need somebody who has taken a plant live on ' +
+        'S/4 and can say what goes wrong in week two.',
       status: 'OPEN',
       billMin: 11000,
       billMax: 14000,
       startDate: daysAhead(21),
+      // Older than the submission that answers it. This defaulted to now,
+      // while completePlacement backdates the submission by two months —
+      // so the demo's one honest placement was answered before it was
+      // asked, and the volume tests caught it.
+      createdAt: daysAgo(75),
     },
   })
 
@@ -288,6 +297,23 @@ export async function seedChain(input: {
     // Without this the demo listed a placement and opening it showed
     // seven of eight stations reading "nothing recorded yet" — which is
     // how a working product comes across as an unfinished one.
+    // A submission requires a live bench listing at the company that
+    // sends it. The person sits on the bench vendor's list, but the
+    // recorded hop is seller → buyer, and the seller is not always the
+    // bench vendor — so the invariant held for the bench and not for the
+    // sender. One granted listing at the sender, where it is missing.
+    const soldBy = consultants[0]
+    await prisma.benchListing.upsert({
+      where: { consultantId_companyId: { consultantId: soldBy.profileId, companyId: sellerId } },
+      update: {},
+      create: {
+        consultantId: soldBy.profileId,
+        companyId: sellerId,
+        tier: 'RETAINED',
+        state: 'GRANTED',
+        grantedAt: daysAgo(70),
+      },
+    })
     await completePlacement({
       sellContractId: placement.id,
       supplierCompanyId: sellerId,

@@ -5,6 +5,7 @@ import { seedChain, type Seat } from '@/lib/demo-chain'
 import { seedDemoCompany, DEMO_DAYS } from '@/lib/demo-seed'
 import { seedDemoClientCompany } from '@/lib/demo-seed-client'
 import { seedDemoConsultant } from '@/lib/demo-seed-consultant'
+import { addVolume } from '@/lib/demo-volume'
 import { DEMO_COOKIE, COOKIE_DAYS, sign, read, addressFor } from '@/lib/demo-session'
 
 /**
@@ -190,6 +191,12 @@ export async function POST(request: NextRequest) {
       // created either way — a chain with four of its five links missing
       // is the two-party demo again.
       seeded = await seedChain({ personId: person.id, personName: person.name, seat, slug })
+      // The chain is one placement, honest at every station. On its own
+      // it is one row per screen, and one row cannot show whether a
+      // working surface works. Width on top of depth.
+      const volume = await addVolume({ companyId: seeded.companyId, seatPersonId: person.id })
+      const { skipped: _skipped, ...added } = volume
+      seeded.counts = { ...seeded.counts, ...added }
     } else {
       seeded = await seedDemoConsultant({
         personId: person.id,

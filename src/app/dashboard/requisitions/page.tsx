@@ -61,6 +61,7 @@ function EditRequisition({
   const [months, setMonths] = useState(req.months != null ? String(req.months) : '')
   const [neededBy, setNeededBy] = useState(req.neededBy ? req.neededBy.slice(0, 10) : '')
   const [justification, setJustification] = useState(req.justification ?? '')
+  const [description, setDescription] = useState(req.description ?? '')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -95,6 +96,7 @@ function EditRequisition({
           billMax: max,
           months: whole(months),
           neededBy: neededBy || null,
+          description: description.trim() || null,
           justification: justification.trim() || null,
         }),
       })
@@ -178,6 +180,12 @@ function EditRequisition({
             </div>
           </div>
           <div>
+            <label className={label}>The role, in your own words</label>
+            <textarea className={field} rows={6} value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="What the team does, what the person will actually work on, and what somebody who has done it before would recognise." />
+          </div>
+          <div>
             <label className={label}>Why this is needed</label>
             <textarea className={field} rows={3} value={justification}
               onChange={e => setJustification(e.target.value)} />
@@ -214,6 +222,7 @@ interface Requisition {
   billMax: number | null
   months: number | null
   neededBy: string | null
+  description: string | null
   justification: string | null
   status: string
   approvalState: string
@@ -405,7 +414,7 @@ function RaiseModal({ onClose, onRaised }: {
 }) {
   const [form, setForm] = useState({
     title: '', skills: '', location: '', headcount: '1',
-    billMin: '', billMax: '', months: '', neededBy: '', justification: '', costCenterId: '',
+    billMin: '', billMax: '', months: '', neededBy: '', justification: '', description: '', costCenterId: '',
     budget: '', hoursPerWeek: '',
   })
   const [costCenters, setCostCenters] = useState<{ id: string; code: string; name: string }[]>([])
@@ -468,6 +477,7 @@ function RaiseModal({ onClose, onRaised }: {
           billMax: form.billMax ? Math.round(parseFloat(form.billMax) * 100) : null,
           months: form.months ? parseInt(form.months, 10) : null,
           neededBy: form.neededBy || null,
+          description: form.description.trim() || null,
           justification: form.justification.trim() || null,
           costCenterId: form.costCenterId || null,
         }),
@@ -613,6 +623,14 @@ function RaiseModal({ onClose, onRaised }: {
             <Lbl>Where</Lbl>
             <input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
               placeholder="Lakewood, CO" className={`${field} mt-1`} />
+          </label>
+
+          <label className="block">
+            <Lbl>The role, in your own words (optional)</Lbl>
+            <textarea value={form.description} rows={5}
+              onChange={e => setForm({ ...form, description: e.target.value })}
+              placeholder="What the team does, what this person will actually work on, and what somebody who has done it before would recognise."
+              className={`${field} mt-1`} />
           </label>
 
           <label className="block">
@@ -902,6 +920,13 @@ export default function RequisitionsPage() {
                     )}
                   </div>
                 </div>
+
+                {/* The role in the raiser's own words. One line on the
+                    list, the rest on the row's own page — a list of two
+                    hundred is not the place to read six paragraphs. */}
+                {r.description && (
+                  <p className="mt-2 text-sm text-etyme-muted line-clamp-2">{r.description}</p>
+                )}
 
                 <Why approvals={r.approvals} state={r.approvalState} />
 

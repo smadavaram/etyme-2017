@@ -91,6 +91,7 @@ export async function GET(
         billMax: req.billMax,
         months: req.months,
         neededBy: req.neededBy?.toISOString() ?? null,
+        description: req.description,
         justification: req.justification,
         status: req.status,
         approvalState: req.approvalState,
@@ -365,6 +366,10 @@ export async function PATCH(
   const fields: Record<string, unknown> = {}
   if (typeof body.title === 'string' && body.title.trim().length >= 3) fields.title = body.title.trim()
   if (Array.isArray(body.skills)) fields.skills = body.skills
+  if ('description' in body) {
+    const d = typeof body.description === 'string' ? body.description.trim() : ''
+    fields.description = d.length > 0 ? d : null
+  }
   if ('location' in body) fields.location = body.location ?? null
   if (Number.isInteger(body.headcount) && body.headcount > 0) fields.headcount = body.headcount
   if ('billMin' in body) fields.billMin = body.billMin ?? null

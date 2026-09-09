@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
         billMax: r.billMax,
         months: r.months,
         neededBy: r.neededBy?.toISOString() ?? null,
+        description: r.description,
         justification: r.justification,
         status: r.status,
         approvalState: r.approvalState,
@@ -123,7 +124,7 @@ export async function POST(request: NextRequest) {
   const {
     title, skills, location, headcount, billMin, billMax, months,
     neededBy, justification, costCenterId, orgUnitId, raisedById,
-    budget, hoursPerWeek,
+    budget, hoursPerWeek, description,
   } = body
 
   if (!title || typeof title !== 'string' || title.trim().length < 3) {
@@ -284,6 +285,8 @@ export async function POST(request: NextRequest) {
         months: months ?? null,
         headcount: heads,
         neededBy: neededBy ? new Date(neededBy) : null,
+        description:
+          typeof description === 'string' && description.trim() ? description.trim() : null,
         justification: justification ?? null,
         budgetCents: Number.isFinite(budget) && Number(budget) > 0 ? Number(budget) : null,
         hoursPerWeek: Number.isFinite(hoursPerWeek) && Number(hoursPerWeek) > 0 ? Number(hoursPerWeek) : null,
