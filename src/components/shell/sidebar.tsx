@@ -319,6 +319,10 @@ const CLIENT_NAV: NavSection[] = [
   {
     label: 'Governance',
     items: [
+      // Who runs the programme: approvers, the lead, and who is
+      // answerable for each budget. Three facts that were in three
+      // places, none of which showed the result as one picture.
+      { label: 'Programme team', href: '/dashboard/program/team', icon: '⌸', group: 'Oversight' },
       { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Oversight' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight' },
       { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },

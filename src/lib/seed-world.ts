@@ -196,7 +196,12 @@ export async function seedWorld(): Promise<{
       const cc =
         (await db.costCenter.findFirst({ where: { companyId: c.id, code } })) ??
         (await db.costCenter.create({
-          data: { companyId: c.id, code, name: `${d.name} — contingent`, orgUnitId: unit.id },
+          data: {
+            companyId: c.id, code, name: `${d.name} — contingent`, orgUnitId: unit.id,
+            // Somebody answerable for it. A budget with nobody's name on
+            // it sends every requisition charged to it for approval.
+            ownerId: p.id,
+          },
         }))
       if (!(await db.headcountPlan.findFirst({ where: { costCenterId: cc.id, period: '2026' } }))) {
         await db.headcountPlan.create({
@@ -218,6 +223,19 @@ export async function seedWorld(): Promise<{
         data: {
           companyId: c.id, name: 'Over $250k', thresholdAmount: 250_000,
           approverId: approver.id, rank: 1, isActive: true, authoredById: p.id,
+        },
+      })
+    }
+
+    // The lead: a rule with no threshold, which catches whatever a check
+    // routes and matches nothing else. Without one, a requisition
+    // flagged for being over plan has nobody to go to and clears itself
+    // — an approval chain with a hole in it.
+    if (!(await db.approvalRule.findFirst({ where: { companyId: c.id, name: 'Programme lead' } }))) {
+      await db.approvalRule.create({
+        data: {
+          companyId: c.id, name: 'Programme lead', thresholdAmount: null,
+          approverId: approver.id, rank: 2, isActive: true, authoredById: p.id,
         },
       })
     }

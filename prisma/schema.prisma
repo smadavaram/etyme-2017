@@ -81,6 +81,9 @@ model Person {
   reconRunsMade        ReconciliationRun[]   @relation("reconRunner")
   /// Contracts whose timesheets they were named to approve.
   approvesContracts    SellContract[]        @relation("contractApprover")
+
+  /// Budgets this person is answerable for.
+  costCentresOwned CostCenter[] @relation("costCentreOwner")
 }
 
 model Credential {
@@ -3415,9 +3418,18 @@ enum PostingSource {
 }
 
 model CostCenter {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   companyId String // the company whose budget this is
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Who is answerable for this budget.
+  ///
+  /// A cost centre had a code, a plan and a balance and nobody's name on
+  /// it, so "who signed off on this spend" had no answer that did not
+  /// involve asking around. The programme team screen is where this gets
+  /// set, beside the approvers it usually is one of.
+  ownerId   String?
+  owner     Person?  @relation("costCentreOwner", fields: [ownerId], references: [id])
   code      String // must match the owner's ERP — "MFG-FIN-4100"
   name      String
   glAccount String? // default expense/revenue account, e.g. "6120"
@@ -3440,6 +3452,7 @@ model CostCenter {
   @@unique([companyId, code])
   @@index([companyId, isActive])
   @@index([orgUnitId])
+  @@index([ownerId])
 }
 
 // How one contract's cost is split across cost centres.
