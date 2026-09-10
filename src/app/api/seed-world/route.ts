@@ -78,7 +78,8 @@ export async function POST(request: NextRequest) {
         says:
           `${result.firms} firms, ${result.placements} placements, ` +
           `${result.consultants} consultants. Enter one with ` +
-          `POST /api/demo {"as":"world-cloudepa"}.`,
+          `POST /api/demo {"as":"world-cloudepa"}, or sit at a client desk at /demo — ` +
+          `POST /api/demo {"as":"world-nike","desk":"ap"}.`,
       },
     })
   } catch (err: any) {

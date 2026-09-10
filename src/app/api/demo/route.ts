@@ -62,6 +62,29 @@ const BUYERS = [
 type Held = Seat | 'CANDIDATE'
 
 /**
+ * The desks at a seeded client programme, by the suffix on their address.
+ * `world-nike-ap@demo.etyme.local` is the AP clerk at Nike; the roster
+ * is in lib/seed-programmes and the words here are what a visitor reads.
+ */
+const DEMO_DOMAIN = 'demo.etyme.local'
+const DESKS = ['programme', 'hiring', 'vp', 'ap', 'compliance'] as const
+type Desk = (typeof DESKS)[number]
+const DESK_NAMES: Record<Desk, string> = {
+  programme: 'programme manager',
+  hiring: 'hiring manager',
+  vp: 'approver',
+  ap: 'accounts payable',
+  compliance: 'compliance officer',
+}
+const DESK_LANDING: Record<Desk, string> = {
+  programme: '/dashboard/program',
+  hiring: '/dashboard/requisitions',
+  vp: '/dashboard/requisitions',
+  ap: '/dashboard/invoices',
+  compliance: '/dashboard/compliance',
+}
+
+/**
  * Which seat a request is asking for, normalised.
  *
  * Shared by the resume check and the seeding below so the two cannot
@@ -154,13 +177,24 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    // Which desk at that company. A client is four or five jobs, not
+    // one seat, and the demo has to be seen from the desk that actually
+    // does the thing — the clerk who pays cannot raise a requisition,
+    // and a visitor who sits as the owner never finds that out.
+    const deskAsked = typeof (body as any)?.desk === 'string' ? String((body as any).desk) : null
+    const desk = deskAsked && (DESKS as readonly string[]).includes(deskAsked) ? (deskAsked as Desk) : null
     const company = await prisma.company.findUnique({
       where: { slug: asWorld },
       select: {
         id: true, name: true, kind: true,
         contexts: {
-          where: { revokedAt: null, NOT: { roleId: null } },
-          select: { person: { select: { primaryEmail: true } } },
+          where: {
+            revokedAt: null, NOT: { roleId: null },
+            // The desk's own address, or the company's first seat.
+            ...(desk ? { person: { primaryEmail: `${asWorld}-${desk}@${DEMO_DOMAIN}` } } : {}),
+          },
+          select: { person: { select: { primaryEmail: true } }, role: { select: { name: true } } },
+          orderBy: { grantedAt: 'asc' },
           take: 1,
         },
       },
@@ -171,7 +205,9 @@ export async function POST(request: NextRequest) {
         {
           error: {
             code: 'NOT_SEEDED',
-            message: `No seat at ${asWorld}. POST /api/seed-world to build it first.`,
+            message: desk
+              ? `No ${DESK_NAMES[desk]} desk at ${asWorld}. POST /api/seed-world to build it first.`
+              : `No seat at ${asWorld}. POST /api/seed-world to build it first.`,
           },
         },
         { status: 404 }
@@ -181,12 +217,17 @@ export async function POST(request: NextRequest) {
       data: {
         companyId: company.id, companyName: company.name, kind: company.kind,
         world: asWorld,
+        desk, role: company.contexts[0]?.role?.name ?? null,
         // Where this seat belongs. /dashboard is the vendor's Today view
         // and /dashboard/program is the client's programme overview —
         // two pages for two company types, not two versions of one. A
         // flat '/dashboard' here dropped a client onto the vendor's.
+        //
+        // A desk lands on its own work: the clerk on the invoices, the
+        // officer on compliance, the manager on the roles they raised.
         landing:
-          company.kind === 'CLIENT' || company.kind === 'MSP' || company.kind === 'GSI'
+          desk ? DESK_LANDING[desk]
+          : company.kind === 'CLIENT' || company.kind === 'MSP' || company.kind === 'GSI'
             ? '/dashboard/program'
             : '/dashboard',
       },

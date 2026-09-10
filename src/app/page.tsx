@@ -445,6 +445,15 @@ export default function LandingPage() {
                   className="text-white/70 underline underline-offset-2 hover:text-white"
                 />
               </p>
+              {/* The buyer's demo, by desk. A programme office is four
+                  or five jobs, and the person evaluating this runs one of
+                  them — so the door says which. */}
+              <p className="mt-2 font-mono text-xs text-white/55">
+                Or sit at a running programme — Nike, Corning, Terumo BCT — from whichever desk is yours.{' '}
+                <a href="/demo" className="text-white/70 underline underline-offset-2 hover:text-white">
+                  Pick a desk →
+                </a>
+              </p>
             </div>
 
             {/* One contractor, end to end. A shortlist in this slot made

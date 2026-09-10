@@ -70,7 +70,7 @@ export const DOMAINS: Domain[] = [
       'lib/document-stages', 'lib/contract-clearance', 'lib/packets', 'lib/packet-derivation', 'lib/attestation',
       'lib/worker-classification', 'lib/holds', 'lib/representation',
       'lib/work-authorisation', 'lib/visa-worksite', 'lib/sourcing-exit', 'lib/sourcing-approach', 'lib/candidate-fixture', 'lib/profile-readiness', 'lib/rate-negotiation', 'lib/bench-consent', 'lib/bench-invite', 'lib/signed-link',
-      'lib/governance', 'lib/governance-authorship', 'lib/governance-horizon',
+      'lib/governance', 'lib/governance-authorship', 'lib/governance-horizon', 'lib/tenure-days',
       'lib/requisition-approval', 'lib/requisition-stage',
       'lib/document-share', 'lib/template-packs',
       'lib/access-log', 'lib/access-grant', 'lib/walls', 'lib/account-walls',
@@ -220,7 +220,7 @@ export const DOMAINS: Domain[] = [
       // and money in one answer, so it belongs to none of them and is
       // owned here by the same rule the schema is.
       'app/api/placements', 'app/dashboard/placements',
-      'lib/seed-world', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
+      'lib/seed-world', 'lib/seed-programmes', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix',
       'lib/contacts', 'lib/counterparty', 'lib/party-onboarding', 'lib/reconciliation',
@@ -236,7 +236,7 @@ export const DOMAINS: Domain[] = [
       'app/layout', 'app/login', 'app/start',
       'app/dashboard/layout', 'app/dashboard/settings', 'app/dashboard/companies',
       'app/dashboard/data', 'app/dashboard/automation', 'app/dashboard/checks',
-      'app/api/health', 'app/api/demo', 'app/api/auth', 'app/api/companies',
+      'app/api/health', 'app/api/demo', 'app/demo', 'app/api/auth', 'app/api/companies',
       'app/api/cron', 'app/api/import',
       'components/',
     ],

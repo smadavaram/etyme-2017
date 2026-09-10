@@ -35,50 +35,11 @@
 
 import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
+import { seedProgrammes } from '@/lib/seed-programmes'
+import { day, at } from '@/lib/seed-days'
 
 const DOMAIN = 'demo.etyme.local'          // the domain the signed demo cookie accepts
 const PREFIX = 'world-'                    // marks a company as part of this world
-/**
- * Whole days, anchored to midnight UTC.
- *
- * This was `Date.now() + n * 86_400_000`, which made every date carry the
- * time of day the seed happened to run at. A second run computed
- * different timestamps, so the "does this timesheet already exist" lookup
- * missed, fresh weeks were written, and their invoice collided with the
- * first run's number. The seed claimed to be idempotent and was not —
- * which only showed up on the second call.
- *
- * Normalised, a re-run on the same day is a true no-op, and a re-run
- * later adds that period rather than colliding with it.
- */
-const day = (n: number): Date => {
-  const d = new Date(Date.now() + n * 86_400_000)
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
-}
-
-/**
- * Onto a working day.
- *
- * The offsets are counted in whole days from whenever the seed runs, so
- * a screen booked "three days out" landed on a Saturday one run in seven,
- * and a screen recorded as held landed on a Sunday just as often. Nobody
- * interviews at the weekend, and a demo that says they did is one more
- * thing the founder has to explain away.
- *
- * Forward for a round still ahead, backward for one already held —
- * nudging a past round forward would move it into the future, where it
- * would read as upcoming.
- */
-const weekday = (d: Date, back: boolean): Date => {
-  const g = d.getUTCDay()
-  if (g !== 0 && g !== 6) return d
-  const days = g === 6 ? (back ? 1 : 2) : back ? 2 : 1
-  return new Date(d.getTime() + days * (back ? -86_400_000 : 86_400_000))
-}
-
-/** An hour on a working day, absolute. Same normalisation as `day`. */
-const at = (n: number, hourUtc: number): Date =>
-  new Date(weekday(day(n), n < 0).getTime() + hourUtc * 3_600_000)
 
 // ── The market ───────────────────────────────────────────────────────
 //
@@ -93,6 +54,14 @@ const FIRMS: Firm[] = [
   { slug: 'meridian-bank',    name: 'Meridian Bank',        kind: 'CLIENT',  seat: 'Contingent programme' },
   { slug: 'corveldt',         name: 'Corveldt Aerospace',   kind: 'CLIENT',  seat: 'Engineering resourcing' },
   { slug: 'nordway',          name: 'Nordway Retail',       kind: 'CLIENT',  seat: 'Workforce office' },
+
+  // Three enterprise programmes, seated for every desk that works one —
+  // hiring, approval, payables, compliance. The client is who pays for
+  // this product, and these are the accounts it is shown on. What each
+  // of them has on its books is in lib/seed-programmes.
+  { slug: 'nike',             name: 'Nike',                 kind: 'CLIENT',  seat: 'Contingent workforce office' },
+  { slug: 'corning',          name: 'Corning',              kind: 'CLIENT',  seat: 'Contingent workforce office' },
+  { slug: 'terumo-bct',       name: 'Terumo BCT',           kind: 'CLIENT',  seat: 'Contingent workforce office' },
 
   { slug: 'aptiva',           name: 'Aptiva Workforce',     kind: 'MSP',     seat: 'Programme manager' },
   { slug: 'kestrel',          name: 'Kestrel MSP',          kind: 'MSP',     seat: 'Programme manager' },
@@ -840,10 +809,19 @@ export async function seedWorld(): Promise<{
   }
 
 
+  // ── The three client programmes ──────────────────────────────────────
+  //
+  // Everything above is one placement seen from each firm in its chain.
+  // This is the other product: a client with a dozen suppliers, a
+  // history, and a desk for each job — the office that runs it, the
+  // manager who needs somebody, the VP who signs, the clerk who pays,
+  // the officer who answers for tenure and paperwork.
+  const programmes = await seedProgrammes({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
+
   return {
     firms: FIRMS.length,
-    placements: placed.length,
-    consultants: NAMES.length + LIVE.length,
+    placements: placed.length + programmes.placements,
+    consultants: NAMES.length + LIVE.length + programmes.people,
     live: LIVE.length,
     roster: FIRMS.map((f) => ({ kind: f.kind as string, name: f.name, slug: PREFIX + f.slug })),
   }

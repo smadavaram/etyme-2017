@@ -43,17 +43,28 @@ describe('cycles land on the side of the trade they describe', () => {
     // tests read what it wrote.
   }, 180_000)
 
-  it('the world seed writes cycles for every placement it builds, on the right side', async () => {
-    const sells = await prisma.sellContract.findMany({ where: { company: { slug: { startsWith: 'world-' } } }, select: { id: true } })
+  it('the world seed writes cycles for every placement still running, on the right side', async () => {
+    // A contract that ended has nothing due, so the programme seed's
+    // history — the placements that make the tenure ledger — carries none.
+    const running = { state: { not: 'ENDED' as const } }
+    const sells = await prisma.sellContract.findMany({ where: { ...running, company: { slug: { startsWith: 'world-' } } }, select: { id: true } })
     expect(sells.length).toBeGreaterThan(0)
     for (const s of sells) {
       const n = await prisma.cycle.count({ where: { sellContractId: s.id } })
       expect(n, `sell ${s.id} has no cycles`).toBeGreaterThan(0)
     }
-    const buys = await prisma.buyContract.findMany({ where: { company: { slug: { startsWith: 'world-' } } }, select: { id: true } })
+    const buys = await prisma.buyContract.findMany({ where: { ...running, company: { slug: { startsWith: 'world-' } } }, select: { id: true } })
     for (const b of buys) {
       const n = await prisma.cycle.count({ where: { buyContractId: b.id } })
       expect(n, `buy ${b.id} has no cycles`).toBeGreaterThan(0)
+    }
+  })
+
+  it('a placement that has ended has nothing due', async () => {
+    const ended = await prisma.sellContract.findMany({ where: { state: 'ENDED', company: { slug: { startsWith: 'world-' } } }, select: { id: true } })
+    expect(ended.length).toBeGreaterThan(0)
+    for (const s of ended) {
+      expect(await prisma.cycle.count({ where: { sellContractId: s.id } })).toBe(0)
     }
   })
 

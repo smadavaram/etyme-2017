@@ -174,39 +174,81 @@ The founder cannot read code. This is the compensating discipline.
 
 ---
 
-## Current state
+## Who pays — decided 2026-09-10
 
-**Built (prototypes, not production):**
-- `prototypes/rolloff-console.tsx` — vendor-side rolloff, dual scale (staffing vendor
-  and SI delivery unit). Implements BRD §16 fan-out.
-- `prototypes/client-console.tsx` — client-side operations. Daily approval queue,
-  contracts with six-party rolloff fan-out, alumni memory, vendor discovery by skill
-  and region, multi-manager org view with rate variance and vendor tail.
+**The client is the customer.** An enterprise with a dozen suppliers pays
+for the one thing none of its suppliers can give it: every contractor on
+its sites, across every supplier, with tenure added up, paperwork on
+file, hours signed and invoices matched — from the desk of whoever does
+that job. Suppliers are on the platform because their clients are.
 
-**Specified, not built:** everything else. `BUILD.md` §6 lists the ten real gaps
-against the 2017 system — conversations, notifications, expenses, commissions,
-vendor bills, rate history, holiday calendar, blacklist, interviews, bank and tax details.
+This replaces the earlier plan to sell tooling to vendors first. A
+vendor at a hundred dollars a month buys efficiency and can manage
+without it; a client at fifty thousand a year buys a legal exposure it
+cannot see any other way. The phases below are cut on that.
 
-**Not started:** the actual Next.js application. The prototypes are React files
-demonstrating behaviour, not a running app.
+### Phase 1 — one hire, from every desk (built; ships on this)
 
----
+The ten stations of one placement, walked from the client's own desks
+and refused at each to whoever has no business there:
 
-## Phase 1 scope — and the rule about it
+1. the hiring manager posts a requirement; over the line it routes to
+   the VP, and the manager cannot wave it through
+2. the programme office chooses which suppliers see it; a hiring
+   manager cannot
+3. a supplier submits; the client awards; a supplier cannot award its own
+4. both contracts and their due dates are written by the award
+5. nobody starts without an I-9; a lapsed certificate blocks; a missing
+   background check warns and records the reason; a stranger to the
+   contract cannot touch it and the AP clerk, a party, still cannot
+   start anybody
+6. the worker files their own week; nobody else may
+7. the client signs the work, the supplier accepts what it pays; nobody
+   signs their own hours
+8. the supplier invoices its own engagement only
+9. the client pays what came through the match — never an invoice the
+   supplier has not submitted — and the payment says who paid whom
+10. tenure is the person's, across every supplier, counted once per day
+    on site, and every read of it leaves a trail
 
-Company formation + AI site generation · roles including PM and RMG · candidate
-profiles and pipeline · bench module · standalone Assignment with bench burn
-dashboard · training funnel data model · Releasing Soon pool and rolloff fan-out ·
-email and CSV VMS fallback parser · document libraries.
+`__integration__/client-programme.test.ts` is that walk, as sentences.
 
-**The sequencing rule, from the BRD itself:**
+**Three client demo accounts** — Nike, Corning, Terumo BCT — each with a
+programme manager, hiring manager, VP, AP clerk and compliance officer
+holding the real roles from `lib/company-defaults`, several suppliers,
+a history across suppliers, and something waiting at every desk. Built
+by `lib/seed-programmes` inside the world seed; reached from `/demo`, or
+`POST /api/demo {"as":"world-nike","desk":"ap"}`. Seed once per
+deployment with `POST /api/seed-world` and the `CRON_SECRET`.
 
-> Phases 1–2 must ship to PAYING vendors before Phase 4 enterprise work begins.
-> The 2017 sprawl happened because everything was built at once.
+### Phase 2 — governance and the supplier's own operation
 
-The 2017 build reached 4,197 commits and stalled on adoption, not on engineering.
-Building is now cheap, which makes over-building the primary risk. If you find
-yourself scaffolding Phase 3 or 4 while Phase 1 is unshipped, stop.
+Approval chains beyond one VP · rate bands and headcount enforced at
+requisition · three-way match exceptions routed to a desk · rate
+variance across suppliers · multi-manager org · the supplier's bench,
+releasing-soon and rolloff · screening and interviews as a pipeline ·
+1099 and sub-vendor payment down the chain · matching with reasons.
+
+### Phase 3 — scale
+
+Multi-region programmes · IR35, GST, withholding · supplier scorecards
+and tiers · document templates and attestations · reporting and export ·
+commissions · sourcing at volume.
+
+**The sequencing rule, kept from the BRD:**
+
+> Phases 1–2 must ship to PAYING customers before enterprise scale work
+> begins. The 2017 sprawl happened because everything was built at once.
+
+The 2017 build reached 4,197 commits and stalled on adoption, not on
+engineering. Building is now cheap, which makes over-building the primary
+risk. If you find yourself scaffolding Phase 3 while a client is not yet
+paying for Phase 1, stop.
+
+**Prototypes (reference, not production):** `prototypes/client-console.tsx`
+and `prototypes/rolloff-console.tsx` still define the target look of the
+client and vendor consoles. `BUILD.md` §6 lists what the 2017 system had
+that this one does not yet.
 
 ---
 
@@ -481,3 +523,21 @@ seed data. Seven known bugs documented for the new build to fix.
 
 Phase 1: 5 service objects (901 lines extracted).
 Phase 2: 14 service objects (2,085 lines extracted from 13 controllers).
+
+### Business logic extraction ✓ (2026-09)
+
+Cycles are money only, on the side of the trade they describe, on the
+day the pack asks for (`lib/cycle-kinds`, `lib/cycle-generator`,
+`lib/contract-cycles`). The timeline is three words on the thread —
+hours, pay, bill (`api/placements/[id]`). Paperwork is a checklist, not
+a signing workflow: I-9 and lapsed cover block, the rest warns with a
+reason (`lib/contract-clearance`).
+
+### The client path, closed ✓ (2026-09-10)
+
+Five routes that authenticated and did not authorise — activate,
+payments, invoice generation, timesheet entry, convert — now refuse a
+stranger in words. Awarding writes the cycles. A client pays only what
+came through the match. Tenure counts a day on site once, however many
+firms billed it, and only days served. Three client programmes seeded
+with a desk per job. `__integration__/client-programme.test.ts`.
