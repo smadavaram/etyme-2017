@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
+import { daysOnSite } from '@/lib/tenure-days'
 
 /**
  * GET /api/alumni
@@ -102,16 +103,22 @@ export async function GET(request: NextRequest) {
     latestVendor: { id: string; name: string } | null
   }>()
 
+  // Days on site per person, overlaps counted once — a prime's contract
+  // and its sub's are the same weeks, and summed per row they doubled.
+  const periodsByPerson = new Map<string, { startDate: Date; endDate: Date | null }[]>()
   for (const c of contracts) {
-    const end = c.endDate ?? now
-    const days = Math.max(0, Math.ceil((end.getTime() - c.startDate.getTime()) / (1000 * 60 * 60 * 24)))
+    periodsByPerson.set(c.personId, [...(periodsByPerson.get(c.personId) ?? []), c])
+  }
+
+  for (const c of contracts) {
+    const days = daysOnSite(periodsByPerson.get(c.personId) ?? [], now)
     const hours = c.timesheets.reduce((sum, t) => sum + (t.totalHours ? Number(t.totalHours) : 0), 0)
     const isActive = c.state === 'IN_PROGRESS' || c.state === 'PAUSED'
 
     const existing = personMap.get(c.personId)
     if (existing) {
       existing.vendors.set(c.company.id, c.company.name)
-      existing.totalDays += days
+      existing.totalDays = days
       existing.totalHours += hours
       existing.contractCount++
       if (isActive) existing.hasActive = true

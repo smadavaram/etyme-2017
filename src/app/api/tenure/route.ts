@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { logBulkAccess } from '@/lib/access-log'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 
 /**
  * GET /api/tenure
@@ -85,14 +86,11 @@ export async function GET(request: NextRequest) {
 
   for (const c of contracts) {
     const existing = personMap.get(c.personId)
-    const end = c.endDate ?? now
-    const days = Math.max(0, Math.ceil((end.getTime() - c.startDate.getTime()) / (1000 * 60 * 60 * 24)))
     const isActive = c.state === 'IN_PROGRESS' || c.state === 'PAUSED'
 
     if (existing) {
       existing.vendors.set(c.company.id, c.company.name)
       existing.contracts.push(c)
-      existing.totalDays += days
       if (isActive) existing.hasActive = true
       if (c.endDate && (!existing.lastEndDate || c.endDate > existing.lastEndDate)) {
         existing.lastEndDate = c.endDate
@@ -104,16 +102,22 @@ export async function GET(request: NextRequest) {
         name: c.person.name,
         vendors: vendorMap,
         contracts: [c],
-        totalDays: days,
+        totalDays: 0,
         hasActive: isActive,
         lastEndDate: c.endDate ?? null,
       })
     }
   }
 
+  // Days on site, overlaps counted once. A prime's contract and its
+  // sub's contract are the same person on the same days; summed per row
+  // they doubled, and a person supplied through a chain hit an
+  // eighteen-month cap at nine.
+  for (const data of personMap.values()) data.totalDays = daysOnSite(data.contracts, now)
+
   // Classify each person's tenure status
   const people = Array.from(personMap.entries()).map(([personId, data]) => {
-    const cumulativeMonths = Math.round(data.totalDays / 30.44)
+    const cumulativeMonths = monthsOf(data.totalDays)
     let status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE' = 'OK'
     let eligibleDate: string | null = null
 

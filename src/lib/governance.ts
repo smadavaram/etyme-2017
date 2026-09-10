@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 
 /**
  * Governance enforcement engine — Addendum E §E.6.
@@ -238,12 +239,10 @@ async function evaluateTenureCap(
     select: { startDate: true, endDate: true },
   })
 
-  const totalDays = contracts.reduce((sum, c) => {
-    const end = c.endDate ?? now
-    return sum + Math.max(0, Math.ceil((end.getTime() - c.startDate.getTime()) / (1000 * 60 * 60 * 24)))
-  }, 0)
-
-  const totalMonths = Math.round(totalDays / 30.44)
+  // Overlaps counted once. A prime and its sub each hold a contract for
+  // the same person on the same days; summing the rows doubled them.
+  const totalDays = daysOnSite(contracts, now)
+  const totalMonths = monthsOf(totalDays)
 
   const person = await prisma.person.findUnique({
     where: { id: personId },
