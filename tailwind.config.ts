@@ -61,6 +61,8 @@ const config: Config = {
       animation: {
         'fade-in':  'fadeIn 0.4s ease-out',
         'slide-up': 'slideUp 0.35s ease-out',
+        // The phone's navigation sheet. Used under motion-safe: only.
+        'slide-in-left': 'slideInLeft 0.22s ease-out',
       },
       keyframes: {
         fadeIn: {
@@ -70,6 +72,10 @@ const config: Config = {
         slideUp: {
           from: { opacity: '0', transform: 'translateY(8px)' },
           to:   { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInLeft: {
+          from: { transform: 'translateX(-100%)' },
+          to:   { transform: 'translateX(0)' },
         },
       },
     },

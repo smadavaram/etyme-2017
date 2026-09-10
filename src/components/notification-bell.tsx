@@ -258,11 +258,14 @@ export function NotificationBell() {
   }
 
   return (
-    <div className="relative" ref={containerRef}>
+    // Positioned only from md up. On a phone the panel is wider than the
+    // room to the bell's left, so it hangs from the header row instead —
+    // see the dropdown's own classes.
+    <div className="md:relative" ref={containerRef}>
       {/* Bell button */}
       <button
         onClick={() => setOpen(!open)}
-        className={`relative w-8 h-8 rounded-md flex items-center justify-center
+        className={`relative w-9 h-9 sm:w-8 sm:h-8 rounded-md flex items-center justify-center
                    transition-colors hover:bg-etyme-canvas
                    ${open ? 'bg-etyme-canvas' : ''}`}
         title={unread > 0 ? `${unread} unread notification${unread !== 1 ? 's' : ''}` : 'Notifications'}
@@ -300,8 +303,8 @@ export function NotificationBell() {
       {/* Dropdown panel */}
       {open && (
         <div
-          className="absolute right-0 top-10 w-80 bg-white rounded-lg
-                     shadow-lg border border-etyme-rule overflow-hidden z-50
+          className="absolute inset-x-3 top-12 md:inset-x-auto md:right-0 md:top-10 md:w-80
+                     bg-white rounded-lg shadow-lg border border-etyme-rule overflow-hidden z-50
                      animate-fade-in"
         >
           {/* Header */}

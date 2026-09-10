@@ -31,7 +31,8 @@ export default function DashboardLayout({
   return (
     <SessionProvider>
       <div className="min-h-screen flex bg-etyme-canvas">
-        {/* Sidebar — desktop only, adapts to the caller's company */}
+        {/* Sidebar — the rail, from md up. Below that the same navigation
+            slides in from the ☰ in the header (components/shell/mobile-nav). */}
         <div className="hidden md:block">
           <Suspense>
             <DashboardShell />
@@ -47,7 +48,12 @@ export default function DashboardLayout({
           {/* Says demo on every screen. Silent for a real company. */}
           <DemoBanner />
 
-          <main className="flex-1 overflow-y-auto p-6 md:p-8">
+          {/* overflow-x-clip, not hidden: clip makes no scroll container,
+              so sticky rows inside still work. It is there so that one
+              page with one element wider than a phone clips that element
+              rather than making the whole screen — header, ☰, the lot —
+              scroll sideways, which is what every phone screenshot showed. */}
+          <main className="flex-1 overflow-x-clip p-4 sm:p-6 md:p-8">
             <div className="max-w-[1200px] mx-auto">
               <Suspense>
                 {children}

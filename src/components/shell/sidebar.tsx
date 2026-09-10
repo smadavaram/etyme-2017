@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { EtymeMark } from '@/components/logo'
 /**
@@ -385,6 +386,9 @@ export function Sidebar({
   companyLabel,
   isConsultant = false,
   pending = false,
+  sheet = false,
+  onDismiss,
+  footer,
 }: {
   /** Absent for a consultant, who has no company. */
   companyKind?: CompanyKind | null
@@ -395,6 +399,15 @@ export function Sidebar({
   /** Session still loading — render the frame without nav items so the
    *  wrong company's navigation never flashes on screen. */
   pending?: boolean
+  /** The phone's slide-in sheet rather than the desktop rail: fills
+   *  whatever holds it instead of pinning itself to the viewport, and
+   *  gives every row a thumb-sized target. */
+  sheet?: boolean
+  /** The reader is done with the sheet — a destination tapped, or the
+   *  close button, which only renders when this is given. */
+  onDismiss?: () => void
+  /** Below the company block. The sheet puts the account here. */
+  footer?: ReactNode
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -406,14 +419,33 @@ export function Sidebar({
     : companyKind === 'CLIENT' ? '/dashboard/program' : '/dashboard'
 
   return (
-    <aside className="w-[220px] flex-shrink-0 h-screen sticky top-0 flex flex-col
-                      bg-etyme-surface border-r border-etyme-rule">
+    <aside
+      className={
+        sheet
+          ? 'w-full h-full flex flex-col bg-etyme-surface'
+          : 'w-[220px] flex-shrink-0 h-screen sticky top-0 flex flex-col bg-etyme-surface border-r border-etyme-rule'
+      }
+    >
       {/* Logo */}
       <div className="px-5 py-5 flex items-center gap-2.5">
         <EtymeMark size={28} />
         <span className="font-semibold text-sm tracking-[-0.02em] text-etyme-ink">
           etyme
         </span>
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Close menu"
+            className="ml-auto -mr-2 w-9 h-9 rounded-md flex items-center justify-center
+                       text-etyme-muted hover:text-etyme-ink hover:bg-etyme-canvas transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Nav sections */}
@@ -448,8 +480,10 @@ export function Sidebar({
                   )}
                   <Link
                     href={item.href as any}
+                    onClick={onDismiss}
                     className={`
-                      flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px]
+                      flex items-center gap-2.5 px-2.5 rounded-md
+                      ${sheet ? 'py-2.5 text-[14px]' : 'py-[7px] text-[13px]'}
                       transition-colors
                       ${active
                         ? 'bg-etyme-canvas text-etyme-ink font-medium'
@@ -493,6 +527,8 @@ export function Sidebar({
           </>
         )}
       </div>
+
+      {footer}
     </aside>
   )
 }
