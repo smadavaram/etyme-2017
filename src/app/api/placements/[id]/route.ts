@@ -5,6 +5,8 @@ import { logAccess } from '@/lib/access-log'
 import { canReadPayRate, canReadBillRate, canReadMargin } from '@/lib/permissions'
 import { descend } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
+import { categoryOf, labelOf } from '@/lib/cycle-kinds'
+import { contractClearance } from '@/lib/contract-clearance'
 
 /**
  * GET /api/placements/:id
@@ -83,6 +85,11 @@ export async function GET(
       hiringManager: { select: { id: true, name: true } },
       engagement: { select: { id: true, title: true } },
       purchaseOrder: { select: { id: true, number: true, amount: true, currency: true } },
+      // What is due on this contract. The sell side: hours and invoices.
+      sellCycles: {
+        select: { kind: true, dueOn: true, completedAt: true },
+        orderBy: { dueOn: 'asc' },
+      },
       requirement: {
         select: {
           id: true, title: true, skills: true, location: true,
@@ -98,6 +105,12 @@ export async function GET(
               id: true, contractType: true, state: true, payCurrency: true,
               supplierSellContractId: true,
               vendorCompany: { select: { id: true, name: true } },
+              // The buy side: pay days and vendor bills. Our own cost,
+              // shown only to a viewer who may see what we pay.
+              buyCycles: {
+                select: { kind: true, dueOn: true, completedAt: true },
+                orderBy: { dueOn: 'asc' },
+              },
             },
           },
         },
@@ -225,7 +238,7 @@ export async function GET(
     : null
 
   // ── Cleared to work ─────────────────────────────────────────────────
-  const [personChecks, supplierCover] = await Promise.all([
+  const [personChecks, supplierCover, ourCover] = await Promise.all([
     prisma.verification.findMany({
       where: { personId: placement.personId },
       orderBy: { createdAt: 'desc' },
@@ -240,6 +253,16 @@ export async function GET(
           select: { id: true, type: true, status: true, expiresAt: true },
         })
       : Promise.resolve([]),
+    // The supplier on this contract — the firm that has to be insured
+    // for this person to start. Different from supplierCover above,
+    // which is the vendor BELOW us where there is one.
+    prisma.verification.findMany({
+      where: {
+        companyId: placement.companyId,
+        type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] },
+      },
+      select: { type: true, status: true, issuedAt: true, expiresAt: true, verifiedAt: true },
+    }),
   ])
 
   // ── Money ───────────────────────────────────────────────────────────
@@ -266,6 +289,47 @@ export async function GET(
 
   const costCents = seat ? Math.round(hoursAccepted * seat.payRate) : null
   const revenueCents = Math.round(hoursAccepted * placement.billRate)
+
+  // ── What is due, in three words ─────────────────────────────────────
+  //
+  // Cycles grouped as a person reads them — hours, pay, bill — never as
+  // the engine's kind names. Buy-side cycles are our cost and follow the
+  // same rule as the pay rate: a viewer who may not see what we pay may
+  // not see when we pay it either.
+  const now = new Date()
+  type Due = { kind: string; label: string; dueOn: string; done: boolean; overdue: boolean }
+  const toDue = (c: { kind: string; dueOn: Date; completedAt: Date | null }): Due => ({
+    kind: c.kind,
+    label: labelOf(c.kind),
+    dueOn: c.dueOn.toISOString(),
+    done: c.completedAt !== null,
+    overdue: c.completedAt === null && c.dueOn < now,
+  })
+  const sellDue = placement.sellCycles.map(toDue)
+  const buyDue = seePay && ourBuy ? (ourBuy.buyCycles ?? []).map(toDue) : []
+  const allDue = [...sellDue, ...buyDue].sort((a, b) => a.dueOn.localeCompare(b.dueOn))
+  const timeline = {
+    hours: allDue.filter((d) => categoryOf(d.kind) === 'HOURS'),
+    pay: allDue.filter((d) => categoryOf(d.kind) === 'PAY'),
+    bill: allDue.filter((d) => categoryOf(d.kind) === 'BILL'),
+    // The next thing anybody has to do on this placement.
+    next: allDue.find((d) => !d.done) ?? null,
+  }
+
+  // ── The checklist ───────────────────────────────────────────────────
+  //
+  // What starting this person requires, which of it is held, and what
+  // stops the contract going live. The same verdict the activate route
+  // gives, computed here so it is visible before anybody presses the
+  // button rather than as a refusal after.
+  const checklist = contractClearance({
+    personName: placement.person.name,
+    personVerifications: personChecks,
+    supplierName: placement.company.name,
+    supplierCertificates: ourCover,
+    clientName: placement.clientCompany.name,
+    on: now,
+  })
 
   return NextResponse.json({
     data: {
@@ -414,6 +478,16 @@ export async function GET(
           billedByUs: t.invoiceLines.some((l) => l.sellContractId === placement.id),
         }
       }),
+
+      // ── What is due next, and what stops a start ──
+      timeline,
+      checklist: {
+        outcome: checklist.outcome,
+        says: checklist.says,
+        fix: checklist.fix,
+        items: checklist.items,
+        cover: checklist.cover.outcome,
+      },
 
       // ── Station 8 · the money ──
       money: {

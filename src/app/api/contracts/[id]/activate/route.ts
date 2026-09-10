@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { evaluateGovernance } from '@/lib/governance'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
+import { contractClearance } from '@/lib/contract-clearance'
 import { notify } from '@/lib/notify'
 
 /**
@@ -92,6 +93,69 @@ export async function POST(
   const previousState = contract.state
   const newState = transition.to
 
+  // ── Paperwork check on activation ──
+  //
+  // Before governance, because this is the supplier's own house and
+  // governance is the client's policy. A person with no I-9 on file is
+  // not a governance question; nobody may start, whatever the client's
+  // tenure rules say. Same contract as governance below: BLOCK where
+  // legally grounded, WARN with a reason recorded everywhere else.
+  if (action === 'activate') {
+    const [personVerifications, supplier, supplierCertificates] = await Promise.all([
+      prisma.verification.findMany({
+        where: { personId: contract.personId },
+        select: { type: true, status: true, issuedAt: true, expiresAt: true, verifiedAt: true },
+      }),
+      prisma.company.findUnique({ where: { id: contract.companyId }, select: { name: true } }),
+      prisma.verification.findMany({
+        where: {
+          companyId: contract.companyId,
+          type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] },
+        },
+        select: { type: true, status: true, issuedAt: true, expiresAt: true, verifiedAt: true },
+      }),
+    ])
+    const papers = contractClearance({
+      personName: contract.person.name,
+      personVerifications,
+      supplierName: supplier?.name ?? 'the supplier',
+      supplierCertificates,
+      clientName: contract.clientCompany.name,
+      on: new Date(),
+    })
+
+    if (papers.outcome === 'BLOCK') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'DOCUMENTS_BLOCK',
+            message: papers.says,
+            fix: papers.fix,
+            blocking: papers.blocking,
+            cover: papers.cover.outcome,
+          },
+        },
+        { status: 403 }
+      )
+    }
+
+    if (papers.outcome === 'WARN' && !body.overrideReason) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'DOCUMENTS_WARN',
+            message: papers.says,
+            fix: papers.fix,
+            chasing: papers.chasing,
+            cover: papers.cover.outcome,
+            overridable: true,
+          },
+        },
+        { status: 422 }
+      )
+    }
+  }
+
   // ── Governance check on activation ──
   // "BLOCK where legally grounded... WARN, capture a reason, proceed"
   if (action === 'activate') {
@@ -175,6 +239,9 @@ export async function POST(
           action,
           from: previousState,
           to: newState,
+          // Where the paperwork warned and somebody proceeded anyway,
+          // their reason travels with the record. Never silently permit.
+          documentsOverride: action === 'activate' ? (body.overrideReason ?? null) : null,
         },
         // Cancellation and completion are not easily reversible
         reversible: !['complete', 'cancel'].includes(action),

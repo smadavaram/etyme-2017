@@ -83,7 +83,20 @@ interface Placement {
     billed: number | null; collected: number | null
     revenue: number | null; cost: number | null; margin: number | null
   }
+  timeline: {
+    hours: Due[]; pay: Due[]; bill: Due[]
+    next: Due | null
+  }
+  checklist: {
+    outcome: 'PASS' | 'WARN' | 'BLOCK'
+    says: string
+    fix: string | null
+    items: Array<{ key: string; label: string; required: boolean; state: string; note: string; blocks: boolean }>
+    cover: 'PASS' | 'WARN' | 'BLOCK'
+  }
 }
+
+type Due = { kind: string; label: string; dueOn: string; done: boolean; overdue: boolean }
 
 const rate = (n: number | null) => (n == null ? '—' : `$${n.toFixed(0)}/hr`)
 const cash = (n: number | null) => (n == null ? '—' : `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`)
@@ -358,16 +371,38 @@ export default function PlacementPage() {
         title="Cleared to work"
         subtitle="Work authorisation stops a placement. The rest are worth chasing."
       >
+        {/* The verdict first, in one sentence, then the pieces. This
+            station used to list only what was on file, so a person with
+            nothing on file showed a blank — which read as "nothing to do"
+            when it meant "everything to do". What is missing is the
+            point of a checklist. */}
+        <p className={`mb-3 text-[13px] leading-relaxed ${
+          p.checklist.outcome === 'BLOCK' ? 'text-etyme-attention' : 'text-etyme-muted'
+        }`}>
+          {p.checklist.says}
+          {p.checklist.fix && <span className="text-etyme-ink"> {p.checklist.fix}</span>}
+        </p>
         <div className="flex flex-wrap gap-2">
-          {p.compliance.person.length === 0 && p.compliance.supplierCover.length === 0 ? (
-            <p className="text-[13px] text-etyme-muted">Nothing has been recorded against this person yet.</p>
-          ) : (
-            [...p.compliance.person, ...p.compliance.supplierCover].map((v, i) => (
-              <span key={`${v.type}-${i}`} className={`chip ${tone(v.status)}`}>
-                {words(v.type)} · {words(v.status)}
-              </span>
-            ))
-          )}
+          {p.checklist.items.map((it) => (
+            <span
+              key={it.key}
+              className={`chip ${
+                it.state === 'ALREADY_HELD' ? 'chip--verified'
+                : it.blocks ? 'chip--danger'
+                : it.state === 'EXPIRING' ? 'chip--attention'
+                : it.required ? 'chip--attention'
+                : 'chip--passive'
+              }`}
+              title={it.note}
+            >
+              {it.label.toLowerCase()} · {it.state === 'ALREADY_HELD' ? 'on file' : words(it.state)}
+            </span>
+          ))}
+          {p.compliance.supplierCover.map((v, i) => (
+            <span key={`${v.type}-${i}`} className={`chip ${tone(v.status)}`}>
+              {words(v.type)} · {words(v.status)}
+            </span>
+          ))}
         </div>
       </Station>
 
@@ -460,6 +495,52 @@ export default function PlacementPage() {
               </li>
             ))}
           </ul>
+        )}
+      </Station>
+
+      {/* The contract's timeline. Not a separate screen: the 2017 version
+          was a filterable grid of nineteen internal state names, and
+          nobody filtering a contract's history thinks "show me
+          VendorBillCalculation rows". They think "what have we billed".
+          Three words, next thing first, done things counted. */}
+      <Station
+        n={8}
+        title="What is due"
+        subtitle={
+          p.timeline.next
+            ? `Next: ${p.timeline.next.label.toLowerCase()}, ${day(p.timeline.next.dueOn)}.`
+            : 'Nothing outstanding on this placement.'
+        }
+      >
+        {p.timeline.hours.length + p.timeline.pay.length + p.timeline.bill.length === 0 ? (
+          <p className="text-[13px] text-etyme-muted">No cycles have been generated for this contract.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {([['Hours', p.timeline.hours], ['Pay', p.timeline.pay], ['Bill', p.timeline.bill]] as const).map(
+              ([heading, rows]) => (
+                <div key={heading}>
+                  <div className="lbl mb-2">{heading}</div>
+                  {rows.length === 0 ? (
+                    <p className="text-[12px] text-etyme-faint">—</p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {rows.filter((r) => !r.done).slice(0, 4).map((r) => (
+                        <li key={`${r.kind}-${r.dueOn}`} className="flex items-baseline justify-between gap-2 text-[13px]">
+                          <span className={r.overdue ? 'text-etyme-attention' : 'text-etyme-ink'}>{r.label}</span>
+                          <span className="tabular-nums text-etyme-muted">{day(r.dueOn)}</span>
+                        </li>
+                      ))}
+                      {rows.filter((r) => r.done).length > 0 && (
+                        <li className="text-[12px] text-etyme-faint">
+                          {rows.filter((r) => r.done).length} done
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              )
+            )}
+          </div>
         )}
       </Station>
     </div>

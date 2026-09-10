@@ -67,7 +67,7 @@ export const DOMAINS: Domain[] = [
       'app/api/governance', 'app/api/tenure', 'app/api/blacklist', 'app/api/bar',
       'app/api/roles', 'app/api/documents', 'app/api/document-shares',
       'app/api/shared', 'app/api/packet', 'app/packet',
-      'lib/document-stages', 'lib/packets', 'lib/packet-derivation', 'lib/attestation',
+      'lib/document-stages', 'lib/contract-clearance', 'lib/packets', 'lib/packet-derivation', 'lib/attestation',
       'lib/worker-classification', 'lib/holds', 'lib/representation',
       'lib/work-authorisation', 'lib/visa-worksite', 'lib/sourcing-exit', 'lib/sourcing-approach', 'lib/candidate-fixture', 'lib/profile-readiness', 'lib/rate-negotiation', 'lib/bench-consent', 'lib/bench-invite', 'lib/signed-link',
       'lib/governance', 'lib/governance-authorship', 'lib/governance-horizon',
