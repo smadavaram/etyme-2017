@@ -225,14 +225,20 @@ async function checkShell(page, who) {
     return []
   }
 
+  // The landing page may have its own overflow; that is that page's
+  // finding, reported when it is visited. The shell's are only what
+  // opening a control adds.
+  const baseline = new Set((await overflowOf(page)).offenders.map((x) => x.el))
+  const added = (o) => o.offenders.filter((x) => !baseline.has(x.el))
+
   // Each header control opens inside the screen.
   for (const name of ['Notifications', 'Add new', 'Account', 'Search']) {
     const btn = page.getByRole('button', { name: new RegExp(`^${name}`) }).first()
     if (!(await btn.isVisible().catch(() => false))) { finding(who, '(shell)', `no ${name} button on a phone`); continue }
     await btn.click()
     await page.waitForTimeout(300)
-    const o = await overflowOf(page)
-    if (o.offenders.length) finding(who, '(shell)', `${name} opens off the edge of the phone`, o.offenders.map((x) => x.el).join(' | '))
+    const o = added(await overflowOf(page))
+    if (o.length) finding(who, '(shell)', `${name} opens off the edge of the phone`, o.map((x) => x.el).join(' | '))
     if (name === 'Account') {
       const signOut = page.getByRole('button', { name: 'Sign out' })
       if (!(await signOut.isVisible().catch(() => false))) finding(who, '(shell)', 'the account menu has no Sign out')
@@ -258,17 +264,22 @@ async function checkShell(page, who) {
   if (!(await sheet.getByRole('button', { name: 'Sign out' }).isVisible().catch(() => false))) {
     finding(who, '(shell)', 'the menu has no Sign out')
   }
-  const o = await overflowOf(page)
-  if (o.offenders.length) finding(who, '(shell)', 'the open menu sticks out past the phone', o.offenders.map((x) => x.el).join(' | '))
+  const o = added(await overflowOf(page))
+  if (o.length) finding(who, '(shell)', 'the open menu sticks out past the phone', o.map((x) => x.el).join(' | '))
   await page.screenshot({ path: join(OUT, 'screens', `${slug(who)}--menu-open.png`) }).catch(() => {})
 
-  // A destination tapped closes the sheet and goes there.
-  const first = sheet.locator('nav a[href^="/dashboard"]').first()
-  const firstHref = await first.getAttribute('href')
-  await first.click()
-  await page.waitForTimeout(600)
+  // A destination tapped closes the sheet and goes there. The first
+  // destination that is not the page we are already on, so the URL has
+  // to change for this to pass.
+  const here = new URL(page.url()).pathname
+  const candidates = await sheet.locator('nav a[href^="/dashboard"]').evaluateAll((as) => as.map((a) => a.getAttribute('href')))
+  const targetHref = candidates.find((h) => h && h.split('?')[0] !== here) ?? candidates[0]
+  const target = sheet.locator(`nav a[href="${targetHref}"]`).first()
+  await target.click()
+  await page.waitForURL((u) => u.pathname === targetHref.split('?')[0], { timeout: 15_000 }).catch(() => {})
+  await page.waitForTimeout(300)
   if (await sheet.isVisible().catch(() => false)) finding(who, '(shell)', 'the menu stayed open after a destination was tapped')
-  if (firstHref && !page.url().includes(firstHref.split('?')[0])) finding(who, '(shell)', 'tapping a destination did not go there', `${firstHref} → ${page.url()}`)
+  if (targetHref && !page.url().includes(targetHref.split('?')[0])) finding(who, '(shell)', 'tapping a destination did not go there', `${targetHref} → ${page.url()}`)
 
   return links
 }
