@@ -17,6 +17,7 @@ import {
   getTemplatePack,
   validatePack,
 } from '@/lib/template-packs'
+import { isMoneyKind } from '@/lib/cycle-kinds'
 
 describe('Template Packs (BUILD.md §4.A)', () => {
   describe('Registry', () => {
@@ -81,14 +82,38 @@ describe('Template Packs (BUILD.md §4.A)', () => {
       }
     })
 
-    it('UK includes an IR35_ASSESSMENT cycle', () => {
-      const kinds = TEMPLATE_PACKS.UK.cycleDefinitions.map((c) => c.kind)
-      expect(kinds).toContain('IR35_ASSESSMENT')
+    // These two pinned the opposite. An IR35 assessment and a GST return
+    // were carried as billing cycles, which shifted them off weekends for
+    // no reason and put them where nothing read them. A reminder is not
+    // a billing event; the UK pack already asks for the IR35 determination
+    // as a document, which is what it is.
+    it('no pack generates a compliance cycle — a reminder is not a billing event', () => {
+      for (const id of TEMPLATE_PACK_IDS) {
+        const kinds = TEMPLATE_PACKS[id].cycleDefinitions.map((c) => c.kind)
+        for (const gone of ['IR35_ASSESSMENT', 'GST_RETURN', 'TAX_WITHHOLD']) {
+          expect(kinds, `${id} still carries ${gone}`).not.toContain(gone)
+        }
+      }
     })
 
-    it('IN_DELIVERY includes a GST_RETURN cycle', () => {
-      const kinds = TEMPLATE_PACKS.IN_DELIVERY.cycleDefinitions.map((c) => c.kind)
-      expect(kinds).toContain('GST_RETURN')
+    it('the UK asks for the IR35 determination as a document, not as a cycle', () => {
+      const docs = TEMPLATE_PACKS.UK.docTemplates.map((d) => d.name)
+      expect(docs.some((n) => /IR35/i.test(n))).toBe(true)
+    })
+
+    it('no pack generates a commission cycle while there is no commission plan to calculate against', () => {
+      for (const id of TEMPLATE_PACK_IDS) {
+        const kinds = TEMPLATE_PACKS[id].cycleDefinitions.map((c) => c.kind)
+        expect(kinds.filter((k) => k.startsWith('COMMISSION_')), id).toEqual([])
+      }
+    })
+
+    it('every cycle a pack carries is a kind something actually reads', () => {
+      for (const id of TEMPLATE_PACK_IDS) {
+        for (const c of TEMPLATE_PACKS[id].cycleDefinitions) {
+          expect(isMoneyKind(c.kind), `${id}: ${c.kind}`).toBe(true)
+        }
+      }
     })
 
     it('no pack has duplicate cycle kinds', () => {

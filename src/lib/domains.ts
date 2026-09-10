@@ -97,7 +97,7 @@ export const DOMAINS: Domain[] = [
       'lib/order', 'lib/order-postings', 'lib/gl', 'lib/contract-links', 'lib/work-chain', 'lib/work-chain-read',
       'lib/profitability',
       'lib/pay-model', 'lib/bench-policy', 'lib/money', 'lib/money-display',
-      'lib/periods', 'lib/recurring', 'lib/cycle-generator', 'lib/holidays',
+      'lib/periods', 'lib/recurring', 'lib/cycle-generator', 'lib/cycle-kinds', 'lib/holidays',
       'lib/invoice-loop', 'lib/invoice-match', 'lib/billing-cascade', 'lib/billing-plan',
       'lib/payroll-export', 'lib/three-way-match', 'lib/purchase-order',
       'lib/cost-allocation', 'lib/contract-rate', 'lib/expense-approval',

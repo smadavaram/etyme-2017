@@ -11,6 +11,8 @@
  *   UK       — UK staffing (limited company, umbrella, IR35)
  */
 
+import type { CycleDefinition as GeneratedDefinition } from '@/lib/cycle-generator'
+
 // ── Contract types ─────────────────────────────────────────────
 
 export interface ContractTypeDef {
@@ -21,16 +23,22 @@ export interface ContractTypeDef {
 
 // ── Cycle definitions ──────────────────────────────────────────
 //
-// The nineteen kinds from 2017, grouped by what they produce.
+// Money only. The 2017 engine had nineteen kinds because it filed
+// reminders (a visa expiring, a GST return owed) in the same table as
+// payments. Reminders live with the watch cron now; an IR35
+// determination is a document in docTemplates below. What is left is
+// the eight kinds something actually reads — see lib/cycle-kinds.
 // Five frequencies: WEEKLY, BIWEEKLY, SEMIMONTHLY, MONTHLY, ON_COMPLETION.
 // Business-day shifting applied against the company's holiday calendar.
 
-export interface CycleDefinition {
-  kind: string
+/**
+ * The generator's definition plus a label for the screen. One type, not
+ * two: this used to be a second, structurally similar interface, and the
+ * callers "converted" between them by dropping the day fields — which is
+ * how every pack's Monday became the generator's Friday.
+ */
+export interface CycleDefinition extends GeneratedDefinition {
   label: string
-  frequency: 'WEEKLY' | 'BIWEEKLY' | 'SEMIMONTHLY' | 'MONTHLY' | 'ON_COMPLETION'
-  dayOfWeek?: number  // 0 = Sunday, 5 = Friday — for weekly/biweekly
-  dayOfMonth?: number // 1–28 — for monthly/semimonthly (28 = last business day)
 }
 
 // ── Doc templates ──────────────────────────────────────────────
@@ -68,7 +76,6 @@ const COMMON_CYCLES: CycleDefinition[] = [
   { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'SEMIMONTHLY', dayOfMonth: 1 },
   { kind: 'INVOICE_DUE', label: 'Invoice due', frequency: 'MONTHLY', dayOfMonth: 28 },
   { kind: 'SALARY_CALCULATE', label: 'Salary calculation', frequency: 'BIWEEKLY', dayOfWeek: 3 },
-  { kind: 'SALARY_APPROVE', label: 'Salary approval', frequency: 'BIWEEKLY', dayOfWeek: 4 },
   { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'BIWEEKLY', dayOfWeek: 5 },
 ]
 
@@ -86,9 +93,6 @@ const US_IT: TemplatePack = {
     ...COMMON_CYCLES,
     { kind: 'VENDOR_BILL_GENERATE', label: 'Vendor bill generation', frequency: 'SEMIMONTHLY', dayOfMonth: 1 },
     { kind: 'VENDOR_BILL_DUE', label: 'Vendor bill due', frequency: 'MONTHLY', dayOfMonth: 15 },
-    { kind: 'TAX_WITHHOLD', label: 'Tax withholding', frequency: 'BIWEEKLY', dayOfWeek: 5 },
-    { kind: 'COMMISSION_CALCULATE', label: 'Commission calculation', frequency: 'MONTHLY', dayOfMonth: 1 },
-    { kind: 'COMMISSION_PAY', label: 'Commission payment', frequency: 'MONTHLY', dayOfMonth: 15 },
   ],
   docTemplates: [
     { name: 'Employment Agreement (W-2)', audience: 'CANDIDATE', needsSignature: true },
@@ -147,7 +151,6 @@ const IN_DELIVERY: TemplatePack = {
     { kind: 'SALARY_PAY', label: 'Salary payment', frequency: 'MONTHLY', dayOfMonth: 28 },
     { kind: 'INVOICE_GENERATE', label: 'Invoice generation', frequency: 'MONTHLY', dayOfMonth: 1 },
     { kind: 'INVOICE_DUE', label: 'Invoice due', frequency: 'MONTHLY', dayOfMonth: 28 },
-    { kind: 'GST_RETURN', label: 'GST return', frequency: 'MONTHLY', dayOfMonth: 20 },
   ],
   docTemplates: [
     { name: 'Appointment Letter', audience: 'CANDIDATE', needsSignature: true },
@@ -176,7 +179,6 @@ const UK: TemplatePack = {
     { kind: 'INVOICE_DUE', label: 'Invoice due', frequency: 'MONTHLY', dayOfMonth: 28 },
     { kind: 'VENDOR_BILL_GENERATE', label: 'Vendor bill generation', frequency: 'MONTHLY', dayOfMonth: 1 },
     { kind: 'VENDOR_BILL_DUE', label: 'Vendor bill due', frequency: 'MONTHLY', dayOfMonth: 15 },
-    { kind: 'IR35_ASSESSMENT', label: 'IR35 status assessment', frequency: 'ON_COMPLETION' },
   ],
   docTemplates: [
     { name: 'Contract for Services (Ltd)', audience: 'VENDOR', needsSignature: true },

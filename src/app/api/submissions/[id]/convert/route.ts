@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
-import type { CycleDefinition } from '@/lib/cycle-generator'
+import { cyclesFor } from '@/lib/cycle-kinds'
+import { loadContractHolidays } from '@/lib/holidays'
 import { getTemplatePack } from '@/lib/template-packs'
 import { evaluateGovernance } from '@/lib/governance'
 
@@ -193,13 +194,35 @@ export async function POST(
       if (submission.fromCompany.templatePack && end) {
         const pack = getTemplatePack(submission.fromCompany.templatePack)
         if (pack) {
-          const definitions: CycleDefinition[] = pack.cycleDefinitions.map((cd) => ({
-            kind: cd.kind as any,
-            frequency: cd.frequency as any,
-            offsetDays: 0,
-          }))
+          // Only what this contract needs, on the side it belongs to.
+          //
+          // Every cycle used to land on the sell contract — including the
+          // salary and vendor-bill cycles that describe money going out.
+          // The payroll screen reads those off the buy contract, where
+          // they belong, so its list was always empty and nothing said so.
+          // And the pack's day fields were dropped here on the way in,
+          // which is why a pack asking for Monday got Friday.
+          const bc = buyContract
+          const split = cyclesFor(
+            bc ? { contractType: bc.contractType, vendorCompanyId: bc.vendorCompanyId } : null,
+            pack.cycleDefinitions
+          )
+          // Both calendars, unioned. A pay day on the client's holiday is
+          // as wrong as one on ours.
+          const holidays = await loadContractHolidays(
+            submission.fromCompanyId, sellContract.clientCompanyId, start.getFullYear(), end.getFullYear()
+          )
 
-          const generatedCycles = generateCycles(start, end, definitions)
+          const generatedCycles = generateCycles(start, end, split.sell, holidays)
+
+          if (bc && split.buy.length > 0) {
+            const buyCycles = generateCycles(start, end, split.buy, holidays)
+            if (buyCycles.length > 0) {
+              await tx.cycle.createMany({
+                data: buyCycles.map((c) => ({ buyContractId: bc.id, kind: c.kind, dueOn: c.dueOn })),
+              })
+            }
+          }
 
           if (generatedCycles.length > 0) {
             await tx.cycle.createMany({

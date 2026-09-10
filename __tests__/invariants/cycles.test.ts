@@ -37,7 +37,7 @@ const SEMIMONTHLY_PAY: CycleDefinition = {
 }
 
 const ON_COMPLETION: CycleDefinition = {
-  kind: 'PERFORMANCE_REVIEW',
+  kind: 'INVOICE_DUE',
   frequency: 'ON_COMPLETION',
   offsetDays: 0,
 }
@@ -212,5 +212,73 @@ describe('Cycle Generation (CLAUDE.md §Hardest Things #1)', () => {
         expect(cycles[i].dueOn.getTime()).toBeGreaterThanOrEqual(cycles[i - 1].dueOn.getTime())
       }
     })
+  })
+})
+
+// ── The pack's day is honoured ────────────────────────────────────────
+//
+// Every case below was silently wrong: the engine hard-coded Friday, the
+// 15th and month-end and the callers dropped the pack's day fields on
+// the way in. These are the dates a pack actually asks for.
+
+describe('the day a pack asks for is the day it gets', () => {
+  const ymd = (d: Date) => d.toISOString().slice(0, 10)
+  const on = (y: number, m: number, d: number) => new Date(y, m - 1, d)
+
+  it('a Monday approval lands on Monday, not on the default Friday', () => {
+    const cycles = generateCycles(on(2026, 3, 2), on(2026, 3, 29), [
+      { kind: 'TIMESHEET_APPROVE', frequency: 'WEEKLY', dayOfWeek: 1 },
+    ])
+    expect(cycles.length).toBeGreaterThan(0)
+    for (const c of cycles) expect(c.dueOn.getDay()).toBe(1)
+  })
+
+  it('a vendor bill due on the 15th lands on the 15th, not at month-end', () => {
+    const cycles = generateCycles(on(2026, 1, 1), on(2026, 3, 31), [
+      { kind: 'VENDOR_BILL_DUE', frequency: 'MONTHLY', dayOfMonth: 15 },
+    ])
+    // Jan 15 2026 is a Thursday, Feb 15 a Sunday → Mon 16, Mar 15 a Sunday → Mon 16
+    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-01-15', '2026-02-16', '2026-03-16'])
+  })
+
+  it('the 30th in February is the 28th, or the 29th in a leap year', () => {
+    const plain = generateCycles(on(2026, 2, 1), on(2026, 2, 28), [
+      { kind: 'SALARY_PAY', frequency: 'MONTHLY', dayOfMonth: 30 },
+    ])
+    // 30 is at or past 28, so it means month-end: Sat 28 Feb 2026 → Mon 2 Mar
+    expect(plain.map((c) => ymd(c.dueOn))).toEqual(['2026-03-02'])
+
+    const leap = generateCycles(on(2028, 2, 1), on(2028, 2, 29), [
+      { kind: 'SALARY_PAY', frequency: 'MONTHLY', dayOfMonth: 30 },
+    ])
+    // Tue 29 Feb 2028 — a working day, stays put
+    expect(leap.map((c) => ymd(c.dueOn))).toEqual(['2028-02-29'])
+  })
+
+  it('a day at or past 28 means month-end whatever the month has', () => {
+    const cycles = generateCycles(on(2026, 4, 1), on(2026, 5, 31), [
+      { kind: 'INVOICE_DUE', frequency: 'MONTHLY', dayOfMonth: 28 },
+    ])
+    // Apr 30 2026 is a Thursday; May 31 a Sunday → Mon 1 Jun
+    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-04-30', '2026-06-01'])
+  })
+
+  it('a semimonthly cycle cut on the 1st gives the 1st and the last of each month', () => {
+    const cycles = generateCycles(on(2026, 3, 1), on(2026, 4, 30), [
+      { kind: 'INVOICE_GENERATE', frequency: 'SEMIMONTHLY', dayOfMonth: 1 },
+    ])
+    // Sun 1 Mar → Mon 2; Tue 31 Mar; Wed 1 Apr; Thu 30 Apr
+    expect(cycles.map((c) => ymd(c.dueOn))).toEqual(['2026-03-02', '2026-03-31', '2026-04-01', '2026-04-30'])
+  })
+
+  it('a compliance kind in a definition is refused, not generated', () => {
+    const cycles = generateCycles(on(2026, 1, 1), on(2026, 12, 31), [
+      { kind: 'GST_RETURN', frequency: 'MONTHLY', dayOfMonth: 20 },
+      { kind: 'IR35_ASSESSMENT', frequency: 'ON_COMPLETION' },
+      { kind: 'INVOICE_DUE', frequency: 'MONTHLY' },
+    ])
+    expect(cycles.map((c) => c.kind)).not.toContain('GST_RETURN')
+    expect(cycles.map((c) => c.kind)).not.toContain('IR35_ASSESSMENT')
+    expect(cycles.some((c) => c.kind === 'INVOICE_DUE')).toBe(true)
   })
 })
