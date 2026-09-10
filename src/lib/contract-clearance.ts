@@ -117,8 +117,27 @@ function blocksStart(item: ResolvedItem): boolean {
   return (AUTHORISATION_KEYS as readonly string[]).includes(item.key)
 }
 
-function outstandingRequired(item: ResolvedItem): boolean {
-  return item.required && (item.state === 'NEEDED' || item.state === 'EXPIRED')
+/**
+ * The items this system can actually hold today: every VerificationType,
+ * the right-to-work alias, and whatever a caller hands in as extraHeld.
+ *
+ * A packet may require a signed NDA, and it should. But nothing here
+ * records one yet, so chasing it would put a warning on every activation
+ * until the end of time — and a warning that always fires is a click,
+ * not a warning. An item with no way to be held is listed as needed and
+ * does not move the verdict, until the day something can hold it.
+ */
+const HOLDABLE = new Set<string>([
+  'I9_EVERIFY', 'BACKGROUND_CHECK', 'EDUCATION_EVALUATION', 'DRUG_SCREENING',
+  'INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER',
+  'BUSINESS_PARTNER', 'REFERENCE_CHECK',
+  ...Object.keys(SATISFIED_BY),
+])
+
+function outstandingRequired(item: ResolvedItem, holdable: Set<string>): boolean {
+  if (!item.required) return false
+  if (item.state !== 'NEEDED' && item.state !== 'EXPIRED') return false
+  return holdable.has(item.key)
 }
 
 /**
@@ -157,14 +176,18 @@ export function contractClearance(input: {
   }))
 
   const blocking = items.filter((i) => i.blocks)
-  const chasing = items.filter((i) => !i.blocks && outstandingRequired(resolved.find((r) => r.key === i.key)!))
+  const holdable = new Set<string>([...HOLDABLE, ...(input.extraHeld ?? []).map((h) => h.key)])
+  const chasing = items.filter(
+    (i) => !i.blocks && outstandingRequired(resolved.find((r) => r.key === i.key)!, holdable)
+  )
 
-  const cover = supplierCoverGate({
+  const rawCover = supplierCoverGate({
     supplierName: input.supplierName,
     certificates: input.supplierCertificates,
     clientName: input.clientName ?? null,
     on: input.on,
   })
+  const cover = forActivation(rawCover)
 
   const outcome: Outcome =
     blocking.length > 0 || cover.outcome === 'BLOCK' ? 'BLOCK'
@@ -179,6 +202,34 @@ export function contractClearance(input: {
     cover,
     says: sayIt(input.personName, outcome, blocking, chasing, cover),
     fix: fixFor(blocking, chasing, cover),
+  }
+}
+
+/**
+ * Lapsed blocks. Missing warns.
+ *
+ * The ratified wording is "lapsed supplier insurance" — a certificate
+ * that ran out. A supplier that has never uploaded one is not lapsed; it
+ * is unknown, and the cover gate treats unknown as blocking because at
+ * submission time that is right: you do not put somebody forward under
+ * cover you cannot show. At activation of a contract somebody is
+ * recording — one that started in August and is being entered in
+ * September — a hard stop on a certificate nobody has asked for yet
+ * changes nothing about the exposure and everything about whether the
+ * firm records the contract at all. So a missing certificate is chased,
+ * with a reason recorded on the way through, and an expired one is not.
+ */
+function forActivation(cover: CoverGate): CoverGate {
+  if (cover.outcome !== 'BLOCK') return cover
+  const lapsed = cover.blocking.filter((b) => b.standing === 'EXPIRED')
+  const neverRecorded = cover.blocking.filter((b) => b.standing === 'MISSING')
+  if (lapsed.length > 0) return cover
+  return {
+    ...cover,
+    outcome: 'WARN',
+    blocking: [],
+    chasing: [...neverRecorded, ...cover.chasing],
+    says: cover.says.replace(/cannot start|is blocked/i, 'has no cover on file'),
   }
 }
 

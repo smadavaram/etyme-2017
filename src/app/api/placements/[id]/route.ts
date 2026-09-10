@@ -306,7 +306,12 @@ export async function GET(
     overdue: c.completedAt === null && c.dueOn < now,
   })
   const sellDue = placement.sellCycles.map(toDue)
-  const buyDue = seePay && ourBuy ? (ourBuy.buyCycles ?? []).map(toDue) : []
+  // Both rules, not one. seePay is a permission — a client owner holds
+  // `*` and passes it — and isSupplier is a position. Buy cycles are the
+  // supplier's own cost; a client with every permission in the world is
+  // still not the supplier, and saw fifty-three pay days it had no
+  // business seeing.
+  const buyDue = isSupplier && seePay && ourBuy ? (ourBuy.buyCycles ?? []).map(toDue) : []
   const allDue = [...sellDue, ...buyDue].sort((a, b) => a.dueOn.localeCompare(b.dueOn))
   const timeline = {
     hours: allDue.filter((d) => categoryOf(d.kind) === 'HOURS'),

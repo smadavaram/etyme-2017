@@ -159,11 +159,41 @@ describe('Chapter 3 — the existing contract is recorded, both sides at once', 
     expect(sell.buyLinks.length, 'the buy side exists and is linked').toBeGreaterThan(0)
   })
 
+  it('a contract that started in August has its I-9 on file — recording it here is recording what exists', async () => {
+    // Activation refuses a start with no work authorisation. A solo
+    // operator recording their own running W-2 contract has an I-9 —
+    // they have been employing themselves since August — so it is
+    // recorded before the contract is, not invented to pass a gate.
+    await prisma.verification.create({
+      data: {
+        personId: sharathPersonId, type: 'I9_EVERIFY', status: 'CLEAR', provider: 'E-Verify',
+        issuedAt: new Date('2026-07-28'), uploadedById: sharathPersonId,
+        verifiedById: sharathPersonId, verifiedAt: new Date('2026-07-28'),
+        result: { outcome: 'CLEAR' },
+      },
+    })
+  })
+
   it('a recorded contract still has to be activated before it bills — a real step, not a bug', async () => {
+    // No certificate of insurance is on file and none has been asked
+    // for. Unknown is not lapsed: the gate warns and asks for a reason,
+    // and a one-person corp has one. The reason travels with the record.
     as(SHARATH)
-    const r = await json(
+    const first = await json(
       await activateContract(
         req('POST', `/api/contracts/${contractId}/activate`, { action: 'activate' }),
+        { params: Promise.resolve({ id: contractId }) }
+      )
+    )
+    expect(first.status, JSON.stringify(first.body)).toBe(422)
+    expect(first.body.error.code).toBe('DOCUMENTS_WARN')
+
+    const r = await json(
+      await activateContract(
+        req('POST', `/api/contracts/${contractId}/activate`, {
+          action: 'activate',
+          overrideReason: 'Sole operator, no employees — workers\' comp exempt; GL certificate requested from broker.',
+        }),
         { params: Promise.resolve({ id: contractId }) }
       )
     )

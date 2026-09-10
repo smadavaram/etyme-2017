@@ -714,6 +714,46 @@ describe('Step 12 — Computer Systems awards its own sub, and CloudEPA gets its
   })
 })
 
+// Moved above Step 13. This block's own title says "before she sets foot
+// on site", and the walk performed it after. Activation now refuses a
+// start with no work authorisation on file — the spec's own BLOCK — so
+// the paperwork goes where the title always said it belonged.
+describe('Step 12b — what has to be true before she sets foot on site', () => {
+  it('records the work authorisation check as the one that blocks', async () => {
+    await prisma.verification.create({
+      data: {
+        personId: who.priya, type: 'I9_EVERIFY', status: 'CLEAR', provider: 'E-Verify',
+        referenceId: 'EV-2026-441908', issuedAt: new Date('2026-09-10'),
+        uploadedById: who.subLead, verifiedById: who.subLead, verifiedAt: new Date('2026-09-10'),
+        result: { outcome: 'CLEAR', notes: 'Employment authorised — permanent resident' },
+      },
+    })
+    const v = await prisma.verification.findFirstOrThrow({
+      where: { personId: who.priya, type: 'I9_EVERIFY' },
+    })
+    expect(v.status).toBe('CLEAR')
+  })
+
+  it('records the background check as the one that warns, with an expiry on it', async () => {
+    await prisma.verification.create({
+      data: {
+        personId: who.priya, type: 'BACKGROUND_CHECK', status: 'CLEAR', provider: 'Sterling',
+        referenceId: 'ST-88401-B', issuedAt: new Date('2026-09-11'),
+        expiresAt: new Date('2027-09-11'),
+        uploadedById: who.subLead, verifiedById: who.primeLead, verifiedAt: new Date('2026-09-12'),
+        result: { outcome: 'CLEAR', notes: 'County and federal criminal, 7 years — no records' },
+      },
+    })
+    const v = await prisma.verification.findFirstOrThrow({
+      where: { personId: who.priya, type: 'BACKGROUND_CHECK' },
+    })
+    expect(v.expiresAt).not.toBeNull()
+    expect(v.uploadedById).not.toBe(v.verifiedById)
+  })
+
+})
+
+
 describe('Step 13 — the contracts are activated, and the PO is attached', () => {
   it('moves both sell contracts from draft to live', async () => {
     for (const [seat, id] of [[ADOBE_PM, it_.primeSell], [PRIME, it_.subSell]] as const) {
@@ -752,43 +792,12 @@ describe('Step 13 — the contracts are activated, and the PO is attached', () =
   })
 })
 
-// ═══════════════════════════════════════════════════════════════════
-// Part four — compliance
-// ═══════════════════════════════════════════════════════════════════
-
-describe('Step 14 — what has to be true before she sets foot on site', () => {
-  it('records the work authorisation check as the one that blocks', async () => {
-    await prisma.verification.create({
-      data: {
-        personId: who.priya, type: 'I9_EVERIFY', status: 'CLEAR', provider: 'E-Verify',
-        referenceId: 'EV-2026-441908', issuedAt: new Date('2026-09-10'),
-        uploadedById: who.subLead, verifiedById: who.subLead, verifiedAt: new Date('2026-09-10'),
-        result: { outcome: 'CLEAR', notes: 'Employment authorised — permanent resident' },
-      },
-    })
-    const v = await prisma.verification.findFirstOrThrow({
-      where: { personId: who.priya, type: 'I9_EVERIFY' },
-    })
-    expect(v.status).toBe('CLEAR')
-  })
-
-  it('records the background check as the one that warns, with an expiry on it', async () => {
-    await prisma.verification.create({
-      data: {
-        personId: who.priya, type: 'BACKGROUND_CHECK', status: 'CLEAR', provider: 'Sterling',
-        referenceId: 'ST-88401-B', issuedAt: new Date('2026-09-11'),
-        expiresAt: new Date('2027-09-11'),
-        uploadedById: who.subLead, verifiedById: who.primeLead, verifiedAt: new Date('2026-09-12'),
-        result: { outcome: 'CLEAR', notes: 'County and federal criminal, 7 years — no records' },
-      },
-    })
-    const v = await prisma.verification.findFirstOrThrow({
-      where: { personId: who.priya, type: 'BACKGROUND_CHECK' },
-    })
-    expect(v.expiresAt).not.toBeNull()
-    expect(v.uploadedById).not.toBe(v.verifiedById)
-  })
-
+describe('Step 14 — who Adobe can see on its site, once the contracts are live', () => {
+  // These two read the world after activation — a firm appears on the
+  // client's compliance page because it holds a live contract whose end
+  // client is that site. They were in the paperwork block above and ran
+  // before the contracts were live, which is the one moment they cannot
+  // be true.
   it('shows Adobe every firm working on its site, CloudEPA included', async () => {
     // Worth saying out loud, because it cuts against the rest of the
     // walk. Adobe has no counterparty record for CloudEPA and cannot
@@ -814,7 +823,34 @@ describe('Step 14 — what has to be true before she sets foot on site', () => {
     const reachable = await prisma.counterparty.findMany({ where: { companyId: co.adobe } })
     expect(reachable.map(c => c.otherCompanyId)).not.toContain(co.sub)
   })
+
+  it('records the suppliers\' cover — the certificates a real firm has on file before anybody starts', async () => {
+    for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
+      await prisma.verification.create({
+        data: {
+          companyId: co.prime, type, status: 'CLEAR', provider: 'Hartford',
+          issuedAt: new Date('2026-01-15'), expiresAt: new Date('2027-01-15'),
+          uploadedById: who.primeLead, verifiedById: who.primeLead, verifiedAt: new Date('2026-01-16'),
+          result: { outcome: 'CLEAR' },
+        },
+      })
+    }
+    for (const type of ['INSURANCE_GL', 'INSURANCE_WC'] as const) {
+      await prisma.verification.create({
+        data: {
+          companyId: co.sub, type, status: 'CLEAR', provider: 'Hartford',
+          issuedAt: new Date('2026-01-15'), expiresAt: new Date('2027-01-15'),
+          uploadedById: who.subLead, verifiedById: who.subLead, verifiedAt: new Date('2026-01-16'),
+          result: { outcome: 'CLEAR' },
+        },
+      })
+    }
+  })
 })
+
+// ═══════════════════════════════════════════════════════════════════
+// Part four — compliance
+// ═══════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════
 // Part five — the money

@@ -99,9 +99,10 @@ describe('what is due, on the thread', () => {
     expect(['PASS', 'WARN', 'BLOCK']).toContain(c.outcome)
     expect(typeof c.says).toBe('string')
     expect(c.items.length).toBeGreaterThan(0)
-    // The seeded person has an I-9 and a background check; the supplier
-    // is insured; nobody has recorded a signed NDA. So: warn, not block.
-    expect(c.outcome).toBe('WARN')
+    // The seeded person has an I-9 and a background check, the supplier's
+    // cover is on file and checked. The NDA is listed as needed but nothing
+    // here can hold one yet, so it does not move the verdict.
+    expect(c.outcome).toBe('PASS')
     expect(c.items.find((i: { key: string }) => i.key === 'I9_EVERIFY')?.state).toBe('ALREADY_HELD')
     expect(c.items.find((i: { key: string }) => i.key === 'NDA')?.state).toBe('NEEDED')
   })

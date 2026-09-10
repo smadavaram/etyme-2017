@@ -15,8 +15,11 @@ const on = new Date('2026-09-10T12:00:00Z')
 const inDays = (n: number) => new Date(on.getTime() + n * 86_400_000)
 
 const clear = (type: string, expiresAt: Date | null = null) => ({ type, status: 'CLEAR', expiresAt })
-const gl = (expiresAt: Date) => ({ type: 'INSURANCE_GL', status: 'CLEAR', expiresAt })
-const wc = (expiresAt: Date) => ({ type: 'INSURANCE_WC', status: 'CLEAR', expiresAt })
+// Checked, not merely filed. The cover gate chases a valid certificate
+// nobody has confirmed looking at — a deliberate rule — so "insured"
+// here means somebody signed off on it.
+const gl = (expiresAt: Date) => ({ type: 'INSURANCE_GL', status: 'CLEAR', expiresAt, verifiedAt: on })
+const wc = (expiresAt: Date) => ({ type: 'INSURANCE_WC', status: 'CLEAR', expiresAt, verifiedAt: on })
 
 /** A supplier whose cover is fine, so only the person side is under test. */
 const insured = [gl(inDays(200)), wc(inDays(200))]
@@ -52,6 +55,17 @@ describe('what blocks a start', () => {
     expect(v.blocking).toEqual([]) // the person is fine; it is the supplier
   })
 
+  it('cover that was never recorded warns and proceeds with a reason — unknown is not lapsed', () => {
+    // The ratified wording is "lapsed supplier insurance". A firm
+    // recording a contract that started last month, whose certificate
+    // nobody has asked for yet, is chased — not stopped.
+    const v = verdict([clear('I9_EVERIFY'), clear('BACKGROUND_CHECK', inDays(300))], [])
+    expect(v.outcome).toBe('WARN')
+    expect(v.cover.outcome).toBe('WARN')
+    expect(v.cover.blocking).toEqual([])
+    expect(v.cover.chasing.map((c) => c.key)).toEqual(expect.arrayContaining(['INSURANCE_GL', 'INSURANCE_WC']))
+  })
+
   it('an expired background check does not block — it is contractual, not law', () => {
     const v = verdict([clear('I9_EVERIFY'), clear('BACKGROUND_CHECK', inDays(-10))])
     expect(v.outcome).toBe('WARN')
@@ -68,8 +82,21 @@ describe('what warns and proceeds', () => {
     expect(v.says).toMatch(/with a reason/)
   })
 
-  it('a missing NDA warns, never blocks', () => {
+  it('a required item nothing here can hold yet is listed, not chased — a warning that always fires is noise', () => {
+    // Nothing in the system records a signed NDA today. Warning on it
+    // would force a reason onto every activation, forever, which is how a
+    // warning becomes a click. It is on the list, marked needed, and it
+    // starts counting the day something can hold one.
     const v = verdict([clear('I9_EVERIFY'), clear('BACKGROUND_CHECK', inDays(300))], insured, [])
+    expect(v.outcome).toBe('PASS')
+    expect(v.chasing).toEqual([])
+    expect(v.items.find((i) => i.key === 'NDA')?.state).toBe('NEEDED')
+  })
+
+  it('the moment a signed NDA can be held, a missing one is chased — never blocked', () => {
+    const v = verdict([clear('I9_EVERIFY'), clear('BACKGROUND_CHECK', inDays(300))], insured, [
+      { key: 'NDA', expiresAt: null, accepted: false },
+    ])
     expect(v.outcome).toBe('WARN')
     expect(v.chasing.map((c) => c.key)).toEqual(['NDA'])
     expect(v.blocking).toEqual([])
