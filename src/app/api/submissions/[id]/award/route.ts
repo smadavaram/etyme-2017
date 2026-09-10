@@ -11,6 +11,8 @@ import { notify } from '@/lib/notify'
 import {
   checkClassification, checkCover, insuranceRestsWith, type WorkerType,
 } from '@/lib/worker-classification'
+import { writeCyclesFor } from '@/lib/contract-cycles'
+import { loadContractHolidays } from '@/lib/holidays'
 
 /**
  * POST /api/submissions/:id/award   { rate?, startDate?, endDate? }
@@ -63,7 +65,7 @@ export async function POST(
           },
         },
       },
-      fromCompany: { select: { id: true, name: true } },
+      fromCompany: { select: { id: true, name: true, templatePack: true } },
       requirement: {
         include: {
           costCenter: { select: { id: true, code: true } },
@@ -359,6 +361,12 @@ export async function POST(
       })
     : null
 
+  // Both calendars, so a due date lands on nobody's holiday. Loaded
+  // before the transaction: it is a read, and it needs the years.
+  const holidays = end
+    ? await loadContractHolidays(submission.fromCompanyId, payerId, start.getFullYear(), end.getFullYear())
+    : new Set<string>()
+
   const result = await prisma.$transaction(async (tx) => {
     // The contract carries the demand-side coding forward. This is the
     // whole point: an invoice raised in four months matches a purchase
@@ -454,6 +462,18 @@ export async function POST(
       },
     })
 
+    // Its due dates. The contract-creating route wrote them and this
+    // one did not, so a placement made the way a client actually makes
+    // one — by awarding — had no hours due, no pay day and no invoice
+    // date, and its thread read "no cycles have been generated". Same
+    // helper the seeds use; no end date, no cycles, which is the rule.
+    const cycles = await writeCyclesFor(tx, {
+      sell: { id: contract.id, startDate: start, endDate: end },
+      buy: { id: buyContract.id, contractType: buy.contractType, vendorCompanyId: buy.vendorCompanyId },
+      packId: submission.fromCompany.templatePack ?? 'US_IT',
+      holidays,
+    })
+
     // The other direction. This award has just created a sell contract
     // for a firm that somebody above may already have raised a buy
     // contract against — the client awarded first and the prime settled
@@ -515,7 +535,7 @@ export async function POST(
       standDown = stood.count
     }
 
-    return { contract, buyContract, standDown, passedOver }
+    return { contract, buyContract, standDown, passedOver, cycles }
   })
 
   // ── The cost object ─────────────────────────────────────────────────
@@ -566,6 +586,7 @@ export async function POST(
         checks: decision.checks as any,
         seatsAfter: decision.seatsAfter,
         costCenter: req.costCenter?.code ?? null,
+        cycles: { sell: result.cycles.sell, buy: result.cycles.buy },
       },
       // Reversible only until the person actually starts.
       reversible: true,

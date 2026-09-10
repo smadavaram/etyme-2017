@@ -695,10 +695,25 @@ function InvoiceDetailDrawer({
             )}
           </div>
 
-          {/* Record payment form — only show if there is outstanding balance */}
-          {localOutstanding > 0 && (
+          {/* The payer's side of the same form. An invoice reaches AP
+              through the match, never around it: until the supplier has
+              submitted it there is nothing to pay, and the route refuses
+              — so the screen says so first, in the words the route would
+              use, rather than offering a button that fails. */}
+          {localOutstanding > 0 && invoice.direction === 'PAYABLE' && localStatus === 'ISSUED' && (
             <div className="border-t border-etyme-rule pt-6">
-              <p className="eyebrow mb-3">Record payment</p>
+              <p className="eyebrow mb-2">Pay this invoice</p>
+              <p className="text-sm text-etyme-muted">
+                Not yet. Your supplier has raised it but not submitted it, so it has not been checked
+                against the hours you approved or the purchase order. It can be paid once it has.
+              </p>
+            </div>
+          )}
+
+          {/* Record payment form — only show if there is outstanding balance */}
+          {localOutstanding > 0 && !(invoice.direction === 'PAYABLE' && localStatus === 'ISSUED') && (
+            <div className="border-t border-etyme-rule pt-6">
+              <p className="eyebrow mb-3">{invoice.direction === 'PAYABLE' ? 'Pay this invoice' : 'Record payment'}</p>
               <form onSubmit={handleRecordPayment} className="space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-etyme-muted mb-1">Amount *</label>
@@ -751,7 +766,11 @@ function InvoiceDetailDrawer({
                   disabled={submitting}
                   className="btn-primary w-full disabled:opacity-50"
                 >
-                  {submitting ? 'Recording…' : 'Record payment'}
+                  {submitting
+                    ? 'Recording…'
+                    : invoice.direction === 'PAYABLE'
+                      ? `Pay ${payAmount ? fmtMinorExact(Math.round(parseFloat(payAmount) * per) || 0, invoice.currency) : fmtMinorExact(localOutstanding, invoice.currency)}`
+                      : 'Record payment'}
                 </button>
               </form>
             </div>
@@ -1067,9 +1086,14 @@ export default function InvoicesPage() {
           <h1>{framing.title}</h1>
           <p>{framing.subtitle}</p>
         </div>
-        <button onClick={() => setShowGenerate(true)} className="btn-primary mt-3 shrink-0">
-          + Generate
-        </button>
+        {/* A client raises no invoices. The button was here for them too,
+            and pressing it offered a list of engagements to bill — their
+            suppliers' engagements, to bill themselves. */}
+        {!isClient && (
+          <button onClick={() => setShowGenerate(true)} className="btn-primary mt-3 shrink-0">
+            + Generate
+          </button>
+        )}
       </div>
 
       {/* Which side of the ledger, and which currency. Never summed. */}
@@ -1199,12 +1223,15 @@ export default function InvoicesPage() {
         searchFilter={searchFilter}
         searchPlaceholder="Search by invoice number, engagement, or client…"
         emptyMessage={statusFilter !== 'ALL' ? `No ${statusFilter.toLowerCase()} invoices.` : 'No invoices yet.'}
-        emptyDetail="Invoices are generated from approved timesheets. Approve timesheets first, then generate invoices here."
+        emptyDetail={isClient
+          ? 'Your suppliers raise invoices from the hours you approve. They appear here once submitted, matched against the timesheets and the purchase order.'
+          : 'Invoices are generated from approved timesheets. Approve timesheets first, then generate invoices here.'}
         exportName="invoices"
         selectable
         onRowClick={(row) => setSelectedInvoice(row)}
         bulkActions={(selected, clearSelection) => (
           <>
+            {!isClient && (
             <button
               onClick={() => handleBulkSubmit(selected, clearSelection)}
               disabled={submittingBulk}
@@ -1213,6 +1240,7 @@ export default function InvoicesPage() {
                                transition-colors disabled:opacity-50">
               {submittingBulk ? 'Submitting…' : `Submit (${selected.size})`}
             </button>
+            )}
             <button
               onClick={() => handleExportSelected(selected)}
               className="px-3 py-1.5 text-[11px] font-medium rounded-md

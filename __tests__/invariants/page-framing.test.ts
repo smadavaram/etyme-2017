@@ -13,6 +13,8 @@
  */
 
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { pageFraming, type PageKey } from '@/lib/page-framing'
 
 const ALL_PAGES: PageKey[] = [
@@ -47,7 +49,7 @@ describe('A client sees demand-side framing', () => {
     // contradiction the chip-vs-tab fix on Requirements existed to close.
     const f = pageFraming('CLIENT', 'contracts.sell')
     expect(f.title).toBe('Contracts')
-    expect(f.eyebrow).toBe('Program')
+    expect(f.eyebrow).toBe('Workforce')
   })
 
   it('a client is never told they bill their own contractors', () => {
@@ -66,8 +68,13 @@ describe('A client sees demand-side framing', () => {
     expect(f.subtitle).not.toContain('bench')
   })
 
-  it('timesheets sit under Governance for a client', () => {
-    expect(pageFraming('CLIENT', 'timesheets').eyebrow).toBe('Governance')
+  it('timesheets sit under Workforce for a client, where the nav puts them', () => {
+    // The sidebar files Timesheets, Invoices and Expenses under Workforce →
+    // Operate. The eyebrow said "Governance", so a client clicked one
+    // section and landed on a page headed with the other — and "Program",
+    // the older eyebrow, named a section the menu no longer has at all.
+    expect(pageFraming('CLIENT', 'timesheets').eyebrow).toBe('Workforce')
+    expect(pageFraming('CLIENT', 'invoices').eyebrow).toBe('Workforce')
   })
 
   it('invoices are what the client is billed, not what they bill', () => {
@@ -76,10 +83,16 @@ describe('A client sees demand-side framing', () => {
   })
 
   it('the client eyebrow always matches a section in their nav', () => {
-    // Client nav has exactly two sections: Program and Governance
+    // Read off the sidebar rather than remembered here, so renaming a
+    // section there fails this test instead of quietly orphaning an
+    // eyebrow — which is exactly how "Program" outlived its section.
+    const sidebar = readFileSync(join(process.cwd(), 'src/components/shell/sidebar.tsx'), 'utf8')
+    const client = sidebar.slice(sidebar.indexOf('const CLIENT_NAV'), sidebar.indexOf('function getNavForKind'))
+    const sections = [...client.matchAll(/^\s{4}label: '([^']+)',/gm)].map((m) => m[1])
+    expect(sections).toEqual(['Workforce', 'Governance'])
     for (const page of ALL_PAGES) {
       const eyebrow = pageFraming('CLIENT', page).eyebrow
-      expect(['Program', 'Governance']).toContain(eyebrow)
+      expect(sections, `${page} is framed under "${eyebrow}", which is not a section a client can click`).toContain(eyebrow)
     }
   })
 })

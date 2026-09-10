@@ -87,6 +87,23 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Only the supplier on the agreement bills under it. The permission
+  // check above says the caller may issue invoices at their own company;
+  // it says nothing about whose engagement this is, and an engagement id
+  // is not a secret. Without this, a firm could raise an invoice in
+  // another supplier's name, addressed to that supplier's client.
+  if (engagement.msa.vendor.id !== caller.company!.id) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_THE_SUPPLIER',
+          message: `This engagement is ${engagement.msa.vendor.name}'s to bill, not ${caller.company!.name}'s.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
   if (engagement.sellContracts.length === 0) {
     return NextResponse.json(
       { error: { code: 'NO_CONTRACTS', message: 'No active sell contracts under this engagement' } },

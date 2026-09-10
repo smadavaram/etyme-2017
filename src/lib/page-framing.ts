@@ -83,47 +83,47 @@ const VENDOR: Record<PageKey, PageFraming> = {
 
 const CLIENT: Record<PageKey, PageFraming> = {
   'contracts.sell': {
-    eyebrow: 'Program',
+    eyebrow: 'Workforce',
     title: 'Contracts',
     subtitle: 'Everyone working at your sites, across every vendor. Rates, end dates, and where they sit.',
   },
   'contracts.buy': {
-    eyebrow: 'Program',
+    eyebrow: 'Workforce',
     title: 'Contracts',
     subtitle: 'Everyone working at your sites, across every vendor.',
   },
   requirements: {
-    eyebrow: 'Program',
+    eyebrow: 'Workforce',
     title: 'Open roles',
     subtitle: 'Roles you have opened to your vendors. Track how many candidates each has drawn.',
   },
   submissions: {
-    eyebrow: 'Program',
+    eyebrow: 'Workforce',
     title: 'Candidates',
     subtitle: 'People your vendors have put forward. Shortlist, interview, and place.',
   },
   rolloff: {
-    eyebrow: 'Program',
+    eyebrow: 'Workforce',
     title: 'Ending soon',
     subtitle: 'Contractors whose assignments end shortly. Decide to extend, backfill, or release.',
   },
   timesheets: {
-    eyebrow: 'Governance',
+    eyebrow: 'Workforce',
     title: 'Timesheets',
     subtitle: 'Hours worked at your sites, awaiting your approval. Flagged entries are shown first.',
   },
   invoices: {
-    eyebrow: 'Governance',
+    eyebrow: 'Workforce',
     title: 'Invoices',
     subtitle: 'What your vendors have billed you, and what is outstanding.',
   },
   expenses: {
-    eyebrow: 'Governance',
+    eyebrow: 'Workforce',
     title: 'Expenses',
     subtitle: 'Billable expenses raised against work at your sites, awaiting your approval.',
   },
   consultants: {
-    eyebrow: 'Program',
+    eyebrow: 'Workforce',
     title: 'Contractors',
     subtitle: 'People working at your sites. Skills, work authorisation, and tenure.',
   },

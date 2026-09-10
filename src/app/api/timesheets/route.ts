@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext, getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { sellContractScope } from '@/lib/resolve-client-company'
+import { mayEnter } from '@/lib/timesheet-authority'
 
 /**
  * GET /api/timesheets
@@ -88,14 +89,8 @@ export async function GET(request: NextRequest) {
  * Create a timesheet against a sell contract.
  */
 export async function POST(request: NextRequest) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const body = await request.json()
   const { sellContractId, periodStart, periodEnd, days } = body
@@ -107,13 +102,36 @@ export async function POST(request: NextRequest) {
 
   const sellContract = await prisma.sellContract.findUnique({
     where: { id: sellContractId },
-    select: { id: true, personId: true, state: true, billRate: true },
+    select: {
+      id: true, personId: true, state: true, billRate: true,
+      companyId: true, clientCompanyId: true, endClientCompanyId: true,
+    },
   })
 
   if (!sellContract) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Sell contract not found' } },
       { status: 404 }
+    )
+  }
+
+  // Whose hours these are. The submit step asked; this one, which is
+  // where the week is actually written, did not — so anybody signed in
+  // could open a week against any contract in the database, and the
+  // approver would see hours the person never entered.
+  const allowed = mayEnter(
+    { personId: caller.person.id, companyId: caller.company?.id, permissions: caller.permissions },
+    {
+      personId: sellContract.personId,
+      vendorCompanyId: sellContract.companyId,
+      clientCompanyId: sellContract.clientCompanyId,
+      endClientCompanyId: sellContract.endClientCompanyId,
+    }
+  )
+  if (!allowed.ok) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: allowed.reason } },
+      { status: 403 }
     )
   }
 

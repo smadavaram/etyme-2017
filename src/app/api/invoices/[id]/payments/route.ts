@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
+import { invoiceScope } from '@/lib/resolve-client-company'
 
 /**
  * POST /api/invoices/:id/payments
@@ -40,22 +41,53 @@ export async function POST(
     )
   }
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      number: true,
-      total: true,
-      paid: true,
-      status: true,
-      engagementId: true,
-    },
-  })
+  // Through the same scope every invoice read uses. A payment is the
+  // one write here that moves money in the books, and it checked the
+  // caller's permission inside their own company and nothing about
+  // whose invoice it was — so an accountant at one firm could mark
+  // another firm's invoice paid, and the receivable quietly vanished
+  // from the dunning run.
+  const scope = invoiceScope(caller)
+  const invoice = scope
+    ? await prisma.invoice.findFirst({
+        where: { id, ...scope },
+        select: {
+          id: true,
+          number: true,
+          total: true,
+          paid: true,
+          status: true,
+          currency: true,
+          engagementId: true,
+          engagement: { select: { msa: { select: { vendorId: true, clientId: true } } } },
+        },
+      })
+    : null
 
   if (!invoice) {
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Invoice not found' } },
       { status: 404 }
+    )
+  }
+
+  // Which side is writing this. The supplier records a receipt — money
+  // that arrived, whatever state the invoice was in when it did. The
+  // payer records a payment, and pays only what reached it through the
+  // match: an invoice still ISSUED has not been submitted, has not been
+  // checked against the hours and the purchase order, and is not yet a
+  // debt. Paying it would be paying around the one control finance buys
+  // this for.
+  const payer = caller.company!.id === invoice.engagement.msa.clientId
+  if (payer && invoice.status === 'ISSUED') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_SUBMITTED',
+          message: `Invoice ${invoice.number} has not been submitted yet. Your supplier sends it through the three-way match first; it can be paid once it has.`,
+        },
+      },
+      { status: 409 }
     )
   }
 
@@ -98,8 +130,15 @@ export async function POST(
         data: {
           invoiceId: id,
           amount,
+          currency: invoice.currency,
           method: method ?? null,
           reference: reference ?? null,
+          // Who paid and whose account it landed in — read off the
+          // agreement, not off the caller, so the row says the same
+          // thing whichever side recorded it.
+          payerCompanyId: invoice.engagement.msa.clientId,
+          receivedByCompanyId: invoice.engagement.msa.vendorId,
+          appliedAt: new Date(),
         },
       })
 
@@ -116,9 +155,10 @@ export async function POST(
           companyId: caller.company!.id,
           action: 'PAYMENT_RECORDED',
           summary: `Payment of $${amount.toFixed(2)} recorded on invoice ${invoice.number}. ${newStatus === 'PAID' ? 'Invoice now fully paid.' : `$${(totalNum - newPaid).toFixed(2)} outstanding.`}`,
-          reason: `Recorded by ${caller.person.name}`,
+          reason: `Recorded by ${caller.person.name} at ${caller.company!.name}, ${payer ? 'paying' : 'receiving'}`,
           payload: {
             paymentId: payment.id,
+            recordedBy: { personId: caller.person.id, companyId: caller.company!.id, side: payer ? 'PAYER' : 'SUPPLIER' },
             invoiceId: id,
             invoiceNumber: invoice.number,
             amount,

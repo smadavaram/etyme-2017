@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db'
 import { evaluateGovernance } from '@/lib/governance'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
 import { contractClearance } from '@/lib/contract-clearance'
+import { contractSide } from '@/lib/resolve-client-company'
+import { hasPermission, type Permission } from '@/lib/permissions'
 import { notify } from '@/lib/notify'
 
 /**
@@ -35,6 +37,18 @@ const TRANSITIONS: Record<Action, { from: string[]; to: string }> = {
   resume:   { from: ['PAUSED'],                                      to: 'IN_PROGRESS' },
   complete: { from: ['IN_PROGRESS'],                                 to: 'ENDED' },
   cancel:   { from: ['DRAFT', 'PENDING_VERIFICATION'],              to: 'CANCELLED' },
+}
+
+// What each action asks of the caller. Starting, pausing and resuming
+// somebody is running the placement; ending or cancelling it is a
+// termination, which is its own permission because it is its own job.
+const NEEDS: Record<Action, Permission> = {
+  verify:   'assignments.write',
+  activate: 'assignments.write',
+  pause:    'assignments.write',
+  resume:   'assignments.write',
+  complete: 'assignments.terminate',
+  cancel:   'assignments.terminate',
 }
 
 // Human-readable descriptions for the automation log
@@ -79,6 +93,42 @@ export async function POST(
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Contract not found' } },
       { status: 404 }
+    )
+  }
+
+  // ── Who is asking ──
+  //
+  // A contract has three parties — the supplier whose paper it is, the
+  // company it bills, and the site where the work is done — and this
+  // route used to hear from none of them in particular. It checked that
+  // the caller was signed in, then moved whatever contract id it was
+  // given. Any account on the platform could end anybody's placement.
+  //
+  // A stranger is told so in words. A party without the permission is
+  // told which one, because "forbidden" on a button that is on their own
+  // screen reads as a fault.
+  const side = contractSide(caller, contract)
+  if (!side) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_A_PARTY',
+          message: `${caller.company?.name ?? 'Your company'} is not a party to this contract. Only ${contract.company.name}, ${contract.clientCompany.name}${contract.endClientCompany ? ` or ${contract.endClientCompany.name}` : ''} can change it.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+  const needs = NEEDS[action as Action]
+  if (!hasPermission(caller.permissions, needs)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: `${ACTION_SUMMARIES[action as Action].replace(/ —.*$/, '')} needs the ${needs} permission. Ask whoever runs your company's access.`,
+        },
+      },
+      { status: 403 }
     )
   }
 
@@ -239,6 +289,10 @@ export async function POST(
           action,
           from: previousState,
           to: newState,
+          // Which side pressed it. The same button is the supplier
+          // starting somebody and the client ending them, and the log
+          // has to say which.
+          by: { personId: caller.person.id, companyId: caller.company?.id ?? null, side },
           // Where the paperwork warned and somebody proceeded anyway,
           // their reason travels with the record. Never silently permit.
           documentsOverride: action === 'activate' ? (body.overrideReason ?? null) : null,

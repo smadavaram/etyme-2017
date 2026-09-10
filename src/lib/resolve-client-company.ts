@@ -121,6 +121,34 @@ export function payerScope(caller: CallerContext): Record<string, unknown> | nul
   return sellContractScope(caller)
 }
 
+/**
+ * Which side of a sell contract this caller sits on, if any.
+ *
+ * Three companies have a say in a placement: the supplier whose contract
+ * it is, the company it bills, and the site the work is done at when
+ * that is a third party. Everybody else is a stranger to it — and the
+ * activate route used to take a stranger's word: it authenticated the
+ * caller, threw the answer away, and moved any contract whose id it was
+ * handed from draft to live, or from live to ended.
+ *
+ * Returns null for a stranger. A consultant seat is never a party to the
+ * commercial record, even the one that names them; their hours are theirs
+ * and the contract is between firms.
+ */
+export type ContractSide = 'SUPPLIER' | 'PAYER' | 'END_CLIENT'
+
+export function contractSide(
+  caller: CallerContext,
+  contract: { companyId: string; clientCompanyId: string; endClientCompanyId: string | null }
+): ContractSide | null {
+  if (isConsultantSeat(caller) || !caller.company) return null
+  const id = caller.company.id
+  if (id === contract.companyId) return 'SUPPLIER'
+  if (id === contract.clientCompanyId) return 'PAYER'
+  if (contract.endClientCompanyId && id === contract.endClientCompanyId) return 'END_CLIENT'
+  return null
+}
+
 export function sellContractScope(
   caller: CallerContext
 ): Record<string, unknown> | null {

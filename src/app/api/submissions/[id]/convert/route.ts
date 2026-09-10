@@ -102,9 +102,49 @@ export async function POST(
     )
   }
 
+  // The two parties to the submission, and nobody else. This route
+  // predates the award path and kept none of its checks: any signed-in
+  // account could turn any placed submission into a contract, at a rate
+  // of its choosing. The vendor who sent it and the company it was sent
+  // to are the only two with any standing here.
+  const party =
+    caller.company?.id === submission.fromCompanyId || caller.company?.id === submission.toCompanyId
+  if (!party) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_A_PARTY',
+          message: `Only ${submission.fromCompany.name} or ${submission.toCompany.name} can record a contract from this submission.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
   if (submission.status !== 'PLACED') {
     return NextResponse.json(
       { error: { code: 'CONFLICT', message: `Submission status is ${submission.status}, must be PLACED to convert` } },
+      { status: 409 }
+    )
+  }
+
+  // Awarding already wrote the contract, on the requisition it answers.
+  // Converting the same submission again is the same person placed
+  // twice — two tenure legs, two invoices — which the award route refuses
+  // and this one did not.
+  const already = await prisma.sellContract.findFirst({
+    where: { requirementId: submission.requirementId, personId: submission.personId },
+    select: { id: true },
+  })
+  if (already) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'ALREADY_AWARDED',
+          message: `${submission.person.name} already holds a contract on "${submission.requirement.title}".`,
+          contractId: already.id,
+        },
+      },
       { status: 409 }
     )
   }

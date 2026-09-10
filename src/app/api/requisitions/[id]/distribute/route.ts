@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 import { mayDistribute } from '@/lib/requisition-approval'
+import { hasPermission } from '@/lib/permissions'
 
 /**
  * POST /api/requisitions/:id/distribute
@@ -68,6 +69,22 @@ export async function POST(
   if (caller.company?.id !== requisition.companyId) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'Only the raising company may distribute this requisition' } },
+      { status: 403 }
+    )
+  }
+
+  // And within it, only the desk that owns the supplier panel. A hiring
+  // manager raises the role and deliberately does not choose who sees
+  // it — that is the control that stops work being routed to a friend
+  // (lib/company-defaults). The role said so; the route did not ask.
+  if (!hasPermission(caller.permissions, 'requirements.distribute')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Choosing which suppliers see a requisition is the programme office\'s call. Ask them to send it out.',
+        },
+      },
       { status: 403 }
     )
   }
