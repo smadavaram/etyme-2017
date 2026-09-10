@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
-import { generateCycles } from '@/lib/cycle-generator'
-import { cyclesFor } from '@/lib/cycle-kinds'
-import { getTemplatePack } from '@/lib/template-packs'
 
 import { GET as placement } from '@/app/api/placements/[id]/route'
 
@@ -35,21 +32,8 @@ describe('what is due, on the thread', () => {
       include: { buyLinks: { include: { buyContract: true } } },
     })
     sellId = s.id
-    const b = s.buyLinks[0]!.buyContract
 
-    // What the routes write on creation, replayed for a seeded contract.
-    const split = cyclesFor(
-      { contractType: b.contractType, vendorCompanyId: b.vendorCompanyId },
-      getTemplatePack('US_IT')!.cycleDefinitions
-    )
-    const sellCycles = generateCycles(s.startDate!, s.endDate!, split.sell)
-    const buyCycles = generateCycles(s.startDate!, s.endDate!, split.buy)
-    await prisma.cycle.createMany({
-      data: [
-        ...sellCycles.map((c) => ({ sellContractId: s.id, kind: c.kind, dueOn: c.dueOn })),
-        ...buyCycles.map((c) => ({ buyContractId: b.id, kind: c.kind, dueOn: c.dueOn })),
-      ],
-    })
+    // The world seed wrote the cycles; the thread reads them.
   }, 180_000)
 
   const open = async (seat: string) => {

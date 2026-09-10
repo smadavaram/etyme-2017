@@ -19,6 +19,7 @@
  */
 
 import { prisma } from '@/lib/db'
+import { writeCyclesFor } from '@/lib/contract-cycles'
 
 export interface CompleteInput {
   sellContractId: string
@@ -115,6 +116,14 @@ export async function completePlacement(input: CompleteInput): Promise<void> {
         buyContractId: buy.id, personId, payRate: payRateCents,
         payCurrency: sell.billCurrency, startDate: sell.startDate, endDate: sell.endDate,
       },
+    })
+    // Its due dates, on the side each belongs to. Every demo placement
+    // opened to a timeline reading "no cycles have been generated",
+    // because only the routes wrote them. US_IT: demo firms carry no pack.
+    await writeCyclesFor(prisma, {
+      sell: { id: sellContractId, startDate: sell.startDate, endDate: sell.endDate },
+      buy: { id: buy.id, contractType: 'W2', vendorCompanyId: null },
+      packId: 'US_IT',
     })
     await prisma.contractLink.create({
       data: {

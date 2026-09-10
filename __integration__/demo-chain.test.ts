@@ -81,3 +81,22 @@ describe('and every seat sees the whole chain, not two parties', () => {
     expect(states.every((s) => s.state === 'GRANTED')).toBe(true)
   })
 })
+
+describe('what a demo placement carries', () => {
+  it('a demo placement carries its cycles, so the thread\'s timeline is not empty', async () => {
+    // The demo chain built its contracts through Prisma, never through
+    // the routes that generate cycles, so the eighth station on every
+    // demo the founder opened read empty. The seed writes them now.
+    const sells = await prisma.sellContract.findMany({
+      where: { company: { isDemo: true }, endDate: { not: null } },
+      select: { id: true, buyLinks: { select: { buyContractId: true } } },
+    })
+    expect(sells.length).toBeGreaterThan(0)
+    for (const s of sells) {
+      expect(await prisma.cycle.count({ where: { sellContractId: s.id } }), `sell ${s.id}`).toBeGreaterThan(0)
+      for (const l of s.buyLinks) {
+        expect(await prisma.cycle.count({ where: { buyContractId: l.buyContractId } }), `buy ${l.buyContractId}`).toBeGreaterThan(0)
+      }
+    }
+  })
+})

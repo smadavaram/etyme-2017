@@ -285,6 +285,10 @@ export async function seedChain(input: {
         billRate: 12500,
         billCurrency: 'USD',
         startDate: daysAgo(45),
+        // A year, started six weeks ago. Without an end the contract is
+        // open-ended and has no due dates to show — which is what the
+        // thread's timeline showed.
+        endDate: daysAhead(320),
         state: 'IN_PROGRESS',
         paymentTerms: 45,
       },

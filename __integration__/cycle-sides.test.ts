@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 import { seedWorld } from '@/lib/seed-world'
-import { generateCycles } from '@/lib/cycle-generator'
-import { cyclesFor } from '@/lib/cycle-kinds'
-import { getTemplatePack } from '@/lib/template-packs'
 
 import { GET as payroll } from '@/app/api/payroll/route'
 
@@ -42,20 +39,23 @@ describe('cycles land on the side of the trade they describe', () => {
     const b = s.buyLinks[0]!.buyContract
     buy = { id: b.id, contractType: b.contractType, vendorCompanyId: b.vendorCompanyId }
 
-    // Exactly what the routes now do.
-    const pack = getTemplatePack('US_IT')!
-    const split = cyclesFor(buy, pack.cycleDefinitions)
-    const start = sell.startDate!
-    const end = sell.endDate!
-    const sellCycles = generateCycles(start, end, split.sell)
-    const buyCycles = generateCycles(start, end, split.buy)
-    await prisma.cycle.createMany({
-      data: [
-        ...sellCycles.map((c) => ({ sellContractId: sell.id, kind: c.kind, dueOn: c.dueOn })),
-        ...buyCycles.map((c) => ({ buyContractId: buy.id, kind: c.kind, dueOn: c.dueOn })),
-      ],
-    })
+    // Nothing generated here. The world seed writes the cycles; these
+    // tests read what it wrote.
   }, 180_000)
+
+  it('the world seed writes cycles for every placement it builds, on the right side', async () => {
+    const sells = await prisma.sellContract.findMany({ where: { company: { slug: { startsWith: 'world-' } } }, select: { id: true } })
+    expect(sells.length).toBeGreaterThan(0)
+    for (const s of sells) {
+      const n = await prisma.cycle.count({ where: { sellContractId: s.id } })
+      expect(n, `sell ${s.id} has no cycles`).toBeGreaterThan(0)
+    }
+    const buys = await prisma.buyContract.findMany({ where: { company: { slug: { startsWith: 'world-' } } }, select: { id: true } })
+    for (const b of buys) {
+      const n = await prisma.cycle.count({ where: { buyContractId: b.id } })
+      expect(n, `buy ${b.id} has no cycles`).toBeGreaterThan(0)
+    }
+  })
 
   it('the seeded employer contract is W-2 with nobody below it', () => {
     expect(buy.contractType).toBe('W2')

@@ -34,6 +34,7 @@
  */
 
 import { prisma as db } from '@/lib/db'
+import { writeCyclesFor } from '@/lib/contract-cycles'
 
 const DOMAIN = 'demo.etyme.local'          // the domain the signed demo cookie accepts
 const PREFIX = 'world-'                    // marks a company as part of this world
@@ -423,6 +424,10 @@ export async function seedWorld(): Promise<{
     await db.contractLink.create({
       data: { sellContractId: sell.id, buyContractId: buy.id, effectiveFrom: day(-90), effectiveTo: day(275) },
     })
+    // Its due dates, on the side each belongs to. The routes did this
+    // and the seed did not, so every seeded placement's timeline read
+    // "no cycles have been generated". US_IT: world firms carry no pack.
+    await writeCyclesFor(db, { sell, buy, packId: 'US_IT' })
     supplierSellContractId = sell.id
     contracts.push(sell)
   }
