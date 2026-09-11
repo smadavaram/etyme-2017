@@ -114,7 +114,9 @@ export function MobileNav() {
         onClick={() => setOpen(true)}
         aria-label="Open menu"
         aria-expanded={open}
-        aria-controls="mobile-nav"
+        // Only while the sheet exists; a reference to an id that is not
+        // in the document is worse for a screen reader than none.
+        aria-controls={open ? 'mobile-nav' : undefined}
         className="md:hidden -ml-1.5 w-9 h-9 shrink-0 rounded-md flex items-center justify-center
                    text-etyme-ink hover:bg-etyme-canvas transition-colors"
       >

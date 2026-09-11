@@ -216,7 +216,7 @@ function initials(name: string | undefined): string {
  *  bar uses it, so none of them can open off the edge of a phone. */
 const DROPDOWN =
   'absolute inset-x-3 top-12 md:inset-x-auto md:right-0 md:top-10 ' +
-  'bg-white rounded-lg shadow-lg border border-etyme-rule overflow-hidden z-50'
+  'bg-etyme-raised rounded-lg shadow-lg border border-etyme-rule overflow-hidden z-50'
 
 const ICON_BUTTON =
   'w-9 h-9 sm:w-8 sm:h-8 shrink-0 rounded-md flex items-center justify-center ' +
@@ -284,6 +284,7 @@ export function Header({ title }: HeaderProps) {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         setPlusOpen(false)
+        setAccountOpen(false)
         setSearchFocused(false)
         setMobileSearch(false)
         searchInputRef.current?.blur()
@@ -439,8 +440,14 @@ export function Header({ title }: HeaderProps) {
           type="button"
           ref={mobileSearchToggleRef}
           onClick={() => {
-            setMobileSearch((v) => !v)
-            setSearchFocused(true)
+            // Opening focuses the row; closing clears it. The desktop box
+            // shows the same state from md up, so a query left behind
+            // here came back pre-opened, results and all, the moment the
+            // phone rotated past the breakpoint.
+            const next = !mobileSearch
+            setMobileSearch(next)
+            setSearchFocused(next)
+            if (!next) setSearchQuery('')
           }}
           aria-label="Search"
           aria-expanded={mobileSearch}
@@ -527,7 +534,7 @@ export function Header({ title }: HeaderProps) {
           </button>
 
           {accountOpen && (
-            <div className={`${DROPDOWN} md:w-64 !bg-etyme-raised`}>
+            <div className={`${DROPDOWN} md:w-64`}>
               <div className="px-4 py-3 border-b border-etyme-rule">
                 <p className="text-[13px] text-etyme-ink font-medium truncate">
                   {person?.name ?? 'Signed in'}

@@ -102,6 +102,16 @@ describe('the header fits a phone', () => {
     expect(HEADER).toContain('className="md:relative" ref={accountRef}')
   })
 
+  it('closing the phone search clears it, so the desktop box does not come back pre-opened after a rotation', () => {
+    // Both boxes share one query and one focused flag; the desktop one is
+    // hidden by a media query, not unmounted. A query left behind on a
+    // phone reappeared, results open, the moment the phone turned sideways
+    // past 768px. Found by the review, not by a person — yet.
+    expect(HEADER).toMatch(
+      /const next = !mobileSearch\s*\n\s*setMobileSearch\(next\)\s*\n\s*setSearchFocused\(next\)\s*\n\s*if \(!next\) setSearchQuery\(''\)/
+    )
+  })
+
   it('says whose workspace this is where the rail used to', () => {
     // Mark, company, role — the prototype header — only where the rail
     // is off screen.
