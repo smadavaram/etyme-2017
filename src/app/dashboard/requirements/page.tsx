@@ -568,13 +568,13 @@ export default function RequirementsPage() {
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + action */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
           <p className="eyebrow">{framing.eyebrow}</p>
           <h1>{framing.title}</h1>
           <p>{framing.subtitle}</p>
         </div>
-        <button onClick={() => setShowNew(true)} className="btn-primary mt-3 shrink-0">
+        <button onClick={() => setShowNew(true)} className="btn-primary self-start md:mt-3 shrink-0">
           New requirement
         </button>
       </div>

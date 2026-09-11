@@ -267,7 +267,7 @@ export default function AlumniPage() {
         emptyDetail="Alumni appear once a person has had at least one contract at this client."
         exportName={`alumni-${data?.client.name ?? 'export'}`}
         filters={
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {FILTERS.map(f => (
               <button
                 key={f.key}

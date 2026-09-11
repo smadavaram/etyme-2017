@@ -136,7 +136,7 @@ export default function PacketsPage() {
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
           <p className="eyebrow">Operate</p>
           <h1>Documents you have asked for</h1>
@@ -146,7 +146,7 @@ export default function PacketsPage() {
           </p>
         </div>
         {canAsk && (
-          <button onClick={() => setAsking(!asking)} className="btn-secondary text-[13px] mt-3 shrink-0">
+          <button onClick={() => setAsking(!asking)} className="btn-secondary text-[13px] self-start md:mt-3 shrink-0">
             {asking ? 'Cancel' : 'Ask for documents'}
           </button>
         )}

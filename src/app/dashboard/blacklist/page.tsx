@@ -392,7 +392,7 @@ export default function BlacklistPage() {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div>
           <div className="eyebrow mb-2">Operate</div>
           <h1 className="headline-serif text-heading text-etyme-ink mb-1">
@@ -402,7 +402,7 @@ export default function BlacklistPage() {
             Manage blocked candidates and companies — prevent them from appearing in search, feeds, or contracts.
           </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary mt-3 shrink-0">
+        <button onClick={() => setShowAddModal(true)} className="btn-primary self-start md:mt-3 shrink-0">
           Add to blacklist
         </button>
       </div>

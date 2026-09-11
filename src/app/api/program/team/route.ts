@@ -39,8 +39,19 @@ export async function GET(request: NextRequest) {
     !hasPermission(caller.permissions, 'settings.manage') &&
     !hasPermission(caller.permissions, 'team.manage')
   ) {
+    // A sentence, not a code. The AP clerk at Nike read "needs
+    // requirements.write" on a phone and had no idea what to do about
+    // it. The code is for the machine; the sentence says who they are
+    // not and who can change that.
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Seeing the programme team needs requirements.write' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            `You are not on the programme team at ${caller.company.name}. ` +
+            'Whoever runs the programme can add you.',
+        },
+      },
       { status: 403 }
     )
   }

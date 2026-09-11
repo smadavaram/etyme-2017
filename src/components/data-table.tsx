@@ -361,20 +361,7 @@ export function DataTable<T extends Record<string, any>>({
                 </tr>
               </thead>
               <tbody>
-                {paged.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={columns.length + (selectable ? 1 : 0)}
-                      className="!text-center !py-12 text-etyme-muted !border-b-0"
-                    >
-                      <p className="text-[13px]">{emptyMessage}</p>
-                      {emptyDetail && (
-                        <p className="text-[12px] text-etyme-faint mt-1 max-w-md mx-auto leading-relaxed">{emptyDetail}</p>
-                      )}
-                    </td>
-                  </tr>
-                ) : (
-                  paged.map((row, i) => {
+                {paged.map((row, i) => {
                     const key = rowKey(row)
                     const isSelected = selected.has(key)
                     return (
@@ -417,11 +404,25 @@ export function DataTable<T extends Record<string, any>>({
                         })}
                       </tr>
                     )
-                  })
-                )}
+                  })}
               </tbody>
             </table>
           </div>
+
+          {/* Empty state — under the scroll box, not a cell spanning the
+              table. A cell is as wide as the table, and a table wider
+              than a phone centres its sentence somewhere off screen:
+              "No candidates or companies have been blocked. Use the b".
+              The header row stays, so the columns still say what would
+              be here. */}
+          {paged.length === 0 && (
+            <div className="text-center px-4 py-12 text-etyme-muted">
+              <p className="text-[13px]">{emptyMessage}</p>
+              {emptyDetail && (
+                <p className="text-[12px] text-etyme-faint mt-1 max-w-md mx-auto leading-relaxed">{emptyDetail}</p>
+              )}
+            </div>
+          )}
 
           {/* Pagination footer — from onboarding prototype */}
           {sorted.length > 0 && (

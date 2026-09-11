@@ -904,13 +904,13 @@ export default function ConsultantsPage() {
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + actions */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
           <p className="eyebrow">Sell</p>
           <h1>Consultants</h1>
           <p>Your talent pool. Imported, retained, and marketing bench — with skills, availability, and work authorization at a glance.</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary mt-3 shrink-0">
+        <button onClick={() => setShowAdd(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
           Add consultant
         </button>
       </div>

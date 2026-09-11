@@ -402,7 +402,7 @@ export default function CompliancePage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1.5 mb-6">
+      <div className="flex flex-wrap gap-1.5 mb-6">
         {([
           { key: 'policies' as const, label: 'Policies' },
           { key: 'evaluations' as const, label: `Evaluations (${evalSummary.total})` },

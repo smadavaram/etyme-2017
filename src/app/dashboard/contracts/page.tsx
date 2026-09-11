@@ -1162,7 +1162,7 @@ export default function ContractsPage() {
       )}
 
       {/* Head */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
           <p className="eyebrow">{framing.eyebrow}</p>
           <h1>{framing.title}</h1>
@@ -1170,14 +1170,14 @@ export default function ContractsPage() {
         </div>
         {/* A client does not raise contracts here — their vendors do. */}
         {!isClient && (
-          <button onClick={() => setShowCreate(true)} className="btn-primary mt-3 shrink-0">
+          <button onClick={() => setShowCreate(true)} className="btn-primary self-start md:mt-3 md:shrink-0">
             + New
           </button>
         )}
       </div>
 
       {/* Sell / Buy tabs — a client has no buy side */}
-      <div className={`flex gap-1.5 mb-6 ${isClient ? 'hidden' : ''}`}>
+      <div className={`flex flex-wrap gap-1.5 mb-6 ${isClient ? 'hidden' : ''}`}>
         {(['sell', 'buy'] as const).map((t) => (
           <button
             key={t}
@@ -1264,7 +1264,7 @@ export default function ContractsPage() {
         exportName={`${tab}-contracts`}
         onRowClick={(row) => setSelectedContract(row)}
         filters={
-          <div className="flex gap-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {filters.map(f => (
               <button
                 key={f.key}

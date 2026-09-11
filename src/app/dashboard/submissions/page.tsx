@@ -1045,7 +1045,7 @@ export default function SubmissionsPage() {
   return (
     <>
       {/* Head — prototype pattern: eyebrow + serif h1 + prose subtitle + direction toggle */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
           <p className="eyebrow">{framing.eyebrow}</p>
           <h1>{framing.title}</h1>
@@ -1058,7 +1058,7 @@ export default function SubmissionsPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 mt-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 md:mt-3 md:shrink-0">
           {/* Submit button — a client receives candidates, never submits them */}
           {!isClient && (
             <button onClick={() => setShowSubmitModal(true)} className="btn-primary">

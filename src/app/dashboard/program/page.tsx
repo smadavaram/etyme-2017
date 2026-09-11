@@ -276,7 +276,7 @@ export default function ProgramPage() {
   return (
     <>
       {/* ── Header ─────────────────────────────── */}
-      <div className="flex items-start justify-between mb-1">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-1">
         <div>
           <div className="eyebrow mb-1">Program</div>
           <h1 className="text-2xl font-semibold tracking-[-0.02em] font-serif">
@@ -286,7 +286,7 @@ export default function ProgramPage() {
             Contingent workforce program — {s.activeContractors} active contractors across {s.vendors} vendor{s.vendors !== 1 ? 's' : ''}
           </p>
         </div>
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex flex-wrap items-center gap-2 mt-1">
           {/* The paper behind the programme. An order carries a ceiling, a
               contract carries a rate, and an agreement carries permission —
               three different questions, so three different places. */}
@@ -351,7 +351,7 @@ export default function ProgramPage() {
       </div>
 
       {/* ── Tab bar ────────────────────────────── */}
-      <div className="flex gap-1 mb-6 border-b border-etyme-rule">
+      <div className="flex flex-wrap gap-1 mb-6 border-b border-etyme-rule">
         {TABS.map(t => (
           <button
             key={t.key}

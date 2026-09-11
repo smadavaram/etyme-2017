@@ -185,14 +185,14 @@ export default function NotificationsPage() {
   return (
     <>
       {/* Head */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
         <div className="page-head">
           <p className="eyebrow">Today</p>
           <h1>Notifications</h1>
           <p>Activity across your submissions, timesheets, invoices, expenses, and contracts.</p>
         </div>
 
-        <div className="flex items-center gap-3 mt-3 shrink-0">
+        <div className="flex flex-wrap items-center gap-3 md:mt-3 md:shrink-0">
           {unreadCount > 0 && (
             <span className="text-[13px] text-etyme-attention font-medium tabular-nums">
               {unreadCount} unread
@@ -234,7 +234,7 @@ export default function NotificationsPage() {
       )}
 
       {/* Status toggle */}
-      <div className="flex items-center gap-4 mb-5">
+      <div className="flex flex-wrap md:flex-nowrap items-center gap-4 mb-5">
         <div className="flex bg-etyme-canvas rounded-md p-0.5">
           {(['all', 'UNREAD', 'READ'] as StatusFilter[]).map((s) => (
             <button
@@ -252,7 +252,7 @@ export default function NotificationsPage() {
         </div>
 
         {/* Type filters */}
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 flex-wrap w-full md:w-auto">
           {typeOptions.map((opt) => (
             <button
               key={opt.key}

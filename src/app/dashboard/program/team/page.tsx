@@ -46,8 +46,33 @@ interface Team {
 
 const cash = (n: number) => `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
 
+/**
+ * What the route sent, with whatever it left out.
+ *
+ * The page read `team.warnings.length` and four `.map`s straight off the
+ * body. A payload missing one list — an older deploy, a section the
+ * caller may not read — took the whole screen down rather than the
+ * section, and the reader saw a stack trace instead of a programme.
+ */
+function asTeam(data: any): Team | null {
+  if (!data?.company?.name) return null
+  return {
+    company: data.company,
+    lead: data.lead ?? null,
+    warnings: Array.isArray(data.warnings) ? data.warnings : [],
+    approvers: Array.isArray(data.approvers) ? data.approvers : [],
+    budgets: Array.isArray(data.budgets) ? data.budgets : [],
+    teams: Array.isArray(data.teams) ? data.teams : [],
+    people: Array.isArray(data.people) ? data.people : [],
+  }
+}
+
 export default function ProgramTeamPage() {
   const [team, setTeam] = useState<Team | null>(null)
+  /** Why the page cannot be read at all — a refusal, in the words the
+   *  route used. Kept apart from `error`, which is one action going
+   *  wrong and must not take the screen away from somebody mid-edit. */
+  const [unreadable, setUnreadable] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -55,8 +80,13 @@ export default function ProgramTeamPage() {
 
   const reload = async () => {
     const res = await fetch('/api/program/team')
+    // Throws a sentence on a refusal or an empty body; the caller says
+    // where it goes. Reading it without catching was what put a Next
+    // error overlay in front of the AP clerk.
     const body = await readJson(res)
-    if (res.ok) setTeam(body.data)
+    const next = asTeam(body?.data)
+    if (!next) throw new Error('The programme team came back without a company on it.')
+    setTeam(next)
   }
 
   /**
@@ -122,20 +152,21 @@ export default function ProgramTeamPage() {
   useEffect(() => {
     let live = true
     ;(async () => {
-      const res = await fetch('/api/program/team')
-      const body = await readJson(res)
-      if (!live) return
-      if (!res.ok) setError(body?.error?.message ?? 'The programme team could not be read.')
-      else setTeam(body.data)
+      try {
+        await reload()
+      } catch (err: any) {
+        if (!live) return
+        setUnreadable(err?.message ?? 'The programme team could not be read.')
+      }
     })()
     return () => { live = false }
   }, [])
 
-  if (error) {
+  if (unreadable) {
     return (
       <div className="animate-fade-in">
         <div className="panel py-16 text-center">
-          <p className="text-sm text-etyme-danger">{error}</p>
+          <p className="text-sm text-etyme-muted">{unreadable}</p>
         </div>
       </div>
     )
