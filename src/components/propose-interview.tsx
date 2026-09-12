@@ -28,6 +28,7 @@ export function ProposeInterview({
   submissionId,
   candidate,
   round,
+  defaultInterviewers = [],
   onDone,
   onCancel,
 }: {
@@ -35,10 +36,16 @@ export function ProposeInterview({
   candidate: string
   /** The number this round will carry — the route decides, this says. */
   round: number
+  /** The requirement's panel. Every round starts with them; any can be taken off. */
+  defaultInterviewers?: string[]
   onDone: (says: string) => void
   onCancel: () => void
 }) {
-  const [form, setForm] = useState<ProposalForm>({ ...EMPTY_FORM, times: [{ date: '', time: '' }] })
+  const [form, setForm] = useState<ProposalForm>({
+    ...EMPTY_FORM,
+    times: [{ date: '', time: '' }],
+    interviewers: Array.from(new Set(defaultInterviewers.map((n) => n.trim()).filter(Boolean))),
+  })
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)

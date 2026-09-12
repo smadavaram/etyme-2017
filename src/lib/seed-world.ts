@@ -48,40 +48,43 @@ const PREFIX = 'world-'                    // marks a company as part of this wo
 // hold in your head and wide enough that every seat has somebody above
 // and below it.
 type Kind = 'CLIENT' | 'MSP' | 'GSI' | 'VENDOR'
-interface Firm { slug: string; name: string; kind: Kind; seat: string }
+interface Firm { slug: string; name: string; kind: Kind; seat: string; who: string }
+/** The VP who owns the money at each client, by name. */
+const VP_NAMES: Record<string, string> = {'harlow-health': 'Marianne Cole', 'meridian-bank': 'Theo Lindsay', 'corveldt': 'Helga Brandt', 'nordway': 'Sigrid Hansen', 'nike': 'Dana Whitfield', 'corning': 'Robert Ashby', 'terumo-bct': 'Elena Vasquez'}
+
 const FIRMS: Firm[] = [
-  { slug: 'harlow-health',    name: 'Harlow Health',        kind: 'CLIENT',  seat: 'Programme office' },
-  { slug: 'meridian-bank',    name: 'Meridian Bank',        kind: 'CLIENT',  seat: 'Contingent programme' },
-  { slug: 'corveldt',         name: 'Corveldt Aerospace',   kind: 'CLIENT',  seat: 'Engineering resourcing' },
-  { slug: 'nordway',          name: 'Nordway Retail',       kind: 'CLIENT',  seat: 'Workforce office' },
+  { slug: 'harlow-health',    name: 'Harlow Health',        kind: 'CLIENT',  seat: 'Programme office', who: 'Grace Whitmore' },
+  { slug: 'meridian-bank',    name: 'Meridian Bank',        kind: 'CLIENT',  seat: 'Contingent programme', who: 'Daniel Achebe' },
+  { slug: 'corveldt',         name: 'Corveldt Aerospace',   kind: 'CLIENT',  seat: 'Engineering resourcing', who: 'Ines Marquardt' },
+  { slug: 'nordway',          name: 'Nordway Retail',       kind: 'CLIENT',  seat: 'Workforce office', who: 'Olav Brekke' },
 
   // Three enterprise programmes, seated for every desk that works one —
   // hiring, approval, payables, compliance. The client is who pays for
   // this product, and these are the accounts it is shown on. What each
   // of them has on its books is in lib/seed-programmes.
-  { slug: 'nike',             name: 'Nike',                 kind: 'CLIENT',  seat: 'Contingent workforce office' },
-  { slug: 'corning',          name: 'Corning',              kind: 'CLIENT',  seat: 'Contingent workforce office' },
-  { slug: 'terumo-bct',       name: 'Terumo BCT',           kind: 'CLIENT',  seat: 'Contingent workforce office' },
+  { slug: 'nike',             name: 'Nike',                 kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Camille Whitford' },
+  { slug: 'corning',          name: 'Corning',              kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Ethan Garland' },
+  { slug: 'terumo-bct',       name: 'Terumo BCT',           kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Naomi Feldman' },
 
-  { slug: 'aptiva',           name: 'Aptiva Workforce',     kind: 'MSP',     seat: 'Programme manager' },
-  { slug: 'kestrel',          name: 'Kestrel MSP',          kind: 'MSP',     seat: 'Programme manager' },
+  { slug: 'aptiva',           name: 'Aptiva Workforce',     kind: 'MSP',     seat: 'Programme manager', who: 'Rashida Coleman' },
+  { slug: 'kestrel',          name: 'Kestrel MSP',          kind: 'MSP',     seat: 'Programme manager', who: 'Piotr Zielinski' },
 
-  { slug: 'teleworld',        name: 'Teleworld Solutions',  kind: 'GSI',     seat: 'Delivery manager' },
-  { slug: 'sundara',          name: 'Sundara Systems',      kind: 'GSI',     seat: 'Delivery manager' },
+  { slug: 'teleworld',        name: 'Teleworld Solutions',  kind: 'GSI',     seat: 'Delivery manager', who: 'Sunil Raghavan' },
+  { slug: 'sundara',          name: 'Sundara Systems',      kind: 'GSI',     seat: 'Delivery manager', who: 'Lakshmi Iyer' },
 
-  { slug: 'computer-systems', name: 'Computer Systems Inc', kind: 'VENDOR',  seat: 'Account manager' },
-  { slug: 'brightmoor',       name: 'Brightmoor Staffing',  kind: 'VENDOR',  seat: 'Account manager' },
-  { slug: 'vertex-global',    name: 'Vertex Global',        kind: 'VENDOR',  seat: 'Account manager' },
-  { slug: 'halcyon',          name: 'Halcyon Talent',       kind: 'VENDOR',  seat: 'Account manager' },
-  { slug: 'pinnacle',         name: 'Pinnacle Resourcing',  kind: 'VENDOR',  seat: 'Account manager' },
-  { slug: 'arcadia',          name: 'Arcadia Tech Group',   kind: 'VENDOR',  seat: 'Account manager' },
+  { slug: 'computer-systems', name: 'Computer Systems Inc', kind: 'VENDOR',  seat: 'Account manager', who: 'Victor Hale' },
+  { slug: 'brightmoor',       name: 'Brightmoor Staffing',  kind: 'VENDOR',  seat: 'Account manager', who: 'Jenna Okafor' },
+  { slug: 'vertex-global',    name: 'Vertex Global',        kind: 'VENDOR',  seat: 'Account manager', who: 'Marco Petrucci' },
+  { slug: 'halcyon',          name: 'Halcyon Talent',       kind: 'VENDOR',  seat: 'Account manager', who: 'Sade Balogun' },
+  { slug: 'pinnacle',         name: 'Pinnacle Resourcing',  kind: 'VENDOR',  seat: 'Account manager', who: 'Ruth Calloway' },
+  { slug: 'arcadia',          name: 'Arcadia Tech Group',   kind: 'VENDOR',  seat: 'Account manager', who: 'Owen Bradshaw' },
 
-  { slug: 'cloudepa',         name: 'CloudEPA',             kind: 'VENDOR',  seat: 'Bench sales' },
-  { slug: 'consultis',        name: 'Consultis',            kind: 'VENDOR',  seat: 'Bench sales' },
-  { slug: 'nimbus',           name: 'Nimbus Talent',        kind: 'VENDOR',  seat: 'Bench sales' },
-  { slug: 'sahasra',          name: 'Sahasra Infotech',     kind: 'VENDOR',  seat: 'Bench sales' },
-  { slug: 'orchid',           name: 'Orchid Systems',       kind: 'VENDOR',  seat: 'Bench sales' },
-  { slug: 'bluecrest',        name: 'Bluecrest Staffing',   kind: 'VENDOR',  seat: 'Bench sales' },
+  { slug: 'cloudepa',         name: 'CloudEPA',             kind: 'VENDOR',  seat: 'Bench sales', who: 'Bhavesh Nair' },
+  { slug: 'consultis',        name: 'Consultis',            kind: 'VENDOR',  seat: 'Bench sales', who: 'Teresa Lindqvist' },
+  { slug: 'nimbus',           name: 'Nimbus Talent',        kind: 'VENDOR',  seat: 'Bench sales', who: 'Kofi Asante' },
+  { slug: 'sahasra',          name: 'Sahasra Infotech',     kind: 'VENDOR',  seat: 'Bench sales', who: 'Anjali Deshmukh' },
+  { slug: 'orchid',           name: 'Orchid Systems',       kind: 'VENDOR',  seat: 'Bench sales', who: 'Yusuf Demir' },
+  { slug: 'bluecrest',        name: 'Bluecrest Staffing',   kind: 'VENDOR',  seat: 'Bench sales', who: 'Hollis Grant' },
 ]
 
 // ── The placements ───────────────────────────────────────────────────
@@ -150,7 +153,9 @@ export async function seedWorld(): Promise<{
     (await db.role.create({ data: { companyId: c.id, name: 'Owner', permissions: ['*'], isDefault: true } }))
   const email = `${slug}@${DOMAIN}`
   const p = await db.person.upsert({
-    where: { primaryEmail: email }, update: { name: f.seat }, create: { name: f.seat, primaryEmail: email },
+    // A person, not a job title: 'Contingent workforce office' was turning up
+    // as an approver's name in a requisition's summary.
+    where: { primaryEmail: email }, update: { name: f.who }, create: { name: f.who, primaryEmail: email },
   })
   if (!(await db.context.findFirst({ where: { personId: p.id, companyId: c.id } }))) {
     await db.context.create({
@@ -171,8 +176,9 @@ export async function seedWorld(): Promise<{
     const approverEmail = `${slug}-vp@${DOMAIN}`
     const approver = await db.person.upsert({
       where: { primaryEmail: approverEmail },
-      update: {},
-      create: { name: 'VP, ' + f.name.split(' ')[0], primaryEmail: approverEmail },
+      update: { name: VP_NAMES[f.slug] ?? 'VP, ' + f.name.split(' ')[0] },
+      // The VP by name, for the same reason.
+      create: { name: VP_NAMES[f.slug] ?? 'VP, ' + f.name.split(' ')[0], primaryEmail: approverEmail },
     })
     if (!(await db.context.findFirst({ where: { personId: approver.id, companyId: c.id } }))) {
       await db.context.create({
