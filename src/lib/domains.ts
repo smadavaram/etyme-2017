@@ -159,7 +159,7 @@ export const DOMAINS: Domain[] = [
       'lib/timesheet-authority', 'lib/timesheet-reversal', 'lib/work-ledger',
       'lib/auto-approval', 'lib/buyer-reputation', 'lib/one-person',
       'lib/join-companies', 'lib/identity-resolution', 'lib/supplier-list',
-      'app/dashboard/requirements', 'app/dashboard/submissions', 'lib/interview-proposal', 'app/dashboard/suppliers',
+      'app/dashboard/requirements', 'app/dashboard/submissions', 'lib/interview-proposal', 'lib/requisition-change', 'app/dashboard/suppliers',
       'app/dashboard/timesheets', 'app/dashboard/people', 'app/dashboard/identity',
       'app/api/requirements', 'app/api/submissions', 'app/api/suppliers',
       'app/api/timesheets', 'app/api/people', 'app/api/identity', 'app/api/first-good',
