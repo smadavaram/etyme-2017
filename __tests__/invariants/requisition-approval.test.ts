@@ -53,175 +53,262 @@ function facts(overrides: Partial<RequisitionFacts> = {}): RequisitionFacts {
   }
 }
 
-const DEPT_APPROVER: ApprovalRuleFacts = {
-  id: 'rule-dept',
-  name: 'Departmental',
-  approverId: 'p-whitfield',
-  approverName: 'Dana Whitfield',
-  thresholdCents: 250_000_00, // $250k
-  rank: 1,
+const LEAD = { personId: 'p-whitfield', name: 'Dana Whitfield' }
+const DIRECTOR = { personId: 'p-okoro', name: 'Ngozi Okoro' }
+
+/** HR for Technology, named once under Programme team. */
+const HR_DESK: ApprovalRuleFacts = {
+  id: 'rule-hr', name: 'HR — Technology', kind: 'HR',
+  approverId: 'p-shah', approverName: 'Anita Shah', thresholdCents: null, rank: 1, specificity: 1,
+}
+/** Indirect Procurement for Technology. */
+const PROC_DESK: ApprovalRuleFacts = {
+  id: 'rule-proc', name: 'Procurement — Technology', kind: 'PROCUREMENT',
+  approverId: 'p-halvorsen', approverName: 'Derek Halvorsen', thresholdCents: null, rank: 1, specificity: 1,
+}
+/** The old shape: over a dollar line, a VP. Still honoured, at the final rank. */
+const VP_RULE: ApprovalRuleFacts = {
+  id: 'rule-vp', name: 'Over $250k', kind: 'VALUE',
+  approverId: 'p-chen', approverName: 'Marcus Chen', thresholdCents: 250_000_00, rank: 1,
+}
+/** The old "programme lead": a catch-all with no threshold. */
+const CATCH_ALL: ApprovalRuleFacts = {
+  id: 'rule-lead', name: 'Programme lead', kind: 'VALUE',
+  approverId: 'p-mbeki', approverName: 'Joyce Mbeki', thresholdCents: null, rank: 2,
 }
 
-const EXCEPTION_APPROVER: ApprovalRuleFacts = {
-  id: 'rule-exception',
-  name: 'Exceptions',
-  approverId: 'p-mbeki',
-  approverName: 'Joyce Mbeki',
-  thresholdCents: null, // catch-all: only when a check routes
-  rank: 2,
-}
+const DESKS = [HR_DESK, PROC_DESK]
+const withLead = (overrides: Partial<RequisitionFacts> = {}) =>
+  facts({ raisedById: 'p-manager', ownerId: 'p-manager', lead: LEAD, escalation: DIRECTOR, unitName: 'Technology', ...overrides })
 
-const RULES = [DEPT_APPROVER, EXCEPTION_APPROVER]
+const step = (d: ReturnType<typeof evaluateRequisition>, stage: 'ROLE' | 'SOURCING' | 'FINAL') =>
+  d.steps.find((x) => x.stage === stage)!
 
-// ── The default must be to clear ───────────────────────
+// ── Three desks, and the default is to clear ──────────────
 
-describe('An ordinary requisition clears without a human', () => {
+describe('An ordinary requisition clears every desk by rule and opens itself', () => {
+  const d = evaluateRequisition(withLead(), DESKS)
 
-  it('inside plan, inside budget and at the going rate, it approves itself', () => {
-    const d = evaluateRequisition(facts(), RULES)
+  it('inside plan, inside budget and at the going rate, nobody is asked', () => {
     expect(d.state).toBe('AUTO_APPROVED')
-    expect(d.route).toHaveLength(0)
+    expect(d.route).toEqual([])
   })
 
-  it('an auto-clearance still says why, so it can be audited later', () => {
-    const d = evaluateRequisition(facts(), RULES)
-    expect(d.summary).toContain('within plan, budget and rate')
-    expect(d.checks.every(c => c.reason.length > 0)).toBe(true)
+  it('HR is cleared by rule, with the reason, and says the desk was not needed', () => {
+    const role = step(d, 'ROLE')
+    expect(role.outcome).toBe('AUTO_CLEARED')
+    expect(role.reason).toContain('5 of 10 approved heads')
+    expect(role.reason).toContain('HR (Anita Shah) not needed')
   })
 
-  it('every check reports a reason whether it passes or routes', () => {
-    const d = evaluateRequisition(facts({ headcount: 20 }), RULES)
+  it('Procurement is cleared by rule the same way', () => {
+    const sourcing = step(d, 'SOURCING')
+    expect(sourcing.outcome).toBe('AUTO_CLEARED')
+    expect(sourcing.reason).toContain('in line with')
+    expect(sourcing.reason).toContain('Procurement (Derek Halvorsen) not needed')
+  })
+
+  it("the lead's yes is recorded as not needed, by name — the lead approves what needs approving, not everything", () => {
+    const final = step(d, 'FINAL')
+    expect(final.outcome).toBe('AUTO_CLEARED')
+    expect(final.reason).toContain("Dana Whitfield's yes not needed")
+    expect(final.reason).toContain('left in TBC-4100')
+  })
+
+  it('the summary says so, so it can be audited later', () => {
+    expect(d.summary).toBe('Cleared automatically — within plan, budget and rate')
+  })
+
+  it('every check reports a reason whether it passes or routes, and names its desk', () => {
     for (const c of d.checks) {
-      expect(c.reason).toBeTruthy()
+      expect(c.reason.length).toBeGreaterThan(0)
+      expect(['ROLE', 'SOURCING', 'FINAL']).toContain(c.stage)
     }
   })
 
   it('asking slightly under the going rate is not a reason to stop anyone', () => {
-    const d = evaluateRequisition(
-      facts({ billMaxCents: 12_000, skillMedianCents: 13_400 }),
-      RULES
-    )
-    expect(d.state).toBe('AUTO_APPROVED')
+    const e = evaluateRequisition(withLead({ billMaxCents: 13_000, skillMedianCents: 13_400 }), DESKS)
+    expect(e.state).toBe('AUTO_APPROVED')
   })
 
-  it('a modest premium within tolerance still clears', () => {
-    // $148 against a $134 median is about 10% — inside the 15% tolerance
-    const d = evaluateRequisition(
-      facts({ billMaxCents: 14_800, skillMedianCents: 13_400 }),
-      RULES
-    )
-    expect(d.state).toBe('AUTO_APPROVED')
+  it('a modest premium within tolerance still clears Procurement', () => {
+    const e = evaluateRequisition(withLead({ billMaxCents: 14_500, skillMedianCents: 13_400 }), DESKS) // ~8% over
+    expect(step(e, 'SOURCING').outcome).toBe('AUTO_CLEARED')
   })
 })
 
-// ── When it must route ─────────────────────────────────
+describe('When anything misses, the lead who owns the cost centre gives the final word', () => {
+  const d = evaluateRequisition(withLead({ headcount: 8 }), DESKS) // over the plan
 
-describe('A requisition routes to a person when a fact demands it', () => {
-
-  it('going over the approved headcount routes for approval', () => {
-    const d = evaluateRequisition(
-      facts({ headcount: 8, costCenter: healthyCostCenter({ committedHeads: 4, approvedHeads: 10 }) }),
-      RULES
-    )
-    expect(d.state).toBe('PENDING_APPROVAL')
-    expect(d.checks.find(c => c.code === 'HEADCOUNT_PLAN')?.outcome).toBe('ROUTE')
-    expect(d.checks.find(c => c.code === 'HEADCOUNT_PLAN')?.reason).toContain('12 of 10')
+  it('the lead is asked, after the desks, and the reason says whose spend it is', () => {
+    const final = step(d, 'FINAL')
+    expect(final.outcome).toBe('PENDING')
+    expect(final.approverName).toBe('Dana Whitfield')
+    expect(final.rank).toBeGreaterThan(step(d, 'ROLE').rank)
+    expect(final.reason).toContain("The final word on Technology's spend")
   })
 
-  it('exceeding the budget routes, and says by how much', () => {
-    const d = evaluateRequisition(
-      facts({
-        annualValueCents: 450_000_00,
-        costCenter: healthyCostCenter({ annualBudgetCents: 500_000_00, committedSpendCents: 100_000_00 }),
-      }),
-      RULES
-    )
-    expect(d.state).toBe('PENDING_APPROVAL')
-    expect(d.checks.find(c => c.code === 'BUDGET')?.reason).toContain('Exceeds TBC-4100 budget by $50,000')
-  })
-
-  it('a rate well above what the client already pays routes with the comparison', () => {
-    const d = evaluateRequisition(
-      facts({ billMaxCents: 17_000, skillMedianCents: 13_400 }),
-      RULES
-    )
-    expect(d.state).toBe('PENDING_APPROVAL')
-    const band = d.checks.find(c => c.code === 'RATE_BAND')
-    expect(band?.outcome).toBe('ROUTE')
-    expect(band?.reason).toContain('above the $134/hr you already pay')
-  })
-
-  it('a requisition with no cost centre routes — nobody owns the spend', () => {
-    const d = evaluateRequisition(facts({ costCenter: null }), RULES)
-    expect(d.state).toBe('PENDING_APPROVAL')
-    expect(d.checks.find(c => c.code === 'COST_CENTER')?.outcome).toBe('ROUTE')
-  })
-
-  it('a department with no headcount plan on file routes', () => {
-    const d = evaluateRequisition(
-      facts({ costCenter: healthyCostCenter({ approvedHeads: null }) }),
-      RULES
-    )
-    expect(d.state).toBe('PENDING_APPROVAL')
-    expect(d.checks.find(c => c.code === 'HEADCOUNT_PLAN')?.reason).toContain('No headcount plan')
-  })
-
-  it('a large requisition is seen by a human even when every fact is fine', () => {
-    // $300k is over the $250k departmental threshold, but inside plan
-    const d = evaluateRequisition(
-      facts({
-        annualValueCents: 300_000_00,
-        costCenter: healthyCostCenter({ annualBudgetCents: 900_000_00 }),
-      }),
-      RULES
-    )
-    expect(d.state).toBe('PENDING_APPROVAL')
-    expect(d.route[0].approverName).toBe('Dana Whitfield')
-    expect(d.summary).toContain('threshold')
-  })
-
-  it('approvers are routed in rank order', () => {
-    const d = evaluateRequisition(
-      facts({ annualValueCents: 300_000_00, headcount: 20 }),
-      RULES
-    )
-    expect(d.route.map(r => r.rank)).toEqual([1, 2])
-  })
-
-  it('the same approver is never routed to twice', () => {
-    const d = evaluateRequisition(
-      facts({ annualValueCents: 300_000_00, headcount: 20 }),
-      [DEPT_APPROVER, DEPT_APPROVER, EXCEPTION_APPROVER]
-    )
-    expect(d.route.filter(r => r.id === 'rule-dept')).toHaveLength(1)
-  })
-
-  it('the summary names the first problem and who is looking at it', () => {
-    const d = evaluateRequisition(facts({ headcount: 20 }), RULES)
-    expect(d.summary).toContain('approved heads')
-    expect(d.summary).toContain('Joyce Mbeki')
+  it('the summary says who it is waiting on, in the order they are asked', () => {
+    expect(d.summary).toBe("Takes TBC-4100 to 12 of 10 approved heads — waiting on HR (Anita Shah), then Dana Whitfield's yes")
   })
 })
 
-// ── Never silently permit ──────────────────────────────
+// ── A miss goes to the desk that owns it ──────────────────
+
+describe('A miss goes to the desk that owns it', () => {
+  it('over the headcount plan goes to HR — the role is the question', () => {
+    const d = evaluateRequisition(
+      withLead({ headcount: 8, costCenter: healthyCostCenter({ approvedHeads: 10, committedHeads: 4 }) }),
+      DESKS
+    )
+    const role = step(d, 'ROLE')
+    expect(role.outcome).toBe('PENDING')
+    expect(role.approverName).toBe('Anita Shah')
+    expect(role.reason).toContain('12 of 10 approved heads')
+    expect(step(d, 'SOURCING').outcome).toBe('AUTO_CLEARED')
+  })
+
+  it('a department with no headcount plan on file goes to HR', () => {
+    const d = evaluateRequisition(withLead({ costCenter: healthyCostCenter({ approvedHeads: null }) }), DESKS)
+    expect(step(d, 'ROLE')).toMatchObject({ outcome: 'PENDING', approverName: 'Anita Shah' })
+  })
+
+  it('a rate well above what the client already pays goes to Procurement, with the comparison', () => {
+    const d = evaluateRequisition(withLead({ billMaxCents: 17_000, skillMedianCents: 13_400 }), DESKS) // ~27% over
+    const sourcing = step(d, 'SOURCING')
+    expect(sourcing.outcome).toBe('PENDING')
+    expect(sourcing.approverName).toBe('Derek Halvorsen')
+    expect(sourcing.reason).toMatch(/27% above the \$134\/hr you already pay/)
+    expect(step(d, 'ROLE').outcome).toBe('AUTO_CLEARED')
+  })
+
+  it('exceeding the budget is the lead\'s question, and says by how much', () => {
+    const d = evaluateRequisition(
+      withLead({ annualValueCents: 450_000_00, costCenter: healthyCostCenter({ annualBudgetCents: 500_000_00, committedSpendCents: 100_000_00 }) }),
+      DESKS
+    )
+    expect(step(d, 'ROLE').outcome).toBe('AUTO_CLEARED')
+    expect(step(d, 'SOURCING').outcome).toBe('AUTO_CLEARED')
+    expect(step(d, 'FINAL').reason).toContain('Exceeds TBC-4100 budget by $50,000')
+  })
+
+  it('a requisition with no cost centre has no lead — Procurement gives the final word instead', () => {
+    const d = evaluateRequisition(withLead({ costCenter: null, lead: null, escalation: null }), DESKS)
+    const final = step(d, 'FINAL')
+    expect(final.outcome).toBe('PENDING')
+    expect(final.approverName).toBe('Derek Halvorsen')
+    expect(final.reason).toContain('No cost centre named — nobody owns this spend')
+    expect(final.reason).toContain('no lead owns the money here, so Derek Halvorsen gives the final word')
+  })
+
+  it('a miss with nobody named anywhere clears with the note in plain sight and who to name', () => {
+    const d = evaluateRequisition(withLead({ headcount: 8, lead: null, escalation: null }), [])
+    expect(d.state).toBe('AUTO_APPROVED')
+    const final = step(d, 'FINAL')
+    expect(final.outcome).toBe('AUTO_CLEARED')
+    expect(final.reason).toContain('Nobody is named to give the final word — cleared with this note')
+    expect(final.reason).toContain('Name who owns cost centre TBC-4100')
+    expect(d.summary).toContain('Cleared automatically — Nobody is named')
+  })
+
+  it('HR and Procurement are asked alongside each other, at one rank, before the lead', () => {
+    const d = evaluateRequisition(
+      withLead({ headcount: 8, billMaxCents: 17_000, skillMedianCents: 13_400 }),
+      DESKS
+    )
+    expect(step(d, 'ROLE').rank).toBe(step(d, 'SOURCING').rank)
+    expect(step(d, 'FINAL').rank).toBeGreaterThan(step(d, 'ROLE').rank)
+    expect(d.route.map((r) => r.approverName)).toEqual(['Anita Shah', 'Derek Halvorsen', 'Dana Whitfield'])
+    expect(d.summary).toMatch(/waiting on HR \(Anita Shah\) and Procurement \(Derek Halvorsen\), then Dana Whitfield's yes/)
+  })
+
+  it('the nearest desk wins: a business unit\'s own HR partner outranks the company default', () => {
+    const companyHr: ApprovalRuleFacts = { ...HR_DESK, id: 'rule-hr-co', approverId: 'p-central', approverName: 'Central HR', specificity: 0 }
+    const d = evaluateRequisition(withLead({ headcount: 8 }), [companyHr, HR_DESK, PROC_DESK])
+    expect(step(d, 'ROLE').approverName).toBe('Anita Shah')
+  })
+})
+
+// ── Nobody signs their own ────────────────────────────────
+
+describe('Nobody approves their own requisition', () => {
+  it('when the lead raised it, the final word goes one level up', () => {
+    const d = evaluateRequisition(withLead({ headcount: 8, raisedById: LEAD.personId, ownerId: LEAD.personId }), DESKS)
+    const final = step(d, 'FINAL')
+    expect(final.approverName).toBe('Ngozi Okoro')
+    expect(final.reason).toContain('Dana Whitfield owns the budget and raised it — the final word goes one level up')
+  })
+
+  it('when the lead is the owner it is for, the same', () => {
+    const d = evaluateRequisition(withLead({ headcount: 8, raisedById: 'p-coordinator', ownerId: LEAD.personId }), DESKS)
+    expect(step(d, 'FINAL').approverName).toBe('Ngozi Okoro')
+  })
+
+  it('with nobody above the lead, a standing desk gives the final word rather than the lead signing their own', () => {
+    const d = evaluateRequisition(withLead({ headcount: 8, raisedById: LEAD.personId, ownerId: LEAD.personId, escalation: null }), DESKS)
+    const final = step(d, 'FINAL')
+    expect(final.approverName).toBe('Derek Halvorsen')
+    expect(final.reason).toContain('Dana Whitfield owns the budget and raised it')
+    expect(d.route.map((r) => r.approverId)).not.toContain(LEAD.personId)
+  })
+
+  it('a rule on the money whose approver raised it is not asked either', () => {
+    const d = evaluateRequisition(
+      withLead({ annualValueCents: 300_000_00, raisedById: VP_RULE.approverId, ownerId: VP_RULE.approverId }),
+      [...DESKS, VP_RULE]
+    )
+    expect(d.route.map((r) => r.approverName)).toEqual(['Dana Whitfield'])
+    expect(step(d, 'FINAL').reason).toContain('Marcus Chen raised it, so is not asked to approve it')
+  })
+})
+
+// ── The old rules still work ──────────────────────────────
+
+describe('A rule on the money is still honoured, at the final rank', () => {
+  it('a large requisition is seen by the VP even when every fact is fine, alongside the lead', () => {
+    const d = evaluateRequisition(withLead({ annualValueCents: 300_000_00, valueSays: '$300,000, the budget stated', valueBasis: 'BUDGET' }), [...DESKS, VP_RULE])
+    const finals = d.steps.filter((s) => s.stage === 'FINAL')
+    expect(finals.map((s) => s.approverName)).toEqual(['Dana Whitfield', 'Marcus Chen'])
+    expect(finals.every((s) => s.rank === 2)).toBe(true)
+    expect(d.checks.find((c) => c.code === 'VALUE')?.reason).toBe('Routed on $300,000, the budget stated')
+  })
+
+  it('a threshold rule under the line is not asked', () => {
+    const d = evaluateRequisition(withLead({ annualValueCents: 200_000_00, headcount: 8 }), [...DESKS, VP_RULE])
+    expect(d.route.map((r) => r.approverName)).toEqual(['Anita Shah', 'Dana Whitfield'])
+  })
+
+  it('the same approver is never asked twice', () => {
+    const asLead: ApprovalRuleFacts = { ...VP_RULE, approverId: LEAD.personId, approverName: LEAD.name }
+    const d = evaluateRequisition(withLead({ annualValueCents: 300_000_00 }), [...DESKS, asLead])
+    expect(d.route.filter((r) => r.approverId === LEAD.personId)).toHaveLength(1)
+  })
+
+  it('the old catch-all "programme lead" gives the final word where no cost-centre owner does', () => {
+    const d = evaluateRequisition(withLead({ headcount: 8, lead: null, escalation: null }), [...DESKS, CATCH_ALL])
+    expect(step(d, 'FINAL')).toMatchObject({ outcome: 'PENDING', approverName: 'Joyce Mbeki' })
+  })
+
+  it('with no desks configured at all, a miss still clears — with the note in plain sight and who to name', () => {
+    const d = evaluateRequisition(withLead({ headcount: 8 }), [])
+    const role = step(d, 'ROLE')
+    expect(role.outcome).toBe('AUTO_CLEARED')
+    expect(role.reason).toContain('no HR desk named for Technology, so cleared with this note. Name one under Programme team.')
+  })
+})
 
 describe('Nothing passes silently', () => {
-
-  it('a routed check with no approver configured still clears, and says so', () => {
-    // Addendum E forbids silent permission. With no rule to catch it the
-    // requisition proceeds — but the summary admits nobody reviewed it.
-    const d = evaluateRequisition(facts({ headcount: 20 }), [])
-    expect(d.state).toBe('AUTO_APPROVED')
-    expect(d.summary).toContain('no approver configured')
+  it('a routed check with no desk configured still clears, and says so in the row', () => {
+    const d = evaluateRequisition(withLead({ billMaxCents: 17_000, skillMedianCents: 13_400 }), [])
+    expect(step(d, 'SOURCING').outcome).toBe('AUTO_CLEARED')
+    expect(step(d, 'SOURCING').reason).toMatch(/above the .* you already pay .* no Procurement desk named/)
   })
 
-  it('the notes survive even when the requisition clears', () => {
-    const d = evaluateRequisition(facts({ headcount: 20 }), [])
-    expect(d.checks.filter(c => c.outcome === 'ROUTE').length).toBeGreaterThan(0)
+  it('the notes survive even when a desk clears — every check is kept', () => {
+    const d = evaluateRequisition(withLead(), DESKS)
+    expect(d.checks.map((c) => c.code)).toEqual(['COST_CENTER', 'HEADCOUNT_PLAN', 'BUDGET', 'RATE_BAND'])
   })
 })
-
-// ── Annualised value ───────────────────────────────────
 
 describe('Annualised value of a requisition', () => {
 
@@ -261,6 +348,43 @@ describe('Annualised value of a requisition', () => {
 })
 
 // ── Advancing the chain ────────────────────────────────
+
+describe('Two desks at one rank decide alongside each other', () => {
+  const chain = (): PendingApproval[] => [
+    { id: 'hr', approverId: 'anita', rank: 1, outcome: 'PENDING' },
+    { id: 'proc', approverId: 'derek', rank: 1, outcome: 'PENDING' },
+    { id: 'lead', approverId: 'dana', rank: 2, outcome: 'PENDING' },
+  ]
+
+  it('HR and Procurement may decide in either order', () => {
+    expect(advanceApprovalChain(chain(), 'approve', 'derek').refusal).toBeNull()
+    expect(advanceApprovalChain(chain(), 'approve', 'anita').refusal).toBeNull()
+  })
+
+  it('the lead is not asked until both desks have said yes', () => {
+    expect(advanceApprovalChain(chain(), 'approve', 'dana').refusal).toBe('NOT_YOUR_APPROVAL')
+    const afterHr = chain().map((a) => (a.id === 'hr' ? { ...a, outcome: 'APPROVED' } : a))
+    expect(advanceApprovalChain(afterHr, 'approve', 'dana').refusal).toBe('NOT_YOUR_APPROVAL')
+    const afterBoth = afterHr.map((a) => (a.id === 'proc' ? { ...a, outcome: 'APPROVED' } : a))
+    const r = advanceApprovalChain(afterBoth, 'approve', 'dana')
+    expect(r.refusal).toBeNull()
+    expect(r.completesChain).toBe(true)
+    expect(r.nextStatus).toBe('OPEN')
+  })
+
+  it('one desk\'s yes does not open the requisition while the other is still asked', () => {
+    const r = advanceApprovalChain(chain(), 'approve', 'anita')
+    expect(r.completesChain).toBe(false)
+    expect(r.nextState).toBe('PENDING_APPROVAL')
+    expect(r.remaining.map((a) => a.id)).toEqual(['proc', 'lead'])
+  })
+
+  it('a no from either desk ends it for everybody', () => {
+    const r = advanceApprovalChain(chain(), 'reject', 'derek')
+    expect(r.nextState).toBe('REJECTED')
+    expect(r.remaining).toEqual([])
+  })
+})
 
 describe('Deciding one approval in a chain', () => {
   const chain = (): PendingApproval[] => [

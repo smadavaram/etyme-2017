@@ -138,6 +138,28 @@ export async function POST(
   })
   const vendorMap = new Map(vendorCompanies.map(c => [c.id, c]))
 
+  // Only the suppliers Procurement cleared. An empty list means it
+  // cleared by rule and every approved supplier is eligible; a named
+  // list is the go-ahead, and the release cannot widen it.
+  const cleared = requisition.clearedSupplierIds ?? []
+  if (cleared.length > 0) {
+    const notCleared = vendorIds.filter(v => !cleared.includes(v))
+    if (notCleared.length > 0) {
+      const names = notCleared.map(v => vendorMap.get(v)?.name ?? v).join(', ')
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_CLEARED',
+            message:
+              `${names} ${notCleared.length === 1 ? 'was' : 'were'} not among the suppliers Procurement cleared for this requirement. ` +
+              'Ask Procurement to add them, or leave them out.',
+          },
+        },
+        { status: 403 }
+      )
+    }
+  }
+
   const missing = vendorIds.filter(vid => !vendorMap.has(vid))
   if (missing.length > 0) {
     return NextResponse.json(

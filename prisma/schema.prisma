@@ -45,6 +45,7 @@ model Person {
   enrollments            Enrollment[]
   expenses               Expense[]
   requisitionsRaised     Requirement[]          @relation("requisitionRaiser")
+  requisitionsOwned      Requirement[]          @relation("requisitionOwner")
   approvalRules          ApprovalRule[]         @relation("approvalRuleApprover")
   requirementApprovals   RequirementApproval[]  @relation("requirementApprover")
   documentSharesCreated  DocumentShare[]        @relation("shareCreator")
@@ -1314,9 +1315,9 @@ model Requirement {
   /// parsed out of an email or a VMS feed rather than typed.
   description String? @db.Text
 
-  location  String?
-  billMin   Int?
-  billMax   Int?
+  location String?
+  billMin  Int?
+  billMax  Int?
 
   /// What finance actually committed, in cents. Not to exceed.
   ///
@@ -1431,16 +1432,27 @@ model Requirement {
   // records against demand it heard about. Same object, two origins: the
   // client names the budget, the manager and the headcount; the vendor sees
   // it with a rate band that is theirs alone (on RequirementInvitation).
-  raisedById      String? // the hiring manager who needs the people
-  raisedBy        Person?        @relation("requisitionRaiser", fields: [raisedById], references: [id])
-  orgUnitId       String? // the department the headcount belongs to
-  orgUnit         OrgUnit?       @relation(fields: [orgUnitId], references: [id])
-  internalOrderId String?
-  internalOrder   InternalOrder? @relation(fields: [internalOrderId], references: [id])
-  costCenterId    String? // the budget that funds it
-  costCenter      CostCenter?    @relation(fields: [costCenterId], references: [id])
-  headcount       Int            @default(1) // "I need three of these", not three requisitions
-  neededBy        DateTime?
+  raisedById         String? // who typed it — a fact, written once
+  raisedBy           Person?        @relation("requisitionRaiser", fields: [raisedById], references: [id])
+  /// Whose need it is: the hiring manager the people are for, who will
+  /// interview and sign hours. Defaults to whoever raised it; a
+  /// coordinator raising on somebody's behalf names them. The owner
+  /// never approves their own requisition.
+  ownerId            String?
+  owner              Person?        @relation("requisitionOwner", fields: [ownerId], references: [id])
+  /// The suppliers Procurement cleared for this one. Empty means
+  /// Procurement cleared by rule, and every approved supplier is eligible.
+  clearedSupplierIds String[]       @default([])
+  /// The hiring panel — names, not seats. Every round starts with them.
+  interviewers       String[]       @default([])
+  orgUnitId          String? // the department the headcount belongs to
+  orgUnit            OrgUnit?       @relation(fields: [orgUnitId], references: [id])
+  internalOrderId    String?
+  internalOrder      InternalOrder? @relation(fields: [internalOrderId], references: [id])
+  costCenterId       String? // the budget that funds it
+  costCenter         CostCenter?    @relation(fields: [costCenterId], references: [id])
+  headcount          Int            @default(1) // "I need three of these", not three requisitions
+  neededBy           DateTime?
 
   /// The work authorisation this role actually requires.
   ///
@@ -1503,6 +1515,7 @@ model Requirement {
   @@index([openToNetwork, status])
   @@index([msaId])
   @@index([raisedById])
+  @@index([ownerId])
   @@index([orgUnitId])
   @@index([costCenterId])
   @@index([endClientCompanyId])
@@ -1584,6 +1597,12 @@ model ApprovalRule {
   // A requisition needs this rule when its annualised value exceeds the
   // threshold, or it breaches plan or band. Null means always applies.
   thresholdAmount Decimal? @db.Decimal(12, 2)
+  /// VALUE · HR · PROCUREMENT. A VALUE rule routes on the money (the
+  /// threshold, or everything when null — the old "lead"). An HR or
+  /// PROCUREMENT rule names the standing desk for the unit it is scoped
+  /// to: HR reads the role, Procurement audits the suppliers. The
+  /// requisition inherits them; nobody picks approvers on a requisition.
+  kind            String   @default("VALUE")
   approverId      String
   approver        Person   @relation("approvalRuleApprover", fields: [approverId], references: [id])
   orgUnitId       String? // scope to a department; null = company-wide
@@ -1616,6 +1635,10 @@ model RequirementApproval {
   approverId    String? // null when cleared by rule rather than a person
   approver      Person?     @relation("requirementApprover", fields: [approverId], references: [id])
   rank          Int         @default(1)
+  /// ROLE (HR) · SOURCING (Procurement) · FINAL (the lead who owns the
+  /// cost centre, and any rule on the money). ROLE and SOURCING share a
+  /// rank and decide alongside each other; FINAL waits for both.
+  stage         String      @default("FINAL")
   outcome       String // PENDING · APPROVED · REJECTED · AUTO_CLEARED
   reason        String // plain English, always present
   decidedAt     DateTime?

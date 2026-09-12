@@ -6,6 +6,8 @@ import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import {
   evaluateRequisition,
+  type RuleKind,
+  type Seat,
   annualValue,
   type RequisitionFacts,
   type ApprovalRuleFacts,
@@ -125,6 +127,8 @@ export async function POST(request: NextRequest) {
     title, skills, location, headcount, billMin, billMax, months,
     neededBy, justification, costCenterId, orgUnitId, raisedById,
     budget, hoursPerWeek, description,
+    // Whose need it is, when somebody raises it on their behalf.
+    ownerId: ownerAsked,
   } = body
 
   if (!title || typeof title !== 'string' || title.trim().length < 3) {
@@ -143,6 +147,9 @@ export async function POST(request: NextRequest) {
         where: { id: costCenterId, companyId: client.id },
         include: {
           headcountPlans: { orderBy: { period: 'desc' }, take: 1 },
+          // The lead: whoever owns the budget gives the final word.
+          owner: { select: { id: true, name: true } },
+          orgUnit: { select: { id: true, name: true } },
         },
       })
     : null
@@ -232,7 +239,7 @@ export async function POST(request: NextRequest) {
   // Since the form has never set one, that was the ordinary path.
   const orgUnits = await prisma.orgUnit.findMany({
     where: { companyId: client.id },
-    select: { id: true, parentId: true },
+    select: { id: true, parentId: true, name: true },
   })
   const responsible = ancestry(orgUnits, team)
 
@@ -260,7 +267,40 @@ export async function POST(request: NextRequest) {
     approverName: r.approver.name,
     thresholdCents: r.thresholdAmount ? Math.round(Number(r.thresholdAmount) * 100) : null,
     rank: r.rank,
+    kind: r.kind as RuleKind,
+    // Nearest wins: the unit's own desk over its parent's over the
+    // company's. Company-wide is 0; the unit itself is the highest.
+    specificity: r.orgUnitId ? responsible.length - responsible.indexOf(r.orgUnitId) : 0,
   }))
+
+  // ── Who ───────────────────────────────────────────────────────────
+  //
+  // Who typed it, whose need it is, who owns the budget, and who sits
+  // above them. The engine decides who is asked; this only finds them.
+  const raiser = raisedById ?? caller.person.id
+  const owner = typeof ownerAsked === 'string' && ownerAsked ? ownerAsked : raiser
+  const lead: Seat | null = costCenter?.owner ? { personId: costCenter.owner.id, name: costCenter.owner.name } : null
+
+  // One level up: the nearest ancestor unit whose cost centre is owned
+  // by somebody who is neither the raiser nor the owner nor the lead.
+  let escalation: Seat | null = null
+  const above = responsible.slice(1)
+  if (above.length > 0) {
+    const owned = await prisma.costCenter.findMany({
+      where: { companyId: client.id, orgUnitId: { in: above }, ownerId: { not: null }, isActive: true },
+      select: { orgUnitId: true, owner: { select: { id: true, name: true } } },
+    })
+    for (const unitId of above) {
+      const cc = owned.find(c => c.orgUnitId === unitId && c.owner && ![raiser, owner, lead?.personId].includes(c.owner.id))
+      if (cc?.owner) { escalation = { personId: cc.owner.id, name: cc.owner.name }; break }
+    }
+  }
+
+  facts.raisedById = raiser
+  facts.ownerId = owner
+  facts.lead = lead
+  facts.escalation = escalation
+  facts.unitName = orgUnits.find(u => u.id === team)?.name ?? costCenter?.orgUnit?.name ?? null
 
   const decision = evaluateRequisition(facts, rules)
 
@@ -292,7 +332,8 @@ export async function POST(request: NextRequest) {
         hoursPerWeek: Number.isFinite(hoursPerWeek) && Number(hoursPerWeek) > 0 ? Number(hoursPerWeek) : null,
         costCenterId: costCenter?.id ?? null,
         orgUnitId: team,
-        raisedById: raisedById ?? caller.person.id,
+        raisedById: raiser,
+        ownerId: owner,
         approvalState: decision.state,
         // Only an approved requisition reaches the market.
         status: decision.state === 'AUTO_APPROVED' ? 'OPEN' : 'DRAFT',
@@ -300,30 +341,21 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Record the decision — the auto-clearance as much as the routing, so a
-    // requisition that nobody looked at can still be explained a year later.
-    if (decision.state === 'AUTO_APPROVED') {
-      await tx.requirementApproval.create({
-        data: {
-          requirementId: req.id,
-          approverId: null,
-          rank: 0,
-          outcome: 'AUTO_CLEARED',
-          reason: decision.summary,
-          decidedAt: new Date(),
-        },
-      })
-    } else {
-      await tx.requirementApproval.createMany({
-        data: decision.route.map(r => ({
-          requirementId: req.id,
-          approverId: r.approverId,
-          rank: r.rank,
-          outcome: 'PENDING',
-          reason: decision.summary,
-        })),
-      })
-    }
+    // Record the chain, one row per desk — the ones cleared by rule as
+    // much as the ones asked, so a requisition nobody looked at can still
+    // be explained a year later, desk by desk.
+    const now = new Date()
+    await tx.requirementApproval.createMany({
+      data: decision.steps.map(st => ({
+        requirementId: req.id,
+        approverId: st.approverId,
+        rank: st.rank,
+        stage: st.stage,
+        outcome: st.outcome,
+        reason: st.reason,
+        decidedAt: st.outcome === 'AUTO_CLEARED' ? now : null,
+      })),
+    })
 
     await tx.automationLog.create({
       data: {
@@ -394,6 +426,10 @@ export async function POST(request: NextRequest) {
           summary: decision.summary,
           checks: decision.checks,
           route: decision.route.map(r => ({ approverId: r.approverId, name: r.approverName, rank: r.rank })),
+          // Desk by desk: what cleared by rule, who is asked, and why.
+          steps: decision.steps.map(st => ({
+            stage: st.stage, rank: st.rank, approverName: st.approverName, outcome: st.outcome, reason: st.reason,
+          })),
         },
         // The figure, and where it came from — so the person reading a
         // routing decision can see whether it rests on their own budget

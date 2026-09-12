@@ -29,6 +29,11 @@ export async function POST(
   const { id } = await params
   const body = await request.json()
   const { action, reason } = body
+  // Procurement's go-ahead may name the suppliers it cleared. Only that
+  // desk's approval carries it; anybody else's list is ignored.
+  const suppliers: string[] = Array.isArray(body?.suppliers)
+    ? body.suppliers.filter((x: unknown) => typeof x === 'string')
+    : []
 
   if (action !== 'approve' && action !== 'reject' && action !== 'changes') {
     return NextResponse.json(
@@ -119,7 +124,16 @@ export async function POST(
     String(reason ?? '').trim() ||
     `${action === 'approve' ? 'Approved' : action === 'changes' ? 'Changes requested' : 'Rejected'} by ${caller.person.name}`
 
+  const currentRow = requisition.approvals.find(a => a.id === current.id)
+
   const result = await prisma.$transaction(async (tx) => {
+    // The suppliers Procurement cleared, on the requirement, so the
+    // release can only ever go to them. An empty list on an approval
+    // means "every approved supplier" and writes nothing.
+    if (action === 'approve' && currentRow?.stage === 'SOURCING' && suppliers.length > 0) {
+      await tx.requirement.update({ where: { id }, data: { clearedSupplierIds: suppliers } })
+    }
+
     await tx.requirementApproval.update({
       where: { id: current.id },
       data: {
