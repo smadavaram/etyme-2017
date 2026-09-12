@@ -67,11 +67,13 @@ type Held = Seat | 'CANDIDATE'
  * is in lib/seed-programmes and the words here are what a visitor reads.
  */
 const DEMO_DOMAIN = 'demo.etyme.local'
-const DESKS = ['programme', 'hiring', 'vp', 'ap', 'compliance'] as const
+const DESKS = ['programme', 'hiring', 'hr', 'procurement', 'vp', 'ap', 'compliance'] as const
 type Desk = (typeof DESKS)[number]
 const DESK_NAMES: Record<Desk, string> = {
   programme: 'programme manager',
   hiring: 'hiring manager',
+  hr: 'HR partner',
+  procurement: 'procurement lead',
   vp: 'approver',
   ap: 'accounts payable',
   compliance: 'compliance officer',
@@ -79,6 +81,8 @@ const DESK_NAMES: Record<Desk, string> = {
 const DESK_LANDING: Record<Desk, string> = {
   programme: '/dashboard/program',
   hiring: '/dashboard/requisitions',
+  hr: '/dashboard/requisitions',
+  procurement: '/dashboard/requisitions',
   vp: '/dashboard/requisitions',
   ap: '/dashboard/invoices',
   compliance: '/dashboard/compliance',

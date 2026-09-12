@@ -19,6 +19,8 @@ export interface Programme {
 const DESKS: { desk: string; label: string; waiting: string }[] = [
   { desk: 'programme', label: 'Programme manager', waiting: 'Runs the programme. Sets the rules, chooses the suppliers, sees the spend.' },
   { desk: 'hiring', label: 'Hiring manager', waiting: 'Needs somebody. A week of hours is waiting for your signature.' },
+  { desk: 'hr', label: 'HR partner', waiting: 'A requisition over the headcount plan is waiting for your read of the role.' },
+  { desk: 'procurement', label: 'Procurement lead', waiting: 'A requisition is waiting for you to say which suppliers may see it.' },
   { desk: 'vp', label: 'Approver', waiting: 'A requisition over the $250k line is in your queue.' },
   { desk: 'ap', label: 'Accounts payable', waiting: 'An invoice has matched the hours and is waiting to be paid.' },
   { desk: 'compliance', label: 'Compliance officer', waiting: 'Tenure across every supplier, and whose paperwork is not on file.' },

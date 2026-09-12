@@ -38,6 +38,8 @@ const NIKE = {
   office: `world-nike${D}`,
   programme: `world-nike-programme${D}`,
   hiring: `world-nike-hiring${D}`,
+  hr: `world-nike-hr${D}`,
+  procurement: `world-nike-procurement${D}`,
   vp: `world-nike-vp${D}`,
   ap: `world-nike-ap${D}`,
   compliance: `world-nike-compliance${D}`,
@@ -106,19 +108,55 @@ describe('1 · the hiring manager posts a requirement', () => {
     it_.requisition = r.body.data.requisition.id
   })
 
-  it('a role over the $250k line waits for the VP, and the manager who raised it cannot wave it through', async () => {
+  it('a role over the plan and over the line waits on HR\'s read of the role, then the money — and the manager who raised it cannot wave it through', async () => {
     const routed = await prisma.requirement.findFirstOrThrow({
       where: { companyId: co['world-nike'], approvalState: 'PENDING_APPROVAL' },
+      include: { approvals: true },
     })
+    // Three stages on the row: HR asked, Procurement cleared by rule, the money at the end.
+    expect(routed.approvals.find(a => a.stage === 'ROLE')?.outcome).toBe('PENDING')
+    expect(routed.approvals.find(a => a.stage === 'SOURCING')?.outcome).toBe('AUTO_CLEARED')
+    expect(routed.approvals.filter(a => a.stage === 'FINAL').every(a => a.outcome === 'PENDING')).toBe(true)
+
     as(NIKE.hiring)
     const mine = await call(decideRequisition, 'POST', `/api/requisitions/${routed.id}/approve`, routed.id, { action: 'approve' })
     expect(mine.status).toBe(403)
 
+    // The VP is not asked before HR has read the role.
     as(NIKE.vp)
-    const r = await call(decideRequisition, 'POST', `/api/requisitions/${routed.id}/approve`, routed.id, { action: 'approve' })
-    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    const early = await call(decideRequisition, 'POST', `/api/requisitions/${routed.id}/approve`, routed.id, { action: 'approve' })
+    expect(early.status).toBe(403)
+
+    as(NIKE.hr)
+    const hr = await call(decideRequisition, 'POST', `/api/requisitions/${routed.id}/approve`, routed.id, { action: 'approve', reason: 'A real role, and the plan will be amended.' })
+    expect(hr.body?.error, JSON.stringify(hr.body)).toBeUndefined()
+    expect((await prisma.requirement.findUniqueOrThrow({ where: { id: routed.id } })).status).not.toBe('OPEN')
+
+    // Then the money: everyone at the final rank, in either order.
+    const finals = routed.approvals.filter(a => a.stage === 'FINAL' && a.approverId)
+    const vpPerson = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: NIKE.vp }, select: { id: true } })
+    for (const a of finals) {
+      const who = a.approverId === vpPerson.id ? NIKE.vp : (await prisma.person.findUniqueOrThrow({ where: { id: a.approverId! }, select: { primaryEmail: true } })).primaryEmail
+      as(who)
+      const r = await call(decideRequisition, 'POST', `/api/requisitions/${routed.id}/approve`, routed.id, { action: 'approve' })
+      expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    }
     const after = await prisma.requirement.findUniqueOrThrow({ where: { id: routed.id } })
     expect(after.status).toBe('OPEN')
+  })
+
+  it('the release can only go to the suppliers Procurement cleared', async () => {
+    // Procurement's yes named Pinnacle alone; the office tries Brightmoor as well.
+    await prisma.requirement.update({ where: { id: it_.requisition }, data: { clearedSupplierIds: [co['world-pinnacle']] } })
+    as(NIKE.programme)
+    const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
+      vendors: [{ companyId: co['world-pinnacle'], payMin: 3200, payMax: 3800 }, { companyId: co['world-brightmoor'], payMin: 3200, payMax: 3800 }],
+    })
+    expect(r.status).toBe(403)
+    expect(r.body.error.code).toBe('NOT_CLEARED')
+    expect(r.body.error.message).toContain('Brightmoor Staffing was not among the suppliers Procurement cleared')
+    // Back to "every approved supplier", so the rest of the walk stands.
+    await prisma.requirement.update({ where: { id: it_.requisition }, data: { clearedSupplierIds: [] } })
   })
 })
 

@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     where: { companyId },
     orderBy: [{ isActive: 'desc' }, { rank: 'asc' }, { thresholdAmount: 'asc' }],
     select: {
-      id: true, name: true, thresholdAmount: true, rank: true, isActive: true, createdAt: true,
+      id: true, name: true, kind: true, thresholdAmount: true, rank: true, isActive: true, createdAt: true,
       approver: { select: { id: true, name: true, primaryEmail: true } },
       authoredBy: { select: { id: true, name: true } },
       orgUnit: { select: { id: true, name: true } },
@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
         // Dollars out, cents in the database. Every screen that has got
         // this wrong got it wrong by guessing which side it was on.
         thresholdDollars: r.thresholdAmount === null ? null : Number(r.thresholdAmount),
+        kind: r.kind,
         rank: r.rank,
         isActive: r.isActive,
         approver: r.approver,
@@ -131,6 +132,34 @@ export async function POST(request: NextRequest) {
     body.thresholdDollars === null || body.thresholdDollars === undefined
       ? null
       : Number(body.thresholdDollars)
+  // VALUE routes on the money; HR and PROCUREMENT name a standing desk.
+  const kind = ['HR', 'PROCUREMENT', 'VALUE'].includes(String(body.kind ?? 'VALUE'))
+    ? (String(body.kind ?? 'VALUE') as 'HR' | 'PROCUREMENT' | 'VALUE')
+    : null
+  if (!kind) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'A rule is on the money (VALUE), or names the HR or the Procurement desk.', field: 'kind' } },
+      { status: 422 }
+    )
+  }
+  // A desk is one person, sits in a business unit, and has no threshold:
+  // it answers a question, not a dollar line. "Per business unit only" —
+  // the founder's rule, so a company-wide desk is refused rather than
+  // quietly allowed.
+  if (kind !== 'VALUE') {
+    if (approverIds.length !== 1) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: `The ${kind === 'HR' ? 'HR' : 'Procurement'} desk is one person for the unit.`, field: 'approverIds' } },
+        { status: 422 }
+      )
+    }
+    if (!body.orgUnitId) {
+      return NextResponse.json(
+        { error: { code: 'VALIDATION', message: 'Name the business unit this desk sits in — desks are named per unit, not company-wide.', field: 'orgUnitId' } },
+        { status: 422 }
+      )
+    }
+  }
 
   if (!name) {
     return NextResponse.json(
@@ -203,12 +232,13 @@ export async function POST(request: NextRequest) {
           name,
           approverId,
           rank: i + 1,
-          thresholdAmount: thresholdDollars,
+          kind,
+          thresholdAmount: kind === 'VALUE' ? thresholdDollars : null,
           orgUnitId: body.orgUnitId ? String(body.orgUnitId) : null,
           authoredById: caller!.person.id,
           isActive: true,
         },
-        select: { id: true, name: true, rank: true },
+        select: { id: true, name: true, rank: true, kind: true },
       })
     )
   )

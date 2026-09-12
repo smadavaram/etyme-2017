@@ -47,7 +47,7 @@ export interface World {
 // it is, so `world-nike-ap@` can be read off a URL by somebody who has
 // never seen the roster.
 export interface Desk {
-  key: 'programme' | 'hiring' | 'ap' | 'compliance'
+  key: 'programme' | 'hiring' | 'hr' | 'procurement' | 'ap' | 'compliance'
   role: string
   /** Which team the desk sits in, where that narrows what it sees. */
   unit?: string
@@ -55,6 +55,10 @@ export interface Desk {
 export const DESKS: Desk[] = [
   { key: 'programme',  role: 'Programme Manager' },
   { key: 'hiring',     role: 'Hiring Manager', unit: 'Apps' },
+  // The two standing desks, named per business unit. HR reads the role;
+  // Procurement audits the suppliers. Both sit across Technology.
+  { key: 'hr',          role: 'HR Partner', unit: 'Technology' },
+  { key: 'procurement', role: 'Procurement Lead', unit: 'Technology' },
   { key: 'ap',         role: 'AP Clerk' },
   { key: 'compliance', role: 'Compliance Officer' },
 ]
@@ -102,7 +106,7 @@ interface Programme {
   client: string
   loc: string
   people: {
-    programme: string; hiring: string; ap: string; compliance: string
+    programme: string; hiring: string; hr: string; procurement: string; ap: string; compliance: string
   }
   governance: { tenureCapMonths: number; breakDays: number; band: [number, number] }
   placements: Placement[]
@@ -124,7 +128,7 @@ interface Programme {
 const PROGRAMMES: Programme[] = [
   {
     client: 'nike', loc: 'Beaverton, OR',
-    people: { programme: 'Dana Whitlock', hiring: 'Marcus Oyelaran', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
+    people: { programme: 'Dana Whitlock', hiring: 'Marcus Oyelaran', hr: 'Meera Krishnan', procurement: 'Tomas Reyes', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15000] },
     placements: [
       { role: 'SAP S/4 finance lead', skills: ['SAP FICO', 'S/4HANA', 'Central Finance'], loc: 'Beaverton, OR',
@@ -172,7 +176,7 @@ const PROGRAMMES: Programme[] = [
   },
   {
     client: 'corning', loc: 'Corning, NY',
-    people: { programme: 'Eleanor Vance', hiring: 'Derek Halvorsen', ap: 'Patrice Boyd', compliance: 'Miriam Osei' },
+    people: { programme: 'Eleanor Vance', hiring: 'Derek Halvorsen', hr: 'Priya Natarajan', procurement: 'Colin Mabry', ap: 'Patrice Boyd', compliance: 'Miriam Osei' },
     governance: { tenureCapMonths: 24, breakDays: 90, band: [6500, 14000] },
     placements: [
       { role: 'Process validation engineer', skills: ['Process validation', 'Glass forming', 'Minitab'], loc: 'Corning, NY',
@@ -212,7 +216,7 @@ const PROGRAMMES: Programme[] = [
   },
   {
     client: 'terumo-bct', loc: 'Lakewood, CO',
-    people: { programme: 'Claire Ashworth', hiring: 'Rohan Desai', ap: 'Gloria Mendes', compliance: 'Hannah Baptiste' },
+    people: { programme: 'Claire Ashworth', hiring: 'Rohan Desai', hr: 'Lena Fischer', procurement: 'Andre Boateng', ap: 'Gloria Mendes', compliance: 'Hannah Baptiste' },
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15500] },
     placements: [
       // Ten months through Computer Systems on top of thirteen through
@@ -372,6 +376,27 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
         })
       }
       desk[d.key] = { personId: who.id, email }
+    }
+
+    // ── The standing desks, as rules per business unit ─────────────
+    //
+    // A requisition inherits them: HR decides the ROLE stage, Procurement
+    // the SOURCING stage, when a check misses. Nearest unit wins; these
+    // sit on Technology, so every department under it is covered.
+    const tech = unitByName.get('Technology')
+    if (tech) {
+      for (const [kind, key, name] of [
+        ['HR', 'hr', 'HR — Technology'],
+        ['PROCUREMENT', 'procurement', 'Procurement — Technology'],
+      ] as const) {
+        if (await db.approvalRule.findFirst({ where: { companyId: client.id, kind, orgUnitId: tech.id } })) continue
+        await db.approvalRule.create({
+          data: {
+            companyId: client.id, name, kind, thresholdAmount: null, rank: 1, isActive: true,
+            approverId: desk[key].personId, orgUnitId: tech.id, authoredById: desk.programme.personId,
+          },
+        })
+      }
     }
 
     // ── The rules ──────────────────────────────────────────────────
@@ -726,11 +751,24 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
       }))
     if (vp && !(await db.requirementApproval.findFirst({ where: { requirementId: routed.id } }))) {
       const annual = Math.round((p.routed.billMax * 160 * 12 * p.routed.headcount) / 100)
-      await db.requirementApproval.create({
-        data: {
-          requirementId: routed.id, approverId: vp.id, rank: 1, outcome: 'PENDING',
-          reason: `About $${annual.toLocaleString('en-US')} a year across ${p.routed.headcount} heads — over the $250,000 line, so it needs the VP.`,
-        },
+      // Three desks. Over the plan, so HR reads the role; at the going
+      // rate, so Procurement is cleared by rule; over the line, so the VP
+      // and whoever owns Apps' budget give the final word, after HR.
+      const leadId = costCentre?.ownerId && costCentre.ownerId !== vp.id && costCentre.ownerId !== desk.hiring.personId
+        ? costCentre.ownerId : null
+      await db.requirementApproval.createMany({
+        data: [
+          { requirementId: routed.id, approverId: desk.hr.personId, rank: 1, stage: 'ROLE', outcome: 'PENDING',
+            reason: `${p.routed.headcount} heads against Apps' plan — over it. Is this a role the plan meant?` },
+          { requirementId: routed.id, approverId: null, rank: 1, stage: 'SOURCING', outcome: 'AUTO_CLEARED', decidedAt: day(-2),
+            reason: `Within the going rate — $${Math.round(p.routed.billMax / 100)}/hr is in line with what Apps already pays. Procurement not needed.` },
+          { requirementId: routed.id, approverId: vp.id, rank: 2, stage: 'FINAL', outcome: 'PENDING',
+            reason: `Over $250k: about $${annual.toLocaleString('en-US')} a year across ${p.routed.headcount} heads.` },
+          ...(leadId
+            ? [{ requirementId: routed.id, approverId: leadId, rank: 2, stage: 'FINAL' as const, outcome: 'PENDING' as const,
+                 reason: `The final word on Apps' spend — about $${annual.toLocaleString('en-US')} a year.` }]
+            : []),
+        ],
       })
     }
 

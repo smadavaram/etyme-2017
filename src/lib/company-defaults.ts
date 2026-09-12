@@ -151,6 +151,22 @@ const CLIENT_ROLES: RoleSeed[] = [
     permissions: uniq(SEE_DEMAND, SEE_SUPPLY, ['assignments.read'], SEE_RULES, ['rates.read']),
   },
   {
+    // Named per business unit under Programme team. Decides the ROLE
+    // stage of a requisition that misses the plan; approval authority
+    // comes from being named, not from a permission.
+    name: 'HR Partner',
+    blurb: 'Reads the role: is it a contingent role, is it in the plan. Names nobody’s suppliers.',
+    permissions: uniq(SEE_PEOPLE, SEE_DEMAND, SEE_SUPPLY, ['assignments.read'], SEE_RULES),
+  },
+  {
+    // Indirect procurement: manages the suppliers. Decides the SOURCING
+    // stage — who may supply a requisition, at what rate — and releases
+    // it to the suppliers it cleared.
+    name: 'Procurement Lead',
+    blurb: 'Manages the suppliers: who may supply, at what rate. Releases a requisition to the suppliers it cleared.',
+    permissions: uniq(SEE_DEMAND, ['requirements.distribute'], SEE_SUPPLY, OWN_PRICE, SEE_RULES, ['vendors.read', 'vendors.manage']),
+  },
+  {
     name: 'AP Clerk',
     blurb: 'Matches and pays supplier invoices.',
     // No rates.write. An invoice failing the price check is a contract
