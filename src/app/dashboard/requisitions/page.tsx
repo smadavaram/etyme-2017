@@ -3,7 +3,7 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
-import { STAGES, stageOf, mayEdit, type Stage } from '@/lib/requisition-stage'
+import { STAGES, stageOf, mayEdit, closedBecause, type Stage } from '@/lib/requisition-stage'
 
 /**
  * Requisitions — the demand side.
@@ -230,6 +230,7 @@ interface Requisition {
   orgUnit: { id: string; name: string } | null
   costCenter: { id: string; code: string; name: string } | null
   archivedAt: string | null
+  cancelReason?: string | null
   approvals: Approval[]
   counts: { submissions: number; invitations: number }
   createdAt: string
@@ -281,19 +282,19 @@ function Chip({ children, tone = 'passive' }: {
  *
  * This read `approvalState` while the tabs read `status`, so a row whose
  * approval had never been started but which was open to suppliers showed
- * a "Draft" chip inside the "Open to suppliers" tab. Both were true about
+ * a "Draft" chip inside the "Published" tab. Both were true about
  * different columns and together they read as a contradiction. The
  * approval detail did not disappear — it is in Why, where the whole chain
  * is, rather than competing with the stage on the same line.
  */
 function stageChip(r: Requisition) {
-  if (r.archivedAt) return <Chip>Archived</Chip>
   switch (stageOf(r)) {
+    // Put away, with why: "all 2 seats filled" is the reason, not a tab.
+    case 'ARCHIVED':  return <Chip tone={r.status === 'FILLED' ? 'verified' : undefined}>{closedBecause(r)}</Chip>
     case 'CANCELLED': return <Chip tone="attention">Cancelled</Chip>
     case 'AWAITING':  return <Chip tone="attention">Waiting on approval</Chip>
     case 'CHANGES':   return <Chip tone="attention">Needs changes</Chip>
-    case 'FILLED':    return <Chip tone="verified">Filled</Chip>
-    case 'OPEN':      return <Chip tone="action">Open to suppliers</Chip>
+    case 'OPEN':      return <Chip tone="action">Published</Chip>
     default:          return <Chip>Draft</Chip>
   }
 }
@@ -672,7 +673,6 @@ export default function RequisitionsPage() {
    * to a row. Hiding them is what makes the button worth pressing; before
    * this, archiving changed a label and nothing else.
    */
-  const [showArchived, setShowArchived] = useState(false)
   const [editing, setEditing] = useState<Requisition | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [raising, setRaising] = useState(false)
@@ -682,7 +682,8 @@ export default function RequisitionsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/requisitions')
+      // Archived rows too: they have a tab now.
+      const res = await fetch('/api/requisitions?archived=true')
       const json = await readJson(res)
       setReqs(json.data.requisitions)
       setSummary(json.data.summary)
@@ -788,7 +789,12 @@ export default function RequisitionsPage() {
   }
 
   const term = q.trim().toLowerCase()
-  const onTheList = reqs.filter(r => showArchived || !r.archivedAt)
+  // The working list is everything not put away; Archived is its own
+  // tab, so a settled row has a place to be found rather than a
+  // checkbox to remember.
+  const working = reqs.filter(r => stageOf(r) !== 'ARCHIVED')
+  const archived = reqs.filter(r => stageOf(r) === 'ARCHIVED')
+  const onTheList = stage === 'ARCHIVED' ? archived : working
   const visible = onTheList.filter(r =>
     (stage === 'ALL' || stageOf(r) === stage)
   ).filter(r =>
@@ -839,7 +845,10 @@ export default function RequisitionsPage() {
       <div className="mb-4 flex flex-wrap gap-2">
         {TABS.map(([key, label]) => {
           // Counted over the same set the tab will show, or the number lies.
-          const n = key === 'ALL' ? onTheList.length : onTheList.filter(r => stageOf(r) === key).length
+          const n =
+            key === 'ALL' ? working.length
+            : key === 'ARCHIVED' ? archived.length
+            : working.filter(r => stageOf(r) === key).length
           return (
             <button
               key={key}
@@ -850,17 +859,6 @@ export default function RequisitionsPage() {
             </button>
           )
         })}
-        {reqs.some(r => r.archivedAt) && (
-          <label className="ml-auto flex items-center gap-2 text-xs text-etyme-muted cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showArchived}
-              onChange={e => setShowArchived(e.target.checked)}
-              className="accent-etyme-action"
-            />
-            Show archived ({reqs.filter(r => r.archivedAt).length})
-          </label>
-        )}
       </div>
 
       <input
@@ -943,7 +941,7 @@ export default function RequisitionsPage() {
                   {!pending && r.status !== 'CANCELLED' && (
                     <div className="flex items-center gap-2 shrink-0">
                       {/* Editable exactly while the route says so: a draft,
-                          or one an approver handed back. Open to suppliers
+                          or one an approver handed back. Published
                           is deliberately not editable — moving the rate
                           underneath people already sourcing it is a
                           different requisition, not an edit. */}

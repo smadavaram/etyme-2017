@@ -518,7 +518,10 @@ export async function POST(
     // The last seat closes the requisition, and everyone still working it is
     // stood down rather than left guessing.
     if (decision.fillsRequisition) {
-      await tx.requirement.update({ where: { id: req.id }, data: { status: 'FILLED' } })
+      // Filled is a placement's word; the requirement is put away with
+      // that as its reason, and found under Archived — not under a tab
+      // of its own.
+      await tx.requirement.update({ where: { id: req.id }, data: { status: 'FILLED', archivedAt: new Date() } })
 
       const others = await tx.submission.updateMany({
         where: { requirementId: req.id, status: { notIn: ['PLACED', 'REJECTED', 'WITHDRAWN'] } },

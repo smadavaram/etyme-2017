@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { stageOf, mayEdit, STAGES } from '@/lib/requisition-stage'
+import { stageOf, mayEdit, closedBecause, STAGES } from '@/lib/requisition-stage'
 
 /**
  * Where a requisition shows up, and whether it can still be changed.
@@ -40,13 +40,29 @@ describe('where a requisition shows up', () => {
     expect(stageOf(row({ status: 'OPEN', approvalState: 'AUTO_APPROVED' }))).toBe('OPEN')
   })
 
-  it('a filled requisition reads as filled', () => {
-    expect(stageOf(row({ status: 'FILLED', approvalState: 'APPROVED' }))).toBe('FILLED')
+  it('a filled requisition is put away — filled is a placement\'s word, read in Submissions', () => {
+    expect(stageOf(row({ status: 'FILLED', approvalState: 'APPROVED' }))).toBe('ARCHIVED')
   })
 
-  it('archiving does not change what happened to it', () => {
-    const open = row({ status: 'OPEN', approvalState: 'APPROVED' })
-    expect(stageOf({ ...open, archivedAt: new Date() })).toBe(stageOf(open))
+  it('a settled row says why it closed: the seats filled, or cancelled with the reason', () => {
+    expect(closedBecause({ ...row({ status: 'FILLED' }), headcount: 2 })).toBe('all 2 seats filled')
+    expect(closedBecause({ ...row({ status: 'FILLED' }), headcount: 1 })).toBe('the seat filled')
+    expect(closedBecause({ ...row({ status: 'CANCELLED' }), cancelReason: 'the project was pulled' }))
+      .toBe('cancelled — the project was pulled')
+    expect(closedBecause(row({ status: 'OPEN', approvalState: 'APPROVED' }))).toBeNull()
+  })
+
+  it('archiving puts a row away without overwriting what happened to it', () => {
+    const cancelled = { ...row({ status: 'CANCELLED' }), cancelReason: 'budget cut', archivedAt: new Date() }
+    expect(stageOf(cancelled)).toBe('ARCHIVED')
+    expect(closedBecause(cancelled)).toBe('cancelled — budget cut')
+  })
+
+  it('open to suppliers is called Published, and Archived has a tab of its own', () => {
+    const labels = Object.fromEntries(STAGES)
+    expect(labels.OPEN).toBe('Published')
+    expect(labels.ARCHIVED).toBe('Archived')
+    expect(labels).not.toHaveProperty('FILLED')
   })
 
   it('every stage a row can reach has a tab to show it in', () => {
