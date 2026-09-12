@@ -128,9 +128,15 @@ export async function POST(request: NextRequest) {
   // seat picker was a form whose answer was thrown away. A different
   // seat is an explicit intent and gets a workspace of its own; the old
   // one is reaped with the rest.
+  //
+  // And never for a world seat. `{ as: "world-nike" }` carries no `side`,
+  // so it read as the default CLIENT seat here — and a visitor who had
+  // ever held a private client sandbox was handed that sandbox back
+  // instead of Nike. The world branch below is the only answer to `as`.
+  const asWorld = typeof (body as any)?.as === 'string' ? String((body as any).as) : null
   const wanted = seatAsked(body)
   const existing = read(request.cookies.get(DEMO_COOKIE)?.value)
-  if (existing) {
+  if (existing && !asWorld) {
     const person = await prisma.person.findUnique({
       where: { primaryEmail: existing },
       select: {
@@ -169,7 +175,6 @@ export async function POST(request: NextRequest) {
   // `isDemo: false`, so the reset button below leaves them alone: this
   // world is reference data many people look at, not one visitor's
   // sandbox to break.
-  const asWorld = typeof (body as any)?.as === 'string' ? String((body as any).as) : null
   if (asWorld) {
     if (!asWorld.startsWith('world-')) {
       return NextResponse.json(
@@ -183,7 +188,13 @@ export async function POST(request: NextRequest) {
     // and a visitor who sits as the owner never finds that out.
     const deskAsked = typeof (body as any)?.desk === 'string' ? String((body as any).desk) : null
     const desk = deskAsked && (DESKS as readonly string[]).includes(deskAsked) ? (deskAsked as Desk) : null
-    const company = await prisma.company.findUnique({
+    // The same two sentences the private path gives below. This lookup
+    // used to throw straight out of the handler, so a database that was
+    // down answered the front door with an empty 500 — the one error
+    // that tells the visitor nothing and the fixer nothing either.
+    let company
+    try {
+      company = await prisma.company.findUnique({
       where: { slug: asWorld },
       select: {
         id: true, name: true, kind: true,
@@ -199,6 +210,22 @@ export async function POST(request: NextRequest) {
         },
       },
     })
+    } catch (err: any) {
+      const why = String(err?.message ?? err)
+      console.error('demo: could not look up a world seat', why)
+      const unreachable = /P1001|Can't reach database|ECONNREFUSED|ETIMEDOUT/i.test(why)
+      return NextResponse.json(
+        {
+          error: {
+            code: unreachable ? 'DATABASE_UNREACHABLE' : 'DEMO_FAILED',
+            message: unreachable
+              ? 'The database is not answering. Nothing was changed — try again in a minute.'
+              : 'Could not take that seat just now. Nothing was changed.',
+          },
+        },
+        { status: 503 }
+      )
+    }
     const email = company?.contexts[0]?.person.primaryEmail
     if (!company || !email) {
       return NextResponse.json(

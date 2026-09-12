@@ -4,15 +4,47 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 /**
- * "Look around" — a seeded workspace of their own, in one click.
+ * "Look around" — a seat in the seeded world, in one click.
  *
  * No sign-up. A prospect who has to create an account before seeing
  * anything looks at the form and leaves, and we never learn whether the
  * product was any good.
  *
+ * ── Where the door leads ─────────────────────────────────────────────
+ *
+ * A company seat lands in the twenty-firm world lib/seed-world builds —
+ * a client sits at Nike, a bench vendor at CloudEPA — not in a private
+ * copy with a made-up name. This used to mint "Oxford Corp" for anybody
+ * who picked the client seat, and the founder, who had just watched
+ * Nike, Corning and Terumo BCT get built, opened the product and asked
+ * why it said Oxford. The world is the demo; the button is a door into
+ * it, and the words on the door say which firm is behind it.
+ *
+ * A candidate is the exception and still gets their own seeded agency:
+ * they are one person, not a firm, and the world's consultants are
+ * somebody's bench.
+ *
  * It says how long it takes, because a button that hangs for four
  * seconds with no explanation is a button people press twice.
  */
+
+/**
+ * The firm each company seat sits at, and the desk where one is chosen.
+ *
+ * Nike's programme manager, because that desk sees the whole programme
+ * (the clerk sees invoices, the hiring manager their own roles).
+ * Computer Systems is the prime on Nike's own placements, so a visitor
+ * who tries both seats is looking at one deal from both ends.
+ */
+const WORLD_SEAT: Record<string, { as: string; desk?: string; firm: string }> = {
+  CLIENT: { as: 'world-nike', desk: 'programme', firm: 'Nike' },
+  MSP:    { as: 'world-aptiva', firm: 'Aptiva Workforce' },
+  GSI:    { as: 'world-teleworld', firm: 'Teleworld Solutions' },
+  PRIME:  { as: 'world-computer-systems', firm: 'Computer Systems Inc' },
+  BENCH:  { as: 'world-cloudepa', firm: 'CloudEPA' },
+  // The old buyer's door means the client's chair.
+  HIRING: { as: 'world-nike', desk: 'programme', firm: 'Nike' },
+}
 export function TryDemo({
   className,
   label = 'Look around',
@@ -61,16 +93,16 @@ export function TryDemo({
     {
       heading: 'You buy the work',
       seats: [
-        { seat: 'CLIENT', label: 'A company hiring contractors', note: 'You pay for it. You never touch a CV.' },
-        { seat: 'MSP', label: 'An MSP running the programme', note: 'You run it on the client\'s behalf.' },
-        { seat: 'GSI', label: 'A systems integrator delivering a project', note: 'Your own people, and bought ones.' },
+        { seat: 'CLIENT', label: 'A company hiring contractors', note: 'You pay for it. You never touch a CV. Sit at Nike.' },
+        { seat: 'MSP', label: 'An MSP running the programme', note: 'You run it on the client\'s behalf. Sit at Aptiva Workforce.' },
+        { seat: 'GSI', label: 'A systems integrator delivering a project', note: 'Your own people, and bought ones. Sit at Teleworld Solutions.' },
       ],
     },
     {
       heading: 'You supply it',
       seats: [
-        { seat: 'PRIME', label: 'A prime vendor', note: 'You hold the paper on people you did not source.' },
-        { seat: 'BENCH', label: 'A staffing firm with a bench', note: 'You sourced them. You are furthest from the money.' },
+        { seat: 'PRIME', label: 'A prime vendor', note: 'You hold the paper on people you did not source. Sit at Computer Systems Inc.' },
+        { seat: 'BENCH', label: 'A staffing firm with a bench', note: 'You sourced them. You are furthest from the money. Sit at CloudEPA.' },
       ],
     },
   ]
@@ -79,10 +111,15 @@ export function TryDemo({
     setBusy(true)
     setError(null)
     try {
+      // A company seat is a chair in the world; a candidate gets their own.
+      const chosen = pick ?? side
+      const world = WORLD_SEAT[chosen]
       const res = await fetch('/api/demo', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ side: pick ?? side }),
+        body: JSON.stringify(
+          world ? { as: world.as, ...(world.desk ? { desk: world.desk } : {}) } : { side: chosen }
+        ),
       })
       const body = await res.json()
       if (!res.ok) throw new Error(body.error?.message ?? 'Could not start a demo.')
@@ -141,7 +178,7 @@ export function TryDemo({
         disabled={busy}
         className={className}
       >
-        {busy ? 'Building your workspace…' : label}
+        {busy ? 'Taking your seat…' : label}
       </button>
       {error && <span className="text-xs text-red-300">{error}</span>}
     </span>
