@@ -1,6 +1,11 @@
 'use client'
 
+import Link from 'next/link'
+
 import { readJson } from '@/lib/read-response'
+import { ProposeInterviewDialog } from '@/components/propose-interview'
+import { useSession } from '@/components/session-provider'
+import { hasPermission } from '@/lib/permissions'
 
 import { useEffect, useState, useCallback } from 'react'
 
@@ -17,6 +22,7 @@ import { useEffect, useState, useCallback } from 'react'
 interface Row {
   id: string
   you: 'CLIENT' | 'VENDOR'
+  submissionId: string
   round: number
   stage: string
   mode: string
@@ -48,6 +54,13 @@ function when(iso: string): string {
 }
 
 export default function InterviewsPage() {
+  // Deciding a round — the outcome, the panel, the next one — is for
+  // whoever is hiring: the same permission that raises a requisition.
+  // Nike's AP clerk is a party to the programme and could see every
+  // button; the route refuses them, and a button that only ever refuses
+  // is a form whose answer is thrown away.
+  const { permissions } = useSession()
+  const mayDecide = hasPermission(permissions, 'requirements.write')
   const [rows, setRows] = useState<Row[]>([])
   const [summary, setSummary] = useState('')
   const [loading, setLoading] = useState(true)
@@ -60,6 +73,11 @@ export default function InterviewsPage() {
   // out the morning of, an architect is pulled in.
   const [panelFor, setPanelFor] = useState<string | null>(null)
   const [adding, setAdding] = useState('')
+  // "Next round" said what came of it and then left the client nowhere
+  // to go. This is the round after it, proposed from the row it came
+  // from.
+  const [proposingFor, setProposingFor] = useState<Row | null>(null)
+  const [note, setNote] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -90,6 +108,13 @@ export default function InterviewsPage() {
       const body = await readJson(res)
       setDeciding(null)
       setFeedback('')
+      // The row as it now is, before the list comes back. A client who
+      // has just said "next round" must be able to set that round up
+      // without waiting for a refetch or reaching for the reload key.
+      if (body?.data) {
+        setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...body.data } : r)))
+        if (body.data.says) setNote(body.data.says)
+      }
       load()
     } catch (err: any) {
       setError(err.message)
@@ -112,6 +137,12 @@ export default function InterviewsPage() {
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
 
+      {note && (
+        <p className="text-[13px] text-etyme-ink" role="status">
+          {note}
+        </p>
+      )}
+
       {loading && <p className="text-[13px] text-etyme-muted">Loading…</p>}
 
       {error && (
@@ -123,12 +154,20 @@ export default function InterviewsPage() {
       {!loading && rows.length === 0 && !error && (
         <div className="panel">
           <p className="text-[13px] text-etyme-muted">
-            Nothing booked. Interviews start from a candidate on a role.
+            Nothing booked. Interviews start from{' '}
+            <Link href="/dashboard/submissions" className="text-etyme-action underline">
+              a candidate on a role
+            </Link>
+            .
           </p>
         </div>
       )}
 
-      {rows.map((r) => (
+      {rows.map((r) => {
+      const laterRoundExists = rows.some(
+        (x) => x.submissionId === r.submissionId && x.round > r.round
+      )
+      return (
         <article
           key={r.id}
           className="panel"
@@ -190,7 +229,7 @@ export default function InterviewsPage() {
           )}
 
           {/* ── The client's side: what came of it ──────────────────── */}
-          {r.you === 'CLIENT' && (r.state === 'CONFIRMED' || r.state === 'PROPOSED') && (
+          {r.you === 'CLIENT' && mayDecide && (r.state === 'CONFIRMED' || r.state === 'PROPOSED') && (
             <div className="mt-4 border-t border-etyme-rule pt-3">
               {deciding !== r.id ? (
                 <div className="flex flex-wrap gap-2">
@@ -242,13 +281,33 @@ export default function InterviewsPage() {
             </div>
           )}
 
+          {/* ── Through to the next round ──
+              "Next round" recorded a decision and then offered nothing
+              to act on: the client had said somebody goes through and
+              had no way to set the round up. It appears on the row that
+              went through, and only until that next round exists. */}
+          {r.you === 'CLIENT' && mayDecide && r.outcome === 'ADVANCE' && !laterRoundExists && (
+            <div className="mt-4 border-t border-etyme-rule pt-3">
+              <button
+                onClick={() => setProposingFor(r)}
+                className="rounded bg-etyme-action px-3 py-1.5 text-[12px] font-semibold text-white"
+              >
+                Set up round {r.round + 1}
+              </button>
+              <p className="mt-2 text-[11px] text-etyme-faint">
+                {r.names.consultant.split(' ')[0]} is through. Offer times and
+                {' '}{r.names.vendor} confirms.
+              </p>
+            </div>
+          )}
+
           {/* ── Who is in the room ──
               Only the side running the round decides its panel, and only
               while the round is still ahead of them. Names, not seats:
               plenty of interviewers have no account here, and requiring
               one would mean a client's own principal engineer cannot be
               listed. */}
-          {r.you === 'CLIENT' && !['DONE', 'CANCELLED', 'NO_SHOW'].includes(r.state) && (
+          {r.you === 'CLIENT' && mayDecide && !['DONE', 'CANCELLED', 'NO_SHOW'].includes(r.state) && (
             <div className="mt-4 border-t border-etyme-rule pt-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="lbl">Panel</span>
@@ -302,7 +361,22 @@ export default function InterviewsPage() {
             </div>
           )}
         </article>
-      ))}
+      )
+      })}
+
+      {proposingFor && (
+        <ProposeInterviewDialog
+          submissionId={proposingFor.submissionId}
+          candidate={proposingFor.names.consultant}
+          round={proposingFor.round + 1}
+          onDone={(says) => {
+            setProposingFor(null)
+            setNote(says)
+            load()
+          }}
+          onCancel={() => setProposingFor(null)}
+        />
+      )}
     </div>
   )
 }

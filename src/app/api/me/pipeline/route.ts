@@ -43,8 +43,9 @@ export async function GET(request: NextRequest) {
       requirement: { select: { title: true, location: true } },
       interviews: {
         select: {
-          id: true, round: true, mode: true, state: true,
-          proposedSlots: true, proposedAt: true,
+          id: true, round: true, stage: true, mode: true, state: true,
+          proposedSlots: true, proposedAt: true, scheduledAt: true,
+          durationMins: true, location: true, consultantConfirmedAt: true,
           company: { select: { name: true } },
         },
         orderBy: { round: 'asc' },
@@ -72,18 +73,43 @@ export async function GET(request: NextRequest) {
     // Their own rate on this submission. It is about them and they
     // agreed to it; withholding it here would be strange.
     rateCents: s.rate,
-    interviews: s.interviews.map((i) => ({
-      id: i.id,
-      round: i.round,
-      mode: i.mode,
-      state: i.state,
-      with: i.company.name,
+    interviews: s.interviews.map((i) => {
       // Slots, not a single time: a proposed interview has several and
       // showing one of them as if it were fixed is how somebody misses
       // the actual meeting.
-      slots: Array.isArray(i.proposedSlots) ? i.proposedSlots : [],
-      proposedOn: i.proposedAt.toISOString().slice(0, 10),
-    })),
+      //
+      // Normalised here rather than on the screen. The rows were written
+      // by three different callers over two years and carry `start`,
+      // `at`, or a bare ISO string; a page guessing between them is a
+      // page that will one day show a candidate the wrong hour.
+      const slots = normaliseSlots(i.proposedSlots)
+      const booked = bookedTime(i.scheduledAt, i.state, slots)
+      return {
+        id: i.id,
+        round: i.round,
+        // The client's own word for the round — SCREEN, TECHNICAL,
+        // FINAL, or whatever they call it. Never translated into ours.
+        stage: i.stage,
+        mode: i.mode,
+        state: i.state,
+        with: i.company.name,
+        // Where do I go. A link for a video call, an address for a site.
+        location: i.location,
+        durationMins: i.durationMins,
+        slots,
+        proposedOn: i.proposedAt.toISOString().slice(0, 10),
+        // Whether it is still waiting on them. A round they have already
+        // answered must not offer the buttons again — tapping one would
+        // be refused by the route, and being refused for answering twice
+        // reads as the product losing their answer.
+        answeredByYou: i.state !== 'PROPOSED' || i.consultantConfirmedAt !== null,
+        // The time it is actually at, with the reason we believe it.
+        // Null where nothing on file supports one, because a plausible
+        // wrong hour on an interview is worse than a blank.
+        confirmedStart: booked.start,
+        confirmedBasis: booked.basis,
+      }
+    }),
   }))
 
   const interviewsAhead = rows
@@ -140,4 +166,44 @@ function saysOf(status: string, interviews: number): string {
     default:
       return status
   }
+}
+
+/**
+ * The offered times, in one shape.
+ *
+ * `[{ start, end }]` is what the schema says. What is actually in the
+ * column, across everything that has ever written one, is that plus
+ * `{ at }` plus bare ISO strings. The respond route accepts all three
+ * as the value of `slot`, and it compares on the start — so the start
+ * is what travels, and the page never has to guess.
+ */
+function normaliseSlots(raw: unknown): { start: string; end: string | null }[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((s: any) => ({
+      start: String(typeof s === 'string' ? s : (s?.start ?? s?.at ?? '')),
+      end: typeof s === 'object' && s !== null && s.end ? String(s.end) : null,
+    }))
+    .filter((s) => s.start !== '')
+}
+
+/**
+ * When a confirmed round actually is — or null, saying why not.
+ *
+ * `scheduledAt` is the answer whenever it is set. Where it is not, one
+ * offered time is still an answer: a round with a single slot, accepted,
+ * happens at that slot. Two or more offered times and no `scheduledAt`
+ * is genuinely unknown, and the screen says so rather than picking the
+ * first one, which would be a booking nobody made.
+ */
+function bookedTime(
+  scheduledAt: Date | null,
+  state: string,
+  slots: { start: string }[]
+): { start: string | null; basis: 'scheduled' | 'the only time offered' | null } {
+  if (scheduledAt) return { start: scheduledAt.toISOString(), basis: 'scheduled' }
+  if (state === 'CONFIRMED' && slots.length === 1) {
+    return { start: slots[0].start, basis: 'the only time offered' }
+  }
+  return { start: null, basis: null }
 }

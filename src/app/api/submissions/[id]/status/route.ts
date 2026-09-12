@@ -14,6 +14,8 @@ import { notify } from '@/lib/notify'
  * Valid transitions:
  *   SUBMITTED   → SHORTLISTED, REJECTED, WITHDRAWN
  *   SHORTLISTED → PLACED, REJECTED, WITHDRAWN
+ *   INTERVIEW   → PLACED, REJECTED, WITHDRAWN
+ *   OFFERED     → PLACED, REJECTED, WITHDRAWN
  *   PLACED      → (terminal — no further transitions)
  *   REJECTED    → (terminal)
  *   WITHDRAWN   → (terminal)
@@ -68,6 +70,13 @@ export async function PATCH(
   const transitions: Record<string, string[]> = {
     SUBMITTED: ['SHORTLISTED', 'REJECTED', 'WITHDRAWN'],
     SHORTLISTED: ['PLACED', 'REJECTED', 'WITHDRAWN'],
+    // Somebody who is being interviewed, or who has an offer out, is
+    // still somebody who can be hired, passed over or pulled. Leaving
+    // these two out meant that the moment a client booked a round the
+    // candidate could no longer be rejected from this screen at all —
+    // and a rejection that cannot be recorded is a reason nobody gets.
+    INTERVIEW: ['PLACED', 'REJECTED', 'WITHDRAWN'],
+    OFFERED: ['PLACED', 'REJECTED', 'WITHDRAWN'],
   }
 
   // A rejection with no reason is a state change with no information in

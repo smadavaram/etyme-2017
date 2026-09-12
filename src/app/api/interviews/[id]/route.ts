@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { hasPermission } from '@/lib/permissions'
+import { tell } from '@/lib/interview-notices'
 import {
   stateAfterConfirming, stillValid, settle, noShow, reasonFor, headline,
   earliest, type Party, type Outcome,
@@ -56,6 +58,22 @@ export async function POST(
   }
 
   const isClient = row.companyId === companyId
+  // Deciding a round — its outcome, its panel — is for whoever is
+  // hiring: the permission that raises a requisition. An AP clerk is a
+  // party to the programme and is not the one interviewing.
+  const notHiring = () =>
+    NextResponse.json(
+      {
+        error: {
+          code: 'NOT_HIRING',
+          message:
+            `Deciding a round is for whoever is hiring at ${caller.company!.name} — ` +
+            'a hiring or programme manager.',
+        },
+      },
+      { status: 403 }
+    )
+  const mayDecide = isClient && hasPermission(caller.permissions, 'requirements.write')
   const names = {
     vendor: row.submission.fromCompany.name,
     client: row.submission.toCompany?.name ?? 'the client',
@@ -122,6 +140,11 @@ export async function POST(
 
     const saved = await prisma.interview.update({ where: { id: row.id }, data, include: { submission: false } as any })
 
+    // The person who asked for the round finds out that it stuck, with
+    // the time that stuck. Until this line they found out by opening the
+    // app, which is not being told.
+    void tell('CONFIRMED', row.id, { when: chosen.start })
+
     return NextResponse.json({
       data: { ...shape(saved), says: headline(asInterview(saved), now, names, caller.person.timezone) },
     })
@@ -151,6 +174,12 @@ export async function POST(
       where: { id: row.id },
       data: { state: 'CANCELLED', cancelledAt: now, cancelledReason: reason },
     })
+
+    // Everybody who was going to be in the room, in the words of
+    // whoever called it off. A cancellation nobody hears about is a
+    // consultant taking a morning off for a meeting that is not
+    // happening.
+    void tell('CANCELLED', row.id, { reason })
 
     return NextResponse.json({
       data: { ...shape(saved), says: `Round ${row.round} called off: ${reason}` },
@@ -182,6 +211,7 @@ export async function POST(
         { status: 403 }
       )
     }
+    if (!mayDecide) return notHiring()
 
     if (row.state === 'CANCELLED' || row.state === 'DONE' || row.state === 'NO_SHOW') {
       return NextResponse.json(
@@ -268,6 +298,7 @@ export async function POST(
         { status: 403 }
       )
     }
+    if (!mayDecide) return notHiring()
 
     const missed = body?.noShowBy as Party | undefined
 
@@ -297,6 +328,10 @@ export async function POST(
           },
         })
       }
+
+      // Recorded against whoever did not turn up, and said to the other
+      // two. The side that missed it is not told it missed it.
+      void tell('NO_SHOW', row.id, { noShowBy: missed })
 
       return NextResponse.json({ data: { ...shape(saved), says: v.says } })
     }
@@ -369,6 +404,15 @@ export async function POST(
         data: { status: 'OFFERED' },
       })
     }
+
+    // The supplier hears the decision — through, an offer, not going
+    // forward — and never the notes behind it. The feedback is the
+    // client's own file and is deliberately not passed here; the lib
+    // refuses to carry it.
+    void tell(
+      outcome === 'ADVANCE' ? 'ADVANCED' : outcome === 'OFFER' ? 'OFFERED' : 'REJECTED',
+      row.id
+    )
 
     return NextResponse.json({ data: { ...shape(saved), says: v.says } })
   }

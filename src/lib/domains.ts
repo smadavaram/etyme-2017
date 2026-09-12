@@ -127,7 +127,10 @@ export const DOMAINS: Domain[] = [
       'lib/reply-link', 'lib/answers',
       'app/reply', 'app/api/reply',
       'app/bench-invite', 'app/api/bench-invite',
-      'lib/reaching-out', 'lib/senders', 'lib/forwarding', 'lib/interviews',
+      'lib/reaching-out', 'lib/senders', 'lib/forwarding', 'lib/interviews', 'lib/interview-notices',
+      // The candidate's own answer to a round: how it is said and who hears.
+      // Longest prefix wins, so this beats supply's app/api/me.
+      'app/api/me/interviews',
       'lib/timesheet-signatures', 'lib/page-framing', 'lib/read-response',
       'lib/watch', 'lib/events',
       'app/dashboard/interviews', 'app/dashboard/notifications',
@@ -156,7 +159,7 @@ export const DOMAINS: Domain[] = [
       'lib/timesheet-authority', 'lib/timesheet-reversal', 'lib/work-ledger',
       'lib/auto-approval', 'lib/buyer-reputation', 'lib/one-person',
       'lib/join-companies', 'lib/identity-resolution', 'lib/supplier-list',
-      'app/dashboard/requirements', 'app/dashboard/submissions', 'app/dashboard/suppliers',
+      'app/dashboard/requirements', 'app/dashboard/submissions', 'lib/interview-proposal', 'app/dashboard/suppliers',
       'app/dashboard/timesheets', 'app/dashboard/people', 'app/dashboard/identity',
       'app/api/requirements', 'app/api/submissions', 'app/api/suppliers',
       'app/api/timesheets', 'app/api/people', 'app/api/identity', 'app/api/first-good',

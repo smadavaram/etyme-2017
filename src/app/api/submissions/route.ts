@@ -683,6 +683,14 @@ export async function GET(request: NextRequest) {
         requirement: { select: { id: true, title: true, skills: true } },
         fromCompany: { select: { id: true, name: true } },
         toCompany: { select: { id: true, name: true } },
+        // Where each candidate has got to, so a row can say it without a
+        // second call per row. Four fields — no feedback, no panel, no
+        // notes: this list is read by both sides of the trade, and what
+        // an interviewer wrote is the client's alone.
+        interviews: {
+          select: { id: true, round: true, state: true, outcome: true, scheduledAt: true },
+          orderBy: { round: 'asc' },
+        },
       },
       orderBy: { submittedAt: 'desc' },
       skip: (page - 1) * limit,
@@ -709,6 +717,15 @@ export async function GET(request: NextRequest) {
         forwardedAt: s.forwardedAt?.toISOString() ?? null,
         forwardedVia: s.forwardedVia,
         forwardedToEmail: s.forwardedToEmail,
+        // Rounds so far, oldest first. Empty for the great majority —
+        // most submissions never reach an interview at all.
+        interviews: s.interviews.map((i) => ({
+          id: i.id,
+          round: i.round,
+          state: i.state,
+          outcome: i.outcome,
+          scheduledAt: i.scheduledAt?.toISOString() ?? null,
+        })),
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     },

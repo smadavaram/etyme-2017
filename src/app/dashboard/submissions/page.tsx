@@ -8,8 +8,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { DataTable, type Column } from '@/components/data-table'
 import { rate as showRate } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
+import { hasPermission } from '@/lib/permissions'
 import { pageFraming } from '@/lib/page-framing'
 import { recall, remember } from '@/lib/remember'
+import { ProposeInterviewDialog } from '@/components/propose-interview'
 
 /**
  * Submissions working surface — the vendor's outbound pipeline.
@@ -28,6 +30,15 @@ import { recall, remember } from '@/lib/remember'
 
 // ── Types ────────────────────────────────────────────
 
+/** A round, as much of it as both sides of the trade may read. */
+interface RoundBrief {
+  id: string
+  round: number
+  state: string
+  outcome: string | null
+  scheduledAt: string | null
+}
+
 interface Submission {
   id: string
   person: { id: string; name: string }
@@ -41,12 +52,76 @@ interface Submission {
   forwardedAt: string | null
   forwardedVia: string | null
   forwardedToEmail: string | null
+  /** Rounds so far, oldest first. Absent on an older cached response. */
+  interviews?: RoundBrief[]
 }
 
 type StatusFilter = 'ALL' | 'SUBMITTED' | 'SHORTLISTED' | 'INTERVIEW' | 'OFFERED' | 'PLACED' | 'REJECTED' | 'WITHDRAWN'
 type DirectionFilter = 'sent' | 'received'
 /** The list of valid stored values, so a stale one is ignored not obeyed. */
 const DIRECTIONS: readonly DirectionFilter[] = ['sent', 'received']
+
+// ── Where a candidate is, and what the client does next ───────────
+
+/**
+ * The interview step, from the client's side.
+ *
+ * The model has had rounds since it existed and the route that books one
+ * was walked end to end in the integration test. No screen called it, so
+ * a hiring manager looking at a candidate they wanted to meet had nothing
+ * to click — which is the same as not having built it.
+ *
+ * One rule, read off the rounds already on the row:
+ *   nobody in yet              → ask for the first
+ *   the last one said advance  → ask for the next, by number
+ *   the last one is still open → say who it is waiting on, and do not
+ *                                offer a button that would double-book
+ *   offered, rejected, closed  → nothing; the status already says it
+ *
+ * A round that was called off or missed is not ahead of anybody, so it
+ * does not hold up the next one. The route refuses the same cases in the
+ * same words, so a stale page cannot book what the screen would not.
+ */
+const CLOSED = ['PLACED', 'REJECTED', 'WITHDRAWN', 'NOT_SELECTED']
+
+/** What a round that has not been decided is waiting on, in the trade's words. */
+const WAITING_ON: Record<string, string> = {
+  PROPOSED: 'waiting on the supplier',
+  CONFIRMED: 'booked',
+  DONE: 'waiting on your decision',
+}
+
+type Move =
+  | { kind: 'propose'; round: number }
+  | { kind: 'waiting'; round: number; words: string }
+  | { kind: 'none' }
+
+// Pinned by __tests__/invariants/client-interviews.test.ts, which reads
+// this function out of the file and runs it. Plain JavaScript in the
+// body, deliberately — no types, no imports.
+function nextMove(row: Submission, isClient: boolean): Move {
+  if (!isClient) return { kind: 'none' }
+  if (CLOSED.indexOf(row.status) !== -1) return { kind: 'none' }
+
+  const rounds = row.interviews || []
+  if (rounds.length === 0) return { kind: 'propose', round: 1 }
+
+  let latest = rounds[0]
+  for (const r of rounds) if (r.round > latest.round) latest = r
+
+  if (!latest.outcome) {
+    if (latest.state === 'PROPOSED' || latest.state === 'CONFIRMED') {
+      return { kind: 'waiting', round: latest.round, words: WAITING_ON[latest.state] }
+    }
+    // Called off, or nobody turned up. Nothing is ahead of them.
+    return { kind: 'propose', round: latest.round + 1 }
+  }
+
+  if (latest.outcome === 'ADVANCE') return { kind: 'propose', round: latest.round + 1 }
+
+  // OFFER or REJECT. The status chip on the same row already says so.
+  return { kind: 'none' }
+}
 
 // ── Status styling ───────────────────────────────────
 
@@ -720,8 +795,12 @@ function ConvertToContractModal({
 // ── Page ─────────────────────────────────────────────
 
 export default function SubmissionsPage() {
-  const { company } = useSession()
+  const { company, permissions } = useSession()
   const isClient = company?.kind === 'CLIENT'
+  // Setting up a round is for whoever is hiring — the permission that
+  // raises a requisition. The AP clerk is a party and is not the one
+  // interviewing; the route refuses them, so the button is not offered.
+  const mayInterview = isClient && hasPermission(permissions, 'requirements.write')
   const framing = pageFraming(company?.kind ?? 'VENDOR', 'submissions')
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -739,6 +818,8 @@ export default function SubmissionsPage() {
   const [showSubmitModal, setShowSubmitModal] = useState(false)
   const [convertSubmission, setConvertSubmission] = useState<Submission | null>(null)
   const [sendOn, setSendOn] = useState<Submission | null>(null)
+  // Who the client is asking to meet, and which round it will be.
+  const [propose, setPropose] = useState<{ row: Submission; round: number } | null>(null)
   const [said, setSaid] = useState<string | null>(null)
   const [converting, setConverting] = useState(false)
 
@@ -974,8 +1055,9 @@ export default function SubmissionsPage() {
           {/* Only on what was sent to you, and only while it is still
               undecided. A candidate already answered has nowhere to go,
               and sending one twice puts the same name in front of the
-              client twice. */}
-          {direction === 'received' &&
+              client twice. Never for a client: they are the end of the
+              chain and have nobody to send anybody on to. */}
+          {!isClient && direction === 'received' &&
             row.forwardedAt === null &&
             !['PLACED', 'REJECTED', 'WITHDRAWN'].includes(row.status) && (
               <button
@@ -990,6 +1072,42 @@ export default function SubmissionsPage() {
                 Send on →
               </button>
             )}
+
+          {/* The interview step, client side only. A supplier does not
+              book a round into its own client's diary — the route
+              refuses it, and offering the button would teach otherwise.
+              What is offered is read off the rounds already on the row,
+              so nothing double-books. */}
+          {(() => {
+            const move = nextMove(row, mayInterview)
+            if (move.kind === 'propose') {
+              return (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setPropose({ row, round: move.round })
+                  }}
+                  className="text-[10px] font-medium text-etyme-action hover:text-etyme-action/80
+                             border border-etyme-action/30 rounded px-2 py-0.5 hover:bg-etyme-action/5
+                             transition-colors whitespace-nowrap"
+                >
+                  {move.round === 1 ? 'Interview' : `Round ${move.round}`}
+                </button>
+              )
+            }
+            if (move.kind === 'waiting') {
+              return (
+                <Link
+                  href={`/dashboard/interviews?submission=${row.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-[11px] text-etyme-muted hover:text-etyme-ink whitespace-nowrap"
+                >
+                  Round {move.round} · {move.words}
+                </Link>
+              )
+            }
+            return null
+          })()}
 
           {row.forwardedAt !== null && (
             <span
@@ -1216,6 +1334,23 @@ export default function SubmissionsPage() {
           onSent={(text) => {
             setSaid(text)
             setSendOn(null)
+            fetchSubmissions()
+          }}
+        />
+      )}
+
+      {/* Asking for a round. One form, shared with the interviews page,
+          so the two cannot drift. It posts for itself and hands back the
+          sentence the route wrote. */}
+      {propose && (
+        <ProposeInterviewDialog
+          submissionId={propose.row.id}
+          candidate={propose.row.person.name}
+          round={propose.round}
+          onCancel={() => setPropose(null)}
+          onDone={(says) => {
+            setPropose(null)
+            setSaid(says)
             fetchSubmissions()
           }}
         />

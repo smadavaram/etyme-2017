@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
+import { hasPermission } from '@/lib/permissions'
 import {
   headline, stillValid, shapeRow as shape, rowToInterview as asInterview, type Slot,
 } from '@/lib/interviews'
+import { tell } from '@/lib/interview-notices'
 
 /**
  * GET  /api/submissions/:id/interviews — the rounds so far
@@ -15,6 +17,9 @@ import {
  * scoping is the whole security boundary: either party to the
  * submission, and nobody else.
  */
+
+/** Decided, one way or the other. Nothing more is proposed on these. */
+const CLOSED = ['PLACED', 'REJECTED', 'WITHDRAWN', 'NOT_SELECTED']
 
 function party(companyId: string, sub: { toCompanyId: string | null; fromCompanyId: string }) {
   if (sub.toCompanyId === companyId) return 'CLIENT' as const
@@ -89,6 +94,24 @@ export async function POST(
   const notStaff = staffOnly(caller, 'Interviews')
   if (notStaff) return notStaff
 
+  // Asking for a round is for whoever is hiring — the permission that
+  // raises a requisition. Nike's AP clerk is a party to the programme
+  // and saw the button; a clerk booking interviews is not a thing that
+  // happens, and the refusal says who does.
+  if (!hasPermission(caller.permissions, 'requirements.write')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_HIRING',
+          message:
+            `Setting up an interview is for whoever is hiring at ${caller.company!.name} — ` +
+            'a hiring or programme manager.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
   const { id } = await params
   const companyId = caller.company!.id
   const now = new Date()
@@ -96,9 +119,9 @@ export async function POST(
   const submission = await prisma.submission.findFirst({
     where: { id, toCompanyId: companyId },
     select: {
-      id: true, fromCompanyId: true, toCompanyId: true, screenState: true,
+      id: true, fromCompanyId: true, toCompanyId: true, screenState: true, status: true,
       person: { select: { name: true } },
-      interviews: { select: { round: true } },
+      interviews: { select: { round: true, state: true, outcome: true } },
     },
   })
 
@@ -106,6 +129,42 @@ export async function POST(
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'No submission by that id.' } },
       { status: 404 }
+    )
+  }
+
+  // Nobody gets another round once they are out of the running. The
+  // list still shows them, and without this the button on a rejected
+  // row books a meeting the client has already decided against.
+  if (CLOSED.includes(submission.status)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'SUBMISSION_CLOSED',
+          message: `${submission.person.name} is no longer in the running here.`,
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  // One round at a time. Two open rounds is two panels asking the same
+  // supplier for the same person's time, and neither knows about the
+  // other. A round that was called off or missed is not ahead of
+  // anybody, so it does not hold the next one up.
+  const open = submission.interviews.filter(
+    (i) => !i.outcome && (i.state === 'PROPOSED' || i.state === 'CONFIRMED')
+  )
+
+  if (open.length > 0) {
+    const ahead = Math.max(...open.map((i) => i.round))
+    return NextResponse.json(
+      {
+        error: {
+          code: 'ROUND_STILL_OPEN',
+          message: `Round ${ahead} is still ahead of you. Record how it went before proposing the next.`,
+        },
+      },
+      { status: 409 }
     )
   }
 
@@ -155,6 +214,22 @@ export async function POST(
       clientConfirmedAt: now,
     },
   })
+
+  // Asking for an interview is the client saying this one is live. The
+  // status lifecycle has named INTERVIEW since the list was written and
+  // nothing ever set it, so every candidate being interviewed still read
+  // as "awaiting review" to the supplier watching the same row.
+  if (submission.status === 'SUBMITTED' || submission.status === 'SHORTLISTED') {
+    await prisma.submission.update({
+      where: { id: submission.id },
+      data: { status: 'INTERVIEW' },
+    })
+  }
+
+  // The supplier and the consultant have to hear about it, on whichever
+  // channel is theirs. Fire-and-forget: a slow bell must not hold up the
+  // booking that rang it.
+  void tell('PROPOSED', created.id)
 
   return NextResponse.json({
     data: {

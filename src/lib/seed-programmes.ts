@@ -87,8 +87,15 @@ interface Candidate {
   person: string
   from: string
   rate: number
-  status: 'SUBMITTED' | 'SHORTLISTED'
-  round?: { state: 'PROPOSED' | 'CONFIRMED'; inDays: number; interviewers: string[] }
+  status: 'SUBMITTED' | 'SHORTLISTED' | 'INTERVIEW'
+  /**
+   * One round, in one of three places: proposed and waiting on the
+   * supplier, confirmed and in the diary, or done and gone through —
+   * `outcome: 'ADVANCE'` with no round two yet, so the client's desk has
+   * a "set up round 2" to press. Days are relative to today; a done
+   * round sits in the past.
+   */
+  round?: { state: 'PROPOSED' | 'CONFIRMED' | 'DONE'; inDays: number; interviewers: string[]; outcome?: 'ADVANCE' }
 }
 
 interface Programme {
@@ -154,6 +161,10 @@ const PROGRAMMES: Programme[] = [
         { person: 'Rajesh Iyer', from: 'brightmoor', rate: 13400, status: 'SHORTLISTED',
           round: { state: 'CONFIRMED', inDays: 3, interviewers: ['Marcus Oyelaran, People Technology', 'Anita Shah, HRIS'] } },
         { person: 'Mei-Lin Chao', from: 'pinnacle', rate: 12800, status: 'SUBMITTED' },
+        // Through round one, nothing booked for round two: the desk has
+        // a next round to set up, which is the thing that was missing.
+        { person: 'Daniel Okafor', from: 'computer-systems', rate: 13100, status: 'INTERVIEW',
+          round: { state: 'DONE', inDays: -4, outcome: 'ADVANCE', interviewers: ['Marcus Oyelaran, People Technology'] } },
       ],
     },
     routed: { title: 'Planning transformation — four Kinaxis consultants', skills: ['Kinaxis', 'S&OP'], headcount: 4, billMax: 13000 },
@@ -517,7 +528,9 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
             // On a working day, at an hour somebody interviews at.
             scheduledAt: at(-pl.startedDaysAgo - 12, 16), decidedAt: at(-pl.startedDaysAgo - 12, 17),
             requestedById: desk.hiring.personId, decidedById: desk.hiring.personId,
-            outcome: 'ADVANCE', feedback: 'Offer.',
+            // They were placed, so the round ended in an offer — not "advance",
+            // which read as a round two nobody had set up.
+            outcome: 'OFFER', feedback: 'Strong. Offer.',
           },
         })
       }
@@ -652,6 +665,14 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
             rate: c.rate, status: c.status, checkState: 'SENT', screenState: 'READY', submittedAt: day(-6),
           },
         }))
+      // On their supplier's bench, so they can open their own page and
+      // answer a round. A candidate with no seat anywhere could be
+      // interviewed but never asked.
+      if (!(await db.context.findFirst({ where: { personId: who.id, companyId: from.id, type: 'CONSULTANT' } }))) {
+        await db.context.create({
+          data: { personId: who.id, companyId: from.id, type: 'CONSULTANT', side: 'SELL', grantReason: 'On the bench' },
+        })
+      }
       if (!c.round || (await db.interview.findFirst({ where: { submissionId: sub.id } }))) continue
       // Working days only, three apart when two are offered — a nudge
       // off a weekend moves a date by at most two, so closer than that
@@ -659,10 +680,11 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
       const when = at(c.round.inDays, 16)
       const later = at(c.round.inDays + 3, 16)
       const proposed = c.round.state === 'PROPOSED'
+      const done = c.round.state === 'DONE'
       await db.interview.create({
         data: {
           submissionId: sub.id, companyId: client.id, vendorId: from.id,
-          round: 1, stage: 'TECHNICAL', mode: 'VIDEO', state: c.round.state,
+          round: 1, stage: done ? 'SCREEN' : 'TECHNICAL', mode: 'VIDEO', state: c.round.state,
           proposedSlots: proposed
             ? [{ start: when.toISOString(), end: new Date(when.getTime() + 3_600_000).toISOString() },
                { start: later.toISOString(), end: new Date(later.getTime() + 3_600_000).toISOString() }]
@@ -670,7 +692,19 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
           scheduledAt: proposed ? null : when,
           durationMins: 60, location: 'https://meet.example.invalid/etyme-demo',
           requestedById: desk.hiring.personId, interviewers: c.round.interviewers,
-          proposedAt: day(-3), clientConfirmedAt: proposed ? null : day(-2), vendorConfirmedAt: proposed ? null : day(-2),
+          proposedAt: day(done ? c.round.inDays - 4 : -3),
+          clientConfirmedAt: proposed ? null : day(done ? c.round.inDays - 3 : -2),
+          vendorConfirmedAt: proposed ? null : day(done ? c.round.inDays - 3 : -2),
+          // A done round was confirmed by the person and decided by the
+          // manager who ran it. The notes are the client's own.
+          ...(done
+            ? {
+                consultantConfirmedAt: day(c.round.inDays - 3), consultantConfirmedVia: 'SELF',
+                outcome: c.round.outcome ?? 'ADVANCE',
+                feedback: 'Strong on the platform; wants to see them with the integrations team.',
+                decidedAt: day(c.round.inDays), decidedById: desk.hiring.personId,
+              }
+            : {}),
         },
       })
     }

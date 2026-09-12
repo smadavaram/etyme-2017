@@ -160,7 +160,7 @@ export async function seedDemoConsultant(input: {
     },
   })
 
-  await prisma.submission.create({
+  const submission = await prisma.submission.create({
     data: {
       requirementId: openRole.id,
       personId: input.personId,
@@ -168,10 +168,49 @@ export async function seedDemoConsultant(input: {
       toCompanyId: client.id,
       kind: 'NETWORK',
       rate: 13500,
-      status: 'SUBMITTED',
+      // A round has been proposed, so the pipeline says interviewing —
+      // the same word the client's list uses for it.
+      status: 'INTERVIEW',
       submittedAt: daysAgo(3),
       checkState: 'SENT',
       checkAttempt: 1,
+    },
+  })
+
+  // ── A round to answer ─────────────────────────────────────────────────
+  //
+  // The candidate's own page offers the times a client proposed and lets
+  // them pick one. With no round seeded, a candidate looking around saw
+  // the page fit a phone and nothing on it to answer — the one thing the
+  // page is for. Two times, both ahead, from a hiring manager who exists
+  // so the round has somebody who asked for it.
+  const hiringManager = await prisma.person.create({
+    data: { name: 'Dana Whitfield', primaryEmail: `hiring-${client.slug}@demo.etyme.local` },
+  })
+  const slotAt = (days: number, hour: number) => {
+    const d = daysAhead(days)
+    d.setHours(hour, 0, 0, 0)
+    return d
+  }
+  await prisma.interview.create({
+    data: {
+      submissionId: submission.id,
+      companyId: client.id,
+      vendorId: agency.id,
+      round: 1,
+      stage: 'Technical',
+      mode: 'VIDEO',
+      state: 'PROPOSED',
+      proposedSlots: [3, 6].map((days) => {
+        const start = slotAt(days, 10)
+        return { start: start.toISOString(), end: new Date(start.getTime() + 60 * 60_000).toISOString() }
+      }),
+      proposedAt: daysAgo(1),
+      durationMins: 60,
+      location: 'https://meet.example.invalid/etyme-demo',
+      requestedById: hiringManager.id,
+      interviewers: ['Dana Whitfield, Platform Engineering', 'Tom Adeyemi, Data'],
+      clientConfirmedAt: daysAgo(1),
     },
   })
 

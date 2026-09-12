@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { stateAfterConfirming, rowToInterview } from '@/lib/interviews'
+import { tell } from '@/lib/interview-notices'
+import { momentFor } from '@/lib/when'
 
 /**
  * POST /api/me/interviews/:id/respond
@@ -44,6 +47,7 @@ export async function POST(
     include: {
       submission: { select: { personId: true, requirement: { select: { title: true } } } },
       company: { select: { id: true, name: true } },
+      vendor: { select: { id: true, name: true } },
     },
   })
 
@@ -90,41 +94,51 @@ export async function POST(
         { status: 422 }
       )
     }
+    // Offered is not the same as still possible. The page strikes a
+    // passed time out; a direct call could still book yesterday.
+    if (new Date(chosen).getTime() <= now.getTime()) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'SLOT_PASSED',
+            message: 'That time has already passed. Pick another, or say you cannot make any of them.',
+            field: 'slot',
+          },
+        },
+        { status: 422 }
+      )
+    }
   }
 
-  await prisma.$transaction([
-    prisma.interview.update({
-      where: { id },
-      data: { state: action === 'ACCEPT' ? 'CONFIRMED' : 'CANCELLED' },
-    }),
-    // The vendor hears about it from the person, in their own words
-    // where they gave any. Somebody declining an interview and nobody
-    // noticing for three days is how a client stops taking a vendor's
-    // calls.
-    prisma.notification.create({
-      data: {
-        personId: caller.person.id,
-        companyId: interview.company.id,
-        type: 'INTERVIEW',
-        title:
-          action === 'ACCEPT'
-            ? `${caller.person.name} accepted the interview`
-            : `${caller.person.name} cannot make the interview`,
-        body:
-          action === 'ACCEPT'
-            ? `For ${interview.submission.requirement.title}` + (chosen ? `, at ${chosen}.` : '.')
-            : `For ${interview.submission.requirement.title}.` +
-              (body.reason ? ` They said: ${String(body.reason).slice(0, 300)}` : ''),
-        entityId: id,
-        channel: 'IN_APP',
-        status: 'UNREAD',
-      },
-    }),
+  const reason = typeof body.reason === 'string' ? String(body.reason).slice(0, 300).trim() : ''
+
+  // Their own word, recorded as their own word.
+  //
+  // Not a flat CONFIRMED: there are three diaries and the supplier may
+  // not have said yes yet. Writing CONFIRMED here would put a meeting in
+  // a calendar that one party has not agreed to, and make the no-show
+  // record — the point of all this — a liar.
+  const accepting = action === 'ACCEPT'
+  const when = chosen ? new Date(chosen) : interview.scheduledAt
+  const data: any = accepting
+    ? {
+        consultantConfirmedAt: now,
+        consultantConfirmedVia: 'SELF',
+        ...(chosen ? { scheduledAt: new Date(chosen) } : {}),
+      }
+    : { state: 'CANCELLED', cancelledAt: now, cancelledReason: reason || 'The candidate cannot make it.' }
+
+  if (accepting) {
+    data.state = stateAfterConfirming(rowToInterview({ ...interview, ...data }))
+  }
+
+  const [saved] = await prisma.$transaction([
+    prisma.interview.update({ where: { id }, data }),
     prisma.automationLog.create({
       data: {
         companyId: interview.company.id,
-        action: action === 'ACCEPT' ? 'INTERVIEW_ACCEPTED' : 'INTERVIEW_DECLINED',
-        summary: `${caller.person.name} ${action === 'ACCEPT' ? 'accepted' : 'declined'} round ${interview.round} for ${interview.submission.requirement.title}`,
+        action: accepting ? 'INTERVIEW_ACCEPTED' : 'INTERVIEW_DECLINED',
+        summary: `${caller.person.name} ${accepting ? 'accepted' : 'declined'} round ${interview.round} for ${interview.submission.requirement.title}`,
         reason: `The candidate answered it themselves${chosen ? `, choosing ${chosen}` : ''}.`,
         payload: { interviewId: id, action, slot: chosen },
         // Their own answer. Somebody else undoing it would be the
@@ -134,15 +148,28 @@ export async function POST(
     }),
   ])
 
+  // The client who asked and the supplier who put them forward both
+  // hear it. This route used to address the notice to the candidate —
+  // the candidate telling themselves — so nobody who needed to know
+  // found out.
+  void tell(accepting ? 'ANSWERED_YES' : 'ANSWERED_NO', id, {
+    when: accepting ? when : null,
+    reason: reason || null,
+  })
+
+  const booked = saved.state === 'CONFIRMED'
+  const said = when ? momentFor(when, caller.person.timezone) : null
+
   return NextResponse.json({
     data: {
       id,
-      state: action === 'ACCEPT' ? 'CONFIRMED' : 'CANCELLED',
+      state: saved.state,
       slot: chosen,
-      says:
-        action === 'ACCEPT'
-          ? `Confirmed${chosen ? ` for ${chosen}` : ''}. ${interview.company.name} has been told.`
-          : `Declined. ${interview.company.name} has been told, and it will not count against you.`,
+      says: !accepting
+        ? `Declined. ${interview.company.name} and ${interview.vendor.name} have been told, and it will not count against you.`
+        : booked
+          ? `You are down for ${said}. ${interview.company.name} and ${interview.vendor.name} have it too.`
+          : `Your yes is recorded${said ? ` for ${said}` : ''}. ${interview.vendor.name} still has to confirm before it is in all three diaries — they have been told.`,
     },
   })
 }
