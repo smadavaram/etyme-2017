@@ -220,7 +220,11 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const notes = decision.checks.filter((c) => c.outcome === 'WARN').map((c) => c.reason)
+  // "No threshold, so every requisition will wait" is true of a rule on
+  // the money and false of a desk, which only answers when a check misses.
+  const notes = decision.checks
+    .filter((c) => c.outcome === 'WARN' && !(kind !== 'VALUE' && c.code === 'CATCHES_EVERYTHING'))
+    .map((c) => c.reason)
 
   // One rule row per approver, ranked. The chain is the ordered set of
   // rows sharing a name — rank 1 decides before rank 2.
@@ -302,7 +306,7 @@ export async function PATCH(request: NextRequest) {
   const existing = await prisma.approvalRule.findFirst({
     where: { id, companyId },
     select: {
-      id: true, name: true, thresholdAmount: true, approverId: true,
+      id: true, name: true, thresholdAmount: true, approverId: true, kind: true,
       orgUnitId: true, isActive: true, authoredById: true, rank: true,
     },
   })
@@ -363,10 +367,12 @@ export async function PATCH(request: NextRequest) {
     data: {
       name,
       approverId,
-      thresholdAmount: thresholdDollars,
+      // A desk answers a question, not a dollar line: it never gains one
+      // through the edit path that the create path refused.
+      thresholdAmount: existing.kind === 'VALUE' ? thresholdDollars : null,
       ...('isActive' in body ? { isActive: Boolean(body.isActive) } : {}),
     },
-    select: { id: true, name: true, thresholdAmount: true, isActive: true, approverId: true, orgUnitId: true },
+    select: { id: true, name: true, kind: true, thresholdAmount: true, isActive: true, approverId: true, orgUnitId: true },
   })
 
   await prisma.approvalRuleVersion.create({

@@ -29,6 +29,7 @@ export async function GET(
     where: { id },
     include: {
       raisedBy: { select: { id: true, name: true } },
+      owner: { select: { id: true, name: true } },
       orgUnit: { select: { id: true, name: true } },
       costCenter: { select: { id: true, code: true, name: true } },
       company: { select: { id: true, name: true } },
@@ -96,11 +97,15 @@ export async function GET(
         status: req.status,
         approvalState: req.approvalState,
         raisedBy: req.raisedBy,
+        owner: req.owner,
+        clearedSupplierIds: req.clearedSupplierIds,
+        interviewers: req.interviewers,
         orgUnit: req.orgUnit,
         costCenter: req.costCenter,
         createdAt: req.createdAt.toISOString(),
       },
       approvals: req.approvals.map(a => ({
+        stage: a.stage,
         id: a.id,
         approver: a.approver,
         rank: a.rank,

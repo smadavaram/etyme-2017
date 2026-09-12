@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
     },
     include: {
       raisedBy: { select: { id: true, name: true } },
+      owner: { select: { id: true, name: true } },
       orgUnit: { select: { id: true, name: true } },
       costCenter: { select: { id: true, code: true, name: true } },
       approvals: {
@@ -89,9 +90,15 @@ export async function GET(request: NextRequest) {
         archivedAt: r.archivedAt?.toISOString() ?? null,
         cancelReason: r.cancelReason,
         raisedBy: r.raisedBy,
+        // Whose need it is, when somebody else raised it; and the suppliers
+        // Procurement cleared it for (empty: every approved supplier).
+        owner: r.owner,
+        clearedSupplierIds: r.clearedSupplierIds,
+        interviewers: r.interviewers,
         orgUnit: r.orgUnit,
         costCenter: r.costCenter,
         approvals: r.approvals.map(a => ({
+          stage: a.stage,
           id: a.id,
           approver: a.approver,
           rank: a.rank,

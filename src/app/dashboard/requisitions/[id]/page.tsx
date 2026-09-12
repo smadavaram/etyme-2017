@@ -5,6 +5,9 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { compact as money } from '@/lib/money-display'
+import {
+  Chain, DecideModal, clearedForSentence, deskOf, myRow, whoFor,
+} from '../chain'
 
 /**
  * One requisition, worked end to end.
@@ -132,10 +135,12 @@ function Why({ fit }: { fit: Fit }) {
 
 // ── Sending it to vendors ──────────────────────────────────
 
-function DistributePanel({ reqId, billMax, invited, onSent }: {
+function DistributePanel({ reqId, billMax, invited, clearedIds, onSent }: {
   reqId: string
   billMax: number | null
   invited: Set<string>
+  /** The suppliers Procurement's yes named. Empty = every approved one. */
+  clearedIds: string[]
   onSent: () => void
 }) {
   const [vendors, setVendors] = useState<{ id: string; name: string }[]>([])
@@ -160,7 +165,13 @@ function DistributePanel({ reqId, billMax, invited, onSent }: {
       .catch(() => {})
   }, [])
 
-  const available = vendors.filter(v => !invited.has(v.id))
+  // Procurement's yes is a ceiling on this list, not a suggestion. The
+  // release route refuses a vendor outside it, so offering one here would
+  // be offering a choice the server throws away.
+  const cleared = new Set(clearedIds)
+  const available = vendors
+    .filter(v => !invited.has(v.id))
+    .filter(v => cleared.size === 0 || cleared.has(v.id))
 
   async function send() {
     const chosen = Object.entries(picked).filter(([, v]) => v.on)
@@ -200,6 +211,7 @@ function DistributePanel({ reqId, billMax, invited, onSent }: {
       <p className="text-sm text-etyme-muted mb-3">
         Each vendor gets its own band and cannot see anyone else&apos;s.
         {billMax != null && ` Your ceiling is ${money(billMax)}/hr.`}
+        {cleared.size > 0 && ' Only the suppliers Procurement cleared are listed.'}
       </p>
       <div className="divide-y divide-etyme-rule">
         {available.map(v => {
@@ -240,6 +252,12 @@ export default function RequisitionDetail() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** Who is reading — so only your own row offers you a decision. */
+  const [me, setMe] = useState<{ id: string; name: string } | null>(null)
+  /** The desks for this unit, for placing rows and for naming people. */
+  const [team, setTeam] = useState<any | null>(null)
+  const [suppliers, setSuppliers] = useState<{ companyId: string; name: string }[]>([])
+  const [deciding, setDeciding] = useState<'approve' | 'reject' | 'changes' | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -252,26 +270,22 @@ export default function RequisitionDetail() {
 
   useEffect(() => { if (id) load() }, [id, load])
 
-  async function decide(action: 'approve' | 'reject') {
-    const reason = action === 'reject'
-      ? window.prompt('Why are you rejecting this? Whoever raised it will see this.')
-      : (window.prompt('Note for the record? (optional)') ?? '')
-    if (action === 'reject' && !reason) return
-    const res = await fetch(`/api/requisitions/${id}/approve`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, reason }),
-    })
-    let j: any
-    try {
-      j = await readJson(res)
-    } catch (e: any) {
-      // The server's own words where it sent any, and a sentence
-      // rather than a parser error where it sent nothing.
-      alert(e.message)
-      return
-    }
-    await load()
-  }
+  // Read once, all optional: without them the page still shows the
+  // requisition, it just offers fewer decisions.
+  useEffect(() => {
+    fetch('/api/me').then(r => r.json())
+      .then(j => { const p = j?.data?.person; if (p?.id) setMe({ id: p.id, name: p.name }) })
+      .catch(() => {})
+    fetch('/api/program/team').then(r => r.json())
+      .then(j => { if (j?.data?.company) setTeam(j.data) })
+      .catch(() => {})
+    fetch('/api/suppliers').then(r => r.json())
+      .then(j => setSuppliers(
+        (j?.data?.suppliers ?? []).map((s: any) => ({ companyId: s.companyId, name: s.name }))
+      ))
+      .catch(() => {})
+  }, [])
+
 
   async function award(c: Candidate) {
     const rate = window.prompt(
@@ -317,6 +331,28 @@ export default function RequisitionDetail() {
   const approved = r.approvalState === 'APPROVED' || r.approvalState === 'AUTO_APPROVED'
   const invitedIds = new Set<string>(data.invitations.map((i: Invitation) => i.vendor.id))
 
+  // The desks for this requisition's own unit. Used to place an approval
+  // under the right heading where the row does not carry its stage, and
+  // to know whether the row in play is the sourcing desk's.
+  const unitId =
+    r.orgUnit?.id
+    ?? (team?.budgets ?? []).find((b: any) => b.id === r.costCenter?.id)?.department?.id
+    ?? null
+  const deskIds = (() => {
+    const d = (team?.desks ?? []).find((x: any) => x.unit.id === unitId)
+    return {
+      hrPersonId: d?.hr?.person?.id ?? null,
+      procurementPersonId: d?.procurement?.person?.id ?? null,
+    }
+  })()
+  // Only your own row, at the rank in play — the rule the route enforces.
+  const mine = myRow(data.approvals, me?.id ?? null)
+  const mineIsSourcing = mine ? deskOf(mine, deskIds) === 'SOURCING' : false
+  const supplierNames: Record<string, string> = Object.fromEntries(
+    suppliers.map(v => [v.companyId, v.name])
+  )
+  const clearedFor = clearedForSentence(r.clearedSupplierIds, supplierNames)
+
   return (
     <div className="max-w-3xl">
       <a href="/dashboard/requisitions" className="text-sm text-etyme-action hover:underline">← Requirements</a>
@@ -329,7 +365,9 @@ export default function RequisitionDetail() {
           {r.location && ` · ${r.location}`}
           {r.months && ` · ${r.months} months`}
           {r.billMax != null && ` · up to ${money(r.billMax)}/hr`}
-          {r.raisedBy && ` · raised by ${r.raisedBy.name}`}
+          {/* Whose need it is, then who typed it — said twice only when
+              they are two different people. */}
+          {whoFor(r) && ` · ${whoFor(r)}`}
         </div>
         {r.description && (
           <div className="mt-4 text-sm text-etyme-ink whitespace-pre-line max-w-prose">{r.description}</div>
@@ -348,44 +386,82 @@ export default function RequisitionDetail() {
         <div><Lbl>Candidates</Lbl><div className="font-serif text-3xl mt-1 tabular-nums text-etyme-ink">{s.candidates}</div></div>
       </div>
 
-      {/* 1 — Approval */}
+      {/* 1 — Approval, read by desk */}
       <Panel title="Approval">
         <div className="p-4">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               {r.approvalState === 'AUTO_APPROVED' && <Chip tone="verified">Cleared automatically</Chip>}
               {r.approvalState === 'APPROVED' && <Chip tone="verified">Approved</Chip>}
               {r.approvalState === 'PENDING_APPROVAL' && <Chip tone="attention">Waiting on approval</Chip>}
+              {r.approvalState === 'CHANGES_REQUESTED' && <Chip tone="attention">Sent back for changes</Chip>}
               {r.approvalState === 'REJECTED' && <Chip tone="attention">Rejected</Chip>}
               {r.approvalState === 'DRAFT' && <Chip>Draft</Chip>}
             </div>
-            {pending && (
-              <div className="flex gap-2 shrink-0">
-                <button onClick={() => decide('approve')}
-                  className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">Approve</button>
-                <button onClick={() => decide('reject')}
-                  className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink">Reject</button>
+            {/* Only the row that is actually yours. The old buttons showed
+                on anybody's pending approval and returned a 403 the person
+                reading it could do nothing about. */}
+            {mine && (
+              <div className="flex gap-2 shrink-0 flex-wrap">
+                <button onClick={() => setDeciding('approve')}
+                  className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">
+                  {mineIsSourcing ? 'Approve and name suppliers' : 'Approve'}
+                </button>
+                {/* The middle answer: a reviewer who wants the rate moved
+                    should not have to refuse the whole requisition. */}
+                <button onClick={() => setDeciding('changes')}
+                  className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-ink">
+                  Ask for changes
+                </button>
+                <button onClick={() => setDeciding('reject')}
+                  className="px-3 py-1.5 border border-etyme-rule text-etyme-muted rounded text-xs hover:text-etyme-attention hover:border-etyme-attention">
+                  Reject
+                </button>
+              </div>
+            )}
+            {pending && !mine && (
+              <div className="text-xs text-etyme-muted shrink-0">
+                {pending.approver
+                  ? `Waiting on ${pending.approver.name}`
+                  : 'Waiting on a desk nobody is named for'}
               </div>
             )}
           </div>
-          <div className="mt-3 space-y-2">
-            {data.approvals.map((a: any) => (
-              <div key={a.id} className="text-sm">
-                <span className="font-medium text-etyme-ink">{a.approver?.name ?? 'Cleared by rule'}</span>
-                <span className="ml-2 text-xs text-etyme-faint">{a.outcome.toLowerCase().replace(/_/g, ' ')}</span>
-                <p className="text-etyme-muted">{a.reason}</p>
-              </div>
-            ))}
-          </div>
+
+          {data.approvals.length === 0 ? (
+            <p className="mt-3 text-sm text-etyme-muted">
+              {r.approvalState === 'AUTO_APPROVED'
+                ? 'Cleared the moment it was raised — inside plan, inside budget, inside the going rate. No desk was needed.'
+                : 'Not sent for approval yet. Nobody has been asked to look at this.'}
+            </p>
+          ) : (
+            <Chain approvals={data.approvals} desks={deskIds} />
+          )}
+
+          {clearedFor && (
+            <p className="mt-4 pt-3 border-t border-etyme-rule text-sm text-etyme-muted">
+              {clearedFor}. Only these suppliers may be sent it.
+            </p>
+          )}
         </div>
       </Panel>
 
       {/* 2 — Distribution */}
       <Panel title="Send to vendors">
         {approved
-          ? <DistributePanel reqId={id} billMax={r.billMax} invited={invitedIds} onSent={load} />
+          ? <DistributePanel reqId={id} billMax={r.billMax} invited={invitedIds}
+              clearedIds={r.clearedSupplierIds ?? []} onSent={load} />
           : <div className="p-4 text-sm text-etyme-muted">
-              This requisition is {r.approvalState.toLowerCase().replace(/_/g, ' ')}. Vendors see it once it is approved.
+              {/* The column's own value, lower-cased, was not a sentence:
+                  "This requisition is changes requested." A refusal says
+                  what is missing and what to do about it. */}
+              {r.approvalState === 'PENDING_APPROVAL'
+                ? 'Still with the desks above. Suppliers see it once every one of them has said yes.'
+                : r.approvalState === 'CHANGES_REQUESTED'
+                  ? 'Sent back for changes. Edit it and it goes round again — to the desk that asked, not back to the start.'
+                  : r.approvalState === 'REJECTED'
+                    ? 'This was rejected, so it goes to no supplier. Raising a fresh one is the way back.'
+                    : 'Not sent for approval yet. Suppliers see it once it has been through the desks.'}
             </div>}
       </Panel>
 
@@ -461,6 +537,17 @@ export default function RequisitionDetail() {
           </div>
         )}
       </Panel>
+
+      {deciding && (
+        <DecideModal
+          req={{ id, title: r.title }}
+          action={deciding}
+          sourcing={mineIsSourcing}
+          suppliers={suppliers}
+          onClose={() => setDeciding(null)}
+          onDone={() => { setDeciding(null); load() }}
+        />
+      )}
     </div>
   )
 }

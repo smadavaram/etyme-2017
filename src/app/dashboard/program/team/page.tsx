@@ -17,12 +17,28 @@ import { readJson } from '@/lib/read-response'
  * order, with prose rather than density. Nobody manages forty approvers.
  */
 
+interface DeskSeat {
+  ruleId: string
+  person: { id: string; name: string }
+  from: { id: string; name: string }
+  inherited: boolean
+}
+
 interface Team {
   company: { id: string; name: string }
   lead: { ruleId: string; personId: string; name: string } | null
   warnings: string[]
+  /** Who is HR and who is Procurement, per business unit. */
+  desks: {
+    unit: { id: string; name: string; kind: string; parentId: string | null }
+    hr: DeskSeat | null
+    procurement: DeskSeat | null
+    /** True where a budget is actually charged here. */
+    charges: boolean
+  }[]
   approvers: {
     id: string; name: string; rank: number
+    kind: 'VALUE' | 'HR' | 'PROCUREMENT'
     approver: { id: string; name: string }
     department: { id: string; name: string } | null
     thresholdDollars: number | null
@@ -41,6 +57,7 @@ interface Team {
     role: { id: string; name: string } | null
     approves: number
     owns: number
+    holds?: { kind: 'HR' | 'PROCUREMENT'; unit: string }[]
   }[]
 }
 
@@ -60,6 +77,7 @@ function asTeam(data: any): Team | null {
     company: data.company,
     lead: data.lead ?? null,
     warnings: Array.isArray(data.warnings) ? data.warnings : [],
+    desks: Array.isArray(data.desks) ? data.desks : [],
     approvers: Array.isArray(data.approvers) ? data.approvers : [],
     budgets: Array.isArray(data.budgets) ? data.budgets : [],
     teams: Array.isArray(data.teams) ? data.teams : [],
@@ -76,7 +94,10 @@ export default function ProgramTeamPage() {
   const [error, setError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [draft, setDraft] = useState({ name: '', approverId: '', threshold: '', teamId: '' })
+  const [draft, setDraft] = useState<{
+    kind: 'VALUE' | 'HR' | 'PROCUREMENT'
+    name: string; approverId: string; threshold: string; teamId: string
+  }>({ kind: 'VALUE', name: '', approverId: '', threshold: '', teamId: '' })
 
   const reload = async () => {
     const res = await fetch('/api/program/team')
@@ -102,6 +123,13 @@ export default function ProgramTeamPage() {
       setError('A rule needs a name and somebody to approve it.')
       return
     }
+    // A desk sits in a business unit — that is what makes it inheritable
+    // and what stops one HR partner answering for a company of forty
+    // thousand. The route refuses it too; asking here saves the click.
+    if (draft.kind !== 'VALUE' && !draft.teamId) {
+      setError('Say which business unit this desk sits in. Desks are named per unit, and the unit below inherits them.')
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -109,9 +137,12 @@ export default function ProgramTeamPage() {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          kind: draft.kind,
           name: draft.name.trim(),
           approverId: draft.approverId,
-          thresholdDollars: draft.threshold.trim() === '' ? null : Number(draft.threshold),
+          // A desk answers a question, not a dollar line.
+          thresholdDollars:
+            draft.kind !== 'VALUE' || draft.threshold.trim() === '' ? null : Number(draft.threshold),
           orgUnitId: draft.teamId || null,
         }),
       })
@@ -119,7 +150,7 @@ export default function ProgramTeamPage() {
       // The route refuses a chain that would leave one person approving
       // their own work. Its words, not mine — it knows why.
       if (!res.ok) throw new Error(body?.error?.message ?? 'That rule was refused.')
-      setDraft({ name: '', approverId: '', threshold: '', teamId: '' })
+      setDraft({ kind: 'VALUE', name: '', approverId: '', threshold: '', teamId: '' })
       setAdding(false)
       await reload()
     } catch (err: any) {
@@ -181,14 +212,123 @@ export default function ProgramTeamPage() {
     )
   }
 
+  // One form, shown under whichever heading opened it: naming a desk
+  // and adding a rule on the money are two different jobs, and a form
+  // that appears three sections away from the button that opened it is
+  // how people conclude the button is broken.
+  const ruleForm = (
+    <>
+    {error && (
+          <p className="mt-3 text-[13px] text-etyme-danger">{error}</p>
+        )}
+
+        {!adding ? (
+          <button
+            onClick={() => {
+              setError(null)
+              setDraft({ kind: 'VALUE', name: '', approverId: '', threshold: '', teamId: '' })
+              setAdding(true)
+            }}
+            className="mt-4 btn-secondary text-[13px]"
+          >
+            Add a rule on the money
+          </button>
+        ) : (
+          <form onSubmit={addRule} className="mt-4 card grid gap-3 sm:grid-cols-2">
+            {/* Said at the top of the form, because everything below it
+                changes meaning: a desk answers a question for a unit, a
+                rule on the money answers to a figure. */}
+            <p className="sm:col-span-2 text-[13px] text-etyme-ink">
+              {draft.kind === 'HR'
+                ? 'Naming the HR desk. One person, for one business unit — they read whether a role is a role and whether it is in the plan.'
+                : draft.kind === 'PROCUREMENT'
+                  ? 'Naming the Procurement desk. One person, for one business unit — they read who may supply a role and at what rate.'
+                  : 'A rule on the money. Somebody asked on top of whoever owns the budget, above a figure or whenever a check routes something.'}
+            </p>
+            <label className="block">
+              <div className="lbl">What to call it</div>
+              <input
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                placeholder="Technology — over $80k"
+                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px]
+                           text-etyme-ink placeholder:text-etyme-faint focus:border-etyme-action focus:outline-none"
+              />
+            </label>
+            <label className="block">
+              <div className="lbl">Who approves</div>
+              <select
+                value={draft.approverId}
+                onChange={(e) => setDraft({ ...draft, approverId: e.target.value })}
+                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px] text-etyme-ink"
+              >
+                <option value="">— pick somebody —</option>
+                {team.people.map((p) => (
+                  <option key={p.person.id} value={p.person.id}>{p.person.name}</option>
+                ))}
+              </select>
+            </label>
+            {draft.kind === 'VALUE' && (
+              <label className="block">
+                <div className="lbl">Asked when it is over ($ a year)</div>
+                <input
+                  type="number" min="0" step="1000"
+                  value={draft.threshold}
+                  onChange={(e) => setDraft({ ...draft, threshold: e.target.value })}
+                  placeholder="80000"
+                  className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px]
+                             tabular-nums text-etyme-ink placeholder:text-etyme-faint focus:border-etyme-action focus:outline-none"
+                />
+                <p className="mt-1 text-[11px] text-etyme-muted">
+                  Leave it blank and they are asked whenever a check routes
+                  something and no threshold catches it.
+                </p>
+              </label>
+            )}
+            <label className="block">
+              <div className="lbl">
+                {draft.kind === 'VALUE' ? 'Which team' : 'Which business unit (required)'}
+              </div>
+              <select
+                value={draft.teamId}
+                onChange={(e) => setDraft({ ...draft, teamId: e.target.value })}
+                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px] text-etyme-ink"
+              >
+                <option value="">
+                  {draft.kind === 'VALUE' ? 'Everywhere' : '— pick a unit —'}
+                </option>
+                {team.teams.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-etyme-muted">
+                {draft.kind === 'VALUE'
+                  ? 'A rule on a team is responsible for everything beneath it too.'
+                  : 'Everything beneath this unit inherits the desk, so name it as high as it is true.'}
+              </p>
+            </label>
+            <div className="flex items-center gap-2 sm:col-span-2">
+              <button type="submit" disabled={busy} className="btn-primary text-[13px]">
+                {busy ? 'Adding…' : 'Add'}
+              </button>
+              <button type="button" onClick={() => { setAdding(false); setError(null) }}
+                className="text-[13px] text-etyme-muted hover:text-etyme-ink">
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+    </>
+  )
+
   return (
     <div className="animate-fade-in max-w-4xl">
       <div className="page-head">
         <div className="eyebrow">{team.company.name}</div>
         <h1 className="headline-serif text-heading text-etyme-ink">Programme team</h1>
         <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-etyme-muted">
-          Who approves what, who catches anything that routes, and who is
-          answerable for each budget.
+          Who reads the role, who reads the suppliers, and who is answerable
+          for each budget. Most requisitions clear without any of them.
         </p>
       </div>
 
@@ -203,13 +343,91 @@ export default function ProgramTeamPage() {
         </div>
       )}
 
-      {/* ── Who approves ── */}
+      {/* ── The desks ──
+          Three questions, and two of them have a standing answer per
+          business unit. This screen used to show only a ranked list of
+          people with thresholds against them, which could not say who
+          reads the role or who audits the suppliers — so "who is HR for
+          Apps" had no screen that answered it, and the chain quietly
+          cleared those stages with a note nobody read. */}
       <section className="panel mb-6">
-        <h2 className="headline-serif text-[17px] text-etyme-ink">Who approves</h2>
-        <p className="mt-1 text-[13px] leading-relaxed text-etyme-muted">
-          Ranks are asked in order — rank 1 before rank 2 — so a chain never
-          troubles three people with something the first would refuse. Most
-          requisitions match none of these and clear themselves.
+        <h2 className="headline-serif text-[17px] text-etyme-ink">Desks</h2>
+        <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-etyme-muted">
+          HR reads the role — is this a contingent role, and is it in the plan.
+          Procurement reads the suppliers and the rate. One person each, per
+          business unit; a unit with none inherits the one above it, and a unit
+          with none anywhere clears those questions with a note instead.
+        </p>
+        <div className="mt-4 overflow-scroll-x">
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="border-b border-etyme-rule text-left">
+                <th className="lbl pb-2">Business unit</th>
+                <th className="lbl pb-2">Role — HR</th>
+                <th className="lbl pb-2">Sourcing — Procurement</th>
+              </tr>
+            </thead>
+            <tbody>
+              {team.desks.length === 0 && (
+                <tr><td colSpan={3} className="py-3 text-etyme-muted">
+                  No business units yet, so there is nowhere to put a desk.
+                </td></tr>
+              )}
+              {team.desks.map((d) => (
+                <tr key={d.unit.id} className="border-b border-etyme-rule/60">
+                  <td className="py-2 text-etyme-ink">
+                    {d.unit.name}
+                    {d.charges && <> <span className="chip chip--passive">has a budget</span></>}
+                  </td>
+                  {([['hr', d.hr, 'HR'], ['procurement', d.procurement, 'PROCUREMENT']] as const).map(
+                    ([slot, seat, kind]) => (
+                      <td key={slot} className="py-2">
+                        {seat ? (
+                          <>
+                            <span className="text-etyme-ink">{seat.person.name}</span>
+                            {seat.inherited && (
+                              <div className="text-[11px] text-etyme-faint">
+                                named for {seat.from.name}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setAdding(true)
+                              setError(null)
+                              setDraft({
+                                kind,
+                                name: `${kind === 'HR' ? 'HR' : 'Procurement'} — ${d.unit.name}`,
+                                approverId: '',
+                                threshold: '',
+                                teamId: d.unit.id,
+                              })
+                            }}
+                            className="text-[12px] text-etyme-action hover:underline"
+                          >
+                            Name one
+                          </button>
+                        )}
+                      </td>
+                    )
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {draft.kind !== 'VALUE' && ruleForm}
+      </section>
+
+      {/* ── Rules on the money ── */}
+      <section className="panel mb-6">
+        <h2 className="headline-serif text-[17px] text-etyme-ink">Rules on the money</h2>
+        <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-etyme-muted">
+          The final word on spend belongs to whoever owns the budget. These are
+          the extra people a figure brings in on top — a dollar line, or somebody
+          asked whenever a check routes anything. Most requisitions match none of
+          them and clear themselves.
         </p>
         <div className="mt-4 overflow-scroll-x">
           <table className="w-full text-[13px]">
@@ -223,12 +441,13 @@ export default function ProgramTeamPage() {
               </tr>
             </thead>
             <tbody>
-              {team.approvers.length === 0 && (
+              {team.approvers.filter((a) => a.kind === 'VALUE').length === 0 && (
                 <tr><td colSpan={5} className="py-3 text-etyme-muted">
-                  Nobody approves anything, so every requisition clears itself.
+                  No rule sits on the money. Anything over budget goes to whoever
+                  owns it, and nothing else is asked.
                 </td></tr>
               )}
-              {team.approvers.map((a) => (
+              {team.approvers.filter((a) => a.kind === 'VALUE').map((a) => (
                 <tr key={a.id} className="border-b border-etyme-rule/60">
                   <td className="py-2 tabular-nums text-etyme-muted">{a.rank}</td>
                   <td className="py-2 text-etyme-ink">
@@ -259,81 +478,6 @@ export default function ProgramTeamPage() {
           </table>
         </div>
 
-        {error && (
-          <p className="mt-3 text-[13px] text-etyme-danger">{error}</p>
-        )}
-
-        {!adding ? (
-          <button onClick={() => setAdding(true)} className="mt-4 btn-secondary text-[13px]">
-            Add an approver
-          </button>
-        ) : (
-          <form onSubmit={addRule} className="mt-4 card grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <div className="lbl">What to call it</div>
-              <input
-                value={draft.name}
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                placeholder="Technology — over $80k"
-                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px]
-                           text-etyme-ink placeholder:text-etyme-faint focus:border-etyme-action focus:outline-none"
-              />
-            </label>
-            <label className="block">
-              <div className="lbl">Who approves</div>
-              <select
-                value={draft.approverId}
-                onChange={(e) => setDraft({ ...draft, approverId: e.target.value })}
-                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px] text-etyme-ink"
-              >
-                <option value="">— pick somebody —</option>
-                {team.people.map((p) => (
-                  <option key={p.person.id} value={p.person.id}>{p.person.name}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <div className="lbl">Asked when it is over ($ a year)</div>
-              <input
-                type="number" min="0" step="1000"
-                value={draft.threshold}
-                onChange={(e) => setDraft({ ...draft, threshold: e.target.value })}
-                placeholder="80000"
-                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px]
-                           tabular-nums text-etyme-ink placeholder:text-etyme-faint focus:border-etyme-action focus:outline-none"
-              />
-              <p className="mt-1 text-[11px] text-etyme-muted">
-                Leave it blank to make them the lead — asked whenever a check
-                routes something and no threshold catches it.
-              </p>
-            </label>
-            <label className="block">
-              <div className="lbl">Which team</div>
-              <select
-                value={draft.teamId}
-                onChange={(e) => setDraft({ ...draft, teamId: e.target.value })}
-                className="mt-1 w-full rounded border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[13px] text-etyme-ink"
-              >
-                <option value="">Everywhere</option>
-                {team.teams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-              <p className="mt-1 text-[11px] text-etyme-muted">
-                A rule on a team is responsible for everything beneath it too.
-              </p>
-            </label>
-            <div className="flex items-center gap-2 sm:col-span-2">
-              <button type="submit" disabled={busy} className="btn-primary text-[13px]">
-                {busy ? 'Adding…' : 'Add'}
-              </button>
-              <button type="button" onClick={() => { setAdding(false); setError(null) }}
-                className="text-[13px] text-etyme-muted hover:text-etyme-ink">
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
       </section>
 
       {/* ── Whose money ── */}
@@ -397,13 +541,21 @@ export default function ProgramTeamPage() {
                 <span className="text-[14px] text-etyme-ink">{p.person.name}</span>
                 <span className="ml-2 text-[12px] text-etyme-faint">{p.role?.name ?? 'no role'}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* What they do, in the words of the job. "approves 2
+                    rules" counted the HR and Procurement desks as rules
+                    and said nothing about what either desk reads. */}
+                {(p.holds ?? []).map((h) => (
+                  <span key={`${h.kind}-${h.unit}`} className="chip chip--verified">
+                    {h.kind === 'HR' ? 'HR' : 'Procurement'} for {h.unit}
+                  </span>
+                ))}
                 {p.person.id === team.lead?.personId && (
-                  <span className="chip chip--action">lead approver</span>
+                  <span className="chip chip--action">asked whenever a check routes</span>
                 )}
                 {p.approves > 0 && (
                   <span className="chip chip--passive">
-                    approves {p.approves === 1 ? '1 rule' : `${p.approves} rules`}
+                    {p.approves === 1 ? '1 rule on the money' : `${p.approves} rules on the money`}
                   </span>
                 )}
                 {p.owns > 0 && (
