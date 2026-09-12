@@ -1,0 +1,333 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getCallerContext } from '@/lib/api-context'
+import { prisma } from '@/lib/db'
+import { generateCycles } from '@/lib/cycle-generator'
+import { cyclesFor } from '@/lib/cycle-kinds'
+import { loadContractHolidays } from '@/lib/holidays'
+import { getTemplatePack } from '@/lib/template-packs'
+import { evaluateGovernance } from '@/lib/governance'
+
+/**
+ * POST /api/submissions/:id/convert
+ *
+ * Converts a PLACED submission into a SellContract (and optionally a BuyContract).
+ *
+ * Body: {
+ *   billRate: number,        // cents per hour (required)
+ *   payRate?: number,        // cents per hour — creates BuyContract + ContractLink
+ *   startDate: string,       // ISO date
+ *   endDate?: string,        // ISO date
+ *   engagementId?: string,
+ *   msaId?: string,
+ *   endClientCompanyId?: string,
+ *   workLocationId?: string,
+ * }
+ *
+ * CLAUDE.md invariant: writes AutomationLog with plain-English reason and honest reversible flag.
+ */
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+
+  const { id } = await params
+  const body = await request.json()
+  const {
+    billRate,
+    payRate,
+    startDate,
+    endDate,
+    engagementId,
+    msaId,
+    endClientCompanyId,
+    workLocationId,
+  } = body
+
+  // Validate required fields
+  if (typeof billRate !== 'number' || billRate <= 0) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'billRate must be a positive number (cents/hr)', field: 'billRate' } },
+      { status: 422 }
+    )
+  }
+
+  if (!startDate) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'startDate is required', field: 'startDate' } },
+      { status: 422 }
+    )
+  }
+
+  const start = new Date(startDate)
+  const end = endDate ? new Date(endDate) : null
+
+  if (isNaN(start.getTime())) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Invalid startDate', field: 'startDate' } },
+      { status: 422 }
+    )
+  }
+
+  if (end && isNaN(end.getTime())) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'Invalid endDate', field: 'endDate' } },
+      { status: 422 }
+    )
+  }
+
+  if (end && end <= start) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'endDate must be after startDate', field: 'endDate' } },
+      { status: 422 }
+    )
+  }
+
+  // Load submission with related data
+  const submission = await prisma.submission.findUnique({
+    where: { id },
+    include: {
+      person: { select: { id: true, name: true } },
+      requirement: { select: { id: true, title: true, companyId: true } },
+      fromCompany: { select: { id: true, name: true, templatePack: true } },
+      toCompany: { select: { id: true, name: true } },
+    },
+  })
+
+  if (!submission) {
+    return NextResponse.json(
+      { error: { code: 'NOT_FOUND', message: 'Submission not found' } },
+      { status: 404 }
+    )
+  }
+
+  // The two parties to the submission, and nobody else. This route
+  // predates the award path and kept none of its checks: any signed-in
+  // account could turn any placed submission into a contract, at a rate
+  // of its choosing. The vendor who sent it and the company it was sent
+  // to are the only two with any standing here.
+  const party =
+    caller.company?.id === submission.fromCompanyId || caller.company?.id === submission.toCompanyId
+  if (!party) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_A_PARTY',
+          message: `Only ${submission.fromCompany.name} or ${submission.toCompany.name} can record a contract from this submission.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  if (submission.status !== 'PLACED') {
+    return NextResponse.json(
+      { error: { code: 'CONFLICT', message: `Submission status is ${submission.status}, must be PLACED to convert` } },
+      { status: 409 }
+    )
+  }
+
+  // Awarding already wrote the contract, on the requisition it answers.
+  // Converting the same submission again is the same person placed
+  // twice — two tenure legs, two invoices — which the award route refuses
+  // and this one did not.
+  const already = await prisma.sellContract.findFirst({
+    where: { requirementId: submission.requirementId, personId: submission.personId },
+    select: { id: true },
+  })
+  if (already) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'ALREADY_AWARDED',
+          message: `${submission.person.name} already holds a contract on "${submission.requirement.title}".`,
+          contractId: already.id,
+        },
+      },
+      { status: 409 }
+    )
+  }
+
+  // ── Governance check before creating contract ──
+  const resolvedEndClient = endClientCompanyId ?? submission.toCompanyId
+  const governance = await evaluateGovernance({
+    personId: submission.personId,
+    endClientCompanyId: resolvedEndClient,
+    vendorCompanyId: submission.fromCompanyId,
+    triggerPoint: 'CONTRACT_START',
+    subjectType: 'SELL_CONTRACT',
+    subjectId: id, // submission ID as proxy until contract is created
+    billRate,
+  })
+
+  if (!governance.canProceed) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'GOVERNANCE_BLOCK',
+          message: governance.summary,
+          evaluations: governance.evaluations,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // Warnings are allowed to proceed — contract starts in DRAFT,
+  // governance will be re-checked on activation
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      // Create SellContract: vendor (fromCompany) sells to client (toCompany)
+      const sellContract = await tx.sellContract.create({
+        data: {
+          companyId: submission.fromCompanyId,
+          clientCompanyId: submission.toCompanyId,
+          endClientCompanyId: endClientCompanyId ?? null,
+          workLocationId: workLocationId ?? null,
+          personId: submission.personId,
+          engagementId: engagementId ?? null,
+          msaId: msaId ?? null,
+          billRate,
+          state: 'DRAFT',
+          startDate: start,
+          endDate: end,
+        },
+      })
+
+      // Optionally create BuyContract + ContractLink
+      let buyContract = null
+      let contractLink = null
+
+      if (payRate && typeof payRate === 'number' && payRate > 0) {
+        buyContract = await tx.buyContract.create({
+          data: {
+            companyId: submission.fromCompanyId,
+            contractType: 'W2',
+            state: 'DRAFT',
+            startDate: start,
+            endDate: end,
+            candidates: {
+              create: {
+                personId: submission.personId,
+                payRate,
+                startDate: start,
+                endDate: end,
+              },
+            },
+          },
+        })
+
+        contractLink = await tx.contractLink.create({
+          data: {
+            sellContractId: sellContract.id,
+            buyContractId: buyContract.id,
+            effectiveFrom: start,
+            effectiveTo: end,
+          },
+        })
+      }
+
+      // Generate sell-side cycles from template pack (same pattern as POST /api/contracts)
+      let sellCyclesCreated = 0
+      if (submission.fromCompany.templatePack && end) {
+        const pack = getTemplatePack(submission.fromCompany.templatePack)
+        if (pack) {
+          // Only what this contract needs, on the side it belongs to.
+          //
+          // Every cycle used to land on the sell contract — including the
+          // salary and vendor-bill cycles that describe money going out.
+          // The payroll screen reads those off the buy contract, where
+          // they belong, so its list was always empty and nothing said so.
+          // And the pack's day fields were dropped here on the way in,
+          // which is why a pack asking for Monday got Friday.
+          const bc = buyContract
+          const split = cyclesFor(
+            bc ? { contractType: bc.contractType, vendorCompanyId: bc.vendorCompanyId } : null,
+            pack.cycleDefinitions
+          )
+          // Both calendars, unioned. A pay day on the client's holiday is
+          // as wrong as one on ours.
+          const holidays = await loadContractHolidays(
+            submission.fromCompanyId, sellContract.clientCompanyId, start.getFullYear(), end.getFullYear()
+          )
+
+          const generatedCycles = generateCycles(start, end, split.sell, holidays)
+
+          if (bc && split.buy.length > 0) {
+            const buyCycles = generateCycles(start, end, split.buy, holidays)
+            if (buyCycles.length > 0) {
+              await tx.cycle.createMany({
+                data: buyCycles.map((c) => ({ buyContractId: bc.id, kind: c.kind, dueOn: c.dueOn })),
+              })
+            }
+          }
+
+          if (generatedCycles.length > 0) {
+            await tx.cycle.createMany({
+              data: generatedCycles.map((c) => ({
+                sellContractId: sellContract.id,
+                kind: c.kind,
+                dueOn: c.dueOn,
+              })),
+            })
+            sellCyclesCreated = generatedCycles.length
+          }
+        }
+      }
+
+      // AutomationLog — CLAUDE.md: plain-English reason and honest reversible flag
+      await tx.automationLog.create({
+        data: {
+          companyId: submission.fromCompanyId,
+          action: 'PLACEMENT_CONVERTED',
+          summary: `${submission.person.name}'s placement for "${submission.requirement.title}" converted to sell contract at $${(billRate / 100).toFixed(2)}/hr.${buyContract ? ` Buy contract linked at $${(payRate / 100).toFixed(2)}/hr.` : ''} ${sellCyclesCreated} cycles generated.`,
+          reason: `Submission ${id} placed and converted to contract by ${caller.person.name}`,
+          payload: {
+            submissionId: id,
+            sellContractId: sellContract.id,
+            buyContractId: buyContract?.id ?? null,
+            contractLinkId: contractLink?.id ?? null,
+            personId: submission.personId,
+            requirementId: submission.requirementId,
+            billRate,
+            payRate: payRate ?? null,
+            sellCyclesCreated,
+          },
+          reversible: false,
+        },
+      })
+
+      return { sellContract, buyContract, contractLink, sellCyclesCreated }
+    })
+
+    return NextResponse.json({
+      data: {
+        sellContract: {
+          id: result.sellContract.id,
+          personId: result.sellContract.personId,
+          state: result.sellContract.state,
+          billRate: result.sellContract.billRate,
+          startDate: result.sellContract.startDate.toISOString(),
+          endDate: result.sellContract.endDate?.toISOString() ?? null,
+        },
+        buyContract: result.buyContract ? {
+          id: result.buyContract.id,
+          payRate,
+          contractType: result.buyContract.contractType,
+          state: result.buyContract.state,
+        } : null,
+        contractLink: result.contractLink ? { id: result.contractLink.id } : null,
+        sellCyclesCreated: result.sellCyclesCreated,
+        message: `Placement converted to contract with ${result.sellCyclesCreated} cycles`,
+      },
+    }, { status: 201 })
+  } catch (err: any) {
+    console.error('Placement conversion failed:', err)
+    return NextResponse.json(
+      { error: { code: 'INTERNAL', message: 'Placement conversion failed' } },
+      { status: 500 }
+    )
+  }
+}

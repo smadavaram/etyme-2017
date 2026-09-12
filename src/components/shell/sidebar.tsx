@@ -1,0 +1,534 @@
+'use client'
+
+import Link from 'next/link'
+import type { ReactNode } from 'react'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { EtymeMark } from '@/components/logo'
+/**
+ * Sidebar navigation — from CLAUDE.md design system.
+ *
+ * Navigation per company type:
+ *   Vendor     → Today → Sell → Talent → Operate → Grow
+ *   Consultant → You → Grow
+ *   GSI        → Deliver → Supply → Operate
+ *   Client     → Program → Governance
+ *
+ * Phase 1 ships Vendor and Client. GSI is Phase 3/4 by that same rule —
+ * built ahead of it on explicit instruction, not by drift (see GSI_NAV).
+ * href is typed as `string` because most pages are not yet built —
+ * Next.js typedRoutes would reject them. Tighten when pages exist.
+ */
+
+type NavSection = {
+  label: string
+  items: NavItem[]
+}
+
+type NavItem = {
+  label: string
+  href: string
+  icon: string  // emoji for now; SVG icons later
+  badge?: number
+  /**
+   * Optional sub-heading inside a section. Operate had grown to 22 flat
+   * links with nothing between them — a founder note ("too many
+   * organized links") traced to exactly this section. This groups the
+   * same links under three quiet sub-labels rather than inventing new
+   * top-level sections, which would drift from the nav CLAUDE.md pins
+   * per company type.
+   */
+  group?: string
+}
+
+type CompanyKind = 'VENDOR' | 'CLIENT' | 'MSP' | 'GSI' | 'CONSULTANT_CORP'
+
+const VENDOR_NAV: NavSection[] = [
+  {
+    label: 'Today',
+    items: [
+      { label: 'Dashboard', href: '/dashboard', icon: '◉' },
+      { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
+      { label: 'Conversations', href: '/dashboard/conversations', icon: '💬' },
+      { label: 'Needs attention', href: '/dashboard/decisions', icon: '⬡' },
+    ],
+  },
+  {
+    label: 'Sell',
+    items: [
+      { label: 'Leads', href: '/dashboard/leads', icon: '⌁' },
+      { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
+      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
+      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
+      // The supplier's side of the same rows: what they have been asked
+      // to confirm, and for whom.
+      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
+      { label: 'Sell contracts', href: '/dashboard/contracts?side=sell', icon: '▤' },
+      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
+    ],
+  },
+  {
+    label: 'Talent',
+    items: [
+      { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
+      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆' },
+      { label: 'Training', href: '/dashboard/training', icon: '◪' },
+      { label: 'Buy contracts', href: '/dashboard/contracts?side=buy', icon: '▥' },
+    ],
+  },
+  {
+    label: 'Operate',
+    items: [
+      // High in the list on purpose. It is a queue, not a report, and a
+      // report is something somebody has to think to ask for.
+      { label: 'Missing paperwork', href: '/dashboard/loose-ends', icon: '⛓' },
+      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Money' },
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
+      // Next to Invoices deliberately: same money, different question.
+      // One is what we sent, the other is what came back.
+      { label: 'AR', href: '/dashboard/ar', icon: '◧', group: 'Money' },
+      // The other half of the same question. One screen says who owes us,
+      // this one says who is funding whom while everybody waits.
+      { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
+      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
+      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Money' },
+      { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
+      { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
+      { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Checks & compliance' },
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Checks & compliance' },
+      { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Checks & compliance' },
+      // The two directions belong adjacent. A vendor spends as much time
+      // being screened as screening, and only one of those had a screen.
+      { label: 'Screening packs', href: '/dashboard/outbound-pack', icon: '◲', group: 'Checks & compliance' },
+      { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', group: 'Checks & compliance' },
+      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', group: 'Checks & compliance' },
+      { label: 'Companies', href: '/dashboard/companies', icon: '▣', group: 'Admin' },
+      // The rolodex. A staffing business is a rolodex with invoicing
+      // attached, and this is finally the rolodex.
+      { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'Admin' },
+      // Five onboardings, derived live from what exists.
+      { label: 'Setup', href: '/dashboard/onboarding', icon: '☑', group: 'Admin' },
+      // The journal out to their books, and the statement back against ours.
+      { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', group: 'Admin' },
+      { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
+      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Admin' },
+      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Admin' },
+    ],
+  },
+  {
+    label: 'Grow',
+    items: [
+      // Gated on margin.read — a Recruiter role deliberately cannot see
+      // what a placement earns.
+      { label: 'Profitability', href: '/dashboard/profitability', icon: '◑' },
+      { label: 'Reports', href: '/dashboard/reports', icon: '▨' },
+      // A scorecard the supplier cannot see is a blacklist with better
+      // manners. It decides who gets the next role, so it is not a
+      // secret from the firm it is about.
+      { label: 'Your scorecard', href: '/dashboard/my-standing', icon: '◈' },
+    ],
+  },
+]
+
+/**
+ * GSI — the delivery-and-supply nav CLAUDE.md names ("Deliver → Supply
+ * → Operate") and VENDOR_NAV's own comment deferred: "MSP and GSI both
+ * sit on the supply side of a placement, so they take the vendor nav
+ * until their own sections are specified." Specified now, on explicit
+ * instruction — this is Phase 3/4 scope built ahead of the five-vendor
+ * bar CLAUDE.md sets, done knowingly rather than by drift.
+ *
+ * A GSI holds both hats at once on the same deal: prime to the client
+ * (Deliver) and buyer from its own sub-vendor pool and bench (Supply).
+ * src/lib/persona.ts built the `side` field on Context specifically for
+ * this — "the same person runs both... a GSI holds two contexts at one
+ * company and switches between them."
+ *
+ * Every route below already exists and is already company-agnostic —
+ * grepped the requisition, requirement and submission APIs for a
+ * company-kind gate and found none. Nothing new here except the
+ * grouping: same pages VENDOR_NAV already uses for its own Sell and
+ * Talent sections, relabeled to name what a GSI is actually doing with
+ * them rather than what a plain vendor is.
+ */
+const GSI_NAV: NavSection[] = [
+  {
+    label: 'Deliver',
+    items: [
+      { label: 'Dashboard', href: '/dashboard', icon: '◉' },
+      // What the end client sent — a GSI is prime here, the same seat a
+      // vendor sits in when it receives a role.
+      { label: 'Shared with you', href: '/dashboard/invitations', icon: '✉' },
+      { label: 'Requirements', href: '/dashboard/requirements', icon: '◈' },
+      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇' },
+      { label: 'Interviews', href: '/dashboard/interviews', icon: '◷' },
+      { label: 'Sell contracts', href: '/dashboard/contracts?side=sell', icon: '▤' },
+      { label: 'Rolloff', href: '/dashboard/rolloff', icon: '⚠' },
+    ],
+  },
+  {
+    label: 'Supply',
+    items: [
+      // The GSI's own roster — checked first, on the requirement detail
+      // page, before a role a GSI is delivering ever reaches a
+      // sub-vendor. See match-engine.ts: that check is scoped to this
+      // company's own bench and nobody else's.
+      { label: 'Bench', href: '/dashboard/bench', icon: '◎' },
+      { label: 'Consultants', href: '/dashboard/consultants', icon: '◌' },
+      { label: 'Bench check-ins', href: '/dashboard/texts', icon: '✆' },
+      { label: 'Buy contracts', href: '/dashboard/contracts?side=buy', icon: '▥' },
+    ],
+  },
+  {
+    label: 'Operate',
+    items: [
+      { label: 'Missing paperwork', href: '/dashboard/loose-ends', icon: '⛓' },
+      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Money' },
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
+      { label: 'AR', href: '/dashboard/ar', icon: '◧', group: 'Money' },
+      { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
+      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
+      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Money' },
+      { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
+      { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
+      { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Checks & compliance' },
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Checks & compliance' },
+      { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Checks & compliance' },
+      { label: 'Screening packs', href: '/dashboard/outbound-pack', icon: '◲', group: 'Checks & compliance' },
+      { label: 'DNR list', href: '/dashboard/blacklist', icon: '⊘', group: 'Checks & compliance' },
+      { label: 'Rate history', href: '/dashboard/rate-history', icon: '↻', group: 'Checks & compliance' },
+      { label: 'Companies', href: '/dashboard/companies', icon: '▣', group: 'Admin' },
+      { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'Admin' },
+      { label: 'Setup', href: '/dashboard/onboarding', icon: '☑', group: 'Admin' },
+      { label: 'Integrations', href: '/dashboard/integrations', icon: '⇄', group: 'Admin' },
+      { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Admin' },
+      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Admin' },
+      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Admin' },
+    ],
+  },
+]
+
+// A consultant is a person, not a company. CLAUDE.md gives them
+// "You → Grow" — their own work first, then what they could become.
+//
+// Grow is empty for now, on purpose. It used to point at "Training" —
+// /dashboard/training — which is the vendor's own skill-gap analysis
+// across a whole bench ("demand from open requirements vs supply from
+// bench listings"), not a candidate's page. A consultant landing there
+// saw every number at zero, because none of it was about them. A wrong
+// link is worse than a missing section; this comes back once there is
+// a real, candidate-scoped training screen to put here.
+const CONSULTANT_NAV: NavSection[] = [
+  {
+    label: 'You',
+    items: [
+      { label: 'Your work', href: '/dashboard/my-work', icon: '◉' },
+      // Not a separate "Your profile" link to /dashboard/consultants —
+      // that is the vendor staff's bench-management screen, gated on
+      // consultants.read, and a consultant hitting it saw a red
+      // "You need consultants.read permission" where their own profile
+      // should have been. /dashboard/my-page already IS the self-service
+      // editor (headline, intro, skills) plus the public-page toggle;
+      // having a second, broken link to a different page was the bug,
+      // not a missing feature.
+      { label: 'Your page', href: '/dashboard/my-page', icon: '◐' },
+      { label: 'Who has you', href: '/dashboard/my-benches', icon: '◈' },
+      { label: 'Notifications', href: '/dashboard/notifications', icon: '⦿' },
+    ],
+  },
+]
+
+// Streamlined on a founder note: "so many duplicates... Contacts almost
+// missing... mixed admin setup to daily operational activity... should
+// reflect sequence of steps." Four real, separate problems, all fixed
+// the same way this session fixed vendor's Operate section — group,
+// don't rename or delete.
+//
+// Requisitions and Open roles read as duplicates because they sat flat
+// and adjacent with no signal they were two STEPS, not two competing
+// entry points: a requisition is the need before it's approved, an open
+// role is the same need after it's released to suppliers. Neither page
+// changed — the "Hire" group below says what they actually are, in
+// order. Same for the rest: every group is a real phase of the
+// lifecycle this product tracks (raise → source → evaluate → engage →
+// operate week to week → offboard), and the one thing done rarely
+// — Settings, access, a spreadsheet import — is its own group at the
+// bottom, not mixed into the middle of a page a client opens every
+// Friday to approve timesheets.
+const CLIENT_NAV: NavSection[] = [
+  {
+    // "Program" was the label and it names nothing.
+    //
+    // There is no Program model — /api/program is an aggregate view of
+    // this client's contractors, suppliers and spend. So a client read a
+    // section header that looked like a countable noun and reasonably
+    // asked which one, and how many they could have. None: it is not a
+    // thing you can have.
+    //
+    // Their workforce is. The countable things under it — agreements,
+    // engagements, milestones, org units — are all real models, and this
+    // is the word that covers them without inventing an entity.
+    label: 'Workforce',
+    items: [
+      { label: 'Dashboard', href: '/dashboard/program', icon: '◉' },
+      // One entry, not two.
+      //
+      // "Requisitions" and "Open roles" were the same Requirement row at
+      // two stages — before approval and after release — and no amount of
+      // grouping stopped them reading as competing entry points. A client
+      // thinks in one list of roles it is hiring for, with a status on
+      // each, so that is what it gets: the stage is a filter on the
+      // screen rather than a fork in the menu.
+      { label: 'Requirements', href: '/dashboard/requisitions', icon: '⊞', group: 'Hire' },
+      // The step where people actually arrive.
+      //
+      // Hire read Requirements → Interviews → Placements, which skips
+      // the highest-volume screen a programme office has: the
+      // candidates suppliers put forward, waiting to be looked at. Not
+      // "applications" — nobody applies to you here, your suppliers
+      // submit — and the list already defaults to what was sent TO the
+      // caller, so a client sees its inbox rather than a vendor's
+      // outbox.
+      // Interviews are reached from the candidate they are about, not
+      // from a menu of everybody's rounds. A programme office does not
+      // think "show me all interviews"; it opens a submission and asks
+      // what happened to that person. The page still exists and the
+      // submissions list links into it — removing the entry without that
+      // link would have orphaned it, since nothing else pointed there.
+      { label: 'Submissions', href: '/dashboard/submissions', icon: '◇', group: 'Hire' },
+      // The one entry point for people, deliberately. This used to sit
+      // next to a "Candidates" link to /dashboard/submissions — the raw,
+      // one-row-per-submission feed — which is exactly what made the
+      // same person look duplicated: four vendors submitting one human
+      // rendered as four separate rows with four separate names. That
+      // link is gone; every submission is still here, merged onto the
+      // one person it belongs to and expandable per row.
+      { label: 'Contractors', href: '/dashboard/people', icon: '◍', group: 'People & suppliers' },
+      // The growth loop. A client arrives with twelve suppliers already
+      // and an MSA with each; until those are reachable in here, none of
+      // the rest of this nav has anything to work on.
+      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'People & suppliers' },
+      // The rolodex — the one thing this whole nav was missing. Vendor
+      // has had it for a while as "Who we work with"; a client asks the
+      // same question about the people at their own suppliers just as
+      // often, and had no way in.
+      { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'People & suppliers' },
+      // The contracts list, under the name a client uses for it. It sat
+      // under Hire, which is where the trail that produces a placement
+      // ends — but the record itself is the parent of everything below
+      // it here: a timesheet, an invoice, a PO and an expense each draw
+      // on one contract. First in Operate, because the rest of the
+      // section is what happens to it.
+      { label: 'Contracts', href: '/dashboard/contracts', icon: '▤', group: 'Operate' },
+      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Operate' },
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Operate' },
+      { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Operate' },
+      { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Operate' },
+      { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard' },
+      { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎', group: 'Offboard' },
+    ],
+  },
+  {
+    label: 'Governance',
+    items: [
+      // Who runs the programme: approvers, the lead, and who is
+      // answerable for each budget. Three facts that were in three
+      // places, none of which showed the result as one picture.
+      { label: 'Programme team', href: '/dashboard/program/team', icon: '⌸', group: 'Oversight' },
+      { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Oversight' },
+      { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight' },
+      { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },
+      { label: 'Tenure', href: '/dashboard/tenure', icon: '▩', group: 'Oversight' },
+      // Only computable here. No supplier can work these out about
+      // themselves — they cannot see what the other eleven did with the
+      // same role — and no supplier's own numbers are ever bad.
+      { label: 'Supplier scorecards', href: '/dashboard/scorecards', icon: '◈', group: 'Oversight' },
+      // Where a chain we can only see part of makes one person look like
+      // two, and the tenure number quietly goes wrong.
+      { label: 'Duplicate check', href: '/dashboard/identity', icon: '⧉', group: 'Oversight' },
+      { label: 'Users & permissions', href: '/dashboard/access', icon: '⚿', group: 'Setup' },
+      { label: 'Settings', href: '/dashboard/settings', icon: '⚙', group: 'Setup' },
+      { label: 'Import', href: '/dashboard/data', icon: '⤓', group: 'Setup' },
+    ],
+  },
+]
+
+/**
+ * MSP and GSI both sit on the supply side of a placement, so they take
+ * the vendor nav until their own sections are specified (Phase 3/4).
+ */
+function getNavForKind(
+  kind: CompanyKind | null | undefined,
+  isConsultant: boolean
+): NavSection[] {
+  // A consultant is a context type, not an absent company. Somebody on a
+  // vendor's bench HAS a company — that is what a bench is — and keying on
+  // the company would show them their agency's payroll and buy contracts.
+  if (isConsultant || !kind) return CONSULTANT_NAV
+  switch (kind) {
+    case 'CLIENT': return CLIENT_NAV
+    case 'GSI': return GSI_NAV
+    // MSP has no nav of its own specified in CLAUDE.md's table — unlike
+    // GSI, which is. Falls through to the vendor nav until one is.
+    case 'MSP':
+    // A company of one is a vendor with one person on the bench. It
+    // sells, so it gets the seller's nav rather than a fifth shell
+    // nobody asked for.
+    case 'CONSULTANT_CORP':
+    case 'VENDOR':
+    default:       return VENDOR_NAV
+  }
+}
+
+export function Sidebar({
+  companyKind,
+  companyName,
+  companyLabel,
+  isConsultant = false,
+  pending = false,
+  sheet = false,
+  onDismiss,
+  footer,
+}: {
+  /** Absent for a consultant, who has no company. */
+  companyKind?: CompanyKind | null
+  companyName?: string
+  companyLabel?: string
+  /** True when this person is on a bench rather than of the company. */
+  isConsultant?: boolean
+  /** Session still loading — render the frame without nav items so the
+   *  wrong company's navigation never flashes on screen. */
+  pending?: boolean
+  /** The phone's slide-in sheet rather than the desktop rail: fills
+   *  whatever holds it instead of pinning itself to the viewport, and
+   *  gives every row a thumb-sized target. */
+  sheet?: boolean
+  /** The reader is done with the sheet — a destination tapped, or the
+   *  close button, which only renders when this is given. */
+  onDismiss?: () => void
+  /** Below the company block. The sheet puts the account here. */
+  footer?: ReactNode
+}) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const sections = pending ? [] : getNavForKind(companyKind, isConsultant)
+
+  // For client view, the "dashboard" link is /dashboard/program
+  const dashboardHref = isConsultant
+    ? '/dashboard/my-work'
+    : companyKind === 'CLIENT' ? '/dashboard/program' : '/dashboard'
+
+  return (
+    <aside
+      className={
+        sheet
+          ? 'w-full h-full flex flex-col bg-etyme-surface'
+          : 'w-[220px] flex-shrink-0 h-screen sticky top-0 flex flex-col bg-etyme-surface border-r border-etyme-rule'
+      }
+    >
+      {/* Logo */}
+      <div className="px-5 py-5 flex items-center gap-2.5">
+        <EtymeMark size={28} />
+        <span className="font-semibold text-sm tracking-[-0.02em] text-etyme-ink">
+          etyme
+        </span>
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            aria-label="Close menu"
+            className="ml-auto -mr-2 w-9 h-9 rounded-md flex items-center justify-center
+                       text-etyme-muted hover:text-etyme-ink hover:bg-etyme-canvas transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Nav sections */}
+      <nav className="flex-1 overflow-y-auto px-3 pb-4">
+        {sections.map((section) => (
+          <div key={section.label} className="mb-1">
+            <div className="eyebrow px-2 pt-5 pb-1.5">
+              {section.label}
+            </div>
+            {section.items.map((item, i) => {
+              // A sub-group header prints once, the moment its name first
+              // differs from the item before it — not for every item that
+              // carries it. This is what turns 22 flat links into three
+              // named clusters without inventing a new top-level section.
+              const priorGroup = i > 0 ? section.items[i - 1].group : undefined
+              const showGroup = item.group !== undefined && item.group !== priorGroup
+
+              // Handle hrefs with query params (e.g. /dashboard/contracts?side=sell)
+              const [itemPath, itemQuery] = item.href.split('?')
+              const active = item.href === dashboardHref
+                ? pathname === dashboardHref
+                : itemQuery
+                  ? pathname.startsWith(itemPath) && searchParams.get(itemQuery.split('=')[0]) === itemQuery.split('=')[1]
+                  : pathname.startsWith(item.href)
+              return (
+                <div key={item.label}>
+                  {showGroup && (
+                    <div className="px-2.5 pt-3 pb-1 text-[10px] font-medium uppercase
+                                    tracking-[0.06em] text-etyme-faint">
+                      {item.group}
+                    </div>
+                  )}
+                  <Link
+                    href={item.href as any}
+                    onClick={onDismiss}
+                    className={`
+                      flex items-center gap-2.5 px-2.5 rounded-md
+                      ${sheet ? 'py-2.5 text-[14px]' : 'py-[7px] text-[13px]'}
+                      transition-colors
+                      ${active
+                        ? 'bg-etyme-canvas text-etyme-ink font-medium'
+                        : 'text-etyme-muted hover:text-etyme-ink hover:bg-etyme-canvas/60'
+                      }
+                    `}
+                  >
+                    <span className="w-4 text-center text-[11px] opacity-60">
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                    {item.badge !== undefined && (
+                      <span className="ml-auto text-[10px] font-semibold text-etyme-attention
+                                       bg-etyme-attention/10 px-1.5 py-0.5 rounded-full tabular-nums">
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </nav>
+
+      {/* Bottom — company info */}
+      <div className="px-4 py-3 border-t border-etyme-rule">
+        {pending ? (
+          <>
+            <div className="h-3 w-24 rounded bg-etyme-rule/60 animate-pulse" />
+            <div className="h-2.5 w-16 rounded bg-etyme-rule/40 animate-pulse mt-1.5" />
+          </>
+        ) : (
+          <>
+            <div className="text-[11px] font-medium text-etyme-ink truncate">
+              {companyName ?? 'Cloudepa Inc.'}
+            </div>
+            <div className="text-[10px] text-etyme-faint">
+              {companyLabel ?? (companyKind === 'CLIENT' ? 'Client · Enterprise' : 'Vendor · US IT')}
+            </div>
+          </>
+        )}
+      </div>
+
+      {footer}
+    </aside>
+  )
+}
