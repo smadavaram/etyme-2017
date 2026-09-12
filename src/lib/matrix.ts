@@ -84,9 +84,19 @@ export const MATRIX: L1[] = [
     groups: [
       { code: 'L2.1.1', name: 'Demand intake', domain: 'DEMAND', processes: [
         { code: 'L3.1.1.1', name: 'Requisition raise and approve', owner: 'Hiring manager', status: B,
-          tasks: ['Draft the role', 'Route the approval chain', 'Auto-clear inside policy'],
-          implementedBy: ['src/lib/requisition-approval.ts', 'src/app/api/requisitions/route.ts'],
-          testedBy: ['__tests__/invariants/requisition-approval.test.ts'] },
+          tasks: ['Draft the role', 'Owner and raiser', 'Three desks: HR reads the role, Procurement audits the suppliers, the lead signs the money',
+            'Alongside at one rank, the lead after both', 'Auto-clear inside policy, by name, with the reason', 'Nobody signs their own',
+            'Procurement names the suppliers; the release stays within them', 'Published · Cancelled · Archived'],
+          implementedBy: [
+            'src/lib/requisition-approval.ts', 'src/lib/requisition-stage.ts',
+            'src/app/api/requisitions/route.ts', 'src/app/api/requisitions/[id]/approve/route.ts',
+            'src/app/api/requisitions/[id]/distribute/route.ts', 'src/app/api/settings/approval-rules/route.ts',
+            'src/app/dashboard/requisitions/page.tsx', 'src/app/dashboard/program/team/page.tsx',
+          ],
+          testedBy: [
+            '__tests__/invariants/requisition-approval.test.ts', '__tests__/invariants/requisition-stage.test.ts',
+            '__integration__/client-programme.test.ts',
+          ] },
         { code: 'L3.1.1.2', name: 'Budget and rate band', owner: 'Program manager', status: B,
           tasks: ['Check the cost object has money', 'Set the band per invitation'],
           implementedBy: ['src/lib/contract-rate.ts', 'src/lib/invitation-visibility.ts'],

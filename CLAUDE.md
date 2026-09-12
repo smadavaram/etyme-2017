@@ -192,8 +192,11 @@ cannot see any other way. The phases below are cut on that.
 The ten stations of one placement, walked from the client's own desks
 and refused at each to whoever has no business there:
 
-1. the hiring manager posts a requirement; over the line it routes to
-   the VP, and the manager cannot wave it through
+1. the hiring manager posts a requirement; within plan it publishes
+   itself, every desk cleared by rule and by name; a miss goes to the
+   desk that owns it — HR reads the role, Procurement audits the
+   suppliers, the lead who owns the cost centre signs the money, after
+   both — and nobody, the manager least of all, signs their own
 2. the programme office chooses which suppliers see it; a hiring
    manager cannot
 3. a supplier submits; the client awards; a supplier cannot award its own
