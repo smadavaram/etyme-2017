@@ -20,6 +20,8 @@ import { useEffect, useState, useCallback } from 'react'
  */
 
 interface Row {
+  /** The requirement's panel, on the client's side only. */
+  panel?: string[]
   id: string
   you: 'CLIENT' | 'VENDOR'
   submissionId: string
@@ -369,6 +371,7 @@ export default function InterviewsPage() {
           submissionId={proposingFor.submissionId}
           candidate={proposingFor.names.consultant}
           round={proposingFor.round + 1}
+          defaultInterviewers={proposingFor.panel ?? []}
           onDone={(says) => {
             setProposingFor(null)
             setNote(says)

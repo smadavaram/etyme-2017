@@ -42,7 +42,8 @@ interface RoundBrief {
 interface Submission {
   id: string
   person: { id: string; name: string }
-  requirement: { id: string; title: string; skills: string[] }
+  /** The panel is the client's own; a supplier's copy of this row has null. */
+  requirement: { id: string; title: string; skills: string[]; interviewers?: string[] | null }
   fromCompany: { id: string; name: string }
   toCompany: { id: string; name: string }
   kind: 'INTERNAL' | 'BENCH' | 'NETWORK'
@@ -1347,6 +1348,9 @@ export default function SubmissionsPage() {
           submissionId={propose.row.id}
           candidate={propose.row.person.name}
           round={propose.round}
+          // The requirement's panel, so round one opens with the room
+          // already in it and nobody retypes four names per round.
+          defaultInterviewers={propose.row.requirement.interviewers ?? []}
           onCancel={() => setPropose(null)}
           onDone={(says) => {
             setPropose(null)

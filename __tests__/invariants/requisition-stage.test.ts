@@ -88,8 +88,12 @@ describe('whether it can still be changed', () => {
     expect(mayEdit(row({ status: 'OPEN', approvalState: 'CHANGES_REQUESTED' }))).toBe(true)
   })
 
-  it('one open to suppliers cannot be edited underneath them', () => {
-    expect(mayEdit(row({ status: 'OPEN', approvalState: 'APPROVED' }))).toBe(false)
+  it('a published requirement can still be changed — words freely with suppliers told, money back through approval', () => {
+    expect(mayEdit(row({ status: 'OPEN', approvalState: 'APPROVED' }))).toBe(true)
+  })
+
+  it('one still waiting on a desk can be changed too', () => {
+    expect(mayEdit(row({ status: 'OPEN', approvalState: 'PENDING_APPROVAL' }))).toBe(true)
   })
 
   it('a filled requisition cannot be edited', () => {

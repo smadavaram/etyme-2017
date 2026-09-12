@@ -680,7 +680,10 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         person: { select: { id: true, name: true } },
-        requirement: { select: { id: true, title: true, skills: true } },
+        // companyId and the panel come back so the client's own side of
+        // this list can open an interview form with the room already in
+        // it. Neither is sent to a supplier — see the mapping below.
+        requirement: { select: { id: true, title: true, skills: true, companyId: true, interviewers: true } },
         fromCompany: { select: { id: true, name: true } },
         toCompany: { select: { id: true, name: true } },
         // Where each candidate has got to, so a row can say it without a
@@ -704,7 +707,17 @@ export async function GET(request: NextRequest) {
       submissions: submissions.map((s) => ({
         id: s.id,
         person: s.person,
-        requirement: s.requirement,
+        requirement: {
+          id: s.requirement.id,
+          title: s.requirement.title,
+          skills: s.requirement.skills,
+          // The hiring panel is the client's own list of names, and the
+          // same reasoning that keeps interview feedback off this list
+          // keeps the panel off it: a supplier learns who is in the room
+          // when a round is proposed to it, not before.
+          interviewers:
+            s.requirement.companyId === caller.company?.id ? s.requirement.interviewers : null,
+        },
         fromCompany: s.fromCompany,
         toCompany: s.toCompany,
         kind: s.kind,

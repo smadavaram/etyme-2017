@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true, rate: true,
           person: { select: { name: true } },
-          requirement: { select: { id: true, title: true } },
+          requirement: { select: { id: true, title: true, interviewers: true } },
           fromCompany: { select: { name: true } },
           toCompany: { select: { name: true } },
         },
@@ -71,6 +71,9 @@ export async function GET(request: NextRequest) {
       names,
       role: row.submission.requirement.title,
       requirementId: row.submission.requirement.id,
+      // The requirement's panel — every round starts with it. The client's
+      // own; a supplier does not see who the client puts in the room.
+      panel: row.companyId === companyId ? row.submission.requirement.interviewers : [],
       submissionId: row.submission.id,
       rateCents: row.submission.rate,
       says: headline(i, now, names, caller.person.timezone),

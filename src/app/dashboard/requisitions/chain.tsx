@@ -277,6 +277,73 @@ export function whoWillBeAsked(
 }
 
 /**
+ * Who is interviewing — names, not seats.
+ *
+ * The panel was asked for once per round, on the interview form, which
+ * meant the same four names were typed again for round two and a fifth
+ * one appeared by accident. It belongs to the requirement: the hiring
+ * manager knows who is in the room before a single CV arrives, and every
+ * round starts with them and can drop any of them.
+ *
+ * The same control as the interview form's own chips, deliberately —
+ * somebody who has added a name on one screen has added a name on both.
+ */
+export function PanelField({ names, onChange }: {
+  names: string[]
+  onChange: (names: string[]) => void
+}) {
+  const [typed, setTyped] = useState('')
+
+  function add() {
+    const n = typed.trim()
+    if (!n) return
+    if (!names.includes(n)) onChange([...names, n])
+    setTyped('')
+  }
+
+  const field = 'w-full h-9 rounded border border-etyme-rule bg-etyme-raised px-3 text-[13px] text-etyme-ink placeholder:text-etyme-faint focus:outline-none focus:border-etyme-action'
+
+  return (
+    <div>
+      <label htmlFor="panel-name" className="block text-[10px] uppercase tracking-wider text-etyme-muted mb-1">
+        Who is interviewing
+      </label>
+      <div className="flex gap-2">
+        <input
+          id="panel-name"
+          className={field}
+          placeholder="Marcus Oyelaran, People Technology"
+          value={typed}
+          onChange={e => setTyped(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
+        />
+        <button type="button" onClick={add}
+          className="shrink-0 h-9 px-3 border border-etyme-rule rounded text-[13px] text-etyme-muted hover:text-etyme-ink">
+          Add
+        </button>
+      </div>
+      {names.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {names.map(n => (
+            <span key={n} className="inline-flex items-center rounded bg-etyme-rule/50 px-2 py-1 text-[11px] text-etyme-muted">
+              {n}
+              <button type="button" aria-label={`Remove ${n}`}
+                onClick={() => onChange(names.filter(x => x !== n))}
+                className="ml-1 text-etyme-faint hover:text-etyme-ink">
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <p className="mt-1.5 text-[11px] text-etyme-faint">
+        Names are fine — they need no account here. Every interview round starts with them.
+      </p>
+    </div>
+  )
+}
+
+/**
  * The chain, by desk, in the order it is asked.
  *
  * It used to be one flat list of names with "rank 1" next to each, which

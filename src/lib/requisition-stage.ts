@@ -94,13 +94,17 @@ export function closedBecause(r: RequisitionRow): string | null {
 }
 
 /**
- * Whether the person who raised it may still change it.
+ * Whether it may still be changed.
  *
- * Mirrors the route's own gate rather than guessing at it: a draft, or
- * one an approver handed back. Published is not editable on
- * purpose — moving the rate or the headcount underneath vendors already
- * sourcing against it is a different requisition, not an edit.
+ * A draft, one an approver handed back, one still waiting on a desk —
+ * and a published one. Published used to be locked ("not editable
+ * underneath the vendors"), which forced a cancel-and-re-raise for a
+ * missing skill. The founder's rule, in lib/requisition-change: words
+ * change freely with every supplier who received it told; the money
+ * goes back through approval. Only a filled, cancelled or put-away
+ * requirement is past changing.
  */
 export function mayEdit(r: RequisitionRow): boolean {
-  return r.status === 'DRAFT' || r.approvalState === 'CHANGES_REQUESTED'
+  if (r.archivedAt || r.status === 'FILLED' || r.status === 'CANCELLED') return false
+  return true
 }

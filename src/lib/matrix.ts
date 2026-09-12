@@ -87,7 +87,8 @@ export const MATRIX: L1[] = [
           tasks: ['Draft the role', 'Owner and raiser', 'Three desks: HR reads the role, Procurement audits the suppliers, the lead signs the money',
             'Alongside at one rank, the lead after both', 'Auto-clear inside policy, by name, with the reason', 'Nobody signs their own',
             'Procurement names the suppliers; the release stays within them', 'Published · Cancelled · Archived',
-            'The chain read by desk, on the list, the row and the raise form', 'Words change freely; money goes back through approval'],
+            'The chain read by desk, on the list, the row and the raise form', 'Words change freely; money goes back through approval',
+            'Words change on one that is out, and every supplier who received it is told', 'The panel, and a discussion on the row'],
           implementedBy: [
             'src/lib/requisition-approval.ts', 'src/lib/requisition-stage.ts', 'src/lib/requisition-change.ts',
             'src/app/api/requisitions/route.ts', 'src/app/api/requisitions/[id]/route.ts',
@@ -100,6 +101,7 @@ export const MATRIX: L1[] = [
           testedBy: [
             '__tests__/invariants/requisition-approval.test.ts', '__tests__/invariants/requisition-stage.test.ts',
             '__tests__/invariants/requisition-change.test.ts', '__tests__/invariants/requisition-chain-screens.test.ts',
+            '__tests__/invariants/requisition-change-screens.test.ts',
             '__integration__/client-programme.test.ts',
           ] },
         { code: 'L3.1.1.2', name: 'Budget and rate band', owner: 'Program manager', status: B,

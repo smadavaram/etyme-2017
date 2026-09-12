@@ -544,3 +544,27 @@ stranger in words. Awarding writes the cycles. A client pays only what
 came through the match. Tenure counts a day on site once, however many
 firms billed it, and only days served. Three client programmes seeded
 with a desk per job. `__integration__/client-programme.test.ts`.
+
+### Interviews, and the requisition chain as three desks ✓ (2026-09-12)
+
+A client can interview a candidate from the row: rounds in turn, the
+supplier and the candidate told on their own channels, the candidate
+answering from their own page, the client's notes never leaving the
+client (`lib/interview-proposal`, `lib/interview-notices`,
+`components/propose-interview`). Only whoever is hiring may set up or
+decide a round.
+
+The chain is three desks, not a dollar line: HR reads the role,
+Procurement audits the suppliers, the lead who owns the cost centre
+signs the money — alongside at one rank, the lead after both; within
+plan every desk clears by rule and by name and the requisition publishes
+itself; nobody signs their own (`lib/requisition-approval`). HR and
+Procurement are standing desks named per business unit, nearest wins
+(`ApprovalRule.kind`). A requirement has an owner distinct from who
+raised it, a panel, and the suppliers Procurement cleared; the release
+stays within them. Words change on a published requirement with every
+supplier told; money goes back through approval
+(`lib/requisition-change`). Requirements read Draft · Awaiting approval
+· Needs changes · Published · Cancelled · Archived — filled is a
+placement's word, read in Submissions. `/demo` seats the account owner,
+HR and Procurement at each programme.

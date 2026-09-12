@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
-import { notify } from '@/lib/notify'
+import { notify, notifyBulk, type NotifyParams } from '@/lib/notify'
 import { advanceApprovalChain } from '@/lib/requisition-approval'
 
 /**
@@ -76,6 +76,7 @@ export async function POST(
       approvals: { orderBy: { rank: 'asc' } },
       raisedBy: { select: { id: true, name: true } },
       costCenter: { select: { code: true } },
+      company: { select: { name: true } },
     },
   })
 
@@ -238,17 +239,53 @@ export async function POST(
 
   // Hand the next rank their turn.
   if (action === 'approve' && !result.fullyApproved) {
-    const next = advance.remaining[0]
-    if (next?.approverId) {
-      notify({
-        personId: next.approverId,
+    // Everyone at the next rank in play — with HR and Procurement
+    // alongside each other, and two people on the money, "the next one"
+    // is a rank, not a row. Only told once it is actually their turn.
+    const lowest = Math.min(...advance.remaining.map(a => a.rank))
+    const now = advance.remaining.filter(a => a.rank === lowest && a.approverId && a.rank > current.rank)
+    if (now.length > 0) {
+      void notifyBulk(now.map<NotifyParams>(a => ({
+        personId: a.approverId!,
         companyId: requisition.companyId,
         type: 'SYSTEM',
         title: `Requisition needs your approval: ${requisition.title}`,
-        body: `${caller.person.name} approved at rank ${current.rank}. Your approval is next.`,
+        body: `${caller.person.name} said yes. Your approval is next.`,
         entityId: id,
         data: { requirementId: id },
+      })))
+    }
+  }
+
+  // A requisition that was out, had its money changed, and waited on the
+  // desks again: the suppliers were told to hold. Now it is approved, tell
+  // them to carry on — the edit route says "paused" and nobody said
+  // "resumed", so a supplier held until it asked.
+  if (result.fullyApproved) {
+    const invited = await prisma.requirementInvitation.findMany({
+      where: { requirementId: id },
+      select: { toCompanyId: true },
+    })
+    const firms = Array.from(new Set(invited.map(i => i.toCompanyId)))
+    if (firms.length > 0) {
+      const staff = await prisma.context.findMany({
+        where: { companyId: { in: firms }, revokedAt: null, suspendedAt: null, type: { in: ['EMPLOYEE', 'PARTNER'] } },
+        select: { personId: true, companyId: true },
       })
+      const seen = new Set<string>()
+      void notifyBulk(
+        staff
+          .filter(c => (seen.has(c.personId) ? false : (seen.add(c.personId), true)))
+          .map<NotifyParams>(c => ({
+            personId: c.personId,
+            companyId: c.companyId ?? undefined,
+            type: 'SYSTEM',
+            title: `${requisition.title} is approved again — carry on`,
+            body: `${requisition.company?.name ?? 'The client'} re-approved it after a change to the money. Submissions are open.`,
+            entityId: id,
+            data: { requirementId: id },
+          }))
+      )
     }
   }
 

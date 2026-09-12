@@ -5,7 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback } from 'react'
 import { STAGES, stageOf, mayEdit, closedBecause, type Stage } from '@/lib/requisition-stage'
 import {
-  Chain, Chip, DecideModal, Lbl, clearedForSentence, deskOf, myRow, whoFor, whoWillBeAsked,
+  Chain, Chip, DecideModal, Lbl, PanelField, clearedForSentence, deskOf, myRow, whoFor, whoWillBeAsked,
   type Approval,
 } from './chain'
 
@@ -28,17 +28,17 @@ import {
 interface Check { code: string; outcome: string; reason: string }
 
 /**
- * Changing one back while it is still yours to change.
+ * Changing one, including one that is already out.
  *
- * The route has accepted an edit since the cancel-and-archive work and
- * nothing ever called it, so an approver could ask for changes and the
- * person who raised it had no way to make any — the request was a dead
- * end with a note attached. Same omission as cancel and archive, one
- * release later.
+ * It used to open only on a draft or one an approver had handed back,
+ * because a published requisition was locked — which forced a
+ * cancel-and-re-raise to add a skill and lost every submission on it.
  *
- * Only the fields the route accepts, so the form cannot offer something
- * the server will silently drop. The window is the route's own: a draft,
- * or one an approver has handed back.
+ * The rule is src/lib/requisition-change.ts: words change now and every
+ * supplier who received it is told; the money goes back through
+ * approval and the suppliers are told to hold. The form says which of
+ * those is about to happen BEFORE it happens, and afterwards shows the
+ * sentence the route wrote rather than closing silently.
  */
 function EditRequisition({
   req,
@@ -59,8 +59,14 @@ function EditRequisition({
   const [neededBy, setNeededBy] = useState(req.neededBy ? req.neededBy.slice(0, 10) : '')
   const [justification, setJustification] = useState(req.justification ?? '')
   const [description, setDescription] = useState(req.description ?? '')
+  const [panel, setPanel] = useState<string[]>(req.interviewers ?? [])
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  /** The route's own sentence, once it has saved. */
+  const [said, setSaid] = useState<string | null>(null)
+
+  // Out to suppliers, read the same way every other screen reads it.
+  const out = stageOf(req) === 'OPEN'
 
   /** Empty means "no figure", which is not the same as zero. */
   const cents = (v: string) => (v.trim() === '' ? null : Math.round(Number(v) * 100))
@@ -95,11 +101,16 @@ function EditRequisition({
           neededBy: neededBy || null,
           description: description.trim() || null,
           justification: justification.trim() || null,
+          // The panel travels with the requirement, so every interview
+          // round starts with it. Never a form whose answer is thrown away.
+          interviewers: panel,
         }),
       })
       const body = await readJson(res)
       if (!res.ok) throw new Error(body?.error?.message ?? 'That did not save.')
-      onSaved()
+      // What just happened, in the route's own words: whether the
+      // suppliers were told, and whether it is back with a desk.
+      setSaid(body?.data?.message ?? 'Saved.')
     } catch (e: any) {
       setErr(e.message)
     } finally {
@@ -120,10 +131,29 @@ function EditRequisition({
         onClick={e => e.stopPropagation()}
       >
         <h2 className="font-serif text-xl text-etyme-ink">Edit requisition</h2>
+
+        {said ? (
+          /* What happened, said once, rather than a modal that shuts and
+             leaves somebody wondering whether the suppliers heard. */
+          <div className="mt-4">
+            <p className="text-sm text-etyme-ink">{said}</p>
+            <div className="mt-5 flex justify-end">
+              <button onClick={onSaved}
+                className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
+        <>
         <p className="text-xs text-etyme-muted mt-1">
-          {req.approvalState === 'CHANGES_REQUESTED'
-            ? 'Handed back for changes. Saving sends it round again.'
-            : 'Still a draft. Nobody has been asked to look at it yet.'}
+          {out
+            ? 'Words change now and your suppliers are told. Changing the rate, months, headcount or budget sends it back through approval.'
+            : req.approvalState === 'CHANGES_REQUESTED'
+              ? 'Handed back for changes. Saving sends it round again.'
+              : req.approvalState === 'PENDING_APPROVAL'
+                ? 'Still with a desk. Nothing has gone to a supplier, so nobody outside is told.'
+                : 'Still a draft. Nobody has been asked to look at it yet.'}
         </p>
 
         {err && (
@@ -187,6 +217,9 @@ function EditRequisition({
             <textarea className={field} rows={3} value={justification}
               onChange={e => setJustification(e.target.value)} />
           </div>
+          {/* The hiring panel. Names, on the requirement, so every round
+              starts with them instead of being retyped per round. */}
+          <PanelField names={panel} onChange={setPanel} />
         </div>
 
         <div className="mt-5 flex items-center justify-end gap-2">
@@ -198,6 +231,8 @@ function EditRequisition({
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   )
@@ -228,6 +263,8 @@ interface Requisition {
   owner?: { id: string; name: string } | null
   /** The suppliers Procurement's yes named. Empty = every approved one. */
   clearedSupplierIds?: string[]
+  /** The hiring panel — names, not seats. Every interview round starts with them. */
+  interviewers?: string[]
   orgUnit: { id: string; name: string } | null
   costCenter: { id: string; code: string; name: string } | null
   archivedAt: string | null
@@ -396,6 +433,8 @@ function RaiseModal({ onClose, onRaised, team, me }: {
     budget: '', hoursPerWeek: '', ownerId: '',
   })
   const [costCenters, setCostCenters] = useState<{ id: string; code: string; name: string }[]>([])
+  /** Who is interviewing. Names, on the requirement, from the start. */
+  const [panel, setPanel] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -450,6 +489,9 @@ function RaiseModal({ onClose, onRaised, team, me }: {
           // Whose need it is, distinct from who typed it. Never ask a
           // question whose answer is thrown away — the route reads this.
           ownerId: ownerId || null,
+          // The panel, so the first interview form opens with the room
+          // already in it rather than asking again.
+          interviewers: panel,
         }),
       })
       const json = await readJson(res)
@@ -663,6 +705,11 @@ function RaiseModal({ onClose, onRaised, team, me }: {
               onChange={e => setForm({ ...form, justification: e.target.value })}
               placeholder="Backfill for the Q4 validation programme" className={`${field} mt-1 resize-none`} />
           </label>
+
+          {/* The room, before there is anybody to put in it. The manager
+              knows who will interview long before a CV arrives, and every
+              round then starts with those names instead of retyping them. */}
+          <PanelField names={panel} onChange={setPanel} />
         </div>
 
         {error && <div className="mt-4 text-sm text-etyme-attention">{error}</div>}
@@ -984,18 +1031,18 @@ export default function RequisitionsPage() {
                     {r.counts.invitations} vendor{r.counts.invitations === 1 ? '' : 's'} invited
                     {' · '}{r.counts.submissions} candidate{r.counts.submissions === 1 ? '' : 's'} submitted
                   </div>
-                  {/* Called off, or put away.
-                      The route has existed since the edit work and nothing
-                      called it, so a requisition could be raised and never
-                      withdrawn — a supplier goes on sourcing against a role
-                      that no longer exists and is told nothing. */}
-                  {!pending && r.status !== 'CANCELLED' && (
+                  {/* Change it, call it off, or put it away.
+                      Editing used to hide the moment a requisition went
+                      out, which forced a cancel-and-re-raise to add a
+                      missing skill. It now shows wherever the rule allows
+                      a change — a draft, one waiting on a desk, one handed
+                      back, and a published one — and the form itself says
+                      what saving will do (src/lib/requisition-change.ts).
+                      Cancel and Archive stay off a row somebody is
+                      deciding, because they are not the editor's to press
+                      while a desk holds it. */}
+                  {(mayEdit(r) || (!pending && r.status !== 'CANCELLED')) && (
                     <div className="flex items-center gap-2 shrink-0">
-                      {/* Editable exactly while the route says so: a draft,
-                          or one an approver handed back. Published
-                          is deliberately not editable — moving the rate
-                          underneath people already sourcing it is a
-                          different requisition, not an edit. */}
                       {mayEdit(r) && (
                         <button
                           onClick={() => setEditing(r)}
@@ -1004,7 +1051,7 @@ export default function RequisitionsPage() {
                           Edit
                         </button>
                       )}
-                      {r.status !== 'FILLED' && (
+                      {!pending && r.status !== 'CANCELLED' && r.status !== 'FILLED' && (
                         <button
                           onClick={() => cancel(r.id, r.title)}
                           disabled={busyId === r.id}
@@ -1013,7 +1060,7 @@ export default function RequisitionsPage() {
                           Cancel
                         </button>
                       )}
-                      {r.status !== 'OPEN' && (
+                      {!pending && r.status !== 'CANCELLED' && r.status !== 'OPEN' && (
                         <button
                           onClick={() => putAway(r.id, r.archivedAt ? 'unarchive' : 'archive')}
                           disabled={busyId === r.id}
