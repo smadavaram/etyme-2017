@@ -17,6 +17,10 @@ export interface Programme {
  * a desk is to find your own work on it, not a tour.
  */
 const DESKS: { desk: string; label: string; waiting: string }[] = [
+  // No desk suffix: the company's own seat, which holds everything. The
+  // founder wanted to try what an admin does — add a person, give them a
+  // role, name them a desk — without a seed doing it for them.
+  { desk: '', label: 'Account owner', waiting: 'People, roles and desks. Add someone, make them HR for a unit, and watch a requisition find them.' },
   { desk: 'programme', label: 'Programme manager', waiting: 'Runs the programme. Sets the rules, chooses the suppliers, sees the spend.' },
   { desk: 'hiring', label: 'Hiring manager', waiting: 'Needs somebody. A week of hours is waiting for your signature.' },
   { desk: 'hr', label: 'HR partner', waiting: 'A requisition over the headcount plan is waiting for your read of the role.' },
