@@ -239,7 +239,8 @@ describe('Changing a requirement that suppliers already have', () => {
     expect(route.mayReassignOwner(row, 'p-dana', false)).toBe(true)
     expect(route.mayReassignOwner(row, 'p-stranger', false)).toBe(false)
     expect(route.mayReassignOwner(row, 'p-stranger', true)).toBe(true)
-    expect(code(EDIT_ROUTE)).toContain("hasPermission(caller.permissions, 'requirements.distribute')")
+    // The office is whoever writes the rules — Procurement releases too, and is an approver.
+    expect(code(EDIT_ROUTE)).toContain("hasPermission(caller.permissions, 'governance.write')")
   })
 
   it('every change to a requisition leaves a reason on the record, not a free-text note', () => {
@@ -259,17 +260,19 @@ describe('Changing a requirement that suppliers already have', () => {
 
 describe('The edit form on a published row', () => {
   it('the edit form on a published row says what will happen before it happens', () => {
-    expect(LIST_PAGE).toContain(
+    // The form lives in the shared module now, so the requirement's own
+    // page can open it too — the founder found nobody could edit from there.
+    expect(CHAIN).toContain(
       'Words change now and your suppliers are told. Changing the rate, months, headcount or budget sends it back through approval.'
     )
     // And it knows which row it is on the same way every other screen does.
-    expect(code(LIST_PAGE)).toContain("const out = stageOf(req) === 'OPEN'")
+    expect(code(CHAIN)).toContain("const out = stageOf(req) === 'OPEN'")
   })
 
   it('after saving, the form says what actually happened in the route’s own words', () => {
-    expect(code(LIST_PAGE)).toContain('setSaid(body?.data?.message')
+    expect(code(CHAIN)).toContain('setSaid(body?.data?.message')
     // Not a modal that shuts on a change nobody saw the consequence of.
-    expect(code(LIST_PAGE)).toContain('{said ? (')
+    expect(code(CHAIN)).toContain('{said ? (')
   })
 
   it('the Edit button opens on a published row, now that words can change', () => {
@@ -295,8 +298,9 @@ describe('Who is interviewing', () => {
     // Asked on both forms, and the answer is sent both times.
     expect(CHAIN).toContain('export function PanelField(')
     expect(CHAIN).toContain('Who is interviewing')
-    expect(code(LIST_PAGE).match(/interviewers: panel/g)?.length).toBe(2)
-    expect(code(LIST_PAGE).match(/<PanelField names=\{panel\}/g)?.length).toBe(2)
+    expect((code(LIST_PAGE).match(/interviewers: panel/g)?.length ?? 0) + (code(CHAIN).match(/interviewers: panel/g)?.length ?? 0)).toBe(2)
+    // Once on the raise form (the list page), once on the edit form (the shared module).
+    expect((code(LIST_PAGE).match(/<PanelField names=\{panel\}/g)?.length ?? 0) + (code(CHAIN).match(/<PanelField names=\{panel\}/g)?.length ?? 0)).toBe(2)
 
     // Shown on the row it belongs to.
     expect(DETAIL_PAGE).toContain('Who is interviewing')

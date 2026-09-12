@@ -268,9 +268,27 @@ export async function PATCH(
     )
   }
 
-  if (!hasPermission(caller.permissions, 'requirements.write')) {
+  // Editors: the manager it is for, whoever raised it, and the programme
+  // office. Not the approvers — they ask for changes and the editor
+  // changes it; otherwise somebody approves their own rewrite. And not
+  // every hiring manager: another team's requirement is not yours to
+  // change. Said as who, not as a permission.
+  // The programme office is whoever writes the rules — not whoever may
+  // release to suppliers, which Procurement also does and Procurement is
+  // an approver here.
+  const office = hasPermission(caller.permissions, 'governance.write')
+  const editor =
+    caller.person.id === requisition.ownerId || caller.person.id === requisition.raisedById || office
+  if (!hasPermission(caller.permissions, 'requirements.write') || !editor) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'Changing a requisition needs requirements.write' } },
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message:
+            `Only the manager this is for, whoever raised it, or the programme office at ${caller.company!.name} can change it. ` +
+            'An approver asks for changes instead.',
+        },
+      },
       { status: 403 }
     )
   }
@@ -431,7 +449,7 @@ export async function PATCH(
   // releases roles may hand it to a new owner.
   let newOwner: { id: string; name: string } | null = null
   if (ownerMoves) {
-    if (!mayReassignOwner(requisition, caller.person.id, hasPermission(caller.permissions, 'requirements.distribute'))) {
+    if (!mayReassignOwner(requisition, caller.person.id, office)) {
       return NextResponse.json(
         {
           error: {

@@ -37,6 +37,7 @@ import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { seedProgrammes } from '@/lib/seed-programmes'
 import { day, at } from '@/lib/seed-days'
+import { rolesFor } from '@/lib/company-defaults'
 
 const DOMAIN = 'demo.etyme.local'          // the domain the signed demo cookie accepts
 const PREFIX = 'world-'                    // marks a company as part of this world
@@ -180,13 +181,24 @@ export async function seedWorld(): Promise<{
       // The VP by name, for the same reason.
       create: { name: VP_NAMES[f.slug] ?? 'VP, ' + f.name.split(' ')[0], primaryEmail: approverEmail },
     })
-    if (!(await db.context.findFirst({ where: { personId: approver.id, companyId: c.id } }))) {
+    // An approver, not an owner. The VP sat on the seat's own role, which
+    // is everything — so the VP could edit the requisition they were
+    // asked to approve. Approvers ask for changes; they do not rewrite.
+    const approverSeed = rolesFor('CLIENT').find((r) => r.name === 'Approver')!
+    const approverRole =
+      (await db.role.findFirst({ where: { companyId: c.id, name: 'Approver' } })) ??
+      (await db.role.create({ data: { companyId: c.id, name: 'Approver', permissions: approverSeed.permissions, isDefault: false } }))
+    const vpSeat = await db.context.findFirst({ where: { personId: approver.id, companyId: c.id } })
+    if (!vpSeat) {
       await db.context.create({
         data: {
-          personId: approver.id, companyId: c.id, roleId: role.id,
+          personId: approver.id, companyId: c.id, roleId: approverRole.id,
           type: 'EMPLOYEE', grantReason: 'Seeded world — approver',
         },
       })
+    } else if (vpSeat.roleId !== approverRole.id) {
+      // Re-seeding corrects a VP seated too high.
+      await db.context.update({ where: { id: vpSeat.id }, data: { roleId: approverRole.id } })
     }
 
     // A real shape, not two flat departments. Indirect procurement and HR

@@ -6,8 +6,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { compact as money } from '@/lib/money-display'
 import {
-  Chain, DecideModal, clearedForSentence, deskOf, myRow, whoFor,
+  Chain, DecideModal, EditRequisition, clearedForSentence, deskOf, myRow, whoFor,
 } from '../chain'
+import { mayEdit } from '@/lib/requisition-stage'
+import { useSession } from '@/components/session-provider'
+import { hasPermission } from '@/lib/permissions'
 
 /**
  * One requisition, worked end to end.
@@ -394,6 +397,11 @@ export default function RequisitionDetail() {
   const [error, setError] = useState<string | null>(null)
   /** Who is reading — so only your own row offers you a decision. */
   const [me, setMe] = useState<{ id: string; name: string } | null>(null)
+  // Editors: the manager it is for, whoever raised it, the programme
+  // office. The approvers ask for changes instead. Same rule as the
+  // route; a button that would only refuse is not offered.
+  const { permissions } = useSession()
+  const [editing, setEditing] = useState(false)
   /** The desks for this unit, for placing rows and for naming people. */
   const [team, setTeam] = useState<any | null>(null)
   const [suppliers, setSuppliers] = useState<{ companyId: string; name: string }[]>([])
@@ -499,7 +507,18 @@ export default function RequisitionDetail() {
 
       <div className="mt-4 mb-8">
         <Lbl>{r.costCenter ? `${r.costCenter.code} · ${r.costCenter.name}` : 'No cost centre'}</Lbl>
-        <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">{r.title}</h1>
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">{r.title}</h1>
+          {mayEdit(r) &&
+            (me?.id === r.owner?.id || me?.id === r.raisedBy?.id || hasPermission(permissions, 'governance.write')) && (
+            <button type="button" onClick={() => setEditing(true)} className="btn-secondary self-start shrink-0 md:mt-1">
+              Edit
+            </button>
+          )}
+        </div>
+        {editing && (
+          <EditRequisition req={r} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); load() }} />
+        )}
         <div className="text-etyme-muted mt-2">
           {r.headcount} position{r.headcount === 1 ? '' : 's'}
           {r.location && ` · ${r.location}`}
