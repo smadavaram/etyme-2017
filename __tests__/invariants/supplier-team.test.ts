@@ -15,8 +15,22 @@ const supplier = rolesFor('VENDOR')
 const role = (n: string) => supplier.find((r) => r.name === n)!
 
 describe('a staffing firm’s team, in its own words', () => {
-  it('offers Owner, Admin, Recruiter, Resource Manager, Account Manager, HR, Contract Manager, Finance and Compliance Officer', () => {
-    expect(supplier.map((r) => r.name)).toEqual(['Owner', 'Admin', 'Recruiter', 'Resource Manager', 'Account Manager', 'HR', 'Contract Manager', 'Finance', 'Compliance Officer'])
+  it('offers Owner, Admin, Recruiter, Resource Manager, Account Manager, HR, Contract Manager, Accounts Receivable, AP & Payroll, Finance and Compliance Officer', () => {
+    expect(supplier.map((r) => r.name)).toEqual(['Owner', 'Admin', 'Recruiter', 'Resource Manager', 'Account Manager', 'HR', 'Contract Manager', 'Accounts Receivable', 'AP & Payroll', 'Finance', 'Compliance Officer'])
+  })
+  it('Accounts Receivable bills the client and records what came in, and never accepts hours for pay or runs payroll', () => {
+    const p = role('Accounts Receivable').permissions
+    expect(p).toContain('invoices.issue'); expect(p).toContain('payments.record'); expect(p).toContain('timesheets.read')
+    expect(p).not.toContain('timesheets.approve'); expect(p).not.toContain('payroll.run'); expect(p).not.toContain('pnl.read')
+  })
+  it('AP & Payroll pays the consultant or the sub-vendor — accepts hours, runs payroll, settles bills — and never issues a client invoice', () => {
+    const p = role('AP & Payroll').permissions
+    expect(p).toContain('timesheets.approve'); expect(p).toContain('payroll.run'); expect(p).toContain('payments.record')
+    expect(p).not.toContain('invoices.issue'); expect(p).not.toContain('pnl.read')
+  })
+  it('Finance is the whole desk at a small firm: both sides and the month-end', () => {
+    const p = role('Finance').permissions
+    expect(p).toContain('invoices.issue'); expect(p).toContain('payroll.run'); expect(p).toContain('pnl.read')
   })
   it('the account manager sees rates and what was billed, submits people, and never runs payroll or reads P&L', () => {
     const p = role('Account Manager').permissions

@@ -133,8 +133,27 @@ const SUPPLIER_ROLES: RoleSeed[] = [
     permissions: uniq(SEE_PEOPLE, SEE_DEMAND, SEE_WORK, ['assignments.write'], OWN_PRICE, SEE_MONEY, ['vendors.read']),
   },
   {
+    // Money in: the client's invoices and what came back. Reads the
+    // hours it bills but does not accept them for pay, and never runs
+    // payroll — a firm that lets one desk bill and pay has no
+    // segregation at all.
+    name: 'Accounts Receivable',
+    blurb: 'Bills the client and records what came in.',
+    permissions: uniq(['timesheets.read'], RUN_MONEY_IN, ['rates.read']),
+  },
+  {
+    // Money out: accepts the hours for pay, runs payroll for W2 people,
+    // pays the sub-vendor's bill. Reads invoices to match a bill; never
+    // issues one.
+    name: 'AP & Payroll',
+    blurb: 'Pays the consultant or the sub-vendor: accepts hours, runs payroll, settles bills.',
+    permissions: uniq(APPROVE_WORK, RUN_PAYROLL, ['invoices.read', 'payments.record']),
+  },
+  {
+    // The one-person finance desk at a small firm: both of the above,
+    // and the month-end.
     name: 'Finance',
-    blurb: 'Bills, pays, and closes the month.',
+    blurb: 'Bills, pays, and closes the month — the whole desk at a small firm.',
     permissions: uniq(APPROVE_WORK, RUN_MONEY_IN, RUN_PAYROLL, ['pnl.read']),
   },
   {

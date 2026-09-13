@@ -22,6 +22,8 @@ describe('the people at the firms you trade with', () => {
     expect(kindOfRole('Contract Manager')).toBe('PROCUREMENT')
     expect(kindOfRole('HR')).toBe('DELIVERY')
     expect(kindOfRole('Finance')).toBe('AP')
+    expect(kindOfRole('Accounts Receivable')).toBe('AP')
+    expect(kindOfRole('AP & Payroll')).toBe('AP')
     expect(kindOfRole(null)).toBe('OTHER')
   })
   it('a client sees the whole team at each supplier it buys from — register, agreement or contract', () => {

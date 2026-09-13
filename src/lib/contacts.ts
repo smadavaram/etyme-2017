@@ -198,7 +198,7 @@ export function kindOfRole(roleName: string | null | undefined): ContactKind {
   // An account manager owns the relationship; "account" alone is the money desk.
   if (/account manager|owner|admin|program manager|approver|\bvp\b|executive|director|team lead/.test(r)) return 'EXECUTIVE'
   if (/procure|supplier manager|vendor|contract manager/.test(r)) return 'PROCUREMENT'
-  if (/account|ap clerk|payable|finance/.test(r)) return 'AP'
+  if (/account|ap clerk|payable|receivable|payroll|finance/.test(r)) return 'AP'
   if (/deliver|resource|coordinator|compliance|\bhr\b|human resources/.test(r)) return 'DELIVERY'
   if (/recruit|sourc|contractor desk/.test(r)) return 'RECRUITING'
   return 'OTHER'

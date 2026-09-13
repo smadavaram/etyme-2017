@@ -753,7 +753,11 @@ Admin, Recruiter, Resource Manager, Account Manager (the client
 relationship — roles, rates, submissions, what was billed; never
 payroll or P&L), HR (the firm's own people's paperwork; no money at
 all), Contract Manager (agreements, orders, extensions, rates; neither
-submits nor pays), Finance (was Accountant), Compliance Officer. A
+submits nor pays), Accounts Receivable (bills the client and records
+what came in; never accepts hours for pay or runs payroll), AP &
+Payroll (pays the consultant or the sub-vendor: accepts hours, runs
+payroll, settles bills; never issues a client invoice), Finance (the
+whole desk at a small firm; was Accountant), Compliance Officer. A
 company formed before a role existed gets it the next time somebody
 opens Users & permissions; a renamed role keeps its seats
 (`lib/company-roles`). The page has "Invite a teammate": name, work
