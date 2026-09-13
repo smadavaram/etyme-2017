@@ -4,7 +4,7 @@
  * not, and where they are. The same five questions on both lists, so
  * the filter bar is learned once.
  */
-export const NETWORK_FILTERS = ['ALL', 'ON_SITE', 'RECENT', 'FAVORITES', 'BLOCKED'] as const
+export const NETWORK_FILTERS = ['ALL', 'ON_SITE', 'RECENT', 'FAVORITES', 'PENDING', 'BLOCKED'] as const
 export type NetworkFilter = (typeof NETWORK_FILTERS)[number]
 
 export const FILTER_WORD: Record<NetworkFilter, string> = {
@@ -12,6 +12,7 @@ export const FILTER_WORD: Record<NetworkFilter, string> = {
   ON_SITE: 'On site now',
   RECENT: 'Recent engagement',
   FAVORITES: 'Favorites',
+  PENDING: 'Pending',
   BLOCKED: 'Blocked',
 }
 
@@ -25,6 +26,8 @@ export interface NetworkRow {
   favorite: boolean
   blocked: boolean
   location: string | null
+  /** Still in the pipeline — recommended, not yet a supplier. Only firms have this. */
+  pending?: unknown
 }
 
 export function isRecent(lastEngagement: string | null, now: Date, days = RECENT_DAYS): boolean {
@@ -52,6 +55,7 @@ export function applyFilter<T extends NetworkRow>(
       case 'ON_SITE': return r.onSite && !r.blocked
       case 'RECENT': return isRecent(r.lastEngagement, now) && !r.blocked
       case 'FAVORITES': return r.favorite && !r.blocked
+      case 'PENDING': return !!r.pending
       case 'BLOCKED': return r.blocked
     }
   })

@@ -169,6 +169,7 @@ export default function SuppliersPage() {
     ON_SITE: listed.filter((r) => r.onSite && !r.blocked).length,
     RECENT: listed.filter((r) => isRecent(r.lastEngagement, now) && !r.blocked).length,
     FAVORITES: listed.filter((r) => r.favorite && !r.blocked).length,
+    PENDING: listed.filter((r) => !!r.pending).length,
     BLOCKED: listed.filter((r) => r.blocked).length,
   }), [listed, now])
 

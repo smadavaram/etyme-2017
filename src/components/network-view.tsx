@@ -34,14 +34,15 @@ export function ViewToggle({ view, onChange }: { view: View; onChange: (v: View)
 export function FilterBar({ filter, onFilter, counts, places, place, onPlace }: {
   filter: NetworkFilter
   onFilter: (f: NetworkFilter) => void
-  counts: Record<NetworkFilter, number>
+  /** A filter with no count is not offered — Contractors has nothing pending. */
+  counts: Partial<Record<NetworkFilter, number>>
   places: string[]
   place: string | null
   onPlace: (p: string | null) => void
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {NETWORK_FILTERS.map((f) => (
+      {NETWORK_FILTERS.filter((f) => counts[f] !== undefined).map((f) => (
         <button
           key={f}
           onClick={() => onFilter(f)}
@@ -92,6 +93,7 @@ export function emptyWord(filter: NetworkFilter, place: string | null): string {
     case 'ON_SITE': return `Nobody on site${where} right now.`
     case 'RECENT': return `Nobody engaged${where} in the last ninety days.`
     case 'FAVORITES': return `Nobody marked to take again${where} yet. The star on a row does it.`
+    case 'PENDING': return `Nothing in the pipeline${where}. Recommend a supplier and it shows here until every desk has said yes.`
     case 'BLOCKED': return `Nobody blocked${where}.`
     default: return `Nobody${where}.`
   }
