@@ -187,6 +187,9 @@ export default function TrainingPage() {
         </div>
       </div>
 
+      {/* Courses, and who is on each. The thing to do about the gap. */}
+      <Courses />
+
       {/* Bench pipeline funnel */}
       {funnel.some(f => f.count > 0) && (
         <div className="panel mb-6">
@@ -283,6 +286,186 @@ export default function TrainingPage() {
           View requirements →
         </Link>
       </div>
+    </div>
+  )
+}
+
+// ── Courses and enrollments ──────────────────────────────────────────
+
+interface Enrollment {
+  id: string
+  person: { id: string; name: string }
+  status: string
+  word: string
+  score: number | null
+  completedAt: string | null
+  moves: { move: string; word: string }[]
+}
+interface CourseRow {
+  id: string
+  title: string
+  category: string | null
+  duration: number | null
+  counts: { enrolled: number; inProgress: number; completed: number; dropped: number }
+  enrollments: Enrollment[]
+}
+
+/**
+ * What can be done about the gap. A course is added once; people are
+ * put on it from the bench; each enrollment is started, finished (with
+ * a score and a certificate if there is one) or dropped with a reason.
+ * A finished course shows on the person's own page.
+ */
+function Courses() {
+  const [courses, setCourses] = useState<CourseRow[]>([])
+  const [people, setPeople] = useState<{ id: string; name: string }[]>([])
+  const [newCourse, setNewCourse] = useState({ title: '', category: 'TECH', duration: '' })
+  const [enroll, setEnroll] = useState({ courseId: '', personId: '' })
+  const [ask, setAsk] = useState<{ id: string; move: string; word: string; score: string; certificateUrl: string; reason: string } | null>(null)
+  const [said, setSaid] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  const load = useCallback(async () => {
+    try {
+      const [c, b] = await Promise.all([
+        fetch('/api/training').then((r) => r.json()),
+        fetch('/api/bench?limit=200').then((r) => r.json()).catch(() => null),
+      ])
+      if (c?.error) throw new Error(c.error.message)
+      setCourses(c?.data?.courses ?? [])
+      const listings: any[] = b?.data?.listings ?? b?.data?.consultants ?? []
+      setPeople(listings.map((l) => l.consultant?.person ?? l.person ?? null).filter((x) => x?.id && x?.name))
+    } catch (e: any) { setErr(e.message) }
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  async function post(url: string, body: unknown) {
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(j?.error?.message ?? `HTTP ${res.status}`)
+    return j
+  }
+
+  async function addCourse(e: React.FormEvent) {
+    e.preventDefault(); setErr(null)
+    try {
+      const j = await post('/api/training', newCourse)
+      setSaid(j.data.says); setNewCourse({ title: '', category: 'TECH', duration: '' }); await load()
+    } catch (e: any) { setErr(e.message) }
+  }
+  async function enrollSomebody(e: React.FormEvent) {
+    e.preventDefault(); setErr(null)
+    try {
+      const j = await post('/api/training/enrollments', enroll)
+      setSaid(j.data.says); setEnroll({ courseId: '', personId: '' }); await load()
+    } catch (e: any) { setErr(e.message) }
+  }
+  async function move(e: React.FormEvent) {
+    e.preventDefault(); if (!ask) return; setErr(null)
+    try {
+      const j = await post(`/api/training/enrollments/${ask.id}`, { move: ask.move, score: ask.score || undefined, certificateUrl: ask.certificateUrl || undefined, reason: ask.reason || undefined })
+      setSaid(j.data.says); setAsk(null); await load()
+    } catch (e: any) { setErr(e.message) }
+  }
+
+  const tone = (s: string) => s === 'COMPLETED' ? 'chip--verified' : s === 'IN_PROGRESS' ? 'chip--action' : s === 'DROPPED' ? 'chip--attention' : 'chip--passive'
+
+  return (
+    <div className="panel mb-6">
+      <div className="flex items-baseline justify-between gap-3 mb-3">
+        <p className="stat-label">Courses</p>
+        <span className="text-[11px] text-etyme-faint tabular-nums">{courses.length}</span>
+      </div>
+      {said && <p className="mb-3 text-sm text-etyme-verified">{said}</p>}
+      {err && <p className="mb-3 text-sm text-etyme-attention">{err}</p>}
+
+      {courses.length === 0 && <p className="text-sm text-etyme-muted mb-3">No courses yet. Add one for a skill in deficit, then put people on it.</p>}
+      <div className="divide-y divide-etyme-rule mb-4">
+        {courses.map((c) => (
+          <div key={c.id} className="py-3">
+            <div className="flex flex-wrap items-baseline gap-2">
+              <span className="text-sm text-etyme-ink">{c.title}</span>
+              <span className="text-xs text-etyme-muted">{c.category ? c.category.replace('_', ' ').toLowerCase() : ''}{c.duration ? ` · ${c.duration}h` : ''}</span>
+              <span className="text-xs text-etyme-faint tabular-nums ml-auto">
+                {c.counts.completed} finished · {c.counts.inProgress} in progress · {c.counts.enrolled} enrolled
+              </span>
+            </div>
+            {c.enrollments.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {c.enrollments.map((en) => (
+                  <div key={en.id} className="flex flex-wrap items-center gap-2 text-sm">
+                    <span className="text-etyme-ink">{en.person.name}</span>
+                    <span className={`chip text-[9px] ${tone(en.status)}`}>{en.word}{en.score != null ? ` · ${en.score}` : ''}</span>
+                    {en.moves.map((m) => (
+                      <button key={m.move} onClick={() => setAsk({ id: en.id, move: m.move, word: m.word, score: '', certificateUrl: '', reason: '' })} className="text-xs text-etyme-action hover:underline">
+                        {m.word}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <form onSubmit={addCourse} className="border border-etyme-rule rounded-lg p-3 flex flex-wrap gap-2 items-end">
+          <label className="flex-1 min-w-[140px]">
+            <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Add a course</span>
+            <input value={newCourse.title} onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })} required placeholder="Kinaxis RapidResponse fundamentals" className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+          </label>
+          <select value={newCourse.category} onChange={(e) => setNewCourse({ ...newCourse, category: e.target.value })} className="border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised">
+            {['TECH', 'COMPLIANCE', 'SOFT_SKILLS', 'CERTIFICATION', 'AI_UPSKILLING'].map((c) => <option key={c} value={c}>{c.replace('_', ' ').toLowerCase()}</option>)}
+          </select>
+          <input value={newCourse.duration} onChange={(e) => setNewCourse({ ...newCourse, duration: e.target.value })} placeholder="hours" className="w-20 border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised" />
+          <button type="submit" className="px-3 py-2 border border-etyme-rule rounded text-sm text-etyme-ink hover:bg-etyme-canvas">Add</button>
+        </form>
+        <form onSubmit={enrollSomebody} className="border border-etyme-rule rounded-lg p-3 flex flex-wrap gap-2 items-end">
+          <label className="flex-1 min-w-[140px]">
+            <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Put somebody on a course</span>
+            <select value={enroll.personId} onChange={(e) => setEnroll({ ...enroll, personId: e.target.value })} required className="w-full border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised">
+              <option value="">Who</option>
+              {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </label>
+          <select value={enroll.courseId} onChange={(e) => setEnroll({ ...enroll, courseId: e.target.value })} required className="border border-etyme-rule rounded px-2 py-2 text-sm bg-etyme-raised">
+            <option value="">Which course</option>
+            {courses.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+          <button type="submit" disabled={!enroll.courseId || !enroll.personId} className="px-3 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">Enroll</button>
+        </form>
+      </div>
+
+      {ask && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-etyme-ink/30 p-4 md:p-8" onClick={() => setAsk(null)} role="dialog" aria-modal="true" aria-label={ask.word}>
+          <form onSubmit={move} onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-etyme-surface border border-etyme-rule rounded-lg p-5 space-y-4">
+            <h2 className="font-serif text-lg text-etyme-ink">{ask.word}</h2>
+            {ask.move === 'complete' && (
+              <>
+                <label className="block">
+                  <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Score, if there was one</span>
+                  <input value={ask.score} onChange={(e) => setAsk({ ...ask, score: e.target.value })} className="w-24 border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+                </label>
+                <label className="block">
+                  <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Certificate, if there is one</span>
+                  <input value={ask.certificateUrl} onChange={(e) => setAsk({ ...ask, certificateUrl: e.target.value })} placeholder="https://…" className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+                </label>
+              </>
+            )}
+            {ask.move === 'drop' && (
+              <label className="block">
+                <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Why</span>
+                <input value={ask.reason} onChange={(e) => setAsk({ ...ask, reason: e.target.value })} required className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+              </label>
+            )}
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setAsk(null)} className="text-sm text-etyme-muted">Cancel</button>
+              <button type="submit" className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">Record</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

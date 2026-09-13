@@ -182,7 +182,9 @@ export const DOMAINS: Domain[] = [
     l2: ['L2.1.2', 'L2.7.2'],
     owns: [
       'app/dashboard/alumni', 'app/dashboard/my-benches', 'app/dashboard/my-page',
-      'app/dashboard/training',
+      'app/dashboard/training', 'app/api/training',
+      // Training that starts, finishes or stops.
+      'lib/training',
       'app/api/alumni', 'app/api/releasing-soon', 'app/api/benchmark',
       'lib/match-engine', 'lib/candidate-fit', 'lib/bench-filter', 'lib/why',
       'lib/releasing-soon', 'lib/shared-consultant', 'lib/scorecard',
