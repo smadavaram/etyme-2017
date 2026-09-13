@@ -1,0 +1,439 @@
+<title>The 100-Day Ladder</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+  :root {
+    --paper: #F6F8F4;
+    --sheet: #FFFFFF;
+    --ink: #1B2320;
+    --muted: #5B675F;
+    --rule: #CFD7CF;
+    --rule-soft: #E4E9E2;
+    --pitch: #2F6D41;
+    --pitch-soft: #E3EFE5;
+    --amber: #A8661A;
+    --amber-soft: #F6EBDC;
+    --example: #7A867E;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #141917;
+      --sheet: #1C2320;
+      --ink: #E7EBE6;
+      --muted: #9CA79F;
+      --rule: #3A453E;
+      --rule-soft: #2A332E;
+      --pitch: #7CC48F;
+      --pitch-soft: #1F3227;
+      --amber: #E0A45A;
+      --amber-soft: #33291A;
+      --example: #8C978F;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #141917;
+    --sheet: #1C2320;
+    --ink: #E7EBE6;
+    --muted: #9CA79F;
+    --rule: #3A453E;
+    --rule-soft: #2A332E;
+    --pitch: #7CC48F;
+    --pitch-soft: #1F3227;
+    --amber: #E0A45A;
+    --amber-soft: #33291A;
+    --example: #8C978F;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    padding-block: 32px 64px;
+    padding-inline: 16px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+
+  h1, h2, h3, .label, .num, th, .tag, .day {
+    font-family: "Barlow Condensed", "Arial Narrow", Impact, sans-serif;
+  }
+  h1 { font-size: 56px; font-weight: 700; line-height: 0.95; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  h2 { font-size: 30px; font-weight: 700; margin: 0; line-height: 1.05; text-wrap: balance; }
+  h3 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+  p { margin: 0; max-width: 62ch; }
+  .label { font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .accent { color: var(--pitch); }
+
+  /* header */
+  .masthead { display: grid; grid-template-columns: 1fr auto; gap: 16px 32px; align-items: end; border-bottom: 3px solid var(--ink); padding-bottom: 16px; }
+  .masthead .sub { max-width: 52ch; margin-top: 12px; font-size: 17px; }
+  .who { display: flex; flex-direction: column; gap: 10px; min-width: 240px; }
+  .line { border-bottom: 1.5px solid var(--ink); height: 26px; }
+  .who .label { margin-bottom: 2px; }
+
+  /* sheets */
+  .sheet { background: var(--sheet); border: 1.5px solid var(--rule); padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+  .sheet-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; border-bottom: 2px solid var(--ink); padding-bottom: 10px; }
+  .sheet-head .label { color: var(--pitch); }
+
+  /* rules block */
+  .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .rule-item { display: flex; flex-direction: column; gap: 6px; border-top: 2px solid var(--pitch); padding-top: 10px; }
+  .rule-item p { font-size: 15px; }
+
+  /* fixed week */
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th { text-align: left; font-size: 14px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 2px solid var(--ink); }
+  td { padding: 8px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; font-size: 15px; }
+  td.day { font-weight: 700; font-size: 17px; width: 64px; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; }
+  .tag.core { background: var(--pitch-soft); color: var(--pitch); }
+  .tag.fun { background: var(--amber-soft); color: var(--amber); }
+  .tag.open { border: 1px dashed var(--rule); color: var(--muted); }
+  .table-scroll { overflow-x: auto; }
+
+  /* fill-in fields */
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field .lines { display: flex; flex-direction: column; }
+  .field .lines > span { border-bottom: 1px solid var(--rule); height: 28px; }
+  .example { color: var(--example); font-style: italic; font-size: 14px; }
+  .example::before { content: "e.g. "; font-style: normal; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; }
+
+  .area { border: 1.5px solid var(--rule); padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .area-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .area-head .line { flex: 1; min-width: 160px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* ramp */
+  .ramp { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .ramp div { border: 1.5px solid var(--rule); padding: 10px 8px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
+  .ramp .num { font-size: 30px; font-weight: 700; line-height: 1; color: var(--pitch); }
+  .ramp .label { font-size: 12px; }
+  .ramp div:last-child { border-color: var(--pitch); background: var(--pitch-soft); }
+
+  /* 100 grid */
+  .grid100 { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; max-width: 520px; }
+  .grid100 span { aspect-ratio: 1; border: 1.5px solid var(--rule); display: flex; align-items: flex-start; justify-content: flex-start; padding: 2px 3px; font-family: "Barlow Condensed", sans-serif; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .grid100 span.check { border-color: var(--pitch); border-width: 2px; }
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border: 1.5px solid var(--rule); margin-right: 6px; vertical-align: -1px; }
+  .legend span.c::before { border-color: var(--pitch); border-width: 2px; }
+
+  /* checkpoints */
+  .checks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .check { border: 1.5px solid var(--rule); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .check .num { font-size: 26px; font-weight: 700; line-height: 1; }
+  .check .num small { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-left: 4px; }
+  .check .lines > span { border-bottom: 1px solid var(--rule); height: 24px; display: block; }
+
+  /* year */
+  .cycles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .cycle { border: 1.5px solid var(--rule); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .cycle.rest { border-style: dashed; }
+  .cycle .num { font-size: 22px; font-weight: 700; line-height: 1; }
+  .cycle .dates { font-size: 13px; color: var(--muted); }
+  .cycle .lines > span { border-bottom: 1px solid var(--rule); height: 24px; display: block; }
+
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  ol, ul { margin: 0; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  .note { border-left: 3px solid var(--amber); padding-left: 12px; font-size: 15px; }
+
+  .print-hint { font-size: 14px; color: var(--muted); }
+
+  @media (max-width: 640px) {
+    h1 { font-size: 40px; }
+    .masthead { grid-template-columns: 1fr; }
+    .rules, .two, .checks, .cycles { grid-template-columns: 1fr; }
+    .ramp { grid-template-columns: repeat(2, 1fr); }
+    .ramp div:last-child { grid-column: span 2; }
+  }
+  @media print {
+    :root { --paper: #fff; --sheet: #fff; --ink: #000; --muted: #444; --rule: #888; --rule-soft: #bbb; --pitch: #1f5a32; --pitch-soft: #eef4ef; --amber: #8a5210; --amber-soft: #f5eee2; --example: #666; }
+    body { padding: 0; font-size: 13px; }
+    .sheet { break-inside: avoid; page-break-inside: avoid; border-color: #888; }
+    .sheet.page { break-before: page; page-break-before: always; }
+    .print-hint { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <div class="label">A planning template for a 7th grader</div>
+      <h1>The 100-Day Ladder</h1>
+      <p class="sub">Three 100-day cycles make a year. Each cycle raises the bar in the same core areas, so the skills stack instead of restarting. Individual practice is where the compounding happens. Group sessions are where it shows.</p>
+    </div>
+    <div class="who">
+      <div><div class="label">Name</div><div class="line"></div></div>
+      <div><div class="label">Cycle no. &amp; dates</div><div class="line"></div></div>
+      <div><div class="label">Grade / season</div><div class="line"></div></div>
+    </div>
+  </header>
+
+  <p class="print-hint">Print this page and fill it in by hand, or keep it open and copy each sheet into a notebook. Grey italic text is a filled-in example. Everything else is yours to fill.</p>
+
+  <!-- HOW IT WORKS -->
+  <section class="sheet">
+    <div class="sheet-head"><h2>How the ladder works</h2><span class="label">Read once, together</span></div>
+    <div class="rules">
+      <div class="rule-item">
+        <h3>Core vs. fun</h3>
+        <p><strong>Core</strong> areas get a target, a measure, and daily individual practice. Pick 3 or 4 and keep the same ones all year. <strong>Fun</strong> areas get 20 minutes and no target. No pressure, no score.</p>
+      </div>
+      <div class="rule-item">
+        <h3>Individual feeds group</h3>
+        <p>He already shows up disciplined in group settings. The solo work is the extra reps nobody else sees. Every core area names the group setting it feeds and what the coach or teacher should notice by day 100.</p>
+      </div>
+      <div class="rule-item">
+        <h3>Ramp, then hold</h3>
+        <p>Start small so the habit sticks: 10 minutes a day in week 1, 20 in weeks 2 and 3, then hold at 30 from week 4 to day 100. Two scores only: discipline (did I show up?) and consistency (the streak).</p>
+      </div>
+    </div>
+    <div class="ramp">
+      <div><span class="num">10</span><span class="label">min / day · Week 1</span></div>
+      <div><span class="num">20</span><span class="label">min / day · Week 2</span></div>
+      <div><span class="num">20</span><span class="label">min / day · Week 3</span></div>
+      <div><span class="num">30</span><span class="label">min / day · Week 4</span></div>
+      <div><span class="num">30</span><span class="label">Hold · Weeks 5–14 (day 100)</span></div>
+    </div>
+    <p class="muted" style="font-size:14px">These minutes are the individual practice on top of scheduled classes and team sessions. On a heavy day, 10 minutes still counts as showing up.</p>
+  </section>
+
+  <!-- FIXED WEEK -->
+  <section class="sheet">
+    <div class="sheet-head"><h2>The fixed week</h2><span class="label">Group settings already booked</span></div>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Day</th><th>Booked</th><th>Type</th><th>Individual slot (fill in)</th></tr></thead>
+      <tbody>
+        <tr><td class="day">Mon</td><td>Soccer · 6:00 pm</td><td><span class="tag core">Core</span></td><td><span class="tag open">before or after</span></td></tr>
+        <tr><td class="day">Tue</td><td>Soccer · 7:30 pm</td><td><span class="tag core">Core</span></td><td><span class="tag open">before or after</span></td></tr>
+        <tr><td class="day">Wed</td><td>Soccer · 7:30 pm</td><td><span class="tag core">Core</span></td><td><span class="tag open">before or after</span></td></tr>
+        <tr><td class="day">Thu</td><td>Soccer · 7:30 pm</td><td><span class="tag core">Core</span></td><td><span class="tag open">before or after</span></td></tr>
+        <tr><td class="day">Fri</td><td>Math class · 5:30–6:30 pm</td><td><span class="tag core">Core</span></td><td><span class="tag open">open evening</span></td></tr>
+        <tr><td class="day">Sat</td><td>Soccer · 12:00 pm</td><td><span class="tag core">Core</span></td><td><span class="tag open">open afternoon</span></td></tr>
+        <tr><td class="day">Sun</td><td>Writing class · 9–10 am<br>Shaka · 10:30 am–1 pm</td><td><span class="tag core">Core</span> <span class="tag fun">Fun</span></td><td><span class="tag open">weekly review · 10 min</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="two">
+      <div class="field">
+        <div class="label">Core areas this year (3–4, same all year)</div>
+        <div class="example">Soccer · Writing · Math · School assignments</div>
+        <div class="lines"><span></span><span></span></div>
+      </div>
+      <div class="field">
+        <div class="label">Fun menu (20 min, rotate freely)</div>
+        <div class="example">Table tennis · Swimming or exercise · Chess · Music · Robotics · HTML</div>
+        <div class="lines"><span></span><span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 100-DAY PLAN -->
+  <section class="sheet page">
+    <div class="sheet-head"><h2>100-Day Plan</h2><span class="label">One sheet per cycle · fill on day 0</span></div>
+    <div class="two">
+      <div class="field"><div class="label">Cycle</div><div class="lines"><span></span></div></div>
+      <div class="field"><div class="label">Day 1 → Day 100</div><div class="lines"><span></span></div></div>
+    </div>
+    <div class="field">
+      <div class="label">The one sentence for this cycle</div>
+      <div class="example">By day 100 I keep the ball under pressure, finish assignments a day early, and write a page without stopping.</div>
+      <div class="lines"><span></span><span></span></div>
+    </div>
+
+    <div class="stack">
+      <!-- example area -->
+      <div class="area">
+        <div class="area-head"><span class="label">Core area 1</span><span class="line"></span><span class="tag core">Core</span></div>
+        <div class="two">
+          <div class="field">
+            <div class="label">Where I am on day 1</div>
+            <div class="example">Loses the ball under pressure. Rarely uses left foot. Juggles about 15.</div>
+            <div class="lines"><span></span><span></span></div>
+          </div>
+          <div class="field">
+            <div class="label">Where I am on day 100 (measurable)</div>
+            <div class="example">Receives and turns under pressure with either foot. 50 juggles without a drop.</div>
+            <div class="lines"><span></span><span></span></div>
+          </div>
+        </div>
+        <div class="two">
+          <div class="field">
+            <div class="label">Individual practice (what, when, minutes)</div>
+            <div class="example">Wall passes both feet, juggling, 1v1 cone turns. Fri + Sun full 30 min; 10 min touches on team days.</div>
+            <div class="lines"><span></span><span></span></div>
+          </div>
+          <div class="field">
+            <div class="label">Group setting it feeds · what the coach should notice</div>
+            <div class="example">Team practice Mon–Thu, Sat. Coach sees him keep possession and use his left in games.</div>
+            <div class="lines"><span></span><span></span></div>
+          </div>
+        </div>
+        <div class="field">
+          <div class="label">One number I track (day 1 / 25 / 50 / 75 / 100)</div>
+          <div class="example">Juggle count: 15 / __ / __ / __ / __</div>
+          <div class="lines"><span></span></div>
+        </div>
+      </div>
+
+      <div class="area">
+        <div class="area-head"><span class="label">Core area 2</span><span class="line"></span><span class="tag core">Core</span></div>
+        <div class="two">
+          <div class="field"><div class="label">Where I am on day 1</div><div class="lines"><span></span><span></span></div></div>
+          <div class="field"><div class="label">Where I am on day 100 (measurable)</div><div class="lines"><span></span><span></span></div></div>
+        </div>
+        <div class="two">
+          <div class="field"><div class="label">Individual practice (what, when, minutes)</div><div class="example">Writing: 10-min freewrite before bed, one page a week edited for Sunday class.</div><div class="lines"><span></span><span></span></div></div>
+          <div class="field"><div class="label">Group setting it feeds · what the teacher should notice</div><div class="lines"><span></span><span></span></div></div>
+        </div>
+        <div class="field"><div class="label">One number I track (day 1 / 25 / 50 / 75 / 100)</div><div class="lines"><span></span></div></div>
+      </div>
+
+      <div class="area">
+        <div class="area-head"><span class="label">Core area 3</span><span class="line"></span><span class="tag core">Core</span></div>
+        <div class="two">
+          <div class="field"><div class="label">Where I am on day 1</div><div class="lines"><span></span><span></span></div></div>
+          <div class="field"><div class="label">Where I am on day 100 (measurable)</div><div class="lines"><span></span><span></span></div></div>
+        </div>
+        <div class="two">
+          <div class="field"><div class="label">Individual practice (what, when, minutes)</div><div class="example">Math: 15 min of the hardest problem type from Friday class, 4 days a week.</div><div class="lines"><span></span><span></span></div></div>
+          <div class="field"><div class="label">Group setting it feeds · what the teacher should notice</div><div class="lines"><span></span><span></span></div></div>
+        </div>
+        <div class="field"><div class="label">One number I track (day 1 / 25 / 50 / 75 / 100)</div><div class="lines"><span></span></div></div>
+      </div>
+
+      <div class="area">
+        <div class="area-head"><span class="label">Core area 4</span><span class="line"></span><span class="tag core">Core</span></div>
+        <div class="two">
+          <div class="field"><div class="label">Where I am on day 1</div><div class="lines"><span></span><span></span></div></div>
+          <div class="field"><div class="label">Where I am on day 100 (measurable)</div><div class="lines"><span></span><span></span></div></div>
+        </div>
+        <div class="two">
+          <div class="field"><div class="label">Individual practice (what, when, minutes)</div><div class="example">Assignments: Sunday plan of the week's work, finish each one a day before it is due.</div><div class="lines"><span></span><span></span></div></div>
+          <div class="field"><div class="label">Group setting it feeds · what the teacher should notice</div><div class="lines"><span></span><span></span></div></div>
+        </div>
+        <div class="field"><div class="label">One number I track (day 1 / 25 / 50 / 75 / 100)</div><div class="lines"><span></span></div></div>
+      </div>
+
+      <div class="area">
+        <div class="area-head"><span class="label">Fun this cycle (1 or 2)</span><span class="line"></span><span class="tag fun">Fun</span></div>
+        <div class="two">
+          <div class="field"><div class="label">What and when</div><div class="example">Chess, 20 min after dinner Tue/Thu. Swim Saturday after soccer.</div><div class="lines"><span></span></div></div>
+          <div class="field"><div class="label">Could this become a core area next cycle?</div><div class="lines"><span></span></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DAILY TALLY -->
+  <section class="sheet page">
+    <div class="sheet-head"><h2>Daily tally</h2><span class="label">Discipline + consistency · mark every day</span></div>
+    <p>Fill the box when the individual practice happened. A full box is discipline. Boxes in a row are consistency. Ringed boxes are checkpoint days.</p>
+    <div class="grid100">
+      <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span>
+      <span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span>
+      <span>21</span><span>22</span><span>23</span><span>24</span><span class="check">25</span><span>26</span><span>27</span><span>28</span><span>29</span><span>30</span>
+      <span>31</span><span>32</span><span>33</span><span>34</span><span>35</span><span>36</span><span>37</span><span>38</span><span>39</span><span>40</span>
+      <span>41</span><span>42</span><span>43</span><span>44</span><span>45</span><span>46</span><span>47</span><span>48</span><span>49</span><span class="check">50</span>
+      <span>51</span><span>52</span><span>53</span><span>54</span><span>55</span><span>56</span><span>57</span><span>58</span><span>59</span><span>60</span>
+      <span>61</span><span>62</span><span>63</span><span>64</span><span>65</span><span>66</span><span>67</span><span>68</span><span>69</span><span>70</span>
+      <span>71</span><span>72</span><span>73</span><span>74</span><span class="check">75</span><span>76</span><span>77</span><span>78</span><span>79</span><span>80</span>
+      <span>81</span><span>82</span><span>83</span><span>84</span><span>85</span><span>86</span><span>87</span><span>88</span><span>89</span><span>90</span>
+      <span>91</span><span>92</span><span>93</span><span>94</span><span>95</span><span>96</span><span>97</span><span>98</span><span>99</span><span class="check">100</span>
+    </div>
+    <div class="legend"><span>Practice day</span><span class="c">Checkpoint</span></div>
+    <div class="two">
+      <div class="field"><div class="label">Longest streak this cycle</div><div class="lines"><span></span></div></div>
+      <div class="field"><div class="label">Days shown up out of 100</div><div class="lines"><span></span></div></div>
+    </div>
+    <p class="note">A missed day is not a failed cycle. The rule is never miss twice in a row.</p>
+  </section>
+
+  <!-- CHECKPOINTS -->
+  <section class="sheet">
+    <div class="sheet-head"><h2>Checkpoints</h2><span class="label">15 minutes, parent + kid</span></div>
+    <p>At each checkpoint write the tracked number for every core area, then answer: what is compounding, what is stuck, what changes for the next 25 days.</p>
+    <div class="checks">
+      <div class="check"><span class="num">25<small>day</small></span><div class="lines"><span></span><span></span><span></span><span></span></div></div>
+      <div class="check"><span class="num">50<small>day</small></span><div class="lines"><span></span><span></span><span></span><span></span></div></div>
+      <div class="check"><span class="num">75<small>day</small></span><div class="lines"><span></span><span></span><span></span><span></span></div></div>
+      <div class="check"><span class="num">100<small>day</small></span><div class="lines"><span></span><span></span><span></span><span></span></div></div>
+    </div>
+    <div class="field">
+      <div class="label">Day 100 review · carry forward / raise the bar / drop</div>
+      <div class="example">Carry: juggling habit. Raise: 50 → 100 juggles, add weak-foot shooting. Drop: cone turns, now automatic.</div>
+      <div class="lines"><span></span><span></span><span></span></div>
+    </div>
+  </section>
+
+  <!-- ONE-YEAR PLAN -->
+  <section class="sheet page">
+    <div class="sheet-head"><h2>1-Year Plan</h2><span class="label">3 cycles + 65 days of rest and reset</span></div>
+    <p>The same core areas run through all three cycles. Each cycle's day-100 target becomes the next cycle's day-1 baseline. That is the compounding. Example dates below assume Cycle 1 starts on September 15.</p>
+    <div class="cycles">
+      <div class="cycle"><span class="num">Cycle 1</span><span class="dates">Days 1–100 · Sep 15 – Dec 23</span><div class="label">Focus</div><div class="lines"><span></span><span></span><span></span></div></div>
+      <div class="cycle"><span class="num">Cycle 2</span><span class="dates">Days 101–200 · Dec 24 – Apr 2</span><div class="label">Focus</div><div class="lines"><span></span><span></span><span></span></div></div>
+      <div class="cycle"><span class="num">Cycle 3</span><span class="dates">Days 201–300 · Apr 3 – Jul 11</span><div class="label">Focus</div><div class="lines"><span></span><span></span><span></span></div></div>
+      <div class="cycle rest"><span class="num">Reset</span><span class="dates">Days 301–365 · Jul 12 – Sep 14</span><div class="label">Rest, camps, try a fun area</div><div class="lines"><span></span><span></span><span></span></div></div>
+    </div>
+
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>Core area</th><th>Day 1 of year</th><th>End of Cycle 1</th><th>End of Cycle 2</th><th>End of Cycle 3</th></tr></thead>
+      <tbody>
+        <tr><td><span class="example">Soccer</span></td><td><span class="example">15 juggles</span></td><td><span class="example">50</span></td><td><span class="example">100, weak-foot shots</span></td><td><span class="example">Starts every game</span></td></tr>
+        <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="two">
+      <div class="field">
+        <div class="label">Fixed dates this year (tournaments, tests, showcases)</div>
+        <div class="lines"><span></span><span></span><span></span></div>
+      </div>
+      <div class="field">
+        <div class="label">Year-end sentence · what is true on day 365</div>
+        <div class="lines"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="label">5-year line (optional, one sentence, revisit each year)</div>
+      <div class="example">Playing at the highest level I can reach, writing well enough to be picked for it, and still enjoying the fun list.</div>
+      <div class="lines"><span></span></div>
+    </div>
+  </section>
+
+  <!-- SUNDAY REVIEW -->
+  <section class="sheet">
+    <div class="sheet-head"><h2>Sunday 10-minute review</h2><span class="label">Same questions every week</span></div>
+    <div class="two">
+      <div>
+        <ol>
+          <li>How many days did I show up this week? (tally)</li>
+          <li>Which core area moved the most? Which the least?</li>
+          <li>What did the coach or teacher say or notice?</li>
+          <li>What is the plan for the individual slots next week?</li>
+          <li>What is my fun pick this week?</li>
+        </ol>
+      </div>
+      <div class="field">
+        <div class="label">Notes</div>
+        <div class="lines"><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+    </div>
+    <p class="note">Parent's job is to ask the questions and write nothing. The kid owns the pen.</p>
+  </section>
+
+</div>
