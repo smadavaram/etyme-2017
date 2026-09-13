@@ -31,6 +31,7 @@ import { startRun, finishRun } from '@/lib/alerts'
 const JOBS = [
   { path: 'auto-approve', does: 'approves the timesheets nobody responded to' },
   { path: 'due-cycles', does: 'generates the billing and pay cycles that fell due' },
+  { path: 'end-contracts', does: 'ends the contracts whose last day has passed' },
   { path: 'rolloff-scan', does: 'finds assignments ending soon' },
   { path: 'visa-watch', does: 'finds permits expiring inside a contract' },
   { path: 'loose-ends', does: 'chases placements billed with no cost behind them' },

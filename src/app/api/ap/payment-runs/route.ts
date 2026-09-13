@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { completeCycle } from '@/lib/cycle-complete'
 import { staffOnly } from '@/lib/seat'
 import {
   proposeRun, remittanceAdvice, mayApproveRun, applyRunPayment,
@@ -349,6 +350,13 @@ export async function PATCH(request: NextRequest) {
         where: { id: o.billId },
         data: { paidCents: o.paidCentsAfter, paidAt: o.paidAt, status: o.status },
       })
+      // Settled: the "vendor bill due" cycle on its buy contract is done.
+      if (o.paidAt) {
+        const bill = await tx.vendorBill.findUnique({ where: { id: o.billId }, select: { buyContractId: true, periodEnd: true } })
+        if (bill?.buyContractId && bill.periodEnd) {
+          await completeCycle(tx, { buyContractId: bill.buyContractId, kind: 'VENDOR_BILL_DUE', periodEnd: bill.periodEnd, at: o.paidAt })
+        }
+      }
     }
     await tx.paymentRun.update({ where: { id }, data: { status: 'PAID', paidAt } })
   })

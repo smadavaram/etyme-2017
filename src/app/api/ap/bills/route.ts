@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { completeCycle } from '@/lib/cycle-complete'
 import { fractionFor } from '@/lib/contract-links'
 import { staffOnly } from '@/lib/seat'
 import { decimalsFor } from '@/lib/money'
@@ -478,6 +479,13 @@ export async function POST(request: NextRequest) {
     },
     select: { id: true, number: true, totalCents: true, currency: true, dueAt: true, status: true },
   })
+
+  // The "vendor bill to raise" cycle on the buy contract is done — and
+  // if the bill arrived already paid, so is "vendor bill due".
+  if (buyContractId && periodEnd) {
+    await completeCycle(prisma, { buyContractId, kind: 'VENDOR_BILL_GENERATE', periodEnd })
+    if (paidAt) await completeCycle(prisma, { buyContractId, kind: 'VENDOR_BILL_DUE', periodEnd, at: paidAt })
+  }
 
   return NextResponse.json({
     data: {

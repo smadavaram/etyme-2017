@@ -2567,7 +2567,7 @@ model Timesheet {
   periodEnd      DateTime
   days           Json // { "2026-08-01": 8, ... }
   totalHours     Decimal      @db.Decimal(7, 2)
-  status         String       @default("OPEN") // OPEN · SUBMITTED · APPROVED · PARTIAL · REJECTED
+  status         String       @default("OPEN") // OPEN · SUBMITTED · APPROVED · REJECTED — fewer hours accepted than submitted is acceptedHours, not a status
   anomalyScore   Int? // low score means low confidence; held, never auto rejected
   anomalyReason  String?
 

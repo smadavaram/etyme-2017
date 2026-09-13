@@ -587,6 +587,22 @@ supplier told; money goes back through approval
 placement's word, read in Submissions. `/demo` seats the account owner,
 HR and Procurement at each programme.
 
+### Every table moves ✓ (2026-09-14)
+
+"We need all tables to keep moving their respective statuses across
+the app." A scan of every status column against every writer found
+where they stopped, and `__integration__/status-ledger.test.ts` now
+walks one placement and reads every table at every station. Fixed:
+the hours, invoice and vendor-bill cycles are marked done when the
+thing they waited for happens (`lib/cycle-complete`), so the placement
+timeline stops saying "overdue" about a week that was paid; a contract
+whose last day has passed is ENDED by the daily job (`cron/end-contracts`),
+both sides; activation moves the buy contract with the sell contract;
+a supplier can decline an invitation and whoever is hiring is told
+(`invitations/[id]/decline`); submitting through the bulk route accepts
+the invitation. Left as words on the schema and now corrected: a
+timesheet has no PARTIAL status; fewer hours accepted is `acceptedHours`.
+
 ### Somebody is told when it breaks ✓ (2026-09-13)
 
 `/ready` measures the edges (`lib/readiness`); two of its red rows are

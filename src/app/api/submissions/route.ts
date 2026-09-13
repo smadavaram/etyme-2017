@@ -385,6 +385,14 @@ export async function POST(request: NextRequest) {
         },
       })
 
+      // Putting somebody forward is the answer to the invitation. The
+      // single-candidate route said so; this one did not, and the client's
+      // page went on counting a supplier that had submitted as silent.
+      await prisma.requirementInvitation.updateMany({
+        where: { requirementId, toCompanyId: fromCompanyId, status: 'SENT' },
+        data: { status: 'ACCEPTED' },
+      })
+
       // Not a refusal — a recruiter working a role at eight at night should
       // not be stopped by a missing file — but the client will ask for it.
       item.cv = cv ? cv.label : null

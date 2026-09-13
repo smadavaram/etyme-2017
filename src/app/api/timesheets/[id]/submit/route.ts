@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { mayEnter } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
+import { completeCycle } from '@/lib/cycle-complete'
 
 /**
  * POST /api/timesheets/:id/submit
@@ -20,7 +21,7 @@ export async function POST(
   const timesheet = await prisma.timesheet.findUnique({
     where: { id },
     select: {
-      id: true, status: true, totalHours: true, personId: true,
+      id: true, status: true, totalHours: true, personId: true, sellContractId: true, periodEnd: true,
       sellContract: {
         select: { companyId: true, clientCompanyId: true, endClientCompanyId: true },
       },
@@ -62,6 +63,15 @@ export async function POST(
   await prisma.timesheet.update({
     where: { id },
     data: { status: 'SUBMITTED' },
+  })
+
+  // The "hours due" cycle for this week is done. Without this the
+  // placement timeline said hours were overdue on a week that had been
+  // submitted, signed, invoiced and paid.
+  await completeCycle(prisma, {
+    sellContractId: timesheet.sellContractId,
+    kind: 'TIMESHEET_SUBMIT',
+    periodEnd: timesheet.periodEnd,
   })
 
   return NextResponse.json({

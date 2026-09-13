@@ -3,6 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { completeCycle } from '@/lib/cycle-complete'
 import { emit } from '@/lib/events'
 import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
 import {
@@ -226,6 +227,7 @@ export async function POST(request: NextRequest) {
     totalHours: number
     amount: number
     timesheetIds: string[]
+    periodEnd: Date
   }>()
 
   // ── The period the contract bills ───────────────────────────────────
@@ -285,6 +287,7 @@ export async function POST(request: NextRequest) {
       existing.totalHours += hours
       existing.amount += hours * rate / 100 // convert cents to dollars
       existing.timesheetIds.push(ts.id)
+      if (ts.periodEnd > existing.periodEnd) existing.periodEnd = ts.periodEnd
     } else {
       linesByContract.set(key, {
         sellContractId: ts.sellContractId,
@@ -295,6 +298,9 @@ export async function POST(request: NextRequest) {
         totalHours: hours,
         amount: hours * rate / 100,
         timesheetIds: [ts.id],
+        // The latest week on the line, so the "invoice to raise" cycle
+        // it completes is the one this billing period was heading for.
+        periodEnd: ts.periodEnd,
       })
     }
 
@@ -536,6 +542,11 @@ export async function POST(request: NextRequest) {
       // are the link, and an invoice must never touch the approval state of
       // the receipts that justify it.
       const allTimesheetIds = lines.flatMap((l) => l.timesheetIds)
+
+      // The "invoice to raise" cycle on each contract billed here is done.
+      for (const l of lines) {
+        await completeCycle(tx, { sellContractId: l.sellContractId, kind: 'INVOICE_GENERATE', periodEnd: l.periodEnd })
+      }
 
       // AutomationLog
       await tx.automationLog.create({

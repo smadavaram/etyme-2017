@@ -270,9 +270,25 @@ export async function POST(
     }
   }
 
+  // The buy side moves with the sell side. Activating a placement started
+  // the sell contract and left the buy contract it is supplied through in
+  // DRAFT for ever — so the vendor's pay cycles belonged to a contract
+  // that had never begun, and nothing ever ended it either. One button,
+  // both records, the same transition, only where the buy contract is at
+  // a state the same action moves from.
+  const linked = await prisma.sellContract.findUnique({
+    where: { id },
+    select: { buyLinks: { select: { buyContractId: true } } },
+  })
+  const buyIds = linked?.buyLinks.map((l) => l.buyContractId) ?? []
+
   await prisma.$transaction([
     prisma.sellContract.update({
       where: { id },
+      data: { state: newState as any },
+    }),
+    prisma.buyContract.updateMany({
+      where: { id: { in: buyIds }, state: { in: TRANSITIONS[action as Action].from as any } },
       data: { state: newState as any },
     }),
     prisma.automationLog.create({

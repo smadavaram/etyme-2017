@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import { prisma } from '@/lib/db'
+import { completeCycle } from '@/lib/cycle-complete'
 import { gates, maySign, acceptWith, type Sheet } from '@/lib/timesheet-signatures'
 import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
@@ -235,6 +236,15 @@ export async function POST(
       },
     }),
   ])
+
+  // Both signatures in: the "hours to approve" cycle for this week is done.
+  if (g.mayInvoice && g.mayPay) {
+    await completeCycle(prisma, {
+      sellContractId: timesheet.sellContractId,
+      kind: 'TIMESHEET_APPROVE',
+      periodEnd: timesheet.periodEnd,
+    })
+  }
 
   // The goods receipt. Everything downstream — the match, the invoice,
   // the payment — dates from this moment, so it is the event an ERP

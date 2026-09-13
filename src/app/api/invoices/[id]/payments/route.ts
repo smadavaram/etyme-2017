@@ -3,6 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { completeCycle } from '@/lib/cycle-complete'
 import { emit } from '@/lib/events'
 import { invoiceScope } from '@/lib/resolve-client-company'
 
@@ -60,6 +61,7 @@ export async function POST(
           status: true,
           currency: true,
           engagementId: true,
+          periodEnd: true,
           engagement: { select: { msa: { select: { vendorId: true, clientId: true } } } },
         },
       })
@@ -150,6 +152,14 @@ export async function POST(
           status: newStatus,
         },
       })
+
+      // Paid in full: the "invoice due" cycle on every contract billed is done.
+      if (newStatus === 'PAID') {
+        const billed = await tx.invoiceLine.findMany({ where: { invoiceId: id }, select: { sellContractId: true } })
+        for (const sellContractId of new Set(billed.map((b) => b.sellContractId))) {
+          await completeCycle(tx, { sellContractId, kind: 'INVOICE_DUE', periodEnd: invoice.periodEnd })
+        }
+      }
 
       await tx.automationLog.create({
         data: {
