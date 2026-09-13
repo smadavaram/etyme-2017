@@ -49,15 +49,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const decisions = ((row.decisions as unknown as Decision[]) ?? [])
   const desks = await desksFor(companyId, row.recommendedById)
 
+  // Every action here, resending the firm's link included, belongs to
+  // the desk the request is on. Resending used to return before this
+  // gate, so anybody seated could make the app send a credential.
+  const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: row.recommendedById, decisions, desks, firmName: row.name })
+  if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
+
   if (action === 'resend') {
     if (!row.contactEmail) return NextResponse.json({ error: { code: 'NO_CONTACT', message: `${row.name} has no contact email on the recommendation.` } }, { status: 422 })
     const delivery = await sendLink({ to: row.contactEmail, contactName: row.contactName, firmName: row.name, clientName: caller.company!.name, token: row.token })
     await prisma.supplierRequest.update({ where: { id }, data: { linkSentAt: now } })
     return NextResponse.json({ data: { delivery, says: `${row.name} has been sent its link again.` } })
   }
-
-  const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: row.recommendedById, decisions, desks, firmName: row.name })
-  if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
 
   if (action === 'mark') {
     const key = String(body?.key ?? '')

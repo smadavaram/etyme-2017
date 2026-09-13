@@ -34,6 +34,7 @@ import { writeCyclesFor } from '@/lib/contract-cycles'
 import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
 import { day, at } from '@/lib/seed-days'
 import { newChecklist } from '@/lib/supplier-onboarding'
+import { newApplyToken } from '@/lib/supplier-link'
 
 export interface World {
   firmBySlug: Map<string, { id: string }>
@@ -481,6 +482,7 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
           contactEmail: p.recommend.contactEmail, contactName: 'Priya Natarajan', reason: p.recommend.reason,
           skills: ['Supply chain planning', 'Demand planning', 'Kinaxis'],
           recommendedById: desk.hiring.personId, state: 'IN_REVIEW', stage: 'HR', createdAt: day(-4), linkSentAt: day(-4),
+          token: newApplyToken(),
           decisions: [
             { stage: 'LEAD', outcome: 'APPROVED', byId: lead?.personId ?? desk.programme.personId, byName: lead?.person.name ?? p.people.programme, at: day(-3).toISOString(), note: 'Two planning roles open next quarter and Pinnacle is at capacity.' },
             { stage: 'PROCUREMENT', outcome: 'APPROVED', byId: desk.procurement.personId, byName: p.people.procurement, at: day(-2).toISOString(), note: 'References confirmed; D&B rating acceptable.' },

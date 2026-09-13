@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { desksFor, deskPeople } from '@/lib/supplier-desks'
-import { applyUrl, sendLink } from '@/lib/supplier-link'
+import { applyUrl, newApplyToken, sendLink } from '@/lib/supplier-link'
 import {
   mayRecommend, mayActAt, newChecklist, readiness, stepsOf, STAGE_WORD,
   type ChecklistItem, type Decision, type Stage, type RequestState,
@@ -59,9 +59,26 @@ export async function GET(request: NextRequest) {
           mine: r.recommendedById === caller.person.id,
           mayAct: verdict.ok, whyNot: verdict.ok ? null : verdict.message,
           readiness: readiness(r.name, checklist, stage),
-          link: applyUrl(r.token), linkSentAt: r.linkSentAt?.toISOString() ?? null,
+          // The link is a bearer credential: whoever holds it can
+          // answer as the firm. It goes to the desk that may act on
+          // this request — who may need to send it again — and to
+          // nobody else. Everybody else is told it was sent, not what
+          // it is. It used to be handed to every seated employee.
+          link: verdict.ok ? applyUrl(r.token) : null,
+          linkSentAt: r.linkSentAt?.toISOString() ?? null,
           applied: application?.submittedAt ?? null,
-          application: application ? { legalName: application.legalName ?? null, experience: application.experience ?? null, references: application.references ?? [], bank: application.bank ?? null, skills: application.skills ?? [] } : null,
+          // What the firm supplied is read by the desk that verifies
+          // it, the same rule the checklist already follows. The bank
+          // block is Finance's and no other desk's.
+          application: application && verdict.ok
+            ? {
+                legalName: application.legalName ?? null,
+                experience: application.experience ?? null,
+                references: application.references ?? [],
+                skills: application.skills ?? [],
+                bank: stage === 'FINANCE' ? application.bank ?? null : null,
+              }
+            : null,
         }
       })),
       mayRecommend: mayRecommend(caller.permissions),
@@ -104,6 +121,7 @@ export async function POST(request: NextRequest) {
       companyId, name, domain, contactEmail, skills,
       contactName: typeof body?.contactName === 'string' && body.contactName.trim() ? body.contactName.trim() : null,
       reason, recommendedById: caller.person.id, checklist: newChecklist() as unknown as object, stage: 'LEAD', decisions: [],
+      token: newApplyToken(),
     },
   })
 

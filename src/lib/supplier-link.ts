@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { attemptDelivery, routeFor } from '@/lib/notification-delivery'
 import { configuredSenders } from '@/lib/senders'
 
@@ -6,6 +7,15 @@ import { configuredSenders } from '@/lib/senders'
  * applies and uploads against it with nothing to sign up for. In time
  * this is the supplier's door into the client portal.
  */
+/**
+ * A new link for a firm. Twenty-four random bytes, the same as every
+ * other bearer token in this codebase — the apply page accepts whoever
+ * holds it, so it has to be unguessable from another one.
+ */
+export function newApplyToken(): string {
+  return randomBytes(24).toString('base64url')
+}
+
 export function applyUrl(token: string): string {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
   return `${base}/apply/${token}`

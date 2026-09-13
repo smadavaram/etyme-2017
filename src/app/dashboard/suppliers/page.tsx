@@ -84,7 +84,7 @@ interface SupplierRequest {
   leadNamed: boolean
   createdAt: string
   readiness: { ok: boolean; held: number; of: number; missing: string[]; toVerify: string[]; says: string }
-  link: string
+  link: string | null
   linkSentAt: string | null
   applied: string | null
   application: { legalName: string | null; experience: string | null; references: any[]; bank: { bankName: string; accountName: string; last4: string } | null; skills: string[] } | null
@@ -454,7 +454,7 @@ export default function SuppliersPage() {
                     {r.contactEmail && r.mayAct && (
                       <button onClick={() => act(r.id, { action: 'resend' })} disabled={busy} className="rounded border border-etyme-rule px-2 py-0.5 text-[11px] hover:border-etyme-action">Send the link again</button>
                     )}
-                    <a href={r.link} target="_blank" rel="noreferrer" className="text-[11px] text-etyme-action hover:underline">Open their page</a>
+                    {r.link && <a href={r.link} target="_blank" rel="noreferrer" className="text-[11px] text-etyme-action hover:underline">Open their page</a>}
                   </div>
                   {r.application && (
                     <div className="grid grid-cols-1 gap-2 rounded-lg border border-etyme-rule bg-etyme-surface px-3 py-2 text-[12.5px] sm:grid-cols-2">
@@ -508,7 +508,7 @@ export default function SuppliersPage() {
               {r.stage === 'LEAD' && (
                 <div className="flex flex-wrap items-center gap-3 text-[12px] text-etyme-muted">
                   <span>{r.applied ? `The firm supplied its side ${when(r.applied)}.` : r.linkSentAt ? `Link sent to the firm ${when(r.linkSentAt)}.` : 'No link sent — add a contact email.'}</span>
-                  <a href={r.link} target="_blank" rel="noreferrer" className="text-[11px] text-etyme-action hover:underline">Open their page</a>
+                  {r.link && <a href={r.link} target="_blank" rel="noreferrer" className="text-[11px] text-etyme-action hover:underline">Open their page</a>}
                 </div>
               )}
 

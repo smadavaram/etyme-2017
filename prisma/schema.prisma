@@ -3816,14 +3816,21 @@ model SupplierRequest {
   recommendedById String
   /// RECOMMENDED · IN_REVIEW · APPROVED · DECLINED
   state           String   @default("RECOMMENDED")
-  /// Which desk it is on: TEAM · HR · PROCUREMENT · DONE
-  stage           String   @default("TEAM")
+  /// Which desk it is on: LEAD · PROCUREMENT · HR · FINANCE · DONE.
+  /// The first desk, so a row written without one starts where the
+  /// chain starts. It defaulted to TEAM, a desk that stopped existing
+  /// when the chain became four — which routed to Finance and then
+  /// walked backwards.
+  stage           String   @default("LEAD")
   /// [{ stage, outcome: APPROVED|DECLINED, byId, byName, at, note }]
   decisions       Json     @default("[]")
   /// [{ key, label, required, by: VENDOR|PROCUREMENT, state: MISSING|PROVIDED|HELD|WAIVED, note, at, fileName }]
   checklist       Json
-  /// The vendor's own link: they apply and upload against it, no sign-in.
-  token           String   @unique @default(cuid())
+  /// The vendor's own link: they apply and upload against it, no
+  /// sign-in. A bearer credential, so it is generated the way every
+  /// other one here is — from the crypto random, never a cuid, which
+  /// is ordered and guessable from a neighbour.
+  token           String   @unique
   linkSentAt      DateTime?
   /// What the vendor supplied through the link.
   application     Json?
