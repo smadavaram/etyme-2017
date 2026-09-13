@@ -19,9 +19,10 @@ import {
  *   { action: 'mark', key, state, note? }   — Procurement verifies (HELD), waives with a reason, or unmarks
  *   { action: 'resend' }             — send the firm its link again
  *
- * Program office, then HR, then Procurement, in that order. Never the
- * recommender, never somebody who decided an earlier desk. Procurement's
- * yes writes what the paste flow used to write in one keystroke: a
+ * The department lead, then Procurement, then HR, then Finance, in that
+ * order. Never the recommender, never somebody who decided an earlier
+ * desk. Each desk verifies its own items and no other's. Finance's yes
+ * writes what the paste flow used to write in one keystroke: a
  * company row (or the real firm, if it is already here under its own
  * domain), an agreement stub, a register row at approved standing, a
  * contact, and an invitation to sign in.
@@ -46,7 +47,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const stage = row.stage as Stage
   const checklist = row.checklist as unknown as ChecklistItem[]
   const decisions = ((row.decisions as unknown as Decision[]) ?? [])
-  const desks = await desksFor(companyId)
+  const desks = await desksFor(companyId, row.recommendedById)
 
   if (action === 'resend') {
     if (!row.contactEmail) return NextResponse.json({ error: { code: 'NO_CONTACT', message: `${row.name} has no contact email on the recommendation.` } }, { status: 422 })
@@ -59,17 +60,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
 
   if (action === 'mark') {
-    if (stage !== 'PROCUREMENT') {
-      return NextResponse.json({ error: { code: 'NOT_YET', message: `The paperwork is Procurement’s desk; ${row.name} is with ${STAGE_WORD[stage]} first.` } }, { status: 409 })
+    const key = String(body?.key ?? '')
+    const item = checklist.find((i) => i.key === key)
+    if (!item) return NextResponse.json({ error: { code: 'VALIDATION', message: 'That is not on the checklist.' } }, { status: 422 })
+    if (item.desk !== stage) {
+      return NextResponse.json({ error: { code: 'NOT_YOUR_ITEM', message: `${item.label} is ${STAGE_WORD[item.desk]}’s to verify, not this desk’s.` } }, { status: 409 })
     }
     const state = body?.state as ItemState
     if (!['HELD', 'WAIVED', 'MISSING'].includes(state)) {
       return NextResponse.json({ error: { code: 'VALIDATION', message: 'Verified, waived or missing.' } }, { status: 422 })
     }
-    const marked = markItem(checklist, String(body?.key ?? ''), state, note || null, now)
+    const marked = markItem(checklist, key, state, note || null, now)
     if (!marked.ok) return NextResponse.json({ error: { code: 'VALIDATION', message: marked.message } }, { status: 422 })
     const updated = await prisma.supplierRequest.update({ where: { id }, data: { checklist: marked.checklist as unknown as object, state: 'IN_REVIEW' } })
-    const ready = readiness(row.name, marked.checklist)
+    const ready = readiness(row.name, marked.checklist, stage)
     return NextResponse.json({ data: { request: { ...updated, checklist: marked.checklist }, readiness: ready, says: ready.says } })
   }
 
@@ -88,6 +92,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   if (action === 'approve') {
+    // A desk with paperwork of its own says yes only when its own items
+    // are verified or waived — the lead has none; the rest each have theirs.
+    const ready = readiness(row.name, checklist, stage)
+    if (!ready.ok) return NextResponse.json({ error: { code: 'PAPERWORK_MISSING', message: ready.says, missing: ready.missing, toVerify: ready.toVerify } }, { status: 409 })
     const decision: Decision = { stage, outcome: 'APPROVED', byId: caller.person.id, byName: caller.person.name, at: now.toISOString(), note: note || null }
     const next = nextStage(stage)
 
@@ -98,7 +106,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       })
       for (const personId of (await deskPeople(companyId, next, desks)).filter((p) => p !== caller.person.id)) {
         void notify({
-          personId, companyId, type: 'SYSTEM', entityId: id,
+          personId, companyId, type: 'SYSTEM', entityId: id, channel: 'EMAIL',
           title: `Supplier to review — ${row.name}`,
           body: `${caller.person.name} (${STAGE_WORD[stage]}) cleared ${row.name}${note ? `: ${note}` : ''}. It is on your desk now.`,
           data: { href: '/dashboard/suppliers' },
@@ -111,10 +119,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ data: { request: updated, says: `${row.name} cleared ${STAGE_WORD[stage]} and is with ${STAGE_WORD[next]} now.` } })
     }
 
-    // Procurement's yes.
-    const ready = readiness(row.name, checklist)
-    if (!ready.ok) return NextResponse.json({ error: { code: 'PAPERWORK_MISSING', message: ready.says, missing: ready.missing, toVerify: ready.toVerify } }, { status: 409 })
-
+    // Finance's yes: the last desk, and the one that writes the supplier.
     const claimed = row.domain
       ? await prisma.company.findFirst({ where: { domain: row.domain, claimedAt: { not: null }, isDemo: caller.company!.isDemo }, select: { id: true, name: true } })
       : null
@@ -153,12 +158,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     })
     void notify({
       personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
-      title: `${row.name} is approved`, body: `${caller.person.name} (Procurement) approved ${row.name}. You can send them a role now.`, data: { href: '/dashboard/suppliers' },
+      title: `${row.name} is approved`, body: `${caller.person.name} (Finance) approved ${row.name}, after your lead, Procurement and HR. You can send them a role now.`, data: { href: '/dashboard/suppliers' },
     })
     await prisma.automationLog.create({
       data: {
         companyId, action: 'SUPPLIER_APPROVED',
-        summary: `${row.name} approved as a supplier by ${caller.person.name}, after the program office and HR.`,
+        summary: `${row.name} approved as a supplier by ${caller.person.name} (Finance), after the department lead, Procurement and HR.`,
         reason: `Recommended by ${await nameOf(row.recommendedById)}: ${row.reason}. ${ready.says}`,
         payload: { requestId: id, supplierCompanyId: supplier.id, checklist: checklist as unknown as object, decisions: [...decisions, decision] as unknown as object },
         reversible: true,

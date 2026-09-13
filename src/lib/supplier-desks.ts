@@ -2,31 +2,56 @@ import { prisma } from '@/lib/db'
 import type { Desks } from '@/lib/supplier-onboarding'
 
 /**
- * The HR and Procurement standing desks at a client, as the requisition
- * chain names them: an ApprovalRule of kind HR or PROCUREMENT. A
- * company-wide rule wins; else the first unit's. Null where nobody is
- * named — the chain still walks, with the program office standing in
- * for HR and anybody who manages suppliers for Procurement.
+ * The desks a supplier walks, as the requisition chain already names
+ * them. The department lead is the nearest value-rule approver up the
+ * recommender's own unit tree, then a company-wide one; HR and
+ * Procurement are the standing desks (an ApprovalRule of kind HR or
+ * PROCUREMENT, company-wide first, else the first unit's). Null where
+ * nobody is named — the chain still walks, with the program office
+ * standing in for the lead and for HR, anybody who manages suppliers
+ * for Procurement, and whoever records payments for Finance.
  */
-export async function desksFor(companyId: string): Promise<Desks> {
+export async function desksFor(companyId: string, recommendedById?: string | null): Promise<Desks> {
   const rules = await prisma.approvalRule.findMany({
-    where: { companyId, isActive: true, kind: { in: ['HR', 'PROCUREMENT'] } },
-    select: { kind: true, approverId: true, orgUnitId: true },
+    where: { companyId, isActive: true },
+    select: { kind: true, approverId: true, orgUnitId: true, rank: true },
     orderBy: [{ orgUnitId: 'asc' }, { rank: 'asc' }],
   })
   const pick = (kind: string) => {
     const mine = rules.filter((r) => r.kind === kind)
     return (mine.find((r) => r.orgUnitId === null) ?? mine[0])?.approverId ?? null
   }
-  return { hrId: pick('HR'), procurementId: pick('PROCUREMENT') }
+
+  // The lead: walk up from the recommender's unit, nearest value rule
+  // wins; then the company-wide value rule with the lowest rank. Never
+  // the recommender themselves.
+  let leadId: string | null = null
+  if (recommendedById) {
+    const seat = await prisma.context.findFirst({ where: { companyId, personId: recommendedById, revokedAt: null }, select: { orgUnitId: true } })
+    const chain: string[] = []
+    let unitId = seat?.orgUnitId ?? null
+    for (let i = 0; unitId && i < 12; i++) {
+      chain.push(unitId)
+      const unit: { parentId: string | null } | null = await prisma.orgUnit.findUnique({ where: { id: unitId }, select: { parentId: true } })
+      unitId = unit?.parentId ?? null
+    }
+    const values = rules.filter((r) => r.kind === 'VALUE' && r.approverId !== recommendedById)
+    for (const u of chain) {
+      const hit = values.filter((r) => r.orgUnitId === u).sort((a, b) => a.rank - b.rank)[0]
+      if (hit) { leadId = hit.approverId; break }
+    }
+    if (!leadId) leadId = values.filter((r) => r.orgUnitId === null).sort((a, b) => a.rank - b.rank)[0]?.approverId ?? null
+  }
+  return { leadId, hrId: pick('HR'), procurementId: pick('PROCUREMENT') }
 }
 
 /** Everybody who sits on the desk a request is on now, to be told. */
-export async function deskPeople(companyId: string, stage: 'TEAM' | 'HR' | 'PROCUREMENT', desks: Desks): Promise<string[]> {
+export async function deskPeople(companyId: string, stage: 'LEAD' | 'PROCUREMENT' | 'HR' | 'FINANCE', desks: Desks): Promise<string[]> {
+  if (stage === 'LEAD' && desks.leadId) return [desks.leadId]
   if (stage === 'HR' && desks.hrId) return [desks.hrId]
-  const permission = stage === 'PROCUREMENT' ? 'vendors.manage' : 'governance.write'
+  const permission = stage === 'PROCUREMENT' ? 'vendors.manage' : stage === 'FINANCE' ? 'payments.record' : 'governance.write'
   const rows = await prisma.context.findMany({
-    where: { companyId, role: { permissions: { has: permission } } },
+    where: { companyId, revokedAt: null, role: { permissions: { has: permission } } },
     select: { personId: true },
   })
   const ids = new Set(rows.map((r) => r.personId))

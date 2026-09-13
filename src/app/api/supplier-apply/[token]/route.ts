@@ -88,9 +88,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     data: { application: application as unknown as object, checklist: checklist as unknown as object, state: 'IN_REVIEW', skills: skills.length ? skills : row.skills },
   })
 
-  // Procurement hears that the firm's side is in.
-  const desks = await desksFor(row.companyId)
-  for (const personId of await deskPeople(row.companyId, 'PROCUREMENT', desks)) {
+  // Whichever desk it is on hears that the firm's side is in; before
+  // the lead has decided, Procurement, whose desk comes first with paper.
+  const desks = await desksFor(row.companyId, row.recommendedById)
+  const stage = (['PROCUREMENT', 'HR', 'FINANCE'] as const).find((s) => s === row.stage) ?? 'PROCUREMENT'
+  for (const personId of await deskPeople(row.companyId, stage, desks)) {
     void notify({
       personId, companyId: row.companyId, type: 'SYSTEM', entityId: row.id,
       title: `${row.name} sent its paperwork`,

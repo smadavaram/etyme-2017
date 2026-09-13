@@ -701,29 +701,34 @@ firm that supplied her.
 
 "Add supplier is a huge waste of real estate — for an activity that has
 to happen through workflow and compliance with indirect procurement.
-The hiring manager recommends; his team audits; HR assesses the skill
-set; indirect Procurement screens the vendor — W-9, bank data, past
-experience and references, revenue and delivery proofs, proposals —
-and the vendor gets an external link to apply and upload." The paste
-box is gone from the top of Suppliers. A firm walks three desks in
-order, the way a requisition does: the program office (whoever owns the
-governance rules) confirms the need; the HR standing desk reads what
-the firm supplies against what the program hires for; Procurement
-verifies what the firm sent and adds its own — a D&B report, sanctions
-and litigation screening, references contacted — and approves only
-when every required item is verified or waived with a reason
-(`lib/supplier-onboarding`, `lib/supplier-desks`, `SupplierRequest`,
-`/api/supplier-requests`). Nobody decides their own recommendation and
-nobody decides two desks. The firm gets a link of its own the moment it
-is recommended (`/apply/[token]`, `/api/supplier-apply`): no sign-in,
+The hiring manager recommends; his department lead — or sometimes the
+program office — audits; the vendor is emailed a link for its
+information; indirect Procurement qualifies; HR ensures compliance and
+screening; AP Finance screens the bank details." The paste box is gone
+from the top of Suppliers. A firm walks four desks in order, the way a
+requisition does: the recommender's department lead — the nearest
+value-rule approver up their own unit tree, the program office where
+none is named — confirms the need; Procurement qualifies the firm on
+its experience, references, revenue and delivery proofs, its proposal
+and a D&B report; HR clears compliance on the certificate of insurance
+and a sanctions and litigation screening; Finance verifies the tax form
+and the bank details and says the last yes. Each desk verifies its own
+items and no other's, and says yes only when its own are verified or
+waived with a reason (`lib/supplier-onboarding`, `lib/supplier-desks`,
+`SupplierRequest`, `/api/supplier-requests`). Nobody decides their own
+recommendation and nobody decides two desks. Every desk is told by
+email as well as in the app, and finds the firm on its own dashboard as
+a decision. The firm gets a link of its own the moment it is
+recommended (`/apply/[token]`, `/api/supplier-apply`): no sign-in,
 files recorded by name against the item they answer, bank details kept
 to the bank, the account name and four digits; what the firm supplies
-is received, never verified, until Procurement says so. The link stops
+is received, never verified, until the desk says so. The link stops
 working once the client has decided; in time it is the supplier's door
 into the client portal. A firm in the pipeline shows on the suppliers
-list as Pending with the desk it is on, and on that desk's dashboard as
-a decision. Procurement's own import of firms it approved before is
-folded away at the bottom.
+list, feed and table, as Pending with the desk it is on. Procurement's
+own import of firms it approved before is folded away at the bottom.
+Walked desk by desk in the browser, sixteen screens, and in
+`__integration__/supplier-onboarding.test.ts`.
 
 "Can a hiring manager save a consultant as a favorite, and how will he
 invite?" One page per person as this client knows them — where they are
@@ -736,9 +741,8 @@ the supplier holding their consent on its bench, else whoever last
 submitted them, on the thread for that role — never to the consultant,
 because Etyme places nobody (`/api/people/[id]/ask`). A blocked person,
 an unpublished role and a role they are already on are refused in
-words. The seeded Nike desk holds Vertex Talent at Procurement, cleared
-by the program office and HR, with the firm's side in and two items
-verified.
+words. The seeded Nike desk holds Vertex Talent with HR, cleared by the
+department lead and Procurement, the firm's side in.
 
 ### Demand opens, supply answers ✓ (2026-09-13)
 

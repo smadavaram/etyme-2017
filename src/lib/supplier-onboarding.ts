@@ -10,21 +10,31 @@
  * decides their own recommendation, and nobody decides two desks.
  */
 
-export const STAGES = ['TEAM', 'HR', 'PROCUREMENT', 'DONE'] as const
+export const STAGES = ['LEAD', 'PROCUREMENT', 'HR', 'FINANCE', 'DONE'] as const
 export type Stage = (typeof STAGES)[number]
 
 export const STAGE_WORD: Record<Stage, string> = {
-  TEAM: 'Program office',
-  HR: 'HR',
+  LEAD: 'Department lead',
   PROCUREMENT: 'Procurement',
+  HR: 'HR',
+  FINANCE: 'Finance',
   DONE: 'Done',
 }
 
 /** What each desk is deciding, in a sentence. */
 export const STAGE_ASKS: Record<Exclude<Stage, 'DONE'>, string> = {
-  TEAM: 'Is there a business need for another supplier here, and is this the firm?',
-  HR: 'Does what this firm supplies fit the roles this program hires for?',
-  PROCUREMENT: 'Is the firm who it says it is, insured, payable, referenced and clean to trade with?',
+  LEAD: 'Is there a business need for another supplier in this department, and is this the firm?',
+  PROCUREMENT: 'Does the firm qualify — its experience, references, revenue and delivery proofs, its proposal, its D&B standing?',
+  HR: 'Is the firm compliant and clean to trade with — insured, screened for sanctions and litigation, under an agreement?',
+  FINANCE: 'Can the firm be paid — a tax form on file and bank details that check out?',
+}
+
+/** The word on the button at each desk. */
+export const STAGE_VERB: Record<Exclude<Stage, 'DONE'>, string> = {
+  LEAD: 'Confirm the need',
+  PROCUREMENT: 'Qualified',
+  HR: 'Cleared compliance',
+  FINANCE: 'Approve as a supplier',
 }
 
 export const REQUEST_STATES = ['RECOMMENDED', 'IN_REVIEW', 'APPROVED', 'DECLINED'] as const
@@ -42,29 +52,34 @@ export type ItemState = 'MISSING' | 'PROVIDED' | 'HELD' | 'WAIVED'
 export interface ChecklistItem {
   key: string
   label: string
-  /** Approval is refused while a required item is not HELD or WAIVED. */
+  /** The desk's yes is refused while a required item of its own is not HELD or WAIVED. */
   required: boolean
-  /** Who puts it on file: the vendor through its link, or Procurement itself. */
-  by: 'VENDOR' | 'PROCUREMENT'
+  /** Who puts it on file: the vendor through its link, or the desk itself. */
+  by: 'VENDOR' | 'DESK'
+  /** Which desk verifies it. */
+  desk: 'PROCUREMENT' | 'HR' | 'FINANCE'
   state: ItemState
   note: string | null
   at: string | null
   fileName?: string | null
 }
 
-/** What Procurement asks for, in the words it uses. */
+/** What the desks ask for, in the words they use, and who verifies each. */
 export const CHECKLIST: Omit<ChecklistItem, 'state' | 'note' | 'at'>[] = [
-  { key: 'TAX_FORM', label: 'Tax form (W-9, or W-8 for a foreign firm)', required: true, by: 'VENDOR' },
-  { key: 'INSURANCE', label: 'Certificate of insurance (general liability and workers’ comp)', required: true, by: 'VENDOR' },
-  { key: 'BANK', label: 'Bank details for payment', required: true, by: 'VENDOR' },
-  { key: 'EXPERIENCE', label: 'Past experience and delivery proofs', required: true, by: 'VENDOR' },
-  { key: 'REFERENCES', label: 'Two client references', required: true, by: 'VENDOR' },
-  { key: 'REVENUE', label: 'Revenue proof (last two years)', required: false, by: 'VENDOR' },
-  { key: 'PROPOSAL', label: 'Proposal or rate card', required: false, by: 'VENDOR' },
-  { key: 'DNB_REPORT', label: 'Dun & Bradstreet report', required: true, by: 'PROCUREMENT' },
-  { key: 'VENDOR_SCREENING', label: 'Vendor screening (sanctions, litigation)', required: true, by: 'PROCUREMENT' },
-  { key: 'REFERENCE_CHECK', label: 'References contacted', required: false, by: 'PROCUREMENT' },
-  { key: 'AGREEMENT', label: 'Signed agreement', required: false, by: 'PROCUREMENT' },
+  // Procurement qualifies the firm
+  { key: 'EXPERIENCE', label: 'Past experience and delivery proofs', required: true, by: 'VENDOR', desk: 'PROCUREMENT' },
+  { key: 'REFERENCES', label: 'Two client references', required: true, by: 'VENDOR', desk: 'PROCUREMENT' },
+  { key: 'REVENUE', label: 'Revenue proof (last two years)', required: false, by: 'VENDOR', desk: 'PROCUREMENT' },
+  { key: 'PROPOSAL', label: 'Proposal or rate card', required: false, by: 'VENDOR', desk: 'PROCUREMENT' },
+  { key: 'DNB_REPORT', label: 'Dun & Bradstreet report', required: true, by: 'DESK', desk: 'PROCUREMENT' },
+  { key: 'REFERENCE_CHECK', label: 'References contacted', required: false, by: 'DESK', desk: 'PROCUREMENT' },
+  // HR: compliance and screening
+  { key: 'INSURANCE', label: 'Certificate of insurance (general liability and workers’ comp)', required: true, by: 'VENDOR', desk: 'HR' },
+  { key: 'VENDOR_SCREENING', label: 'Vendor screening (sanctions, litigation)', required: true, by: 'DESK', desk: 'HR' },
+  { key: 'AGREEMENT', label: 'Signed agreement', required: false, by: 'DESK', desk: 'HR' },
+  // Finance: can the firm be paid
+  { key: 'TAX_FORM', label: 'Tax form (W-9, or W-8 for a foreign firm)', required: true, by: 'VENDOR', desk: 'FINANCE' },
+  { key: 'BANK', label: 'Bank details for payment', required: true, by: 'VENDOR', desk: 'FINANCE' },
 ]
 
 export function newChecklist(): ChecklistItem[] {
@@ -86,6 +101,8 @@ export interface Decision {
 }
 
 export interface Desks {
+  /** The recommender's department lead — the nearest value-rule approver up their unit tree — where one is named. */
+  leadId: string | null
   /** The HR standing desk, where the company named one. */
   hrId: string | null
   /** The Procurement standing desk, where the company named one. */
@@ -99,9 +116,10 @@ export type ActVerdict =
 /**
  * Who may decide at the desk the request is on now.
  *
- *   TEAM         — the program office: whoever owns the governance rules here
- *   HR           — the HR standing desk, or the program office where none is named
+ *   LEAD         — the recommender's department lead; the program office (whoever owns the governance rules) where none is named
  *   PROCUREMENT  — the Procurement standing desk, or anybody who manages suppliers
+ *   HR           — the HR standing desk, or the program office where none is named
+ *   FINANCE      — accounts payable: whoever may record a payment
  *
  * Never the recommender; never somebody who decided an earlier desk.
  * Segregation of duties is a BLOCK, not a warning.
@@ -123,10 +141,12 @@ export function mayActAt(input: {
   if (input.decisions.some((d) => d.byId === callerId)) {
     return { ok: false, code: 'DECIDED_BEFORE', message: `You already decided an earlier desk on ${firmName}. Somebody else takes this one.` }
   }
+  const pmo = permissions.includes('governance.write')
   const onDesk =
-    stage === 'TEAM' ? permissions.includes('governance.write')
-    : stage === 'HR' ? (input.desks.hrId ? callerId === input.desks.hrId : permissions.includes('governance.write'))
-    : callerId === input.desks.procurementId || permissions.includes('vendors.manage')
+    stage === 'LEAD' ? (input.desks.leadId ? callerId === input.desks.leadId : pmo)
+    : stage === 'PROCUREMENT' ? callerId === input.desks.procurementId || permissions.includes('vendors.manage')
+    : stage === 'HR' ? (input.desks.hrId ? callerId === input.desks.hrId : pmo)
+    : permissions.includes('payments.record')
   if (!onDesk) {
     return { ok: false, code: 'NOT_THIS_DESK', message: `${firmName} is on the ${STAGE_WORD[stage]} desk. That desk decides it; you will be told what they said.` }
   }
@@ -134,7 +154,13 @@ export function mayActAt(input: {
 }
 
 export function nextStage(stage: Stage): Stage {
-  return stage === 'TEAM' ? 'HR' : stage === 'HR' ? 'PROCUREMENT' : 'DONE'
+  const i = STAGES.indexOf(stage)
+  return STAGES[Math.min(i + 1, STAGES.length - 1)]
+}
+
+/** The items a desk verifies. */
+export function itemsFor(checklist: ChecklistItem[], desk: 'PROCUREMENT' | 'HR' | 'FINANCE'): ChecklistItem[] {
+  return checklist.filter((i) => i.desk === desk)
 }
 
 export interface Readiness {
@@ -147,21 +173,23 @@ export interface Readiness {
   says: string
 }
 
-/** May this firm be approved today, and if not, what is missing. */
-export function readiness(firmName: string, checklist: ChecklistItem[]): Readiness {
-  const required = checklist.filter((i) => i.required)
+/** May this desk say yes today, and if not, what is missing of its own. */
+export function readiness(firmName: string, checklist: ChecklistItem[], stage: Stage = 'FINANCE'): Readiness {
+  const mine = stage === 'PROCUREMENT' || stage === 'HR' || stage === 'FINANCE' ? itemsFor(checklist, stage) : []
+  const required = mine.filter((i) => i.required)
   const held = required.filter((i) => i.state === 'HELD' || i.state === 'WAIVED').length
   const missing = required.filter((i) => i.state === 'MISSING').map((i) => shortLabel(i.key))
   const toVerify = required.filter((i) => i.state === 'PROVIDED').map((i) => shortLabel(i.key))
+  const verb = stage === 'FINANCE' ? 'be approved' : stage === 'PROCUREMENT' ? 'be qualified' : stage === 'HR' ? 'clear compliance' : 'move on'
   if (missing.length === 0 && toVerify.length === 0) {
-    return { ok: true, held, of: required.length, missing, toVerify, says: `${firmName} has everything on file and verified, and can be approved.` }
+    return { ok: true, held, of: required.length, missing, toVerify, says: required.length ? `${firmName} has everything this desk asks for, verified, and can ${verb}.` : `${firmName} can ${verb}.` }
   }
   const parts: string[] = []
   if (missing.length) parts.push(`${list(missing)} ${missing.length === 1 ? 'is' : 'are'} still missing`)
   if (toVerify.length) parts.push(`${list(toVerify)} ${toVerify.length === 1 ? 'was' : 'were'} supplied and ${toVerify.length === 1 ? 'needs' : 'need'} verifying`)
   return {
     ok: false, held, of: required.length, missing, toVerify,
-    says: `${firmName} cannot be approved yet: ${parts.join('; ')}. Get it on file, verify it, or waive with a reason, then approve.`,
+    says: `${firmName} cannot ${verb} yet: ${parts.join('; ')}. Get it on file, verify it, or waive with a reason, then say yes.`,
   }
 }
 
@@ -216,8 +244,8 @@ export function vendorItems(checklist: ChecklistItem[]): ChecklistItem[] {
 }
 
 /** The whole walk, in words, for the stepper. */
-export function stepsOf(stage: Stage, state: RequestState, decisions: Decision[]): { stage: Stage; word: string; status: 'done' | 'now' | 'next' | 'declined'; by: string | null; at: string | null; note: string | null }[] {
-  const order: Stage[] = ['TEAM', 'HR', 'PROCUREMENT', 'DONE']
+export function stepsOf(stage: Stage, state: RequestState, decisions: Decision[], leadNamed = true): { stage: Stage; word: string; status: 'done' | 'now' | 'next' | 'declined'; by: string | null; at: string | null; note: string | null }[] {
+  const order: Stage[] = [...STAGES]
   const idx = order.indexOf(stage)
   return order.map((s, i) => {
     const d = decisions.find((x) => x.stage === s)
@@ -227,6 +255,7 @@ export function stepsOf(stage: Stage, state: RequestState, decisions: Decision[]
       : i < idx || state === 'APPROVED' ? 'done'
       : i === idx && state !== 'DECLINED' ? 'now'
       : 'next'
-    return { stage: s, word: s === 'DONE' ? 'Supplier' : STAGE_WORD[s], status, by: d?.byName ?? null, at: d?.at ?? null, note: d?.note ?? null }
+    const word = s === 'DONE' ? 'Supplier' : s === 'LEAD' && !leadNamed ? 'Program office' : STAGE_WORD[s]
+    return { stage: s, word, status, by: d?.byName ?? null, at: d?.at ?? null, note: d?.note ?? null }
   })
 }

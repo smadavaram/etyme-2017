@@ -207,14 +207,14 @@ export async function GET(request: NextRequest) {
       take: 20,
     })
     if (waiting.length > 0) {
-      const desks = await desksFor(companyId)
       const names = await prisma.person.findMany({ where: { id: { in: waiting.map((w) => w.recommendedById) } }, select: { id: true, name: true } })
       const nameOf = new Map(names.map((n) => [n.id, n.name]))
       for (const w of waiting) {
         const stage = w.stage as Stage
+        const desks = await desksFor(companyId, w.recommendedById)
         const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: w.recommendedById, decisions: (w.decisions as unknown as Decision[]) ?? [], desks, firmName: w.name })
         if (!verdict.ok) continue
-        const items = (w.checklist as any[]) ?? []
+        const items = ((w.checklist as any[]) ?? []).filter((i) => i.desk === stage)
         const required = items.filter((i) => i.required)
         const held = required.filter((i) => i.state === 'HELD' || i.state === 'WAIVED').length
         const provided = required.filter((i) => i.state === 'PROVIDED').length
@@ -222,8 +222,8 @@ export async function GET(request: NextRequest) {
         decisions.push({
           type: 'SUPPLIER_REVIEW',
           title: `Review supplier — ${w.name}`,
-          subtitle: stage === 'PROCUREMENT'
-            ? `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${held} of ${required.length} verified${provided ? `, ${provided} to verify` : ''}`
+          subtitle: required.length > 0
+            ? `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${STAGE_WORD[stage]}: ${held} of ${required.length} verified${provided ? `, ${provided} to verify` : ''}`
             : `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${STAGE_WORD[stage]} desk: ${w.skills.length ? w.skills.join(', ') : w.reason.slice(0, 60)}`,
           urgency: days >= 7 ? 'HIGH' : 'MEDIUM',
           entityType: 'SUPPLIER_REQUEST',

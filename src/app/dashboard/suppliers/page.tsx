@@ -4,7 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
-import { STAGE_WORD, STAGE_ASKS, type ChecklistItem, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
+import { STAGE_WORD, STAGE_ASKS, STAGE_VERB, type ChecklistItem, type RequestState, type Stage, type Decision } from '@/lib/supplier-onboarding'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 
@@ -81,6 +81,7 @@ interface SupplierRequest {
   mine: boolean
   mayAct: boolean
   whyNot: string | null
+  leadNamed: boolean
   createdAt: string
   readiness: { ok: boolean; held: number; of: number; missing: string[]; toVerify: string[]; says: string }
   link: string
@@ -354,8 +355,8 @@ export default function SuppliersPage() {
           <p className="eyebrow">Network</p>
           <h1 className="headline-serif text-[30px] leading-tight">Suppliers</h1>
           <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
-            Who you buy from, and where each stands. A firm becomes a supplier when Procurement has its
-            paperwork on file and says so — anybody who raises a requirement can recommend one.
+            Who you buy from, and where each stands. A firm becomes a supplier when your lead, Procurement, HR and
+            Finance have each said yes — anybody who raises a requirement can recommend one.
           </p>
         </div>
         {mayRecommend && !recommending && (
@@ -373,9 +374,9 @@ export default function SuppliersPage() {
         <section className="panel space-y-3">
           <p className="stat-label">Recommend a supplier</p>
           <p className="text-[13px] text-etyme-muted">
-            It walks three desks: the program office confirms the need, HR reads what they supply against what you hire,
-            and Procurement screens the firm — W-9, insurance, bank details, experience, references, revenue and delivery
-            proofs, a D&amp;B report, sanctions. The firm gets a link of its own to supply its side. You are told at each step.
+            It walks four desks: your department lead confirms the need, Procurement qualifies the firm — experience,
+            references, revenue and delivery proofs, proposal, D&amp;B — HR clears compliance and screening, and Finance
+            checks the W-9 and bank details. The firm gets a link of its own to supply its side. You are told at each step.
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <input value={rec.name} onChange={(e) => setRec({ ...rec, name: e.target.value })} placeholder="Firm" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
@@ -428,7 +429,7 @@ export default function SuppliersPage() {
               {r.decisions.length > 0 && (
                 <ul className="space-y-0.5">
                   {r.decisions.map((d, i) => (
-                    <li key={i} className="text-[12px] text-etyme-muted">{d.byName} ({STAGE_WORD[d.stage]}) {d.outcome === 'APPROVED' ? 'said yes' : 'declined'}{d.note ? `: ${d.note}` : ''}.</li>
+                    <li key={i} className="text-[12px] text-etyme-muted">{d.byName} ({STAGE_WORD[d.stage]}) {d.outcome === 'APPROVED' ? 'said yes' : 'declined'}{d.note ? `: ${d.note.replace(/\.$/, '')}` : ''}.</li>
                   ))}
                 </ul>
               )}
@@ -436,15 +437,14 @@ export default function SuppliersPage() {
               {/* What this desk is asked, and what it can see */}
               {r.stage !== 'DONE' && <p className="text-[13px] text-etyme-ink">{STAGE_ASKS[r.stage]}</p>}
 
-              {r.stage === 'HR' && (
+              {(r.stage === 'LEAD' || r.stage === 'PROCUREMENT') && (
                 <div className="rounded-lg border border-etyme-rule bg-etyme-surface px-3 py-2 text-[12.5px]">
                   <p className="text-etyme-muted">What they supply, in the recommender’s words: <span className="text-etyme-ink">{r.skills.length ? r.skills.join(', ') : 'not said'}</span></p>
                   {r.application?.skills?.length ? <p className="text-etyme-muted">In their own words: <span className="text-etyme-ink">{r.application.skills.join(', ')}</span></p> : null}
-                  {r.application?.experience && <p className="mt-1 text-etyme-muted">{r.application.experience}</p>}
                 </div>
               )}
 
-              {r.stage === 'PROCUREMENT' && (
+              {(r.stage === 'PROCUREMENT' || r.stage === 'HR' || r.stage === 'FINANCE') && (
                 <>
                   <div className="flex flex-wrap items-center gap-3 text-[12px] text-etyme-muted">
                     <span>
@@ -458,13 +458,14 @@ export default function SuppliersPage() {
                   {r.application && (
                     <div className="grid grid-cols-1 gap-2 rounded-lg border border-etyme-rule bg-etyme-surface px-3 py-2 text-[12.5px] sm:grid-cols-2">
                       <p><span className="text-etyme-faint">Legal name</span> <span className="text-etyme-ink">{r.application.legalName ?? '—'}</span></p>
-                      <p><span className="text-etyme-faint">Bank</span> <span className="text-etyme-ink">{r.application.bank ? `${r.application.bank.bankName} · ${r.application.bank.accountName} · ····${r.application.bank.last4}` : '—'}</span></p>
-                      <p className="sm:col-span-2"><span className="text-etyme-faint">Experience</span> <span className="text-etyme-ink">{r.application.experience ?? '—'}</span></p>
-                      <p className="sm:col-span-2"><span className="text-etyme-faint">References</span> <span className="text-etyme-ink">{(r.application.references ?? []).map((x: any) => `${x.name}, ${x.company}`).join(' · ') || '—'}</span></p>
+                      {r.stage === 'FINANCE' && <p><span className="text-etyme-faint">Bank</span> <span className="text-etyme-ink">{r.application.bank ? `${r.application.bank.bankName} · ${r.application.bank.accountName} · ····${r.application.bank.last4}` : '—'}</span></p>}
+                      {r.stage === 'PROCUREMENT' && <p className="sm:col-span-2"><span className="text-etyme-faint">Experience</span> <span className="text-etyme-ink">{r.application.experience ?? '—'}</span></p>}
+                      {r.stage === 'PROCUREMENT' && <p className="sm:col-span-2"><span className="text-etyme-faint">References</span> <span className="text-etyme-ink">{(r.application.references ?? []).map((x: any) => `${x.name}, ${x.company}`).join(' · ') || '—'}</span></p>}
                     </div>
                   )}
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-etyme-faint">{STAGE_WORD[r.stage]} verifies</p>
                   <ul className="divide-y divide-etyme-rule rounded-lg border border-etyme-rule bg-etyme-surface">
-                    {r.checklist.map((item) => (
+                    {r.checklist.filter((item) => item.desk === r.stage).map((item) => (
                       <li key={item.key} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[12.5px]">
                         <span className={`w-5 text-center ${item.state === 'HELD' ? 'text-etyme-verified' : item.state === 'PROVIDED' ? 'text-etyme-action' : item.state === 'WAIVED' ? 'text-etyme-attention' : 'text-etyme-faint'}`}>
                           {item.state === 'HELD' ? '✓' : item.state === 'PROVIDED' ? '•' : item.state === 'WAIVED' ? '~' : '○'}
@@ -472,7 +473,7 @@ export default function SuppliersPage() {
                         <span className={`flex-1 min-w-[200px] ${item.state === 'MISSING' ? 'text-etyme-ink' : 'text-etyme-muted'}`}>
                           {item.label}
                           {!item.required && <span className="text-etyme-faint"> · optional</span>}
-                          <span className="text-etyme-faint"> · {item.by === 'VENDOR' ? 'from the firm' : 'Procurement'}</span>
+                          <span className="text-etyme-faint"> · {item.by === 'VENDOR' ? 'from the firm' : 'this desk'}</span>
                           {item.fileName && <span className="text-etyme-faint"> — {item.fileName}</span>}
                           {item.state === 'PROVIDED' && <span className="text-etyme-action"> · received, verify</span>}
                           {item.note && <span className="text-etyme-faint"> — {item.note}</span>}
@@ -503,24 +504,30 @@ export default function SuppliersPage() {
                   <p className={`text-[12.5px] ${r.readiness.ok ? 'text-etyme-verified' : 'text-etyme-muted'}`}>{r.readiness.says}</p>
                 </>
               )}
+              {r.stage === 'LEAD' && (
+                <div className="flex flex-wrap items-center gap-3 text-[12px] text-etyme-muted">
+                  <span>{r.applied ? `The firm supplied its side ${when(r.applied)}.` : r.linkSentAt ? `Link sent to the firm ${when(r.linkSentAt)}.` : 'No link sent — add a contact email.'}</span>
+                  <a href={r.link} target="_blank" rel="noreferrer" className="text-[11px] text-etyme-action hover:underline">Open their page</a>
+                </div>
+              )}
 
               {/* The decision, for whoever holds this desk */}
               {r.mayAct ? (
                 <div className="flex flex-wrap items-center gap-2">
                   {noteFor === `${r.id}:approve` ? (
                     <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); act(r.id, { action: 'approve', note: noteText }) }}>
-                      <input autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={r.stage === 'HR' ? 'What fits, in a line' : 'A line for the record (optional)'}
+                      <input autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="A line for the record (optional)"
                         className="min-w-[260px] rounded border border-etyme-rule px-2 py-1 text-[12px]" />
-                      <button type="submit" disabled={busy || (r.stage === 'PROCUREMENT' && !r.readiness.ok)} className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40">
-                        {r.stage === 'TEAM' ? 'Confirm the need' : r.stage === 'HR' ? 'Skill set fits' : 'Approve as a supplier'}
+                      <button type="submit" disabled={busy || !r.readiness.ok} className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40">
+                        {r.stage === 'DONE' ? 'Done' : STAGE_VERB[r.stage]}
                       </button>
                       <button type="button" onClick={() => setNoteFor(null)} className="text-[12px] text-etyme-muted">Not now</button>
                     </form>
                   ) : (
-                    <button onClick={() => { setNoteFor(`${r.id}:approve`); setNoteText('') }} disabled={busy || (r.stage === 'PROCUREMENT' && !r.readiness.ok)}
-                      title={r.stage === 'PROCUREMENT' && !r.readiness.ok ? r.readiness.says : undefined}
+                    <button onClick={() => { setNoteFor(`${r.id}:approve`); setNoteText('') }} disabled={busy || !r.readiness.ok}
+                      title={!r.readiness.ok ? r.readiness.says : undefined}
                       className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
-                      {r.stage === 'TEAM' ? 'Confirm the need' : r.stage === 'HR' ? 'Skill set fits' : 'Approve as a supplier'}
+                      {r.stage === 'DONE' ? 'Done' : STAGE_VERB[r.stage]}
                     </button>
                   )}
                   {noteFor === `${r.id}:decline` ? (

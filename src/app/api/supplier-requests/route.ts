@@ -26,10 +26,13 @@ export async function GET(request: NextRequest) {
   const notStaff = staffOnly(caller, 'Supplier requests')
   if (notStaff) return notStaff
   const companyId = caller.company!.id
-  const [rows, desks] = await Promise.all([
-    prisma.supplierRequest.findMany({ where: { companyId }, orderBy: [{ state: 'asc' }, { createdAt: 'desc' }] }),
-    desksFor(companyId),
-  ])
+  const rows = await prisma.supplierRequest.findMany({ where: { companyId }, orderBy: [{ state: 'asc' }, { createdAt: 'desc' }] })
+  // The lead is the recommender's own; the other desks are the company's.
+  const deskCache = new Map<string, Awaited<ReturnType<typeof desksFor>>>()
+  const desksOf = async (recommendedById: string) => {
+    if (!deskCache.has(recommendedById)) deskCache.set(recommendedById, await desksFor(companyId, recommendedById))
+    return deskCache.get(recommendedById)!
+  }
   const people = await prisma.person.findMany({
     where: { id: { in: [...new Set(rows.flatMap((r) => [r.recommendedById, r.decidedById].filter((x): x is string => !!x)))] } },
     select: { id: true, name: true },
@@ -37,28 +40,30 @@ export async function GET(request: NextRequest) {
   const nameOf = new Map(people.map((p) => [p.id, p.name]))
   return NextResponse.json({
     data: {
-      requests: rows.map((r) => {
+      requests: await Promise.all(rows.map(async (r) => {
         const checklist = r.checklist as unknown as ChecklistItem[]
         const decisions = (r.decisions as unknown as Decision[]) ?? []
         const stage = r.stage as Stage
         const state = r.state as RequestState
+        const desks = await desksOf(r.recommendedById)
         const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: r.recommendedById, decisions, desks, firmName: r.name })
         const application = (r.application ?? null) as Record<string, unknown> | null
         return {
           id: r.id, name: r.name, domain: r.domain, contactName: r.contactName, contactEmail: r.contactEmail,
           reason: r.reason, skills: r.skills, state, stage, stageWord: stage === 'DONE' ? STATE_WORD_OF(state) : STAGE_WORD[stage],
-          checklist, decisions, steps: stepsOf(stage, state, decisions),
+          checklist, decisions, steps: stepsOf(stage, state, decisions, desks.leadId != null),
+          leadNamed: desks.leadId != null,
           recommendedBy: nameOf.get(r.recommendedById) ?? 'somebody',
           decidedBy: r.decidedById ? nameOf.get(r.decidedById) ?? null : null,
           decisionNote: r.decisionNote, createdAt: r.createdAt.toISOString(),
           mine: r.recommendedById === caller.person.id,
           mayAct: verdict.ok, whyNot: verdict.ok ? null : verdict.message,
-          readiness: readiness(r.name, checklist),
+          readiness: readiness(r.name, checklist, stage),
           link: applyUrl(r.token), linkSentAt: r.linkSentAt?.toISOString() ?? null,
           applied: application?.submittedAt ?? null,
           application: application ? { legalName: application.legalName ?? null, experience: application.experience ?? null, references: application.references ?? [], bank: application.bank ?? null, skills: application.skills ?? [] } : null,
         }
-      }),
+      })),
       mayRecommend: mayRecommend(caller.permissions),
       mayDecide: caller.permissions.includes('vendors.manage'),
     },
@@ -98,7 +103,7 @@ export async function POST(request: NextRequest) {
     data: {
       companyId, name, domain, contactEmail, skills,
       contactName: typeof body?.contactName === 'string' && body.contactName.trim() ? body.contactName.trim() : null,
-      reason, recommendedById: caller.person.id, checklist: newChecklist() as unknown as object, stage: 'TEAM', decisions: [],
+      reason, recommendedById: caller.person.id, checklist: newChecklist() as unknown as object, stage: 'LEAD', decisions: [],
     },
   })
 
@@ -110,13 +115,14 @@ export async function POST(request: NextRequest) {
     await prisma.supplierRequest.update({ where: { id: row.id }, data: { linkSentAt: new Date() } })
   }
 
-  // The program office hears, in a sentence.
-  const desks = await desksFor(companyId)
-  for (const personId of (await deskPeople(companyId, 'TEAM', desks)).filter((p) => p !== caller.person.id)) {
+  // The recommender's own lead hears, by email as well as in the app.
+  const desks = await desksFor(companyId, caller.person.id)
+  const leadWord = desks.leadId ? 'your department lead' : 'the program office'
+  for (const personId of (await deskPeople(companyId, 'LEAD', desks)).filter((p) => p !== caller.person.id)) {
     void notify({
-      personId, companyId, type: 'SYSTEM', entityId: row.id,
+      personId, companyId, type: 'SYSTEM', entityId: row.id, channel: 'EMAIL',
       title: `Supplier recommended — ${name}`,
-      body: `${caller.person.name} recommends ${name}${skills.length ? ` for ${skills.join(', ')}` : ''}: ${reason}`,
+      body: `${caller.person.name} recommends ${name}${skills.length ? ` for ${skills.join(', ')}` : ''}: ${reason}. It is on your desk to confirm the need, then Procurement, HR and Finance take it in turn. Open Suppliers to decide.`,
       data: { href: '/dashboard/suppliers' },
     })
   }
@@ -125,7 +131,7 @@ export async function POST(request: NextRequest) {
     data: {
       request: { id: row.id, stage: row.stage, link: applyUrl(row.token) },
       delivery,
-      says: `${name} is with the program office. It walks three desks — program office, HR, Procurement — and becomes a supplier when the last one says yes.${contactEmail ? ` ${name} has been sent a link to supply its paperwork.` : ' Add a contact email and they can be sent a link to supply their paperwork.'}`,
+      says: `${name} is with ${leadWord}. It walks four desks — ${desks.leadId ? 'your lead' : 'the program office'}, Procurement, HR, Finance — and becomes a supplier when the last one says yes.${contactEmail ? ` ${name} has been sent a link to supply its paperwork.` : ' Add a contact email and they can be sent a link to supply their paperwork.'}`,
     },
   }, { status: 201 })
 }

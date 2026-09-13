@@ -136,7 +136,7 @@ const PROGRAMMES: Program[] = [
   {
     client: 'nike', loc: 'Beaverton, OR',
     people: { programme: 'Dana Whitlock', hiring: 'Marcus Oyelaran', hr: 'Meera Krishnan', procurement: 'Tomas Reyes', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
-    recommend: { name: 'Vertex Talent', contactEmail: 'priya@vertextalent.io', reason: 'Placed two planning analysts for us in Columbia in 2024; both extended.', held: ['TAX_FORM', 'INSURANCE'] },
+    recommend: { name: 'Vertex Talent', contactEmail: 'priya@vertextalent.io', reason: 'Placed two planning analysts for us in Columbia in 2024; both extended.', held: [] },
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15000] },
     placements: [
       { role: 'SAP S/4 finance lead', skills: ['SAP FICO', 'S/4HANA', 'Central Finance'], loc: 'Beaverton, OR',
@@ -467,21 +467,23 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
     }
 
     // ── A firm on Procurement's desk ───────────────────────────────
-    // Recommended by the hiring manager four days ago; the program
-    // office and HR have said yes; the firm supplied its side through
-    // its link; two items are verified, the rest wait on Procurement.
+    // Recommended by the hiring manager four days ago; the department
+    // lead and Procurement have said yes; the firm supplied its side
+    // through its link; it sits with HR, insurance received and the
+    // screening still to run.
     if (p.recommend && !(await db.supplierRequest.findFirst({ where: { companyId: client.id, name: p.recommend.name } }))) {
       const at = day(-2).toISOString()
       const provided = ['TAX_FORM', 'INSURANCE', 'BANK', 'EXPERIENCE', 'REFERENCES', 'PROPOSAL']
+      const lead = await db.context.findFirst({ where: { companyId: client.id, role: { name: 'Approver' } }, select: { personId: true, person: { select: { name: true } } } })
       await db.supplierRequest.create({
         data: {
           companyId: client.id, name: p.recommend.name, domain: p.recommend.contactEmail.split('@')[1],
           contactEmail: p.recommend.contactEmail, contactName: 'Priya Natarajan', reason: p.recommend.reason,
           skills: ['Supply chain planning', 'Demand planning', 'Kinaxis'],
-          recommendedById: desk.hiring.personId, state: 'IN_REVIEW', stage: 'PROCUREMENT', createdAt: day(-4), linkSentAt: day(-4),
+          recommendedById: desk.hiring.personId, state: 'IN_REVIEW', stage: 'HR', createdAt: day(-4), linkSentAt: day(-4),
           decisions: [
-            { stage: 'TEAM', outcome: 'APPROVED', byId: desk.programme.personId, byName: p.people.programme, at: day(-3).toISOString(), note: 'Two planning roles open next quarter and Pinnacle is at capacity.' },
-            { stage: 'HR', outcome: 'APPROVED', byId: desk.hr.personId, byName: p.people.hr, at: day(-3).toISOString(), note: 'Planning and Kinaxis are exactly what Apps hires for.' },
+            { stage: 'LEAD', outcome: 'APPROVED', byId: lead?.personId ?? desk.programme.personId, byName: lead?.person.name ?? p.people.programme, at: day(-3).toISOString(), note: 'Two planning roles open next quarter and Pinnacle is at capacity.' },
+            { stage: 'PROCUREMENT', outcome: 'APPROVED', byId: desk.procurement.personId, byName: p.people.procurement, at: day(-2).toISOString(), note: 'References confirmed; D&B rating acceptable.' },
           ] as unknown as object,
           application: {
             legalName: 'Vertex Talent LLC', address: '400 SW 6th Ave, Portland, OR 97204', duns: '08-123-4567', website: 'vertextalent.io',
@@ -493,8 +495,9 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
             submittedAt: at,
           } as unknown as object,
           checklist: newChecklist().map((i) =>
-            p.recommend!.held.includes(i.key) ? { ...i, state: 'HELD', at, fileName: i.key === 'TAX_FORM' ? 'Vertex-W9-2026.pdf' : 'Vertex-COI-2026.pdf' }
-            : provided.includes(i.key) ? { ...i, state: 'PROVIDED', at, fileName: i.key === 'PROPOSAL' ? 'Vertex-rate-card.pdf' : i.key === 'BANK' ? 'Umpqua Bank ····4471' : i.key === 'REFERENCES' ? '2 references' : null }
+            i.desk === 'PROCUREMENT' && i.required ? { ...i, state: 'HELD', at, fileName: i.key === 'REFERENCES' ? '2 references' : null }
+            : i.key === 'PROPOSAL' ? { ...i, state: 'HELD', at, fileName: 'Vertex-rate-card.pdf' }
+            : provided.includes(i.key) ? { ...i, state: 'PROVIDED', at, fileName: i.key === 'TAX_FORM' ? 'Vertex-W9-2026.pdf' : i.key === 'INSURANCE' ? 'Vertex-COI-2026.pdf' : i.key === 'BANK' ? 'Umpqua Bank ····4471' : null }
             : i
           ) as unknown as object,
         },
