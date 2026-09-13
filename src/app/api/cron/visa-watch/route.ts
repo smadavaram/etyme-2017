@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
+import { byCalendar } from '@/lib/visa-petition'
 
 /**
  * GET /api/cron/visa-watch
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
     // Find all active (non-expired, non-denied) visa petitions with an expiry date
     const petitions = await prisma.visaPetition.findMany({
       where: {
-        expiresAt: { not: null, gt: now },
+        expiresAt: { not: null },
         status: { notIn: ['DENIED', 'EXPIRED'] },
       },
       include: {
@@ -38,8 +39,23 @@ export async function GET(request: NextRequest) {
       milestone: number
     }> = []
 
+    // The calendar moves the last two statuses: inside ninety days an
+    // active petition is running out; past the date it is expired. Each
+    // move is an event on the petition, so the file reads like a file.
+    let moved = 0
     for (const p of petitions) {
-      if (!p.expiresAt) continue
+      const next = byCalendar(p.status, p.expiresAt, now)
+      if (next) {
+        await prisma.visaPetition.update({
+          where: { id: p.id },
+          data: { status: next, events: { create: { eventType: next === 'EXPIRED' ? 'EXPIRED' : 'EXPIRING', occurredAt: now, notes: 'By the calendar.' } } },
+        })
+        moved++
+      }
+    }
+
+    for (const p of petitions) {
+      if (!p.expiresAt || p.expiresAt < now) continue
 
       const daysUntilExpiry = Math.ceil(
         (p.expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
@@ -99,6 +115,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       data: {
         scanned: petitions.length,
+        moved,
         notifications: notifications.length,
         message: `Scanned ${petitions.length} petition(s), sent ${notifications.length} notification(s)`,
       },

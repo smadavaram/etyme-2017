@@ -1210,7 +1210,7 @@ model VisaPetition {
   person          Person         @relation(fields: [personId], references: [id], onDelete: Cascade)
   type            String // H1B · L1 · GC · TN · SKILLED_WORKER
   country         String
-  status          String // FILED · RFE · APPROVED · STAMPED · ACTIVE · EXPIRING · EXPIRED
+  status          String // FILED · RFE · APPROVED · STAMPED · ACTIVE · EXPIRING · EXPIRED · DENIED
   filedAt         DateTime?
   approvedAt      DateTime?
   expiresAt       DateTime?
@@ -1253,7 +1253,7 @@ model VisaEvent {
   id         String       @id @default(cuid())
   petitionId String
   petition   VisaPetition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
-  eventType  String // FILED · RECEIVED · RFE_ISSUED · RFE_RESPONDED · APPROVED · DENIED · STAMPED · TRANSFER_FILED
+  eventType  String // FILED · RECEIVED · RFE_ISSUED · RFE_RESPONDED · APPROVED · DENIED · STAMPED · ACTIVATED · EXPIRED · TRANSFER_FILED
   occurredAt DateTime
   notes      String?
   createdAt  DateTime     @default(now())

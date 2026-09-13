@@ -282,7 +282,7 @@ const EVAL_COLUMNS: Column<Evaluation>[] = [
 
 // ── Page ───────────────────────────────────────────────────
 
-type ComplianceTab = 'policies' | 'evaluations' | 'verifications' | 'classification'
+type ComplianceTab = 'policies' | 'evaluations' | 'verifications' | 'classification' | 'visas'
 
 export default function CompliancePage() {
   const [data, setData] = useState<ComplianceData | null>(null)
@@ -408,6 +408,7 @@ export default function CompliancePage() {
           { key: 'evaluations' as const, label: `Evaluations (${evalSummary.total})` },
           { key: 'verifications' as const, label: `Verifications (${health.totalChecks})` },
           { key: 'classification' as const, label: `Classification (${calls?.calls.length ?? 0})` },
+          { key: 'visas' as const, label: 'Visas' },
         ]).map(t => (
           <button
             key={t.key}
@@ -439,6 +440,7 @@ export default function CompliancePage() {
         />
       )}
       {tab === 'verifications' && <VerificationsTab data={data} loading={loading} error={error} />}
+      {tab === 'visas' && <VisasTab />}
       {tab === 'classification' && (
         <ClassificationTab calls={calls} stale={needsReview} error={callsError} />
       )}
@@ -860,6 +862,148 @@ function VerificationsTab({
               </table>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Visas ─────────────────────────────────────────────────────────────
+
+interface Petition {
+  id: string
+  person: { id: string; name: string }
+  type: string
+  country: string
+  status: string
+  word: string
+  filedAt: string | null
+  expiresAt: string | null
+  moves: { move: string; word: string }[]
+  events: { what: string; when: string; notes: string | null }[]
+}
+
+/**
+ * The bench's petitions, each with the moves open on it. A vendor's
+ * problem before anybody else's: a consultant on an expiring visa is a
+ * placement about to end whatever the contract says.
+ */
+function VisasTab() {
+  const [rows, setRows] = useState<Petition[]>([])
+  const [people, setPeople] = useState<{ id: string; name: string }[]>([])
+  const [form, setForm] = useState({ personId: '', type: 'H1B', country: 'US' })
+  const [ask, setAsk] = useState<{ id: string; move: string; word: string; expiresAt: string; notes: string } | null>(null)
+  const [said, setSaid] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  const load = async () => {
+    try {
+      const [p, b] = await Promise.all([
+        fetch('/api/compliance/petitions').then((r) => r.json()),
+        fetch('/api/bench?limit=200').then((r) => r.json()).catch(() => null),
+      ])
+      if (p?.error) throw new Error(p.error.message)
+      setRows(p?.data?.petitions ?? [])
+      const listings: any[] = b?.data?.listings ?? b?.data?.consultants ?? []
+      setPeople(listings.map((l) => l.consultant?.person ?? l.person ?? null).filter((x) => x?.id && x?.name))
+    } catch (e: any) { setErr(e.message) }
+  }
+  useEffect(() => { load() }, [])
+
+  async function post(url: string, body: unknown) {
+    const res = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(j?.error?.message ?? `HTTP ${res.status}`)
+    return j
+  }
+
+  async function file(e: React.FormEvent) {
+    e.preventDefault()
+    setErr(null)
+    try {
+      const j = await post('/api/compliance/petitions', form)
+      setSaid(j.data.says)
+      setForm({ personId: '', type: 'H1B', country: 'US' })
+      await load()
+    } catch (e: any) { setErr(e.message) }
+  }
+
+  async function move(e: React.FormEvent) {
+    e.preventDefault()
+    if (!ask) return
+    setErr(null)
+    try {
+      const j = await post(`/api/compliance/petitions/${ask.id}`, { move: ask.move, expiresAt: ask.expiresAt || undefined, notes: ask.notes })
+      setSaid(j.data.says)
+      setAsk(null)
+      await load()
+    } catch (e: any) { setErr(e.message) }
+  }
+
+  return (
+    <div>
+      {said && <p className="mb-3 text-sm text-etyme-verified">{said}</p>}
+      {err && <p className="mb-3 text-sm text-etyme-attention">{err}</p>}
+
+      <form onSubmit={file} className="mb-6 bg-etyme-surface border border-etyme-rule rounded-lg p-4 flex flex-wrap gap-3 items-end">
+        <label className="flex-1 min-w-[200px]">
+          <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">File a petition for</span>
+          <select value={form.personId} onChange={(e) => setForm({ ...form, personId: e.target.value })} required className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised">
+            <option value="">Somebody on your bench</option>
+            {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Visa</span>
+          <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised">
+            {['H1B', 'L1', 'TN', 'GC', 'SKILLED_WORKER'].map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
+          </select>
+        </label>
+        <label>
+          <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Country</span>
+          <input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} className="w-20 border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+        </label>
+        <button type="submit" disabled={!form.personId} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">File it</button>
+      </form>
+
+      <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+        {rows.length === 0 && <p className="p-4 text-sm text-etyme-muted">No petitions on file for anybody on your books.</p>}
+        {rows.map((p) => (
+          <div key={p.id} className="p-4 flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-[220px]">
+              <div className="text-sm text-etyme-ink">{p.person.name} <span className="text-etyme-muted">· {p.type.replace('_', ' ')} · {p.country}</span></div>
+              <div className="text-xs text-etyme-faint tabular-nums mt-0.5">
+                {p.word}{p.expiresAt ? ` · runs out ${new Date(p.expiresAt).toLocaleDateString()}` : ''}{p.filedAt ? ` · filed ${new Date(p.filedAt).toLocaleDateString()}` : ''}
+              </div>
+            </div>
+            {p.moves.map((m) => (
+              <button key={m.move} onClick={() => setAsk({ id: p.id, move: m.move, word: m.word, expiresAt: '', notes: '' })} className="text-xs text-etyme-action hover:underline">
+                {m.word}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {ask && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-etyme-ink/30 p-4 md:p-8" onClick={() => setAsk(null)} role="dialog" aria-modal="true" aria-label={ask.word}>
+          <form onSubmit={move} onClick={(e) => e.stopPropagation()} className="w-full max-w-md bg-etyme-surface border border-etyme-rule rounded-lg p-5 space-y-4">
+            <h2 className="font-serif text-lg text-etyme-ink">{ask.word}</h2>
+            {ask.move === 'APPROVED' && (
+              <label className="block">
+                <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Runs out on</span>
+                <input type="date" value={ask.expiresAt} onChange={(e) => setAsk({ ...ask, expiresAt: e.target.value })} required className="border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+              </label>
+            )}
+            <label className="block">
+              <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Notes</span>
+              <input value={ask.notes} onChange={(e) => setAsk({ ...ask, notes: e.target.value })} className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" placeholder="Receipt number, attorney, anything worth keeping" />
+            </label>
+            <div className="flex justify-end gap-3">
+              <button type="button" onClick={() => setAsk(null)} className="text-sm text-etyme-muted">Cancel</button>
+              <button type="submit" className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90">Record</button>
+            </div>
+          </form>
         </div>
       )}
     </div>
