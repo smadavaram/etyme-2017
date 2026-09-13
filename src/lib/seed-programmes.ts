@@ -33,6 +33,7 @@ import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
 import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
 import { day, at } from '@/lib/seed-days'
+import { newChecklist } from '@/lib/supplier-onboarding'
 
 export interface World {
   firmBySlug: Map<string, { id: string }>
@@ -120,6 +121,8 @@ interface Program {
   routed: { title: string; skills: string[]; headcount: number; billMax: number }
   /** Supplier certificates, in days until they run out. */
   cover: Record<string, { gl: number; wc: number }>
+  /** A firm the hiring manager recommended, on Procurement's desk with some of its paperwork in. */
+  recommend?: { name: string; contactEmail: string; reason: string; held: string[] }
 }
 
 // ── The three ────────────────────────────────────────────────────────
@@ -133,6 +136,7 @@ const PROGRAMMES: Program[] = [
   {
     client: 'nike', loc: 'Beaverton, OR',
     people: { programme: 'Dana Whitlock', hiring: 'Marcus Oyelaran', hr: 'Meera Krishnan', procurement: 'Tomas Reyes', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
+    recommend: { name: 'Vertex Talent', contactEmail: 'priya@vertextalent.io', reason: 'Placed two planning analysts for us in Columbia in 2024; both extended.', held: ['INSURANCE', 'TAX_FORM'] },
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15000] },
     placements: [
       { role: 'SAP S/4 finance lead', skills: ['SAP FICO', 'S/4HANA', 'Central Finance'], loc: 'Beaverton, OR',
@@ -460,6 +464,19 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
     // needs its own. Anything not named above is filled in as current.
     for (const s of suppliers) {
       if (!p.cover[s]) await cover(s, 200, 200, seatBySlug.get(s)!.personId, desk.compliance.personId)
+    }
+
+    // ── A firm on Procurement's desk ───────────────────────────────
+    if (p.recommend && !(await db.supplierRequest.findFirst({ where: { companyId: client.id, name: p.recommend.name } }))) {
+      const at = day(-4).toISOString()
+      await db.supplierRequest.create({
+        data: {
+          companyId: client.id, name: p.recommend.name, domain: p.recommend.contactEmail.split('@')[1],
+          contactEmail: p.recommend.contactEmail, reason: p.recommend.reason, recommendedById: desk.hiring.personId,
+          state: 'IN_REVIEW', createdAt: day(-4),
+          checklist: newChecklist().map((i) => (p.recommend!.held.includes(i.key) ? { ...i, state: 'HELD', at } : i)) as unknown as object,
+        },
+      })
     }
 
     // ── The placements ─────────────────────────────────────────────

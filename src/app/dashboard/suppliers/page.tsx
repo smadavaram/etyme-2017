@@ -4,6 +4,7 @@ import { readJson } from '@/lib/read-response'
 import { DataTable, type Column } from '@/components/data-table'
 import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
+import { STATE_WORD, type ChecklistItem, type RequestState } from '@/lib/supplier-onboarding'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 
@@ -58,6 +59,23 @@ interface Supplier {
   location: string | null
 }
 
+interface SupplierRequest {
+  id: string
+  name: string
+  domain: string | null
+  contactName: string | null
+  contactEmail: string | null
+  reason: string
+  state: RequestState
+  checklist: ChecklistItem[]
+  recommendedBy: string
+  decidedBy: string | null
+  decisionNote: string | null
+  mine: boolean
+  createdAt: string
+  readiness: { ok: boolean; held: number; of: number; missing: string[]; says: string }
+}
+
 function when(iso: string | null): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -91,6 +109,13 @@ export default function SuppliersPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  const [requests, setRequests] = useState<SupplierRequest[]>([])
+  const [mayRecommend, setMayRecommend] = useState(false)
+  const [mayDecide, setMayDecide] = useState(false)
+  const [recommending, setRecommending] = useState(false)
+  const [rec, setRec] = useState({ name: '', contactName: '', contactEmail: '', reason: '' })
+  const [noteFor, setNoteFor] = useState<string | null>(null)
+  const [noteText, setNoteText] = useState('')
   const [view, setView] = useState<View>('feed')
   const [filter, setFilter] = useState<NetworkFilter>('ALL')
   const [place, setPlace] = useState<string | null>(null)
@@ -121,12 +146,24 @@ export default function SuppliersPage() {
     BLOCKED: suppliers.filter((r) => r.blocked).length,
   }), [suppliers, now])
 
+  const loadRequests = useCallback(async () => {
+    try {
+      const body = await readJson(await fetch('/api/supplier-requests'))
+      setRequests(body.data.requests)
+      setMayRecommend(body.data.mayRecommend)
+      setMayDecide(body.data.mayDecide)
+    } catch (err: any) {
+      setError(err.message)
+    }
+  }, [])
+
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/suppliers')
       const body = await readJson(res)
       setSuppliers(body.data.suppliers)
       setListSummary(body.data.summary)
+      loadRequests()
 
       // The same firm listed twice. Two clients each list Cloudepa and
       // neither knows the other did — a real state, and one somebody has
@@ -136,9 +173,45 @@ export default function SuppliersPage() {
     } catch (err: any) {
       setError(err.message)
     }
-  }, [])
+  }, [loadRequests])
 
   useEffect(() => { load() }, [load])
+
+  // ── Recommend, mark, approve, decline ─────────────────────────────
+  async function recommend() {
+    setBusy(true); setError(null); setDone(null)
+    try {
+      const body = await readJson(await fetch('/api/supplier-requests', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(rec),
+      }))
+      setDone(body.data.says)
+      setRec({ name: '', contactName: '', contactEmail: '', reason: '' })
+      setRecommending(false)
+      loadRequests()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function act(id: string, payload: Record<string, unknown>) {
+    setBusy(true); setError(null); setDone(null)
+    try {
+      const body = await readJson(await fetch(`/api/supplier-requests/${id}`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+      }))
+      // A mark speaks through the checklist itself; only a decision gets a banner.
+      if (body.data.says && payload.action !== 'mark') setDone(body.data.says)
+      setNoteFor(null); setNoteText('')
+      await loadRequests()
+      if (payload.action === 'approve') load()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function read() {
     setBusy(true)
@@ -251,45 +324,140 @@ export default function SuppliersPage() {
 
   return (
     <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">
-      <header>
-        <p className="eyebrow">Network</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Suppliers</h1>
-        <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
-          Paste the list you already email. Nobody has to switch anything, and
-          none of them has to sign up before you can send them a role — they
-          find out when one arrives.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Network</p>
+          <h1 className="headline-serif text-[30px] leading-tight">Suppliers</h1>
+          <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
+            Who you buy from, and where each stands. A firm becomes a supplier when Procurement has its
+            paperwork on file and says so — anybody who raises a requirement can recommend one.
+          </p>
+        </div>
+        {mayRecommend && !recommending && (
+          <button
+            onClick={() => setRecommending(true)}
+            className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white hover:opacity-90"
+          >
+            Recommend a supplier
+          </button>
+        )}
       </header>
 
-      {/* ── The paste box ─────────────────────────────────────────── */}
-      <section className="panel space-y-3">
-        <p className="stat-label">Add suppliers</p>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={7}
-          placeholder={
-            'Cloudepa Systems, Ravi Menon, ravi@cloudepa.com\n' +
-            'Vertex Talent Ltd, priya@vertextalent.io\n' +
-            'Brightmoor Staffing <hello@brightmoor.co.uk>'
-          }
-          className="w-full rounded-lg border border-etyme-rule bg-white p-3 font-mono
-                     text-[12px] leading-relaxed text-etyme-ink placeholder:text-etyme-faint"
-        />
-        <div className="flex items-center gap-3">
-          <button
-            onClick={read}
-            disabled={busy || text.trim().length === 0}
-            className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white
-                       disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {busy ? 'Reading…' : 'Read the list'}
-          </button>
-          <span className="text-[12px] text-etyme-faint">
-            A spreadsheet column, a signature block, or an Outlook To: field.
-          </span>
-        </div>
-      </section>
+      {/* ── Recommend one ───────────────────────────────────────────── */}
+      {recommending && (
+        <section className="panel space-y-3">
+          <p className="stat-label">Recommend a supplier</p>
+          <p className="text-[13px] text-etyme-muted">
+            Procurement asks the firm for a certificate of insurance, a tax form, a Dun &amp; Bradstreet
+            report and vendor screening, and approves it when they are on file. You will be told either way.
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <input value={rec.name} onChange={(e) => setRec({ ...rec, name: e.target.value })} placeholder="Firm" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+            <input value={rec.contactEmail} onChange={(e) => setRec({ ...rec, contactEmail: e.target.value })} placeholder="Contact email (optional)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+            <input value={rec.contactName} onChange={(e) => setRec({ ...rec, contactName: e.target.value })} placeholder="Contact name (optional)" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+            <input value={rec.reason} onChange={(e) => setRec({ ...rec, reason: e.target.value })} placeholder="Why — who they placed for you, what they are good at" className="rounded border border-etyme-rule px-3 py-2 text-[13px]" />
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={recommend} disabled={busy || !rec.name.trim() || !rec.reason.trim()}
+              className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
+              {busy ? 'Sending…' : 'Send to Procurement'}
+            </button>
+            <button onClick={() => setRecommending(false)} className="text-[12px] text-etyme-muted hover:underline">Not now</button>
+          </div>
+        </section>
+      )}
+
+      {/* ── Awaiting Procurement ────────────────────────────────────── */}
+      {requests.some((r) => r.state === 'RECOMMENDED' || r.state === 'IN_REVIEW') && (
+        <section className="space-y-3">
+          <p className="stat-label">Awaiting Procurement</p>
+          {requests.filter((r) => r.state === 'RECOMMENDED' || r.state === 'IN_REVIEW').map((r) => {
+            const canAct = mayDecide && !r.mine
+            return (
+              <article key={r.id} className="panel space-y-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-3">
+                  <div>
+                    <p className="text-[15px] font-semibold text-etyme-ink">{r.name}</p>
+                    <p className="text-[12px] text-etyme-faint">
+                      Recommended by {r.recommendedBy} {when(r.createdAt)}{r.contactEmail ? ` · ${r.contactEmail}` : ''}
+                    </p>
+                  </div>
+                  <span className="chip chip--passive">{STATE_WORD[r.state]} · {r.readiness.held} of {r.readiness.of} on file</span>
+                </div>
+                <p className="text-[13px] text-etyme-muted">“{r.reason}”</p>
+                <ul className="divide-y divide-etyme-rule rounded-lg border border-etyme-rule bg-etyme-surface">
+                  {r.checklist.map((item) => (
+                    <li key={item.key} className="flex flex-wrap items-center gap-2 px-3 py-2 text-[12.5px]">
+                      <span className={`w-5 text-center ${item.state === 'HELD' ? 'text-etyme-verified' : item.state === 'WAIVED' ? 'text-etyme-attention' : 'text-etyme-faint'}`}>
+                        {item.state === 'HELD' ? '✓' : item.state === 'WAIVED' ? '~' : '○'}
+                      </span>
+                      <span className={`flex-1 min-w-[200px] ${item.state === 'MISSING' ? 'text-etyme-ink' : 'text-etyme-muted'}`}>
+                        {item.label}{!item.required && <span className="text-etyme-faint"> · optional</span>}
+                        {item.note && <span className="text-etyme-faint"> — {item.note}</span>}
+                      </span>
+                      {canAct && item.state === 'MISSING' && (
+                        <span className="flex gap-1">
+                          <button onClick={() => act(r.id, { action: 'mark', key: item.key, state: 'HELD' })} disabled={busy}
+                            className="rounded border border-etyme-rule px-2 py-0.5 text-[11px] text-etyme-ink hover:border-etyme-action">On file</button>
+                          <button onClick={() => { setNoteFor(`${r.id}:${item.key}`); setNoteText('') }} disabled={busy}
+                            className="rounded border border-etyme-rule px-2 py-0.5 text-[11px] text-etyme-muted hover:border-etyme-action">Waive…</button>
+                        </span>
+                      )}
+                      {canAct && item.state !== 'MISSING' && (
+                        <button onClick={() => act(r.id, { action: 'mark', key: item.key, state: 'MISSING' })} disabled={busy}
+                          className="text-[11px] text-etyme-faint hover:underline">undo</button>
+                      )}
+                      {noteFor === `${r.id}:${item.key}` && (
+                        <form className="flex w-full flex-wrap gap-2 pl-7" onSubmit={(e) => { e.preventDefault(); act(r.id, { action: 'mark', key: item.key, state: 'WAIVED', note: noteText }) }}>
+                          <input autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Why this can be waived — it stays on the record"
+                            className="flex-1 min-w-[220px] rounded border border-etyme-rule px-2 py-1 text-[12px]" />
+                          <button type="submit" disabled={!noteText.trim() || busy} className="rounded bg-etyme-attention px-2 py-1 text-[11px] text-white disabled:opacity-40">Waive</button>
+                          <button type="button" onClick={() => setNoteFor(null)} className="text-[11px] text-etyme-muted">Not now</button>
+                        </form>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <p className={`text-[12.5px] ${r.readiness.ok ? 'text-etyme-verified' : 'text-etyme-muted'}`}>{r.readiness.says}</p>
+                {canAct && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button onClick={() => act(r.id, { action: 'approve' })} disabled={busy || !r.readiness.ok}
+                      title={r.readiness.ok ? undefined : r.readiness.says}
+                      className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">
+                      Approve as a supplier
+                    </button>
+                    {noteFor === `${r.id}:decline` ? (
+                      <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); act(r.id, { action: 'decline', note: noteText }) }}>
+                        <input autoFocus value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Why — the recommender reads this"
+                          className="min-w-[220px] rounded border border-etyme-rule px-2 py-1 text-[12px]" />
+                        <button type="submit" disabled={!noteText.trim() || busy} className="rounded bg-etyme-attention px-3 py-1 text-[12px] text-white disabled:opacity-40">Decline</button>
+                        <button type="button" onClick={() => setNoteFor(null)} className="text-[12px] text-etyme-muted">Not now</button>
+                      </form>
+                    ) : (
+                      <button onClick={() => { setNoteFor(`${r.id}:decline`); setNoteText('') }} disabled={busy} className="text-[12px] text-etyme-muted hover:underline">Decline…</button>
+                    )}
+                  </div>
+                )}
+                {mayDecide && r.mine && (
+                  <p className="text-[12px] text-etyme-faint">You recommended this one, so somebody else in Procurement approves it.</p>
+                )}
+              </article>
+            )
+          })}
+        </section>
+      )}
+
+      {/* ── Not approved ────────────────────────────────────────────── */}
+      {requests.some((r) => r.state === 'DECLINED') && (
+        <section className="space-y-2">
+          <p className="stat-label">Not approved</p>
+          {requests.filter((r) => r.state === 'DECLINED').slice(0, 5).map((r) => (
+            <p key={r.id} className="text-[12.5px] text-etyme-muted">
+              <span className="text-etyme-ink">{r.name}</span> — {r.decidedBy ?? 'Procurement'}: {r.decisionNote}
+            </p>
+          ))}
+        </section>
+      )}
 
       {error && (
         <div className="panel">
@@ -466,6 +634,43 @@ export default function SuppliersPage() {
           </article>
         ))}
       </section>
+
+      {/* ── Import, for Procurement ─────────────────────────────────── */}
+      {mayDecide && (
+        <details className="panel">
+          <summary className="cursor-pointer text-[13px] text-etyme-muted">
+            Import the suppliers you already have — a pasted list, for firms Procurement has approved before
+          </summary>
+          <div className="mt-3 space-y-3">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={7}
+          placeholder={
+            'Cloudepa Systems, Ravi Menon, ravi@cloudepa.com\n' +
+            'Vertex Talent Ltd, priya@vertextalent.io\n' +
+            'Brightmoor Staffing <hello@brightmoor.co.uk>'
+          }
+          className="w-full rounded-lg border border-etyme-rule bg-white p-3 font-mono
+                     text-[12px] leading-relaxed text-etyme-ink placeholder:text-etyme-faint"
+        />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={read}
+            disabled={busy || text.trim().length === 0}
+            className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white
+                       disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {busy ? 'Reading…' : 'Read the list'}
+          </button>
+          <span className="text-[12px] text-etyme-faint">
+            A spreadsheet column, a signature block, or an Outlook To: field.
+          </span>
+        </div>
+
+          </div>
+        </details>
+      )}
     </div>
   )
 }

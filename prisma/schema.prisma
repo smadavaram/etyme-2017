@@ -392,6 +392,8 @@ model Company {
   blacklists            Blacklist[]
   // The people and firms this company would take again
   favorites             Favorite[]
+  // Suppliers recommended here, waiting on Procurement
+  supplierRequests      SupplierRequest[]
   // Locations
   locations             CompanyLocation[]
   // Holidays
@@ -3791,6 +3793,37 @@ model Blacklist {
   @@unique([companyId, targetType, targetId])
   @@index([companyId])
   @@index([targetType, targetId])
+}
+
+/// A supplier somebody at the client wants to use, before Procurement
+/// has said yes. A hiring manager may recommend a firm; it is not a
+/// supplier until the certificate of insurance, the tax form, the
+/// Dun & Bradstreet report and the vendor screening are on file and
+/// somebody other than the recommender approves it. Then, and only
+/// then, a company row, an agreement stub and a register row are
+/// written — the same three the paste flow writes.
+model SupplierRequest {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name            String
+  domain          String?
+  contactName     String?
+  contactEmail    String?
+  reason          String
+  recommendedById String
+  /// RECOMMENDED · IN_REVIEW · APPROVED · DECLINED
+  state           String   @default("RECOMMENDED")
+  /// [{ key, label, required, state: MISSING|HELD|WAIVED, note, at }]
+  checklist       Json
+  decidedById     String?
+  decidedAt       DateTime?
+  decisionNote    String?
+  supplierCompanyId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId, state])
 }
 
 /// The opposite of a block: a person or a firm this company would take

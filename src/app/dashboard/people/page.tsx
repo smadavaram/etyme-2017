@@ -6,6 +6,8 @@ import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/
 import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 /**
  * One person, however many suppliers are selling them.
@@ -78,6 +80,7 @@ const TONE: Record<string, string> = {
 }
 
 export default function PeoplePage() {
+  const router = useRouter()
   const [rows, setRows] = useState<Row[]>([])
   const [summary, setSummary] = useState('')
   const [open, setOpen] = useState<string | null>(null)
@@ -140,6 +143,7 @@ export default function PeoplePage() {
           <p className="text-[11px] text-etyme-faint">{r.roles.slice(0, 2).join(', ')}</p>
         </div>
       ),
+      sortValue: (r) => r.name,
     },
     { key: 'vendorNames', label: 'Through', render: (r) => <span className="text-etyme-muted">{r.vendorNames.join(', ')}</span>, sortValue: (r) => r.vendorNames.join(', ') },
     { key: 'state', label: 'Status', render: (r) => <span className={`chip ${TONE[r.state] ?? 'chip--passive'}`}>{r.state.toLowerCase()}</span> },
@@ -199,7 +203,7 @@ export default function PeoplePage() {
           rowKey={(r) => r.personId}
           searchPlaceholder="Search by name, supplier or role…"
           searchFilter={(r, q) => `${r.name} ${r.vendorNames.join(' ')} ${r.roles.join(' ')} ${r.location ?? ''}`.toLowerCase().includes(q.toLowerCase())}
-          onRowClick={(r) => { setView('feed'); setOpen(r.personId) }}
+          onRowClick={(r) => router.push(`/dashboard/people/${r.personId}` as any)}
           exportName="contractors"
           defaultPageSize={50}
           emptyMessage={emptyWord(filter, place)}
@@ -212,7 +216,7 @@ export default function PeoplePage() {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[15px] font-semibold text-etyme-ink">
-                {r.name}
+                <Link href={{ pathname: `/dashboard/people/${r.personId}` }} className="hover:underline">{r.name}</Link>
                 {r.location && <span className="ml-2 text-[12px] font-normal text-etyme-faint">{r.location}</span>}
               </p>
               <p className="text-[12px] text-etyme-faint">

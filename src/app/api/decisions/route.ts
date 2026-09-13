@@ -22,6 +22,7 @@ import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
  *   SUBMISSION_REVIEW  — submissions waiting for vendor review
  *   INVOICE_OVERDUE    — invoices past due
  *   RATE_CONFIRMATION  — rate changes that need confirmation
+ *   SUPPLIER_REVIEW    — a firm recommended, waiting on Procurement's paperwork and yes
  *
  * Each decision has: type, title, subtitle, urgency (HIGH|MEDIUM|LOW),
  * entityType, entityId, dueDate (if applicable), and actionUrl.
@@ -192,6 +193,35 @@ export async function GET(request: NextRequest) {
         actionUrl: '/dashboard/ap',
         amount: b.totalCents / 100,
         createdAt: b.receivedAt.toISOString(),
+      })
+    }
+  }
+
+  // ── 2c. Suppliers recommended, waiting on Procurement ──
+  if (hasAnyPermission(caller.permissions, ['vendors.manage'])) {
+    const waiting = await prisma.supplierRequest.findMany({
+      where: { companyId, state: { in: ['RECOMMENDED', 'IN_REVIEW'] } },
+      orderBy: { createdAt: 'asc' },
+      take: 10,
+    })
+    const names = await prisma.person.findMany({ where: { id: { in: waiting.map((w) => w.recommendedById) } }, select: { id: true, name: true } })
+    const nameOf = new Map(names.map((n) => [n.id, n.name]))
+    for (const w of waiting) {
+      const items = (w.checklist as any[]) ?? []
+      const required = items.filter((i) => i.required)
+      const held = required.filter((i) => i.state !== 'MISSING').length
+      const days = Math.floor((now.getTime() - w.createdAt.getTime()) / 86_400_000)
+      decisions.push({
+        type: 'SUPPLIER_REVIEW',
+        title: `Review supplier — ${w.name}`,
+        subtitle: `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${held} of ${required.length} documents on file`,
+        urgency: days >= 7 ? 'HIGH' : 'MEDIUM',
+        entityType: 'SUPPLIER_REQUEST',
+        entityId: w.id,
+        dueDate: null,
+        actionUrl: '/dashboard/suppliers',
+        amount: null,
+        createdAt: w.createdAt.toISOString(),
       })
     }
   }

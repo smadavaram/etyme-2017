@@ -128,6 +128,7 @@ const KIND_WORD: Record<string, string> = {
   EXPENSE_APPROVAL: 'Expense',
   ROLLOFF_ACTION: 'Ending',
   SUBMISSION_REVIEW: 'Candidate',
+  SUPPLIER_REVIEW: 'Supplier',
   INVOICE_OVERDUE: 'Invoice',
   RATE_CONFIRMATION: 'Rate',
   BILL_DISPUTED: 'Bill',

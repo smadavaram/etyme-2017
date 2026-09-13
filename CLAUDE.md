@@ -697,6 +697,36 @@ engaged today; a block keeps the row on the register but out of every
 list except its own. The seeded Nike desk stars Helena Marsh and the
 firm that supplied her.
 
+### A supplier is a workflow, and a person has a page ✓ (2026-09-13)
+
+"Add supplier is a huge waste of real estate — for an activity that has
+to happen through workflow and compliance with indirect procurement."
+The paste box is gone from the top of Suppliers. Anybody who raises
+requirements may recommend a firm with a reason; it lands on
+Procurement's desk as a decision; the certificate of insurance, the tax
+form, the Dun & Bradstreet report and the vendor screening go on file
+one at a time, or are waived with a reason written down; approval is
+refused in a sentence until they are; nobody approves their own
+recommendation; and only then are the company row, the agreement stub
+and the register row written, at approved standing, with the
+recommender told (`lib/supplier-onboarding`, `SupplierRequest`,
+`/api/supplier-requests`). Procurement's own import of firms it has
+approved before is folded away at the bottom.
+
+"Can a hiring manager save a consultant as a favorite, and how will he
+invite?" One page per person as this client knows them — where they are
+today, time here across every supplier against the cap, every
+submission and what each firm asked, interviews, paperwork, who can put
+them forward — opened only for somebody put in front of this company,
+every read logged (`/api/people/[id]`, `app/dashboard/people/[id]`).
+The star is on it. "Ask for them" picks a published role and goes to
+the supplier holding their consent on its bench, else whoever last
+submitted them, on the thread for that role — never to the consultant,
+because Etyme places nobody (`/api/people/[id]/ask`). A blocked person,
+an unpublished role and a role they are already on are refused in
+words. The seeded Nike desk holds Vertex Talent with two of four
+documents in.
+
 ### Demand opens, supply answers ✓ (2026-09-13)
 
 A client writes to one supplier from the role or from the candidate's
