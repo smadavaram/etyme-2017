@@ -62,10 +62,15 @@ const STATUS_CONFIG: Record<string, { label: string; chipClass: string }> = {
   ELIGIBLE:       { label: 'Eligible',       chipClass: 'chip--verified' },
 }
 
+/**
+ * Tenure against the cap is a state, not a quantity — inside, near,
+ * past — so it wears the reserved status colors and each one ships
+ * with the percentage beside it rather than standing on color alone.
+ */
 function tenureBarColor(pct: number): string {
   if (pct < 75) return 'bg-etyme-verified'
   if (pct <= 100) return 'bg-etyme-attention'
-  return 'bg-red-500'
+  return 'bg-etyme-danger'
 }
 
 // ── Page ───────────────────────────────────────────────────

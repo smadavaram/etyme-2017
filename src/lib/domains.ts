@@ -170,7 +170,7 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/requirements', 'app/dashboard/submissions', 'lib/interview-proposal', 'lib/requisition-change', 'app/dashboard/suppliers',
       'app/dashboard/timesheets', 'app/dashboard/people', 'app/dashboard/identity',
       'app/api/requirements', 'app/api/submissions', 'app/api/suppliers',
-      'app/api/timesheets', 'app/api/people', 'app/api/identity', 'app/api/first-good', 'app/api/favorites', 'lib/network-filters', 'lib/supplier-onboarding', 'app/api/supplier-requests', 'lib/supplier-desks', 'lib/supplier-link', 'app/api/supplier-apply', 'app/apply',
+      'app/api/timesheets', 'app/api/people', 'app/api/identity', 'app/api/first-good', 'app/api/favorites', 'lib/network-filters', 'lib/chart-colors', 'lib/supplier-onboarding', 'app/api/supplier-requests', 'lib/supplier-desks', 'lib/supplier-link', 'app/api/supplier-apply', 'app/apply',
     ],
   },
   {

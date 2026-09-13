@@ -129,6 +129,14 @@ we do not use LinkedIn OAuth.
   action is offered. Inside a break period, show the eligibility date instead of a button.
 - Governance is table stakes for any client with more than one hiring manager. Never
   gate it behind a pricing tier.
+- **A desk nobody has named falls back; it never refuses.** Decided 2026-09-13.
+  Where a chain needs a department lead and no value rule names one — a client
+  in its first week before anybody wrote a delegation of authority, or an
+  approver who recommended the firm themselves and so cannot decide it — the
+  program office stands in and the screen says "Program office" rather than
+  "Department lead". Refusing instead would mean a client cannot onboard a
+  supplier until governance is configured, which is the workaround trap above,
+  and would stop a VP recommending anybody at all.
 - Most requisitions must clear **without human approval**. Governance slower than the
   workaround produces the workaround.
 
@@ -331,6 +339,19 @@ getting it wrong first:
   rows (`components/list-surface`), and remembers the choice.
   `__tests__/invariants/list-surface.test.ts` fails on a page that draws
   a bare table.
+- **A chart's colors are computed, not chosen.** Decided 2026-09-13.
+  One palette, in `lib/chart-colors`, with the validator run quoted
+  beside each set: a severity ramp for ordered bands (one hue, light to
+  dark, so worse reads as darker), a fixed series order for identity
+  (never cycled, never recolored by rank), and reserved status colors
+  that are never "series four". Stacked fills are separated by a 2px
+  gap in the surface, never a border; a count sits in the legend, never
+  inside a segment where a narrow band clips it; and where nothing
+  varies — eight bars all of length one — the list is the honest form
+  and no bar is drawn.
+  `__tests__/invariants/chart-colors.test.ts` recomputes the lightness
+  and contrast rather than pinning hex, and fails on any screen that
+  reaches outside the palette.
 - **Explain in a sentence, not a code.** A refusal says what is missing
   and what to do — "Priya cannot start without an I-9. Get it on file,
   then activate." — never `DOCUMENTS_BLOCK`. The code is for the
@@ -828,6 +849,31 @@ wrong first.
 8. **Segregation is a BLOCK, said in a sentence.** "You recommended this
    firm, so the desks decide it without you." Never a disabled button
    with no words.
+
+### The charts were audited against the validator ✓ (2026-09-13)
+
+"Audit and improvise the sites and UX." Every chart in the app was run
+through the palette validator instead of being looked at, and three of
+them failed:
+
+- the AR page drew 31–60 and 61–90 days in the identical clay — ΔE 0.0,
+  the worst score the validator gives, two bands nobody could tell apart
+- the same five age bands were drawn in three different palettes on
+  three pages: brand tokens on AR, four unrelated Tailwind reds on
+  Invoices, four more on Reports
+- the report's contract pipeline put a green segment beside a gray one
+  at ΔE 5.6 for normal vision, under the floor of 15, and printed white
+  counts inside segments that a narrow band clipped
+
+All three now draw from `lib/chart-colors`: `AGE_BANDS` — the good
+status color for current, then a validated one-hue ramp darkening
+through the overdue bands — and `SERIES` for identity, opening on the
+brand's blue and clay. Both sets pass every check; the runs are quoted
+in the file. Segments carry a 2px surface gap; counts moved to the
+legend; a legend swatch only stands for a segment that is drawn.
+Twenty-seven off-brand Tailwind colors across thirteen screens — a dozen
+`bg-red-600` toasts among them — were swept onto the brand tokens, and
+a test now fails on any that come back.
 
 ### Demand opens, supply answers ✓ (2026-09-13)
 

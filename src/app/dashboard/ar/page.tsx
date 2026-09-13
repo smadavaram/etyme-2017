@@ -1,6 +1,7 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 
 import { useEffect, useMemo, useState } from 'react'
 import { ListSurface, type Column } from '@/components/list-surface'
@@ -34,12 +35,15 @@ const BUCKET_LABEL: Record<Bucket, string> = {
   D90_PLUS: '90+',
 }
 
+// Current is the healthy part of the book; the four overdue bands are
+// one hue darkening, so "worse" reads without the legend. 31–60 and
+// 61–90 used to be the same clay — two bands nobody could tell apart.
 const BUCKET_COLOUR: Record<Bucket, string> = {
-  CURRENT: 'var(--color-verified)',
-  D1_30: 'var(--color-muted)',
-  D31_60: 'var(--color-attention)',
-  D61_90: 'var(--color-attention)',
-  D90_PLUS: 'var(--color-danger, #B4413C)',
+  CURRENT: AGE_BANDS[0],
+  D1_30: AGE_BANDS[1],
+  D31_60: AGE_BANDS[2],
+  D61_90: AGE_BANDS[3],
+  D90_PLUS: AGE_BANDS[4],
 }
 
 const SETTLEMENT_CHIP: Record<string, { chip: string; word: string }> = {
@@ -287,17 +291,16 @@ function AgeingBar({ book }: { book: any }) {
   return (
     <div>
       <div className="flex h-2 w-full overflow-hidden rounded-full bg-etyme-canvas">
-        {order.map((b) => {
-          const share = book.buckets[b].minor / total
-          if (share <= 0) return null
-          return (
+        {(() => {
+          const shown = order.filter((b) => book.buckets[b].minor / total > 0)
+          return shown.map((b, i) => (
             <div
               key={b}
               title={`${BUCKET_LABEL[b]} — ${amount(book.buckets[b].minor, book.currency)}`}
-              style={{ width: `${share * 100}%`, background: BUCKET_COLOUR[b] }}
+              style={segmentStyle(book.buckets[b].minor / total, BUCKET_COLOUR[b], i === shown.length - 1)}
             />
-          )
-        })}
+          ))
+        })()}
       </div>
       <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1">
         {order.map((b) => (

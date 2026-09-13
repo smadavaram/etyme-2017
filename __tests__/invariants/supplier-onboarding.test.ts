@@ -144,3 +144,16 @@ describe('the routes and the pages', () => {
     expect(page).toContain("{r.stage === 'DONE' ? 'Done' : STAGE_VERB[r.stage]}")
   })
 })
+
+describe('a desk nobody has named', () => {
+  it('falls back to the program office rather than refusing — a client in its first week has no delegation of authority yet', () => {
+    expect(mayActAt({ ...base, stage: 'LEAD', permissions: ['governance.write'], callerId: 'pmo', desks: { leadId: null, hrId: null, procurementId: null } })).toEqual({ ok: true })
+  })
+  it('and when the approver is the one who recommended the firm, their own rule cannot stand in for them', () => {
+    expect(read('src/lib/supplier-desks.ts')).toContain("rules.filter((r) => r.kind === 'VALUE' && r.approverId !== recommendedById)")
+  })
+  it('the stepper says Program office, not Department lead, so whoever decides knows they are standing in', () => {
+    expect(stepsOf('LEAD', 'RECOMMENDED', [], false)[0].word).toBe('Program office')
+    expect(stepsOf('LEAD', 'RECOMMENDED', [], true)[0].word).toBe('Department lead')
+  })
+})

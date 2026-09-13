@@ -74,9 +74,9 @@ function urgencyClass(urgency: string): string {
 
 function urgencyChipClass(urgency: string): string {
   switch (urgency) {
-    case 'HIGH': return 'bg-red-100 text-red-700'
-    case 'MEDIUM': return 'bg-amber-100 text-amber-700'
-    case 'LOW': return 'bg-blue-100 text-etyme-action'
+    case 'HIGH': return 'bg-etyme-danger/10 text-etyme-danger'
+    case 'MEDIUM': return 'bg-etyme-attention/10 text-etyme-attention'
+    case 'LOW': return 'bg-etyme-action/10 text-etyme-action'
     default: return 'chip--passive'
   }
 }
@@ -385,7 +385,7 @@ export default function DecisionsPage() {
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium
                          ${toast.type === 'success'
                            ? 'bg-etyme-verified text-white'
-                           : 'bg-red-600 text-white'
+                           : 'bg-etyme-danger text-white'
                          } animate-slide-up`}>
           {toast.message}
         </div>

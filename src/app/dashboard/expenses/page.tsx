@@ -815,7 +815,7 @@ export default function ExpensesPage() {
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium
                          ${toast.type === 'success'
                            ? 'bg-etyme-verified text-white'
-                           : 'bg-red-600 text-white'
+                           : 'bg-etyme-danger text-white'
                          } animate-slide-up`}>
           {toast.message}
         </div>

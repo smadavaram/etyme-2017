@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { SERIES, AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 import { fromUnits as fmtCurrency, compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
 
 /**
@@ -104,6 +105,18 @@ function fmtPercent(value: number): string {
 }
 
 // ── Page ───────────────────────────────────────────────
+
+
+/** The five age bands of a book, in the order a credit controller reads them. */
+function agingOf(book: any) {
+  return [
+    { key: 'current', label: 'Current', color: AGE_BANDS[0], amount: book.buckets.current.minor },
+    { key: '1-30', label: '1–30d', color: AGE_BANDS[1], amount: book.buckets['1-30'].minor },
+    { key: '31-60', label: '31–60d', color: AGE_BANDS[2], amount: book.buckets['31-60'].minor },
+    { key: '61-90', label: '61–90d', color: AGE_BANDS[3], amount: book.buckets['61-90'].minor },
+    { key: '90+', label: '90+d', color: AGE_BANDS[4], amount: book.buckets['90+'].minor },
+  ]
+}
 
 export default function ReportsPage() {
   const [data, setData] = useState<ReportData | null>(null)
@@ -303,11 +316,16 @@ export default function ReportsPage() {
   }
   const totalPipeline = sellContracts.length
 
+  // Four states of a contract: identity, not severity — a paused
+  // contract is not "worse" than a draft. The fixed series order, so
+  // the color follows the state and a filter never repaints it. The
+  // green and the gray used to sit side by side at ΔE 5.6 for normal
+  // vision, under the floor of 15.
   const pipelineColors: Record<string, string> = {
-    DRAFT: 'bg-etyme-action',
-    IN_PROGRESS: 'bg-etyme-verified',
-    ENDED: 'bg-etyme-muted',
-    PAUSED: 'bg-etyme-attention',
+    DRAFT: SERIES[0],
+    IN_PROGRESS: SERIES[2],
+    ENDED: SERIES[4],
+    PAUSED: SERIES[1],
   }
 
   const pipelineLabels: Record<string, string> = {
@@ -493,34 +511,37 @@ export default function ReportsPage() {
               {totalPipeline > 0 ? (
                 <>
                   {/* Stacked horizontal bar */}
+                  {/* The counts live in the legend below, never inside
+                      the segments: a number printed on a fill is the
+                      first thing a narrow segment clips, and it wore
+                      white on four different backgrounds. */}
                   <div className="flex h-6 rounded-full overflow-hidden mb-4">
-                    {pipelineStates.map((state) => {
-                      const count = pipelineCounts[state]
-                      if (count === 0) return null
-                      const pct = (count / totalPipeline) * 100
-                      return (
+                    {(() => {
+                      const shown = pipelineStates.filter((st) => pipelineCounts[st] > 0)
+                      return shown.map((state, i) => (
                         <div
                           key={state}
-                          className={`${pipelineColors[state]} transition-all flex items-center justify-center`}
-                          style={{ width: `${pct}%` }}
-                          title={`${pipelineLabels[state]}: ${count}`}
-                        >
-                          {pct > 12 && (
-                            <span className="text-white text-[10px] font-semibold"
-                                  style={{ fontVariantNumeric: 'tabular-nums' }}>
-                              {count}
-                            </span>
-                          )}
-                        </div>
-                      )
-                    })}
+                          className="transition-all"
+                          style={segmentStyle(pipelineCounts[state] / totalPipeline, pipelineColors[state], i === shown.length - 1)}
+                          title={`${pipelineLabels[state]}: ${pipelineCounts[state]}`}
+                        />
+                      ))
+                    })()}
                   </div>
 
                   {/* Legend */}
                   <div className="flex flex-wrap gap-x-5 gap-y-2">
                     {pipelineStates.map((state) => (
                       <div key={state} className="flex items-center gap-1.5">
-                        <span className={`w-2.5 h-2.5 rounded-full ${pipelineColors[state]}`} />
+                        {/* A swatch stands for a segment on the bar. A
+                            state with nothing in it has no segment, so
+                            it keeps its count and loses its dot. */}
+                        <span
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={pipelineCounts[state] > 0
+                            ? { background: pipelineColors[state] }
+                            : { border: '1px solid var(--color-rule)' }}
+                        />
                         <span className="text-[12px] text-etyme-muted">{pipelineLabels[state]}</span>
                         <span className="text-[12px] font-medium text-etyme-ink"
                               style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -547,7 +568,17 @@ export default function ReportsPage() {
             {/* Bench skills distribution */}
             <div className="panel">
               <p className="stat-label mb-4">Bench Skills Distribution</p>
-              {topSkills.length > 0 ? (
+              {/* Eight bars of identical length is not a chart; it is
+                  eight skills, one listing each, drawn as though the
+                  lengths meant something. Where nothing varies, the
+                  list is the honest form. */}
+              {topSkills.length > 0 && topSkills.every(([, c]) => c === topSkills[0][1]) ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {topSkills.map(([skill]) => (
+                    <span key={skill} className="chip chip--passive">{skill}</span>
+                  ))}
+                </div>
+              ) : topSkills.length > 0 ? (
                 <div className="space-y-2.5">
                   {topSkills.map(([skill, count]) => (
                     <div key={skill} className="flex items-center gap-3">
@@ -556,8 +587,9 @@ export default function ReportsPage() {
                       </span>
                       <div className="w-24 h-1.5 bg-etyme-canvas rounded-full overflow-hidden flex-shrink-0">
                         <div
-                          className="h-full bg-etyme-verified rounded-full transition-all"
+                          className="h-full rounded-full transition-all"
                           style={{
+                            background: SERIES[0],
                             width: maxSkillCount > 0
                               ? `${(count / maxSkillCount) * 100}%`
                               : '0%',
@@ -606,37 +638,27 @@ export default function ReportsPage() {
                   {arBook && arBook.outstandingMinor > 0 && (
                     <div className="mt-5 pt-4 border-t border-etyme-rule">
                       <p className="stat-label mb-2">Aging Breakdown — owed to us, {arCurrency}</p>
+                      {/* The third place this book is drawn. All three
+                          wear AGE_BANDS now; they used to be three
+                          different palettes for one set of numbers. */}
                       <div className="flex h-2.5 rounded-full overflow-hidden mb-3">
-                        {([
-                          { key: 'current', color: 'bg-etyme-verified', amount: arBook.buckets.current.minor },
-                          { key: '1-30', color: 'bg-amber-400', amount: arBook.buckets['1-30'].minor },
-                          { key: '31-60', color: 'bg-orange-500', amount: arBook.buckets['31-60'].minor },
-                          { key: '61-90', color: 'bg-red-500', amount: arBook.buckets['61-90'].minor },
-                          { key: '90+', color: 'bg-red-700', amount: arBook.buckets['90+'].minor },
-                        ] as const).map((bucket) => {
-                          if (bucket.amount <= 0) return null
-                          const pct = (bucket.amount / arBook.outstandingMinor) * 100
-                          return (
+                        {(() => {
+                          const shown = agingOf(arBook).filter((b) => b.amount > 0)
+                          return shown.map((bucket, i) => (
                             <div
                               key={bucket.key}
-                              className={`${bucket.color} transition-all`}
-                              style={{ width: `${pct}%` }}
-                              title={`${bucket.key}: ${fmtMinorExact(bucket.amount, arCurrency)}`}
+                              className="transition-all"
+                              style={segmentStyle(bucket.amount / arBook.outstandingMinor, bucket.color, i === shown.length - 1)}
+                              title={`${bucket.label}: ${fmtMinorExact(bucket.amount, arCurrency)}`}
                             />
-                          )
-                        })}
+                          ))
+                        })()}
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                        {([
-                          { key: 'Current', color: 'bg-etyme-verified', amount: arBook.buckets.current.minor },
-                          { key: '1–30d', color: 'bg-amber-400', amount: arBook.buckets['1-30'].minor },
-                          { key: '31–60d', color: 'bg-orange-500', amount: arBook.buckets['31-60'].minor },
-                          { key: '61–90d', color: 'bg-red-500', amount: arBook.buckets['61-90'].minor },
-                          { key: '90+d', color: 'bg-red-700', amount: arBook.buckets['90+'].minor },
-                        ] as const).map((bucket) => (
+                        {agingOf(arBook).map((bucket) => (
                           <div key={bucket.key} className="flex items-center gap-1 text-[11px]">
-                            <span className={`w-2 h-2 rounded-full ${bucket.color}`} />
-                            <span className="text-etyme-muted">{bucket.key}</span>
+                            <span className="w-2 h-2 rounded-full" style={{ background: bucket.color }} />
+                            <span className="text-etyme-muted">{bucket.label}</span>
                             <span className="font-medium text-etyme-ink"
                                   style={{ fontVariantNumeric: 'tabular-nums' }}>
                               {fmtMinor(bucket.amount, arCurrency)}

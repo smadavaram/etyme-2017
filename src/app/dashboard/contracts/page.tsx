@@ -885,8 +885,8 @@ function ContractDetailDrawer({
               <button
                 onClick={handleGovernanceOverride}
                 disabled={!overrideReason.trim() || activating}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-amber-600 text-white
-                           hover:bg-amber-700 transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-attention text-white
+                           hover:bg-etyme-attention/90 transition-colors disabled:opacity-50"
               >
                 {activating ? 'Activating…' : 'Override and activate'}
               </button>

@@ -841,8 +841,8 @@ export default function TimesheetsPage() {
               <button
                 onClick={() => handleRejectTimesheet(rejectTarget, rejectReason)}
                 disabled={!rejectReason.trim() || acting === rejectTarget}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white
-                           hover:bg-red-700 transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-etyme-danger text-white
+                           hover:bg-etyme-danger/90 transition-colors disabled:opacity-50"
               >
                 {acting === rejectTarget ? 'Rejecting…' : 'Reject'}
               </button>
@@ -856,7 +856,7 @@ export default function TimesheetsPage() {
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium
                          ${toast.type === 'success'
                            ? 'bg-etyme-verified text-white'
-                           : 'bg-red-600 text-white'
+                           : 'bg-etyme-danger text-white'
                          } animate-slide-up`}>
           {toast.message}
         </div>

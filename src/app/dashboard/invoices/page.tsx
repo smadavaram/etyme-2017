@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { AGE_BANDS, segmentStyle } from '@/lib/chart-colors'
 import { compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -944,12 +945,15 @@ export default function InvoicesPage() {
   const issuedCount = invoices.filter((i) => ['ISSUED', 'SUBMITTED'].includes(i.status)).length
 
   // ── Aging bar segments (visual proportion) ────────
+  // The same five bands the AR page draws, in the same colors — one
+  // hue darkening behind a green "current". They used to be four
+  // unrelated Tailwind reds here and something else over there.
   const agingBuckets: { key: AgingKey; label: string; color: string; minor: number }[] = [
-    { key: 'current', label: 'Current', color: 'bg-etyme-verified', minor: book?.buckets.current.minor ?? 0 },
-    { key: '1-30', label: '1–30 days', color: 'bg-amber-400', minor: book?.buckets['1-30'].minor ?? 0 },
-    { key: '31-60', label: '31–60 days', color: 'bg-orange-500', minor: book?.buckets['31-60'].minor ?? 0 },
-    { key: '61-90', label: '61–90 days', color: 'bg-red-500', minor: book?.buckets['61-90'].minor ?? 0 },
-    { key: '90+', label: '90+ days', color: 'bg-red-700', minor: book?.buckets['90+'].minor ?? 0 },
+    { key: 'current', label: 'Current', color: AGE_BANDS[0], minor: book?.buckets.current.minor ?? 0 },
+    { key: '1-30', label: '1–30 days', color: AGE_BANDS[1], minor: book?.buckets['1-30'].minor ?? 0 },
+    { key: '31-60', label: '31–60 days', color: AGE_BANDS[2], minor: book?.buckets['31-60'].minor ?? 0 },
+    { key: '61-90', label: '61–90 days', color: AGE_BANDS[3], minor: book?.buckets['61-90'].minor ?? 0 },
+    { key: '90+', label: '90+ days', color: AGE_BANDS[4], minor: book?.buckets['90+'].minor ?? 0 },
   ]
   const agingTotal = agingBuckets.reduce((s, b) => s + b.minor, 0)
 
@@ -1161,21 +1165,22 @@ export default function InvoicesPage() {
             Aging breakdown — {side === 'RECEIVABLE' ? 'owed to us' : 'we owe'}, {bookCcy}
           </p>
           <div className="flex h-3 rounded-full overflow-hidden bg-etyme-canvas">
-            {agingBuckets.map((bucket) =>
-              bucket.minor > 0 ? (
+            {(() => {
+              const shown = agingBuckets.filter((b) => b.minor > 0)
+              return shown.map((bucket, i) => (
                 <div
                   key={bucket.key}
-                  className={`${bucket.color} transition-all`}
-                  style={{ width: `${(bucket.minor / agingTotal) * 100}%` }}
+                  className="transition-all"
+                  style={segmentStyle(bucket.minor / agingTotal, bucket.color, i === shown.length - 1)}
                   title={`${bucket.label}: ${fmtMinorExact(bucket.minor, bookCcy)}`}
                 />
-              ) : null
-            )}
+              ))
+            })()}
           </div>
           <div className="flex gap-4 mt-2 flex-wrap">
             {agingBuckets.map((bucket) => (
               <div key={bucket.key} className="flex items-center gap-1.5 text-[11px]">
-                <span className={`w-2 h-2 rounded-full ${bucket.color}`} />
+                <span className="w-2 h-2 rounded-full" style={{ background: bucket.color }} />
                 <span className="text-etyme-muted">{bucket.label}</span>
                 <span className="tabular-nums font-medium text-etyme-ink">
                   {fmtMinor(bucket.minor, bookCcy)}
@@ -1295,7 +1300,7 @@ export default function InvoicesPage() {
         <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up ${
           toast.type === 'success'
             ? 'bg-etyme-verified text-white'
-            : 'bg-red-600 text-white'
+            : 'bg-etyme-danger text-white'
         }`}>
           {toast.message}
         </div>
