@@ -4271,6 +4271,11 @@ model DocInstance {
   envelopeId     String? // DocuSign
   signedFileUrl  String?
   signedAt       DateTime?
+  // When it was asked for, who signed or uploaded it, what they said.
+  sentAt         DateTime?
+  signedById     String?
+  fileName       String?
+  note           String?
 
   @@index([subjectType, subjectId, status])
   @@index([templateId])

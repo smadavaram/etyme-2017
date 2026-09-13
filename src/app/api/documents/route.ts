@@ -59,9 +59,30 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         template: { select: { id: true, name: true, audience: true, needsSignature: true } },
+        sellContract: { select: { person: { select: { name: true } }, clientCompany: { select: { name: true } } } },
+        buyContract: { select: { candidates: { where: { state: 'ACTIVE' }, take: 1, select: { person: { select: { name: true } } } } } },
       },
-      orderBy: { signedAt: { sort: 'desc', nulls: 'last' } },
+      orderBy: [{ sentAt: { sort: 'desc', nulls: 'last' } }, { signedAt: { sort: 'desc', nulls: 'last' } }],
     })
+
+    // Who each request is about, by name. A row that says "PERSON
+    // cmt…" is a row nobody can act on.
+    const personIds = instances.filter((i) => i.subjectType === 'PERSON').map((i) => i.subjectId)
+    const companyIds = instances.filter((i) => i.subjectType === 'COMPANY').map((i) => i.subjectId)
+    const [people, companies] = await Promise.all([
+      personIds.length ? prisma.person.findMany({ where: { id: { in: personIds } }, select: { id: true, name: true } }) : [],
+      companyIds.length ? prisma.company.findMany({ where: { id: { in: companyIds } }, select: { id: true, name: true } }) : [],
+    ])
+    const personName = new Map(people.map((p) => [p.id, p.name]))
+    const companyName = new Map(companies.map((c) => [c.id, c.name]))
+    const subjectOf = (i: (typeof instances)[number]): string =>
+      i.subjectType === 'PERSON'
+        ? personName.get(i.subjectId) ?? 'Somebody'
+        : i.subjectType === 'COMPANY'
+          ? companyName.get(i.subjectId) ?? 'A company'
+          : i.subjectType === 'SELL_CONTRACT'
+            ? `${i.sellContract?.person.name ?? 'Somebody'} at ${i.sellContract?.clientCompany.name ?? 'a client'}`
+            : i.buyContract?.candidates[0]?.person.name ?? 'Somebody'
 
     return NextResponse.json({
       data: {
@@ -70,10 +91,14 @@ export async function GET(request: NextRequest) {
           template: i.template,
           subjectType: i.subjectType,
           subjectId: i.subjectId,
+          subject: subjectOf(i),
           status: i.status,
           envelopeId: i.envelopeId,
+          sentAt: i.sentAt?.toISOString() ?? null,
           signedAt: i.signedAt?.toISOString() ?? null,
           hasSignedFile: !!i.signedFileUrl,
+          fileName: i.fileName,
+          note: i.note,
         })),
         total: instances.length,
       },

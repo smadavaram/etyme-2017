@@ -66,6 +66,8 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/governance', 'app/dashboard/tenure', 'app/dashboard/blacklist',
       'app/api/governance', 'app/api/tenure', 'app/api/blacklist', 'app/api/bar',
       'app/api/roles', 'app/api/documents', 'app/api/document-shares',
+      // A document asked for, sent, uploaded or signed — and the consultant's own view of it.
+      'lib/document-request', 'app/api/me/papers', 'app/dashboard/documents',
       'app/api/shared', 'app/api/packet', 'app/packet',
       'lib/document-stages', 'lib/contract-clearance', 'lib/packets', 'lib/packet-derivation', 'lib/attestation',
       'lib/worker-classification', 'lib/holds', 'lib/representation',
