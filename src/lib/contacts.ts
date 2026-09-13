@@ -195,10 +195,11 @@ export function claimMatches(
 export function kindOfRole(roleName: string | null | undefined): ContactKind {
   const r = (roleName ?? '').toLowerCase()
   if (/hiring/.test(r)) return 'HIRING_MANAGER'
-  if (/procure|supplier manager|vendor/.test(r)) return 'PROCUREMENT'
+  // An account manager owns the relationship; "account" alone is the money desk.
+  if (/account manager|owner|admin|program manager|approver|\bvp\b|executive|director|team lead/.test(r)) return 'EXECUTIVE'
+  if (/procure|supplier manager|vendor|contract manager/.test(r)) return 'PROCUREMENT'
   if (/account|ap clerk|payable|finance/.test(r)) return 'AP'
-  if (/deliver|resource|coordinator|compliance/.test(r)) return 'DELIVERY'
+  if (/deliver|resource|coordinator|compliance|\bhr\b|human resources/.test(r)) return 'DELIVERY'
   if (/recruit|sourc|contractor desk/.test(r)) return 'RECRUITING'
-  if (/owner|admin|program manager|approver|vp|executive|director|team lead/.test(r)) return 'EXECUTIVE'
   return 'OTHER'
 }

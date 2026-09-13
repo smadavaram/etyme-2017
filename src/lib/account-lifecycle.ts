@@ -256,9 +256,13 @@ export function checkInvite(
   const ownDomain = companyDomain !== null && domain === companyDomain.toLowerCase()
 
   if (ownDomain) {
+    // They could join by signing in — but an invitation tells them, and
+    // seats them with a role before they arrive, so an owner can set up
+    // the account manager, HR, the contract desk and finance in one
+    // sitting instead of waiting for each to find the door.
     return {
-      ok: false,
-      reason: `Anybody at ${companyDomain} joins by signing in — they do not need an invitation. Send them the address instead.`,
+      ok: true,
+      reason: `${clean} is at ${companyDomain}; the invitation tells them and seats them with the role you chose.`,
       outsider: false,
     }
   }

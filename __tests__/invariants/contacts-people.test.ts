@@ -18,6 +18,10 @@ describe('the people at the firms you trade with', () => {
     expect(kindOfRole('Resource Manager')).toBe('DELIVERY')
     expect(kindOfRole('Hiring Manager')).toBe('HIRING_MANAGER')
     expect(kindOfRole('Procurement Lead')).toBe('PROCUREMENT')
+    expect(kindOfRole('Account Manager')).toBe('EXECUTIVE')
+    expect(kindOfRole('Contract Manager')).toBe('PROCUREMENT')
+    expect(kindOfRole('HR')).toBe('DELIVERY')
+    expect(kindOfRole('Finance')).toBe('AP')
     expect(kindOfRole(null)).toBe('OTHER')
   })
   it('a client sees the whole team at each supplier it buys from — register, agreement or contract', () => {

@@ -112,7 +112,28 @@ const SUPPLIER_ROLES: RoleSeed[] = [
     permissions: uniq(SEE_PEOPLE, ['consultants.write'], SEE_DEMAND, SEND_SUPPLY, SEE_WORK, ['assignments.write', 'utilization.read']),
   },
   {
-    name: 'Accountant',
+    // The client relationship: the roles, the rates, the submissions,
+    // what has been billed. Not payroll, not P&L.
+    name: 'Account Manager',
+    blurb: 'Owns the client relationship — roles, rates, submissions, and what was billed.',
+    permissions: uniq(SEE_PEOPLE, SEE_DEMAND, SEND_SUPPLY, SEE_WORK, OWN_PRICE, SEE_MONEY, ['vendors.read'], SEE_OUTSIDE),
+  },
+  {
+    // The firm's own people: paperwork, work authorization, starts. No
+    // money at all — the same exclusion the recruiter has.
+    name: 'HR',
+    blurb: 'Paperwork and work authorization for the firm’s own people. Sees no money.',
+    permissions: uniq(SEE_PEOPLE, ['consultants.write'], ['assignments.read', 'timesheets.read'], SEE_RULES),
+  },
+  {
+    // Agreements, orders, extensions and rate changes; reads the
+    // invoices they give rise to. Does not submit people or pay anyone.
+    name: 'Contract Manager',
+    blurb: 'Agreements, orders, extensions and rate changes.',
+    permissions: uniq(SEE_PEOPLE, SEE_DEMAND, SEE_WORK, ['assignments.write'], OWN_PRICE, SEE_MONEY, ['vendors.read']),
+  },
+  {
+    name: 'Finance',
     blurb: 'Bills, pays, and closes the month.',
     permissions: uniq(APPROVE_WORK, RUN_MONEY_IN, RUN_PAYROLL, ['pnl.read']),
   },
@@ -248,6 +269,8 @@ const CONSULTANT_CORP_ROLES: RoleSeed[] = [
  */
 export const RENAMED_ROLES: Record<string, string> = {
   'Programme Manager': 'Program Manager',
+  // A staffing firm calls the desk that bills and pays Finance.
+  'Accountant': 'Finance',
 }
 
 export function rolesFor(kind: CompanyKind): RoleSeed[] {

@@ -210,6 +210,31 @@ export default function AccessPage() {
   const [error, setError] = useState<string | null>(null)
   const [granting, setGranting] = useState<string | null>(null)
   const [form, setForm] = useState({ roleId: '', days: '', reason: '' })
+  const [invite, setInvite] = useState({ name: '', email: '', roleId: '' })
+  const [inviting, setInviting] = useState(false)
+  const [invited, setInvited] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null)
+
+  // Bring the team in by name: the account manager, HR, the contract
+  // desk, finance. Each is emailed and seated with their role before
+  // they sign in, so the client's Contacts page fills with the people
+  // who work its account.
+  async function sendInvite() {
+    setInviting(true); setInvited(null)
+    try {
+      const res = await fetch('/api/access/invite', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: invite.name.trim(), email: invite.email.trim(), roleId: invite.roleId || undefined }),
+      })
+      const j = await readJson(res)
+      setInvited({ text: j.data.says ?? `${invite.email.trim()} has been invited.`, tone: 'ok' })
+      setInvite({ name: '', email: '', roleId: '' })
+      await load()
+    } catch (e: any) {
+      setInvited({ text: e.message, tone: 'error' })
+    } finally {
+      setInviting(false)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -299,6 +324,27 @@ export default function AccessPage() {
       </div>
 
       {/* Somebody sitting unable to work beats a tidy list of everybody else. */}
+      {/* ── Invite a teammate ── */}
+      <section className="mb-8 border border-etyme-rule rounded-lg bg-etyme-surface p-5">
+        <h2 className="font-serif text-lg text-etyme-ink mb-1">Invite a teammate</h2>
+        <p className="text-sm text-etyme-muted mb-3">
+          Name, email, and what they do here. They are emailed, and the seat is theirs the moment they sign in.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.3fr_1fr_auto] gap-2 items-center">
+          <input value={invite.name} onChange={(e) => setInvite({ ...invite, name: e.target.value })} placeholder="Name" className={field} aria-label="Name" />
+          <input value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder="Work email" className={field} aria-label="Work email" />
+          <select value={invite.roleId} onChange={(e) => setInvite({ ...invite, roleId: e.target.value })} className={field} aria-label="Role">
+            <option value="">What they do here…</option>
+            {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+          <button onClick={sendInvite} disabled={inviting || !invite.email.includes('@')}
+            className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-40">
+            {inviting ? 'Inviting…' : 'Invite'}
+          </button>
+        </div>
+        {invited && <p className={`mt-2 text-sm ${invited.tone === 'ok' ? 'text-etyme-verified' : 'text-etyme-attention'}`}>{invited.text}</p>}
+      </section>
+
       {data.waitingForAccess.length > 0 && (
         <section className="mb-8">
           <h2 className="font-serif text-lg text-etyme-ink mb-3">Waiting for access</h2>

@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { sensitivityOf } from '@/lib/access-grant'
+import { ensureDefaultRoles } from '@/lib/company-roles'
 
 /**
  * GET /api/roles — the roles this company can grant
@@ -24,6 +25,9 @@ export async function GET(request: NextRequest) {
       { status: 403 }
     )
   }
+
+  // The defaults for this kind of company, brought up to date on read.
+  await ensureDefaultRoles(caller.company.id, caller.company.kind)
 
   const roles = await prisma.role.findMany({
     where: { companyId: caller.company.id },

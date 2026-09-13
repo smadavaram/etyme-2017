@@ -180,6 +180,9 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(
     {
       data: {
+        says: role
+          ? `${person.name} has been invited as ${role.name} and emailed. The seat is theirs when they sign in with ${email}.`
+          : `${person.name} has been invited and emailed. Give them a role when they arrive.`,
         contextId: context.id,
         email,
         role: role?.name ?? null,

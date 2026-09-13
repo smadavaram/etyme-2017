@@ -243,7 +243,7 @@ export const DOMAINS: Domain[] = [
       'app/api/contacts', 'app/api/counterparties', 'app/dashboard/contacts',
       'lib/feedback', 'lib/remember',
       'lib/demo-placement',
-      'lib/company-defaults', 'lib/company-domains', 'lib/domains-owned',
+      'lib/company-defaults', 'lib/company-roles', 'lib/company-domains', 'lib/domains-owned',
       'lib/registrable-domain', 'lib/account-lifecycle',
       'lib/service-accounts', 'lib/import-mapper', 'lib/importable',
       'lib/loop', 'lib/agent-run', 'lib/demo-seed', 'lib/demo-chain', 'lib/demo-volume', 'lib/demo-seed-client',

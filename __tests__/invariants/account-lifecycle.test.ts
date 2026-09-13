@@ -178,12 +178,11 @@ describe('removing a person outright', () => {
 })
 
 describe('inviting somebody', () => {
-  it('refuses an invitation to your own domain, and says why', () => {
-    // Anybody on the verified domain joins by signing in. Offering an
-    // invitation duplicates the seat.
+  it('welcomes an invitation to your own domain — it tells them and seats them with a role before they arrive', () => {
     const v = checkInvite('newperson@cloudepa.com', 'cloudepa.com', false)
-    expect(v.ok).toBe(false)
-    expect(v.reason).toMatch(/joins by signing in/i)
+    expect(v.ok).toBe(true)
+    expect(v.outsider).toBe(false)
+    expect(v.reason).toMatch(/seats them with the role you chose/i)
   })
 
   it('allows an invitation to somebody outside the domain', () => {
@@ -208,6 +207,8 @@ describe('inviting somebody', () => {
   })
 
   it('is case-insensitive about the domain, because people type capitals', () => {
-    expect(checkInvite('New.Person@Cloudepa.com', 'cloudepa.com', false).ok).toBe(false)
+    const v = checkInvite('New.Person@Cloudepa.com', 'cloudepa.com', false)
+    expect(v.ok).toBe(true)
+    expect(v.outsider).toBe(false)
   })
 })

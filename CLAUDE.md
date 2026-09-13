@@ -744,6 +744,27 @@ an unpublished role and a role they are already on are refused in
 words. The seeded Nike desk holds Vertex Talent with HR, cleared by the
 department lead and Procurement, the firm's side in.
 
+### A supplier brings its team in ✓ (2026-09-13)
+
+"Can Brightmoor add or onboard their team members — account managers,
+HR, recruiters, contract managers, finance — so it is easy to
+coordinate?" A staffing firm's roles are in its own words now: Owner,
+Admin, Recruiter, Resource Manager, Account Manager (the client
+relationship — roles, rates, submissions, what was billed; never
+payroll or P&L), HR (the firm's own people's paperwork; no money at
+all), Contract Manager (agreements, orders, extensions, rates; neither
+submits nor pays), Finance (was Accountant), Compliance Officer. A
+company formed before a role existed gets it the next time somebody
+opens Users & permissions; a renamed role keeps its seats
+(`lib/company-roles`). The page has "Invite a teammate": name, work
+email, what they do here; the person is emailed and the seat is theirs
+the moment they sign in — an own-domain address is welcome, not
+refused, because an owner setting up four desks should not wait for
+each to find the door. Once seated, they appear on every client's
+Contacts page under their firm, sorted into the right chips
+(`__tests__/invariants/supplier-team.test.ts`,
+`__integration__/supplier-team.test.ts`).
+
 ### Demand opens, supply answers ✓ (2026-09-13)
 
 A client writes to one supplier from the role or from the candidate's
