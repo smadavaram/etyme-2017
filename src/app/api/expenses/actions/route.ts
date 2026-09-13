@@ -45,7 +45,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const validActions = ['submit', 'approve', 'reject', 'invoice']
+  // 'invoice' used to be here and set INVOICED with no invoice behind it.
+  // An approved billable expense goes on the next invoice raised for its
+  // engagement (src/lib/expense-billing.ts); nobody presses anything.
+  const validActions = ['submit', 'approve', 'reject']
   if (!validActions.includes(action)) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: `action must be one of: ${validActions.join(', ')}` } },
@@ -80,7 +83,6 @@ export async function POST(request: NextRequest) {
     submit: ['DRAFT'],
     approve: ['SUBMITTED'],
     reject: ['SUBMITTED', 'APPROVED'],
-    invoice: ['APPROVED'],
   }
 
   const results: { id: string; status: string; error?: string }[] = []
@@ -121,9 +123,6 @@ export async function POST(request: NextRequest) {
       case 'reject':
         updateData.status = 'REJECTED'
         updateData.rejectedReason = reason
-        break
-      case 'invoice':
-        updateData.status = 'INVOICED'
         break
     }
 

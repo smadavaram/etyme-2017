@@ -465,3 +465,34 @@ describe('An AP clerk can resolve a variance, but not invent one', () => {
     expect(r.cleanMatch).toBe(true)
   })
 })
+
+// ── Expense lines ──────────────────────────────────────────
+
+describe('An expense on the invoice is witnessed by the approved expense behind it', () => {
+  const withExpense = (status: string, totalCents = 41_250) => clean({
+    invoice: { id: 'inv1', totalCents: 1_081_250, periodStart: PERIOD_START, periodEnd: PERIOD_END },
+    lines: [
+      { id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
+      { id: 'l2', timesheetId: null, expenseId: 'e1', personName: 'Priya Raman', hours: 0, rateCents: 0, amountCents: 41_250 },
+    ],
+    expenses: { e1: { id: 'e1', status, totalCents } },
+  })
+
+  it('an approved expense for the amount claimed is a receipt, and the invoice matches', () => {
+    const r = threeWayMatch(withExpense('INVOICED'))
+    expect(failed(r, 'RECEIPT')).toBeUndefined()
+    expect(r.checks.find(c => c.code === 'RECEIPT')?.reason).toContain('or an approved expense')
+  })
+
+  it('an expense line is not asked to multiply out — its amount is the expense', () => {
+    expect(failed(threeWayMatch(withExpense('INVOICED')), 'EXTENSION')).toBeUndefined()
+  })
+
+  it('an expense nobody approved is no receipt', () => {
+    expect(failed(threeWayMatch(withExpense('SUBMITTED')), 'RECEIPT')?.lines).toEqual(['l2'])
+  })
+
+  it('a receipt for a different number is no receipt', () => {
+    expect(failed(threeWayMatch(withExpense('APPROVED', 40_000)), 'RECEIPT')?.lines).toEqual(['l2'])
+  })
+})

@@ -97,10 +97,20 @@ export interface MatchCheck {
 export interface InvoiceLineFacts {
   id: string
   timesheetId: string | null
+  /** An expense line: no hours, the approved expense is the receipt. */
+  expenseId?: string | null
   personName: string
   hours: number
   rateCents: number
   amountCents: number
+}
+
+/** The receipt behind an expense line. */
+export interface ExpenseFacts {
+  id: string
+  /** APPROVED before it was billed; INVOICED or PAID once it has been. */
+  status: string
+  totalCents: number
 }
 
 export interface TimesheetFacts {
@@ -154,6 +164,8 @@ export interface MatchInput {
   }
   lines: InvoiceLineFacts[]
   timesheets: Record<string, TimesheetFacts>
+  /** Receipts for expense lines, by expense id. */
+  expenses?: Record<string, ExpenseFacts>
   po: PurchaseOrderFacts | null
   /** True when this client requires a PO before anything can be paid. */
   poRequired: boolean
@@ -215,19 +227,33 @@ export function threeWayMatch(input: MatchInput): MatchResult {
   }
 
   // ── RECEIPT — is every line witnessed? ──
+  // An hours line is witnessed by an approved timesheet. An expense line
+  // is witnessed by the approved expense behind it, for exactly the
+  // amount claimed — a receipt for a different number is no receipt.
+  const expenses = input.expenses ?? {}
   const unreceipted = lines.filter(l => {
+    if (l.expenseId) {
+      const e = expenses[l.expenseId]
+      return !e || !['APPROVED', 'INVOICED', 'PAID'].includes(e.status) || e.totalCents !== l.amountCents
+    }
     if (!l.timesheetId) return true
     const ts = timesheets[l.timesheetId]
     return !ts || ts.status !== 'APPROVED'
   })
+  const expenseLines = lines.filter(l => l.expenseId).length
   checks.push(unreceipted.length === 0
-    ? { code: 'RECEIPT', outcome: 'PASS', reason: `All ${lines.length} lines are backed by an approved timesheet` }
+    ? {
+        code: 'RECEIPT', outcome: 'PASS',
+        reason: expenseLines
+          ? `All ${lines.length} lines are backed by an approved timesheet or an approved expense`
+          : `All ${lines.length} lines are backed by an approved timesheet`,
+      }
     : {
         code: 'RECEIPT',
         outcome: 'FAIL',
         reason: unreceipted.length === lines.length
-          ? 'No line on this invoice is backed by an approved timesheet'
-          : `${unreceipted.length} of ${lines.length} lines have no approved timesheet behind them`,
+          ? 'No line on this invoice is backed by an approved timesheet or expense'
+          : `${unreceipted.length} of ${lines.length} lines have no approved timesheet or expense behind them`,
         lines: unreceipted.map(l => l.id),
       })
 
@@ -356,8 +382,10 @@ export function threeWayMatch(input: MatchInput): MatchResult {
       })
 
   // ── EXTENSION — does hours × rate equal the line? ──
+  // An expense line has no hours and no rate; its amount is the expense
+  // itself, and RECEIPT has already held it to the approved figure.
   const badMath = lines.filter(l =>
-    Math.abs(Math.round(l.hours * l.rateCents) - l.amountCents) > EXTENSION_TOLERANCE_CENTS
+    !l.expenseId && Math.abs(Math.round(l.hours * l.rateCents) - l.amountCents) > EXTENSION_TOLERANCE_CENTS
   )
   checks.push(badMath.length === 0
     ? { code: 'EXTENSION', outcome: 'PASS', reason: 'Every line multiplies out correctly' }

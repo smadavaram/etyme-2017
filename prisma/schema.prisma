@@ -2739,6 +2739,7 @@ model Expense {
   approvedAt     DateTime?
   rejectedReason String?
   invoiceId      String? // linked when invoiced (client-billable only)
+  invoiceLines   InvoiceLine[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -3583,8 +3584,12 @@ model InvoiceLine {
   invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   /// One line per timesheet PER CONTRACT — see the unique at the foot.
-  timesheetId String
-  timesheet   Timesheet @relation(fields: [timesheetId], references: [id])
+  /// Null on an expense line: a client-billable expense rides on the
+  /// next invoice as a line of its own, with the expense behind it.
+  timesheetId String?
+  timesheet   Timesheet? @relation(fields: [timesheetId], references: [id])
+  expenseId   String?
+  expense     Expense?   @relation(fields: [expenseId], references: [id])
 
   sellContractId String
   sellContract   SellContract @relation(fields: [sellContractId], references: [id])
@@ -3617,6 +3622,8 @@ model InvoiceLine {
   /// The guard worth keeping is the one against billing the same week
   /// twice on the same contract, and that is what this says.
   @@unique([timesheetId, sellContractId])
+  /// An expense is billed once, full stop — there is no chain to bill it up.
+  @@unique([expenseId])
   @@index([invoiceId])
   @@index([sellContractId])
   @@index([personId])

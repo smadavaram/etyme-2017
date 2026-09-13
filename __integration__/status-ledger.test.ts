@@ -12,6 +12,8 @@ import { POST as activate } from '@/app/api/contracts/[id]/activate/route'
 import { POST as fileTimesheet } from '@/app/api/timesheets/route'
 import { POST as sendTimesheet } from '@/app/api/timesheets/[id]/submit/route'
 import { POST as approveTimesheet } from '@/app/api/timesheets/[id]/approve/route'
+import { POST as fileExpense } from '@/app/api/expenses/route'
+import { POST as expenseAction } from '@/app/api/expenses/actions/route'
 import { POST as generateInvoice } from '@/app/api/invoices/generate/route'
 import { POST as submitInvoice } from '@/app/api/invoices/[id]/submit/route'
 import { POST as pay } from '@/app/api/invoices/[id]/payments/route'
@@ -200,11 +202,35 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await cycles({ sellContractId: it_.contract })).TIMESHEET_APPROVE.done).toBe(1)
   })
 
-  it('the invoice: ISSUED on raising, SUBMITTED on sending, and the invoice-to-raise cycle is done', async () => {
+  it('a flight Tariq paid for: expense DRAFT, SUBMITTED, APPROVED', async () => {
+    as(PINNACLE)
+    const r = await json(await fileExpense(req('POST', '/api/expenses', {
+      sellContractId: it_.contract, personId: it_.worker, category: 'TRAVEL', billable: true,
+      description: 'Flight PDX–DEN for the kickoff',
+      periodStart: day(-7).toISOString().slice(0, 10), periodEnd: day(-3).toISOString().slice(0, 10),
+      items: [{ description: 'Return flight', quantity: 1, unitPrice: 412.5, expenseType: 'AIRFARE' }],
+    })))
+    expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
+    it_.expense = r.body.data.expense.id
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: it_.expense } })).status).toBe('DRAFT')
+
+    for (const action of ['submit', 'approve']) {
+      const a = await json(await expenseAction(req('POST', '/api/expenses/actions', { action, expenseIds: [it_.expense] })))
+      expect(a.body?.error, JSON.stringify(a.body)).toBeUndefined()
+    }
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: it_.expense } })).status).toBe('APPROVED')
+  })
+
+  it('the invoice: ISSUED on raising with the expense on it as INVOICED, SUBMITTED on sending, and the invoice-to-raise cycle is done', async () => {
     as(PINNACLE)
     const r = await json(await generateInvoice(req('POST', '/api/invoices/generate', { engagementId: it_.engagement })))
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     it_.invoice = r.body.data.invoice.id
+    // 40 hours at $38, and the $412.50 flight.
+    expect(r.body.data.invoice.total).toBe(1932.5)
+    const exp = await prisma.expense.findUniqueOrThrow({ where: { id: it_.expense } })
+    expect([exp.status, exp.invoiceId]).toEqual(['INVOICED', it_.invoice])
+    expect(await prisma.invoiceLine.count({ where: { invoiceId: it_.invoice, expenseId: it_.expense } })).toBe(1)
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: it_.invoice } })).status).toBe('ISSUED')
     expect((await cycles({ sellContractId: it_.contract })).INVOICE_GENERATE.done).toBe(1)
 
@@ -213,11 +239,13 @@ describe('the ledger: one placement, every table, every station', () => {
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: it_.invoice } })).status).toBe('SUBMITTED')
   })
 
-  it('the payment: invoice PAID, a payment row saying who paid whom, and the invoice-due cycle is done', async () => {
+  it('the payment: invoice PAID with its expense, a payment row saying who paid whom, and the invoice-due cycle is done', async () => {
     as(NIKE.ap)
-    const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, { amount: 1520, method: 'ACH', reference: 'NIKE-AP-1001' })
+    const r = await call(pay, 'POST', `/api/invoices/${it_.invoice}/payments`, it_.invoice, { amount: 1932.5, method: 'ACH', reference: 'NIKE-AP-1001' })
     expect(r.body?.error, JSON.stringify(r.body)).toBeUndefined()
     expect((await prisma.invoice.findUniqueOrThrow({ where: { id: it_.invoice } })).status).toBe('PAID')
+    // The flight is paid with the invoice it rode on.
+    expect((await prisma.expense.findUniqueOrThrow({ where: { id: it_.expense } })).status).toBe('PAID')
     const p = await prisma.payment.findFirstOrThrow({ where: { invoiceId: it_.invoice } })
     expect([p.payerCompanyId, p.receivedByCompanyId]).toEqual([co['world-nike'], co['world-pinnacle']])
     expect((await cycles({ sellContractId: it_.contract })).INVOICE_DUE.done).toBe(1)

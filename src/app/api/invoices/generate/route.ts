@@ -4,6 +4,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { completeCycle } from '@/lib/cycle-complete'
+import { billableNow, expenseLine, expenseTotal } from '@/lib/expense-billing'
 import { emit } from '@/lib/events'
 import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
 import {
@@ -210,7 +211,32 @@ export async function POST(request: NextRequest) {
     }
   })
 
-  if (timesheets.length === 0) {
+  // ── Expenses that ride on this invoice ──────────────────────────────
+  //
+  // Approved, client-billable, not yet on an invoice, on our own
+  // contracts. They become lines of their own with the expense behind
+  // them (src/lib/expense-billing.ts). An invoice may carry only expenses
+  // — a month with no hours and one flight is still a month to bill.
+  const expenseRows = await prisma.expense.findMany({
+    where: {
+      sellContractId: { in: ownIds },
+      status: 'APPROVED', billable: true, invoiceId: null,
+      ...(periodStart ? { periodEnd: { gte: new Date(periodStart) } } : {}),
+      ...(periodEnd ? { periodStart: { lte: new Date(periodEnd) } } : {}),
+    },
+    include: {
+      person: { select: { name: true } },
+      sellContract: {
+        select: {
+          id: true, billCurrency: true, startDate: true,
+          billFrequency: true, billAnchor: true, billStraddle: true,
+        },
+      },
+    },
+    orderBy: { periodEnd: 'asc' },
+  })
+
+  if (timesheets.length === 0 && expenseRows.length === 0) {
     return NextResponse.json(
       { error: { code: 'NO_TIMESHEETS', message: 'No approved uninvoiced timesheets found for this engagement and period' } },
       { status: 422 }
@@ -240,17 +266,19 @@ export async function POST(request: NextRequest) {
   //
   // Which period: the one containing the date asked for, or the one
   // containing the most recent work when nobody asked.
-  const first = billing[0]
+  // The contract whose terms shape the period: the first with hours, or,
+  // on an expenses-only invoice, the first expense's own contract.
+  const anchorContract = billing[0]?.sellContract ?? expenseRows[0].sellContract
   const terms: Terms = {
-    frequency: first.sellContract.billFrequency as Terms['frequency'],
-    anchor: first.sellContract.billAnchor as Terms['anchor'],
-    straddle: first.sellContract.billStraddle as Terms['straddle'],
-    startedOn: first.sellContract.startDate,
+    frequency: anchorContract.billFrequency as Terms['frequency'],
+    anchor: anchorContract.billAnchor as Terms['anchor'],
+    straddle: anchorContract.billStraddle as Terms['straddle'],
+    startedOn: anchorContract.startDate,
   }
 
-  const askedAbout = periodStart
-    ? new Date(periodStart)
-    : billing.reduce((latest, t) => (t.periodEnd > latest ? t.periodEnd : latest), billing[0].periodEnd)
+  const latestWork = [...billing.map((t) => t.periodEnd), ...expenseRows.map((e) => e.periodEnd)]
+    .reduce((latest, d) => (d > latest ? d : latest))
+  const askedAbout = periodStart ? new Date(periodStart) : latestWork
 
   const period = periodFor(askedAbout, terms)
 
@@ -306,7 +334,7 @@ export async function POST(request: NextRequest) {
 
   }
 
-  if (linesByContract.size === 0) {
+  if (linesByContract.size === 0 && expenseRows.length === 0) {
     return NextResponse.json(
       { error: { code: 'ZERO_VALUE', message: 'All timesheets have zero hours or zero rate' } },
       { status: 422 }
@@ -314,6 +342,15 @@ export async function POST(request: NextRequest) {
   }
 
   const lines = Array.from(linesByContract.values())
+
+  const expLines = billableNow(
+    expenseRows.map((e) => ({
+      id: e.id, status: e.status, billable: e.billable, invoiceId: e.invoiceId,
+      sellContractId: e.sellContractId, personId: e.personId, personName: e.person.name,
+      category: e.category, description: e.description, total: Number(e.total),
+      currency: e.sellContract.billCurrency, periodEnd: e.periodEnd,
+    }))
+  ).map((e) => expenseLine(e, minorPerUnit(e.currency)))
 
   // ── Consolidation: contracts may share an invoice, companies may not ──
   //
@@ -325,7 +362,7 @@ export async function POST(request: NextRequest) {
   // all matched.
   const contractById = new Map(engagement.sellContracts.map((sc) => [sc.id, sc]))
   const consolidation = mayConsolidate(
-    lines.map((l) => {
+    [...lines, ...expLines].map((l) => {
       const sc = contractById.get(l.sellContractId)
       const billTo = sc?.clientCompany ?? engagement.msa.client
       return {
@@ -345,11 +382,11 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const total = lines.reduce((sum, line) => sum + line.amount, 0)
-  const currency = lines[0].currency // one currency per invoice, now checked
+  const currency = lines[0]?.currency ?? expLines[0].currency // one currency per invoice, now checked
+  const total = lines.reduce((sum, line) => sum + line.amount, 0) + expenseTotal(expLines, minorPerUnit(currency))
 
   // ── The four parties ────────────────────────────────────────────────
-  const firstContract = contractById.get(lines[0].sellContractId)
+  const firstContract = contractById.get(lines[0]?.sellContractId ?? expLines[0].sellContractId)
   const agreementClient: Party = {
     id: engagement.msa.client.id,
     name: engagement.msa.client.name,
@@ -471,7 +508,16 @@ export async function POST(request: NextRequest) {
             tax?.rateBps == null
               ? null
               : Math.round((Math.round(total * per) * tax.rateBps) / 10_000),
-          lines: lines.map((l) => ({
+          lines: [...expLines.map((l) => ({
+            sellContractId: l.sellContractId,
+            personId: l.personId,
+            expenseId: l.expenseId,
+            description: l.description,
+            billRate: 0,
+            totalHours: 0,
+            amount: l.amountCents / per,
+            tax: null,
+          })), ...lines.map((l) => ({
             sellContractId: l.sellContractId,
             personId: l.personId,
             personName: l.personName,
@@ -494,7 +540,7 @@ export async function POST(request: NextRequest) {
                       : Math.round((Math.round(l.amount * per) * tax.rateBps) / 10_000),
                 }
               : null,
-          })),
+          }))],
           currency,
           total,
           dueAt,
@@ -538,6 +584,25 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // The expenses, each a line of its own with the expense behind it,
+      // and the expense marked INVOICED with this invoice on it.
+      for (const l of expLines) {
+        await tx.invoiceLine.create({
+          data: {
+            invoiceId: invoice.id,
+            expenseId: l.expenseId,
+            timesheetId: null,
+            sellContractId: l.sellContractId,
+            personId: l.personId,
+            hours: 0,
+            rateCents: 0,
+            amountCents: l.amountCents,
+            description: l.description,
+          },
+        })
+        await tx.expense.update({ where: { id: l.expenseId }, data: { status: 'INVOICED', invoiceId: invoice.id } })
+      }
+
       // Deliberately no write back to Timesheet here. The InvoiceLine rows
       // are the link, and an invoice must never touch the approval state of
       // the receipts that justify it.
@@ -553,7 +618,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId: caller.company!.id,
           action: 'INVOICE_GENERATED',
-          summary: `Invoice ${number} generated: ${lines.length} line item(s), ${allTimesheetIds.length} timesheet(s), $${total.toFixed(2)} total, due ${dueAt.toISOString().slice(0, 10)}`,
+          summary: `Invoice ${number} generated: ${lines.length} line item(s), ${allTimesheetIds.length} timesheet(s)${expLines.length ? `, ${expLines.length} expense(s)` : ''}, $${total.toFixed(2)} total, due ${dueAt.toISOString().slice(0, 10)}`,
           reason: `Generated by ${caller.person.name}`,
           payload: {
             invoiceId: invoice.id,

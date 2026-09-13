@@ -18,6 +18,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       invoiceLines: {
         include: {
           person: { select: { name: true } },
+          expense: { select: { id: true, status: true, total: true } },
           timesheet: {
             select: {
               id: true, status: true, totalHours: true,
@@ -111,14 +112,22 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
     lines: invoice.invoiceLines.map(l => ({
       id: l.id,
       timesheetId: l.timesheetId,
+      expenseId: l.expenseId,
       personName: l.person.name,
       hours: Number(l.hours),
       rateCents: l.rateCents,
       amountCents: l.amountCents,
     })),
+    expenses: Object.fromEntries(
+      invoice.invoiceLines
+        .flatMap(l => (l.expense ? [l.expense] : []))
+        .map(e => [e.id, { id: e.id, status: e.status, totalCents: decimalToCents(e.total) }])
+    ),
     timesheets: Object.fromEntries(
       invoice.invoiceLines
-        .filter(l => l.timesheet)
+        // An expense line has no timesheet behind it; the engine reads
+        // its amount and checks nothing about hours.
+        .flatMap(l => (l.timesheet ? [{ ...l, timesheet: l.timesheet }] : []))
         .map(l => [
           l.timesheet.id,
           {
