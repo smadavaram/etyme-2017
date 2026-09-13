@@ -12,7 +12,7 @@ import {
 
 /**
  * There was one importer and it loaded candidates. Operations had a way in
- * and finance did not — no cost centres, no GL accounts, no purchase
+ * and finance did not — no cost centers, no GL accounts, no purchase
  * orders — and a cost-centre owner could not load their own budget at all.
  *
  * These tests hold the three properties that make one importer serve three
@@ -36,7 +36,7 @@ describe('who may load what', () => {
     expect(offered).not.toContain('CONSULTANTS')
   })
 
-  it('does not offer cost centres to a recruiter', () => {
+  it('does not offer cost centers to a recruiter', () => {
     const offered = importableFor(['consultants.write']).map((e) => e.key)
     expect(offered).toContain('CONSULTANTS')
     expect(offered).not.toContain('COST_CENTERS')

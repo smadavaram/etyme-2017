@@ -78,11 +78,11 @@ export async function GET(request: NextRequest) {
       // showing one of them as if it were fixed is how somebody misses
       // the actual meeting.
       //
-      // Normalised here rather than on the screen. The rows were written
+      // Normalized here rather than on the screen. The rows were written
       // by three different callers over two years and carry `start`,
       // `at`, or a bare ISO string; a page guessing between them is a
       // page that will one day show a candidate the wrong hour.
-      const slots = normaliseSlots(i.proposedSlots)
+      const slots = normalizeSlots(i.proposedSlots)
       const booked = bookedTime(i.scheduledAt, i.state, slots)
       return {
         id: i.id,
@@ -177,7 +177,7 @@ function saysOf(status: string, interviews: number): string {
  * as the value of `slot`, and it compares on the start — so the start
  * is what travels, and the page never has to guess.
  */
-function normaliseSlots(raw: unknown): { start: string; end: string | null }[] {
+function normalizeSlots(raw: unknown): { start: string; end: string | null }[] {
   if (!Array.isArray(raw)) return []
   return raw
     .map((s: any) => ({

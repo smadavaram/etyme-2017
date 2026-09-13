@@ -69,7 +69,7 @@ describe('but missing a nicety does not make somebody invisible', () => {
     expect(r.says).toMatch(/would make it more likely/i)
   })
 
-  it('never blocks on work authorisation, whatever else is true', () => {
+  it('never blocks on work authorization, whatever else is true', () => {
     // The same rule lib/work-authorisation enforces from the other
     // side: unknown status is a question, never a refusal.
     const r = readiness(full({ workAuth: null }), NOW)
@@ -77,7 +77,7 @@ describe('but missing a nicety does not make somebody invisible', () => {
     expect(r.steps.find((s) => s.key === 'WORK_AUTH')!.weight).toBe('ADVISES')
   })
 
-  it('says plainly that work authorisation will not be used to rule them out', () => {
+  it('says plainly that work authorization will not be used to rule them out', () => {
     const step = readiness(full(), NOW).steps.find((s) => s.key === 'WORK_AUTH')!
     expect(step.why).toMatch(/never used to rule you out without a legal reason/i)
   })

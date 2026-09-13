@@ -7,7 +7,7 @@ import {
   marginFloorSays,
   marginPct,
   paymentDaysSays,
-  summarise,
+  summarize,
   workHasStarted,
   type AgreementInput,
   type ContractInput,
@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
         }
       }),
       findings,
-      says: summarise(findings),
+      says: summarize(findings),
       createdAt: a.createdAt.toISOString(),
     }
   })

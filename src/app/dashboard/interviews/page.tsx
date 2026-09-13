@@ -58,7 +58,7 @@ function when(iso: string): string {
 export default function InterviewsPage() {
   // Deciding a round — the outcome, the panel, the next one — is for
   // whoever is hiring: the same permission that raises a requisition.
-  // Nike's AP clerk is a party to the programme and could see every
+  // Nike's AP clerk is a party to the program and could see every
   // button; the route refuses them, and a button that only ever refuses
   // is a form whose answer is thrown away.
   const { permissions } = useSession()

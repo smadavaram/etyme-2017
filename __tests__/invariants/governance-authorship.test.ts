@@ -42,7 +42,7 @@ describe('writing an approval rule', () => {
   })
 
   it('allows the author to sit in a chain alongside others, and records that they do', () => {
-    // A programme manager who writes the chain and sits in it is ordinary.
+    // A program manager who writes the chain and sits in it is ordinary.
     // Being the whole chain is not.
     const a = assessRule(draft({ approverPersonIds: [AUTHOR, OTHER] }), QUIET)
     expect(a.allowed).toBe(true)

@@ -175,7 +175,7 @@ export function mayMoveTo(visaType: string | null, p: Placement): Decision {
 /**
  * Whether two areas are one.
  *
- * Exact match on a normalised key, and unknown is never a match. This is
+ * Exact match on a normalized key, and unknown is never a match. This is
  * the conservative direction on purpose: treating two areas as the same
  * when they are not is how somebody works a month out of status, and
  * treating one area as two costs a phone call.

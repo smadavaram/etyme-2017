@@ -44,7 +44,7 @@ import { GET as placement } from '@/app/api/placements/[id]/route'
  * The MSP here is an agent, not a principal: it routes demand and holds
  * no contract, which is the arrangement the founder described. A
  * principal MSP — one that sells to Adobe and buys from Computer
- * Systems — is a fourth commercial hop and is not modelled.
+ * Systems — is a fourth commercial hop and is not modeled.
  *
  * Where the walk finds something the product cannot yet do, the test
  * asserts what actually happens and says so in the name. A test that
@@ -137,7 +137,7 @@ beforeAll(async () => {
   await trades(co.prime, co.sub, 'SUPPLIER')
   await trades(co.sub, co.prime, 'PRIME')
 
-  // Adobe's budget: the cost centre the role is funded from, and the
+  // Adobe's budget: the cost center the role is funded from, and the
   // plan that says how many heads and how much money it may spend.
   const cc = await prisma.costCenter.create({
     data: { companyId: co.adobe, code: 'DME-PLAT-4100', name: 'Digital Media — Platform' },
@@ -264,7 +264,7 @@ describe('Step 3 — Adobe puts it in front of its MSP, with a band', () => {
     as(ADOBE_PM)
     const r = await json(await distributeRequisition(
       req('POST', `/api/requisitions/${it_.requisition}/distribute`, {
-        vendors: [{ companyId: co.magnit, payMin: 11_000, payMax: 14_000, message: 'Programme panel — usual terms' }],
+        vendors: [{ companyId: co.magnit, payMin: 11_000, payMax: 14_000, message: 'Program panel — usual terms' }],
         expiresAt: soon(14),
       }),
       { params: Promise.resolve({ id: it_.requisition }) }
@@ -479,7 +479,7 @@ describe('Step 8 — Computer Systems forwards her to Adobe at $135', () => {
     //
     // Forwarding mirrors the role onto the destination's books. Adobe
     // already has this role — it raised it, funded it from a cost
-    // centre and had a VP approve it — but the chain arrived through
+    // center and had a VP approve it — but the chain arrived through
     // two hand-typed copies, so nothing connects the submission back to
     // it. Adobe now holds two records of one job.
     const child = await prisma.submission.findUniqueOrThrow({ where: { id: it_.primeSubmission } })
@@ -650,7 +650,7 @@ describe('Step 11 — Adobe awards it, and Computer Systems gets a contract pair
 
   it('leaves Adobe’s own requisition showing nothing filled, because the award landed on the copy', async () => {
     // The cost of Step 8's finding, in the place it hurts. The award
-    // route exists to carry the cost centre, the hiring manager and the
+    // route exists to carry the cost center, the hiring manager and the
     // seat count onto the contract. It carried nothing, because the
     // requirement it awarded against is a mirror with none of them.
     const approved = await prisma.requirement.findUniqueOrThrow({ where: { id: it_.requisition } })
@@ -716,16 +716,16 @@ describe('Step 12 — Computer Systems awards its own sub, and CloudEPA gets its
 
 // Moved above Step 13. This block's own title says "before she sets foot
 // on site", and the walk performed it after. Activation now refuses a
-// start with no work authorisation on file — the spec's own BLOCK — so
+// start with no work authorization on file — the spec's own BLOCK — so
 // the paperwork goes where the title always said it belonged.
 describe('Step 12b — what has to be true before she sets foot on site', () => {
-  it('records the work authorisation check as the one that blocks', async () => {
+  it('records the work authorization check as the one that blocks', async () => {
     await prisma.verification.create({
       data: {
         personId: who.priya, type: 'I9_EVERIFY', status: 'CLEAR', provider: 'E-Verify',
         referenceId: 'EV-2026-441908', issuedAt: new Date('2026-09-10'),
         uploadedById: who.subLead, verifiedById: who.subLead, verifiedAt: new Date('2026-09-10'),
-        result: { outcome: 'CLEAR', notes: 'Employment authorised — permanent resident' },
+        result: { outcome: 'CLEAR', notes: 'Employment authorized — permanent resident' },
       },
     })
     const v = await prisma.verification.findFirstOrThrow({
@@ -773,7 +773,7 @@ describe('Step 13 — the contracts are activated, and the PO is attached', () =
   it('ties Computer Systems’ contract to the purchase order it draws down', async () => {
     // Nothing does this on the award path. Attaching it here is what an
     // AP clerk would do by hand, and it is the reason the invoice
-    // matches in Step 18 rather than ageing unmatched.
+    // matches in Step 18 rather than aging unmatched.
     await prisma.sellContract.update({
       where: { id: it_.primeSell }, data: { purchaseOrderId: it_.po },
     })
@@ -1017,7 +1017,7 @@ describe('Step 19 — the same week reaches Adobe, at Adobe’s rate', () => {
     expect(r.body.error.code).toBe('NO_TIMESHEETS')
   })
 
-  it('draws the invoice down against the purchase order that authorised it', async () => {
+  it('draws the invoice down against the purchase order that authorized it', async () => {
     const po = await prisma.purchaseOrder.findUniqueOrThrow({
       where: { id: it_.po }, include: { invoices: true },
     })
@@ -1073,7 +1073,7 @@ describe('Step 20 — what each firm made', () => {
     expect(Number(row.grossPay)).toBe(40 * 11_000)
   }, 60_000)
 
-  it('leaves Adobe unable to see CloudEPA anywhere in its own programme', async () => {
+  it('leaves Adobe unable to see CloudEPA anywhere in its own program', async () => {
     const seen = await prisma.counterparty.findMany({ where: { companyId: co.adobe } })
     expect(seen.map(c => c.otherCompanyId).sort()).toEqual([co.magnit, co.prime].sort())
     expect(seen.map(c => c.otherCompanyId)).not.toContain(co.sub)

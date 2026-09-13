@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  decide, signature, summarise, termSentence,
+  decide, signature, summarize, termSentence,
   DEFAULT_WINDOW_DAYS, ANOMALY_HOLD_BELOW, type Sheet,
 } from '@/lib/auto-approval'
 
@@ -112,7 +112,7 @@ describe('what gets written down', () => {
 
 describe('the overnight report', () => {
   it('leads with what was held, because that is the news', () => {
-    const out = summarise([
+    const out = summarize([
       decide(sheet({ id: 'a' }), NOW),
       decide(sheet({ id: 'b' }), NOW),
       decide(sheet({ id: 'c', anomalyScore: 10, anomalyReason: 'odd' }), NOW),
@@ -126,7 +126,7 @@ describe('the overnight report', () => {
   })
 
   it('says nothing happened rather than printing zeroes', () => {
-    expect(summarise([]).says).toBe('No timesheets waiting on a client.')
+    expect(summarize([]).says).toBe('No timesheets waiting on a client.')
   })
 })
 

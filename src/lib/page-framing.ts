@@ -67,7 +67,7 @@ const VENDOR: Record<PageKey, PageFraming> = {
   invoices: {
     eyebrow: 'Operate',
     title: 'Invoices',
-    subtitle: 'What you have billed and what is outstanding. Track ageing and record payments.',
+    subtitle: 'What you have billed and what is outstanding. Track aging and record payments.',
   },
   expenses: {
     eyebrow: 'Operate',
@@ -77,7 +77,7 @@ const VENDOR: Record<PageKey, PageFraming> = {
   consultants: {
     eyebrow: 'Talent',
     title: 'Candidates',
-    subtitle: 'Your talent pool. Skills, availability, work authorisation, and bench tier.',
+    subtitle: 'Your talent pool. Skills, availability, work authorization, and bench tier.',
   },
 }
 
@@ -125,7 +125,7 @@ const CLIENT: Record<PageKey, PageFraming> = {
   consultants: {
     eyebrow: 'Workforce',
     title: 'Contractors',
-    subtitle: 'People working at your sites. Skills, work authorisation, and tenure.',
+    subtitle: 'People working at your sites. Skills, work authorization, and tenure.',
   },
 }
 

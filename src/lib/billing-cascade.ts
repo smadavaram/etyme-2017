@@ -186,7 +186,7 @@ function sourceWords(s: Source): string {
 // ═════════════════════════════════════════════════════════════════════
 //
 // A large client signs in one entity, is billed through a shared services
-// centre in another country, has the work done at a third site, and pays
+// center in another country, has the work done at a third site, and pays
 // from a fourth. Treating those as one party is how an invoice reaches
 // the wrong address and ages ninety days before anybody notices.
 //
@@ -236,7 +236,7 @@ export interface ResolvedPartner<T extends Party> {
 export interface PartnerInputs {
   /** The client on the master agreement. The default for all four. */
   agreementClient: Party
-  /** Set on the engagement — a shared services centre, usually. */
+  /** Set on the engagement — a shared services center, usually. */
   engagement?: {
     soldTo?: Party | null
     billTo?: Party | null

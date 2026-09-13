@@ -156,7 +156,7 @@ describe('An expiring certificate carries the stake with it', () => {
     expect(item.headline).toContain('1 person on site')
   })
 
-  it('insurance is procurement, work authorisation is HR', () => {
+  it('insurance is procurement, work authorization is HR', () => {
     const ins = projectExpiry(
       { ...cert, expiresAt: new Date('2026-09-06T00:00:00Z'), activeWorkers: 3 }, NOW, WINDOW
     )!

@@ -9,7 +9,7 @@
  * which is the correct verdict on one row.
  *
  * So this fills a freshly seeded demo company's book to the volume a
- * mid-market programme actually runs at: a couple of hundred
+ * mid-market program actually runs at: a couple of hundred
  * requirements, a few hundred submissions against them, a bench of
  * consultants across the suppliers, and a handful of unread
  * notifications so the bell has something to say.
@@ -75,15 +75,15 @@ const ROLES: Role[] = [
   { title: 'Validation engineer', skills: ['CSV', 'GAMP 5', 'IQ/OQ/PQ'], band: [9500, 11500],
     says: 'New packaging line, validation protocols to be written and executed under our QMS. Pharma background essential. This is documentation-heavy and the auditors will read every page.' },
   { title: 'Travel nurse — ICU', skills: ['ICU', 'Critical care', 'BLS/ACLS'], band: [8500, 10500],
-    says: 'Thirteen-week block, nights, 24-bed unit. Compact licence required. We have housing stipend arrangements with two suppliers and will discuss for a third.' },
+    says: 'Thirteen-week block, nights, 24-bed unit. Compact license required. We have housing stipend arrangements with two suppliers and will discuss for a third.' },
   { title: 'Avionics test engineer', skills: ['DO-178C', 'Embedded C', 'Test benches'], band: [13000, 15000],
-    says: 'Flight control software certification programme. Hardware-in-the-loop rig is built; this is test procedure authorship and execution to DAL B. Prior certification evidence packages a strong plus.' },
+    says: 'Flight control software certification program. Hardware-in-the-loop rig is built; this is test procedure authorship and execution to DAL B. Prior certification evidence packages a strong plus.' },
   { title: 'Workday integrations lead', skills: ['Workday', 'Studio', 'EIB'], band: [13500, 15500],
     says: 'Payroll vendor is changing and eleven integrations touch it. Studio experience is the whole requirement — we have plenty of people who can do EIBs.' },
   { title: 'Data engineer', skills: ['Python', 'dbt', 'Snowflake'], band: [10500, 12500],
     says: 'Marketing analytics warehouse is a tangle of hand-written SQL nobody owns. Rebuild it in dbt with tests. The person will inherit forty models and should expect to delete half.' },
   { title: 'Oracle Retail consultant', skills: ['Oracle Retail', 'RMS', 'PL/SQL'], band: [12000, 14000],
-    says: 'Merchandising system upgrade, 14 to 19. Functional and technical. Store count is 340 and the allocation module is customised in ways the vendor does not support.' },
+    says: 'Merchandising system upgrade, 14 to 19. Functional and technical. Store count is 340 and the allocation module is customized in ways the vendor does not support.' },
   { title: 'Murex support analyst', skills: ['Murex', 'FX', 'MxML'], band: [12500, 14500],
     says: 'FX desk, follow-the-sun support, London hours. Production incidents, MxML workflow changes, and the monthly release regression. Not a build role.' },
   { title: 'Business analyst', skills: ['Requirements', 'Process mapping', 'SQL'], band: [7500, 9500],
@@ -97,7 +97,7 @@ const ROLES: Role[] = [
   { title: 'Scrum master', skills: ['Scrum', 'Jira', 'Facilitation'], band: [7500, 9500],
     says: 'Two squads, one of which has never worked in sprints. Bring the second up to the first without breaking the first.' },
   { title: 'Salesforce developer', skills: ['Apex', 'LWC', 'Salesforce'], band: [9500, 11500],
-    says: 'Service Cloud implementation, phase two. Case routing, entitlements, a customer portal. The org is heavily customised and the previous developer left no notes.' },
+    says: 'Service Cloud implementation, phase two. Case routing, entitlements, a customer portal. The org is heavily customized and the previous developer left no notes.' },
   { title: 'Mechanical design engineer', skills: ['SolidWorks', 'GD&T', 'DFM'], band: [8500, 10500],
     says: 'Enclosure redesign for cost-down. Sheet metal to injection moulding. The person will work with the supplier in Monterrey directly.' },
   { title: 'Clinical research coordinator', skills: ['GCP', 'CRF', 'Site management'], band: [6500, 8500],
@@ -106,12 +106,12 @@ const ROLES: Role[] = [
     says: 'Forty-site SD-WAN rollout replacing MPLS. Cutover planning, on-site for the first five, remote thereafter.' },
   { title: 'Technical writer', skills: ['DITA', 'API documentation', 'Markdown'], band: [6000, 8000],
     says: 'Public API docs are three years stale. Rewrite them against the current OpenAPI spec and set up the pipeline so they stop rotting.' },
-  { title: 'Project manager — infrastructure', skills: ['PMP', 'Data centre', 'Vendor management'], band: [10000, 12000],
-    says: 'Data centre exit. 18 months, 400 workloads, four vendors, a landlord who wants us out. Has to have done one before.' },
+  { title: 'Project manager — infrastructure', skills: ['PMP', 'Data center', 'Vendor management'], band: [10000, 12000],
+    says: 'Data center exit. 18 months, 400 workloads, four vendors, a landlord who wants us out. Has to have done one before.' },
   { title: 'Machine learning engineer', skills: ['Python', 'PyTorch', 'MLOps'], band: [13000, 15500],
     says: 'Demand forecasting model is in a notebook. Make it a service with monitoring, retraining, and a rollback. Not research — productionisation.' },
   { title: 'Electrical engineer — power systems', skills: ['Protection relays', 'ETAP', 'NEC'], band: [10000, 12500],
-    says: 'Substation upgrade, protection coordination study, relay settings. PE licence preferred, utility experience essential.' },
+    says: 'Substation upgrade, protection coordination study, relay settings. PE license preferred, utility experience essential.' },
   { title: 'UX designer', skills: ['Figma', 'User research', 'Design systems'], band: [8000, 10000],
     says: 'Internal tooling for the claims team. Nobody has ever asked them what they need. Start there.' },
 ]
@@ -139,7 +139,7 @@ const LAST = [
 // ── The distribution ─────────────────────────────────────────────────
 //
 // Weighted so the stage tabs all have something in them and the shape
-// looks like a programme that has been running for a while: most roles
+// looks like a program that has been running for a while: most roles
 // open, a fair number filled, a few in each of the awkward states.
 
 function pick<T>(r: () => number, xs: readonly T[]): T {
@@ -312,7 +312,7 @@ export async function addVolume(input: VolumeInput): Promise<VolumeResult> {
       status,
       approvalState,
       source: weighted(r, [['MANUAL', 6], ['EMAIL', 2], ['VMS', 2]]),
-      cancelReason: status === 'CANCELLED' ? 'Budget reallocated to Q3 programme.' : null,
+      cancelReason: status === 'CANCELLED' ? 'Budget reallocated to Q3 program.' : null,
       createdAt: daysAgo(age),
     }
   })

@@ -10,7 +10,7 @@
  *
  * Every VMS on the market publishes the opposite — supplier scorecards,
  * fill rates, submission quality — because the VMS is bought by the buyer.
- * Nobody scores the buyer, and the buyer's behaviour is the single largest
+ * Nobody scores the buyer, and the buyer's behavior is the single largest
  * cost a small supplier carries.
  *
  * So this is the buyer's side of the same transparency the BRD demands of

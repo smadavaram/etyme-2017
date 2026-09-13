@@ -118,7 +118,7 @@ const SUPPLIER_ROLES: RoleSeed[] = [
   },
   {
     name: 'Compliance Officer',
-    blurb: 'Checks documents and work authorisation. Reads only.',
+    blurb: 'Checks documents and work authorization. Reads only.',
     permissions: uniq(SEE_PEOPLE, ['assignments.read'], ['timesheets.read'], SEE_RULES),
   },
 ]
@@ -128,20 +128,20 @@ const SUPPLIER_ROLES: RoleSeed[] = [
 const CLIENT_ROLES: RoleSeed[] = [
   {
     name: 'Owner',
-    blurb: 'Everything, including what the programme costs.',
+    blurb: 'Everything, including what the program costs.',
     permissions: everything(),
     isOwner: true,
   },
   {
-    name: 'Programme Manager',
-    blurb: 'Runs the contingent workforce programme. Sets the rules.',
+    name: 'Program Manager',
+    blurb: 'Runs the contingent workforce program. Sets the rules.',
     permissions: uniq(SEE_PEOPLE, RUN_DEMAND, SEE_SUPPLY, SEE_WORK, ['assignments.write'], OWN_PRICE, OWN_RULES, SEE_MONEY, SEE_OUTSIDE, ['vendors.read', 'vendors.manage', 'utilization.read']),
   },
   {
     name: 'Hiring Manager',
     blurb: 'Raises requisitions and approves their own team’s hours.',
     // Deliberately cannot distribute. Choosing which suppliers see a
-    // requisition is a programme decision, not a hiring one — that is the
+    // requisition is a program decision, not a hiring one — that is the
     // control that stops a manager routing work to a friend.
     permissions: uniq(SEE_PEOPLE, ['requirements.read', 'requirements.write'], SEE_SUPPLY, ['assignments.read'], APPROVE_WORK),
   },
@@ -151,7 +151,7 @@ const CLIENT_ROLES: RoleSeed[] = [
     permissions: uniq(SEE_DEMAND, SEE_SUPPLY, ['assignments.read'], SEE_RULES, ['rates.read']),
   },
   {
-    // Named per business unit under Programme team. Decides the ROLE
+    // Named per business unit under Program team. Decides the ROLE
     // stage of a requisition that misses the plan; approval authority
     // comes from being named, not from a permission.
     name: 'HR Partner',
@@ -175,17 +175,17 @@ const CLIENT_ROLES: RoleSeed[] = [
   },
   {
     name: 'Compliance Officer',
-    blurb: 'Owns tenure, work authorisation and supplier insurance.',
+    blurb: 'Owns tenure, work authorization and supplier insurance.',
     permissions: uniq(SEE_PEOPLE, ['assignments.read', 'timesheets.read', 'vendors.read'], SEE_RULES),
   },
   {
     name: 'Viewer',
-    blurb: 'Reads the programme. Changes nothing.',
+    blurb: 'Reads the program. Changes nothing.',
     permissions: uniq(SEE_DEMAND, SEE_SUPPLY, ['assignments.read', 'timesheets.read', 'utilization.read']),
   },
 ]
 
-// ── An MSP running somebody else's programme ──────────────────────────
+// ── An MSP running somebody else's program ──────────────────────────
 
 const MSP_ROLES: RoleSeed[] = [
   {
@@ -195,8 +195,8 @@ const MSP_ROLES: RoleSeed[] = [
     isOwner: true,
   },
   {
-    name: 'Programme Manager',
-    blurb: 'Runs the client’s programme and its supplier panel.',
+    name: 'Program Manager',
+    blurb: 'Runs the client’s program and its supplier panel.',
     permissions: uniq(SEE_PEOPLE, RUN_DEMAND, SEE_SUPPLY, SEE_WORK, ['assignments.write'], OWN_PRICE, OWN_RULES, SEE_MONEY, ['vendors.read', 'vendors.manage', 'utilization.read']),
   },
   {
@@ -216,7 +216,7 @@ const MSP_ROLES: RoleSeed[] = [
   },
   {
     name: 'Compliance Officer',
-    blurb: 'Owns tenure, work authorisation and supplier insurance.',
+    blurb: 'Owns tenure, work authorization and supplier insurance.',
     permissions: uniq(SEE_PEOPLE, ['assignments.read', 'timesheets.read', 'vendors.read'], SEE_RULES),
   },
 ]
@@ -238,6 +238,18 @@ const CONSULTANT_CORP_ROLES: RoleSeed[] = [
  * A GSI is both a supplier and a buyer, so it gets the supplier set plus
  * the two roles that only make sense when you are also purchasing.
  */
+/**
+ * Roles renamed since companies were first seeded, old name → new.
+ *
+ * The app is American (decided 2026-09-13): the customers are US
+ * enterprises and a US buyer reads "Programme" as foreign before they
+ * read what it does. A role is the same role under its new name, so a
+ * seed or a migration renames the row rather than adding a second one.
+ */
+export const RENAMED_ROLES: Record<string, string> = {
+  'Programme Manager': 'Program Manager',
+}
+
 export function rolesFor(kind: CompanyKind): RoleSeed[] {
   switch (kind) {
     case 'CLIENT':
@@ -302,7 +314,7 @@ export function packFor(kind: CompanyKind, country: string | null): string {
   if (c === 'IN') return 'IN_DELIVERY'
   if (c === 'GB' || c === 'UK') return 'UK'
   // A GSI in the US is nearly always ERP delivery work, which has its own
-  // cycle shape — SAP and Oracle programmes bill and roll differently
+  // cycle shape — SAP and Oracle programs bill and roll differently
   // from general IT contract staffing.
   if (kind === 'GSI') return 'US_SAP'
   return 'US_IT'

@@ -24,7 +24,7 @@
  * ── Why they are counted apart and shown together ────────────────────
  *
  * A finance team reconciling an invoice needs to see £40,000 of retainer
- * and £15,000 of delivery as two lines. A programme manager watching a
+ * and £15,000 of delivery as two lines. A program manager watching a
  * ceiling needs one number. Both, from the same function.
  */
 

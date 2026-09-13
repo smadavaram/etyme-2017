@@ -78,7 +78,7 @@ export interface Record_ {
  * One company's position on some or all of a record.
  *
  * `covers` is a date range because partial approval is the ordinary case
- * — a client signs off four days and queries the fifth — and modelling
+ * — a client signs off four days and queries the fifth — and modeling
  * it as a whole-sheet status makes the common thing the exception.
  */
 export interface Assertion {

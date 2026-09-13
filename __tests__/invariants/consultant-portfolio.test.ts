@@ -94,7 +94,7 @@ describe('when they are free', () => {
     expect(p).not.toMatch(/available now/i)
   })
 
-  it('honours a date they set themselves', () => {
+  it('honors a date they set themselves', () => {
     expect(availabilityOf(ahead(40), [], NOW)).toMatch(/available from/i)
   })
 })

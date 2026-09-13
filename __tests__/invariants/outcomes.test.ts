@@ -54,7 +54,7 @@ describe('saying why', () => {
 })
 
 describe('which rejections mean the submission was poor', () => {
-  it('counts rate, skills and work authorisation against us', () => {
+  it('counts rate, skills and work authorization against us', () => {
     expect(isBadSubmission('RATE')).toBe(true)
     expect(isBadSubmission('SKILLS')).toBe(true)
     expect(isBadSubmission('WORK_AUTH')).toBe(true)

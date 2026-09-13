@@ -199,7 +199,7 @@ export default function ChecksPage() {
         <div className="panel">
           <h2 className="headline-serif text-[19px]">Nothing to review</h2>
           <p className="mt-1 max-w-[54ch] text-[13px] text-etyme-muted">
-            The model has not made a judgement since you last looked. This
+            The model has not made a judgment since you last looked. This
             fills up as submissions get checked — the skill-evidence check
             is the one that lands here.
           </p>

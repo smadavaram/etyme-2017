@@ -9,8 +9,8 @@
  *
  * This is the other thing, and it is commercial judgement: is this firm
  * one we should still be relying on? It never blocks anybody. It WARNS,
- * names somebody who has to act, and puts a date on when the judgement
- * gets made again. A risk judgement with no re-look date is a judgement
+ * names somebody who has to act, and puts a date on when the judgment
+ * gets made again. A risk judgment with no re-look date is a judgment
  * nobody will remake, and six months later it is being quoted as if it
  * were current.
  *
@@ -19,7 +19,7 @@
  *   **Insurance standing.** `Verification` rows against the counterparty's
  *   company, with an expiry. Lapsed, expiring, unverified, or absent.
  *
- *   **Payment behaviour.** Two different facts that must never be added
+ *   **Payment behavior.** Two different facts that must never be added
  *   together: what THEY did with money they owed us (invoice due date
  *   against the day the cash arrived), and what WE did with money we owed
  *   them (`VendorBill.dueAt` against `paidAt`). The second is a fact about
@@ -52,7 +52,7 @@
 
 const DAY = 86_400_000
 
-/** Whole days between two instants, floored, the way ageing counts them. */
+/** Whole days between two instants, floored, the way aging counts them. */
 export function daysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / DAY)
 }
@@ -248,11 +248,11 @@ export function insuranceStanding(covers: Cover[], now: Date): InsuranceStanding
   }
 }
 
-// ── Payment behaviour ─────────────────────────────────────────────────
+// ── Payment behavior ─────────────────────────────────────────────────
 
 /** Whose conduct a settlement is evidence of. */
 export type Whose =
-  /** They owed us. Their behaviour. */
+  /** They owed us. Their behavior. */
   | 'THEIRS'
   /** We owed them. Ours, and never reported as theirs. */
   | 'OURS'
@@ -390,7 +390,7 @@ function behaviourSays(
   return parts.join(' ')
 }
 
-// ── The judgement ─────────────────────────────────────────────────────
+// ── The judgment ─────────────────────────────────────────────────────
 
 export interface CounterpartyRegister {
   id: string
@@ -438,7 +438,7 @@ export interface RiskInput {
 export type RiskVerdict =
   | 'AT_RISK'
   | 'WATCH'
-  /** Nothing on file, no settled history, nobody's judgement. Never CLEAR. */
+  /** Nothing on file, no settled history, nobody's judgment. Never CLEAR. */
   | 'NOTHING_ON_RECORD'
   | 'CLEAR'
 
@@ -448,7 +448,7 @@ export interface Signal {
   says: string
 }
 
-/** How often the judgement gets made again, by what it currently says. */
+/** How often the judgment gets made again, by what it currently says. */
 export const CADENCE_DAYS: Record<RiskVerdict, number> = {
   AT_RISK: 30,
   WATCH: 90,
@@ -464,7 +464,7 @@ export interface SupplierRisk {
   verdict: RiskVerdict
   /**
    * Always false, and present so nobody has to read the code to be sure.
-   * The legal bars live in governance; this is commercial judgement and
+   * The legal bars live in governance; this is commercial judgment and
    * blocking on it would stop work over somebody's opinion.
    */
   blocks: false
@@ -486,7 +486,7 @@ export interface SupplierRisk {
   says: string
 }
 
-/** Late enough to be a judgement rather than an admin slip. */
+/** Late enough to be a judgment rather than an admin slip. */
 const LATE_WARN_DAYS = 30
 const LATE_NOTE_DAYS = 10
 const OVERDUE_WARN_DAYS = 60
@@ -636,7 +636,7 @@ export function supplierRisk(input: RiskInput, now: Date): SupplierRisk {
         code: 'JUDGEMENT_UNDATED',
         severity: 'NOTE',
         says:
-          `Somebody marked them ${cp.riskLevel} and set no date to look again. A judgement ` +
+          `Somebody marked them ${cp.riskLevel} and set no date to look again. A judgment ` +
           `with no re-look date is one nobody remakes, and it gets quoted a year later as ` +
           `if it were current.`,
       })
@@ -759,7 +759,7 @@ function verdictSays(
       ? `Nothing is on record for ${name}. Ordinary for a prospect, and the day they ` +
           `supply somebody it is not.`
       : `Nothing is on record for ${name} — no certificate, no settled payment, nobody's ` +
-          `judgement. That is not a pass; it is a gap with a date on it.`
+          `judgment. That is not a pass; it is a gap with a date on it.`
   }
   if (verdict === 'CLEAR') {
     return `Nothing outstanding against ${name} on what we hold. Diarised rather than closed.`

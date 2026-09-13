@@ -454,7 +454,7 @@ export default function CompliancePage() {
  *
  * Deliberately not a status column on a person. A classification is an
  * event with a date and an author, the same shape as a verification — the
- * moment it becomes an attribute of a human being it reads as a judgement
+ * moment it becomes an attribute of a human being it reads as a judgment
  * Etyme made, and Etyme does not make it.
  */
 function ClassificationTab({

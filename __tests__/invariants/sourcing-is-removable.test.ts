@@ -14,7 +14,7 @@ import { readyToRemove, VENDOR_TARGET, SOURCED_SHARE_FLOOR } from '@/lib/sourcin
  * A feature nobody plans to remove becomes load-bearing by accident.
  * Something references it, then something references that, and in two
  * years it is holding up the building and the deletion is a project
- * instead of a chore. The only reliable defence is a test that fails on
+ * instead of a chore. The only reliable defense is a test that fails on
  * the commit which first points the wrong way — the one moment somebody
  * is in a position to say so cheaply.
  */

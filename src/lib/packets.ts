@@ -8,7 +8,7 @@
  * W-9, your certificate of insurance, a signed agreement and a bank
  * letter" and then show three of four arriving.
  *
- * So the most common thing a real programme does every week — chase a
+ * So the most common thing a real program does every week — chase a
  * partner for documents — had no home, and the reverse, sending your own
  * pack during a submission, was manual.
  *
@@ -74,7 +74,7 @@ export interface PacketSpec {
   items: ItemSpec[]
 }
 
-// ── The packets a staffing programme actually runs ────────────────────
+// ── The packets a staffing program actually runs ────────────────────
 
 export const PACKETS: PacketSpec[] = [
   {
@@ -109,11 +109,11 @@ export const PACKETS: PacketSpec[] = [
       // under the INA: the employer picks which document it wants to see,
       // before the point the law lets it ask at all. The UK is the same
       // shape, and holding identity papers for somebody you have not
-      // offered a job to fails data minimisation across the EU.
+      // offered a job to fails data minimization across the EU.
       //
       // The business still finds out what it needed to know. The document
       // itself is collected at award, in CONTRACT_START.
-      { key: 'WORK_AUTH_QUESTION', label: 'Work authorisation', hint: 'Are you authorised to work in this country, and will you need sponsorship now or in the future?', required: true, validMonths: null },
+      { key: 'WORK_AUTH_QUESTION', label: 'Work authorization', hint: 'Are you authorized to work in this country, and will you need sponsorship now or in the future?', required: true, validMonths: null },
       { key: 'REFERENCE_CHECK', label: 'Two references', hint: 'Names and contact details from the last two engagements.', required: false, validMonths: 24 },
     ],
   },
@@ -125,7 +125,7 @@ export const PACKETS: PacketSpec[] = [
     preamble: 'Before the first day. Some of these are legally required before any work is done.',
     items: [
       { key: 'RIGHT_TO_WORK', label: 'Proof of right to work', hint: 'Now that there is an offer, we take the document. You choose which one from the acceptable list — we do not.', required: true, validMonths: null },
-      { key: 'I9_EVERIFY', label: 'I-9 and E-Verify', hint: 'Federal work authorisation. Nobody may start without it.', required: true, validMonths: null },
+      { key: 'I9_EVERIFY', label: 'I-9 and E-Verify', hint: 'Federal work authorization. Nobody may start without it.', required: true, validMonths: null },
       { key: 'BACKGROUND_CHECK', label: 'Background check', hint: 'Through our provider, or yours if the client accepts it.', required: true, validMonths: 12 },
       { key: 'DRUG_SCREENING', label: 'Drug screening', hint: 'Where the client site requires it.', required: false, validMonths: 12 },
       { key: 'NDA', label: 'Signed non-disclosure agreement', hint: 'Ours, unless the client supplies their own.', required: true, validMonths: null },

@@ -14,7 +14,7 @@
  * requisition-chain-screens.test.ts, because a route file may export
  * nothing but its HTTP handlers. Everything that needs a database is
  * asserted against the source, and stated as such rather than dressed up
- * as behaviour.
+ * as behavior.
  */
 
 import { describe, it, expect } from 'vitest'

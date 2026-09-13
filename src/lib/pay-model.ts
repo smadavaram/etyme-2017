@@ -249,7 +249,7 @@ function money(cents: number): string {
 // second copy of the truth to drift.
 
 export interface CarryPeriod {
-  /** A label somebody recognises — "2026-07". */
+  /** A label somebody recognizes — "2026-07". */
   label: string
   /** The period the money belongs to. Used for ordering and for posting. */
   periodStart: Date

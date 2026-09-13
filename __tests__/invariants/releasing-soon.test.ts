@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { releasing, summarise, mayShow, type RollingOff } from '@/lib/releasing-soon'
+import { releasing, summarize, mayShow, type RollingOff } from '@/lib/releasing-soon'
 
 /**
  * The gap this fills is a fortnight wide and expensive. A consultant rolls
@@ -112,18 +112,18 @@ describe('the order', () => {
 
 describe('the headline number', () => {
   it('says nobody rather than showing a zero', () => {
-    expect(summarise([]).summary).toMatch(/nobody is coming free/i)
+    expect(summarize([]).summary).toMatch(/nobody is coming free/i)
   })
 
   it('leads with this week when somebody is free this week', () => {
-    const s = summarise(releasing([person({ endDate: inDays(3) }), person({ contractId: 'k2', endDate: inDays(40) })], NOW))
+    const s = summarize(releasing([person({ endDate: inDays(3) }), person({ contractId: 'k2', endDate: inDays(40) })], NOW))
     expect(s.summary).toMatch(/1 free within the week/i)
   })
 
   it('counts the uncertain ones into the sentence rather than hiding them', () => {
     // "Twelve releasing" where four are probably extending is a number
     // that gets somebody's hopes up and then costs them a call.
-    const s = summarise(
+    const s = summarize(
       releasing(
         [
           person({ contractId: 'a', endDate: inDays(10) }),

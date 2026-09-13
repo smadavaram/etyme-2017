@@ -40,7 +40,7 @@ export interface Checklist {
   says: string
 }
 
-function summarise(party: Party, subject: string, items: ChecklistItem[]): Checklist {
+function summarize(party: Party, subject: string, items: ChecklistItem[]): Checklist {
   const applicable = items.filter((i) => i.state !== 'NOT_APPLICABLE')
   const done = applicable.filter((i) => i.state === 'DONE').length
   const missing = applicable.filter((i) => i.state !== 'DONE')
@@ -118,7 +118,7 @@ export function clientChecklist(f: ClientFacts): Checklist {
       href: '/dashboard/settings',
     },
   ]
-  return summarise('CLIENT', f.name, items)
+  return summarize('CLIENT', f.name, items)
 }
 
 export interface SupplierFacts {
@@ -172,7 +172,7 @@ export function supplierChecklist(f: SupplierFacts): Checklist {
       href: '/dashboard/settings',
     },
   ]
-  return summarise('SUPPLIER', f.name, items)
+  return summarize('SUPPLIER', f.name, items)
 }
 
 export interface ConsultantFacts {
@@ -218,7 +218,7 @@ export function consultantChecklist(f: ConsultantFacts): Checklist {
       href: '/dashboard/packets',
     },
   ]
-  return summarise('CONSULTANT', f.name, items)
+  return summarize('CONSULTANT', f.name, items)
 }
 
 export interface AssignmentFacts {
@@ -245,7 +245,7 @@ export function assignmentChecklist(f: AssignmentFacts): Checklist {
     {
       key: 'cleared', label: 'Compliance cleared',
       state: f.cleared ? 'DONE' : 'MISSING',
-      why: 'Work authorisation blocks; the rest warns. Either way, before day one.',
+      why: 'Work authorization blocks; the rest warns. Either way, before day one.',
       href: '/dashboard/compliance',
     },
     {
@@ -261,5 +261,5 @@ export function assignmentChecklist(f: AssignmentFacts): Checklist {
       href: '/dashboard/timesheets',
     },
   ]
-  return summarise('ASSIGNMENT', f.label, items)
+  return summarize('ASSIGNMENT', f.label, items)
 }

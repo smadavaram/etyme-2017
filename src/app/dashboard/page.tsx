@@ -208,7 +208,7 @@ export default function DashboardPage() {
   // Whose dashboard this is.
   //
   // /dashboard is the vendor's Today view; /dashboard/program is the
-  // client's programme overview. Two pages for two company types, and
+  // client's program overview. Two pages for two company types, and
   // this one rendered vendor content for whoever arrived — so a client
   // following a stale link, or typing the bare URL, got somebody else's
   // product with their own data in it and nothing said so.

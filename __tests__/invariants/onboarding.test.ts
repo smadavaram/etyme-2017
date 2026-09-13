@@ -43,7 +43,7 @@ describe('Who is signing in', () => {
   it('a mail subdomain is the same company, not a second one', () => {
     // This used to keep contractors.nike.com as the domain, so somebody at
     // nike.com matched nothing and created a second tenant for the same
-    // organisation — neither able to see the other's requisitions,
+    // organization — neither able to see the other's requisitions,
     // invoices or people. Reducing to the registrable domain is what makes
     // join-beats-create actually hold.
     expect(classifyEmail('j.smith@contractors.nike.com')).toBe('CORPORATE')
@@ -169,7 +169,7 @@ describe('What this company does here', () => {
     expect(t.posture).toBe('PRIME')
   })
 
-  it('an MSP runs somebody else programme', () => {
+  it('an MSP runs somebody else program', () => {
     expect(typeByKey('msp')!.kind).toBe('MSP')
   })
 

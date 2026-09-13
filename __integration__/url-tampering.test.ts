@@ -15,10 +15,10 @@ import { GET as holidays } from '@/app/api/holidays/route'
  * fixed the seven routes it was applied to. It was never applied to the
  * rest, and the same shape survived in three of them.
  *
- * The permission check is not the defence. A vendor owner holds `*` in
+ * The permission check is not the defense. A vendor owner holds `*` in
  * their own company, so `payroll.read` passes and the route then reads
- * whichever company the URL names. Authorisation that authenticates the
- * caller and then trusts the caller's parameter is not authorisation.
+ * whichever company the URL names. Authorization that authenticates the
+ * caller and then trusts the caller's parameter is not authorization.
  *
  * Each leak gets two tests: the tampered read must be refused, and the
  * honest read must still work. A fix that closes the hole by breaking

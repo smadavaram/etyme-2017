@@ -578,11 +578,11 @@ export function assemble(
     absent,
     withheld,
     sendable,
-    says: summarise(spec, items, sending, refusals, absent, requiredBlocked, sendable),
+    says: summarize(spec, items, sending, refusals, absent, requiredBlocked, sendable),
   }
 }
 
-function summarise(
+function summarize(
   spec: OutboundPackSpec,
   items: PackedItem[],
   sending: PackedItem[],

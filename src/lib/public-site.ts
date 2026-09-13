@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db'
 import { reputationOf, type BuyerReputation } from '@/lib/buyer-reputation'
-import { releasing, summarise, mayShow, type RollingOff } from '@/lib/releasing-soon'
+import { releasing, summarize, mayShow, type RollingOff } from '@/lib/releasing-soon'
 import { writeFromRules, DEFAULT_HEADINGS, type SiteVoice } from '@/lib/site-voice'
 
 /**
@@ -134,7 +134,7 @@ function longestPerType(
 /** What they do, in a phrase somebody would use rather than an enum. */
 export function whatTheyDo(kind: string, posture: string | null): string {
   if (kind === 'CLIENT') return 'hires contract staff'
-  if (kind === 'MSP') return 'runs contingent workforce programmes'
+  if (kind === 'MSP') return 'runs contingent workforce programs'
   if (kind === 'GSI') return 'delivers projects and supplies people'
   return posture === 'BENCH'
     ? 'supplies consultants through other staffing firms'
@@ -458,7 +458,7 @@ export async function publicSite(slug: string): Promise<PublicSite | null> {
       // buyer actually reads.
       provenAt: r.proven ? 'Currently on assignment' : null,
     })),
-    comingFreeSummary: free.length > 0 ? summarise(free).summary : null,
+    comingFreeSummary: free.length > 0 ? summarize(free).summary : null,
     training: courses.map((c) => ({
       title: c.title,
       category: c.category,

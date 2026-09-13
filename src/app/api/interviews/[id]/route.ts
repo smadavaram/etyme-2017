@@ -60,7 +60,7 @@ export async function POST(
   const isClient = row.companyId === companyId
   // Deciding a round — its outcome, its panel — is for whoever is
   // hiring: the permission that raises a requisition. An AP clerk is a
-  // party to the programme and is not the one interviewing.
+  // party to the program and is not the one interviewing.
   const notHiring = () =>
     NextResponse.json(
       {
@@ -68,7 +68,7 @@ export async function POST(
           code: 'NOT_HIRING',
           message:
             `Deciding a round is for whoever is hiring at ${caller.company!.name} — ` +
-            'a hiring or programme manager.',
+            'a hiring or program manager.',
         },
       },
       { status: 403 }

@@ -62,7 +62,7 @@ const BUYERS = [
 type Held = Seat | 'CANDIDATE'
 
 /**
- * The desks at a seeded client programme, by the suffix on their address.
+ * The desks at a seeded client program, by the suffix on their address.
  * `world-nike-ap@demo.etyme.local` is the AP clerk at Nike; the roster
  * is in lib/seed-programmes and the words here are what a visitor reads.
  */
@@ -70,7 +70,7 @@ const DEMO_DOMAIN = 'demo.etyme.local'
 const DESKS = ['programme', 'hiring', 'hr', 'procurement', 'vp', 'ap', 'compliance'] as const
 type Desk = (typeof DESKS)[number]
 const DESK_NAMES: Record<Desk, string> = {
-  programme: 'programme manager',
+  programme: 'program manager',
   hiring: 'hiring manager',
   hr: 'HR partner',
   procurement: 'procurement lead',
@@ -89,7 +89,7 @@ const DESK_LANDING: Record<Desk, string> = {
 }
 
 /**
- * Which seat a request is asking for, normalised.
+ * Which seat a request is asking for, normalized.
  *
  * Shared by the resume check and the seeding below so the two cannot
  * disagree about what "the same seat" means. HIRING is the old buyer's
@@ -250,7 +250,7 @@ export async function POST(request: NextRequest) {
         world: asWorld,
         desk, role: company.contexts[0]?.role?.name ?? null,
         // Where this seat belongs. /dashboard is the vendor's Today view
-        // and /dashboard/program is the client's programme overview —
+        // and /dashboard/program is the client's program overview —
         // two pages for two company types, not two versions of one. A
         // flat '/dashboard' here dropped a client onto the vendor's.
         //

@@ -35,7 +35,7 @@ describe('what an event is called', () => {
     expect(new Set(EVENT_TYPES).size).toBe(EVENT_TYPES.length)
   })
 
-  it('recognises a real event name', () => {
+  it('recognizes a real event name', () => {
     expect(isKnownEventType('invoice.paid')).toBe(true)
   })
 

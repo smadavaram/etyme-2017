@@ -9,7 +9,7 @@ import { maySeeOutside } from '@/lib/walls'
  * Addendum D §D.3.3: "Where a vendor does not disclose markup, trust
  * is carried by mechanisms that cost the vendor nothing commercially:
  *   - Rate progression — visible without exposing bill rate or margin
- *   - Bench pay honoured — recorded instances of paid bench
+ *   - Bench pay honored — recorded instances of paid bench
  *   - Median tenure of consultants at the vendor
  *   - Time-to-next-placement after rolloff
  *   - Verified record issuance"
@@ -116,7 +116,7 @@ export async function GET(
     ? Math.round(medianTenureDays / 30.44)
     : null
 
-  // ── 2. Bench pay honoured ─────────────────────────────
+  // ── 2. Bench pay honored ─────────────────────────────
   // Count of bench-paid contracts (state = BENCH_PAID)
   // This is the "put your money where your mouth is" signal
 
@@ -249,7 +249,7 @@ export async function GET(
           count: benchPaidCount,
           rate: benchPayRate,
           label: benchPayRate != null
-            ? `Bench pay honoured in ${benchPayRate}% of engagements`
+            ? `Bench pay honored in ${benchPayRate}% of engagements`
             : 'No engagement data',
         },
         timeToNextPlacement: {

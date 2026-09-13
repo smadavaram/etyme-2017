@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { merge, order, summarise, type Person, type Offer } from '@/lib/one-person'
+import { merge, order, summarize, type Person, type Offer } from '@/lib/one-person'
 import { bestMatchPerPerson, type Candidate } from '@/lib/identity-resolution'
 
 /**
@@ -214,7 +214,7 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    data: { people: rows, summary: summarise(rows), capMonths },
+    data: { people: rows, summary: summarize(rows), capMonths },
   })
 }
 

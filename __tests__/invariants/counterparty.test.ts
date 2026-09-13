@@ -84,14 +84,14 @@ describe('A counterparty with anything live between you cannot be removed', () =
   })
 })
 
-describe('A risk level is a judgement, and a judgement needs a date to be remade', () => {
+describe('A risk level is a judgment, and a judgment needs a date to be remade', () => {
   const NOW = new Date('2026-08-29T00:00:00Z')
 
   it('refuses a level nobody defined', () => {
     expect(riskJudgement('SCARY', new Date('2027-01-01'), NOW).says).toContain('not "SCARY"')
   })
 
-  it('refuses a judgement with no review date, because nobody will remember to remake it', () => {
+  it('refuses a judgment with no review date, because nobody will remember to remake it', () => {
     expect(riskJudgement('WATCH', null, NOW).ok).toBe(false)
   })
 

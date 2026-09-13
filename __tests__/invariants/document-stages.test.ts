@@ -37,7 +37,7 @@ describe('Identity documents wait for an offer, and the question does not', () =
   it('gives the reason in the country’s own terms', () => {
     expect(stageFor('RIGHT_TO_WORK', 'US').because).toContain('document abuse')
     expect(stageFor('RIGHT_TO_WORK', 'UK').because).toContain('before the first day')
-    expect(stageFor('RIGHT_TO_WORK', 'EU').because).toContain('data minimisation')
+    expect(stageFor('RIGHT_TO_WORK', 'EU').because).toContain('data minimization')
   })
 
   it('a country with no rule of its own still gets the safe default', () => {
@@ -64,7 +64,7 @@ describe('Asking too early moves the item rather than losing it', () => {
   it('adds the question that stands in for it, so nothing is actually lost', () => {
     const q = compiled.application.find((a) => a.key === 'RIGHT_TO_WORK_Q')
     expect(q?.kind).toBe('QUESTION')
-    expect(q?.hint).toContain('authorised to work')
+    expect(q?.hint).toContain('authorized to work')
   })
 
   it('tells the business what moved and why, rather than quietly overruling them', () => {

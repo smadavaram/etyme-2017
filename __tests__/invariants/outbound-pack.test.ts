@@ -169,7 +169,7 @@ describe('what a pack is allowed to contain', () => {
     expect(pack.withheld[0].because.length).toBeGreaterThan(20)
   })
 
-  it('gives every pack a purpose a procurement team would recognise and at least one required document', () => {
+  it('gives every pack a purpose a procurement team would recognize and at least one required document', () => {
     for (const p of OUTBOUND_PACKS) {
       expect(p.preamble.length, p.key).toBeGreaterThan(30)
       expect(p.items.some((i) => i.required), p.key).toBe(true)

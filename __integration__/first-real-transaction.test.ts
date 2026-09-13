@@ -160,7 +160,7 @@ describe('Chapter 3 — the existing contract is recorded, both sides at once', 
   })
 
   it('a contract that started in August has its I-9 on file — recording it here is recording what exists', async () => {
-    // Activation refuses a start with no work authorisation. A solo
+    // Activation refuses a start with no work authorization. A solo
     // operator recording their own running W-2 contract has an I-9 —
     // they have been employing themselves since August — so it is
     // recorded before the contract is, not invented to pass a gate.

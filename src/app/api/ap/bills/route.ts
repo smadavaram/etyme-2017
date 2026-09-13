@@ -443,7 +443,7 @@ export async function POST(request: NextRequest) {
           message:
             `${unwaivable[0].reason}. Nobody can wave this through — ` +
             `${unwaivable.map((c) => c.code.toLowerCase().replace(/_/g, ' ')).join(' and ')} ` +
-            `${unwaivable.length === 1 ? 'is' : 'are'} not a judgement call.`,
+            `${unwaivable.length === 1 ? 'is' : 'are'} not a judgment call.`,
           checks: match.checks,
         },
       },
@@ -589,7 +589,7 @@ export async function PATCH(request: NextRequest) {
       paidCents: newPaid,
       // Only a bill paid in full carries a paid date. A part payment has
       // not closed the obligation, and dating it as if it had would
-      // report the first instalment as the day the supplier was paid.
+      // report the first installment as the day the supplier was paid.
       paidAt: settled ? paidAt : null,
       status: settled ? 'PAID' : 'APPROVED',
     },
@@ -602,7 +602,7 @@ export async function PATCH(request: NextRequest) {
       note: settled
         ? 'Paid in full. This is the date every float figure on this supplier counts to.'
         : 'Part paid. No paid date is set — the obligation is still open, and dating it ' +
-          'now would report the first instalment as the day they were paid.',
+          'now would report the first installment as the day they were paid.',
     },
   })
 }

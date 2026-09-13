@@ -22,7 +22,7 @@
  * **We attest. We do not declare.** A record saying "right to work was
  * verified by Acme on 12 March, expires 4 August" is a fact about an
  * event. A badge saying "Etyme verified — cleared to place" is a
- * judgement about a person, and it fails four ways at once:
+ * judgment about a person, and it fails four ways at once:
  *
  *   1. **It transfers nothing.** In the United States the employer of
  *      record must personally examine the documents and complete the
@@ -189,7 +189,7 @@ export interface Standing {
   daysOld: number
   /**
    * What a reader is told. Always a sentence with a name and a date in
-   * it, never a tick — because a tick is a judgement and a sentence is a
+   * it, never a tick — because a tick is a judgment and a sentence is a
    * fact.
    */
   says: string
@@ -396,7 +396,7 @@ function label(k: CheckKind): string {
 export function overallVerdict(): never {
   throw new Error(
     'Etyme does not declare a person fit or unfit. Show the attestations and let ' +
-      'the party with the duty decide. A tick is a judgement; a sentence with a name ' +
+      'the party with the duty decide. A tick is a judgment; a sentence with a name ' +
       'and a date in it is a fact.'
   )
 }

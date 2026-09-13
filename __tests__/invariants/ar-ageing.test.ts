@@ -170,7 +170,7 @@ describe('A roll-up must not hide which kind of problem it is', () => {
     expect(c.invoiceCount).toBe(1)
   })
 
-  it('dollars and rupees are never added into one ageing figure', () => {
+  it('dollars and rupees are never added into one aging figure', () => {
     expect(() =>
       forCustomer(aged([{ currency: 'USD' }, { currency: 'INR' }]))
     ).toThrow(/Split the book by currency/)
@@ -355,9 +355,9 @@ describe('Money owed to us and money we owe are never the same total', () => {
   })
 
   it('a firm that both sells and buys sees two totals, never one', () => {
-    // The bug this replaces: a prime scoped its ageing to "the agreement
+    // The bug this replaces: a prime scoped its aging to "the agreement
     // mentions us anywhere" and added every row into one figure, so its
-    // own supplier bills raised the bar labelled money owed to us.
+    // own supplier bills raised the bar labeled money owed to us.
     const rows = [
       { id: 'sold', vendorId: US, clientId: 'nike', minor: 500_000 },
       { id: 'bought', vendorId: 'sub-vendor', clientId: US, minor: 300_000 },
@@ -388,7 +388,7 @@ describe('Money owed to us and money we owe are never the same total', () => {
     expect(usd.outstandingMinor).toBe(100_000)
   })
 
-  it('the ageing summary is in cents, the same units as every row beside it', () => {
+  it('the aging summary is in cents, the same units as every row beside it', () => {
     // £9,600 is 960,000 pence. A summary in whole pounds beside rows in
     // pence is the shape of a hundredfold error nobody notices on screen.
     const book = ageBook([invoice({ totalMinor: 960_000, dueAt: dueAgo(10) })], NOW).byCurrency[0]
@@ -473,7 +473,7 @@ describe('The ladder can only stop repeating itself if something records a send'
     expect(run.silent[0].reason).toBe('WITH_A_PERSON')
   })
 
-  it('a step nobody recognises is ignored rather than standing in for a final notice', () => {
+  it('a step nobody recognizes is ignored rather than standing in for a final notice', () => {
     const book = nikeBook()
     const sent = stepsAlreadySent([letter({ step: 'REMINDER_3' })], openInvoiceIds(book))
     expect(sent).toEqual({})

@@ -376,7 +376,7 @@ export function raisedIt(
 // ── The company the URL is allowed to name ────────────────────────────
 //
 // A route that authenticates the caller and then reads whichever company
-// its query string names has not authorised anything. The permission
+// its query string names has not authorized anything. The permission
 // check does not save it: a vendor owner holds `*` inside their own
 // company, so `payroll.read` passes and the route then hands over
 // somebody else's book.

@@ -7,7 +7,7 @@
  *
  * So the agreement says how long the client has, and after that silence
  * counts as approval. Every VMS does this and it is the single term that
- * keeps cash moving through a contingent programme.
+ * keeps cash moving through a contingent program.
  *
  * ── Three rules that make it safe ────────────────────────────────────
  *
@@ -158,7 +158,7 @@ export interface RunSummary {
  * Leads with what was held, because approving forty sheets is the
  * ordinary case and the two that need a person are the news.
  */
-export function summarise(decisions: Decision[]): RunSummary {
+export function summarize(decisions: Decision[]): RunSummary {
   const n = (v: Verdict) => decisions.filter((d) => d.verdict === v).length
   const approved = n('APPROVE')
   const waiting = n('WAITING')

@@ -25,7 +25,7 @@ describe('where a company starts', () => {
     expect(defaultPostureFor('VENDOR')).toBe('ALLOWED')
   })
 
-  it('leaves an MSP open, because they run somebody else’s supplier programme', () => {
+  it('leaves an MSP open, because they run somebody else’s supplier program', () => {
     expect(defaultPostureFor('MSP')).toBe('ALLOWED')
   })
 
@@ -38,7 +38,7 @@ describe('where a company starts', () => {
     expect(defaultPostureFor('CLIENT')).toBe('NAMED_ONLY')
   })
 
-  it('closes anything it does not recognise', () => {
+  it('closes anything it does not recognize', () => {
     // The cost of being wrong is not symmetrical. A vendor who cannot see
     // the market notices within the hour; a delivery firm whose engineers
     // can browse the supplier list never notices at all.

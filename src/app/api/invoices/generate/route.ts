@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
           // ── Who is who on the invoice ──────────────────────────────
           //
           // A large client signs in one entity, is billed through a
-          // shared services centre in another, and has the work done at a
+          // shared services center in another, and has the work done at a
           // third site. `Invoice` has carried soldTo, billTo, shipTo and
           // payer columns since it was written and nothing filled them,
           // so every invoice went to whoever the agreement named — which
@@ -497,7 +497,7 @@ export async function POST(request: NextRequest) {
           billToId: partners.billTo.party.id,
           shipToId: partners.shipTo?.party.id ?? null,
           payerId: partners.payer.party.id,
-          // Inherit the PO the work was authorised under. Without it the
+          // Inherit the PO the work was authorized under. Without it the
           // three-way match has only two records to compare.
           purchaseOrderId: billing.find(t => t.sellContract.purchaseOrderId)
             ?.sellContract.purchaseOrderId ?? null,

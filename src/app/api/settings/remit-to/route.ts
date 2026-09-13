@@ -13,7 +13,7 @@ import { hasPermission } from '@/lib/permissions'
  * could raise an invoice that did not say where to pay it.
  *
  * Only the last four digits of an account are stored. That is what an
- * invoice prints and what a person uses to recognise their own account;
+ * invoice prints and what a person uses to recognize their own account;
  * holding the full number would make this table worth stealing, and it
  * buys nothing — the payment itself happens in a bank, not here.
  */

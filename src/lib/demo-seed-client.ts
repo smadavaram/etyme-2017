@@ -357,7 +357,7 @@ export async function seedDemoClientCompany(input: {
           fromCompanyId: company.id,
           toCompanyId: vendors.get(v.name)!.id,
           payMin: spec.min,
-          // Rounded to the dollar. A band of $84.60 is an artefact of the
+          // Rounded to the dollar. A band of $84.60 is an artifact of the
           // percentage above, and reading it back to a supplier to the cent
           // makes the whole screen look computed rather than agreed.
           payMax: v.bandOfMax ? Math.round((spec.max * v.bandOfMax) / 100) * 100 : null,
@@ -485,7 +485,7 @@ export async function seedDemoClientCompany(input: {
             confidence: c.score >= 85 ? 'HIGH' : c.score >= 70 ? 'MODERATE' : 'LOW',
             factors: factorsFor(c, spec.skills),
             basis: `${spec.skills.length} required skills against the CV and ${c.location}.`,
-            unknowns: c.auth == null ? 'No work authorisation recorded.' : null,
+            unknowns: c.auth == null ? 'No work authorization recorded.' : null,
           },
           update: {},
         })
@@ -664,6 +664,6 @@ function factorsFor(c: Candidate, required: string[]): { label: string; value: n
     weight: Math.round(70 / required.length),
   }))
   out.push({ label: 'Location', value: /remote/i.test(c.location) ? 60 : 100, weight: 15 })
-  out.push({ label: 'Work authorisation', value: c.auth ? 100 : 0, weight: 15 })
+  out.push({ label: 'Work authorization', value: c.auth ? 100 : 0, weight: 15 })
   return out
 }

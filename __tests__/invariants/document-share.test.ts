@@ -13,7 +13,7 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  newToken, clampExpiry, checkShare, daysLeft, summarise,
+  newToken, clampExpiry, checkShare, daysLeft, summarize,
   isShareableKind, MAX_DAYS, DEFAULT_DAYS,
 } from '@/lib/document-share'
 
@@ -51,7 +51,7 @@ describe('A share always ends', () => {
     expect(daysLeft(clampExpiry(0, NOW), NOW)).toBe(1)
   })
 
-  it('a sensible request is honoured', () => {
+  it('a sensible request is honored', () => {
     expect(daysLeft(clampExpiry(90, NOW), NOW)).toBe(90)
   })
 })
@@ -94,25 +94,25 @@ describe('How a share is going, for whoever sent it', () => {
   it('a share nobody opened, about to expire, is the one worth chasing', () => {
     // The lawyer did not get it, or it went to spam, and nobody finds out
     // until the petition is late.
-    const s = summarise({ expiresAt: later(3), revokedAt: null }, [], NOW)
+    const s = summarize({ expiresAt: later(3), revokedAt: null }, [], NOW)
     expect(s.needsChasing).toBe(true)
   })
 
   it('a share nobody opened but with weeks left is not urgent yet', () => {
-    expect(summarise({ expiresAt: later(25), revokedAt: null }, [], NOW).needsChasing).toBe(false)
+    expect(summarize({ expiresAt: later(25), revokedAt: null }, [], NOW).needsChasing).toBe(false)
   })
 
   it('a share that was opened does not need chasing, however soon it ends', () => {
-    const s = summarise({ expiresAt: later(1), revokedAt: null }, [{ at: later(-2) }], NOW)
+    const s = summarize({ expiresAt: later(1), revokedAt: null }, [{ at: later(-2) }], NOW)
     expect(s.needsChasing).toBe(false)
   })
 
   it('an expired share is not chased — it is reissued', () => {
-    expect(summarise({ expiresAt: later(-1), revokedAt: null }, [], NOW).needsChasing).toBe(false)
+    expect(summarize({ expiresAt: later(-1), revokedAt: null }, [], NOW).needsChasing).toBe(false)
   })
 
   it('it reports when it was last opened', () => {
-    const s = summarise(
+    const s = summarize(
       { expiresAt: later(10), revokedAt: null },
       [{ at: later(-5) }, { at: later(-1) }, { at: later(-9) }],
       NOW
@@ -122,7 +122,7 @@ describe('How a share is going, for whoever sent it', () => {
   })
 
   it('a share nobody opened has no last-opened date, rather than a fake one', () => {
-    expect(summarise({ expiresAt: later(10), revokedAt: null }, [], NOW).lastOpenedAt).toBeNull()
+    expect(summarize({ expiresAt: later(10), revokedAt: null }, [], NOW).lastOpenedAt).toBeNull()
   })
 })
 

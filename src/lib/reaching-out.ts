@@ -98,7 +98,7 @@ export function nudgeLetter(i: Invite): Letter {
       i.claimUrl,
       '',
       'If it is not one you can fill, saying so is worth more to them than silence,',
-      'and it counts in your favour rather than against it.',
+      'and it counts in your favor rather than against it.',
     ].join('\n'),
   }
 }

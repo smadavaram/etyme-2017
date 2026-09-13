@@ -90,7 +90,7 @@ describe('An agent is told before it edits, not after it breaks something', () =
   })
 
   it('the schema belongs to nobody and queues through the architect', () => {
-    // The one artefact where two individually correct changes can still
+    // The one artifact where two individually correct changes can still
     // produce a wrong result.
     expect(mayWrite('etyme-money', 'prisma/schema.prisma').mayWrite).toBe(false)
     expect(mayWrite('etyme-architect', 'prisma/schema.prisma').mayWrite).toBe(true)

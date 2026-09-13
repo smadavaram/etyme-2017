@@ -9,7 +9,7 @@
  *
  * Every one of those facts sits in a different supplier's system, and
  * none of them can see the others. Merged, they are the single most
- * useful record a contingent programme can hold — and the only place it
+ * useful record a contingent program can hold — and the only place it
  * can be assembled is the layer every submission passes through.
  *
  * ── What the merge is allowed to do ──────────────────────────────────
@@ -84,7 +84,7 @@ export interface Merged {
   roles: string[]
   offers: Offer[]
   stints: Stint[]
-  /** The sentence a programme manager reads. */
+  /** The sentence a program manager reads. */
   says: string
   /** What this record cannot account for. */
   unknowns: string[]
@@ -267,7 +267,7 @@ export function order(rows: Merged[]): Merged[] {
 }
 
 /** The line above the register. */
-export function summarise(rows: Merged[]): string {
+export function summarize(rows: Merged[]): string {
   if (rows.length === 0) return 'Nobody has been put in front of you yet.'
 
   const shared = rows.filter((r) => r.vendors > 1).length

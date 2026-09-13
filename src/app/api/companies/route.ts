@@ -461,7 +461,7 @@ export async function GET(request: NextRequest) {
     // A visitor looking around must not see a customer's name in the
     // directory, and a customer must not see a stranger's sandbox. The
     // partition is on the flag rather than on a guess about the name,
-    // because "looks like demo data" is exactly the judgement nobody
+    // because "looks like demo data" is exactly the judgment nobody
     // should be making about somebody's real book.
     where: visible,
     orderBy: { createdAt: 'desc' },

@@ -21,7 +21,7 @@ import type { EntitySpec, FieldSpec } from '@/lib/importable'
  * cannot be reviewed — it can only be trusted or not, and people choose
  * trust. Every extracted field says what it read and where.
  *
- * **The fallback is labelled, not disguised.** With no key configured this
+ * **The fallback is labeled, not disguised.** With no key configured this
  * falls back to header matching and says so. A degraded result presented as
  * a good one is the failure this whole file exists to avoid.
  */
@@ -87,7 +87,7 @@ Rules that matter more than completeness:
 - Give every value a confidence between 0 and 1. Use below 0.8 whenever you
   inferred rather than read.
 - For every value, quote the exact fragment you read it from in "foundIn",
-  short enough to locate but long enough to recognise.
+  short enough to locate but long enough to recognize.
 - Money arrives with symbols, thousands separators and sometimes words.
   Return a plain number. If the currency is ambiguous, say so in "concern".
 - Dates arrive in every format there is. Return ISO (YYYY-MM-DD). If the

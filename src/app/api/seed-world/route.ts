@@ -5,7 +5,7 @@ import { seedWorld } from '@/lib/seed-world'
 /**
  * A minute, not the default ten seconds.
  *
- * Walking twenty firms, their placements and three client programmes is
+ * Walking twenty firms, their placements and three client programs is
  * hundreds of queries against a database in another building. On the
  * first run most of them are writes; on a re-run they are the checks
  * that make it idempotent, and there are just as many. Both take longer

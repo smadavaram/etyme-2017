@@ -57,7 +57,7 @@ export type Code =
   | 'GOVERNANCE'
   /** Not on this client's do-not-submit list. */
   | 'NOT_BARRED'
-  /** The skills claimed are actually in the CV. The one model judgement. */
+  /** The skills claimed are actually in the CV. The one model judgment. */
   | 'SKILLS_EVIDENCED'
   /** Has done the job here before. Never a failure. */
   | 'WORKED_HERE_BEFORE'
@@ -322,7 +322,7 @@ export function screenRules(a: Arriving, now: Date): Finding[] {
       code: 'WORK_AUTH',
       checker: 'RULE',
       verdict: 'PASS',
-      reason: 'This role does not name a work authorisation.',
+      reason: 'This role does not name a work authorization.',
     })
   } else if (a.workAuth == null) {
     out.push({
@@ -455,7 +455,7 @@ export interface Shortlist {
  *
  * Where every candidate has a score, that is the order. Where none does,
  * the order is arrival — and the page says so rather than implying a
- * judgement that was never made. A ranking nobody can account for is the
+ * judgment that was never made. A ranking nobody can account for is the
  * thing this product exists to replace.
  */
 /**
@@ -504,7 +504,7 @@ export function shortlist(all: Screened[], size: number = SHORTLIST): Shortlist 
     more: ordered.slice(size),
     heldBack,
     orderedBy,
-    summary: summarise(all.length, cleared.length, heldBack),
+    summary: summarize(all.length, cleared.length, heldBack),
   }
 }
 
@@ -514,7 +514,7 @@ export function shortlist(all: Screened[], size: number = SHORTLIST): Shortlist 
  * Leads with what was removed, because that is the work being done. "14
  * arrived, 4 worth reading" is the product in nine words.
  */
-export function summarise(arrived: number, cleared: number, heldBack: Screened[]): string {
+export function summarize(arrived: number, cleared: number, heldBack: Screened[]): string {
   if (arrived === 0) return 'Nothing has arrived for this role yet.'
   if (heldBack.length === 0) {
     return `${arrived} arrived, and all of them are worth reading.`

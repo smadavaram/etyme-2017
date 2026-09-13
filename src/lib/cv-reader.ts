@@ -23,7 +23,7 @@
  *
  * ── What it will not do ──────────────────────────────────────────────
  *
- * Guess a work authorisation. "Visa" appearing in a CV is as likely to
+ * Guess a work authorization. "Visa" appearing in a CV is as likely to
  * be a payment card as a permit, and a wrong permit on a submission is
  * how a placement collapses in week two. It comes back null and the
  * recruiter is asked.
@@ -70,7 +70,7 @@ const SKILLS = [
  * Words that appear in sentences and never in names.
  *
  * The tell that separates "Anita Desai" from "A dedicated professional
- * with fifteen years". Length and capitalisation do not separate those
+ * with fifteen years". Length and capitalization do not separate those
  * two; grammar does.
  */
 const PROSE = new Set([
@@ -112,10 +112,10 @@ export function readCv(raw: string): ReadCv {
   const unknowns: string[] = []
   if (!name) unknowns.push('Could not find a name. Type it in.')
   if (!email) unknowns.push('No email address in the CV.')
-  if (skills.length === 0) unknowns.push('No skills recognised — add the ones that matter.')
+  if (skills.length === 0) unknowns.push('No skills recognized — add the ones that matter.')
   // Never guessed. "Visa" in a CV is as likely to be a payment card as a
   // permit, and a wrong permit is how a placement collapses in week two.
-  unknowns.push('Work authorisation is not read from a CV. Say what they hold.')
+  unknowns.push('Work authorization is not read from a CV. Say what they hold.')
 
   return { name, email, phone, headline, skills, location, years, text, unknowns }
 }
@@ -146,13 +146,13 @@ export function readName(lines: string[], email: string | null): string | null {
     // Names are words, not bullet points, pipes or long sentences.
     if (/[|•·@\d]/.test(line) || line.length > 42) continue
     if (!/^[A-Z]/.test(line)) continue
-    // A sentence that happens to be short and capitalised is still a
-    // sentence. "A dedicated professional with..." is four capitalised
+    // A sentence that happens to be short and capitalized is still a
+    // sentence. "A dedicated professional with..." is four capitalized
     // words under forty characters and is nobody's name.
     if (words.some((w) => PROSE.has(w.toLowerCase().replace(/[^a-z]/g, '')))) continue
     // A lone letter is an initial only when it is punctuated as one.
     if (words.some((w) => w.length === 1 && !/^[A-Z]\.?$/.test(w))) continue
-    // "Java, AWS" under a SKILLS heading is two capitalised words and is
+    // "Java, AWS" under a SKILLS heading is two capitalized words and is
     // nobody's name. Nobody is called Java either.
     if (readSkills(line).length > 0) continue
 
@@ -229,7 +229,7 @@ export function cvSentence(cv: ReadCv): string {
   const who = cv.name ?? 'Somebody'
   const what = cv.skills.length
     ? `${cv.skills.slice(0, 3).join(', ')}${cv.skills.length > 3 ? ` and ${cv.skills.length - 3} more` : ''}`
-    : 'no skills recognised'
+    : 'no skills recognized'
 
   const missing = [!cv.name && 'a name', !cv.email && 'an email address'].filter(Boolean)
 

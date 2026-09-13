@@ -51,7 +51,7 @@ const EMPTY: SessionState = {
 const SessionContext = createContext<SessionState>(EMPTY)
 
 /** Company kinds that are not VENDOR still fall back to vendor-shaped nav. */
-function normaliseKind(kind: string | undefined): CompanyKind {
+function normalizeKind(kind: string | undefined): CompanyKind {
   if (kind === 'CLIENT' || kind === 'MSP' || kind === 'GSI' || kind === 'CONSULTANT_CORP') return kind
   // A consultant corp deliberately falls through to nothing special
   // elsewhere: it sells, so screens that branch on VENDOR treat it as
@@ -96,7 +96,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
                 id: company.id,
                 name: company.name,
                 slug: company.slug,
-                kind: normaliseKind(company.kind),
+                kind: normalizeKind(company.kind),
               }
             : null,
           roleName: active?.role?.name ?? null,

@@ -13,7 +13,7 @@ import { createHash, randomBytes, timingSafeEqual, createHmac } from 'crypto'
  * write down when it was last used.
  */
 
-/** Recognisable at a glance in a log or a config file. */
+/** Recognizable at a glance in a log or a config file. */
 const PREFIX = 'etyk_'
 
 export interface NewKey {

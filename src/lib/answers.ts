@@ -7,7 +7,7 @@ import { lastAsked } from '@/lib/messages'
  *
  * There are two ways an answer arrives and they must do exactly the same
  * thing to the record, or the two paths drift and one of them quietly
- * stops honouring a stop request.
+ * stops honoring a stop request.
  *
  *   A click on a signed link. The normal way. The answer is unambiguous
  *   because the link carries it.

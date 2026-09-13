@@ -6,7 +6,7 @@ import { staffOnly } from '@/lib/seat'
 import { fromPrismaDecimal } from '@/lib/money'
 import { dso, ROUNDING_TOLERANCE_MINOR, type BillingPeriod } from '@/lib/ar-ageing'
 import {
-  hopDelay, summariseHops, chainFloat, chainBlindSpot, beyondLastParty,
+  hopDelay, summarizeHops, chainFloat, chainBlindSpot, beyondLastParty,
   payWhenPaidFlags, dpo, mirror,
   type Hop, type Chain, type PurchasePeriod,
 } from '@/lib/ap-delay'
@@ -43,7 +43,7 @@ import { loadBook } from '../ar/book'
  *
  * **Days payable outstanding**, ours, computed by the same countback the
  * DSO uses — because the textbook ratio moves when buying grows and
- * nothing about payment behaviour has changed.
+ * nothing about payment behavior has changed.
  *
  * And the comparison that makes them mean something: DSO beside DPO. If
  * we are paid in 68 days and pay in 30, we fund 38 days of every
@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
       dueAt: i.dueAt,
       // A hop is settled when the money is all there. A part payment has
       // not closed the obligation and must not be counted as if it had:
-      // that would report the day the FIRST instalment landed as the day
+      // that would report the day the FIRST installment landed as the day
       // the invoice was paid, which flatters every figure downstream.
       // ROUNDING_TOLERANCE_MINOR is deliberately currency-independent:
       // what it measures is a person's patience with a 40p residual, and
@@ -294,8 +294,8 @@ export async function GET(request: NextRequest) {
       dpo: ourDpo,
       dso: ourDso,
       mirror: mirror(ourDso?.days ?? null, ourDpo.days),
-      out: summariseHops(theirDelays, 'OUT'),
-      in: summariseHops(theirDelays, 'IN'),
+      out: summarizeHops(theirDelays, 'OUT'),
+      in: summarizeHops(theirDelays, 'IN'),
     }
   })
 

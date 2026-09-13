@@ -10,7 +10,7 @@ import { drawSample, agreement, thisWeek, question, SAMPLE_SIZE } from '@/lib/re
  * This week's sample of what the machine decided, for a person to look at.
  *
  * Not only submissions. Anything any loop was unsure about lands here —
- * a model's judgement on a CV, a lead that is *probably* the same seat, a
+ * a model's judgment on a CV, a lead that is *probably* the same seat, a
  * quality verdict on a role. The audit found a signpost with nothing
  * behind it: leads were flagged "might be a duplicate — have a look" and
  * there was nowhere to look.

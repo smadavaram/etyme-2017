@@ -88,7 +88,7 @@ const NOISE =
  * Analyst" are the same job, and every word that differs is noise a prime
  * added to make their posting stand out.
  */
-export function normaliseTitle(raw: string): string {
+export function normalizeTitle(raw: string): string {
   return raw
     .toLowerCase()
     .replace(/[^a-z0-9+#/\s-]/g, ' ')
@@ -103,7 +103,7 @@ export function normaliseTitle(raw: string): string {
 }
 
 /** A place reduced to a place. "Denver, CO (Hybrid)" and "Denver CO" agree. */
-export function normaliseLocation(raw: string | null): string | null {
+export function normalizeLocation(raw: string | null): string | null {
   if (!raw) return null
   const v = raw
     .toLowerCase()
@@ -152,13 +152,13 @@ export function sameSeat(a: Lead, b: Lead): Verdict {
     }
   }
 
-  const titleA = normaliseTitle(a.title)
-  const titleB = normaliseTitle(b.title)
+  const titleA = normalizeTitle(a.title)
+  const titleB = normalizeTitle(b.title)
   const titlesAgree = titleA.length > 0 && (titleA === titleB || titleA.includes(titleB) || titleB.includes(titleA))
   if (titlesAgree) because.push(`both are "${titleA}" once the shouting is removed`)
 
-  const locA = normaliseLocation(a.location)
-  const locB = normaliseLocation(b.location)
+  const locA = normalizeLocation(a.location)
+  const locB = normalizeLocation(b.location)
   const placesAgree = locA !== null && locA === locB
   if (placesAgree) because.push(`both in ${locA}`)
   if (locA === null || locB === null) unknowns.push('one of them does not say where')

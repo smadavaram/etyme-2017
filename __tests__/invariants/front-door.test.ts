@@ -8,7 +8,7 @@ import { join } from 'path'
  * Founder, opening the product the day Nike, Corning and Terumo BCT were
  * built: "why does client open as Oxford instead of Nike?" The "See it
  * as a company" button minted a private sandbox with a made-up name for
- * every visitor, while the three named programmes sat behind a small
+ * every visitor, while the three named programs sat behind a small
  * link underneath it. Two demos, and the button led to the wrong one.
  *
  * Now a company seat is a chair in lib/seed-world's twenty firms:
@@ -37,7 +37,7 @@ function worldSeats(): Record<string, { as: string; desk?: string; firm: string 
 describe('the company door leads into the seeded world, not a sandbox with a made-up name', () => {
   const seats = worldSeats()
 
-  it('a company hiring contractors sits at Nike, from the programme manager\'s desk', () => {
+  it('a company hiring contractors sits at Nike, from the program manager\'s desk', () => {
     expect(seats.CLIENT).toEqual({ as: 'world-nike', desk: 'programme', firm: 'Nike' })
   })
 

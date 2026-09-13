@@ -6,7 +6,7 @@
  * when they appear on the bench — and bench time is the cost that decides
  * whether a staffing firm makes money.
  *
- * Client-side "ending soon" already exists: a programme manager sees which
+ * Client-side "ending soon" already exists: a program manager sees which
  * of their own contracts are running out. This is the other side of the
  * same fact, and it is worth much more: the person is still working, still
  * paid, and can be sold into their next engagement before there is a gap.
@@ -152,7 +152,7 @@ export interface PoolSummary {
  * gets somebody's hopes up and then costs them a phone call. The caveats
  * are counted into the sentence rather than hidden in the rows.
  */
-export function summarise(releases: Release[]): PoolSummary {
+export function summarize(releases: Release[]): PoolSummary {
   const thisWeek = releases.filter((r) => r.window === 'THIS_WEEK').length
   const thisMonth = releases.filter((r) => r.window === 'THIS_MONTH').length
   const nextQuarter = releases.filter((r) => r.window === 'NEXT_QUARTER').length

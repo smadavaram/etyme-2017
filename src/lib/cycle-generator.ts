@@ -22,7 +22,7 @@
  * month-end for anything monthly. A pack asking for Monday got Friday.
  * The callers helped by dropping the day fields before they got here.
  *
- * The day is honoured now. The defaults are unchanged — Friday, the 15th,
+ * The day is honored now. The defaults are unchanged — Friday, the 15th,
  * month-end — and they are defaults rather than the only answer. There is
  * still no per-client configuration screen and that is deliberate: the
  * pack is the default, and a knob per client is how the 2017 engine grew

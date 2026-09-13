@@ -165,7 +165,7 @@ export function mayMove(s: State, side: Side, move: Move): { ok: boolean; reason
 
   if (move === 'OFFER') {
     // Countering your own live offer is allowed and is just a revision —
-    // somebody realising they asked for the wrong number should not have
+    // somebody realizing they asked for the wrong number should not have
     // to wait for a refusal to fix it.
     return { ok: true, reason: s.liveCents === null ? 'Opening the rate.' : 'Countering.' }
   }

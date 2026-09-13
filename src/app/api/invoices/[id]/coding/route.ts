@@ -10,7 +10,7 @@ import { PROFILES, profileById, render, type CodedLine } from '@/lib/erp-profile
  * GET /api/invoices/:id/coding?format=csv
  *
  * The AP posting view of an invoice: every line split across the end
- * client's cost centres, with the GL account and PO reference their finance
+ * client's cost centers, with the GL account and PO reference their finance
  * team needs to post it.
  *
  * Etyme is not the general ledger. This produces coded data their ERP
@@ -22,7 +22,7 @@ import { PROFILES, profileById, render, type CodedLine } from '@/lib/erp-profile
  *
  * Visible to both parties, because both need it: the vendor to show what
  * they billed, the client to post it. Neither sees the other's dimensions —
- * these are the CLIENT's cost centres, and a vendor's own profit-centre
+ * these are the CLIENT's cost centers, and a vendor's own profit-centre
  * coding is not carried here.
  */
 
@@ -44,7 +44,7 @@ interface CodedRow {
    * Whose chart of accounts these codes come from. Normally the bill-to
    * party. On a layer-cake leg — vendor invoices an MSP, consultant sits at
    * the enterprise — the coding belongs to the enterprise, and the MSP codes
-   * its own onward invoice differently. Labelled rather than passed off as
+   * its own onward invoice differently. Labeled rather than passed off as
    * the payer's own.
    */
   codingOwner: string
@@ -175,7 +175,7 @@ export async function GET(
       currency: invoice.currency,
     }
 
-    // An uncoded contract is surfaced as a row with no cost centre rather
+    // An uncoded contract is surfaced as a row with no cost center rather
     // than dropped — the export must still total the invoice, and AP needs
     // to see what they have to code by hand.
     if (allocations.length === 0) {
@@ -351,7 +351,7 @@ export async function GET(
         codedForEndClient: rows.some(r => !r.codingIsPayers),
       },
       basis:
-        'Cost centres and GL accounts come from the owning company\'s chart of accounts — see Coding Owner on each row. ' +
+        'Cost centers and GL accounts come from the owning company\'s chart of accounts — see Coding Owner on each row. ' +
         'Split amounts use largest-remainder allocation so coded rows total the invoice exactly. ' +
         'Etyme is not the ledger — this file is for import into the payer\'s ERP.',
     },

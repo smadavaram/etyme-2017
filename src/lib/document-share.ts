@@ -104,7 +104,7 @@ export interface ShareSummary {
  * was never opened and is about to expire — the lawyer did not get it, or
  * it went to spam, and nobody will find out until the petition is late.
  */
-export function summarise(
+export function summarize(
   facts: ShareFacts,
   accesses: { at: Date }[],
   now: Date

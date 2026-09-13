@@ -80,7 +80,7 @@ describe('where it came from', () => {
 })
 
 describe('reading the role out of it', () => {
-  it('takes a labelled title', () => {
+  it('takes a labeled title', () => {
     expect(readTitle('Role: Senior SAP FICO Consultant').title).toBe('Senior SAP FICO Consultant')
   })
 
@@ -103,7 +103,7 @@ describe('reading the role out of it', () => {
 })
 
 describe('reading the skills', () => {
-  it('takes a labelled list', () => {
+  it('takes a labeled list', () => {
     expect(readSkills(DICE)).toEqual(['SAP FICO', 'S/4HANA', 'ABAP'])
   })
 
@@ -121,7 +121,7 @@ describe('reading the skills', () => {
 })
 
 describe('reading the location', () => {
-  it('takes a labelled location whole, brackets and all', () => {
+  it('takes a labeled location whole, brackets and all', () => {
     expect(readLocation(DICE)).toBe('Denver, CO (Hybrid — 3 days onsite)')
   })
 
@@ -161,7 +161,7 @@ describe('reading the rate', () => {
 })
 
 describe('who posted it', () => {
-  it('takes a labelled poster', () => {
+  it('takes a labeled poster', () => {
     expect(readPostedBy(DICE)).toBe('Vertex Global Solutions')
   })
 

@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     select: { id: true, personId: true, person: { select: { name: true } } },
   })
 
-  // An address we do not recognise is not an error to shout about —
+  // An address we do not recognize is not an error to shout about —
   // forwarded mail happens — but it is worth answering so a real person
   // does not think they are writing into a void.
   if (!profile) {

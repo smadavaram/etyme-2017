@@ -67,14 +67,14 @@ interface Requisition {
 function Stat({ label, value, tone = 'default', sub }: {
   label: string; value: string | number; tone?: 'default' | 'attention' | 'verified'; sub?: string
 }) {
-  const colour =
+  const color =
     tone === 'attention' ? 'text-etyme-attention'
     : tone === 'verified' ? 'text-etyme-verified'
     : 'text-etyme-ink'
   return (
     <div>
       <Lbl>{label}</Lbl>
-      <div className={`font-serif text-3xl mt-1 tabular-nums ${colour}`}>{value}</div>
+      <div className={`font-serif text-3xl mt-1 tabular-nums ${color}`}>{value}</div>
       {sub && <div className="text-xs text-etyme-muted mt-0.5">{sub}</div>}
     </div>
   )
@@ -239,7 +239,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
 
   useEffect(() => {
     // The budgets themselves. This asked /api/program/org, which returns
-    // managers, vendors and spend and has never carried a cost centre —
+    // managers, vendors and spend and has never carried a cost center —
     // so the list was empty however many existed.
     fetch('/api/settings/cost-centers')
       .then(r => r.json())
@@ -392,7 +392,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
           </label>
 
           {/* Whose need it is, which is not always who is typing.
-              A programme coordinator raising four roles for four managers
+              A program coordinator raising four roles for four managers
               is the ordinary case, and the row used to carry only the
               coordinator's name — so nobody could see whose headcount it
               was, and the lead's yes could not be held off the person it
@@ -485,7 +485,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
             <Lbl>The role, in your own words (optional)</Lbl>
             <textarea value={form.description} rows={5}
               onChange={e => setForm({ ...form, description: e.target.value })}
-              placeholder="What the team does, what this person will actually work on, and what somebody who has done it before would recognise."
+              placeholder="What the team does, what this person will actually work on, and what somebody who has done it before would recognize."
               className={`${field} mt-1`} />
           </label>
 
@@ -493,7 +493,7 @@ function RaiseModal({ onClose, onRaised, team, me }: {
             <Lbl>Why you need it (optional)</Lbl>
             <textarea value={form.justification} rows={2}
               onChange={e => setForm({ ...form, justification: e.target.value })}
-              placeholder="Backfill for the Q4 validation programme" className={`${field} mt-1 resize-none`} />
+              placeholder="Backfill for the Q4 validation program" className={`${field} mt-1 resize-none`} />
           </label>
 
           {/* The room, before there is anybody to put in it. The manager
@@ -539,7 +539,7 @@ export default function RequisitionsPage() {
   const [decision, setDecision] = useState<any>(null)
   /** Who is reading — so only your own row offers you a decision. */
   const [me, setMe] = useState<{ id: string; name: string } | null>(null)
-  /** The programme: the desks per unit, the budgets and their owners. */
+  /** The program: the desks per unit, the budgets and their owners. */
   const [team, setTeam] = useState<any | null>(null)
   const [suppliers, setSuppliers] = useState<{ companyId: string; name: string }[]>([])
   const [deciding, setDeciding] = useState<
@@ -566,7 +566,7 @@ export default function RequisitionsPage() {
 
   // Who is reading, which desks exist, and who this client buys from.
   // All three are read once and are optional: a page that cannot read the
-  // programme still lists requisitions, it just offers fewer decisions.
+  // program still lists requisitions, it just offers fewer decisions.
   useEffect(() => {
     fetch('/api/me').then(r => r.json())
       .then(j => { const p = j?.data?.person; if (p?.id) setMe({ id: p.id, name: p.name }) })
@@ -591,7 +591,7 @@ export default function RequisitionsPage() {
    *
    * Used only to place an approval under the right heading where the row
    * does not carry its stage. The desk is a fact about the unit, not
-   * about the requisition, so it is read from the programme once.
+   * about the requisition, so it is read from the program once.
    */
   function desksFor(r: Requisition) {
     const unitId = r.orgUnit?.id

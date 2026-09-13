@@ -70,7 +70,7 @@ const summary = (m: Map<string, Match>) =>
 
 describe('blocking finds exactly what comparing everything found', () => {
   it('agrees with the exhaustive matcher on a corpus built to trip it up', () => {
-    // Names that normalise together, names that do not, shared numbers
+    // Names that normalize together, names that do not, shared numbers
     // across different names, overlapping and non-overlapping stints.
     for (const n of [40, 120, 300]) {
       const c = corpus(n)

@@ -8,7 +8,7 @@ import { useEffect, useState, useCallback } from 'react'
  * Loading reference data.
  *
  * There was one importer and it loaded candidates, so operations had a way
- * in and finance did not — no cost centres, no GL accounts, no purchase
+ * in and finance did not — no cost centers, no GL accounts, no purchase
  * orders. Three people own three kinds of data and only one could get any
  * in.
  *
@@ -143,7 +143,7 @@ export default function DataPage() {
         <p className="eyebrow">Settings</p>
         <h1>Import</h1>
         <p>
-          Cost centres, work sites, purchase orders, holidays, people. Matched on a key, so
+          Cost centers, work sites, purchase orders, holidays, people. Matched on a key, so
           loading the same file twice changes nothing the second time.
         </p>
       </div>

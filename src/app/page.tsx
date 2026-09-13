@@ -52,7 +52,7 @@ import Link from 'next/link'
  *
  * ── Every claim here is checkable ────────────────────────────────────
  *
- * The numbers are what the seeded sandbox produces, and are labelled as
+ * The numbers are what the seeded sandbox produces, and are labeled as
  * a worked example where they are one. Nothing here is a drawing of a
  * feature that does not exist, which is the only reason a "Look around"
  * button can sit next to it.
@@ -76,7 +76,7 @@ import Link from 'next/link'
  *
  * The flat six-word list it replaced ("Suppliers, Requisitions,
  * Screening, Timesheets, Invoices, Compliance") named modules with
- * nothing organising them. An enterprise buyer evaluating a system of
+ * nothing organizing them. An enterprise buyer evaluating a system of
  * record expects this shape — it's how Concur, Workday and every other
  * layer like this one structure a header. Every item below links to a
  * real section already on this page; nothing here promises a screen
@@ -92,7 +92,7 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
     label: 'Products',
     items: [
       { t: 'Requisitions & sourcing', d: 'Roles arrive as seats — duplicates merge on their own.', href: '#lifecycle' },
-      { t: 'Screening & submissions', d: 'Rules run first, one judgement second.', href: '#lifecycle' },
+      { t: 'Screening & submissions', d: 'Rules run first, one judgment second.', href: '#lifecycle' },
       { t: 'Timesheets & invoicing', d: 'Hours approved, invoices matched to the order.', href: '#monday' },
       { t: 'Tenure ledger', d: 'One number, across every supplier a person has worked through.', href: '#tenure' },
     ],
@@ -110,7 +110,7 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
   {
     label: 'Compliance',
     items: [
-      { t: 'Work authorisation', d: 'Blocked, not warned, where the law is behind it.', href: '#tenure' },
+      { t: 'Work authorization', d: 'Blocked, not warned, where the law is behind it.', href: '#tenure' },
       { t: 'Tenure & co-employment', d: 'Aggregated across every supplier, not per assignment.', href: '#tenure' },
       { t: 'Document packets', d: 'Derived from the role — not a hardcoded checklist.', href: '#compliance' },
       { t: 'Governance & approvals', d: 'Every override keeps the name of whoever gave it.', href: '#tenure' },
@@ -130,7 +130,7 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
 const RECORD = [
   { when: 'Submitted', what: '2 Sep', detail: '$78/hr · screened and cleared' },
   { when: 'Interviewed', what: '9 Sep', detail: 'two rounds · offer made' },
-  { when: 'Started', what: '1 Oct', detail: 'PO NW-40118 · cost centre EA-4100' },
+  { when: 'Started', what: '1 Oct', detail: 'PO NW-40118 · cost center EA-4100' },
   { when: 'Hours', what: '152', detail: '4 timesheets approved' },
   { when: 'Invoiced', what: '$11,856', detail: '45 day terms · matched to the PO' },
 ]
@@ -152,19 +152,19 @@ const LIFECYCLE: { t: string; d: string; gate?: boolean }[] = [
   { t: 'Approved to source', d: 'Budget, headcount, rate band', gate: true },
   { t: 'Released to suppliers', d: 'Who sees it, at what rate band' },
   { t: 'Submitted', d: 'CV, rate, availability, right to represent' },
-  { t: 'Screened', d: 'Rules first, then one judgement' },
+  { t: 'Screened', d: 'Rules first, then one judgment' },
   { t: 'Interviewed', d: 'Three-party scheduling and feedback' },
   { t: 'Selected', d: 'The client picks' },
   { t: 'Awarded', d: 'Seat closes, others stood down', gate: true },
   { t: 'Papered', d: 'MSA, SOW, PO, sell and buy contracts' },
-  { t: 'Cleared', d: 'Work authorisation, checks, insurance', gate: true },
+  { t: 'Cleared', d: 'Work authorization, checks, insurance', gate: true },
   { t: 'Started', d: 'Badge, access, first day on site' },
   { t: 'Working', d: 'Time and expense, approved and accepted' },
   { t: 'Billed', d: 'Invoice raised against the order' },
   { t: 'Paid', d: 'Consultant paid, client collected' },
   { t: 'Changed', d: 'Rate change, extension, transfer', gate: true },
   { t: 'Rolled off', d: 'Notice, handover, releasing-soon pool' },
-  { t: 'Settled', d: 'Order closed, balance to the cost centre' },
+  { t: 'Settled', d: 'Order closed, balance to the cost center' },
   { t: 'Alumni', d: 'Tenure ledger keeps counting' },
 ]
 
@@ -445,11 +445,11 @@ export default function LandingPage() {
                   className="text-white/70 underline underline-offset-2 hover:text-white"
                 />
               </p>
-              {/* The buyer's demo, by desk. A programme office is four
+              {/* The buyer's demo, by desk. A program office is four
                   or five jobs, and the person evaluating this runs one of
                   them — so the door says which. */}
               <p className="mt-2 font-mono text-xs text-white/55">
-                Or sit at a running programme — Nike, Corning, Terumo BCT — from whichever desk is yours.{' '}
+                Or sit at a running program — Nike, Corning, Terumo BCT — from whichever desk is yours.{' '}
                 <a href="/demo" className="text-white/70 underline underline-offset-2 hover:text-white">
                   Pick a desk →
                 </a>
@@ -619,7 +619,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── What it sits beside ──────────────────────────────────── */}
-      {/* This was thirteen-pixel grey text under an arrow diagram and it
+      {/* This was thirteen-pixel gray text under an arrow diagram and it
           is the most useful sentence on the page. */}
       <section className="border-y border-etyme-rule bg-etyme-surface">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">

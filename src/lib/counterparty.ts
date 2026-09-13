@@ -30,7 +30,7 @@ export const RELATIONSHIPS: Record<Relationship, { label: string; means: string 
   CLIENT: { label: 'Client', means: 'They buy from us. Our invoices go to them.' },
   SUPPLIER: { label: 'Supplier', means: 'We buy from them. Their people, our placements.' },
   PRIME: { label: 'Prime', means: 'They hold the client relationship; our work flows through them.' },
-  MSP: { label: 'MSP', means: 'They run the programme our work goes into.' },
+  MSP: { label: 'MSP', means: 'They run the program our work goes into.' },
 }
 
 export interface RegisterRow {
@@ -143,7 +143,7 @@ export function mayRemove(liveContracts: number, unpaidInvoices: number): Remove
   return { may: true, says: 'Nothing live between you. Mark them DORMANT to keep the history, or remove the row.' }
 }
 
-// ── The judgement somebody sets on a counterparty ─────────────────────
+// ── The judgment somebody sets on a counterparty ─────────────────────
 
 export const RISK_LEVELS = ['OK', 'WATCH', 'AT_RISK'] as const
 
@@ -153,7 +153,7 @@ export interface RiskJudgementVerdict {
 }
 
 /**
- * A risk level is a judgement, and a judgement needs a date to be
+ * A risk level is a judgment, and a judgment needs a date to be
  * remade. One set without a review date is one nobody will remember to
  * revisit — the supplier-risk sweep flags exactly that, and refusing it
  * at the door beats flagging it forever.
@@ -165,7 +165,7 @@ export function riskJudgement(level: string, reviewBy: Date | null, on: Date): R
   if (!reviewBy) {
     return {
       ok: false,
-      says: 'Set a date to look again. A judgement with no review date is one nobody will remember to remake.',
+      says: 'Set a date to look again. A judgment with no review date is one nobody will remember to remake.',
     }
   }
   if (reviewBy.getTime() <= on.getTime()) {

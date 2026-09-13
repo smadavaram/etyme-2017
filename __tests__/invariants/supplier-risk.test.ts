@@ -7,7 +7,7 @@
  *
  * Nothing in this file names an industry. The certificates are whatever
  * the trade requires — malpractice cover for a nursing agency, product
- * liability for a laboratory — and the judgement is about dates and
+ * liability for a laboratory — and the judgment is about dates and
  * money, not about what the certificate is called.
  */
 
@@ -133,7 +133,7 @@ describe('How a counterparty pays, and how we pay them, are two different facts'
     expect(b.says).toContain('not a payment culture')
   })
 
-  it('a bill we have not paid is our behaviour, reported as ours and never as theirs', () => {
+  it('a bill we have not paid is our behavior, reported as ours and never as theirs', () => {
     const risk = supplierRisk(input({ settlements: settled(5, 20, 'OURS') }), NOW)
     expect(risk.theyPayUs.settled).toBe(0)
     expect(risk.wePayThem.meanLateDays).toBe(20)
@@ -164,7 +164,7 @@ describe('How a counterparty pays, and how we pay them, are two different facts'
   })
 })
 
-describe('A judgement somebody made, and the date they said they would remake it', () => {
+describe('A judgment somebody made, and the date they said they would remake it', () => {
 
   it('a risk level set with no date to look again is flagged', () => {
     const risk = supplierRisk(
@@ -176,7 +176,7 @@ describe('A judgement somebody made, and the date they said they would remake it
     expect(s?.says).toContain('nobody remakes')
   })
 
-  it('a review date that has passed says how long ago and asks for the judgement again', () => {
+  it('a review date that has passed says how long ago and asks for the judgment again', () => {
     const risk = supplierRisk(
       input({ counterparty: { ...supplier, riskLevel: 'WATCH', riskReviewBy: daysFromNow(-45) } }),
       NOW

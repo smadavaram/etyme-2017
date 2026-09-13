@@ -107,7 +107,7 @@ describe('what can be done, and why not where it cannot', () => {
   })
 
   it('lets somebody revise their own live offer without waiting to be refused', () => {
-    // Realising you asked for the wrong number should not require the
+    // Realizing you asked for the wrong number should not require the
     // other side to say no first.
     const s = negotiation([offer('CANDIDATE', 10500, 1)])
     expect(mayMove(s, 'CANDIDATE', 'OFFER').ok).toBe(true)

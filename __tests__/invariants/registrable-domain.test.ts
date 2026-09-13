@@ -12,7 +12,7 @@ import {
  *
  * Somebody signing in from user@mail.corp.com stored mail.corp.com. Their
  * colleague on user@corp.com matched nothing and created a second company:
- * two tenants for one organisation, neither able to see the other's
+ * two tenants for one organization, neither able to see the other's
  * requisitions, invoices or people.
  */
 

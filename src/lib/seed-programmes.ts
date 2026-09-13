@@ -1,15 +1,15 @@
 /**
- * Three client programmes, seated for every desk that works one.
+ * Three client programs, seated for every desk that works one.
  *
  * The world seed is one placement read from each firm in its chain. That
  * shows the product's shape and not its buyer. The buyer is a company
  * with a dozen suppliers, a history it cannot see, and four or five
  * different jobs that touch a contractor between the requisition and the
- * payment — and none of those jobs is "programme office".
+ * payment — and none of those jobs is "program office".
  *
  * So each of Nike, Corning and Terumo BCT gets:
  *
- *   A desk per job. The programme manager who sets the rules, the hiring
+ *   A desk per job. The program manager who sets the rules, the hiring
  *   manager who needs somebody and signs their hours, the VP who signs
  *   the money, the AP clerk who pays what matched, the compliance officer
  *   who answers for tenure and paperwork. Real roles from
@@ -31,7 +31,7 @@
 
 import { prisma as db } from '@/lib/db'
 import { writeCyclesFor } from '@/lib/contract-cycles'
-import { rolesFor } from '@/lib/company-defaults'
+import { rolesFor, RENAMED_ROLES } from '@/lib/company-defaults'
 import { day, at } from '@/lib/seed-days'
 
 export interface World {
@@ -53,7 +53,7 @@ export interface Desk {
   unit?: string
 }
 export const DESKS: Desk[] = [
-  { key: 'programme',  role: 'Programme Manager' },
+  { key: 'programme',  role: 'Program Manager' },
   { key: 'hiring',     role: 'Hiring Manager', unit: 'Apps' },
   // The two standing desks, named per business unit. HR reads the role;
   // Procurement audits the suppliers. Both sit across Technology.
@@ -102,7 +102,7 @@ interface Candidate {
   round?: { state: 'PROPOSED' | 'CONFIRMED' | 'DONE'; inDays: number; interviewers: string[]; outcome?: 'ADVANCE' }
 }
 
-interface Programme {
+interface Program {
   client: string
   loc: string
   people: {
@@ -125,7 +125,7 @@ interface Programme {
 // an SAP consultant through the same product. Nothing here is IT
 // staffing except where the role happens to be.
 
-const PROGRAMMES: Programme[] = [
+const PROGRAMMES: Program[] = [
   {
     client: 'nike', loc: 'Beaverton, OR',
     people: { programme: 'Dana Whitlock', hiring: 'Marcus Oyelaran', hr: 'Meera Krishnan', procurement: 'Tomas Reyes', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
@@ -349,6 +349,12 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
     // exactly what a real one would — and the AP clerk cannot raise a
     // requisition, which is the point of having an AP clerk.
     const roleByName = new Map<string, { id: string }>()
+    // A role that was named in British English before 2026-09-13 is the
+    // same role under its American name. Rename rather than add, so a
+    // seat that already holds it is not left on a duplicate.
+    for (const [was, now] of Object.entries(RENAMED_ROLES)) {
+      await db.role.updateMany({ where: { companyId: client.id, name: was }, data: { name: now } })
+    }
     for (const r of rolesFor('CLIENT')) {
       const role =
         (await db.role.findFirst({ where: { companyId: client.id, name: r.name } })) ??
@@ -371,7 +377,7 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
           data: {
             personId: who.id, companyId: client.id, roleId: roleByName.get(d.role)!.id, type: 'EMPLOYEE',
             side: 'BUY', orgUnitId: d.unit ? unitByName.get(d.unit)?.id ?? null : null,
-            grantReason: `Seeded programme — ${d.role}`,
+            grantReason: `Seeded program — ${d.role}`,
           },
         })
       }
@@ -778,5 +784,5 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
   return { placements, people: people.size }
 }
 
-/** The programmes, for a page that lists them. */
+/** The programs, for a page that lists them. */
 export const PROGRAMME_SLUGS = PROGRAMMES.map((p) => p.client)

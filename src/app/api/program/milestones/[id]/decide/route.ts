@@ -37,7 +37,7 @@ import {
  *
  * `OrderMilestone` has no `rejectionReason` column, so the code is written
  * into `note` behind a machine prefix and read back with a strict parser.
- * That is a shadow column and it is labelled as one in `acceptance.ts`,
+ * That is a shadow column and it is labeled as one in `acceptance.ts`,
  * along with the four fields that would delete it.
  */
 export async function POST(
@@ -135,7 +135,7 @@ export async function POST(
           acceptedAt: null,
           acceptedById: null,
           rejectedAt: now,
-          // The real column. The labelled shadow prefix in `note` served
+          // The real column. The labeled shadow prefix in `note` served
           // while this did not exist; rows written that way still decode
           // on read, and nothing writes the prefix any more.
           rejectionReason: reason,

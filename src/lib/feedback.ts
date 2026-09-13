@@ -64,7 +64,7 @@ export interface Voice {
 export const VOICES: Voice[] = [
   {
     party: 'CLIENT',
-    callsItself: 'the programme, or the hiring desk',
+    callsItself: 'the program, or the hiring desk',
     vocabulary: {
       req: 'requirement', requisition: 'requirement', 'purchase req': 'requirement',
       'supplier': 'vendor company', 'MSA': 'master agreement',
@@ -76,13 +76,13 @@ export const VOICES: Voice[] = [
   },
   {
     party: 'MSP',
-    callsItself: 'the programme office',
+    callsItself: 'the program office',
     vocabulary: {
       'supplier scorecard': 'vendor scorecard', 'tier': 'vendor tier',
       'distribution': 'requirement invitation', 'release': 'distribute',
     },
     usuallyWants:
-      'To answer for a programme they do not staff themselves — which means ' +
+      'To answer for a program they do not staff themselves — which means ' +
       'evidence about suppliers rather than opinions about candidates.',
   },
   {

@@ -73,9 +73,9 @@ export interface WatchedVerification {
 }
 
 /**
- * Insurance and work authorisation, which are the two that stop work.
+ * Insurance and work authorization, which are the two that stop work.
  *
- * Addendum E makes lapsed supplier insurance and lapsed work authorisation
+ * Addendum E makes lapsed supplier insurance and lapsed work authorization
  * BLOCK conditions. This is the only warning anybody gets before that
  * happens.
  */
@@ -141,7 +141,7 @@ function readable(type: string): string {
     INSURANCE_WC: "workers' compensation",
     INSURANCE_EO: 'errors and omissions cover',
     INSURANCE_CYBER: 'cyber liability cover',
-    I9_EVERIFY: 'work authorisation',
+    I9_EVERIFY: 'work authorization',
     BACKGROUND_CHECK: 'background check',
     DRUG_SCREENING: 'drug screening',
     EDUCATION_EVALUATION: 'credential evaluation',

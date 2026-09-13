@@ -109,7 +109,7 @@ function statusChipClass(status: string): string {
   return map[status] ?? 'chip--passive'
 }
 
-// ── Aging colour ────────────────────────────────────
+// ── Aging color ────────────────────────────────────
 
 function agingColor(bucket: string): string {
   const map: Record<string, string> = {
@@ -623,7 +623,7 @@ function InvoiceDetailDrawer({
 
                   {coding.reconciliation.codedForEndClient && (
                     <p className="text-[11px] text-etyme-muted mt-1.5 italic">
-                      These are the end client&rsquo;s cost centres. {coding.billTo.name} codes
+                      These are the end client&rsquo;s cost centers. {coding.billTo.name} codes
                       its own onward invoice separately.
                     </p>
                   )}
@@ -930,7 +930,7 @@ export default function InvoicesPage() {
   // One book at a time. There is no total across currencies and no total
   // across the two sides of the ledger, because neither would mean
   // anything — a firm that both sells and buys used to see its own
-  // supplier bills raise the bar labelled outstanding.
+  // supplier bills raise the bar labeled outstanding.
   const books = summary
     ? (side === 'RECEIVABLE' ? summary.receivable : summary.payable)
     : []

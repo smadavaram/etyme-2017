@@ -10,7 +10,7 @@ import { useEffect, useState, useCallback } from 'react'
  * This is the floor everything else stands on, and it was missing. A
  * company signed up and received one role called Owner and nothing else —
  * no cycle calendar, so nothing was ever due; no holidays, so dates only
- * avoided weekends; no cost centres, so every requisition was spend
+ * avoided weekends; no cost centers, so every requisition was spend
  * nobody owned and went to a human for approval.
  *
  * Sign-up now fills all of this in. This screen is where it gets
@@ -114,7 +114,7 @@ function Empty({ children }: { children: React.ReactNode }) {
   return <p className="text-[13px] text-etyme-faint py-3">{children}</p>
 }
 
-const TABS = ['Company', 'Walls', 'Address', 'Roles', 'Approvals', 'Locations', 'Holidays', 'Cost centres', 'Cycles'] as const
+const TABS = ['Company', 'Walls', 'Address', 'Roles', 'Approvals', 'Locations', 'Holidays', 'Cost centers', 'Cycles'] as const
 type Tab = (typeof TABS)[number]
 
 // ── Page ─────────────────────────────────────────────
@@ -228,7 +228,7 @@ export default function SettingsPage() {
       {tab === 'Approvals' && <ApprovalsTab send={send} busy={busy} />}
       {tab === 'Locations' && <LocationsTab data={data} send={send} busy={busy} />}
       {tab === 'Holidays' && <HolidaysTab data={data} send={send} busy={busy} />}
-      {tab === 'Cost centres' && <CostCentersTab data={data} send={send} busy={busy} />}
+      {tab === 'Cost centers' && <CostCentersTab data={data} send={send} busy={busy} />}
       {tab === 'Cycles' && <CyclesTab data={data} />}
     </>
   )
@@ -617,7 +617,7 @@ function HolidaysTab({ data, send, busy }: { data: Settings; send: SendFn; busy:
   )
 }
 
-// ── Cost centres ─────────────────────────────────────
+// ── Cost centers ─────────────────────────────────────
 
 function CostCentersTab({ data, send, busy }: { data: Settings; send: SendFn; busy: boolean }) {
   const [code, setCode] = useState('')
@@ -626,8 +626,8 @@ function CostCentersTab({ data, send, busy }: { data: Settings; send: SendFn; bu
 
   return (
     <Panel
-      title="Cost centres"
-      subtitle="Who owns the spend. A requisition with no cost centre is spend nobody owns, so it goes to a human for approval — which is why a company with none routes everything to a human. The code must match your ERP exactly; the coded invoice export posts straight into it."
+      title="Cost centers"
+      subtitle="Who owns the spend. A requisition with no cost center is spend nobody owns, so it goes to a human for approval — which is why a company with none routes everything to a human. The code must match your ERP exactly; the coded invoice export posts straight into it."
     >
       {data.costCenters.length === 0 ? (
         <Empty>
@@ -662,7 +662,7 @@ function CostCentersTab({ data, send, busy }: { data: Settings; send: SendFn; bu
 
       {data.canEdit && (
         <div className="border-t border-etyme-rule pt-4">
-          <Lbl>Add a cost centre</Lbl>
+          <Lbl>Add a cost center</Lbl>
           <div className="grid sm:grid-cols-3 gap-2 mt-2">
             <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="MFG-FIN-4100"
               className="px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />

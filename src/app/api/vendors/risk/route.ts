@@ -18,7 +18,7 @@ import {
  * The data was already here and it was in three tables that never met:
  * the certificates a counterparty gave us (`Verification`), what they did
  * with money they owed us (`Invoice` and its `Payment` rows), what we did
- * with money we owed them (`VendorBill`), and the judgement somebody made
+ * with money we owed them (`VendorBill`), and the judgment somebody made
  * in the register (`Counterparty.riskLevel`).
  *
  * Joining them is the entire feature. None of the four says much alone.
@@ -27,7 +27,7 @@ import {
  *
  * The legal bar on lapsed supplier insurance lives in
  * `src/lib/governance.ts` and stops a placement. This is the commercial
- * judgement beside it, and stopping work on somebody's opinion of a
+ * judgment beside it, and stopping work on somebody's opinion of a
  * supplier would be the wrong end of Addendum E's rule: BLOCK where
  * legally grounded, WARN and name somebody everywhere else.
  *
@@ -65,7 +65,7 @@ const COVER_LABELS: Record<string, string> = {
   BUSINESS_PARTNER: 'business registration',
 }
 
-/** Nothing owed on these, so they say nothing about payment behaviour. */
+/** Nothing owed on these, so they say nothing about payment behavior. */
 const NOT_RECEIVABLE = ['DRAFT', 'CANCELLED', 'VOID']
 const NOT_PAYABLE = ['CANCELLED', 'DISPUTED']
 
@@ -310,7 +310,7 @@ export async function GET(request: NextRequest) {
         'none of those exist the answer is that nobody has looked — never a clean bill.',
       neverBlocks:
         'Nothing here stops a submission or a placement. Lapsed cover blocks through ' +
-        'governance, which is a legal rule; this is commercial judgement and it warns.',
+        'governance, which is a legal rule; this is commercial judgment and it warns.',
     },
   })
 }

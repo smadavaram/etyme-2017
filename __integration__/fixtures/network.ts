@@ -18,7 +18,7 @@
  * industry and each one has a different view of the same worker:
  *
  *   CLIENT       buys, and never learns who the sub-vendor is
- *   MSP          runs the programme, is invoiced, never touches a CV
+ *   MSP          runs the program, is invoiced, never touches a CV
  *   GSI          delivers a project with its own people and bought ones
  *   SUB_VENDOR   holds the paper on a person it did not source
  *   BENCH_VENDOR sourced them, and is furthest from the money

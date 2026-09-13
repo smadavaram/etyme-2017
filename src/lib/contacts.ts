@@ -117,7 +117,7 @@ export interface DedupVerdict {
 /**
  * Whether this is somebody already on file at the same company.
  *
- * Email first, then phone — both normalised. Never the name: two Rajesh
+ * Email first, then phone — both normalized. Never the name: two Rajesh
  * Kumars at Infosys is Tuesday, and merging them by name loses one.
  * Where neither identifier is given, it is allowed through: a rolodex
  * that refuses a name-only entry is one nobody fills in from a hallway

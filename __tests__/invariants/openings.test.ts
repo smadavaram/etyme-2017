@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  sameSeat, normaliseTitle, normaliseLocation, bestRoute, holdKeyFor,
+  sameSeat, normalizeTitle, normalizeLocation, bestRoute, holdKeyFor,
   type Lead,
 } from '@/lib/openings'
 
@@ -34,34 +34,34 @@ function lead(over: Partial<Lead> = {}): Lead {
 
 describe('reading a title past the shouting', () => {
   it('strips what a prime added to stand out', () => {
-    expect(normaliseTitle('URGENT!! Sr. SAP FICO Consultant - Immediate Need')).toBe('sap fico')
+    expect(normalizeTitle('URGENT!! Sr. SAP FICO Consultant - Immediate Need')).toBe('sap fico')
   })
 
   it('reads two adverts for one job as the same job', () => {
-    expect(normaliseTitle('Senior SAP FICO Analyst')).toBe(normaliseTitle('SAP FICO Consultant'))
+    expect(normalizeTitle('Senior SAP FICO Analyst')).toBe(normalizeTitle('SAP FICO Consultant'))
   })
 
   it('keeps what actually distinguishes a role', () => {
-    expect(normaliseTitle('SAP MM Consultant')).not.toBe(normaliseTitle('SAP FICO Consultant'))
+    expect(normalizeTitle('SAP MM Consultant')).not.toBe(normalizeTitle('SAP FICO Consultant'))
   })
 
   it('survives punctuation and slashes', () => {
-    expect(normaliseTitle('SAP SD/MM Functional Lead')).toContain('sap sd/mm')
+    expect(normalizeTitle('SAP SD/MM Functional Lead')).toContain('sap sd/mm')
   })
 })
 
 describe('reading a place', () => {
   it('reads a city past the working arrangement', () => {
-    expect(normaliseLocation('Denver, CO (Hybrid)')).toBe('denver')
-    expect(normaliseLocation('Denver CO')).toBe('denver')
+    expect(normalizeLocation('Denver, CO (Hybrid)')).toBe('denver')
+    expect(normalizeLocation('Denver CO')).toBe('denver')
   })
 
   it('treats remote as its own place', () => {
-    expect(normaliseLocation('Remote — must sit EST')).toBe('remote')
+    expect(normalizeLocation('Remote — must sit EST')).toBe('remote')
   })
 
   it('says nothing when the advert says nothing', () => {
-    expect(normaliseLocation(null)).toBeNull()
+    expect(normalizeLocation(null)).toBeNull()
   })
 })
 

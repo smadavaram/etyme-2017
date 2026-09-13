@@ -116,7 +116,7 @@ export function writeFromRules(f: SiteFacts): SiteVoice {
   } else {
     if (f.placements > 0) {
       sentences.push(
-        `${f.placements} placement${f.placements === 1 ? '' : 's'} across ${f.clients} organisation${f.clients === 1 ? '' : 's'}.`
+        `${f.placements} placement${f.placements === 1 ? '' : 's'} across ${f.clients} organization${f.clients === 1 ? '' : 's'}.`
       )
     }
     if (f.comingFree > 0) {
@@ -181,7 +181,7 @@ What they place or hire: ${f.skills.slice(0, 10).join(', ') || 'not stated yet'}
 
 Placements to date: ${f.placements}
 Working right now: ${f.activeNow}
-Organisations worked with: ${f.clients}
+Organizations worked with: ${f.clients}
 Positions open to any supplier: ${f.openPositions}
 Consultants coming free within three months: ${f.comingFree}
 Training courses they run: ${f.trainingCourses}

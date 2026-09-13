@@ -452,7 +452,7 @@ export async function postAssertion(assertionId: string, byId?: string | null) {
 //
 // The `RESERVE` posting kind and the 2300 liability account both already
 // existed for exactly this. The sign convention is stated once in
-// `bench-policy.ts` and honoured here: positive into the pot, negative
+// `bench-policy.ts` and honored here: positive into the pot, negative
 // out of it.
 //
 // Deliberately posted to the project order the share was earned on. The
@@ -560,7 +560,7 @@ export async function postSettlement(args: {
     },
   })
 
-  // Where the cost centre has an order of its own to collect into, the
+  // Where the cost center has an order of its own to collect into, the
   // other leg lands there. Where it does not, it lands on the same order
   // as a matching contra so the pair still nets to nothing rather than a
   // half-movement sitting on the books.

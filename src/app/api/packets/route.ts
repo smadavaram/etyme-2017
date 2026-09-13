@@ -26,7 +26,7 @@ import {
  * GET  /api/packets — what has been asked for, and how far along
  * POST /api/packets — ask somebody for a set of documents
  *
- * The thing a real programme does every week and had no home for. Four
+ * The thing a real program does every week and had no home for. Four
  * models covered pieces of documents and none of them was a list, so
  * nobody could say "send me these six" and watch five arrive.
  *

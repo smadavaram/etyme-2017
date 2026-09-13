@@ -16,7 +16,7 @@ import { record } from '@/lib/agent-run'
  *   1. Skill overlap (semantic, not string equality)
  *   2. Location compatibility
  *   3. Availability window
- *   4. Work authorisation fit
+ *   4. Work authorization fit
  *   5. Rate compatibility
  *
  * Returns structured Match records with factors, basis, confidence, unknowns.
@@ -206,7 +206,7 @@ export async function runMatchEngine(
   //    Free, instant, right every time, and on a forty-person bench the
   //    difference between $53 a month and $140.
   //
-  //    The model is kept for the one judgement that needs it: whether a
+  //    The model is kept for the one judgment that needs it: whether a
   //    skill claim is real, and how close two differently-worded skills
   //    actually are.
   const sifted = sift(
@@ -374,7 +374,7 @@ REQUIREMENT:
 
 These candidates have already passed the plain rules — they have at least
 one overlapping skill, their rate floor is under the ceiling, they are free
-in time, and their work authorisation fits. Do not re-check any of that.
+in time, and their work authorization fits. Do not re-check any of that.
 Judge the thing rules cannot: how close the skills really are, and whether
 the claim is credible.
 
@@ -403,7 +403,7 @@ Return ONLY a JSON array, no other text.`
       const response = await anthropic.messages.create({
         model: MODEL,
         max_tokens: 8000,
-        // Adaptive thinking at low effort. This is a bounded judgement on
+        // Adaptive thinking at low effort. This is a bounded judgment on
         // fifteen rows, not an open problem, and effort is the dial that
         // decides what it costs.
         thinking: { type: 'adaptive' },
@@ -481,7 +481,7 @@ Return ONLY a JSON array, no other text.`
       }
     } catch (err: any) {
       // A degraded result presented as a good one is the failure worth
-      // avoiding. The fallback is labelled in the ledger, so a week where
+      // avoiding. The fallback is labeled in the ledger, so a week where
       // the key was wrong does not read as a week where the model got
       // cheaper.
       await record({

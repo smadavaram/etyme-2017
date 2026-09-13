@@ -19,7 +19,7 @@ import Link from 'next/link'
  * ── The number nobody else can compute ───────────────────────────────
  *
  * How long a client sits on a deliverable before agreeing it arrived. It
- * happens entirely before an invoice exists, so no ageing report has ever
+ * happens entirely before an invoice exists, so no aging report has ever
  * shown it. It is shown here as "not measurable yet" rather than
  * estimated, because the delivery date has nowhere to be stored — see the
  * note in the API. A plausible wrong number is worse than a blank.

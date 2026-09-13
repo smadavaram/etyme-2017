@@ -158,7 +158,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
     // A PO is required once the contract being billed was raised against one.
     poRequired: Boolean(invoice.engagement.sellContracts[0]?.purchaseOrderId),
     // Exceptions an AP clerk has recorded. The engine decides which of them
-    // it will honour; a waiver on a duplicate payment is simply ignored.
+    // it will honor; a waiver on a duplicate payment is simply ignored.
     overrides: invoice.matchOverrides.map(o => ({
       code: o.code as any,
       reason: o.reason,

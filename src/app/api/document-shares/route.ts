@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import {
-  newToken, clampExpiry, summarise, isShareableKind,
+  newToken, clampExpiry, summarize, isShareableKind,
 } from '@/lib/document-share'
 
 /**
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
   const now = new Date()
   const rows = shares.map(s => {
-    const summary = summarise(
+    const summary = summarize(
       { expiresAt: s.expiresAt, revokedAt: s.revokedAt },
       s.accesses, now
     )

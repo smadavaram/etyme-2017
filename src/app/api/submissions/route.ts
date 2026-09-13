@@ -664,7 +664,7 @@ export async function GET(request: NextRequest) {
   // whole WHERE did: `?personId=` returned one person's entire history
   // across every firm in the market with rates attached, and `?companyId=`
   // returned a competitor's outbound pipeline. The caller was
-  // authenticated and never authorised.
+  // authenticated and never authorized.
   //
   // Prisma ANDs top-level keys, so the scope's OR binds the caller into
   // every query below rather than replacing what was asked for.

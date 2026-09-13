@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  merge, rateSpread, order, summarise, WORTH_MENTIONING,
+  merge, rateSpread, order, summarize, WORTH_MENTIONING,
   type Person, type Offer, type Merged,
 } from '@/lib/one-person'
 
@@ -265,16 +265,16 @@ describe('the line above the register', () => {
       m({ vendors: 2 }),
       m({}),
     ]
-    expect(summarise(rows)).toBe(
+    expect(summarize(rows)).toBe(
       '3 people. 2 are being sold by more than one supplier, and 1 at prices worth asking about.'
     )
   })
 
   it('says so plainly when nobody is duplicated', () => {
-    expect(summarise([m({}), m({})])).toBe('2 people, each from one supplier.')
+    expect(summarize([m({}), m({})])).toBe('2 people, each from one supplier.')
   })
 
   it('says nothing clever about an empty register', () => {
-    expect(summarise([])).toBe('Nobody has been put in front of you yet.')
+    expect(summarize([])).toBe('Nobody has been put in front of you yet.')
   })
 })

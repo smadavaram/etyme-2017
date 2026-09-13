@@ -44,7 +44,7 @@ const PREFIX = 'world-'                    // marks a company as part of this wo
 
 // ── The market ───────────────────────────────────────────────────────
 //
-// Four buyers, two programme offices, two delivery firms, six primes and
+// Four buyers, two program offices, two delivery firms, six primes and
 // six bench vendors. The shape of the contingent market, small enough to
 // hold in your head and wide enough that every seat has somebody above
 // and below it.
@@ -54,12 +54,12 @@ interface Firm { slug: string; name: string; kind: Kind; seat: string; who: stri
 const VP_NAMES: Record<string, string> = {'harlow-health': 'Marianne Cole', 'meridian-bank': 'Theo Lindsay', 'corveldt': 'Helga Brandt', 'nordway': 'Sigrid Hansen', 'nike': 'Dana Whitfield', 'corning': 'Robert Ashby', 'terumo-bct': 'Elena Vasquez'}
 
 const FIRMS: Firm[] = [
-  { slug: 'harlow-health',    name: 'Harlow Health',        kind: 'CLIENT',  seat: 'Programme office', who: 'Grace Whitmore' },
-  { slug: 'meridian-bank',    name: 'Meridian Bank',        kind: 'CLIENT',  seat: 'Contingent programme', who: 'Daniel Achebe' },
+  { slug: 'harlow-health',    name: 'Harlow Health',        kind: 'CLIENT',  seat: 'Program office', who: 'Grace Whitmore' },
+  { slug: 'meridian-bank',    name: 'Meridian Bank',        kind: 'CLIENT',  seat: 'Contingent program', who: 'Daniel Achebe' },
   { slug: 'corveldt',         name: 'Corveldt Aerospace',   kind: 'CLIENT',  seat: 'Engineering resourcing', who: 'Ines Marquardt' },
   { slug: 'nordway',          name: 'Nordway Retail',       kind: 'CLIENT',  seat: 'Workforce office', who: 'Olav Brekke' },
 
-  // Three enterprise programmes, seated for every desk that works one —
+  // Three enterprise programs, seated for every desk that works one —
   // hiring, approval, payables, compliance. The client is who pays for
   // this product, and these are the accounts it is shown on. What each
   // of them has on its books is in lib/seed-programmes.
@@ -67,8 +67,8 @@ const FIRMS: Firm[] = [
   { slug: 'corning',          name: 'Corning',              kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Ethan Garland' },
   { slug: 'terumo-bct',       name: 'Terumo BCT',           kind: 'CLIENT',  seat: 'Contingent workforce office', who: 'Naomi Feldman' },
 
-  { slug: 'aptiva',           name: 'Aptiva Workforce',     kind: 'MSP',     seat: 'Programme manager', who: 'Rashida Coleman' },
-  { slug: 'kestrel',          name: 'Kestrel MSP',          kind: 'MSP',     seat: 'Programme manager', who: 'Piotr Zielinski' },
+  { slug: 'aptiva',           name: 'Aptiva Workforce',     kind: 'MSP',     seat: 'Program manager', who: 'Rashida Coleman' },
+  { slug: 'kestrel',          name: 'Kestrel MSP',          kind: 'MSP',     seat: 'Program manager', who: 'Piotr Zielinski' },
 
   { slug: 'teleworld',        name: 'Teleworld Solutions',  kind: 'GSI',     seat: 'Delivery manager', who: 'Sunil Raghavan' },
   { slug: 'sundara',          name: 'Sundara Systems',      kind: 'GSI',     seat: 'Delivery manager', who: 'Lakshmi Iyer' },
@@ -168,7 +168,7 @@ export async function seedWorld(): Promise<{
 
   // ── What a client needs before governance means anything ──────────
   //
-  // Cost centres, a headcount plan, departments and a delegation of
+  // Cost centers, a headcount plan, departments and a delegation of
   // authority. Without them the "which budget pays for it" list is
   // empty, every requisition clears itself, and the approval engine —
   // which is built and tested — can never be reached. The demo showed a
@@ -294,10 +294,10 @@ export async function seedWorld(): Promise<{
       })
     }
 
-    if (!(await db.approvalRule.findFirst({ where: { companyId: c.id, name: 'Programme lead' } }))) {
+    if (!(await db.approvalRule.findFirst({ where: { companyId: c.id, name: 'Program lead' } }))) {
       await db.approvalRule.create({
         data: {
-          companyId: c.id, name: 'Programme lead', thresholdAmount: null,
+          companyId: c.id, name: 'Program lead', thresholdAmount: null,
           approverId: approver.id, rank: 2, isActive: true, authoredById: p.id,
         },
       })
@@ -827,19 +827,19 @@ export async function seedWorld(): Promise<{
   }
 
 
-  // ── The three client programmes ──────────────────────────────────────
+  // ── The three client programs ──────────────────────────────────────
   //
   // Everything above is one placement seen from each firm in its chain.
   // This is the other product: a client with a dozen suppliers, a
   // history, and a desk for each job — the office that runs it, the
   // manager who needs somebody, the VP who signs, the clerk who pays,
   // the officer who answers for tenure and paperwork.
-  const programmes = await seedProgrammes({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
+  const programs = await seedProgrammes({ firmBySlug, seatBySlug, domain: DOMAIN, prefix: PREFIX })
 
   return {
     firms: FIRMS.length,
-    placements: placed.length + programmes.placements,
-    consultants: NAMES.length + LIVE.length + programmes.people,
+    placements: placed.length + programs.placements,
+    consultants: NAMES.length + LIVE.length + programs.people,
     live: LIVE.length,
     roster: FIRMS.map((f) => ({ kind: f.kind as string, name: f.name, slug: PREFIX + f.slug })),
   }

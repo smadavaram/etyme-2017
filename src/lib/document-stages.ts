@@ -12,12 +12,12 @@
  * an offer is **document abuse** in the United States: the employer picks
  * which document it wants to see, before the point at which the law lets
  * it ask at all. The question that IS allowed is a question — are you
- * authorised to work here, and will you need sponsorship now or later.
+ * authorized to work here, and will you need sponsorship now or later.
  * The United Kingdom is the same shape: the right-to-work check belongs
  * before the first day, not before the application, and running it early
  * on some applicants and not others is the discrimination itself. Across
  * the EU, collecting identity documents from somebody you have not
- * offered a job to fails data minimisation on its own.
+ * offered a job to fails data minimization on its own.
  *
  * So there are two stages and the split is not a preference:
  *
@@ -44,7 +44,7 @@ export type Stage = 'APPLICATION' | 'ENGAGEMENT'
 
 export type Jurisdiction = 'US' | 'UK' | 'EU' | 'CA' | 'AU' | 'IN' | 'DEFAULT'
 
-/** Which way the paperwork is travelling. */
+/** Which way the paperwork is traveling. */
 export type Direction =
   /** We are asking somebody else for it. */
   | 'INBOUND'
@@ -132,13 +132,13 @@ const RULES: Record<string, Rule> = {
         'discrimination itself.',
       EU:
         'Holding identity documents for somebody you have not offered a job to ' +
-        'fails data minimisation. Ask at offer.',
+        'fails data minimization. Ask at offer.',
       DEFAULT:
-        'Identity documents belong after an offer. Ask whether they are authorised ' +
+        'Identity documents belong after an offer. Ask whether they are authorized ' +
         'to work, and take the document at award.',
     },
     insteadAsk:
-      'Are you authorised to work in this country, and will you need sponsorship ' +
+      'Are you authorized to work in this country, and will you need sponsorship ' +
       'now or in the future?',
   },
 
@@ -594,7 +594,7 @@ export function clearance(
 // judged. A certificate that was never collected is a different thing
 // entirely, and refusing every supplier who has not yet been asked would
 // make Etyme the party deciding what cover a client requires. That is a
-// screening judgement, and screening judgements are not ours to make.
+// screening judgment, and screening judgments are not ours to make.
 // Which cover is mandatory varies: workers' compensation is state-funded
 // in the monopolistic states, the UK equivalent is employers' liability,
 // and a fully remote engagement may reasonably need neither.

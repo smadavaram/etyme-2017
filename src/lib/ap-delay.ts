@@ -66,7 +66,7 @@
 
 const DAY = 86_400_000
 
-/** Whole days between two instants, floored, the way ageing counts them. */
+/** Whole days between two instants, floored, the way aging counts them. */
 export function daysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / DAY)
 }
@@ -235,7 +235,7 @@ export interface HopSummary {
  * A mean over three hops is not a fact about a payment culture and is
  * reported with its count so nobody reads it as one.
  */
-export function summariseHops(delays: HopDelay[], side: Side): HopSummary {
+export function summarizeHops(delays: HopDelay[], side: Side): HopSummary {
   const mine = delays.filter((d) => d.side === side)
   const settled = mine.filter((d) => d.state === 'SETTLED' && d.lateDays != null)
   const unknowable = mine.filter((d) => d.state === 'UNKNOWABLE').length
@@ -720,7 +720,7 @@ export function payWhenPaidFlags(hops: Hop[], now: Date): PayWhenPaidFlag[] {
 // ── Days payable outstanding ─────────────────────────────────────────
 
 export interface PurchasePeriod {
-  /** A label a person recognises — "2026-07". */
+  /** A label a person recognizes — "2026-07". */
   label: string
   days: number
   /** What was bought in it, minor units. */
@@ -747,7 +747,7 @@ export interface Dpo {
  * buying, and the denominator is an average across earlier and smaller
  * months as well. A firm that doubles its subcontractor spend in a
  * quarter watches its DPO fall and congratulates itself on paying
- * faster, when nothing about its payment behaviour changed.
+ * faster, when nothing about its payment behavior changed.
  *
  * So the countback again: take the payable and exhaust it against actual
  * purchases, most recent period first, counting days as you go. When a
@@ -921,7 +921,7 @@ export function mirror(dsoDays: number | null, dpoDays: number | null): Mirror {
 // angry controller.
 //
 // **A disputed bill never enters a run.** Paying something you are
-// arguing about ends the argument in the supplier's favour and cannot be
+// arguing about ends the argument in the supplier's favor and cannot be
 // undone by a status change.
 //
 // **The approver is not the creator.** One person who can both assemble
@@ -1024,7 +1024,7 @@ export function proposeRun(
       refuse(
         'DISPUTED',
         `${b.number} is in dispute. Paying something you are arguing about ends the ` +
-          `argument in their favour, and no status change undoes it.`
+          `argument in their favor, and no status change undoes it.`
       )
       continue
     }
@@ -1193,7 +1193,7 @@ export function mayApproveRun(
  *
  * A part-paid bill keeps no paid date, exactly as `PATCH /api/ap/bills`
  * already decides: the obligation is still open, and dating it now would
- * report the first instalment as the day the supplier was paid — which is
+ * report the first installment as the day the supplier was paid — which is
  * the figure every float number in this file counts to.
  */
 export interface PaidOutcome {

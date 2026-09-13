@@ -727,7 +727,7 @@ function Disputes({ book }: { book: any }) {
  *
  * The three things on the row are the three things a person actually
  * matches by hand: who sent it, how much, and when it landed. Everything
- * else is decoration on a job that is done by recognising a name.
+ * else is decoration on a job that is done by recognizing a name.
  */
 function OrphanReceipts({ book }: { book: any }) {
   const receipts: any[] = book.orphanReceipts ?? []

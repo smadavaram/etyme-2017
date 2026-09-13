@@ -20,7 +20,7 @@
  *
  * ── The distinction everything turns on ──────────────────────────────
  *
- * Recording somebody's work authorisation is necessary and lawful. You
+ * Recording somebody's work authorization is necessary and lawful. You
  * cannot complete an I-9 or plan a sponsorship without it. What is
  * unlawful is using it to *prefer* one status over another where no law
  * requires the preference.
@@ -29,7 +29,7 @@
  * to sponsor is not the same as excluding non-citizens. An employer may
  * lawfully decide it will not petition for anybody. It may not, on that
  * basis, turn away a lawful permanent resident, an asylee, a refugee or
- * anyone else already authorised to work without a petition — those
+ * anyone else already authorized to work without a petition — those
  * people need no sponsorship, so a no-sponsorship policy has nothing to
  * say about them.
  *
@@ -37,7 +37,7 @@
  *
  * Addendum E's rule, applied to its own named example:
  *
- *   BLOCK where legally grounded — and work authorisation is on that
+ *   BLOCK where legally grounded — and work authorization is on that
  *   list, so a restriction with a recorded lawful basis is a hard stop.
  *
  *   WARN, capture a reason, proceed everywhere else. A restriction with
@@ -153,13 +153,13 @@ export function permittedBy(basis: LawfulBasis): readonly WorkAuth[] | 'ALL' {
 /**
  * Whether this role may lawfully turn this person away.
  *
- * Unknown authorisation is never a refusal — it is a question. Somebody
+ * Unknown authorization is never a refusal — it is a question. Somebody
  * whose status nobody recorded is somebody to ask, and dropping them is
  * how a recruiter never finds out they were a citizen all along.
  */
 export function authDecision(r: Restriction | null, has: WorkAuth | null): Decision {
   if (!r || r.requires.length === 0) {
-    return { verdict: 'PASS', reason: 'The role does not restrict work authorisation.', restrictionSuspect: false }
+    return { verdict: 'PASS', reason: 'The role does not restrict work authorization.', restrictionSuspect: false }
   }
 
   if (!has) {
@@ -240,7 +240,7 @@ function label(a: WorkAuth): string {
     GC: 'a lawful permanent resident',
     ASYLEE: 'an asylee',
     REFUGEE: 'a refugee',
-    EAD: 'authorised to work on an EAD',
+    EAD: 'authorized to work on an EAD',
     H1B: 'on an H-1B',
     L1: 'on an L-1',
     TN: 'on TN status',
@@ -302,7 +302,7 @@ export function sortsByOrigin(label: string): boolean {
  * The rows are usually fine — they are email addresses of real firms.
  * It is the grouping that is unlawful, so the grouping is what gets
  * dropped, and the refusal is recorded rather than performed silently.
- * A record of having removed it is a defence; removing it quietly is
+ * A record of having removed it is a defense; removing it quietly is
  * not.
  */
 export function originRefusal(label: string): string {

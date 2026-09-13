@@ -87,7 +87,7 @@ describe('the invariants CLAUDE.md puts in the database', () => {
     expect(model('Holiday')).toMatch(/@@unique\(\[companyId,\s*date\]\)/)
   })
 
-  it('keeps one cost centre code per company', () => {
+  it('keeps one cost center code per company', () => {
     // The code must match the customer's ERP exactly, and two rows with
     // the same code would post spend to different places.
     expect(model('CostCenter')).toMatch(/@@unique\(\[companyId,\s*code\]\)/)

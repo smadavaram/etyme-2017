@@ -20,7 +20,7 @@ import { extractWithModel, modelAvailable, reviewOf, toRows } from '@/lib/extrac
  * Separate from /api/imports, which is the candidate importer: that one
  * stages rows for review and correction before anything is written, which
  * is right for people because a wrong name matters. Reference data — cost
- * centres, work sites, purchase orders — does not need a staging table. It
+ * centers, work sites, purchase orders — does not need a staging table. It
  * needs the file checked, shown, and written.
  *
  * One engine, many sheets, each gated by whoever owns that data. Finance
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       })),
       // Said plainly rather than showing an empty page.
       note: mine.length === 0
-        ? 'Nothing here is yours to load. Importing cost centres needs settings.manage; importing people needs consultants.write.'
+        ? 'Nothing here is yours to load. Importing cost centers needs settings.manage; importing people needs consultants.write.'
         : mine.length < IMPORTABLE.length
           ? `${IMPORTABLE.length - mine.length} other kind(s) of data can be loaded by somebody with different permissions.`
           : null,
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
           error: {
             code: 'NO_READER',
             message:
-              'Reading a document needs ANTHROPIC_API_KEY. Without it only a spreadsheet with recognisable column headings can be loaded — send rows instead of content.',
+              'Reading a document needs ANTHROPIC_API_KEY. Without it only a spreadsheet with recognizable column headings can be loaded — send rows instead of content.',
           },
         },
         { status: 422 }
@@ -321,7 +321,7 @@ interface WriteResult {
  * Writing, row by row, collecting failures.
  *
  * Deliberately not one transaction. A finance team loading four hundred
- * cost centres wants the three hundred and ninety-eight good ones in and a
+ * cost centers wants the three hundred and ninety-eight good ones in and a
  * report of the two that were not — rolling everything back over two bad
  * rows means the file gets loaded by hand instead.
  */

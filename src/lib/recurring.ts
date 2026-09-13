@@ -68,7 +68,7 @@ const UPSTREAM: Record<string, string> = {
   RATE_IN_RANGE:
     'Rates are being set above what these roles pay. Either the bench rate floors are out of date or the roles being worked are the wrong ones.',
   WORK_AUTH:
-    'Work authorisation is not recorded for enough of the bench. It is one field and it decides whether somebody can be submitted at all.',
+    'Work authorization is not recorded for enough of the bench. It is one field and it decides whether somebody can be submitted at all.',
   AVAILABLE_IN_WINDOW:
     'People are being put forward for roles that start before they are free. The availability dates on the bench are probably stale — the fortnightly check-in is what fixes that.',
   SKILLS_EVIDENCED:
@@ -122,7 +122,7 @@ function label(code: string): string {
     CONSENT: 'Nobody asked the consultant',
     DOCS_PRESENT: 'Missing documents',
     RATE_IN_RANGE: 'Rate above the role',
-    WORK_AUTH: 'Work authorisation',
+    WORK_AUTH: 'Work authorization',
     AVAILABLE_IN_WINDOW: 'Not free in time',
     SKILLS_EVIDENCED: 'Skills not in the CV',
   }

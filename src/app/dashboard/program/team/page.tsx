@@ -5,10 +5,10 @@ import Link from 'next/link'
 import { readJson } from '@/lib/read-response'
 
 /**
- * The programme team — who approves, who leads, who owns which budget.
+ * The program team — who approves, who leads, who owns which budget.
  *
  * Three facts kept in three places: users under Setup, approval rules
- * under Settings, cost centres somewhere else again. Setting a programme
+ * under Settings, cost centers somewhere else again. Setting a program
  * up meant visiting all three and holding the result in your head, and
  * "who signs off on Engineering's contractors" had no screen that
  * answered it.
@@ -69,7 +69,7 @@ const cash = (n: number) => `$${n.toLocaleString('en-US', { maximumFractionDigit
  * The page read `team.warnings.length` and four `.map`s straight off the
  * body. A payload missing one list — an older deploy, a section the
  * caller may not read — took the whole screen down rather than the
- * section, and the reader saw a stack trace instead of a programme.
+ * section, and the reader saw a stack trace instead of a program.
  */
 function asTeam(data: any): Team | null {
   if (!data?.company?.name) return null
@@ -106,7 +106,7 @@ export default function ProgramTeamPage() {
     // error overlay in front of the AP clerk.
     const body = await readJson(res)
     const next = asTeam(body?.data)
-    if (!next) throw new Error('The programme team came back without a company on it.')
+    if (!next) throw new Error('The program team came back without a company on it.')
     setTeam(next)
   }
 
@@ -187,7 +187,7 @@ export default function ProgramTeamPage() {
         await reload()
       } catch (err: any) {
         if (!live) return
-        setUnreadable(err?.message ?? 'The programme team could not be read.')
+        setUnreadable(err?.message ?? 'The program team could not be read.')
       }
     })()
     return () => { live = false }
@@ -206,7 +206,7 @@ export default function ProgramTeamPage() {
     return (
       <div className="animate-fade-in">
         <div className="panel py-16 text-center">
-          <p className="text-body-sm text-etyme-muted">Reading the programme team…</p>
+          <p className="text-body-sm text-etyme-muted">Reading the program team…</p>
         </div>
       </div>
     )
@@ -325,7 +325,7 @@ export default function ProgramTeamPage() {
     <div className="animate-fade-in max-w-4xl">
       <div className="page-head">
         <div className="eyebrow">{team.company.name}</div>
-        <h1 className="headline-serif text-heading text-etyme-ink">Programme team</h1>
+        <h1 className="headline-serif text-heading text-etyme-ink">Program team</h1>
         <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-etyme-muted">
           Who reads the role, who reads the suppliers, and who is answerable
           for each budget. Most requisitions clear without any of them.
@@ -531,7 +531,7 @@ export default function ProgramTeamPage() {
       <section className="panel">
         <h2 className="headline-serif text-[17px] text-etyme-ink">Everybody with a seat</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-etyme-muted">
-          What each person does on the programme, rather than what the
+          What each person does on the program, rather than what the
           permission table calls them.
         </p>
         <ul className="mt-4 space-y-2">

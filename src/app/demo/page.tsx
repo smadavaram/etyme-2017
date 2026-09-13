@@ -1,9 +1,9 @@
 import Link from 'next/link'
 import { EtymeLogo } from '@/components/logo'
-import { DeskPicker, type Programme } from './desk-picker'
+import { DeskPicker, type Program } from './desk-picker'
 
 /**
- * Three running programmes, from whichever desk is yours.
+ * Three running programs, from whichever desk is yours.
  *
  * The buyer of this product is not one person. A contingent workforce
  * office is a manager who needs somebody, a VP who signs for the money,
@@ -12,12 +12,12 @@ import { DeskPicker, type Programme } from './desk-picker'
  * their own desk and finding their own work waiting. So the door says
  * which desk, and each lands on its own queue.
  *
- * Everything below is true of the seeded programmes (lib/seed-programmes)
+ * Everything below is true of the seeded programs (lib/seed-programmes)
  * and stays true when the seed is re-run. Nothing here describes a
  * screen that does not exist.
  */
 
-const PROGRAMMES: Programme[] = [
+const PROGRAMMES: Program[] = [
   {
     slug: 'world-nike',
     name: 'Nike',
@@ -53,7 +53,7 @@ export default function DemoPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-6 pb-24">
-        <p className="eyebrow">A running programme</p>
+        <p className="eyebrow">A running program</p>
         <h1
           className="mt-2 max-w-2xl font-serif text-4xl leading-tight tracking-[-0.02em]"
           style={{ textWrap: 'balance' }}
@@ -67,7 +67,7 @@ export default function DemoPage() {
           the data is shared, and what you change, everybody else at that company sees.
         </p>
 
-        <DeskPicker programmes={PROGRAMMES} />
+        <DeskPicker programs={PROGRAMMES} />
 
         <section className="mt-16 max-w-2xl">
           <p className="eyebrow">The other side of the same placements</p>
@@ -77,7 +77,7 @@ export default function DemoPage() {
             a supplier sees of the same contract — and what it cannot.
           </p>
           <DeskPicker
-            programmes={[
+            programs={[
               { slug: 'world-computer-systems', name: 'Computer Systems Inc', where: 'Prime supplier', about: 'Sells into Nike and Terumo BCT. Buys one of those people from a bench vendor.' },
               { slug: 'world-vertex-global', name: 'Vertex Global', where: 'Prime supplier', about: 'Sells into Corning and Terumo BCT.' },
             ]}

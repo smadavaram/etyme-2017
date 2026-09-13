@@ -15,7 +15,7 @@ import { join } from 'node:path'
  * asks Claude for semantic skill matching); this pins the one line that
  * actually matters — the query's own scope — against the source, the
  * same way several other tests in this suite pin a route's real
- * behaviour without standing up the whole stack.
+ * behavior without standing up the whole stack.
  */
 
 const SOURCE = readFileSync(

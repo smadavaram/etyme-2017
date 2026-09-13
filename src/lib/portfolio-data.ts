@@ -31,7 +31,7 @@ function sectorOf(clientName: string | null, kind: string | null): string | null
   if (!clientName) return null
   // Deliberately coarse. Anything more specific starts identifying the
   // client, which is the thing this exists to avoid.
-  if (kind === 'MSP') return 'Managed programme'
+  if (kind === 'MSP') return 'Managed program'
   if (kind === 'GSI') return 'Systems integrator'
   if (kind === 'VENDOR') return 'Staffing firm'
   return 'Enterprise'

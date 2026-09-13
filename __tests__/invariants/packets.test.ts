@@ -14,7 +14,7 @@ import {
  * Four models covered pieces of documents and none of them was a list.
  * Nothing could say "to onboard as a supplier I need your W-9, your
  * insurance certificate, a signed agreement and a bank letter" and then
- * show three of four arriving — so the most common thing a real programme
+ * show three of four arriving — so the most common thing a real program
  * does every week had no home.
  */
 
@@ -176,7 +176,7 @@ describe('how far along, in words', () => {
     expect(progressOf([]).summary).toMatch(/already hold everything/i)
   })
 
-  it('does not list more than three outstanding names before summarising', () => {
+  it('does not list more than three outstanding names before summarizing', () => {
     const p = progressOf(
       ['A', 'B', 'C', 'D', 'E'].map((label) => ({ label, required: true, received: false }))
     )

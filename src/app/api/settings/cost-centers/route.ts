@@ -8,13 +8,13 @@ import { hasPermission } from '@/lib/permissions'
  * PATCH  /api/settings/cost-centers      — edit one
  * DELETE /api/settings/cost-centers?id=  — retire one
  *
- * Who owns the spend. A requisition with no cost centre is spend nobody
+ * Who owns the spend. A requisition with no cost center is spend nobody
  * owns, which is why the approval engine routes it to a human — and why a
- * company with no cost centres routes everything to a human and then
+ * company with no cost centers routes everything to a human and then
  * wonders why the system is slow.
  *
  * The code must match the owner's ERP exactly, because the coded invoice
- * export is posted straight into it. A near-miss on a cost centre code is
+ * export is posted straight into it. A near-miss on a cost center code is
  * a rejected file, not a warning.
  */
 
@@ -23,7 +23,7 @@ import { hasPermission } from '@/lib/permissions'
  *
  * There was no way to list them. The new-requisition form reached for
  * /api/program/org, which returns managers, vendors and spend and has
- * never returned a cost centre, so "which budget pays for it" was empty
+ * never returned a cost center, so "which budget pays for it" was empty
  * on every deployment however many existed. Raising a requisition
  * therefore always left the spend unowned, which sent it for approval —
  * the opposite of what the page promises.
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'Cost centres belong to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'Cost centers belong to a company' } },
       { status: 403 }
     )
   }
@@ -94,7 +94,7 @@ async function guard(request: NextRequest) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'NO_COMPANY', message: 'Cost centres belong to a company' } },
+        { error: { code: 'NO_COMPANY', message: 'Cost centers belong to a company' } },
         { status: 403 }
       ),
     }
@@ -104,7 +104,7 @@ async function guard(request: NextRequest) {
     return {
       caller: null,
       error: NextResponse.json(
-        { error: { code: 'FORBIDDEN', message: 'Changing cost centres needs settings.manage' } },
+        { error: { code: 'FORBIDDEN', message: 'Changing cost centers needs settings.manage' } },
         { status: 403 }
       ),
     }
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'VALIDATION',
-          message: 'A cost centre needs the code your ERP uses and a name people recognise',
+          message: 'A cost center needs the code your ERP uses and a name people recognize',
           field: !code ? 'code' : 'name',
         },
       },
@@ -165,7 +165,7 @@ export async function PATCH(request: NextRequest) {
   const existing = await prisma.costCenter.findFirst({ where: { id, companyId } })
   if (!existing) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No such cost centre here' } },
+      { error: { code: 'NOT_FOUND', message: 'No such cost center here' } },
       { status: 404 }
     )
   }
@@ -205,7 +205,7 @@ export async function PATCH(request: NextRequest) {
 /**
  * Retire, not delete.
  *
- * A cost centre with history is part of how last year's spend is
+ * A cost center with history is part of how last year's spend is
  * explained. Deleting it would orphan those allocations; marking it
  * inactive keeps the history readable and stops it appearing on new work.
  */
@@ -223,7 +223,7 @@ export async function DELETE(request: NextRequest) {
   })
   if (!existing) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'No such cost centre here' } },
+      { error: { code: 'NOT_FOUND', message: 'No such cost center here' } },
       { status: 404 }
     )
   }

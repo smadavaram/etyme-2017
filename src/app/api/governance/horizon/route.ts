@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // ── Certificates and authorisations running out ──
+  // ── Certificates and authorizations running out ──
   const horizonEnd = new Date(now.getTime() + windowDays * 86_400_000)
   const verifications = await prisma.verification.findMany({
     where: {

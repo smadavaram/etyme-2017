@@ -22,7 +22,7 @@ import { ladderFor } from '@/lib/work-chain-read'
  *
  * Each firm is the "upper" of its own contract and the "lower" of the
  * one above. Every hop carries a margin, and nobody sees the hop beyond
- * their own two neighbours.
+ * their own two neighbors.
  *
  * This is the case the product exists for and the one a two-party demo
  * cannot show. It is walked here in the order it happens, so each step
@@ -142,7 +142,7 @@ beforeAll(async () => {
   })
 }, 240_000)
 
-describe('Step 1–2 — the chain exists, and nobody sees past their neighbours', () => {
+describe('Step 1–2 — the chain exists, and nobody sees past their neighbors', () => {
   it('has four parties, three of them companies', async () => {
     const n = await prisma.company.count()
     expect(n).toBe(3)

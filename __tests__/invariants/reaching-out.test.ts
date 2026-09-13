@@ -85,12 +85,12 @@ describe('what the letter promises', () => {
 })
 
 describe('the nudge', () => {
-  it('offers declining as a real option, and says it counts in their favour', () => {
+  it('offers declining as a real option, and says it counts in their favor', () => {
     // A decline is genuinely more useful to a client than silence, and a
     // supplier who believes that will send one.
     const l = nudgeLetter(invite())
     expect(l.body).toContain('a decline is genuinely useful to them')
-    expect(l.body).toContain('counts in your favour rather than against it')
+    expect(l.body).toContain('counts in your favor rather than against it')
   })
 
   it('waits three days before it is worth sending', () => {

@@ -5,7 +5,7 @@
  * somebody remembers to take it away. Nobody remembers. That is why every
  * enterprise directory contains people who left, contractors from projects
  * that ended years ago, and one annual spreadsheet where a manager ticks
- * names they do not recognise.
+ * names they do not recognize.
  *
  * Here access ends by default, how long depends on what it can do, and
  * access nobody uses is treated as exposure rather than as access.
@@ -103,7 +103,7 @@ describe('Granting access', () => {
     expect(check(d, 'DURATION').reason).toContain('Shortened')
   })
 
-  it('a reasonable duration is honoured as asked', () => {
+  it('a reasonable duration is honored as asked', () => {
     expect(assessGrant(grant({ requestedDays: 30 })).expiresInDays).toBe(30)
   })
 })

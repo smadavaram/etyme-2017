@@ -9,7 +9,7 @@
  * deleting a row.
  *
  * So this is where Addendum E's BLOCK rules bite: tenure cap, break in
- * service, work authorisation, lapsed supplier insurance. Those are the
+ * service, work authorization, lapsed supplier insurance. Those are the
  * legally grounded ones, and none of them is anybody's to wave through.
  *
  * Two things this models that the previous convert path did not:
@@ -27,7 +27,7 @@ export type AwardCode =
   | 'APPROVAL'    // the requisition itself cleared approval
   | 'SEATS'       // a position remains to be filled
   | 'DUPLICATE'   // this person does not already hold a seat here
-  | 'GOVERNANCE'  // tenure, break in service, work authorisation, insurance
+  | 'GOVERNANCE'  // tenure, break in service, work authorization, insurance
   | 'BAND'        // the awarded rate is inside the band this vendor was given
   | 'CEILING'     // and inside what the client said it would pay
 
@@ -136,7 +136,7 @@ export function assessAward(f: AwardFacts): AwardDecision {
     checks.push({
       code: 'GOVERNANCE',
       outcome: 'PASS',
-      reason: 'Tenure, work authorisation and supplier cover all clear',
+      reason: 'Tenure, work authorization and supplier cover all clear',
     })
   }
 

@@ -14,7 +14,7 @@ import { join } from 'path'
  * build had `accept_interview` and this one lost it.
  *
  * Checked at source, in the style of mobile-shell.test.ts, because the
- * behaviour lives in a client component with no route handler to call.
+ * behavior lives in a client component with no route handler to call.
  * What is pinned is the shape that makes the screen work: that the
  * buttons post the right body, that a refusal lands on the page as a
  * sentence, and that no time is rendered in the server's time zone.
@@ -64,7 +64,7 @@ describe('A candidate can answer an interview from their own page', () => {
     // The route's own sentence on success, not one this page invented.
     expect(PAGE).toContain('setSaid(body.data.says)')
     // And the pipeline is re-read after either answer, so the card
-    // stops offering buttons it can no longer honour.
+    // stops offering buttons it can no longer honor.
     expect(PAGE).toContain('onAnswered()')
     expect(PAGE).toMatch(/onAnswered=\{load\}/)
   })

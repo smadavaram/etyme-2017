@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
 
   // ── The refusal ─────────────────────────────────────────────────────
   //
-  // Loud, itemised, and with no way past it. Somebody who has been told
+  // Loud, itemized, and with no way past it. Somebody who has been told
   // the bid closes at five will look for the override; there is not one.
   if (!pack.sendable) {
     return NextResponse.json(

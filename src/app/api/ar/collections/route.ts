@@ -272,7 +272,7 @@ export async function GET(request: NextRequest) {
  *
  * Written to `DunningSend`, which already holds "a rung that was climbed,
  * by whom, naming which invoices". An ownership event is exactly that
- * shape. `stepsAlreadySent` ignores steps it does not recognise, so these
+ * shape. `stepsAlreadySent` ignores steps it does not recognize, so these
  * rows cannot silently stand in for a letter that was never sent.
  */
 export async function POST(request: NextRequest) {

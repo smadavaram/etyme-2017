@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import {
-  compare, worthAsking, summarise, ifConfirmed, type Candidate,
+  compare, worthAsking, summarize, ifConfirmed, type Candidate,
 } from '@/lib/identity-resolution'
 
 /**
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     })),
   }))
 
-  // Compared within a normalised name bucket rather than every pair
+  // Compared within a normalized name bucket rather than every pair
   // against every other. A thousand people is half a million comparisons
   // otherwise, and a differently named pair is never a match anyway.
   const byName = new Map<string, Candidate[]>()
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
       })),
       settled: decided.length,
       capMonths,
-      summary: summarise(open, capMonths),
+      summary: summarize(open, capMonths),
       note:
         'Nothing is merged. Confirming records that these are one person; the ' +
         'records stay separate and tenure reads the link.',

@@ -26,7 +26,7 @@ import {
  * and `proposeRun` says it in words before the database has to.
  *
  * **A disputed bill never enters a run.** Paying something you are
- * arguing about ends the argument in the supplier's favour and no status
+ * arguing about ends the argument in the supplier's favor and no status
  * change undoes it.
  *
  * **The approver is not the creator.** The oldest segregation of duties
@@ -365,7 +365,7 @@ export async function PATCH(request: NextRequest) {
       note:
         `${settled} of ${outcomes.length} bill${outcomes.length === 1 ? '' : 's'} settled in ` +
         `full and carry the paid date. A part payment carries none — the obligation is ` +
-        `still open, and dating it now would report the first instalment as the day the ` +
+        `still open, and dating it now would report the first installment as the day the ` +
         `supplier was paid, which is the figure every float number counts to.`,
     },
   })

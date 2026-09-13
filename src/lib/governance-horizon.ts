@@ -222,7 +222,7 @@ export function projectBreakInService(
 }
 
 /**
- * A certificate or authorisation running out.
+ * A certificate or authorization running out.
  *
  * The stake is the number of people relying on it. "Insurance expires in
  * 21 days" is administrative; "expires in 21 days, twelve people on site"
@@ -265,7 +265,7 @@ function label(type: string): string {
     INSURANCE_WC: "workers' compensation cover",
     INSURANCE_EO: 'errors & omissions cover',
     INSURANCE_CYBER: 'cyber liability cover',
-    I9_EVERIFY: 'work authorisation',
+    I9_EVERIFY: 'work authorization',
     BACKGROUND_CHECK: 'background check',
   }
   return map[type] ?? type.toLowerCase().replace(/_/g, ' ')

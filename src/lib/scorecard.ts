@@ -26,8 +26,8 @@
  *
  * There is deliberately no overall grade. A single letter would be
  * argued with by every vendor who got a B, would hide which of the six
- * was bad, and would be the number a procurement team optimises rather
- * than the behaviour underneath it.
+ * was bad, and would be the number a procurement team optimizes rather
+ * than the behavior underneath it.
  *
  * ── Thin data says so ────────────────────────────────────────────────
  *
@@ -256,7 +256,7 @@ export function scorecard(
     holdsThemUp,
     asks,
     enough,
-    summary: summarise(vendorName, roles.length, subs, placed, clean, screened.length, enough),
+    summary: summarize(vendorName, roles.length, subs, placed, clean, screened.length, enough),
     unknowns,
   }
 }
@@ -268,7 +268,7 @@ export function scorecard(
  * with a percentage — a client scanning twelve of these is looking for
  * the two that need a conversation, not for a league table.
  */
-export function summarise(
+export function summarize(
   vendorName: string,
   sent: number,
   subs: Put[],
@@ -383,7 +383,7 @@ function countAnswered(roles: Sent[], subs: Put[]): number {
   // Declines and submissions are counted from different sides, so a role
   // both declined and submitted for would count twice. In practice one
   // rules out the other, and the min guards the arithmetic rather than
-  // the behaviour.
+  // the behavior.
   return Math.min(roles.length, n + worked.size)
 }
 

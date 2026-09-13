@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  screenRules, shortlist, summarise, plainly, notesFrom, SHORTLIST,
+  screenRules, shortlist, summarize, plainly, notesFrom, SHORTLIST,
   type Arriving, type Screened,
 } from '@/lib/screening'
 import { decide, type Finding } from '@/lib/loop'
@@ -323,17 +323,17 @@ describe('the pile', () => {
       screened({ cleared: false, heldBackFor: [{ code: 'IN_BUDGET', checker: 'RULE', verdict: 'FAIL', reason: 'x' }] }),
       screened({ cleared: false, heldBackFor: [{ code: 'ALREADY_SUBMITTED', checker: 'RULE', verdict: 'FAIL', reason: 'x' }] }),
     ]
-    expect(summarise(14, 11, held)).toBe(
+    expect(summarize(14, 11, held)).toBe(
       '14 arrived. 11 worth reading. 3 held back — 2 over budget, 1 sent by somebody else first.'
     )
   })
 
   it('says so plainly when nothing has arrived', () => {
-    expect(summarise(0, 0, [])).toBe('Nothing has arrived for this role yet.')
+    expect(summarize(0, 0, [])).toBe('Nothing has arrived for this role yet.')
   })
 
   it('does not pretend to have filtered when everything was fine', () => {
-    expect(summarise(4, 4, [])).toBe('4 arrived, and all of them are worth reading.')
+    expect(summarize(4, 4, [])).toBe('4 arrived, and all of them are worth reading.')
   })
 })
 

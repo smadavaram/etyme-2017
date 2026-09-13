@@ -22,7 +22,7 @@ const restrict = (over: Partial<Restriction> = {}): Restriction => ({
   ...over,
 })
 
-describe('a role that says nothing about work authorisation excludes nobody', () => {
+describe('a role that says nothing about work authorization excludes nobody', () => {
   it('passes anybody when there is no restriction at all', () => {
     expect(authDecision(null, 'H1B').verdict).toBe('PASS')
   })
@@ -130,7 +130,7 @@ describe('a sentence in an advert is not permission to filter on it', () => {
 })
 
 describe('nothing here records where anybody is from', () => {
-  it('recognises a list sorted by national origin, whatever it calls itself', () => {
+  it('recognizes a list sorted by national origin, whatever it calls itself', () => {
     // These are the actual names on files uploaded to this project.
     expect(sortsByOrigin('DESI CLIENTS')).toBe(true)
     expect(sortsByOrigin('Tier 1 Prime Vendors (Indians)')).toBe(true)
@@ -146,7 +146,7 @@ describe('nothing here records where anybody is from', () => {
   it('refuses the grouping while keeping the contacts, and says which it did', () => {
     // The rows are real firms and are fine. It is the grouping that is
     // unlawful, so the grouping is what gets dropped — and recorded,
-    // because a record of having removed it is a defence and removing it
+    // because a record of having removed it is a defense and removing it
     // quietly is not.
     const said = originRefusal('DESI CLIENTS')
     expect(said).toMatch(/contacts can be imported/i)

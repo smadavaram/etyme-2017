@@ -155,7 +155,7 @@ describe('listing the periods over a span', () => {
   })
 })
 
-describe('is this a period the contract recognises', () => {
+describe('is this a period the contract recognizes', () => {
   it('accepts a real calendar month', () => {
     expect(isAPeriod(d('2026-08-01'), d('2026-08-31'), terms())).toBe(true)
   })

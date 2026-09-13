@@ -24,7 +24,7 @@ import {
 
 describe('A contract\'s cost split must account for every penny of it', () => {
 
-  it('a single cost centre taking the whole contract is valid', () => {
+  it('a single cost center taking the whole contract is valid', () => {
     const result = validateAllocation([{ costCenterId: 'cc-1', shareBps: 10000 }])
     expect(result.valid).toBe(true)
   })
@@ -69,7 +69,7 @@ describe('A contract\'s cost split must account for every penny of it', () => {
     expect(result.valid).toBe(false)
   })
 
-  it('a zero share is rejected — name the cost centre or leave it out', () => {
+  it('a zero share is rejected — name the cost center or leave it out', () => {
     const result = validateAllocation([
       { costCenterId: 'cc-1', shareBps: 10000 },
       { costCenterId: 'cc-2', shareBps: 0 },
@@ -85,7 +85,7 @@ describe('A contract\'s cost split must account for every penny of it', () => {
     expect(result.valid).toBe(false)
   })
 
-  it('the same cost centre listed twice is rejected', () => {
+  it('the same cost center listed twice is rejected', () => {
     const result = validateAllocation([
       { costCenterId: 'cc-1', shareBps: 5000 },
       { costCenterId: 'cc-1', shareBps: 5000 },
@@ -166,7 +166,7 @@ describe('Allocated amounts always sum back to the invoice total', () => {
     expect(parts.reduce((s, p) => s + p.amountCents, 0)).toBe(10_001)
   })
 
-  it('a single cost centre takes the whole amount untouched', () => {
+  it('a single cost center takes the whole amount untouched', () => {
     const parts = allocateAmount(123_456, singleAllocation('cc-only'))
     expect(parts).toHaveLength(1)
     expect(parts[0].amountCents).toBe(123_456)
@@ -192,7 +192,7 @@ describe('Allocated amounts always sum back to the invoice total', () => {
     expect(parts.reduce((s, p) => s + p.amountCents, 0)).toBe(-10_001)
   })
 
-  it('a zero amount allocates zero to every cost centre', () => {
+  it('a zero amount allocates zero to every cost center', () => {
     const parts = allocateAmount(0, [
       { costCenterId: 'cc-a', shareBps: 5000 },
       { costCenterId: 'cc-b', shareBps: 5000 },
@@ -224,10 +224,10 @@ describe('Allocated amounts always sum back to the invoice total', () => {
 
 // ── Whose chart of accounts ────────────────────────────
 
-describe('Coding is labelled with the company that owns it', () => {
+describe('Coding is labeled with the company that owns it', () => {
 
   /**
-   * A cost centre belongs to one company. On a direct placement the payer
+   * A cost center belongs to one company. On a direct placement the payer
    * and the end client are the same, so the codes are the payer's. On a
    * layer-cake leg — vendor invoices an MSP, consultant sits at the
    * enterprise — the codes are the enterprise's, and the MSP codes its own
@@ -249,7 +249,7 @@ describe('Coding is labelled with the company that owns it', () => {
 
   it('a vendor never sees its own profit-centre coding on a client invoice', () => {
     // Only the client's dimensions are carried — the vendor's COGS and
-    // profit centre are a separate set and are not exported here
+    // profit center are a separate set and are not exported here
     expect(codingIsPayers('cloudepa', 'terumo')).toBe(false)
   })
 })

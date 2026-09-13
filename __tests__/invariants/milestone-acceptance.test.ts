@@ -132,7 +132,7 @@ describe('The two sides of a milestone', () => {
     expect(seller.says).toContain('worth nothing')
   })
 
-  it('a client billed through a shared service centre is still the client', () => {
+  it('a client billed through a shared service center is still the client', () => {
     expect(mayDecideAs('shared-services', sides).ok).toBe(true)
   })
 
@@ -213,7 +213,7 @@ describe('Where the money on an order is actually sitting', () => {
     ms({ id: 'f', amountCents: 700_000, status: 'INVOICED', acceptedAt: new Date('2026-02-01') }),
   ]
 
-  it('money waiting on somebody s signature is totalled apart from money nobody has delivered', () => {
+  it('money waiting on somebody s signature is totaled apart from money nobody has delivered', () => {
     const s = standing(set, NOW)
     expect(s.awaitingAcceptanceCents).toBe(2_000_000)
     expect(s.notDeliveredCents).toBe(3_000_000)
@@ -223,9 +223,9 @@ describe('Where the money on an order is actually sitting', () => {
 
   it('cancelled and already invoiced milestones are counted nowhere', () => {
     const s = standing(set, NOW)
-    const totalled =
+    const totaled =
       s.awaitingAcceptanceCents + s.notDeliveredCents + s.billableCents + s.rejectedCents
-    expect(totalled).toBe(6_500_000)
+    expect(totaled).toBe(6_500_000)
   })
 
   it('the average wait is stated where a delivery date exists and left null where none does', () => {

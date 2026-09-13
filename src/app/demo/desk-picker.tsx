@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export interface Programme {
+export interface Program {
   slug: string
   name: string
   where: string
@@ -11,7 +11,7 @@ export interface Programme {
 }
 
 /**
- * The desks at a client programme, in the words of the person at each.
+ * The desks at a client program, in the words of the person at each.
  *
  * What is waiting is stated because it is seeded that way — the point of
  * a desk is to find your own work on it, not a tour.
@@ -21,7 +21,7 @@ const DESKS: { desk: string; label: string; waiting: string }[] = [
   // founder wanted to try what an admin does — add a person, give them a
   // role, name them a desk — without a seed doing it for them.
   { desk: '', label: 'Account owner', waiting: 'People, roles and desks. Add someone, make them HR for a unit, and watch a requisition find them.' },
-  { desk: 'programme', label: 'Programme manager', waiting: 'Runs the programme. Sets the rules, chooses the suppliers, sees the spend.' },
+  { desk: 'programme', label: 'Program manager', waiting: 'Runs the program. Sets the rules, chooses the suppliers, sees the spend.' },
   { desk: 'hiring', label: 'Hiring manager', waiting: 'Needs somebody. A week of hours is waiting for your signature.' },
   { desk: 'hr', label: 'HR partner', waiting: 'A requisition over the headcount plan is waiting for your read of the role.' },
   { desk: 'procurement', label: 'Procurement lead', waiting: 'A requisition is waiting for you to say which suppliers may see it.' },
@@ -30,7 +30,7 @@ const DESKS: { desk: string; label: string; waiting: string }[] = [
   { desk: 'compliance', label: 'Compliance officer', waiting: 'Tenure across every supplier, and whose paperwork is not on file.' },
 ]
 
-export function DeskPicker({ programmes, supplier = false }: { programmes: Programme[]; supplier?: boolean }) {
+export function DeskPicker({ programs, supplier = false }: { programs: Program[]; supplier?: boolean }) {
   const router = useRouter()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -56,7 +56,7 @@ export function DeskPicker({ programmes, supplier = false }: { programmes: Progr
 
   return (
     <div className="mt-8 grid gap-4 md:grid-cols-3">
-      {programmes.map((p) => (
+      {programs.map((p) => (
         <section key={p.slug} className="panel flex flex-col p-5">
           <p className="eyebrow">{p.where}</p>
           <h2 className="mt-1 font-serif text-2xl tracking-[-0.02em]">{p.name}</h2>
@@ -97,7 +97,7 @@ export function DeskPicker({ programmes, supplier = false }: { programmes: Progr
       {error && (
         <p className="md:col-span-3 text-sm text-etyme-danger">
           {error}
-          {/seed-world/.test(error) && ' The shared programmes have to be seeded once by whoever runs this deployment.'}
+          {/seed-world/.test(error) && ' The shared programs have to be seeded once by whoever runs this deployment.'}
         </p>
       )}
     </div>

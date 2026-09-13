@@ -15,7 +15,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
  *
  *   Hiring managers   people ending, headcount, their own unit
  *   Procurement       supplier certificates, rates, vendor risk
- *   HR                co-employment, tenure, work authorisation
+ *   HR                co-employment, tenure, work authorization
  *
  * Addendum E: enforcement BLOCKS where legally grounded and WARNS
  * everywhere else. A coming block is a deadline; a coming warning is a
@@ -38,10 +38,10 @@ interface HorizonItem {
 }
 
 const TEAMS: { key: Team; label: string; blurb: string }[] = [
-  { key: 'ALL', label: 'Everything', blurb: 'Every consequence across the programme' },
+  { key: 'ALL', label: 'Everything', blurb: 'Every consequence across the program' },
   { key: 'HIRING_MANAGER', label: 'Hiring managers', blurb: 'People ending, headcount, who needs a decision' },
   { key: 'PROCUREMENT', label: 'Procurement', blurb: 'Supplier certificates, rates, vendor risk' },
-  { key: 'HR', label: 'HR', blurb: 'Co-employment, tenure, work authorisation' },
+  { key: 'HR', label: 'HR', blurb: 'Co-employment, tenure, work authorization' },
 ]
 
 function Lbl({ children }: { children: React.ReactNode }) {
@@ -51,12 +51,12 @@ function Lbl({ children }: { children: React.ReactNode }) {
 function Stat({ label, value, tone = 'default', sub }: {
   label: string; value: string | number; tone?: 'default' | 'attention' | 'verified'; sub?: string
 }) {
-  const colour = tone === 'attention' ? 'text-etyme-attention'
+  const color = tone === 'attention' ? 'text-etyme-attention'
     : tone === 'verified' ? 'text-etyme-verified' : 'text-etyme-ink'
   return (
     <div>
       <Lbl>{label}</Lbl>
-      <div className={`font-serif text-3xl mt-1 tabular-nums ${colour}`}>{value}</div>
+      <div className={`font-serif text-3xl mt-1 tabular-nums ${color}`}>{value}</div>
       {sub && <div className="text-xs text-etyme-muted mt-0.5">{sub}</div>}
     </div>
   )

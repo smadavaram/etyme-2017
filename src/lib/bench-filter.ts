@@ -8,7 +8,7 @@
  *
  * Everything else it needed to know first is arithmetic. Does this person
  * have any of the skills at all. Is their rate floor under the ceiling. Are
- * they free before the start date. Does their work authorisation match. All
+ * they free before the start date. Does their work authorization match. All
  * of that is string comparison and date comparison: free, instant, and
  * right every time.
  *
@@ -20,7 +20,7 @@
  * ── The rule that decides the shape of this file ─────────────────────
  *
  * Use code, not a model, wherever a rule will do. Save the model for the
- * one judgement that actually needs one — is this skill claim evidenced —
+ * one judgment that actually needs one — is this skill claim evidenced —
  * which is exactly what the match engine is for and exactly what these
  * rules are not.
  *
@@ -249,7 +249,7 @@ export function sift(
       continue
     }
 
-    // No `continue` here any more. A work authorisation mismatch is a
+    // No `continue` here any more. A work authorization mismatch is a
     // thing to show a recruiter, not a reason to make somebody vanish.
     if (!authWorks(role, c)) {
       dropped.push({
@@ -289,7 +289,7 @@ export function sift(
     kept: final,
     dropped,
     considered: candidates.length,
-    summary: summarise(candidates.length, final.length, dropped),
+    summary: summarize(candidates.length, final.length, dropped),
   }
 }
 
@@ -300,7 +300,7 @@ export function sift(
  * says what went where, so the next move is obvious — widen the rate, drop
  * a skill, or accept a later start.
  */
-export function summarise(considered: number, kept: number, dropped: Dropped[]): string {
+export function summarize(considered: number, kept: number, dropped: Dropped[]): string {
   if (considered === 0) return 'Nobody on the bench yet.'
 
   const counts = new Map<string, number>()
@@ -311,7 +311,7 @@ export function summarise(considered: number, kept: number, dropped: Dropped[]):
     SKILLS: 'no overlapping skills',
     RATE: 'priced above the role',
     AVAILABILITY: 'not free in time',
-    WORK_AUTH: 'wrong work authorisation',
+    WORK_AUTH: 'wrong work authorization',
     SHORTLIST: 'ranked below the cut',
   }
 

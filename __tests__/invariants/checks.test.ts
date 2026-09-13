@@ -317,7 +317,7 @@ describe('the one question worth paying a model for', () => {
     expect(f.reason).toMatch(/could not be found in the CV and was discounted/)
   })
 
-  it('is always labelled as a machine judgement, never as a fact', () => {
+  it('is always labeled as a machine judgment, never as a fact', () => {
     const f = evidenceCheck(['SAP FICO'], [{ skill: 'SAP FICO', found: true, quote: 'SAP FICO' }], CV)
     expect(f.checker).toBe('MODEL')
   })

@@ -19,7 +19,7 @@ import {
  *
  * ── The gap this exists to show ──────────────────────────────────────
  *
- * Delivered, accepted, invoiced, paid. Every ageing report in this
+ * Delivered, accepted, invoiced, paid. Every aging report in this
  * industry starts at "invoiced", and on a milestone-billed project the
  * invoice cannot exist until the client accepts. So the weeks between
  * handing something over and somebody agreeing it was handed over are
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
           acceptedById: m.acceptedById,
           deliveredAt: m.deliveredAt?.toISOString() ?? null,
           note: humanNote(m.note),
-          // The real column first; the labelled shadow prefix only for
+          // The real column first; the labeled shadow prefix only for
           // rows written before the column existed.
           rejectionReason: m.rejectionReason ?? rejected?.reason ?? null,
           billable: mayBill(
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
 
   if (typeof orderId !== 'string' || !orderId) return bad('Which order is this on?', 'orderId')
   if (typeof name !== 'string' || name.trim().length < 2) {
-    return bad('A milestone needs a name the client will recognise.', 'name')
+    return bad('A milestone needs a name the client will recognize.', 'name')
   }
   if (typeof amountCents !== 'number' || !Number.isInteger(amountCents) || amountCents <= 0) {
     return bad('A milestone is worth a whole number of cents, above zero.', 'amountCents')

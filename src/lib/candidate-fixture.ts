@@ -23,7 +23,7 @@
  * receive mail, which makes the failure loud rather than silent if one
  * ever escapes.
  *
- * ── Work authorisation ───────────────────────────────────────────────
+ * ── Work authorization ───────────────────────────────────────────────
  *
  * 49 of the 148 came from a tab named "H1's", which says H-1B, so that
  * is recorded. The other 99 came from a file named "GC_Citizens", which
@@ -83,7 +83,7 @@ export const LOCATIONS = [
 export const RATE_FLOOR_CENTS = { min: 3000, median: 6000, max: 14600 }
 
 /**
- * Roughly a third have a work authorisation recorded.
+ * Roughly a third have a work authorization recorded.
  *
  * Matching the source rather than filling it in. A seed where everybody
  * has a status makes the "nothing is recorded, ask them" path — the one

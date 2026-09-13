@@ -4,12 +4,12 @@ import { prisma } from '@/lib/db'
 import { hasPermission } from '@/lib/permissions'
 
 /**
- * GET /api/program/team — who runs this client's contingent programme.
+ * GET /api/program/team — who runs this client's contingent program.
  *
  * Three facts that belonged together and were kept in three places:
  * who has a seat here, who approves what, and who is answerable for
- * which budget. Setting a programme up meant visiting users, then
- * approval rules, then cost centres, and nothing showed the result as
+ * which budget. Setting a program up meant visiting users, then
+ * approval rules, then cost centers, and nothing showed the result as
  * one picture — so "who signs off on Engineering's contractors" had no
  * screen that answered it.
  *
@@ -19,7 +19,7 @@ import { hasPermission } from '@/lib/permissions'
  * the chain: over a dollar line, a person. It is now three desks with
  * three different questions (src/lib/requisition-approval.ts) — HR reads
  * the role, Procurement reads the suppliers and the rate, and the lead
- * who owns the cost centre gives the one human yes on the money. HR and
+ * who owns the cost center gives the one human yes on the money. HR and
  * Procurement are standing desks named per business unit and inherited
  * down the tree, so a desk on Technology answers for Apps.
  *
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
   if (error) return error
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'NO_COMPANY', message: 'A programme belongs to a company' } },
+      { error: { code: 'NO_COMPANY', message: 'A program belongs to a company' } },
       { status: 403 }
     )
   }
@@ -126,8 +126,8 @@ export async function GET(request: NextRequest) {
         error: {
           code: 'FORBIDDEN',
           message:
-            `You are not on the programme team at ${caller.company.name}. ` +
-            'Whoever runs the programme can add you.',
+            `You are not on the program team at ${caller.company.name}. ` +
+            'Whoever runs the program can add you.',
         },
       },
       { status: 403 }
@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
   ])
 
   // A rule on the money with no threshold catches whatever routes and
-  // matches nothing else — the old "programme lead". A desk has no
+  // matches nothing else — the old "program lead". A desk has no
   // threshold either, and counting one as a lead is what made three desks
   // read as three duplicated leads.
   const moneyRules = rules.filter((r) => (r.kind ?? 'VALUE') === 'VALUE')
@@ -190,7 +190,7 @@ export async function GET(request: NextRequest) {
   )
 
   // Only the units money is actually charged to. A unit with no cost
-  // centre has no requisition to route, so warning about it is noise.
+  // center has no requisition to route, so warning about it is noise.
   const unitsWithBudgets = orgUnits.filter((u) => costCentres.some((c) => c.orgUnit?.id === u.id))
 
   return NextResponse.json({
@@ -273,7 +273,7 @@ export async function GET(request: NextRequest) {
         role: s.role,
         grantedAt: s.grantedAt?.toISOString() ?? null,
         expiresAt: s.expiresAt?.toISOString() ?? null,
-        // What this person does on the programme, rather than what the
+        // What this person does on the program, rather than what the
         // permission table calls them.
         approves: moneyRules.filter((r) => r.approver.id === s.person.id).length,
         owns: costCentres.filter((c) => c.owner?.id === s.person.id).length,

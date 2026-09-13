@@ -5,7 +5,7 @@ import { hasPermission } from '@/lib/permissions'
 import { maySeeOutside, mayNameTheClient } from '@/lib/walls'
 import { emit } from '@/lib/events'
 import { logAccess } from '@/lib/access-log'
-import { releasing, summarise, mayShow, type RollingOff } from '@/lib/releasing-soon'
+import { releasing, summarize, mayShow, type RollingOff } from '@/lib/releasing-soon'
 
 /**
  * GET /api/releasing-soon
@@ -28,7 +28,7 @@ import { releasing, summarise, mayShow, type RollingOff } from '@/lib/releasing-
 const SECTOR: Record<string, string> = {
   CLIENT: 'an enterprise',
   GSI: 'a systems integrator',
-  MSP: 'a managed programme',
+  MSP: 'a managed program',
   VENDOR: 'a staffing firm',
 }
 
@@ -196,7 +196,7 @@ export async function GET(request: NextRequest) {
         rateFloor: r.rateFloorCents === null ? null : r.rateFloorCents / 100,
         rateFloorCents: undefined,
       })),
-      ...summarise(results),
+      ...summarize(results),
       horizonDays: horizon,
       // Only ever populated for a vendor looking at their own people.
       toAsk: mine ? toAsk : [],

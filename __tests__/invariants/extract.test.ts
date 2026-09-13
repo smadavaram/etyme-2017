@@ -21,7 +21,7 @@ import {
  *
  * These tests hold the two properties that make a reader safe to rely on:
  * confidence and provenance travel with every value, and the fallback is
- * labelled rather than disguised.
+ * labeled rather than disguised.
  */
 
 const COST_CENTERS = entityByKey('COST_CENTERS')!

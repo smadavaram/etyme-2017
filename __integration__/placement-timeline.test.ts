@@ -59,7 +59,7 @@ describe('what is due, on the thread', () => {
     expect(r.body.data.timeline.pay).toEqual([])
   })
 
-  it('every item is labelled in words, never as the engine\'s kind name', async () => {
+  it('every item is labeled in words, never as the engine\'s kind name', async () => {
     const r = await open(cloudepa)
     const t = r.body.data.timeline
     for (const d of [...t.hours, ...t.pay, ...t.bill]) {

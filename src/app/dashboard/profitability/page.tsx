@@ -373,7 +373,7 @@ function CloseOrder({ row, onDone }: { row: any; onDone: () => void }) {
           </span>
         ) : (
           <span className="text-[11px] text-etyme-attention">
-            no cost centre — this order cannot be settled until one is set
+            no cost center — this order cannot be settled until one is set
           </span>
         )}
 

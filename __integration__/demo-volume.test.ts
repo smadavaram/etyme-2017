@@ -11,7 +11,7 @@ import { addVolume, type VolumeResult } from '@/lib/demo-volume'
  * sorting, filtering, search, or pagination. These tests pin the floor
  * he set — two hundred requirements, four hundred submissions — and
  * check that width did not come at the cost of the invariants the
- * one-row world honoured.
+ * one-row world honored.
  */
 describe('a demo company with a real book', () => {
   let companyId: string
@@ -70,7 +70,7 @@ describe('a demo company with a real book', () => {
   })
 
   it('every submitted consultant sits on a granted bench at the company that sent them', async () => {
-    // The invariant the one-row world honoured. Bulk data is not exempt.
+    // The invariant the one-row world honored. Bulk data is not exempt.
     const subs = await prisma.submission.findMany({
       where: { toCompanyId: companyId },
       select: { personId: true, fromCompanyId: true },

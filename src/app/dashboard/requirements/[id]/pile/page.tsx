@@ -270,7 +270,7 @@ export default function PilePage() {
         <section className="space-y-3">
           <p className="stat-label">Held back</p>
           <p className="max-w-[58ch] text-[12px] text-etyme-faint">
-            Not a judgement on the person. These do not reach a hiring manager
+            Not a judgment on the person. These do not reach a hiring manager
             until somebody fixes what is named — and the vendor is told exactly
             what.
           </p>

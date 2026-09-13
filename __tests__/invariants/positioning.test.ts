@@ -95,7 +95,7 @@ describe('AI is in there and never leads', () => {
   it('allows it further down, where it is describing something real', () => {
     const f = check(copy(
       ['Every contractor. Every supplier. One record.'],
-      ['Rules run first. AI reads the CV and never decides work authorisation.']
+      ['Rules run first. AI reads the CV and never decides work authorization.']
     ))
     expect(f.map((x) => x.rule)).not.toContain('never-lead-with-ai')
   })
@@ -182,7 +182,7 @@ describe('Below the hero, the page says what the business is', () => {
   })
 
   it('gives keeping your ATS, your VMS and your suppliers a headline rather than a footnote', () => {
-    // It was the most useful sentence on the page and it was 13px grey
+    // It was the most useful sentence on the page and it was 13px gray
     // text under an arrow diagram.
     const headline = words.find((w) => /Keep your ATS/.test(w))
     expect(headline).toBeDefined()
@@ -219,7 +219,7 @@ describe('Below the hero, the page says what the business is', () => {
 
   it('shows the lifecycle as a real numbered grid, not a paragraph pretending to be one', () => {
     // The page used to prove its span with a nine-word arrow-strip under
-    // 13px grey text. Replaced with the same eighteen-stage lifecycle the
+    // 13px gray text. Replaced with the same eighteen-stage lifecycle the
     // internal delivery matrix already uses — a picture of the product
     // rather than an argument for it. Pinned by count so a future edit
     // that quietly drops back to prose fails here instead of shipping.
@@ -342,12 +342,12 @@ describe('Below the hero, the page says what the business is', () => {
 //
 // "Organized by products, industries, compliance and why etyme" — a
 // founder instruction, not a guess. The header used to be a flat list of
-// six module names with nothing organising them; a company evaluating a
+// six module names with nothing organizing them; a company evaluating a
 // system of record expects the shape below.
 
 describe('The header reads as an enterprise product, not a job board', () => {
 
-  it('is organised into exactly Products, Industries, Compliance and Why Etyme', () => {
+  it('is organized into exactly Products, Industries, Compliance and Why Etyme', () => {
     const menuStart = PAGE.indexOf('const NAV_MENUS')
     const menuEnd = PAGE.indexOf('const RECORD')
     const menus = PAGE.slice(menuStart, menuEnd)

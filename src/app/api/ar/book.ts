@@ -60,7 +60,7 @@ export type RawReceivable = Awaited<ReturnType<typeof loadReceivables>>[number]
  *
  * Exposure and arrears roll up on the CLIENT on the agreement, not on
  * whichever entity of theirs the invoice was posted to. A large client
- * signs in one entity and is billed through a shared services centre in
+ * signs in one entity and is billed through a shared services center in
  * another; if they stop paying, both stop.
  *
  * `Invoice.total` and `Invoice.paid` are Prisma Decimals in whole

@@ -82,7 +82,7 @@ export async function POST(
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'Choosing which suppliers see a requisition is the programme office\'s call. Ask them to send it out.',
+          message: 'Choosing which suppliers see a requisition is the program office\'s call. Ask them to send it out.',
         },
       },
       { status: 403 }

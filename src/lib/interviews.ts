@@ -328,7 +328,7 @@ export function headline(
    * This line said UTC to everybody, so an interview at 9am Pacific told
    * somebody in London the wrong day whenever the boundary crossed — and
    * it looked right to whoever wrote it, because their own machine
-   * agreed. Null keeps the old behaviour and names UTC out loud, which
+   * agreed. Null keeps the old behavior and names UTC out loud, which
    * is what lib/when does with an unset zone.
    */
   timezone?: string | null

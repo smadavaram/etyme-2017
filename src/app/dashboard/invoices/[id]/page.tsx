@@ -298,7 +298,7 @@ export default function InvoiceDetail() {
 
       {data.purchaseOrder && (
         <p className="text-xs text-etyme-faint mt-8 pt-6 border-t border-etyme-rule">
-          Raised against purchase order {data.purchaseOrder.number} — {amountFromUnits(data.purchaseOrder.amount)} authorised,
+          Raised against purchase order {data.purchaseOrder.number} — {amountFromUnits(data.purchaseOrder.amount)} authorized,
           {data.purchaseOrder.endDate ? ` running to ${data.purchaseOrder.endDate}` : ' open ended'}.
           An approved timesheet is the receipt: no receipt, no payment.
         </p>

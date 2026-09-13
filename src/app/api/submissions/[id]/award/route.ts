@@ -32,7 +32,7 @@ import { loadContractHolidays } from '@/lib/holidays'
  *   Counts seats. A requisition is N positions; this consumes one and
  *   refuses the N+1th.
  *
- *   Carries the coding onto the contract — cost centre, purchase order,
+ *   Carries the coding onto the contract — cost center, purchase order,
  *   hiring manager, org unit, end client. Without that the invoice raised
  *   months later has no PO to match against, which is a failure nobody
  *   traces back to the day of the award.

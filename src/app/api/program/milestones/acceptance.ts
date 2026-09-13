@@ -15,7 +15,7 @@
  *
  * Delivered on the 3rd, accepted on the 27th, invoiced on the 30th, paid
  * on the 60th. The twenty-four days between delivery and acceptance are
- * invisible in every ageing report ever built, because ageing starts at
+ * invisible in every aging report ever built, because aging starts at
  * the invoice — and the invoice could not exist until the 27th. On a
  * milestone-billed project that gap is most of the working capital, and
  * nobody can see it.
@@ -115,7 +115,7 @@ export function isRejectionReason(value: string): value is RejectionReason {
  * lets the seller click it has a column that means nothing.
  *
  * The client side is deliberately plural. A large client signs in one
- * entity, is billed through a shared service centre in another and pays
+ * entity, is billed through a shared service center in another and pays
  * from a third; any of them agreeing that the work was delivered is the
  * client agreeing.
  */
@@ -187,7 +187,7 @@ export function mayDeliver(m: Milestone): Move {
  *
  * Only on something delivered. Accepting a milestone nobody submitted is
  * how a project ends up billed for work that was never handed over, and
- * the client's own record of the handover is the only defence there is
+ * the client's own record of the handover is the only defense there is
  * when they ask what they paid for.
  *
  * A rejection needs a code. There is no path through here that records a
@@ -451,7 +451,7 @@ export function lateness(
  * reason code — so it is written into `note` behind a machine-readable
  * prefix and read back with a strict parser.
  *
- * This is a shadow column and it is labelled as one. What it needs, on
+ * This is a shadow column and it is labeled as one. What it needs, on
  * `OrderMilestone`:
  *
  *   deliveredAt      DateTime?   // when it was handed over

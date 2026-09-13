@@ -18,9 +18,9 @@
  *
  * The schema. Every domain wants a column and they all want it in the
  * same file, so `prisma/schema.prisma` belongs to no domain and changes
- * to it serialise through the architect. That is the single queue in an
+ * to it serialize through the architect. That is the single queue in an
  * otherwise parallel system, and it is deliberate: a schema is the one
- * artefact where two correct changes can still produce a wrong result.
+ * artifact where two correct changes can still produce a wrong result.
  *
  * ── Why it is a test and not a wiki page ─────────────────────────────
  *
@@ -58,7 +58,7 @@ export const DOMAINS: Domain[] = [
     agent: 'etyme-regulatory',
     label: 'Documents and regulation',
     knows:
-      'What may be asked for and when, in which country. Work authorisation, ' +
+      'What may be asked for and when, in which country. Work authorization, ' +
       'background verification, classification, tenure and co-employment, and the ' +
       'difference between attesting that a check happened and declaring a person fit.',
     l2: ['L2.2.3', 'L2.7.1', 'L2.7.3'],
@@ -252,7 +252,7 @@ export const DOMAINS: Domain[] = [
  * Files that belong to nobody, and change through the architect only.
  *
  * The schema is here because every domain wants a column in the same
- * file. It is the one artefact where two individually correct changes can
+ * file. It is the one artifact where two individually correct changes can
  * still produce a wrong result, so it gets the single queue.
  */
 export const SHARED: string[] = [
@@ -310,7 +310,7 @@ export function mayWrite(agent: string, path: string): Verdict {
           mayWrite: false,
           owner: null,
           says:
-            `${path} is shared and changes to it serialise through the architect. ` +
+            `${path} is shared and changes to it serialize through the architect. ` +
             `Say what you need and why; do not edit it.`,
         }
   }

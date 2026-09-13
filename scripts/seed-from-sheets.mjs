@@ -16,7 +16,7 @@
  * ── What it will not do ──────────────────────────────────────────────
  *
  * It carries no grouping by national origin, and it records no work
- * authorisation that the source did not state precisely. Both rules are
+ * authorization that the source did not state precisely. Both rules are
  * enforced upstream in the converter and repeated here in the report, so
  * a person running it sees what was dropped and why rather than
  * discovering it later.

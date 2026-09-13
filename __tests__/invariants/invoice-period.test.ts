@@ -129,7 +129,7 @@ describe('is the work in the period being billed', () => {
     expect(OVERRIDABLE.PERIOD).toBe(true)
   })
 
-  it('honours the override once somebody has recorded a reason', () => {
+  it('honors the override once somebody has recorded a reason', () => {
     const late = {
       timesheets: {
         ts1: {
@@ -175,7 +175,7 @@ describe('does the purchase order cover the work, not just the invoice', () => {
   it('fails work done before the PO was raised, even when the invoice period fits', () => {
     // This is the hole from the other side. The invoice header says
     // August, the PO starts in August, so the old check passed — while the
-    // work being billed was done in July and nobody authorised it.
+    // work being billed was done in July and nobody authorized it.
     const r = threeWayMatch(
       input({
         po,

@@ -304,7 +304,7 @@ export function worthAsking(matches: Match[], capMonths: number | null): Match[]
  * stayed flat, and the climb is this loop.
  *
  * The fix costs nothing in accuracy, because `compare` already refuses
- * every pair whose normalised names differ — it returns UNLIKELY at
+ * every pair whose normalized names differ — it returns UNLIKELY at
  * score 0 before weighing anything else. Two records this never puts
  * together are two records the old loop compared and then discarded.
  * `__tests__` proves that equivalence against the exhaustive version on
@@ -355,7 +355,7 @@ export function bestMatchPerPerson(candidates: Candidate[]): Map<string, Match> 
  * The keys under which a record is worth comparing to another.
  *
  * Name, because `compare` refuses outright on a name mismatch, which
- * makes the normalised name a lossless partition rather than a heuristic
+ * makes the normalized name a lossless partition rather than a heuristic
  * one. Blocking is usually a trade of recall for speed; here it is not,
  * and that is only true because of that early return.
  *
@@ -382,7 +382,7 @@ function blockKeys(c: Candidate): string[] {
  * "possible duplicates"; somebody will work a list of people who might
  * be past a tenure cap.
  */
-export function summarise(matches: Match[], capMonths: number | null): string {
+export function summarize(matches: Match[], capMonths: number | null): string {
   if (matches.length === 0) return 'Nobody looks like a duplicate.'
 
   const certain = matches.filter((m) => m.confidence === 'CERTAIN').length

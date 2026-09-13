@@ -24,7 +24,7 @@ import { postSettlement } from '@/lib/order-postings'
  * disappear from the group's books — it balances on the order and on
  * nothing above it. The pair also means the movement is visible from both
  * ends, which is the question a controller actually asks at year end:
- * what arrived in this cost centre, and from where.
+ * what arrived in this cost center, and from where.
  *
  * ── And LOCKED, which is the state finance actually works in ─────────
  *
@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Where the cost centre has an order of its own to collect into, the
+  // Where the cost center has an order of its own to collect into, the
   // other leg lands there. Where it has none, both legs sit on this order
   // so the pair still nets to nothing rather than half a movement.
   const collector = order.settlesTo
@@ -263,7 +263,7 @@ export async function POST(request: NextRequest) {
         action: 'ORDER_SETTLED',
         summary:
           `${order.code} settled — ${(plan.balanceCents / 100).toFixed(2)} ${order.currency} ` +
-          `to ${order.settlesTo?.code ?? 'its cost centre'}`,
+          `to ${order.settlesTo?.code ?? 'its cost center'}`,
         reason: body.reason ? String(body.reason) : `Closed by ${caller.person.name}`,
         payload: {
           projectOrderId,
@@ -293,7 +293,7 @@ export async function POST(request: NextRequest) {
           plan.says +
           (collector
             ? ''
-            : ' The cost centre has no order of its own to collect into, so both legs sit ' +
+            : ' The cost center has no order of its own to collect into, so both legs sit ' +
               'on this order — the pair still nets to nothing, which is what stops a ' +
               'settlement creating or destroying money on the way out.'),
       },

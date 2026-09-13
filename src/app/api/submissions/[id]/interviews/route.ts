@@ -95,7 +95,7 @@ export async function POST(
   if (notStaff) return notStaff
 
   // Asking for a round is for whoever is hiring — the permission that
-  // raises a requisition. Nike's AP clerk is a party to the programme
+  // raises a requisition. Nike's AP clerk is a party to the program
   // and saw the button; a clerk booking interviews is not a thing that
   // happens, and the refusal says who does.
   if (!hasPermission(caller.permissions, 'requirements.write')) {
@@ -105,7 +105,7 @@ export async function POST(
           code: 'NOT_HIRING',
           message:
             `Setting up an interview is for whoever is hiring at ${caller.company!.name} — ` +
-            'a hiring or programme manager.',
+            'a hiring or program manager.',
         },
       },
       { status: 403 }

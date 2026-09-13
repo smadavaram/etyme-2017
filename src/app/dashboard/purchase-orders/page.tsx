@@ -5,7 +5,7 @@ import { readJson } from '@/lib/read-response'
 import { useEffect, useState, useCallback } from 'react'
 
 /**
- * What has been authorised, and how much of it is left.
+ * What has been authorized, and how much of it is left.
  *
  * Purchase orders were read in five places and created in none. The three
  * way match asks whether an invoice quotes a valid, open, unexhausted
@@ -134,7 +134,7 @@ export default function PurchaseOrdersPage() {
       <div className="flex items-start justify-between gap-4 mb-6">
         <div className="page-head">
           <p className="eyebrow">Operate</p>
-          <h1>What you have authorised</h1>
+          <h1>What you have authorized</h1>
           <p>
             A purchase order is a ceiling, not a rate. It caps what a supplier may bill you in
             total — and an invoice that quotes an exhausted one will not match.
@@ -166,7 +166,7 @@ export default function PurchaseOrdersPage() {
           <h2 className="font-serif text-[19px] text-etyme-ink mb-4 tracking-[-0.02em]">Raise a purchase order</h2>
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="block">
-              <Lbl>Number your finance team will recognise</Lbl>
+              <Lbl>Number your finance team will recognize</Lbl>
               <input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="PO-2026-0412"
                 className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm font-mono" />
             </label>
@@ -179,7 +179,7 @@ export default function PurchaseOrdersPage() {
               </select>
             </label>
             <label className="block">
-              <Lbl>Authorised amount</Lbl>
+              <Lbl>Authorized amount</Lbl>
               <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" placeholder="250000"
                 className="w-full mt-1 px-3 py-2 border border-etyme-rule rounded bg-etyme-raised text-sm tabular-nums" />
             </label>

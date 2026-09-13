@@ -183,7 +183,7 @@ export interface Approach {
  * later one.
  *
  * It does not pitch. There is no role attached, because attaching one
- * before they have said they are looking is the behaviour that made
+ * before they have said they are looking is the behavior that made
  * every consultant in this industry stop reading recruiter mail.
  */
 export function approachText(a: Approach): { subject: string; body: string } {

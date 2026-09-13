@@ -23,7 +23,7 @@
  *
  * ── BLOCK where legally grounded, WARN elsewhere ─────────────────────
  *
- * Work authorisation blocks: an I-9, or a right-to-work check, is the
+ * Work authorization blocks: an I-9, or a right-to-work check, is the
  * one document a start cannot happen without. A lapsed general
  * liability or workers' comp certificate blocks, for the same reason it
  * blocks everywhere else in here — it is insurable exposure, not

@@ -179,7 +179,7 @@ describe('The awarded rate is checked against what was offered, but never blocke
 
   it('a rate the client is happy to pay is never a block — only a note', () => {
     // It is their money. A band that quietly stops meaning anything is
-    // worse than no band, so it is said out loud and then honoured.
+    // worse than no band, so it is said out loud and then honored.
     const d = assessAward(facts({ awardedRateCents: 20_000 }))
     expect(d.decision).toBe('AWARD')
   })

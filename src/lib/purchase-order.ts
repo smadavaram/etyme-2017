@@ -2,7 +2,7 @@
  * Purchase order semantics.
  *
  * A PO is not a contract. A contract carries a RATE — what one person costs
- * per hour. A PO carries a CEILING — how much the payer has authorised the
+ * per hour. A PO carries a CEILING — how much the payer has authorized the
  * supplier to bill in total, across however many people. Both are needed:
  * rate x hours, capped by what is left on the PO.
  *
@@ -16,7 +16,7 @@
 export type PoStatus = 'OPEN' | 'CLOSED' | 'CANCELLED'
 
 export interface PoBalanceInput {
-  /** Authorised ceiling, in cents. */
+  /** Authorized ceiling, in cents. */
   amountCents: number
   /** Invoiced against it so far, in cents. */
   invoicedCents: number
@@ -41,7 +41,7 @@ export interface PoBalance {
  * What is left on a PO, and whether anything more may be billed to it.
  *
  * Overdrawn is reported rather than silently clamped. AP needs to see that
- * a supplier has billed past the authorisation — that is the condition a PO
+ * a supplier has billed past the authorization — that is the condition a PO
  * exists to catch, and hiding it would defeat the control.
  */
 export function poBalance(input: PoBalanceInput, now: Date = new Date()): PoBalance {
@@ -170,7 +170,7 @@ export function canAttachPoToBuyContract(contract: {
 //
 // ── Two different ceilings, and they mean different things ───────────
 //
-// **The purchase order** is what the payer authorised in total, across
+// **The purchase order** is what the payer authorized in total, across
 // however many people and months. Going past it is not a rounding
 // question — somebody has committed the firm to spend it did not agree
 // to, and the fix is a change order, not a waiver.
@@ -191,7 +191,7 @@ export interface OverBillInput {
   po: {
     number: string
     status: string
-    /** Authorised ceiling, minor units. */
+    /** Authorized ceiling, minor units. */
     amountCents: number
     currency: string
     /** Already billed against it by other bills. */
@@ -252,7 +252,7 @@ export function overBillCheck(i: OverBillInput, now: Date = new Date()): OverBil
         code: 'PO_CURRENCY',
         overridable: false,
         says:
-          `PO ${po.number} authorises spend in ${po.currency.toUpperCase()} and this bill ` +
+          `PO ${po.number} authorizes spend in ${po.currency.toUpperCase()} and this bill ` +
           `is in ${i.billCurrency.toUpperCase()}. Drawing one down with the other would ` +
           `bury an exchange rate inside a ceiling, where nobody would find it.`,
       })
@@ -286,7 +286,7 @@ export function overBillCheck(i: OverBillInput, now: Date = new Date()): OverBil
           overridable: true,
           says:
             `The work starts ${iso(start)}, before PO ${po.number} opens on ` +
-            `${iso(po.startDate)}. A purchase order authorises spend over a window, and ` +
+            `${iso(po.startDate)}. A purchase order authorizes spend over a window, and ` +
             `this is spend from outside it.`,
         })
       }
@@ -306,7 +306,7 @@ export function overBillCheck(i: OverBillInput, now: Date = new Date()): OverBil
           says:
             `PO ${po.number} has ${money(balance.remainingCents)} left and this bill is ` +
             `${money(i.billCents)} — over by ${money(-remainingAfter)}. The ceiling is what ` +
-            `the payer actually authorised; going past it is a change order, not a rounding ` +
+            `the payer actually authorized; going past it is a change order, not a rounding ` +
             `question.`,
         })
       }

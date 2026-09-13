@@ -20,7 +20,7 @@
  * model accuracy, not requirements processed.
  *
  * A submission is good when it passed every automatic check and was not
- * thrown out by the client on rate, work authorisation or basic fit.
+ * thrown out by the client on rate, work authorization or basic fit.
  * Rubbish does not count, and both sides agree the definition up front —
  * otherwise you send six weak ones and claim the bar.
  *
@@ -67,7 +67,7 @@ const BAD_SUBMISSION: Reason[] = ['RATE', 'SKILLS', 'WORK_AUTH']
 export const REASONS: { code: Reason; label: string; hint: string }[] = [
   { code: 'RATE', label: 'Rate', hint: 'Priced above what they would pay' },
   { code: 'SKILLS', label: 'Skills', hint: 'Did not have them after all' },
-  { code: 'WORK_AUTH', label: 'Work authorisation', hint: 'Wrong permit, or expiring too soon' },
+  { code: 'WORK_AUTH', label: 'Work authorization', hint: 'Wrong permit, or expiring too soon' },
   { code: 'AVAILABILITY', label: 'Availability', hint: 'Could not start when they needed' },
   { code: 'INTERVIEW', label: 'Interview', hint: 'Interviewed and did not land it' },
   { code: 'TIMING', label: 'Timing', hint: 'Beaten to it, or the role was pulled' },
@@ -120,7 +120,7 @@ export interface Sub {
  * Is this one of the five.
  *
  * Passed every automatic check, and not thrown out on rate, skills or
- * work authorisation. A submission sent with the checks failing does not
+ * work authorization. A submission sent with the checks failing does not
  * count however it turns out — the override exists so a recruiter is not
  * blocked, not so the number can be gamed.
  */

@@ -5,7 +5,7 @@
  *
  * The two look alike and are not the same thing. A buy contract carries a
  * RATE — what one person costs per hour. A PO carries a CEILING — how much
- * the payer has authorised a supplier to bill in total, across however many
+ * the payer has authorized a supplier to bill in total, across however many
  * people. They coincide in exactly one case: a C2C buy contract with a
  * vendor company is the same relationship seen from the rate side.
  *
@@ -34,7 +34,7 @@ describe('A purchase order is not a buy contract', () => {
   })
 
   it('a purchase order carries a ceiling while a contract carries per-person rates', () => {
-    const po = { amountCents: 18_000_000 } // $180k authorised, one number
+    const po = { amountCents: 18_000_000 } // $180k authorized, one number
     const buyContract = { candidates: [{ payRate: 10_500 }, { payRate: 8_800 }] }
 
     // A ceiling is one figure for the whole agreement; rates are per person.
@@ -68,7 +68,7 @@ describe('A purchase order is not a buy contract', () => {
   })
 
   it('in the layer cake the two describe different edges entirely', () => {
-    // Cloudepa's buy contract pays David Chen. GlobalStaff's PO authorises
+    // Cloudepa's buy contract pays David Chen. GlobalStaff's PO authorizes
     // Cloudepa to bill GlobalStaff. Different parties, different direction.
     const buyContract = { payer: 'cloudepa', paid: 'david-chen' }
     const po = { issuedBy: 'globalstaff', issuedTo: 'cloudepa' }

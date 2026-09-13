@@ -43,7 +43,7 @@ describe('minting a key', () => {
     expect(keys.size).toBe(200)
   })
 
-  it('recognises its own keys and not somebody else’s', () => {
+  it('recognizes its own keys and not somebody else’s', () => {
     expect(looksLikeKey(mintKey().key)).toBe(true)
     expect(looksLikeKey('sk_live_abc123')).toBe(false)
     expect(looksLikeKey('etyk_short')).toBe(false)

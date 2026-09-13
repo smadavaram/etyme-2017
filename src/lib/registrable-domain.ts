@@ -7,7 +7,7 @@
  *
  * Somebody signing in from `user@mail.corp.com` stored `mail.corp.com`.
  * Their colleague on `user@corp.com` then matched nothing and created a
- * second company — two tenants for one organisation, each unable to see
+ * second company — two tenants for one organization, each unable to see
  * the other's requisitions, invoices or people. That is the exact failure
  * the design exists to prevent, arriving through the back door.
  *
@@ -122,7 +122,7 @@ export function registrableLabel(input: string): string | null {
 }
 
 /**
- * Do these two addresses belong to the same organisation?
+ * Do these two addresses belong to the same organization?
  *
  * The question join-beats-create actually asks. Answering it on the raw
  * domain splits a company across its mail subdomains.

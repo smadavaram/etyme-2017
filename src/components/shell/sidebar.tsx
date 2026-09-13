@@ -283,14 +283,14 @@ const CLIENT_NAV: NavSection[] = [
       // The step where people actually arrive.
       //
       // Hire read Requirements → Interviews → Placements, which skips
-      // the highest-volume screen a programme office has: the
+      // the highest-volume screen a program office has: the
       // candidates suppliers put forward, waiting to be looked at. Not
       // "applications" — nobody applies to you here, your suppliers
       // submit — and the list already defaults to what was sent TO the
       // caller, so a client sees its inbox rather than a vendor's
       // outbox.
       // Interviews are reached from the candidate they are about, not
-      // from a menu of everybody's rounds. A programme office does not
+      // from a menu of everybody's rounds. A program office does not
       // think "show me all interviews"; it opens a submission and asks
       // what happened to that person. The page still exists and the
       // submissions list links into it — removing the entry without that
@@ -331,10 +331,10 @@ const CLIENT_NAV: NavSection[] = [
   {
     label: 'Governance',
     items: [
-      // Who runs the programme: approvers, the lead, and who is
+      // Who runs the program: approvers, the lead, and who is
       // answerable for each budget. Three facts that were in three
       // places, none of which showed the result as one picture.
-      { label: 'Programme team', href: '/dashboard/program/team', icon: '⌸', group: 'Oversight' },
+      { label: 'Program team', href: '/dashboard/program/team', icon: '⌸', group: 'Oversight' },
       { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Oversight' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight' },
       { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },

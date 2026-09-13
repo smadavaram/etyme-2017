@@ -16,11 +16,11 @@
  * rank order, and every rule on Nike pointed at the same person. The
  * founder's description of how it actually works:
  *
- *   A hiring manager who needs people raises it, against a cost centre
+ *   A hiring manager who needs people raises it, against a cost center
  *   they may or may not own. Alongside them, HR checks it is a
  *   legitimate contingent role that fits the plan, and the indirect
  *   procurement lead audits which suppliers are eligible. The final
- *   word is the hiring line's — the lead who owns the cost centre. Never
+ *   word is the hiring line's — the lead who owns the cost center. Never
  *   the requester themselves.
  *
  * So a requisition has three stages, each a desk with its own question:
@@ -38,11 +38,11 @@
  * of kind HR or PROCUREMENT, scoped to the unit); the requisition
  * inherits them, and nobody picks approvers on a requisition.
  *
- * The lead is whoever owns the cost centre. When that is the person who
+ * The lead is whoever owns the cost center. When that is the person who
  * raised it, or the owner it is for, the final word goes one level up —
  * the segregation-of-duties line Addendum E draws as a BLOCK, not a
  * warning. A rule on the money (kind VALUE — the old threshold rules,
- * and the old "programme lead" catch-all) still asks its approver, at
+ * and the old "program lead" catch-all) still asks its approver, at
  * the FINAL rank, so nothing a client already configured stops working.
  *
  * The other Addendum E rule applies too — BLOCK only where legally
@@ -93,7 +93,7 @@ export interface RequisitionFacts {
     approvedHeads: number | null
     /** Heads already filled or committed against the plan. */
     committedHeads: number
-    /** Authorised spend for the period, in cents. Null = no plan on file. */
+    /** Authorized spend for the period, in cents. Null = no plan on file. */
     annualBudgetCents: number | null
     /** Spend already committed from live contracts, in cents. */
     committedSpendCents: number
@@ -105,7 +105,7 @@ export interface RequisitionFacts {
   raisedById?: string | null
   /** Whose need it is — the hiring manager it is for. Defaults to the raiser. */
   ownerId?: string | null
-  /** Who owns the cost centre's budget: the lead, and the final word. */
+  /** Who owns the cost center's budget: the lead, and the final word. */
   lead?: Seat | null
   /** The next lead up the tree, for when the lead raised it or is its owner. */
   escalation?: Seat | null
@@ -182,7 +182,7 @@ export function evaluateRequisition(
 ): RequisitionDecision {
   const checks: RequisitionCheck[] = []
 
-  // ── A cost centre must be named ──
+  // ── A cost center must be named ──
   // Not legally grounded, but a requisition with no budget behind it cannot
   // be reconciled later, so it routes rather than clears — to the lead,
   // because the money is the lead's question.
@@ -191,7 +191,7 @@ export function evaluateRequisition(
       code: 'COST_CENTER',
       outcome: 'ROUTE',
       stage: 'FINAL',
-      reason: 'No cost centre named — nobody owns this spend',
+      reason: 'No cost center named — nobody owns this spend',
     })
   } else {
     checks.push({
@@ -354,7 +354,7 @@ export function evaluateRequisition(
       // note in plain sight, and says who to name so the next one is read.
       steps.push({
         stage, rank: 1, approverId: null, approverName: null, outcome: 'AUTO_CLEARED',
-        reason: `${misses.map((c) => c.reason).join('; ')} — no ${deskWord} desk named for ${unit}, so cleared with this note. Name one under Programme team.`,
+        reason: `${misses.map((c) => c.reason).join('; ')} — no ${deskWord} desk named for ${unit}, so cleared with this note. Name one under Program team.`,
       })
     }
   }
@@ -375,7 +375,7 @@ export function evaluateRequisition(
   if (lead) asked.push(lead)
 
   // Rules on the money: the threshold ones that fired, and the catch-alls
-  // (the old "programme lead") when something routed or nobody else can
+  // (the old "program lead") when something routed or nobody else can
   // give the final word.
   const catchAll = moneyRules.filter((r) => r.thresholdCents === null)
   const moneyAsked = [...byThreshold, ...(routed.length > 0 || !lead ? catchAll : [])]
@@ -416,7 +416,7 @@ export function evaluateRequisition(
       stage: 'FINAL', rank: 2, approverId: null, approverName: null, outcome: 'AUTO_CLEARED',
       reason:
         `Nobody is named to give the final word — cleared with this note. ` +
-        `Name who owns ${facts.costCenter ? `cost centre ${facts.costCenter.code}` : 'the cost centre'}, or a desk under Programme team.` +
+        `Name who owns ${facts.costCenter ? `cost center ${facts.costCenter.code}` : 'the cost center'}, or a desk under Program team.` +
         `${notes.length ? ` ${notes.join('. ')}.` : ''}`,
     })
   } else {
@@ -696,7 +696,7 @@ export function annualValue(input: {
 /**
  * The older shape, kept so callers that only want the number still work.
  */
-export function annualisedValueCents(input: {
+export function annualizedValueCents(input: {
   billMaxCents: number | null
   headcount: number
   months: number | null

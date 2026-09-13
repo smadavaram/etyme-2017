@@ -678,7 +678,7 @@ function NewEngagement({
 
   return (
     <div className="border border-etyme-rule rounded-lg p-4 mb-4 bg-etyme-canvas/40">
-      <Field label="Title" value={title} onChange={setTitle} placeholder="SAP Programme — phase two" />
+      <Field label="Title" value={title} onChange={setTitle} placeholder="SAP Program — phase two" />
       <label className="block mt-3">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted">
           Scope (optional now, chased later)

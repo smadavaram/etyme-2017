@@ -8,7 +8,7 @@ import { prisma } from '@/lib/db'
  * Returns the authenticated person with their credentials, contexts,
  * and active context. Mirrors BUILD.md §3 — Auth and identity.
  *
- * Honours the same `x-context-id` header as getCallerContext, so the
+ * Honors the same `x-context-id` header as getCallerContext, so the
  * shell and the data agree on which company the caller is acting as.
  * Without it a person holding contexts at two companies could see one
  * company's navigation wrapped around the other company's records.
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
  * PATCH /api/me — the few things about you that are yours to set.
  *
  * Deliberately not /api/settings. That is the company's: address,
- * approval rules, cost centres, the holiday calendar, all of it behind
+ * approval rules, cost centers, the holiday calendar, all of it behind
  * settings.manage so one admin changes them for everybody. Where you are
  * is not that. It needs no permission beyond being you, and putting it
  * behind settings.manage would mean either an admin sets your timezone

@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
         })),
       })),
       canEdit: hasPermission(caller!.permissions, 'governance.write'),
-      // The number that matters for a programme: with no rules, everything
+      // The number that matters for a program: with no rules, everything
       // clears without a human, which is a choice and not a failure.
       summary:
         active.length === 0
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
 
   if (!name) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'A rule needs a name people would recognise, like "Departmental — above $25k"', field: 'name' } },
+      { error: { code: 'VALIDATION', message: 'A rule needs a name people would recognize, like "Departmental — above $25k"', field: 'name' } },
       { status: 422 }
     )
   }

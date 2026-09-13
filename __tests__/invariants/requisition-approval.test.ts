@@ -19,7 +19,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   evaluateRequisition,
-  annualisedValueCents,
+  annualizedValueCents,
   annualValue,
   advanceApprovalChain,
   mayDistribute,
@@ -56,7 +56,7 @@ function facts(overrides: Partial<RequisitionFacts> = {}): RequisitionFacts {
 const LEAD = { personId: 'p-whitfield', name: 'Dana Whitfield' }
 const DIRECTOR = { personId: 'p-okoro', name: 'Ngozi Okoro' }
 
-/** HR for Technology, named once under Programme team. */
+/** HR for Technology, named once under Program team. */
 const HR_DESK: ApprovalRuleFacts = {
   id: 'rule-hr', name: 'HR — Technology', kind: 'HR',
   approverId: 'p-shah', approverName: 'Anita Shah', thresholdCents: null, rank: 1, specificity: 1,
@@ -66,14 +66,14 @@ const PROC_DESK: ApprovalRuleFacts = {
   id: 'rule-proc', name: 'Procurement — Technology', kind: 'PROCUREMENT',
   approverId: 'p-halvorsen', approverName: 'Derek Halvorsen', thresholdCents: null, rank: 1, specificity: 1,
 }
-/** The old shape: over a dollar line, a VP. Still honoured, at the final rank. */
+/** The old shape: over a dollar line, a VP. Still honored, at the final rank. */
 const VP_RULE: ApprovalRuleFacts = {
   id: 'rule-vp', name: 'Over $250k', kind: 'VALUE',
   approverId: 'p-chen', approverName: 'Marcus Chen', thresholdCents: 250_000_00, rank: 1,
 }
-/** The old "programme lead": a catch-all with no threshold. */
+/** The old "program lead": a catch-all with no threshold. */
 const CATCH_ALL: ApprovalRuleFacts = {
-  id: 'rule-lead', name: 'Programme lead', kind: 'VALUE',
+  id: 'rule-lead', name: 'Program lead', kind: 'VALUE',
   approverId: 'p-mbeki', approverName: 'Joyce Mbeki', thresholdCents: null, rank: 2,
 }
 
@@ -137,7 +137,7 @@ describe('An ordinary requisition clears every desk by rule and opens itself', (
   })
 })
 
-describe('When anything misses, the lead who owns the cost centre gives the final word', () => {
+describe('When anything misses, the lead who owns the cost center gives the final word', () => {
   const d = evaluateRequisition(withLead({ headcount: 8 }), DESKS) // over the plan
 
   it('the lead is asked, after the desks, and the reason says whose spend it is', () => {
@@ -192,12 +192,12 @@ describe('A miss goes to the desk that owns it', () => {
     expect(step(d, 'FINAL').reason).toContain('Exceeds TBC-4100 budget by $50,000')
   })
 
-  it('a requisition with no cost centre has no lead — Procurement gives the final word instead', () => {
+  it('a requisition with no cost center has no lead — Procurement gives the final word instead', () => {
     const d = evaluateRequisition(withLead({ costCenter: null, lead: null, escalation: null }), DESKS)
     const final = step(d, 'FINAL')
     expect(final.outcome).toBe('PENDING')
     expect(final.approverName).toBe('Derek Halvorsen')
-    expect(final.reason).toContain('No cost centre named — nobody owns this spend')
+    expect(final.reason).toContain('No cost center named — nobody owns this spend')
     expect(final.reason).toContain('no lead owns the money here, so Derek Halvorsen gives the final word')
   })
 
@@ -207,7 +207,7 @@ describe('A miss goes to the desk that owns it', () => {
     const final = step(d, 'FINAL')
     expect(final.outcome).toBe('AUTO_CLEARED')
     expect(final.reason).toContain('Nobody is named to give the final word — cleared with this note')
-    expect(final.reason).toContain('Name who owns cost centre TBC-4100')
+    expect(final.reason).toContain('Name who owns cost center TBC-4100')
     expect(d.summary).toContain('Cleared automatically — Nobody is named')
   })
 
@@ -264,7 +264,7 @@ describe('Nobody approves their own requisition', () => {
 
 // ── The old rules still work ──────────────────────────────
 
-describe('A rule on the money is still honoured, at the final rank', () => {
+describe('A rule on the money is still honored, at the final rank', () => {
   it('a large requisition is seen by the VP even when every fact is fine, alongside the lead', () => {
     const d = evaluateRequisition(withLead({ annualValueCents: 300_000_00, valueSays: '$300,000, the budget stated', valueBasis: 'BUDGET' }), [...DESKS, VP_RULE])
     const finals = d.steps.filter((s) => s.stage === 'FINAL')
@@ -284,7 +284,7 @@ describe('A rule on the money is still honoured, at the final rank', () => {
     expect(d.route.filter((r) => r.approverId === LEAD.personId)).toHaveLength(1)
   })
 
-  it('the old catch-all "programme lead" gives the final word where no cost-centre owner does', () => {
+  it('the old catch-all "program lead" gives the final word where no cost-centre owner does', () => {
     const d = evaluateRequisition(withLead({ headcount: 8, lead: null, escalation: null }), [...DESKS, CATCH_ALL])
     expect(step(d, 'FINAL')).toMatchObject({ outcome: 'PENDING', approverName: 'Joyce Mbeki' })
   })
@@ -293,7 +293,7 @@ describe('A rule on the money is still honoured, at the final rank', () => {
     const d = evaluateRequisition(withLead({ headcount: 8 }), [])
     const role = step(d, 'ROLE')
     expect(role.outcome).toBe('AUTO_CLEARED')
-    expect(role.reason).toContain('no HR desk named for Technology, so cleared with this note. Name one under Programme team.')
+    expect(role.reason).toContain('no HR desk named for Technology, so cleared with this note. Name one under Program team.')
   })
 })
 
@@ -314,35 +314,35 @@ describe('Annualised value of a requisition', () => {
 
   it('one person at $130/hr for twelve months is $249,600', () => {
     // 13000c x 160h x 12mo = 24,960,000c
-    expect(annualisedValueCents({ billMaxCents: 13_000, headcount: 1, months: 12 }))
+    expect(annualizedValueCents({ billMaxCents: 13_000, headcount: 1, months: 12 }))
       .toBe(249_600_00)
   })
 
   it('three people cost three times as much', () => {
-    const one = annualisedValueCents({ billMaxCents: 13_000, headcount: 1, months: 12 })
-    const three = annualisedValueCents({ billMaxCents: 13_000, headcount: 3, months: 12 })
+    const one = annualizedValueCents({ billMaxCents: 13_000, headcount: 1, months: 12 })
+    const three = annualizedValueCents({ billMaxCents: 13_000, headcount: 3, months: 12 })
     expect(three).toBe(one * 3)
   })
 
   it('a six-month requisition costs half a year, not a whole one', () => {
-    const half = annualisedValueCents({ billMaxCents: 13_000, headcount: 1, months: 6 })
-    const full = annualisedValueCents({ billMaxCents: 13_000, headcount: 1, months: 12 })
+    const half = annualizedValueCents({ billMaxCents: 13_000, headcount: 1, months: 6 })
+    const full = annualizedValueCents({ billMaxCents: 13_000, headcount: 1, months: 12 })
     expect(half).toBe(full / 2)
   })
 
   it('a three-year requisition does not consume three years of one budget', () => {
     // Capped at twelve months — a budget is annual
-    const threeYears = annualisedValueCents({ billMaxCents: 13_000, headcount: 1, months: 36 })
-    const oneYear = annualisedValueCents({ billMaxCents: 13_000, headcount: 1, months: 12 })
+    const threeYears = annualizedValueCents({ billMaxCents: 13_000, headcount: 1, months: 36 })
+    const oneYear = annualizedValueCents({ billMaxCents: 13_000, headcount: 1, months: 12 })
     expect(threeYears).toBe(oneYear)
   })
 
   it('a requisition with no stated ceiling has no computable value', () => {
-    expect(annualisedValueCents({ billMaxCents: null, headcount: 1, months: 12 })).toBe(0)
+    expect(annualizedValueCents({ billMaxCents: null, headcount: 1, months: 12 })).toBe(0)
   })
 
   it('an unstated duration is treated as a full year', () => {
-    expect(annualisedValueCents({ billMaxCents: 13_000, headcount: 1, months: null }))
+    expect(annualizedValueCents({ billMaxCents: 13_000, headcount: 1, months: null }))
       .toBe(249_600_00)
   })
 })

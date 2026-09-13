@@ -2,7 +2,7 @@
  * Requisition to pay — the whole product, walked once, in order.
  *
  * CLAUDE.md: "The founder is not a coder. He can read test names, click a
- * preview URL, and tell you whether the behaviour is right."
+ * preview URL, and tell you whether the behavior is right."
  *
  * This file is written to be READ. Every other test file proves one engine
  * in isolation; this one runs them in the order a real engagement happens,
@@ -23,7 +23,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { evaluateRequisition, annualisedValueCents } from '@/lib/requisition-approval'
+import { evaluateRequisition, annualizedValueCents } from '@/lib/requisition-approval'
 import { projectInvitationForVendor } from '@/lib/invitation-visibility'
 import { assessFit } from '@/lib/candidate-fit'
 import { assessAward } from '@/lib/award'
@@ -64,7 +64,7 @@ const DEPARTMENTAL = {
 describe('1 · A hiring manager raises a requisition', () => {
 
   it('two analysts inside plan and budget clears without troubling anyone', () => {
-    const value = annualisedValueCents({ billMaxCents: CEILING, headcount: 2, months: 6 })
+    const value = annualizedValueCents({ billMaxCents: CEILING, headcount: 2, months: 6 })
     const d = evaluateRequisition({
       annualValueCents: value,
       headcount: 2,
@@ -80,7 +80,7 @@ describe('1 · A hiring manager raises a requisition', () => {
 
   it('the same requisition for twenty people goes to a person, and says why', () => {
     const d = evaluateRequisition({
-      annualValueCents: annualisedValueCents({ billMaxCents: CEILING, headcount: 20, months: 6 }),
+      annualValueCents: annualizedValueCents({ billMaxCents: CEILING, headcount: 20, months: 6 }),
       headcount: 20,
       billMaxCents: CEILING,
       skillMedianCents: 13_400,

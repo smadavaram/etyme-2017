@@ -12,7 +12,7 @@ import {
   paymentDaysSays,
   signatureFinding,
   sowFinding,
-  summarise,
+  summarize,
   worstFirst,
   type AgreementInput,
   type ContractInput,
@@ -35,7 +35,7 @@ function contract(over: Partial<ContractInput> = {}): ContractInput {
 function engagement(over: Partial<EngagementInput> = {}): EngagementInput {
   return {
     id: 'e1',
-    title: 'SAP Programme',
+    title: 'SAP Program',
     statementOfWork: 'Two integration engineers, S/4 rollout, phase two.',
     sowSignedAt: new Date('2026-01-10'),
     liveContracts: 2,
@@ -219,7 +219,7 @@ describe('Everything wrong with one agreement, in the order it should be read', 
 
   it('an agreement with everything in order raises nothing at all', () => {
     expect(agreementFindings(agreement())).toEqual([])
-    expect(summarise([])).toBeNull()
+    expect(summarize([])).toBeNull()
   })
 
   it('a contract that has not started is not judged against the margin floor', () => {
@@ -237,7 +237,7 @@ describe('Everything wrong with one agreement, in the order it should be read', 
         engagements: [engagement({ statementOfWork: null, sowSignedAt: null })],
       })
     )
-    const line = summarise(findings)
+    const line = summarize(findings)
     expect(line).toContain('nobody has signed')
     expect(line).toContain('more')
   })

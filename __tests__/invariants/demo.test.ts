@@ -51,7 +51,7 @@ describe('demo and real are separate universes', () => {
    * A visitor looking around must never see a customer's name, and a
    * customer must never see a stranger's sandbox. The partition is on a
    * flag rather than on a guess about the name, because "looks like demo
-   * data" is exactly the judgement nobody should be making about
+   * data" is exactly the judgment nobody should be making about
    * somebody's real book.
    */
 

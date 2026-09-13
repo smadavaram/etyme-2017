@@ -13,7 +13,7 @@ import type { SessionState } from '@/components/session-provider'
 const KIND_LABEL: Record<string, string> = {
   VENDOR: 'Vendor',
   CLIENT: 'Client · Enterprise',
-  MSP: 'MSP · Managed programme',
+  MSP: 'MSP · Managed program',
   GSI: 'GSI · Delivery',
 }
 

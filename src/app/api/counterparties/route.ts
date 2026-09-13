@@ -178,7 +178,7 @@ export async function DELETE(request: NextRequest) {
 }
 
 /**
- * PATCH /api/counterparties — set the risk judgement on a register row.
+ * PATCH /api/counterparties — set the risk judgment on a register row.
  *
  * The supplier-risk watchlist read these columns before anything could
  * write them, and said so. This is the writer.

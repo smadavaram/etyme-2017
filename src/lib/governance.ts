@@ -6,7 +6,7 @@ import { daysOnSite, monthsOf } from '@/lib/tenure-days'
  * Governance enforcement engine — Addendum E §E.6.
  *
  * "BLOCK where legally grounded — tenure limit, break in service,
- *  work authorisation, lapsed supplier insurance, segregation-of-duties
+ *  work authorization, lapsed supplier insurance, segregation-of-duties
  *  violation. WARN, capture a reason, proceed everywhere else — rate
  *  band, headcount plan, vendor tier. Never silently permit."
  *

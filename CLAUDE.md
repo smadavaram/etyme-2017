@@ -307,6 +307,15 @@ getting it wrong first:
 - **Never hand them a form whose answer is thrown away.** The seat
   picker was one for a week. If a choice is offered, the choice is
   honoured.
+- **American English, on every screen.** Decided 2026-09-13. The
+  customers are US enterprises: program, program office, cost center,
+  authorization, color. A buyer who reads "Programme team" registers
+  foreign before they register what it does.
+  `__tests__/invariants/american-english.test.ts` fails on a British
+  spelling anywhere under `src/`. Machine names that were British before
+  the decision — the demo desk key `programme`, the seeded
+  `world-nike-programme@` email, `seed-programmes.ts` — stay, because an
+  address is not a word anybody reads. This file keeps its own spelling.
 - **Explain in a sentence, not a code.** A refusal says what is missing
   and what to do — "Priya cannot start without an I-9. Get it on file,
   then activate." — never `DOCUMENTS_BLOCK`. The code is for the

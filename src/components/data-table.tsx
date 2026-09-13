@@ -411,7 +411,7 @@ export function DataTable<T extends Record<string, any>>({
 
           {/* Empty state — under the scroll box, not a cell spanning the
               table. A cell is as wide as the table, and a table wider
-              than a phone centres its sentence somewhere off screen:
+              than a phone centers its sentence somewhere off screen:
               "No candidates or companies have been blocked. Use the b".
               The header row stays, so the columns still say what would
               be here. */}

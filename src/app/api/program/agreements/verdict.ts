@@ -4,7 +4,7 @@
  * ── Why this is not a gate ───────────────────────────────────────────
  *
  * Addendum E is explicit about where a block is allowed: tenure, break in
- * service, work authorisation, lapsed insurance, segregation of duties.
+ * service, work authorization, lapsed insurance, segregation of duties.
  * Everything else warns, captures a reason, and proceeds. A margin floor
  * and an unsigned statement of work are commercial facts, not legal ones —
  * refusing to let somebody trade because a scope document is unsigned
@@ -358,7 +358,7 @@ export function worstFirst(findings: Finding[]): Finding[] {
 }
 
 /** One line for the top of the row. Null when there is nothing to say. */
-export function summarise(findings: Finding[]): string | null {
+export function summarize(findings: Finding[]): string | null {
   const warns = findings.filter((f) => f.severity === 'WARN')
   if (warns.length === 0) return null
   if (warns.length === 1) return warns[0].says

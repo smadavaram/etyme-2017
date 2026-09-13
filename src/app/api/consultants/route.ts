@@ -20,7 +20,7 @@ import {
  *   q           — free text search against name, headline, skills
  *   skills      — comma-separated skill filter (AND match)
  *   availability — ISO date; only consultants available on or before
- *   workAuth    — work authorisation code (US_CITIZEN, GC, H1B, etc.)
+ *   workAuth    — work authorization code (US_CITIZEN, GC, H1B, etc.)
  *   tier        — bench tier filter (RETAINED | MARKETING)
  *   page        — 1-based page number (default 1)
  *   limit       — page size (default 25, max 100)
@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Work authorisation filter
+  // Work authorization filter
   if (workAuth) {
     andClauses.push({ workAuth })
   }

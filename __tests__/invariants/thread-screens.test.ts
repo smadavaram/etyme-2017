@@ -80,7 +80,7 @@ describe('the door is where the thing is', () => {
     expect(REQ_PAGE).toContain("import { Thread, OWN_NOTES_ON_A_ROLE, toSupplierAboutRole } from '@/components/thread'")
     expect(REQ_PAGE).toContain('<SupplierThreads')
     expect(REQ_PAGE).toContain('suppliers={suppliersOnRole({')
-    // Whoever is hiring or runs the programme opens; the AP clerk reads.
+    // Whoever is hiring or runs the program opens; the AP clerk reads.
     expect(REQ_PAGE).toContain("canOpen={hasPermission(permissions, 'requirements.write') || hasPermission(permissions, 'requirements.distribute')}")
   })
 

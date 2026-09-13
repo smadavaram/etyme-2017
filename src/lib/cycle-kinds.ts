@@ -67,7 +67,7 @@ export const MONEY_KINDS = [
 export type MoneyKind = (typeof MONEY_KINDS)[number]
 
 /**
- * Recognised and categorised, never generated.
+ * Recognized and categorized, never generated.
  *
  * A commission cycle is a due date for a calculation. Until a commission
  * plan exists to calculate against, that date is a promise nothing can

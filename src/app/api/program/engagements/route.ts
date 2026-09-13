@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
 
   if (typeof msaId !== 'string' || !msaId) return bad('Which agreement is this under?', 'msaId')
   if (typeof title !== 'string' || title.trim().length < 2) {
-    return bad('An engagement needs a name somebody will recognise on an invoice.', 'title')
+    return bad('An engagement needs a name somebody will recognize on an invoice.', 'title')
   }
 
   const msa = await prisma.masterAgreement.findUnique({

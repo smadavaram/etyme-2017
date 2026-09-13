@@ -97,7 +97,7 @@ describe('A lapsed certificate stops a supplier putting anybody forward', () => 
   it('a supplier with nothing on file is chased, not blocked — which cover is required is the client’s rule, not ours', () => {
     // Refusing every supplier who has not yet been asked would make Etyme
     // the party deciding what cover a client requires, which is a screening
-    // judgement and not ours to take.
+    // judgment and not ours to take.
     const gate = supplierCoverGate({ supplierName: 'Cloudepa', certificates: [], on: ON })
 
     expect(gate.outcome).toBe('WARN')

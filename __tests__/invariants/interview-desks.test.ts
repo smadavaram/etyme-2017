@@ -5,8 +5,8 @@ import { join } from 'path'
 /**
  * Who at the client may run an interview.
  *
- * A programme is four or five jobs. Setting up a round, deciding it and
- * choosing who is in the room is the hiring manager's and the programme
+ * A program is four or five jobs. Setting up a round, deciding it and
+ * choosing who is in the room is the hiring manager's and the program
  * manager's — the same permission that raises a requisition. Nike's
  * accounts-payable clerk is a party to every submission at Nike and,
  * before this, saw every button; the route would have refused, but a

@@ -94,7 +94,7 @@ export interface Entry {
  */
 const RULES: Record<PostingKind, { account: string; contra: string; what: string }> = {
   // Earned but not yet invoiced. Moves to receivable when the invoice is
-  // raised; recognising it straight into AR would report a debt the client
+  // raised; recognizing it straight into AR would report a debt the client
   // has never been told about.
   // Written debit-first like the rest: debit unbilled revenue (an asset),
   // credit placement revenue. It reaches this table with a positive sign

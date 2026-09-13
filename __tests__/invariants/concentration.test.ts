@@ -74,7 +74,7 @@ describe('Too small to concentrate is a different answer from safe', () => {
     expect(c.unknowns.join(' ')).toContain('nothing on them')
   })
 
-  it('a share cannot be totalled across two currencies, so none is shown', () => {
+  it('a share cannot be totaled across two currencies, so none is shown', () => {
     const c = concentration({
       dimension: 'CLIENT',
       unit: 'MONEY',

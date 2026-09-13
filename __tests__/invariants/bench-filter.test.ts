@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  sift, skillHits, rateWorks, freeInTime, authWorks, staleness, summarise,
+  sift, skillHits, rateWorks, freeInTime, authWorks, staleness, summarize,
   DEFAULT_SHORTLIST, type Role, type Candidate,
 } from '@/lib/bench-filter'
 
@@ -230,7 +230,7 @@ describe('the sift', () => {
 
 describe('what the screen says', () => {
   it('counts the reasons rather than listing the people', () => {
-    const said = summarise(200, 15, [
+    const said = summarize(200, 15, [
       ...Array.from({ length: 120 }, () => ({ personId: 'x', name: 'x', code: 'SKILLS', because: '' })),
       ...Array.from({ length: 40 }, () => ({ personId: 'x', name: 'x', code: 'RATE', because: '' })),
       ...Array.from({ length: 25 }, () => ({ personId: 'x', name: 'x', code: 'SHORTLIST', because: '' })),

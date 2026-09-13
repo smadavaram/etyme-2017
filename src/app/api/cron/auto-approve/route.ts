@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { decide, signature, summarise, DEFAULT_WINDOW_DAYS } from '@/lib/auto-approval'
+import { decide, signature, summarize, DEFAULT_WINDOW_DAYS } from '@/lib/auto-approval'
 
 /**
  * GET /api/cron/auto-approve
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
     }).catch(() => {})
   }
 
-  const summary = summarise(decisions)
+  const summary = summarize(decisions)
 
   return NextResponse.json({
     data: {

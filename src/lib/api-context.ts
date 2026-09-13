@@ -350,7 +350,7 @@ async function callerFromApiKey(
         timezone: null,
       },
       // Shaped like a person's context so nothing has to special-case a
-      // machine, but honestly labelled. Nothing reads this today; leaving
+      // machine, but honestly labeled. Nothing reads this today; leaving
       // a null here would be a crash waiting for the first route that does.
       context: {
         id: `service:${account.id}`,

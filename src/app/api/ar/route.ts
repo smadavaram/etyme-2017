@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
 
   // The bill-to travels with the invoice as a label while the CLIENT is
   // the key everything rolls up on. A large client signs in one entity
-  // and is billed through a shared services centre in another; if they
+  // and is billed through a shared services center in another; if they
   // stop paying, both stop.
   const billedVia = new Map(
     raw.filter((i) => i.billTo && i.billTo.id !== i.engagement.msa.client.id)
@@ -244,7 +244,7 @@ export async function GET(request: NextRequest) {
   //
   // Where it is null the end of the billed period stands in. That is the
   // closest honest proxy and it is not the same thing: a period ending
-  // on the 31st and invoiced on the 6th is six days of ageing nobody was
+  // on the 31st and invoiced on the 6th is six days of aging nobody was
   // counting, and it always errs in the flattering direction. So the
   // count of rows relying on the proxy is reported rather than left for
   // somebody to discover.
@@ -355,7 +355,7 @@ export async function GET(request: NextRequest) {
   //
   // Every payment reached through an invoice is, by definition, one
   // somebody has already placed. These are the others: a wire with a
-  // reference nobody recognises, a client paying four invoices at once.
+  // reference nobody recognizes, a client paying four invoices at once.
   // They are read here so the screen can show them as their own number
   // and take them off exposure — money we hold is not money we are
   // carrying — without ever netting them into the receivable, which

@@ -43,7 +43,7 @@ function input(over: Partial<SettlementInput> = {}): SettlementInput {
 }
 
 describe('The balance leaves in a matched pair', () => {
-  it('settling an order moves its whole balance to the cost centre in a matched pair of postings', () => {
+  it('settling an order moves its whole balance to the cost center in a matched pair of postings', () => {
     const plan = settlementPlan(input())
     expect(plan.ok).toBe(true)
     expect(plan.balanceCents).toBe(200_000)
@@ -85,7 +85,7 @@ describe('The balance leaves in a matched pair', () => {
 })
 
 describe('What it refuses', () => {
-  it('an order with no cost centre to settle to refuses to settle', () => {
+  it('an order with no cost center to settle to refuses to settle', () => {
     const plan = settlementPlan(input({ settlesToCode: null, settlesToName: null }))
     expect(plan.ok).toBe(false)
     expect(plan.refusal).toBe('NO_COST_CENTRE')

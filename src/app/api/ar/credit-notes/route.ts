@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // Credits come off the total before ageing, so a fully credited invoice
+  // Credits come off the total before aging, so a fully credited invoice
   // reads as settled rather than as ninety days of arrears.
   const byInvoice = creditsByInvoice(credits)
   const shortPaid = aged

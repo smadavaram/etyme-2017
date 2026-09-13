@@ -12,7 +12,7 @@
  * So this file is about age, not about totals. A hundred thousand at
  * thirty days is working capital. The same hundred thousand at ninety is
  * a problem somebody should already have made a phone call about, and
- * the whole point of an ageing report is that nobody has to notice — the
+ * the whole point of an aging report is that nobody has to notice — the
  * number moves buckets on its own.
  *
  * ── Why the buckets are where they are ───────────────────────────────
@@ -27,7 +27,7 @@
  * being paid, which is a different fact from "it is a bit late" — it
  * means it was seen, or was not seen, and either way somebody skipped it.
  *
- * Ageing from the invoice date instead is the commonest mistake in this
+ * Aging from the invoice date instead is the commonest mistake in this
  * report, and it punishes the client who negotiated sixty-day terms in
  * good faith: their invoice reads "45 days" and looks delinquent on the
  * day it is not yet payable. The due date already carries the terms, so
@@ -123,7 +123,7 @@ const DAY = 86_400_000
  *
  * ── Why this is a function and not an assumption ─────────────────────
  *
- * `/api/invoices` scoped its ageing summary to
+ * `/api/invoices` scoped its aging summary to
  * `msa: { OR: [{ vendorId }, { clientId }] }` and then added every row
  * into one `totalOutstanding`. For a firm that only sells, that is
  * correct. For a prime that both sells to a client and buys from a
@@ -245,7 +245,7 @@ export function bucketOf(days: number): Bucket {
 /**
  * What the money says about one invoice.
  *
- * The order of these branches is the whole judgement. Overpayment first,
+ * The order of these branches is the whole judgment. Overpayment first,
  * because an excess must never be netted into a balance; then rounding,
  * because a residual is not a debt; then the size of what is left, which
  * is what separates a query from arrears.
@@ -280,7 +280,7 @@ export function settlementOf(inv: ArInvoice): {
     }
   }
 
-  // Something arrived and they stopped. Whether that is an instalment or
+  // Something arrived and they stopped. Whether that is an installment or
   // an argument is decided by how much they held back.
   const heldBack = inv.totalMinor > 0 ? remainder / inv.totalMinor : 1
   const short = heldBack <= SHORT_PAY_MAX_FRACTION
@@ -591,7 +591,7 @@ export function ageBook(invoices: ArInvoice[], now: Date): Book {
 // ── Days sales outstanding ───────────────────────────────────────────
 
 export interface BillingPeriod {
-  /** A label a person recognises — "2026-07". */
+  /** A label a person recognizes — "2026-07". */
   label: string
   /** Days the period covers. */
   days: number
@@ -1023,7 +1023,7 @@ const STEP_SET = new Set<string>(LADDER.map((r) => r.step))
  * calendar: **a letter suppresses a rung only while at least one invoice
  * it named is still open.** When the last of them settles, that run is
  * over and the ladder starts from the bottom on whatever comes next.
- * That is also the only rule here that a person would recognise as the
+ * That is also the only rule here that a person would recognize as the
  * one they follow themselves.
  *
  * A letter naming no invoices belongs to no run and suppresses nothing.
@@ -1064,7 +1064,7 @@ export function openInvoiceIds(book: CurrencyBook): Set<string> {
 // CASH APPLICATION — the receipt that names nothing
 // ═════════════════════════════════════════════════════════════════════
 //
-// Money hits the bank with a reference nobody recognises, or a client
+// Money hits the bank with a reference nobody recognizes, or a client
 // pays four invoices in one wire. Every AR screen in this industry is
 // built around the invoice, so a receipt keyed against nothing is simply
 // invisible — it sits on a bank statement and in no figure anywhere.
@@ -1685,7 +1685,7 @@ export function collectionStage(c: CollectionCase, now: Date): CollectionVerdict
       says:
         `${c.ownerName} has this account. Nothing automated goes out while a person owns ` +
         `it — two voices on the same debt is how a client learns to answer neither. The ` +
-        `next thing worth having is a date, from somebody who can authorise the payment.`,
+        `next thing worth having is a date, from somebody who can authorize the payment.`,
     }
   }
 

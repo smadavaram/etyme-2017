@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     asked: tidy(str('asked')),
   }
 
-  // A source we do not recognise is refused rather than filed as other.
+  // A source we do not recognize is refused rather than filed as other.
   // There is no value in the enum for a list somebody bought, and this
   // endpoint is the obvious place somebody would try to put one.
   const found = problems(input)

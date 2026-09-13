@@ -78,16 +78,16 @@ const NOT_A_TITLE =
 /**
  * The role, as a line of text.
  *
- * A labelled line wins. Otherwise the first line that reads like a title
+ * A labeled line wins. Otherwise the first line that reads like a title
  * rather than like an email header or a greeting — which is what the
  * requirement parser gets wrong on a forwarded mail, where the first line
  * is always "From: Raj".
  */
 export function readTitle(text: string): { title: string; sure: boolean } {
-  const labelled = text.match(
+  const labeled = text.match(
     /^\s*(?:role|position|title|job\s*title|req(?:uirement)?)\s*[:\-]\s*(.+)$/im
   )
-  if (labelled) return { title: tidy(labelled[1]), sure: true }
+  if (labeled) return { title: tidy(labeled[1]), sure: true }
 
   // A title written into a sentence: "we have an immediate need for a
   // Senior SAP FICO consultant in Denver". This is the normal shape of a
@@ -129,11 +129,11 @@ const KNOWN_SKILLS = [
 ]
 
 export function readSkills(text: string): string[] {
-  const labelled = text.match(
+  const labeled = text.match(
     /^\s*(?:skills?|technologies|tech\s*stack|must\s*have)\s*[:\-]\s*(.+)$/im
   )
-  if (labelled) {
-    const listed = labelled[1]
+  if (labeled) {
+    const listed = labeled[1]
       .split(/[,;·•|]/)
       .map((s) => tidy(s))
       .filter((s) => s.length > 1 && s.length < 40)
@@ -147,10 +147,10 @@ export function readSkills(text: string): string[] {
 }
 
 export function readLocation(text: string): string | null {
-  const labelled = text.match(
+  const labeled = text.match(
     /^\s*(?:location|city|site|office|work\s*location)\s*[:\-]\s*(.+)$/im
   )
-  if (labelled) return tidy(labelled[1])
+  if (labeled) return tidy(labeled[1])
 
   // "Denver, CO (Hybrid)" or "Remote — must sit EST", written in the body.
   const inline = text.match(
@@ -202,11 +202,11 @@ export function readRate(text: string): { cents: number | null; note: string | n
  * email signature is how a submission ends up addressed to nobody.
  */
 export function readPostedBy(text: string): string | null {
-  const labelled = text.match(
+  const labeled = text.match(
     /^\s*(?:client|company|employer|posted\s*by|vendor|prime)\s*[:\-]\s*(.+)$/im
   )
-  if (labelled) {
-    const v = tidy(labelled[1])
+  if (labeled) {
+    const v = tidy(labeled[1])
     if (v && !/^(confidential|undisclosed|n\/?a|tbd)$/i.test(v)) return v
   }
 

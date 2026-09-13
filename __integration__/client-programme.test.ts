@@ -25,7 +25,7 @@ import { GET as compliance } from '@/app/api/compliance/route'
  *
  * Nike buys contract labour from three suppliers and pays for this
  * product. The people who use it are not "Nike": they are a hiring
- * manager who needs somebody, a programme office that decides which
+ * manager who needs somebody, a program office that decides which
  * suppliers see the role, a VP who signs for the money, a clerk who pays
  * what matched, and an officer who answers for tenure and paperwork.
  * Each of them has exactly the rights their job needs, and this walks
@@ -54,7 +54,7 @@ const call = async (fn: (r: any, ctx: any) => Promise<Response>, method: string,
 const co: Record<string, string> = {}
 const it_: Record<string, any> = {}
 
-describe('a client programme, seeded', () => {
+describe('a client program, seeded', () => {
   beforeAll(async () => {
     await resetDatabase()
     await seedWorld()
@@ -84,7 +84,7 @@ describe('a client programme, seeded', () => {
     expect(roleOf(NIKE.hiring)?.name).toBe('Hiring Manager')
     expect(roleOf(NIKE.ap)?.name).toBe('AP Clerk')
     expect(roleOf(NIKE.compliance)?.name).toBe('Compliance Officer')
-    expect(roleOf(NIKE.programme)?.name).toBe('Programme Manager')
+    expect(roleOf(NIKE.programme)?.name).toBe('Program Manager')
     // The clerk pays and does not hire; the manager hires and does not pay.
     expect(roleOf(NIKE.ap)?.permissions).toContain('payments.record')
     expect(roleOf(NIKE.ap)?.permissions).not.toContain('requirements.write')
@@ -160,17 +160,17 @@ describe('1 · the hiring manager posts a requirement', () => {
   })
 })
 
-describe('2 · the programme office sends it to suppliers, and a supplier answers', () => {
-  it('the hiring manager cannot choose which suppliers see it — that is the programme office\'s control', async () => {
+describe('2 · the program office sends it to suppliers, and a supplier answers', () => {
+  it('the hiring manager cannot choose which suppliers see it — that is the program office\'s control', async () => {
     as(NIKE.hiring)
     const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [{ companyId: co['world-pinnacle'], payMin: 3200, payMax: 3800 }],
     })
     expect(r.status).toBe(403)
-    expect(r.body.error.message).toMatch(/programme office/)
+    expect(r.body.error.message).toMatch(/program office/)
   })
 
-  it('the programme office sends it to Pinnacle with a band Pinnacle alone can see', async () => {
+  it('the program office sends it to Pinnacle with a band Pinnacle alone can see', async () => {
     as(NIKE.programme)
     const r = await call(distribute, 'POST', `/api/requisitions/${it_.requisition}/distribute`, it_.requisition, {
       vendors: [{ companyId: co['world-pinnacle'], payMin: 3200, payMax: 3800 }],

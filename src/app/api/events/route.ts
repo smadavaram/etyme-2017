@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     data: {
       events: events.map((e) => ({
-        // Serialised as a string: a sequence number outgrows a JavaScript
+        // Serialized as a string: a sequence number outgrows a JavaScript
         // number eventually, and a consumer silently losing precision on
         // its cursor is a bug that shows up years later.
         seq: e.seq.toString(),

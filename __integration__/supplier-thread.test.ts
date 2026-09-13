@@ -83,7 +83,7 @@ describe('Nike writes to Pinnacle about a role, and Pinnacle answers', () => {
     meiLin = { email: ml.person.primaryEmail, submissionId: ml.id }
   }, 120_000)
 
-  it('the programme desk opens a thread with Pinnacle from the role, with its first question', async () => {
+  it('the program desk opens a thread with Pinnacle from the role, with its first question', async () => {
     as(NIKE_PM)
     const res = json(await open(req('POST', '/api/conversations', {
       topic: 'REQUIREMENT', topicId: role.id, withCompanyId: pinnacle.id,

@@ -13,7 +13,7 @@ import {
  *
  * BUILD.md §3: "aging buckets"
  *
- * Returns invoices with ageing classification:
+ * Returns invoices with aging classification:
  *   Current  — not yet due
  *   1–30     — 1 to 30 days past due
  *   31–60    — 31 to 60 days past due
@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
   if (status) where.status = status.toUpperCase()
   if (engagementId) where.engagementId = engagementId
 
-  // Ageing bucket filter
+  // Aging bucket filter
   const now = new Date()
   if (aging) {
     switch (aging) {
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
           companyId
         )
 
-  // Classify ageing for each invoice
+  // Classify aging for each invoice
   const classified = invoices
     .map((inv) => {
       const dueDate = new Date(inv.dueAt)
@@ -262,7 +262,7 @@ export async function GET(request: NextRequest) {
   const allInvoices = await prisma.invoice.findMany({
     where: {
       ...where,
-      dueAt: undefined, // remove the ageing filter for the summary
+      dueAt: undefined, // remove the aging filter for the summary
       status: { notIn: NOT_COUNTABLE },
     },
     select: {
@@ -311,7 +311,7 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  const summarise = (rows: ArInvoice[]): CurrencySummary[] =>
+  const summarize = (rows: ArInvoice[]): CurrencySummary[] =>
     ageBook(rows, now).byCurrency.map((cb) => {
       const buckets = Object.fromEntries(
         AGING_KEYS.map((k) => [k, { count: 0, minor: 0 }])
@@ -330,8 +330,8 @@ export async function GET(request: NextRequest) {
       }
     })
 
-  const receivable = summarise(bySide.RECEIVABLE)
-  const payable = summarise(bySide.PAYABLE)
+  const receivable = summarize(bySide.RECEIVABLE)
+  const payable = summarize(bySide.PAYABLE)
 
   const gaps: string[] = []
   if (unattributed > 0) {
@@ -363,7 +363,7 @@ export async function GET(request: NextRequest) {
         gaps,
         says:
           'What we are owed and what we owe are shown apart and never summed. A prime that ' +
-          'both sells and buys used to see its own supplier bills raise the bar labelled ' +
+          'both sells and buys used to see its own supplier bills raise the bar labeled ' +
           'money owed to us.',
       },
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },

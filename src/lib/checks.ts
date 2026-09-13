@@ -65,7 +65,7 @@ export type Code =
   | 'WORK_AUTH'
   /** The person agreed to be put forward for this one. */
   | 'CONSENT'
-  /** The skills claimed are actually in the CV. The one model judgement. */
+  /** The skills claimed are actually in the CV. The one model judgment. */
   | 'SKILLS_EVIDENCED'
   /** The rate against what has actually cleared for work like this. */
   | 'RATE_VS_MARKET'
@@ -216,7 +216,7 @@ export function ruleChecks(p: Package, now: Date): Finding[] {
     })
   }
 
-  // ── Work authorisation ──
+  // ── Work authorization ──
   // A mismatch is a WARN, not a FAIL, until somebody records why the
   // role may restrict at all.
   //

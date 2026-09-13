@@ -124,7 +124,7 @@ describe('The shape holds — levels, codes and owners', () => {
   })
 
   it('L4 tasks say what somebody does, not what a module is called', () => {
-    // "Ageing calculation" is a module. "Buckets from the due date, not
+    // "Aging calculation" is a module. "Buckets from the due date, not
     // the invoice date" is a task somebody can be held to.
     for (const r of allProcesses()) {
       for (const t of r.l3.tasks) {

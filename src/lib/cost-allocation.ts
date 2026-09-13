@@ -1,5 +1,5 @@
 /**
- * Splitting a contract's cost across the client's cost centres.
+ * Splitting a contract's cost across the client's cost centers.
  *
  * CLAUDE.md names invoice arithmetic as something to approach with care:
  * "A wrong rate calculation that looks plausible is worse than a delay."
@@ -43,7 +43,7 @@ export function validateAllocation(shares: AllocationShare[]): AllocationValidat
   const errors: string[] = []
 
   if (shares.length === 0) {
-    return { valid: false, totalBps: 0, errors: ['At least one cost centre is required'] }
+    return { valid: false, totalBps: 0, errors: ['At least one cost center is required'] }
   }
 
   for (const s of shares) {
@@ -61,7 +61,7 @@ export function validateAllocation(shares: AllocationShare[]): AllocationValidat
   const seen = new Set<string>()
   for (const s of shares) {
     if (seen.has(s.costCenterId)) {
-      errors.push(`Cost centre ${s.costCenterId} appears more than once`)
+      errors.push(`Cost center ${s.costCenterId} appears more than once`)
     }
     seen.add(s.costCenterId)
   }
@@ -81,7 +81,7 @@ export function validateAllocation(shares: AllocationShare[]): AllocationValidat
  *
  * Largest remainder: floor every share, then hand the leftover cents out
  * one at a time to whoever was rounded down hardest. Ties break on the
- * larger share, then on cost centre id, so the same input always produces
+ * larger share, then on cost center id, so the same input always produces
  * the same output — an export re-run must not shuffle cents between
  * budgets.
  */
@@ -138,7 +138,7 @@ export function allocateAmount(
 
 /**
  * The allocation to use when a contract has none: everything to one cost
- * centre. Keeps the export total correct rather than dropping the line.
+ * center. Keeps the export total correct rather than dropping the line.
  */
 export function singleAllocation(costCenterId: string): AllocationShare[] {
   return [{ costCenterId, shareBps: FULL_ALLOCATION_BPS }]

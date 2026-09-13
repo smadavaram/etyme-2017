@@ -95,11 +95,11 @@ describe('only people who actually contracted, about work they actually did', ()
   })
 
   it('refuses when the record says nothing about their skills at all', () => {
-    // An empty record is not a licence. It is a reason to leave them be.
+    // An empty record is not a license. It is a reason to leave them be.
     expect(mayApproach(contact({ skills: [] }), VENDOR, PLACES).refusal).toBe('NOT_RELEVANT')
   })
 
-  it('matches on the skill regardless of how it was capitalised', () => {
+  it('matches on the skill regardless of how it was capitalized', () => {
     expect(mayApproach(contact({ skills: ['sap fico'] }), VENDOR, PLACES).ok).toBe(true)
   })
 })

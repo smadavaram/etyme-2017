@@ -462,7 +462,7 @@ function Clause({ data }: { data: any; book: any }) {
       <div className="panel">
         <p className="text-[13px] text-etyme-muted">
           No obligation here is written as conditional on somebody else paying first. That
-          is worth knowing: it means the wait stops where it started rather than travelling
+          is worth knowing: it means the wait stops where it started rather than traveling
           downwards.
         </p>
       </div>

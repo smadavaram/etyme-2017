@@ -49,7 +49,7 @@ function browserStore(): Remembers | null {
 
 /**
  * Namespaced, so one page's choice cannot collide with another's, and so
- * everything Etyme stores can be recognised at a glance in devtools.
+ * everything Etyme stores can be recognized at a glance in devtools.
  */
 function scoped(key: string): string {
   return `etyme.${key}`

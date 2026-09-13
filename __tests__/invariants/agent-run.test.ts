@@ -56,7 +56,7 @@ describe('what a call costs', () => {
     expect(write).toBe(Math.ceil(1000 * 5 * 1.25))
   })
 
-  it('assumes the dearest price for a model it does not recognise', () => {
+  it('assumes the dearest price for a model it does not recognize', () => {
     // Under-reporting your own cost is the one direction that lets a bad
     // margin hide, so an unknown model is priced as an expensive one.
     const unknown = costMicrosOf('some-model-shipped-last-tuesday', { input_tokens: 1000 })

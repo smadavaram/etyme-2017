@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   const name = String(body.name ?? '').trim()
   if (!name) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'A location needs a name people would recognise', field: 'name' } },
+      { error: { code: 'VALIDATION', message: 'A location needs a name people would recognize', field: 'name' } },
       { status: 422 }
     )
   }

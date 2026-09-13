@@ -70,14 +70,14 @@ function Stat({ label, value, sub, tone = 'default' }: {
   sub?: string
   tone?: 'default' | 'attention' | 'verified'
 }) {
-  const colour =
+  const color =
     tone === 'attention' ? 'text-etyme-attention'
     : tone === 'verified' ? 'text-etyme-verified'
     : 'text-etyme-ink'
   return (
     <div>
       <Lbl>{label}</Lbl>
-      <div className={`font-serif text-3xl mt-1 tabular-nums ${colour}`}>{value}</div>
+      <div className={`font-serif text-3xl mt-1 tabular-nums ${color}`}>{value}</div>
       {sub && <div className="text-xs text-etyme-muted mt-0.5">{sub}</div>}
     </div>
   )

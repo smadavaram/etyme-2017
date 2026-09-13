@@ -369,7 +369,7 @@ export default function PlacementPage() {
       <Station
         n={5}
         title="Cleared to work"
-        subtitle="Work authorisation stops a placement. The rest are worth chasing."
+        subtitle="Work authorization stops a placement. The rest are worth chasing."
       >
         {/* The verdict first, in one sentence, then the pieces. This
             station used to list only what was on file, so a person with

@@ -51,7 +51,7 @@ function input(over: Partial<VendorBillMatchInput> = {}): VendorBillMatchInput {
   }
 }
 
-describe('A supplier bill is matched against what we authorised and what we accepted', () => {
+describe('A supplier bill is matched against what we authorized and what we accepted', () => {
   it('a supplier bill matches against the purchase order, the approved hours and the bill itself', () => {
     const r = matchVendorBill(input())
     expect(r.matched).toBe(true)
@@ -274,7 +274,7 @@ describe('The exception queue', () => {
     expect(q.map((e) => e.id)).toEqual(['small', 'big'])
     // The small one is first because nobody can wave it through.
     expect(q[0].hardFailures).toContain('RECEIPT')
-    expect(q[0].says).toContain('not a judgement call')
+    expect(q[0].says).toContain('not a judgment call')
     expect(q[1].waivableFailures).toContain('PO_BALANCE')
     expect(q[1].says).toContain('record an exception and say why')
   })

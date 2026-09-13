@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 /**
- * Says demo, on every screen, without apologising for it.
+ * Says demo, on every screen, without apologizing for it.
  *
  * Every number below this line is invented. A visitor who takes a seeded
  * rate benchmark for a reading of their own market has been misled by us,
- * and "it looked like demo data" is exactly the judgement nobody should
+ * and "it looked like demo data" is exactly the judgment nobody should
  * have to make.
  *
  * It also carries the two things somebody in a demo actually wants: how

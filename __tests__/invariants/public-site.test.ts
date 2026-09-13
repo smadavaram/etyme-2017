@@ -13,7 +13,7 @@ import { whatTheyDo } from '@/lib/public-site'
 describe('what a company is said to do', () => {
   it('describes each kind in a phrase somebody would use', () => {
     expect(whatTheyDo('CLIENT', null)).toBe('hires contract staff')
-    expect(whatTheyDo('MSP', null)).toBe('runs contingent workforce programmes')
+    expect(whatTheyDo('MSP', null)).toBe('runs contingent workforce programs')
     expect(whatTheyDo('GSI', 'PRIME')).toBe('delivers projects and supplies people')
   })
 

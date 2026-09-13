@@ -7,7 +7,7 @@
  * volume trains a market to filter you, and this product's whole
  * argument is that the industry's noise is the problem — a sequence of
  * eleven emails to somebody who never asked is us becoming the thing we
- * criticise, at our own expense.
+ * criticize, at our own expense.
  *
  * So the rules are checkable rather than cultural: no consent, no row;
  * a purchased list is refused whole and the refusal says why; a second
@@ -80,7 +80,7 @@ describe('An address is quoted back as it was typed, never called invalid', () =
     expect(problems({ email: 'ravi@cloudepa.com', source: 'HOME_PAGE' })).toEqual([])
   })
 
-  it('refuses a source nobody recognises rather than filing it as other', () => {
+  it('refuses a source nobody recognizes rather than filing it as other', () => {
     const p = problems({ ...ok, source: 'COLD_LIST' })
     expect(p.map((x) => x.field)).toContain('source')
     expect(p.find((x) => x.field === 'source')!.says).toContain('"COLD_LIST"')
@@ -137,7 +137,7 @@ describe('A second ask updates what somebody wants, and never makes a second of 
     convertedAt: null,
   }
 
-  it('recognises the same person behind a differently typed address', () => {
+  it('recognizes the same person behind a differently typed address', () => {
     const v = secondAsk({ ...ok, email: ' RAVI@cloudepa.com ' }, onFile, at('2026-08-01T09:00:00Z'))
     expect(v.alreadyOnFile).toBe(true)
     expect(v.says).toContain('already')

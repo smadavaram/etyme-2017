@@ -54,7 +54,7 @@ describe('the roles a company starts with', () => {
     }
   })
 
-  it('describes every role in words the person holding it would recognise', () => {
+  it('describes every role in words the person holding it would recognize', () => {
     for (const kind of KINDS) {
       for (const role of rolesFor(kind)) {
         expect(role.blurb.length, `${kind}/${role.name}`).toBeGreaterThan(10)
@@ -64,7 +64,7 @@ describe('the roles a company starts with', () => {
 
   it('gives a client hiring manager no power to choose which suppliers see their requisition', () => {
     // Routing work to a chosen supplier is the oldest way to bend a
-    // programme. Raising the requisition is the manager's job; deciding who
+    // program. Raising the requisition is the manager's job; deciding who
     // competes for it is not.
     const hm = rolesFor('CLIENT').find((r) => r.name === 'Hiring Manager')!
     expect(hm.permissions).toContain('requirements.write')
@@ -90,11 +90,11 @@ describe('the roles a company starts with', () => {
     expect(r.permissions).not.toContain('pnl.read')
   })
 
-  it('gives only the owner and the programme manager the power to edit the rules', () => {
+  it('gives only the owner and the program manager the power to edit the rules', () => {
     // Whoever writes the approval chain decides what everyone else needs
     // permission for. That belongs to fewer people than settings.manage.
     const writers = rolesFor('CLIENT').filter((r) => r.permissions.includes('governance.write'))
-    expect(writers.map((r) => r.name).sort()).toEqual(['Owner', 'Programme Manager'])
+    expect(writers.map((r) => r.name).sort()).toEqual(['Owner', 'Program Manager'])
   })
 
   it('gives a client roles that make sense at a client, not at a staffing firm', () => {
@@ -134,7 +134,7 @@ describe('choosing a template pack', () => {
     expect(packFor('VENDOR', 'UK')).toBe('UK')
   })
 
-  it('gives a US delivery partner the ERP pack, because SAP programmes bill differently', () => {
+  it('gives a US delivery partner the ERP pack, because SAP programs bill differently', () => {
     expect(packFor('GSI', 'US')).toBe('US_SAP')
   })
 

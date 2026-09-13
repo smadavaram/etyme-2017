@@ -5,7 +5,7 @@
  * until somebody remembers to take it away. Nobody ever remembers. The
  * result is every enterprise system on earth — a directory full of people
  * who left, contractors from a project that ended in 2029, and one
- * spreadsheet a year where a manager ticks names they do not recognise.
+ * spreadsheet a year where a manager ticks names they do not recognize.
  *
  * So three rules, in order of how much they change:
  *

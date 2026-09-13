@@ -67,7 +67,7 @@ export const CHAIN: Firm[] = [
     name: 'Yoh Services',
     kind: 'MSP',
     buysFrom: 'GSI',
-    blurb: 'You run the programme and are invoiced for it. You never touch a CV.',
+    blurb: 'You run the program and are invoiced for it. You never touch a CV.',
   },
   {
     seat: 'GSI',

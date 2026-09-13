@@ -9,7 +9,7 @@ import {
 
 /**
  * Every VMS on the market publishes supplier scorecards, because the VMS is
- * bought by the buyer. Nobody scores the buyer — and the buyer's behaviour
+ * bought by the buyer. Nobody scores the buyer — and the buyer's behavior
  * is the largest cost a small supplier carries.
  *
  * A staffing firm deciding whether to work a requisition asks: will they

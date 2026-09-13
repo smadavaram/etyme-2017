@@ -60,11 +60,11 @@ describe('reading a pasted CV', () => {
 })
 
 describe('what it refuses to guess', () => {
-  it('never reads a work authorisation out of a CV', () => {
+  it('never reads a work authorization out of a CV', () => {
     // "Visa" in a CV is as likely to be a payment card as a permit, and
     // a wrong permit is how a placement collapses in week two.
     const cv = readCv(CV + '\nVisa status: current\n')
-    expect(cv.unknowns).toContain('Work authorisation is not read from a CV. Say what they hold.')
+    expect(cv.unknowns).toContain('Work authorization is not read from a CV. Say what they hold.')
   })
 
   it('says plainly when it could not find a name', () => {

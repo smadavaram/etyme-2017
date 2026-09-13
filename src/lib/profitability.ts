@@ -339,7 +339,7 @@ export type HealthOrUnknown = Health | 'UNKNOWN'
 
 export function health(p: Profit, floorPct: number | null): HealthOrUnknown {
   // Grading a placement whose cost nobody recorded is guessing with a
-  // colour attached.
+  // color attached.
   if (p.costUnknown) return 'UNKNOWN'
   if (p.marginCents < 0) return 'LOSS'
   if (p.marginPct == null) return 'THIN'

@@ -457,7 +457,7 @@ export interface BudgetStanding {
 /**
  * What is left on an order.
  *
- * A cost object with no ceiling is a cost centre, not an order. Where a
+ * A cost object with no ceiling is a cost center, not an order. Where a
  * budget is set, exceeding it is a fact the person committing the next
  * pound should see before they commit it, not in a month-end report.
  */
@@ -555,7 +555,7 @@ export function money(cents: number): string {
 // An order is a temporary pot. It opens when work starts, it accumulates,
 // and at the end its balance has to go somewhere — because a project that
 // has finished should not still be carrying a result that nobody owns.
-// Where it goes is the cost centre: a standing department with a budget
+// Where it goes is the cost center: a standing department with a budget
 // that continues after the project does not.
 //
 // `order-postings.ts` already refuses to write into a SETTLED order,
@@ -569,7 +569,7 @@ export function money(cents: number): string {
 // the order and not on anything above it.
 //
 // A pair also means the movement is visible from both ends. Somebody
-// looking at the cost centre can see what arrived and from where, which
+// looking at the cost center can see what arrived and from where, which
 // is the question a controller actually asks at year end.
 //
 // ── Why LOCKED exists between OPEN and SETTLED ───────────────────────
@@ -607,7 +607,7 @@ export interface SettlementPlan {
 
 export interface SettlementInput {
   status: OrderStatus
-  /** The cost centre the balance goes to. Null is a refusal, not a default. */
+  /** The cost center the balance goes to. Null is a refusal, not a default. */
   settlesToCode: string | null
   settlesToName: string | null
   currency: string
@@ -647,7 +647,7 @@ export function settlementPlan(i: SettlementInput): SettlementPlan {
       ...nothing,
       says:
         'Nowhere to settle this to. An order is a temporary pot and its balance has to ' +
-        'land in a standing one — set the cost centre before closing it, rather than ' +
+        'land in a standing one — set the cost center before closing it, rather than ' +
         'leaving a finished project carrying a result nobody owns.',
     }
   }
@@ -740,7 +740,7 @@ export function mayPostTo(status: OrderStatus, intent: PostingIntent): PostingPe
     allowed: false,
     says:
       `This order is ${status.toLowerCase()}. Its balance has already moved out to a cost ` +
-      `centre, so a posting here would change a period that has left the building. Post ` +
+      `center, so a posting here would change a period that has left the building. Post ` +
       `the correction to an open order instead.`,
   }
 }

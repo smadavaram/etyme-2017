@@ -90,7 +90,7 @@ export async function send(m: Outbound): Promise<Sent> {
   }
 
   if (!configured()) {
-    // Written down, visible, and labelled as never having left. Not an
+    // Written down, visible, and labeled as never having left. Not an
     // error — an absent integration made obvious instead of silent.
     return await settle(
       row.id,

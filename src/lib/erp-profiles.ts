@@ -1,7 +1,7 @@
 /**
  * Getting a coded invoice into somebody else's ledger.
  *
- * The coding endpoint already produces posting-ready rows: cost centre, GL
+ * The coding endpoint already produces posting-ready rows: cost center, GL
  * account, PO number, split by largest remainder so the lines sum back to
  * the total to the cent. Its own comment states the architecture correctly
  * — **Etyme is not the general ledger** — and that instinct is worth more
@@ -17,7 +17,7 @@
  *   - This produces a file. Somebody's finance team loads it, or their
  *     middleware picks it up. Nothing here posts to a ledger directly.
  *   - Every profile needs the receiving system's own codes to already be
- *     right. A cost centre that does not exist in SAP is a rejected file,
+ *     right. A cost center that does not exist in SAP is a rejected file,
  *     which is why the import engine exists.
  *   - A file that sums to a cent off is rejected whole. The totals are
  *     checked here before anything is written out.
@@ -59,7 +59,7 @@ export const PROFILES: Profile[] = [
     id: 'SAP_S4',
     label: 'SAP S/4HANA',
     howItLands:
-      'Loaded through the FB60 vendor invoice interface, or picked up by your middleware as an IDoc payload. Cost centre and GL must already exist in SAP.',
+      'Loaded through the FB60 vendor invoice interface, or picked up by your middleware as an IDoc payload. Cost center and GL must already exist in SAP.',
     extension: 'csv',
     delimiter: ';',
     dateFormat: 'YYYYMMDD',
@@ -126,7 +126,7 @@ export const PROFILES: Profile[] = [
     id: 'WORKDAY_FIN',
     label: 'Workday Financials',
     howItLands:
-      'Loaded as a Supplier Invoice EIB. Workday wants worktags rather than a cost centre column, so the cost centre travels as CC-prefixed.',
+      'Loaded as a Supplier Invoice EIB. Workday wants worktags rather than a cost center column, so the cost center travels as CC-prefixed.',
     extension: 'csv',
     delimiter: ',',
     dateFormat: 'ISO',
@@ -162,7 +162,7 @@ export const PROFILES: Profile[] = [
       { header: 'PO number', from: 'poNumber', format: 'text' },
       { header: 'Line', from: 'lineNumber', format: 'text' },
       { header: 'Person', from: 'personName', format: 'text' },
-      { header: 'Cost centre', from: 'costCenterCode', format: 'text' },
+      { header: 'Cost center', from: 'costCenterCode', format: 'text' },
       { header: 'GL account', from: 'glAccount', format: 'text' },
       { header: 'Amount', from: 'amount', format: 'money' },
       { header: 'Currency', from: 'currency', format: 'text' },
@@ -243,13 +243,13 @@ export function render(
     })
   }
 
-  // A cost centre or GL that is missing here is missing in their ledger
+  // A cost center or GL that is missing here is missing in their ledger
   // too, and the file will bounce. Naming which line is cheaper than
   // letting them find it.
   const uncoded = lines.filter((l) => !l.costCenterCode || !l.glAccount)
   if (uncoded.length > 0 && profile.id !== 'GENERIC') {
     problems.push({
-      problem: `${uncoded.length} line(s) have no cost centre or GL account`,
+      problem: `${uncoded.length} line(s) have no cost center or GL account`,
       detail: `${profile.label} rejects a file with an unmapped line. Code them first — the people affected are ${uncoded.slice(0, 3).map((l) => l.personName).join(', ')}${uncoded.length > 3 ? ` and ${uncoded.length - 3} more` : ''}.`,
     })
   }

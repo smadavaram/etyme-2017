@@ -268,7 +268,7 @@ const TEAM = {
 }
 
 describe('The raise form says who would be asked, before anything is raised', () => {
-  it('the raise form says who will be asked for this cost centre, and that within plan nobody is', () => {
+  it('the raise form says who will be asked for this cost center, and that within plan nobody is', () => {
     const asked = whoWillBeAsked('cc-apps', TEAM)
     expect(asked.unitName).toBe('Apps')
     expect(asked.hr?.person.name).toBe('Anita Shah')
@@ -300,7 +300,7 @@ describe('The raise form says who would be asked, before anything is raised', ()
     expect(out['u-rnd1'].procurement.person.name).toBe('Derek Halvorsen')
   })
 
-  it('a cost centre with nobody answerable says so rather than naming a lead', () => {
+  it('a cost center with nobody answerable says so rather than naming a lead', () => {
     const asked = whoWillBeAsked('cc-orphan', TEAM)
     expect(asked.lead).toBeNull()
     expect(asked.leadNote).toBe(
@@ -412,10 +412,10 @@ describe("Procurement's yes names the suppliers it cleared", () => {
   })
 })
 
-// ── 5. The programme team ─────────────────────────────────
+// ── 5. The program team ─────────────────────────────────
 
-describe('The programme team names a desk per unit and says what is missing', () => {
-  it('the programme team page names HR and Procurement per unit and says what is missing', () => {
+describe('The program team names a desk per unit and says what is missing', () => {
+  it('the program team page names HR and Procurement per unit and says what is missing', () => {
     expect(TEAM_PAGE).toContain('Role — HR')
     expect(TEAM_PAGE).toContain('Sourcing — Procurement')
     expect(TEAM_PAGE).toContain('Name one')

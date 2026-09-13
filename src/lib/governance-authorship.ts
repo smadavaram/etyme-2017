@@ -83,7 +83,7 @@ export function assessRule(draft: RuleDraft, existing: Existing): Assessment {
       reason: 'You are the only approver on a rule you wrote, so nothing you spend would ever be reviewed by anybody else. Add another approver.',
     })
   } else if (draft.approverPersonIds.includes(draft.authorPersonId)) {
-    // Being one of several is normal — a programme manager who both writes
+    // Being one of several is normal — a program manager who both writes
     // the chain and sits in it is ordinary. It is being the whole chain
     // that is not.
     checks.push({

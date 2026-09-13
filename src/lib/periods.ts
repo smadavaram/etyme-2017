@@ -236,7 +236,7 @@ export function periodsBetween(from: Date, to: Date, terms: Terms, max = 400): P
   return out
 }
 
-/** Is this exactly a period the contract recognises? */
+/** Is this exactly a period the contract recognizes? */
 export function isAPeriod(start: Date, end: Date, terms: Terms): boolean {
   const p = periodFor(start, terms)
   return p.start.getTime() === dayOf(start).getTime() && p.end.getTime() === dayOf(end).getTime()

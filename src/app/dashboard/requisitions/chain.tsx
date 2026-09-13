@@ -64,7 +64,7 @@ export function Chip({ children, tone = 'passive' }: {
 //
 // Three desks, each with its own question (src/lib/requisition-approval.ts):
 // HR reads the role, Procurement reads the suppliers and the rate, and
-// the lead who owns the cost centre gives the one human yes on the money.
+// the lead who owns the cost center gives the one human yes on the money.
 // The screen has to read that way too — a flat list of names in rank
 // order was the old chain, and it cannot say why two people are being
 // asked at once.
@@ -592,7 +592,7 @@ export function EditRequisition({
 
   async function save() {
     if (title.trim().length < 3) {
-      setErr('Give it a title somebody else would recognise.')
+      setErr('Give it a title somebody else would recognize.')
       return
     }
     const min = cents(billMin)
@@ -728,7 +728,7 @@ export function EditRequisition({
             <label className={label}>The role, in your own words</label>
             <textarea className={field} rows={6} value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="What the team does, what the person will actually work on, and what somebody who has done it before would recognise." />
+              placeholder="What the team does, what the person will actually work on, and what somebody who has done it before would recognize." />
           </div>
           <div>
             <label className={label}>Why this is needed</label>

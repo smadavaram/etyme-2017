@@ -57,7 +57,7 @@ export function defaultPostureFor(kind: string): OutsidePosture {
   switch (kind) {
     case 'VENDOR':
     case 'MSP':
-      // An MSP runs somebody else's supplier programme. Looking outward is
+      // An MSP runs somebody else's supplier program. Looking outward is
       // the whole engagement.
       return 'ALLOWED'
     case 'GSI':

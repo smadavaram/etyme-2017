@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
           ? 'No review date was set. A limit with none goes quietly out of date while ' +
             'continuing to look like a control.'
           : 'Breaching this warns, names an approver and asks for a reason. It never blocks — ' +
-            'a hard stop on a commercial judgement is worked around within a week.',
+            'a hard stop on a commercial judgment is worked around within a week.',
     },
   })
 }

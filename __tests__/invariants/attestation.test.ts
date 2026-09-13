@@ -7,7 +7,7 @@
  * and leave the document with the person.
  *
  * The line these tests defend: a fact about an event may be shared. A
- * judgement about a person may not, because a judgement transfers no
+ * judgment about a person may not, because a judgment transfers no
  * legal duty, makes us the liability sink, makes us a screening agency,
  * and puts us in competition with the suppliers we depend on.
  */
@@ -108,7 +108,7 @@ describe('A check about the past may be reused. A check about a day may not', ()
     expect(mayRelyOn('DRUG_SCREENING', s).says).toContain('describes a day')
   })
 
-  it('a stale reusable check stops being relied on rather than quietly ageing', () => {
+  it('a stale reusable check stops being relied on rather than quietly aging', () => {
     const s = standingOf(att({ kind: 'EMPLOYMENT_VERIFICATION', verifiedAt: daysAgo(900) }), AT)
     expect(s.current).toBe(false)
     expect(mayRelyOn('EMPLOYMENT_VERIFICATION', s).mayRely).toBe(false)

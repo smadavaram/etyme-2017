@@ -51,7 +51,7 @@
  * WARN and capture a reason and proceed everywhere else, never silently
  * permit.**
  *
- * A credit limit is a commercial judgement, not a legal one. Nobody is
+ * A credit limit is a commercial judgment, not a legal one. Nobody is
  * breaking the law by placing a fifth contractor at a client who is over
  * their limit — they are taking a risk that somebody senior should be
  * the one to take. So a breach here NEVER blocks. It warns, it names who
@@ -368,8 +368,8 @@ export type CreditOutcome = 'NO_LIMIT_SET' | 'WITHIN' | 'APPROACHING' | 'BREACHE
 /**
  * WARN or PROCEED, and never BLOCK.
  *
- * A tenure limit or a lapsed work authorisation blocks because the law
- * says so. A credit limit is somebody's commercial judgement about risk,
+ * A tenure limit or a lapsed work authorization blocks because the law
+ * says so. A credit limit is somebody's commercial judgment about risk,
  * and a system that hard-stops a placement on it will be routed around
  * within a week — the placement happens on email and the ledger never
  * sees it, which is strictly worse than warning.
@@ -521,7 +521,7 @@ export function assess(
       reasonRequired: true,
       says:
         `Over the limit by ${Math.round((usedBps - 10_000) / 100)}%. This does not stop ` +
-        `anything — a credit limit is a commercial judgement and not a legal one, and a ` +
+        `anything — a credit limit is a commercial judgment and not a legal one, and a ` +
         `hard stop would simply be worked around outside the system. Going ahead needs ` +
         `${approver} to say so, and the reason is written down, so that in six months ` +
         `"who decided to keep going" has an answer.` +

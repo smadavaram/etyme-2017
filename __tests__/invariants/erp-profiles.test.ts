@@ -50,7 +50,7 @@ describe('the profiles themselves', () => {
 
   it('says what a finance team actually does with each file', () => {
     // "SAP export" tells somebody nothing. "Loaded through FB60, and the
-    // cost centre must already exist in SAP" tells them whether it will work.
+    // cost center must already exist in SAP" tells them whether it will work.
     for (const p of PROFILES) {
       expect(p.howItLands.length, p.id).toBeGreaterThan(40)
     }
@@ -115,8 +115,8 @@ describe('refusing to write a file that would be rejected', () => {
     if (r.ok) expect(r.result.total).toBe(100)
   })
 
-  it('refuses a line with no cost centre, and names who it is', () => {
-    // A cost centre missing here is missing in their ledger too, and the
+  it('refuses a line with no cost center, and names who it is', () => {
+    // A cost center missing here is missing in their ledger too, and the
     // file bounces. Naming the line is cheaper than letting them find it.
     const r = render(
       profileById('ORACLE_AP')!,

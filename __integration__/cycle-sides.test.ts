@@ -44,7 +44,7 @@ describe('cycles land on the side of the trade they describe', () => {
   }, 180_000)
 
   it('the world seed writes cycles for every placement still running, on the right side', async () => {
-    // A contract that ended has nothing due, so the programme seed's
+    // A contract that ended has nothing due, so the program seed's
     // history — the placements that make the tenure ledger — carries none.
     const running = { state: { not: 'ENDED' as const } }
     const sells = await prisma.sellContract.findMany({ where: { ...running, company: { slug: { startsWith: 'world-' } } }, select: { id: true } })

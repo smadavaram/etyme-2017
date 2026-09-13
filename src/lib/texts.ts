@@ -255,7 +255,7 @@ export function outcomeText(o: Outcome): Message {
   const said: Record<string, string> = {
     RATE: 'they went with someone at a lower rate',
     SKILLS: 'they wanted someone with a different mix of experience',
-    WORK_AUTH: 'they needed a different work authorisation',
+    WORK_AUTH: 'they needed a different work authorization',
     AVAILABILITY: 'they needed somebody who could start sooner',
     INTERVIEW: 'they went with another candidate after the interviews',
     TIMING: 'the role was filled before we got there',

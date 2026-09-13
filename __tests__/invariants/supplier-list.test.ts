@@ -72,7 +72,7 @@ describe('what it refuses to guess', () => {
 })
 
 describe('a name out of a domain', () => {
-  it('capitalises it', () => {
+  it('capitalizes it', () => {
     expect(nameFromDomain('cloudepa.com')).toBe('Cloudepa')
   })
 

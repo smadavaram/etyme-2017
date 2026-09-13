@@ -21,7 +21,7 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  hopDelay, summariseHops, chainFloat, chainBlindSpot, beyondLastParty,
+  hopDelay, summarizeHops, chainFloat, chainBlindSpot, beyondLastParty,
   payWhenPaidFlags, dpo, mirror, daysBetween,
   type Hop, type Chain, type ChainStep, type PurchasePeriod,
 } from '@/lib/ap-delay'
@@ -127,7 +127,7 @@ describe('One hop, measured against what was agreed', () => {
   })
 })
 
-describe('A side is summarised without inventing an average out of nothing', () => {
+describe('A side is summarized without inventing an average out of nothing', () => {
 
   it('hops missing a date are left out of the average and counted separately', () => {
     const delays = [
@@ -135,7 +135,7 @@ describe('A side is summarised without inventing an average out of nothing', () 
       hopDelay(bill({ id: 'b', settledAt: day(35) }), day(90)),
       hopDelay(bill({ id: 'c', raisedAt: null }), day(90)),
     ]
-    const s = summariseHops(delays, 'OUT')
+    const s = summarizeHops(delays, 'OUT')
     expect(s.measured).toBe(2)
     expect(s.unknowable).toBe(1)
     expect(s.meanLateDays).toBe(8) // (10 + 5) / 2 = 7.5, rounded
@@ -144,7 +144,7 @@ describe('A side is summarised without inventing an average out of nothing', () 
   })
 
   it('nothing settled yet produces no figure rather than a zero', () => {
-    const s = summariseHops([hopDelay(bill({ settledAt: null }), day(10))], 'OUT')
+    const s = summarizeHops([hopDelay(bill({ settledAt: null }), day(10))], 'OUT')
     expect(s.meanLateDays).toBeNull()
     expect(s.says).toContain('no figure here')
   })
@@ -388,7 +388,7 @@ describe('Our days payable beside our days to get paid', () => {
   })
 })
 
-describe('Days are counted the same way ageing counts them', () => {
+describe('Days are counted the same way aging counts them', () => {
 
   it('a whole day is a whole day and part days do not round up', () => {
     expect(daysBetween(new Date('2026-01-01T00:00:00Z'), new Date('2026-01-02T23:00:00Z'))).toBe(1)

@@ -70,7 +70,7 @@ export function drawSample(all: Reviewable[], size: number = SAMPLE_SIZE): Revie
 
   // Warnings sit between the two, and they are the ones most worth a
   // person's eye: a WARN is the machine saying it has a concern and no
-  // ground to act on it, which is exactly the judgement it cannot make.
+  // ground to act on it, which is exactly the judgment it cannot make.
   const warns = unreviewed.filter((c) => c.verdict === 'WARN').sort(byAge)
 
   const passes = unreviewed.filter((c) => c.verdict === 'PASS').sort(byAge)

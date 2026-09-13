@@ -23,7 +23,7 @@ import {
 const NOW = new Date('2026-08-19T00:00:00Z')
 const inDays = (n: number) => new Date(NOW.getTime() + n * 86_400_000)
 
-describe('insurance and work authorisation', () => {
+describe('insurance and work authorization', () => {
   const base = {
     id: 'v1', companyId: 'co1', personId: null,
     status: 'CLEAR', subjectName: 'Cloudepa Inc.',

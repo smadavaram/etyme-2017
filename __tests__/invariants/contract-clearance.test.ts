@@ -41,7 +41,7 @@ const verdict = (
   })
 
 describe('what blocks a start', () => {
-  it('a missing I-9 blocks — nobody may work without authorisation', () => {
+  it('a missing I-9 blocks — nobody may work without authorization', () => {
     const v = verdict([clear('BACKGROUND_CHECK', inDays(300))])
     expect(v.outcome).toBe('BLOCK')
     expect(v.blocking.map((b) => b.key)).toContain('I9_EVERIFY')

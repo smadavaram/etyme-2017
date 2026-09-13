@@ -100,7 +100,7 @@ describe('When a contact joins the platform, the entry links rather than duplica
   })
 })
 
-describe('Normalisation is boring on purpose', () => {
+describe('Normalization is boring on purpose', () => {
 
   it('emails compare lowercased and trimmed', () => {
     expect(normalEmail(' Dana@Terumo.COM ')).toBe('dana@terumo.com')

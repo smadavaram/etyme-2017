@@ -180,7 +180,7 @@ describe('Rate is scored against the ceiling, without rewarding the cheapest', (
       .toBeGreaterThanOrEqual(80)
   })
 
-  it('a rate over the ceiling is penalised, and says so', () => {
+  it('a rate over the ceiling is penalized, and says so', () => {
     const a = assessFit(input({ submittedRateCents: 15_000 }))
     expect(factor(a, 'Rate').value).toBeLessThan(50)
     expect(factor(a, 'Rate').detail).toContain('over the $130/hr ceiling')
@@ -248,7 +248,7 @@ describe('Crossing the stated ceiling is a step, not a slope', () => {
     expect(factor(under, 'Rate').value - factor(over, 'Rate').value).toBeGreaterThan(20)
   })
 
-  it('a small overage is still clearly penalised', () => {
+  it('a small overage is still clearly penalized', () => {
     const a = assessFit(input({ submittedRateCents: 13_600 }))
     expect(factor(a, 'Rate').value).toBeLessThan(60)
   })

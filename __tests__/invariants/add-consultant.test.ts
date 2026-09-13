@@ -51,7 +51,7 @@ describe('A refusal is always visible, never a button that does nothing', () => 
     expect(PAGE).toContain('fieldErrors.name &&')
   })
 
-  it('marks the field itself, for anybody who cannot see the colour', () => {
+  it('marks the field itself, for anybody who cannot see the color', () => {
     expect(PAGE).toContain('aria-invalid')
   })
 

@@ -4,7 +4,7 @@ import type { Permission } from '@/lib/permissions'
  * What can be loaded, and who owns it.
  *
  * There was one importer and it loaded candidates. Which meant operations
- * had a way in and finance did not — no cost centres, no GL accounts, no
+ * had a way in and finance did not — no cost centers, no GL accounts, no
  * bank details, no payment terms — and a cost-centre owner could not load
  * their own budget at all. Three different people own three different
  * kinds of data and only one of them could get any in.
@@ -19,7 +19,7 @@ import type { Permission } from '@/lib/permissions'
  * Two properties matter as much as the mapping.
  *
  * **A natural key.** Loading the same file twice must update rather than
- * duplicate, because somebody will load it twice. Cost centre code,
+ * duplicate, because somebody will load it twice. Cost center code,
  * employee email, purchase order number.
  *
  * **Per-row errors, collected.** A finance team gets one report of eleven
@@ -58,14 +58,14 @@ export interface EntitySpec {
 export const IMPORTABLE: EntitySpec[] = [
   {
     key: 'COST_CENTERS',
-    label: 'Cost centres',
+    label: 'Cost centers',
     owner: 'Finance',
     permission: 'settings.manage',
     naturalKey: 'code',
     blurb:
       'The codes your ERP posts to. These must match it exactly — a near miss is a rejected file, not a warning.',
     fields: [
-      { key: 'code', label: 'Code', aliases: ['code', 'cost center', 'cost centre', 'cost center code', 'costcenter', 'cc'], required: true, kind: 'string', hint: 'Exactly as your ERP has it' },
+      { key: 'code', label: 'Code', aliases: ['code', 'cost center', 'cost center', 'cost center code', 'costcenter', 'cc'], required: true, kind: 'string', hint: 'Exactly as your ERP has it' },
       { key: 'name', label: 'Name', aliases: ['name', 'description', 'cost center name', 'department'], required: true, kind: 'string' },
       { key: 'glAccount', label: 'GL account', aliases: ['gl', 'gl account', 'account', 'gl code', 'general ledger'], required: false, kind: 'string' },
       { key: 'isActive', label: 'Active', aliases: ['active', 'is active', 'status'], required: false, kind: 'boolean' },
@@ -101,7 +101,7 @@ export const IMPORTABLE: EntitySpec[] = [
       { key: 'headline', label: 'Title', aliases: ['title', 'job title', 'designation', 'position', 'headline'], required: false, kind: 'string' },
       { key: 'skills', label: 'Skills', aliases: ['skills', 'skill', 'technologies', 'tech'], required: false, kind: 'list' },
       { key: 'location', label: 'Location', aliases: ['location', 'city', 'based in'], required: false, kind: 'string' },
-      { key: 'workAuth', label: 'Work authorisation', aliases: ['work auth', 'visa', 'work authorization', 'status'], required: false, kind: 'string' },
+      { key: 'workAuth', label: 'Work authorization', aliases: ['work auth', 'visa', 'work authorization', 'status'], required: false, kind: 'string' },
       { key: 'rateFloor', label: 'Rate floor', aliases: ['rate', 'rate floor', 'min rate', 'hourly'], required: false, kind: 'money', hint: 'Per hour. The consultant sets this; no listing may go below it.' },
     ],
   },
@@ -112,11 +112,11 @@ export const IMPORTABLE: EntitySpec[] = [
     permission: 'invoices.issue',
     naturalKey: 'number',
     blurb:
-      'What you have authorised each supplier to bill, in total. An invoice quoting a PO that is not here will not match.',
+      'What you have authorized each supplier to bill, in total. An invoice quoting a PO that is not here will not match.',
     fields: [
       { key: 'number', label: 'PO number', aliases: ['number', 'po', 'po number', 'purchase order', 'po #'], required: true, kind: 'string' },
       { key: 'supplierName', label: 'Supplier', aliases: ['supplier', 'vendor', 'supplier name', 'vendor name', 'issued to'], required: true, kind: 'string', hint: 'Matched by name against companies you already work with' },
-      { key: 'amount', label: 'Authorised amount', aliases: ['amount', 'value', 'total', 'ceiling', 'authorized', 'authorised'], required: true, kind: 'money' },
+      { key: 'amount', label: 'Authorized amount', aliases: ['amount', 'value', 'total', 'ceiling', 'authorized', 'authorised'], required: true, kind: 'money' },
       { key: 'startDate', label: 'Start date', aliases: ['start', 'start date', 'from', 'valid from'], required: false, kind: 'date' },
       { key: 'endDate', label: 'End date', aliases: ['end', 'end date', 'to', 'expiry', 'valid to'], required: false, kind: 'date' },
     ],
@@ -171,7 +171,7 @@ export interface MappingReport {
   ready: boolean
 }
 
-function normalise(header: string): string {
+function normalize(header: string): string {
   return header.toLowerCase().trim().replace(/[_\-]+/g, ' ').replace(/\s+/g, ' ')
 }
 
@@ -180,7 +180,7 @@ export function mapColumnsFor(spec: EntitySpec, headers: string[]): MappingRepor
   const taken = new Set<string>()
 
   for (const header of headers) {
-    const n = normalise(header)
+    const n = normalize(header)
 
     const exact = spec.fields.find((f) => !taken.has(f.key) && f.aliases.includes(n))
     if (exact) {
@@ -253,7 +253,7 @@ export function parseCell(kind: FieldSpec['kind'], raw: string, label: string): 
     case 'date': {
       const d = new Date(v)
       if (Number.isNaN(d.getTime())) {
-        return { value: null, problem: `${label}: "${v}" is not a date the system recognises. Use 2027-06-30.` }
+        return { value: null, problem: `${label}: "${v}" is not a date the system recognizes. Use 2027-06-30.` }
       }
       return { value: d, problem: null }
     }

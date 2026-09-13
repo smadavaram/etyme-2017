@@ -52,7 +52,7 @@ export interface Finding {
    * else, never silently permit." Without it, a rule with a real concern
    * and no legal ground to stop on had to pick between failing — which
    * removed somebody — and passing, which said nothing. The work
-   * authorisation check was picking FAIL, and doing it to people it had
+   * authorization check was picking FAIL, and doing it to people it had
    * no lawful basis to exclude.
    *
    * A WARN does not fail the package. It is shown to the person

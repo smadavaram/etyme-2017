@@ -113,7 +113,7 @@ describe('a conglomerate holding many domains', () => {
 describe('mail subdomains, which started all this', () => {
   it('still suggests rather than creating a duplicate', () => {
     // The original bug: somebody on mail.corp.com created a second tenant
-    // for the same organisation. Now they are asked.
+    // for the same organization. Now they are asked.
     const e = decideEntry('x@mail.corp.com', [claim({ domain: 'corp.com', companyName: 'Corp' })])
     expect(e.action).toBe('SUGGEST')
   })

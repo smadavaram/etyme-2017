@@ -2,7 +2,7 @@
  * The third seat, not the first two.
  *
  * `demo-seed.ts` seeds the visitor as a vendor's owner. `demo-seed-client.ts`
- * seeds them as a client's programme manager. Both put the visitor in charge
+ * seeds them as a client's program manager. Both put the visitor in charge
  * of a company. A candidate is not in charge of a company — they are one
  * person, on somebody else's bench, and the whole point of `CONSULTANT_NAV`
  * ("You → Grow") is that it never asks them to think like an agency.

@@ -163,12 +163,12 @@ export async function POST(request: NextRequest) {
 
   if (costCenterId && !costCenter) {
     return NextResponse.json(
-      { error: { code: 'NOT_FOUND', message: 'Cost centre not found for this company' } },
+      { error: { code: 'NOT_FOUND', message: 'Cost center not found for this company' } },
       { status: 404 }
     )
   }
 
-  // What is already committed against that cost centre, from live contracts.
+  // What is already committed against that cost center, from live contracts.
   let committedHeads = 0
   let committedSpendCents = 0
   if (costCenter) {
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
 
   // ── Which team's work this is ───────────────────────────────────────
   //
-  // Taken from the budget when nobody said. A cost centre already names
+  // Taken from the budget when nobody said. A cost center already names
   // the department it funds, so asking twice for something the budget
   // knows is a question with a wrong answer available.
   const team = orgUnitId ?? costCenter?.orgUnitId ?? null
@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
   const owner = typeof ownerAsked === 'string' && ownerAsked ? ownerAsked : raiser
   const lead: Seat | null = costCenter?.owner ? { personId: costCenter.owner.id, name: costCenter.owner.name } : null
 
-  // One level up: the nearest ancestor unit whose cost centre is owned
+  // One level up: the nearest ancestor unit whose cost center is owned
   // by somebody who is neither the raiser nor the owner nor the lead.
   let escalation: Seat | null = null
   const above = responsible.slice(1)
@@ -398,7 +398,7 @@ export async function POST(request: NextRequest) {
       heads,
       annualValueCents: value.cents,
       // Whether it needed a human at all. The headline number for any
-      // programme is the share that cleared without one.
+      // program is the share that cleared without one.
       autoCleared: decision.state === 'AUTO_APPROVED',
       approverCount: decision.route.length,
     },

@@ -40,7 +40,7 @@ interface Signal {
   says: string
 }
 
-interface Behaviour {
+interface Behavior {
   settled: number
   open: number
   meanLateDays: number | null
@@ -57,8 +57,8 @@ interface RiskRow {
   verdict: 'AT_RISK' | 'WATCH' | 'NOTHING_ON_RECORD' | 'CLEAR'
   signals: Signal[]
   insurance: { state: string; says: string }
-  theyPayUs: Behaviour
-  wePayThem: Behaviour
+  theyPayUs: Behavior
+  wePayThem: Behavior
   ownerSays: string
   reviewBy: string
   cadenceDays: number
@@ -239,10 +239,10 @@ export default function ScorecardsPage() {
           <p className="eyebrow">Standing</p>
           <h2 className="headline-serif text-[20px] leading-tight">Who is worth a look this month</h2>
           <p className="mt-1 max-w-[58ch] text-[12px] text-etyme-muted">
-            Certificates, payment behaviour and whatever somebody last wrote
+            Certificates, payment behavior and whatever somebody last wrote
             in the register. It warns and never blocks — lapsed cover stops a
             placement through governance, which is a legal rule. This is
-            commercial judgement, and it has a date on it.
+            commercial judgment, and it has a date on it.
           </p>
         </div>
 
@@ -337,7 +337,7 @@ export default function ScorecardsPage() {
                     <li className="text-[12px] text-etyme-muted">{r.insurance.says}</li>
                     <li className="text-[12px] text-etyme-muted">{r.theyPayUs.says}</li>
                     <li className="text-[12px] text-etyme-muted">{r.wePayThem.says}</li>
-                    {/* Never omitted. A judgement built on a gap says so. */}
+                    {/* Never omitted. A judgment built on a gap says so. */}
                     {r.unknowns.map((u, i) => (
                       <li key={`u${i}`} className="text-[12px] text-etyme-faint">{u}</li>
                     ))}

@@ -6,7 +6,7 @@ import { emit } from '@/lib/events'
 import { poBalance } from '@/lib/purchase-order'
 
 /**
- * GET  /api/purchase-orders — what is authorised, and how much is left
+ * GET  /api/purchase-orders — what is authorized, and how much is left
  * POST /api/purchase-orders — raise one
  *
  * Purchase orders were read in five places and created in none. The three
@@ -16,7 +16,7 @@ import { poBalance } from '@/lib/purchase-order'
  * real customer.
  *
  * A PO is not a contract. A contract carries a rate — what one person costs
- * per hour. A PO carries a ceiling — how much the payer has authorised in
+ * per hour. A PO carries a ceiling — how much the payer has authorized in
  * total, across however many people. Raising one is an accounts-payable act
  * and needs invoices.issue rather than assignments.write.
  */
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
   const rows = pos.map((po) => {
     // Void and cancelled invoices never consumed anything. Counting them
-    // would show a PO as exhausted while money remained authorised on it.
+    // would show a PO as exhausted while money remained authorized on it.
     const invoicedCents = po.invoices
       .filter((i) => !['VOID', 'CANCELLED'].includes(i.status))
       .reduce((sum, i) => sum + Math.round(Number(i.total) * 100), 0)
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       { status: 403 }
     )
   }
-  // Authorising spend is an accounts-payable act, not a contracting one.
+  // Authorizing spend is an accounts-payable act, not a contracting one.
   if (!hasPermission(caller.permissions, 'invoices.issue')) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'Raising a purchase order needs invoices.issue' } },
@@ -136,13 +136,13 @@ export async function POST(request: NextRequest) {
 
   if (!number) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'A purchase order needs the number your finance team will recognise', field: 'number' } },
+      { error: { code: 'VALIDATION', message: 'A purchase order needs the number your finance team will recognize', field: 'number' } },
       { status: 422 }
     )
   }
   if (!Number.isFinite(amount) || amount <= 0) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'A purchase order needs an authorised amount above zero', field: 'amount' } },
+      { error: { code: 'VALIDATION', message: 'A purchase order needs an authorized amount above zero', field: 'amount' } },
       { status: 422 }
     )
   }
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
   })
   if (!supplier) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: 'Say which supplier this authorises', field: 'issuedToId' } },
+      { error: { code: 'VALIDATION', message: 'Say which supplier this authorizes', field: 'issuedToId' } },
       { status: 422 }
     )
   }
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'DUPLICATE',
-          message: `${number} already exists — it authorises $${Number(clash.amount).toLocaleString()} to ${clash.issuedTo.name}.`,
+          message: `${number} already exists — it authorizes $${Number(clash.amount).toLocaleString()} to ${clash.issuedTo.name}.`,
         },
       },
       { status: 409 }
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
     data: {
       companyId,
       action: 'PURCHASE_ORDER_RAISED',
-      summary: `${caller.person.name} authorised $${amount.toLocaleString()} to ${supplier.name} on ${number}`,
+      summary: `${caller.person.name} authorized $${amount.toLocaleString()} to ${supplier.name} on ${number}`,
       reason: attached > 0
         ? `${attached} running contract(s) with no PO were attached to it`
         : 'Raised from the purchase orders screen',
@@ -270,8 +270,8 @@ export async function POST(request: NextRequest) {
         contractsAttached: attached,
         message:
           attached > 0
-            ? `${number} authorises $${amount.toLocaleString()} to ${supplier.name}, and ${attached} running contract(s) now bill against it.`
-            : `${number} authorises $${amount.toLocaleString()} to ${supplier.name}.`,
+            ? `${number} authorizes $${amount.toLocaleString()} to ${supplier.name}, and ${attached} running contract(s) now bill against it.`
+            : `${number} authorizes $${amount.toLocaleString()} to ${supplier.name}.`,
       },
     },
     { status: 201 }
@@ -281,7 +281,7 @@ export async function POST(request: NextRequest) {
 /**
  * PATCH /api/purchase-orders — change the ceiling, or close it
  *
- * Increasing an authorisation is the ordinary remedy when a PO runs out
+ * Increasing an authorization is the ordinary remedy when a PO runs out
  * mid-engagement, and it is the thing an AP clerk is sent to do when an
  * invoice fails the balance check. Refusing the waiver and pointing at a
  * door is only defensible if the door exists.
@@ -322,7 +322,7 @@ export async function PATCH(request: NextRequest) {
     const amount = Number(body.amount)
     if (!Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json(
-        { error: { code: 'VALIDATION', message: 'An authorised amount is above zero', field: 'amount' } },
+        { error: { code: 'VALIDATION', message: 'An authorized amount is above zero', field: 'amount' } },
         { status: 422 }
       )
     }

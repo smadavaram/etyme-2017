@@ -297,7 +297,7 @@ interface Factor {
 // carried.
 
 const TESTS: Record<ClassificationTestName, { label: string; factors: Factor[] }> = {
-  // The IRS common-law test: behavioural control, financial control, the
+  // The IRS common-law test: behavioral control, financial control, the
   // relationship of the parties. Explicitly a weighing exercise — no
   // single factor decides, which is why nothing here is marked decisive.
   US_IRS: {
@@ -375,8 +375,8 @@ const TESTS: Record<ClassificationTestName, { label: string; factors: Factor[] }
         saysEmployee: 'this client is their only client',
         saysIndependent: 'they are in business on their own account with other clients' },
       { key: 'receivesEmployeeBenefits', employmentWhen: true, weight: 2,
-        saysEmployee: 'part and parcel of the organisation — leave, training, reviews',
-        saysIndependent: 'not part and parcel of the organisation' },
+        saysEmployee: 'part and parcel of the organization — leave, training, reviews',
+        saysIndependent: 'not part and parcel of the organization' },
       { key: 'clientSetsHours', employmentWhen: true, weight: 1,
         saysEmployee: 'the client sets the hours',
         saysIndependent: 'they set their own hours' },

@@ -14,7 +14,7 @@
  *   - Setting lives on Requirement, inherited by contracts
  *
  * Addendum D §D.3.3: Trust without disclosure — rate progression,
- * bench pay honoured, median tenure, time-to-next-placement.
+ * bench pay honored, median tenure, time-to-next-placement.
  */
 
 import { describe, it, expect } from 'vitest'
@@ -250,7 +250,7 @@ describe('Vendor trust signals — Addendum D §D.3.3', () => {
     if (signals.benchPayRate != null) {
       if (signals.benchPayRate >= 50) {
         score += 15
-        strengths.push('Bench pay honoured consistently')
+        strengths.push('Bench pay honored consistently')
       } else if (signals.benchPayRate >= 20) {
         score += 5
       } else {
@@ -294,7 +294,7 @@ describe('Vendor trust signals — Addendum D §D.3.3', () => {
     })
     expect(result.score).toBeGreaterThan(80)
     expect(result.strengths).toContain('Strong consultant retention')
-    expect(result.strengths).toContain('Bench pay honoured consistently')
+    expect(result.strengths).toContain('Bench pay honored consistently')
   })
 
   it('a vendor with no bench pay and low tenure scores low', () => {

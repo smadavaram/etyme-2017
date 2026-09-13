@@ -6,7 +6,7 @@
  * arrived. Contingent labour has the same shape and usually skips the
  * control: hours are billed, somebody eyeballs the total, it gets paid.
  *
- *   purchase order   what was authorised, and how much is left
+ *   purchase order   what was authorized, and how much is left
  *   receipt          the APPROVED timesheet — hours a manager signed for
  *   invoice          what the vendor is asking for
  *
@@ -28,7 +28,7 @@ export type MatchCode =
   | 'EXTENSION'     // hours × rate equals the line amount
   | 'DUPLICATE'     // no timesheet billed more than once
   | 'PERIOD'        // the work was done in the period being billed
-  | 'CONTRACT_PERIOD' // the invoice bills a period the contract recognises
+  | 'CONTRACT_PERIOD' // the invoice bills a period the contract recognizes
   | 'HEADER_TOTAL'  // the invoice header equals the sum of its lines
   | 'PO_REQUIRED'   // an invoice against a PO-mandated contract has one
   | 'PO_STATUS'     // the PO is open and covers the period
@@ -58,7 +58,7 @@ export const OVERRIDABLE: Record<MatchCode, boolean> = {
   // than an arithmetic fault. The reason says how far out it is, so
   // somebody can tell a late timesheet from a mistake.
   PERIOD: true,
-  // A period the contract does not recognise is usually a one-off — a
+  // A period the contract does not recognize is usually a one-off — a
   // final invoice on a mid-month termination, a first part-period. Real,
   // and worth somebody saying so once rather than the invoice being
   // impossible to raise.
@@ -396,10 +396,10 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     //
     // This compared the invoice's own period to the PO. An invoice headed
     // August against a PO starting in August passed, while the work being
-    // billed was done in July and nobody had authorised it — the same hole
+    // billed was done in July and nobody had authorized it — the same hole
     // as PERIOD, from the other side.
     //
-    // A purchase order authorises spend over a window. What matters is
+    // A purchase order authorizes spend over a window. What matters is
     // when the work was done, so the window is tested against the earliest
     // and latest work on the invoice, and falls back to the header period
     // only where no line has a timesheet behind it to ask.
@@ -467,7 +467,7 @@ export function threeWayMatch(input: MatchInput): MatchResult {
     if (check.outcome !== 'FAIL') continue
     const waiver = overrides.find(o => o.code === check.code)
     if (!waiver) continue
-    if (!OVERRIDABLE[check.code]) continue // a waiver on this is not honoured
+    if (!OVERRIDABLE[check.code]) continue // a waiver on this is not honored
     check.outcome = 'OVERRIDDEN'
     check.overriddenBy = {
       name: waiver.byName,
@@ -517,7 +517,7 @@ export function decimalToCents(d: { toString(): string }): number {
 // with no room left and the bill went straight in. The engine existed;
 // nothing asked it anything.
 //
-//   purchase order   what we authorised the supplier to bill
+//   purchase order   what we authorized the supplier to bill
 //   receipt          the hours WE accepted for pay, not the ones the
 //                    client approved — those are two different facts and
 //                    the margin sits between them
@@ -567,7 +567,7 @@ export interface VendorBillMatchInput {
 }
 
 /**
- * Match a supplier bill against what we authorised and what we accepted.
+ * Match a supplier bill against what we authorized and what we accepted.
  *
  * Returns the same `MatchResult` shape as the sell-side match, so one
  * exception queue and one screen serve both.
@@ -682,7 +682,7 @@ export function matchVendorBill(input: VendorBillMatchInput): MatchResult {
             reason:
               'This supplier bills against a purchase order and none is on this bill. ' +
               'Without one there is no ceiling to draw down and no record of what was ' +
-              'authorised.',
+              'authorized.',
           }
         : { code: 'PO_REQUIRED', outcome: 'PASS', reason: 'No purchase order required for this supplier' }
     )
@@ -834,7 +834,7 @@ export function exceptionQueue(
           hard.length > 0
             ? `${i.result.summary} Nobody can wave this through — ` +
               `${hard.map((c) => c.toLowerCase().replace(/_/g, ' ')).join(' and ')} ` +
-              `${hard.length === 1 ? 'is' : 'are'} not a judgement call.`
+              `${hard.length === 1 ? 'is' : 'are'} not a judgment call.`
             : `${i.result.summary} Somebody with authority may record an exception and say why.`,
       }
     })

@@ -180,7 +180,7 @@ function Discussion({ requisitionId, title }: { requisitionId: string; title: st
  *
  * Only the firms actually on the deal are offered — invited, cleared by
  * Procurement, or already submitting — because the route refuses anybody
- * else in the same words. Whoever is hiring or runs the programme may
+ * else in the same words. Whoever is hiring or runs the program may
  * open one; the AP clerk reads.
  */
 function SupplierThreads({ requisitionId, title, suppliers, canOpen }: {
@@ -384,7 +384,7 @@ export default function RequisitionDetail() {
   const [error, setError] = useState<string | null>(null)
   /** Who is reading — so only your own row offers you a decision. */
   const [me, setMe] = useState<{ id: string; name: string } | null>(null)
-  // Editors: the manager it is for, whoever raised it, the programme
+  // Editors: the manager it is for, whoever raised it, the program
   // office. The approvers ask for changes instead. Same rule as the
   // route; a button that would only refuse is not offered.
   const { permissions } = useSession()
@@ -493,7 +493,7 @@ export default function RequisitionDetail() {
       <a href="/dashboard/requisitions" className="text-sm text-etyme-action hover:underline">← Requirements</a>
 
       <div className="mt-4 mb-8">
-        <Lbl>{r.costCenter ? `${r.costCenter.code} · ${r.costCenter.name}` : 'No cost centre'}</Lbl>
+        <Lbl>{r.costCenter ? `${r.costCenter.code} · ${r.costCenter.name}` : 'No cost center'}</Lbl>
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em] text-balance">{r.title}</h1>
           {mayEdit(r) &&

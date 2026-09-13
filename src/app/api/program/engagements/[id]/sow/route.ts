@@ -19,7 +19,7 @@ import { maySignSow, sowFinding, workHasStarted } from '../../../agreements/verd
  * ── What it does not refuse ──────────────────────────────────────────
  *
  * Work running with no SOW at all. Addendum E allows a block only where
- * there is a legal ground — tenure, work authorisation, insurance,
+ * there is a legal ground — tenure, work authorization, insurance,
  * segregation of duties. A missing scope document is a commercial risk and
  * a governance step slower than the workaround produces the workaround. So
  * it warns, with a reason code, and the work goes on.

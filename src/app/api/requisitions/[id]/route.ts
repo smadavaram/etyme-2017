@@ -268,12 +268,12 @@ export async function PATCH(
     )
   }
 
-  // Editors: the manager it is for, whoever raised it, and the programme
+  // Editors: the manager it is for, whoever raised it, and the program
   // office. Not the approvers — they ask for changes and the editor
   // changes it; otherwise somebody approves their own rewrite. And not
   // every hiring manager: another team's requirement is not yours to
   // change. Said as who, not as a permission.
-  // The programme office is whoever writes the rules — not whoever may
+  // The program office is whoever writes the rules — not whoever may
   // release to suppliers, which Procurement also does and Procurement is
   // an approver here.
   const office = hasPermission(caller.permissions, 'governance.write')
@@ -285,7 +285,7 @@ export async function PATCH(
         error: {
           code: 'FORBIDDEN',
           message:
-            `Only the manager this is for, whoever raised it, or the programme office at ${caller.company!.name} can change it. ` +
+            `Only the manager this is for, whoever raised it, or the program office at ${caller.company!.name} can change it. ` +
             'An approver asks for changes instead.',
         },
       },
@@ -743,7 +743,7 @@ function proposed(body: Record<string, any>): Record<string, unknown> {
  *
  * The manager it is for, whoever raised it, and whoever releases roles
  * for this client. Not anybody with requirements.write — that is most of
- * a programme office, and an owner is who signs the hours.
+ * a program office, and an owner is who signs the hours.
  */
 function mayReassignOwner(
   r: { ownerId?: string | null; raisedById?: string | null },
@@ -762,7 +762,7 @@ function pausedByChecks(state: string): boolean {
  * The checks, run again on the numbers as they now are.
  *
  * The same facts the raise route builds — annual value, what the cost
- * centre already carries, the rules by ancestry with their kind and
+ * center already carries, the rules by ancestry with their kind and
  * specificity, the lead, the escalation, the owner and the raiser. It is
  * written twice rather than imported because a route file may export
  * nothing but its handlers, and lifting it into src/lib is a new file

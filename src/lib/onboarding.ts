@@ -54,7 +54,7 @@ export interface CompanyTypeOption {
 }
 
 /**
- * The five ways in. Written so a person recognises themselves in one line,
+ * The five ways in. Written so a person recognizes themselves in one line,
  * because a wrong choice here is felt for months.
  */
 export const COMPANY_TYPES: CompanyTypeOption[] = [
@@ -78,9 +78,9 @@ export const COMPANY_TYPES: CompanyTypeOption[] = [
     key: 'msp',
     kind: 'MSP',
     posture: null,
-    label: 'We run the programme for a client',
+    label: 'We run the program for a client',
     blurb: 'You manage a client’s contingent workforce on their behalf, including their suppliers.',
-    example: 'An MSP running a Fortune 500 programme',
+    example: 'An MSP running a Fortune 500 program',
   },
   {
     key: 'prime',
@@ -128,7 +128,7 @@ export function domainOf(email: string): string | null {
   // user@mail.corp.com and user@corp.com are the same company.
   //
   // Without this they were not: the first stored mail.corp.com, the second
-  // matched nothing and created a second tenant for the same organisation.
+  // matched nothing and created a second tenant for the same organization.
   // Neither could see the other's requisitions, invoices or people, and
   // the join-beats-create promise was broken by a mail subdomain.
   return registrableDomain(raw) ?? raw

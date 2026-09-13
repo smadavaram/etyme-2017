@@ -9,7 +9,7 @@ import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
  * GET /api/invoices/:id
  *
  * One invoice, with the three records the match compares: what was
- * authorised (the purchase order), what was witnessed (the approved
+ * authorized (the purchase order), what was witnessed (the approved
  * timesheets behind each line), and what is being asked for.
  *
  * An AP clerk opens this to find out what to fix, so the match travels with

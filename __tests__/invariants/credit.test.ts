@@ -208,7 +208,7 @@ describe('A credit limit warns, and never blocks, and is never silently permitte
     expect(v.approver).toBeTruthy()
     expect(v.headroomMinor).toBe(-5_000_000)
     expect(v.says).toContain('does not stop anything')
-    expect(v.says).toContain('commercial judgement')
+    expect(v.says).toContain('commercial judgment')
   })
 
   it('a breach is never silently permitted — proceeding needs a name and a readable reason', () => {

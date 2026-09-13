@@ -2,7 +2,7 @@
  * Who is who on an invoice.
  *
  * A large client signs in one entity, is billed through a shared services
- * centre in another country, has the work done at a third site and pays
+ * center in another country, has the work done at a third site and pays
  * from a fourth. Collapsing those into one party is how an invoice reaches
  * the wrong address and ages ninety days before anybody notices.
  */

@@ -84,7 +84,7 @@ describe('A run is one currency, and everything else is left out with a reason',
     const run = proposeRun([bill({ status: 'DISPUTED' })], 'USD', PAY_DAY)
     expect(run.lines).toEqual([])
     expect(run.excluded[0].reason).toBe('DISPUTED')
-    expect(run.excluded[0].says).toContain('ends the argument in their favour')
+    expect(run.excluded[0].says).toContain('ends the argument in their favor')
   })
 
   it('a bill nobody has approved is left out, because a run releases money rather than deciding', () => {

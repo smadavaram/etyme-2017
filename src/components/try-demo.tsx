@@ -31,7 +31,7 @@ import { useRouter } from 'next/navigation'
 /**
  * The firm each company seat sits at, and the desk where one is chosen.
  *
- * Nike's programme manager, because that desk sees the whole programme
+ * Nike's program manager, because that desk sees the whole program
  * (the clerk sees invoices, the hiring manager their own roles).
  * Computer Systems is the prime on Nike's own placements, so a visitor
  * who tries both seats is looking at one deal from both ends.
@@ -94,7 +94,7 @@ export function TryDemo({
       heading: 'You buy the work',
       seats: [
         { seat: 'CLIENT', label: 'A company hiring contractors', note: 'You pay for it. You never touch a CV. Sit at Nike.' },
-        { seat: 'MSP', label: 'An MSP running the programme', note: 'You run it on the client\'s behalf. Sit at Aptiva Workforce.' },
+        { seat: 'MSP', label: 'An MSP running the program', note: 'You run it on the client\'s behalf. Sit at Aptiva Workforce.' },
         { seat: 'GSI', label: 'A systems integrator delivering a project', note: 'Your own people, and bought ones. Sit at Teleworld Solutions.' },
       ],
     },

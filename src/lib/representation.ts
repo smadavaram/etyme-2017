@@ -25,7 +25,7 @@
  * around, and rejects both. The consultant loses a job they never knew
  * they were up for, and neither vendor tells them why. This is the single
  * most common way a good consultant is burned, and it is entirely an
- * artefact of nobody being able to see across the two vendors.
+ * artifact of nobody being able to see across the two vendors.
  *
  * We can see across them. So one vendor holds one person at one client at
  * a time.

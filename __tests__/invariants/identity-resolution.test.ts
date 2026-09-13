@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  compare, ifConfirmed, worthAsking, summarise, normalName, normalPhone,
+  compare, ifConfirmed, worthAsking, summarize, normalName, normalPhone,
   bestMatchPerPerson, SURFACE_AT, IGNORE_BELOW, type Candidate,
 } from '@/lib/identity-resolution'
 
@@ -135,7 +135,7 @@ describe('what a person is actually asked', () => {
     expect(ifConfirmed(m, null).says).toBe('Confirming makes this 14 months here.')
   })
 
-  it('names the suppliers, because that is how somebody recognises the story', () => {
+  it('names the suppliers, because that is how somebody recognizes the story', () => {
     const m = compare(
       person(),
       person({ personId: 'p2', stints: [{ start: d('2025-06-01'), end: d('2026-01-01'), vendorName: 'Vertex', months: 7 }] })
@@ -235,12 +235,12 @@ describe('the line above the queue', () => {
       person({ mobile: '3035552000' }),
       person({ personId: 'p2', mobile: '3035552000', stints: [{ start: d('2025-06-01'), end: d('2026-06-01'), vendorName: 'Vertex', months: 12 }] })
     )
-    expect(summarise([certain], 18)).toBe(
+    expect(summarize([certain], 18)).toBe(
       '1 certain. 1 of them would be past your tenure cap if confirmed.'
     )
   })
 
   it('says so plainly when there is nothing', () => {
-    expect(summarise([], 18)).toBe('Nobody looks like a duplicate.')
+    expect(summarize([], 18)).toBe('Nobody looks like a duplicate.')
   })
 })

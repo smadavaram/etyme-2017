@@ -92,7 +92,7 @@ describe('A reserve is somebody else’s money, not this month’s cost', () => 
 describe('Earning, invoicing, collecting and paying are four separate facts', () => {
 
   it('earning revenue does not raise a receivable', () => {
-    // Recognising straight into AR would report a debt the client has
+    // Recognizing straight into AR would report a debt the client has
     // never been told about.
     const e = entryFor({ kind: 'REVENUE', amountCents: 960_000, postedAt: AT, says: 'earned' })
     expect(e.lines.map((l) => l.accountCode)).not.toContain('1100')

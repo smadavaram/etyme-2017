@@ -66,7 +66,7 @@ beforeAll(async () => {
 
   // Two sub-vendors. The first is paid up to Tuesday; the second from
   // Wednesday. Both link to the same sell contract, which is what makes
-  // the old behaviour pay each of them for the whole week.
+  // the old behavior pay each of them for the whole week.
   for (const [name, from, to] of [
     ['old', '2026-01-01', '2026-09-08'],
     ['new', '2026-09-09', null],

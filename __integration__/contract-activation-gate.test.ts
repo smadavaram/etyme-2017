@@ -60,7 +60,7 @@ describe('activating a contract on paperwork', () => {
     contractId = draft.id
   }, 180_000)
 
-  it('with no I-9 on file, activation is refused — nobody may start without authorisation', async () => {
+  it('with no I-9 on file, activation is refused — nobody may start without authorization', async () => {
     as(seat)
     const r = await post({ action: 'activate' })
     expect(r.status).toBe(403)

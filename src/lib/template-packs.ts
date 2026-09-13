@@ -193,7 +193,7 @@ const UK: TemplatePack = {
     { category: 'Languages', skills: ['Java', 'Python', 'JavaScript', 'TypeScript', 'C#', '.NET', 'Go'] },
     { category: 'Cloud', skills: ['AWS', 'Azure', 'GCP', 'Kubernetes', 'Docker'] },
     { category: 'Finance', skills: ['Murex', 'Calypso', 'FIX Protocol', 'Risk Management'] },
-    { category: 'Consulting', skills: ['Business Analysis', 'Programme Management', 'Agile Delivery'] },
+    { category: 'Consulting', skills: ['Business Analysis', 'Program Management', 'Agile Delivery'] },
   ],
 }
 

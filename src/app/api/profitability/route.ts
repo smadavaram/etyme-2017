@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
         select: {
           id: true, code: true, name: true, budgetCents: true, currency: true,
           // The close section needs to know where an order stands and
-          // where its balance would go. An order with no cost centre
+          // where its balance would go. An order with no cost center
           // cannot be settled, and saying so before somebody presses the
           // button is cheaper than a 422 afterwards.
           status: true, settledAt: true,

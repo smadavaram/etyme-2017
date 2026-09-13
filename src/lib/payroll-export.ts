@@ -209,7 +209,7 @@ export function missingIds(e: Export): string[] {
 // STATUTORY — what the bureau needs, prepared by us and filed by them
 // ═════════════════════════════════════════════════════════════════════
 //
-// ── The boundary, said once and repeated on every artefact ───────────
+// ── The boundary, said once and repeated on every artifact ───────────
 //
 // **Etyme never files anything.** Not a 941, not a state deposit, not a
 // W-2, not a 1099. Withholding, deposits and year-end are somebody's

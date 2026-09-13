@@ -22,7 +22,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { annualisedValueCents } from '@/lib/requisition-approval'
+import { annualizedValueCents } from '@/lib/requisition-approval'
 
 /** Dollars as a human writes them → cents as the schema stores them. */
 function toCents(dollars: number): number {
@@ -50,7 +50,7 @@ describe('Rates are entered in dollars and stored in cents', () => {
 
   it('a rate stored in dollars by mistake displays as about a dollar', () => {
     // This is the shape of the bug: 130 in a cents column reads as $1.
-    // The test documents it so the symptom is recognisable next time.
+    // The test documents it so the symptom is recognizable next time.
     expect(toDollars(130)).toBe(1)
   })
 })
@@ -58,7 +58,7 @@ describe('Rates are entered in dollars and stored in cents', () => {
 describe('Requisition value uses the same units as every other rate', () => {
 
   it('one person at $130/hr for a year is $249,600, not $2,496', () => {
-    const cents = annualisedValueCents({
+    const cents = annualizedValueCents({
       billMaxCents: toCents(130),
       headcount: 1,
       months: 12,
@@ -69,15 +69,15 @@ describe('Requisition value uses the same units as every other rate', () => {
   it('feeding dollars where cents are expected undercounts by a hundred', () => {
     // If a caller passes 130 instead of 13000, the requisition looks a
     // hundred times cheaper and clears every budget check it should fail.
-    const wrong = annualisedValueCents({ billMaxCents: 130, headcount: 1, months: 12 })
-    const right = annualisedValueCents({ billMaxCents: toCents(130), headcount: 1, months: 12 })
+    const wrong = annualizedValueCents({ billMaxCents: 130, headcount: 1, months: 12 })
+    const right = annualizedValueCents({ billMaxCents: toCents(130), headcount: 1, months: 12 })
     expect(right / wrong).toBe(100)
   })
 
   it('a budget comparison only works when both sides are cents', () => {
     // A $500,000 budget against a $249,600 requisition has room.
     const budgetCents = toCents(500_000)
-    const valueCents = annualisedValueCents({
+    const valueCents = annualizedValueCents({
       billMaxCents: toCents(130), headcount: 1, months: 12,
     })
     expect(valueCents).toBeLessThan(budgetCents)

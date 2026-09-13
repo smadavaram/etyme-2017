@@ -10,11 +10,11 @@ import { POST as answer } from '@/app/api/me/interviews/[id]/respond/route'
  * Interviews, from the client's desk, the way the founder tried it.
  *
  * "In submissions — I could not invite for interviews and conduct
- * multiple rounds of interviews." The rounds were modelled and the
+ * multiple rounds of interviews." The rounds were modeled and the
  * routes were proven; nothing on a screen called them and nobody was
  * told anything. This walks what the screens now do, as the routes
  * they call, with the body the form actually builds — from Nike's
- * programme desk, Pinnacle's seat, and the candidate's own page.
+ * program desk, Pinnacle's seat, and the candidate's own page.
  */
 
 const D = '@demo.etyme.local'

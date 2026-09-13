@@ -83,7 +83,7 @@ describe('Most requests are not build requests, and saying so is the job', () =>
     expect(triage(req({ l3Code: null })).needsFounder).toBe(true)
   })
 
-  it('a code nobody recognises is a typo, not a decision', () => {
+  it('a code nobody recognizes is a typo, not a decision', () => {
     expect(triage(req({ l3Code: 'L3.9.9.9' })).says).toContain('does not exist in the matrix')
   })
 })
@@ -238,7 +238,7 @@ describe('Each party is asked in its own words', () => {
   })
 
   it('returns nothing rather than a bad guess, so a model is only asked when rules fail', () => {
-    expect(guessProcess('the colours', 'SUB')).toEqual([])
+    expect(guessProcess('the colors', 'SUB')).toEqual([])
   })
 
   it('every voice says what that party is usually really after', () => {

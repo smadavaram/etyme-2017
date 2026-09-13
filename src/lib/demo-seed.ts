@@ -325,7 +325,7 @@ export async function seedDemoCompany(input: {
   })
 
   const engagement = await prisma.engagement.create({
-    data: { msaId: msa.id, title: 'SAP Programme — Northwind', invoiceCycle: 'MONTHLY' },
+    data: { msaId: msa.id, title: 'SAP Program — Northwind', invoiceCycle: 'MONTHLY' },
   })
 
   const po = await prisma.purchaseOrder.create({

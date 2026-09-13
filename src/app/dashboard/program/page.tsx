@@ -287,7 +287,7 @@ export default function ProgramPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-1">
-          {/* The paper behind the programme. An order carries a ceiling, a
+          {/* The paper behind the program. An order carries a ceiling, a
               contract carries a rate, and an agreement carries permission —
               three different questions, so three different places. */}
           <Link

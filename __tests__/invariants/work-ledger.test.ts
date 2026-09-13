@@ -118,7 +118,7 @@ describe('each leg carries its own money', () => {
 
 describe('partial approval is the ordinary case', () => {
   it('covers a date range rather than a whole sheet', () => {
-    // A client signs off four days and queries the fifth. Modelling that
+    // A client signs off four days and queries the fifth. Modeling that
     // as a whole-sheet status makes the common thing the exception.
     const a = assertion({ from: '2026-08-03', to: '2026-08-06', hours: 32 })
     expect(hoursCovered(record(), a)).toBe(32)

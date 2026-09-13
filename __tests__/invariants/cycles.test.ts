@@ -215,7 +215,7 @@ describe('Cycle Generation (CLAUDE.md §Hardest Things #1)', () => {
   })
 })
 
-// ── The pack's day is honoured ────────────────────────────────────────
+// ── The pack's day is honored ────────────────────────────────────────
 //
 // Every case below was silently wrong: the engine hard-coded Friday, the
 // 15th and month-end and the callers dropped the pack's day fields on
