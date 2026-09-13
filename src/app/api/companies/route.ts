@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { isExcludedDomain } from '@/lib/auth'
@@ -395,7 +396,7 @@ export async function POST(request: NextRequest) {
         )
       }
     }
-    console.error('Company creation failed:', err)
+    reportError('Company creation failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Company creation failed. Please try again.' } },
       { status: 500 }

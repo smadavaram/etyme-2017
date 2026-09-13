@@ -587,6 +587,20 @@ supplier told; money goes back through approval
 placement's word, read in Submissions. `/demo` seats the account owner,
 HR and Procurement at each programme.
 
+### Somebody is told when it breaks ✓ (2026-09-13)
+
+`/ready` measures the edges (`lib/readiness`); two of its red rows are
+now built. The daily job writes a `JobRun` before its first job and
+after its last, and sends staff a heartbeat either way, so the alert
+channel is proven on a day nothing broke. Every failure in an API route
+goes through `reportError` (`lib/alerts`): an `Incident` row, and one
+email per place per hour to `ETYME_STAFF_EMAILS`. A page that throws
+shows a sentence and reports itself (`app/error`, `app/global-error`,
+`POST /api/incidents`). Found on the way and fixed: eleven cron routes
+accepted the literal header "Bearer undefined" on a deployment with no
+secret; all use `cronAuthorized` now. What production still needs from
+the founder: `ETYME_STAFF_EMAILS`.
+
 ### Demand opens, supply answers ✓ (2026-09-13)
 
 A client writes to one supplier from the role or from the candidate's

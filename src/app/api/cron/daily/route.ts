@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronAuthorized } from '@/lib/cron-auth'
+import { startRun, finishRun } from '@/lib/alerts'
 
 /**
  * GET /api/cron/daily — every overnight job, in one run.
@@ -41,10 +43,13 @@ const JOBS = [
 ]
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  // Written down before the first job, so a run that dies half way is a
+  // row with no finish rather than no row. /ready reads this.
+  const runId = await startRun('daily')
 
   // Each job is a real request to its own route, so a job keeps working
   // when somebody calls it by hand and nothing here needs to know how any
@@ -92,15 +97,22 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Leads with the failures, because the successes are the ordinary
+  // case and nobody reads a list of nine green ticks.
+  const says = broke.length
+    ? `${broke.length} of ${JOBS.length} overnight jobs did not run: ${broke.map((b) => b.job).join(', ')}.`
+    : `All ${JOBS.length} overnight jobs ran.`
+
+  // The record, and the heartbeat to staff — on good days too, so the
+  // channel is known to work before the day it matters.
+  const told = await finishRun(runId, 'daily', { ran, broke, says })
+
   return NextResponse.json({
     data: {
       ran,
       broke,
-      // Leads with the failures, because the successes are the ordinary
-      // case and nobody reads a list of nine green ticks.
-      says: broke.length
-        ? `${broke.length} of ${JOBS.length} overnight jobs did not run: ${broke.map((b) => b.job).join(', ')}.`
-        : `All ${JOBS.length} overnight jobs ran.`,
+      says,
+      told: told.sent ? `Staff told at ${told.to.join(', ')}.` : told.reason,
     },
   })
 }

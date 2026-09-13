@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -187,7 +188,7 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (err: any) {
-    console.error('Bench share failed:', err)
+    reportError('Bench share failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Bench share failed' } },
       { status: 500 }

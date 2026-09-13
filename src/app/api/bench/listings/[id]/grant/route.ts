@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { getCallerContext } from '@/lib/api-context'
 
@@ -106,7 +107,7 @@ export async function PATCH(
       },
     })
   } catch (err: any) {
-    console.error('Bench listing grant failed:', err)
+    reportError('Bench listing grant failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Grant failed. Please try again.' } },
       { status: 500 }

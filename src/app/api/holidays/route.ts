@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { resolveOwnCompany } from '@/lib/resolve-client-company'
@@ -185,7 +186,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (err: any) {
-    console.error('Holiday creation failed:', err)
+    reportError('Holiday creation failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Failed to add holidays' } },
       { status: 500 }

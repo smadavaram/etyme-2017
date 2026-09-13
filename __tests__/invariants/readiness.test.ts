@@ -31,7 +31,8 @@ const TODAY: ReadinessFacts = {
   imports: { total: 0, committed: 0 },
   email: { sent: 0, unsent: 0 },
   teams: { channels: 0, sent: 0 },
-  cron: { tracked: false, lastRunAt: null },
+  cron: { tracked: true, lastRunAt: null, lastBroke: 0 },
+  watch: { staffConfigured: false, alertsSent: 0, incidentsToday: 0 },
   demo: { seeded: true, current: false },
 }
 
@@ -46,7 +47,8 @@ const READY: ReadinessFacts = {
   imports: { total: 2, committed: 2 },
   email: { sent: 40, unsent: 0 },
   teams: { channels: 1, sent: 12 },
-  cron: { tracked: true, lastRunAt: new Date('2026-09-13T06:00:00Z') },
+  cron: { tracked: true, lastRunAt: new Date('2026-09-13T06:00:00Z'), lastBroke: 0 },
+  watch: { staffConfigured: true, alertsSent: 3, incidentsToday: 0 },
   demo: { seeded: true, current: true },
 }
 
@@ -88,13 +90,16 @@ describe('what production says about itself tonight', () => {
     expect(edge('teams').fix).toContain('incoming-webhook URL')
   })
 
-  it('the daily job leaves no trace, and the page says nobody can tell whether it ran', () => {
+  it('the daily job has never run here, and the row says when it is due and how to run it now', () => {
     expect(edge('cron')).toMatchObject({ state: 'SET' })
-    expect(edge('cron').says).toContain('leaves no record of running')
+    expect(edge('cron').says).toBe('The daily job has never run here. It is scheduled for 06:00 UTC.')
+    expect(edge('cron').fix).toContain('GET /api/cron/daily')
   })
 
-  it('nothing tells anybody when it breaks, and the page does not hide that row', () => {
+  it('failures are written down and nobody is told, until staff addresses are set', () => {
     expect(edge('watch')).toMatchObject({ state: 'MISSING', required: true })
+    expect(edge('watch').says).toBe('Failures are written down and nobody is told. No failure recorded in the last day.')
+    expect(edge('watch').fix).toContain('ETYME_STAFF_EMAILS')
   })
 
   it('the stale demo world is reported with the desk it lacks, and does not count against ready', () => {
@@ -110,11 +115,28 @@ describe('what production says about itself tonight', () => {
 describe('the day it is ready', () => {
   it('every required edge is proven and the line says so', () => {
     const v = assess({ ...READY }, NOW)
-    // "Somebody is told when it breaks" is not built, so even a fully used
-    // deployment is one edge short. The page must say so rather than round up.
-    expect(v.ready).toBe(false)
-    expect(v.proven).toBe(7)
-    expect(v.edges.find((e) => e.key === 'watch')!.state).toBe('MISSING')
+    expect(v.ready).toBe(true)
+    expect(v.proven).toBe(8)
+    expect(v.says).toBe('Ready. Every edge has been used by the outside world at least once.')
+  })
+
+  it('staff named and reachable but never yet mailed is the middle state, and the heartbeat is the fix', () => {
+    const v = assess({ ...READY, watch: { staffConfigured: true, alertsSent: 0, incidentsToday: 2 } }, NOW)
+    const w = v.edges.find((e) => e.key === 'watch')!
+    expect(w.state).toBe('SET')
+    expect(w.says).toBe('Staff are named and reachable. No heartbeat or alert has gone out yet. 2 failures recorded in the last day.')
+  })
+
+  it('staff named with no email sender is missing, not set — a name with no way to reach it is nobody', () => {
+    const v = assess({ ...READY, env: { ...READY.env, emailSender: false } }, NOW)
+    expect(v.edges.find((e) => e.key === 'watch')).toMatchObject({ state: 'MISSING' })
+  })
+
+  it('a daily run with a failed job is set, not proven, and says how many', () => {
+    const v = assess({ ...READY, cron: { ...READY.cron, lastBroke: 2 } }, NOW)
+    const c = v.edges.find((e) => e.key === 'cron')!
+    expect(c.state).toBe('SET')
+    expect(c.says).toBe('The daily job ran 16 hours ago and 2 jobs failed.')
   })
 
   it('a proven edge says what happened, in numbers a person would quote', () => {
@@ -124,7 +146,8 @@ describe('the day it is ready', () => {
     expect(edge('company').says).toBe('2 companies here are real, not seed.')
     expect(edge('email').says).toBe('40 emails have been sent.')
     expect(edge('teams').says).toBe('12 messages have been posted to Teams.')
-    expect(edge('cron').says).toBe('The daily job last ran 16 hours ago.')
+    expect(edge('cron').says).toBe('The daily job last ran 16 hours ago, every job clean.')
+    expect(edge('watch').says).toBe('3 messages have reached staff. No failure recorded in the last day.')
   })
 
   it('a database whose tables lag the code is set up, not proven, and the fix is the build flag', () => {
@@ -135,7 +158,7 @@ describe('the day it is ready', () => {
   })
 
   it('a daily job that has not run in two days is set up, not proven', () => {
-    const v = assess({ ...READY, cron: { tracked: true, lastRunAt: new Date('2026-09-11T06:00:00Z') } }, NOW)
+    const v = assess({ ...READY, cron: { tracked: true, lastRunAt: new Date('2026-09-11T06:00:00Z'), lastBroke: 0 } }, NOW)
     expect(v.edges.find((e) => e.key === 'cron')).toMatchObject({ state: 'SET' })
   })
 })

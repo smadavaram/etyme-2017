@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 
@@ -170,7 +171,7 @@ export async function POST(
       },
     })
   } catch (err: any) {
-    console.error('Rolloff resolve failed:', err)
+    reportError('Rolloff resolve failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Could not resolve this rolloff. Please try again.' } },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { mapColumns, parseRow } from '@/lib/import-mapper'
@@ -179,7 +180,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (err: any) {
-    console.error('Import creation failed:', err)
+    reportError('Import creation failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Import failed. Please try again.' } },
       { status: 500 }

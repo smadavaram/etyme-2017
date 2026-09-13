@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { logBulkAccess } from '@/lib/access-log'
@@ -214,7 +215,7 @@ export async function POST(
       },
     })
   } catch (err: any) {
-    console.error('Match engine failed:', err)
+    reportError('Match engine failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Match engine failed. Please try again.' } },
       { status: 500 }

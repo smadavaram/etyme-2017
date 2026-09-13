@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -218,7 +219,7 @@ export async function POST(
       },
     }, { status: 201 })
   } catch (err: any) {
-    console.error('Payment recording failed:', err)
+    reportError('Payment recording failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Payment recording failed' } },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { decide, signature, summarize, DEFAULT_WINDOW_DAYS } from '@/lib/auto-approval'
 
@@ -18,8 +19,7 @@ import { decide, signature, summarize, DEFAULT_WINDOW_DAYS } from '@/lib/auto-ap
  * useful line in the log and the one somebody will come looking for.
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

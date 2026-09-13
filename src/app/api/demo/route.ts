@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { randomBytes } from 'node:crypto'
 import { prisma } from '@/lib/db'
 import { seedChain, type Seat } from '@/lib/demo-chain'
@@ -216,7 +217,7 @@ export async function POST(request: NextRequest) {
     })
     } catch (err: any) {
       const why = String(err?.message ?? err)
-      console.error('demo: could not look up a world seat', why)
+      reportError('demo: could not look up a world seat', why)
       const unreachable = /P1001|Can't reach database|ECONNREFUSED|ETIMEDOUT/i.test(why)
       return NextResponse.json(
         {
@@ -339,7 +340,7 @@ export async function POST(request: NextRequest) {
     if (person) await prisma.person.delete({ where: { id: person.id } }).catch(() => {})
 
     const why = String(err?.message ?? err)
-    console.error('demo: could not seed', why)
+    reportError('demo: could not seed', why)
 
     // Two failures that look identical to a visitor and are completely
     // different to whoever has to fix them: a database nobody can reach,

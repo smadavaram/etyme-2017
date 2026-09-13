@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { timingSafeEqual } from 'node:crypto'
 import { seedWorld } from '@/lib/seed-world'
 
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
   } catch (err: any) {
     // Loud and specific. A half-built world is worse than none, and the
     // seed is idempotent, so the honest advice is to run it again.
-    console.error('seed-world: could not build the world', err)
+    reportError('seed-world: could not build the world', err)
     return NextResponse.json(
       {
         error: {

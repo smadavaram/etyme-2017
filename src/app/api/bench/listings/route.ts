@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
@@ -236,7 +237,7 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       )
     }
-    console.error('Bench listing creation failed:', err)
+    reportError('Bench listing creation failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Bench listing creation failed. Please try again.' } },
       { status: 500 }

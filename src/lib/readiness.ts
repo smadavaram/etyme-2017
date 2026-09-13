@@ -64,7 +64,20 @@ export interface ReadinessFacts {
   imports: { total: number; committed: number }
   email: { sent: number; unsent: number }
   teams: { channels: number; sent: number }
-  cron: { tracked: boolean; lastRunAt: Date | null }
+  cron: {
+    tracked: boolean
+    lastRunAt: Date | null
+    /** How many jobs broke on the last run. */
+    lastBroke: number
+  }
+  watch: {
+    /** ETYME_STAFF_EMAILS names at least one address. */
+    staffConfigured: boolean
+    /** Heartbeats and failure alerts that actually reached staff. */
+    alertsSent: number
+    /** Failures recorded in the last day. */
+    incidentsToday: number
+  }
   demo: { seeded: boolean; current: boolean }
 }
 
@@ -229,24 +242,53 @@ export function assess(f: ReadinessFacts, now: Date = new Date()): Readiness {
       key: 'cron', name: 'The daily job', state: 'SET', required: true,
       says: f.cron.lastRunAt
         ? `The daily job last ran ${daysAgo(f.cron.lastRunAt, now)}. It should run every morning.`
-        : 'The daily job has never run here.',
-      fix: 'Check the cron schedule and CRON_SECRET on the deployment.',
+        : 'The daily job has never run here. It is scheduled for 06:00 UTC.',
+      fix: 'Wait for the morning, or run it now: GET /api/cron/daily with the CRON_SECRET.',
+    })
+  } else if (f.cron.lastBroke > 0) {
+    edges.push({
+      key: 'cron', name: 'The daily job', state: 'SET', required: true,
+      says: `The daily job ran ${daysAgo(f.cron.lastRunAt, now)} and ${count(f.cron.lastBroke, 'job', 'jobs')} failed.`,
+      fix: 'The run’s record names the job and why. Staff were emailed the same.',
     })
   } else {
     edges.push({
       key: 'cron', name: 'The daily job', state: 'PROVEN', required: true,
-      says: `The daily job last ran ${daysAgo(f.cron.lastRunAt, now)}.`,
+      says: `The daily job last ran ${daysAgo(f.cron.lastRunAt, now)}, every job clean.`,
     })
   }
 
   // ── Somebody is told when it breaks ──────────────────────────────────
-  // Not built. Saying so is the point: a page that omitted this row would
-  // be another instrument that cannot see the problem.
-  edges.push({
-    key: 'watch', name: 'Somebody is told when it breaks', state: 'MISSING', required: true,
-    says: 'Nothing tells anybody when this breaks. The database and the dev server both died silently during the build of this page.',
-    fix: 'Point an uptime check at /api/health. Error reporting is not built.',
-  })
+  // Failures are written down (lib/alerts) and staff are emailed, once
+  // an hour per place; the daily job sends a heartbeat so the channel is
+  // proven on a day nothing broke. Proven means a mail actually reached
+  // somebody.
+  const today = f.watch.incidentsToday
+  const recorded = today === 0 ? 'No failure recorded in the last day.' : `${count(today, 'failure', 'failures')} recorded in the last day.`
+  if (!f.watch.staffConfigured) {
+    edges.push({
+      key: 'watch', name: 'Somebody is told when it breaks', state: 'MISSING', required: true,
+      says: `Failures are written down and nobody is told. ${recorded}`,
+      fix: 'Set ETYME_STAFF_EMAILS to the addresses that should hear, comma-separated.',
+    })
+  } else if (!f.env.emailSender) {
+    edges.push({
+      key: 'watch', name: 'Somebody is told when it breaks', state: 'MISSING', required: true,
+      says: `Staff are named and there is no way to reach them: no email sender. ${recorded}`,
+      fix: 'Set RESEND_API_KEY and NOTIFY_FROM_EMAIL.',
+    })
+  } else if (f.watch.alertsSent === 0) {
+    edges.push({
+      key: 'watch', name: 'Somebody is told when it breaks', state: 'SET', required: true,
+      says: `Staff are named and reachable. No heartbeat or alert has gone out yet. ${recorded}`,
+      fix: 'The daily job sends a heartbeat when it runs; run it once, or wait for the morning.',
+    })
+  } else {
+    edges.push({
+      key: 'watch', name: 'Somebody is told when it breaks', state: 'PROVEN', required: true,
+      says: `${count(f.watch.alertsSent, 'message has', 'messages have')} reached staff. ${recorded}`,
+    })
+  }
 
   // ── Optional: the one model call ─────────────────────────────────────
   edges.push(

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
+import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 
@@ -15,8 +17,7 @@ import { notifyBulk, type NotifyParams } from '@/lib/notify'
  */
 export async function GET(request: NextRequest) {
   // Verify cron secret
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -156,7 +157,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (err: any) {
-    console.error('Rolloff scan failed:', err)
+    reportError('Rolloff scan failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Rolloff scan failed' } },
       { status: 500 }

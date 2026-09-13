@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { supplierCoverGate } from '@/lib/document-stages'
@@ -558,7 +559,7 @@ export async function POST(request: NextRequest) {
       } else {
         item.status = 'error'
         item.error = 'Submission failed'
-        console.error(`Submission failed for person ${personId}:`, err)
+        reportError(`Submission failed for person ${personId}:`, err)
       }
     }
 

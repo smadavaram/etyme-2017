@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { invitation } from '@/lib/bench-consent'
 import { inviteUrl, inviteText } from '@/lib/bench-invite'
@@ -456,7 +457,7 @@ export async function POST(request: NextRequest) {
         )
       }
     }
-    console.error('Consultant creation failed:', err)
+    reportError('Consultant creation failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Consultant creation failed. Please try again.' } },
       { status: 500 }

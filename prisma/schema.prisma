@@ -3888,6 +3888,47 @@ model RolloffEvent {
 }
 
 // Everything the system did on a company's behalf. Inspectable, mostly reversible.
+// ── The machine's own diary ───────────────────────────────────────────
+//
+// Two tables nobody's company owns. A JobRun is one run of a scheduled
+// job — the daily one — with what ran, what broke, and whether staff
+// were told. An Incident is one failure, on the server or in a browser,
+// with whether staff were told. /ready reads both: a daily job that
+// leaves no record cannot be proven to run, and a failure nobody hears
+// about is the same as one that never happened, until it matters.
+
+model JobRun {
+  id         String    @id @default(cuid())
+  job        String // 'daily'
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  ok         Boolean?
+  ran        Int       @default(0)
+  broke      Int       @default(0)
+  results    Json?
+  // When the heartbeat reached staff. Null when nobody is configured to hear.
+  toldAt     DateTime?
+
+  @@index([job, startedAt])
+}
+
+model Incident {
+  id        String    @id @default(cuid())
+  side      String    @default("SERVER") // SERVER · BROWSER
+  where     String // the route or job, e.g. "cron/daily", "browser /dashboard/ar"
+  message   String
+  stack     String?
+  path      String?
+  personId  String?
+  companyId String?
+  at        DateTime  @default(now())
+  // When staff were emailed about it. Rate-limited: one per `where` per hour.
+  toldAt    DateTime?
+
+  @@index([at])
+  @@index([where, at])
+}
+
 model AutomationLog {
   id         String    @id @default(cuid())
   companyId  String

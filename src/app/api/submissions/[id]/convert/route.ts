@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
@@ -324,7 +325,7 @@ export async function POST(
       },
     }, { status: 201 })
   } catch (err: any) {
-    console.error('Placement conversion failed:', err)
+    reportError('Placement conversion failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Placement conversion failed' } },
       { status: 500 }

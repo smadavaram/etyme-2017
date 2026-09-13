@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 import { contractScopeFor, matchScopeFor, maySeeListing } from '@/lib/shared-consultant'
 import { getCallerContext } from '@/lib/api-context'
@@ -401,7 +402,7 @@ export async function PATCH(
       },
     })
   } catch (err: any) {
-    console.error('Consultant update failed:', err)
+    reportError('Consultant update failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Consultant update failed. Please try again.' } },
       { status: 500 }

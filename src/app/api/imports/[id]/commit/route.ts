@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 
@@ -286,7 +287,7 @@ export async function POST(
       },
     })
   } catch (err: any) {
-    console.error('Import commit failed:', err)
+    reportError('Import commit failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Import commit failed. No records were created.' } },
       { status: 500 }

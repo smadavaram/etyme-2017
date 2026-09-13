@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { getTemplatePack, TEMPLATE_PACK_IDS } from '@/lib/template-packs'
@@ -168,7 +169,7 @@ export async function POST(
       },
     })
   } catch (err: any) {
-    console.error('Template pack application failed:', err)
+    reportError('Template pack application failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Failed to apply template pack. Please try again.' } },
       { status: 500 }

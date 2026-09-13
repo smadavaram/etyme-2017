@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
+import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { runMatchEngine } from '@/lib/match-engine'
 
@@ -19,8 +21,7 @@ import { runMatchEngine } from '@/lib/match-engine'
  * CLAUDE.md: "Anything the system does unprompted writes an AutomationLog row"
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest) {
           // notification is handled through the dashboard.
         }
       } catch (err) {
-        console.error(`[Proactive match] Failed for requirement ${req.id}:`, err)
+        reportError(`[Proactive match] Failed for requirement ${req.id}:`, err)
       }
     }
 
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (err: any) {
-    console.error('Proactive match failed:', err)
+    reportError('Proactive match failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Proactive match failed' } },
       { status: 500 }

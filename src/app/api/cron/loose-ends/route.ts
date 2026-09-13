@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { notify } from '@/lib/notify'
 
@@ -30,8 +31,7 @@ const FRESH_DAYS = 3
 const GOING_COLD_DAYS = 75
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

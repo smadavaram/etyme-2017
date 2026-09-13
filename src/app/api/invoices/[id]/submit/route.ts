@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -151,7 +152,7 @@ export async function POST(
       },
     })
   } catch (err: any) {
-    console.error('Invoice submission failed:', err)
+    reportError('Invoice submission failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Invoice submission failed' } },
       { status: 500 }

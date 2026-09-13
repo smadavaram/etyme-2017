@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -215,7 +216,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (err: any) {
-    console.error('Payroll run failed:', err)
+    reportError('Payroll run failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Payroll run failed' } },
       { status: 500 }

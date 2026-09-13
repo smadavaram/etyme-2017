@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
         })
         sendEvent(controller, { type: 'count', unread: initialCount })
       } catch (err) {
-        console.error('[SSE] Failed to fetch initial notification count:', err)
+        reportError('[SSE] Failed to fetch initial notification count:', err)
         // Send zero so the client has something to work with
         sendEvent(controller, { type: 'count', unread: 0 })
       }
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest) {
           consecutiveErrors = 0
         } catch (err) {
           consecutiveErrors++
-          console.error(
+          reportError(
             `[SSE] Poll error (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}):`,
             err
           )

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
+import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 
 /**
@@ -10,8 +12,7 @@ import { prisma } from '@/lib/db'
  * milestones approaching and creates notifications.
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (err: any) {
-    console.error('Visa watch failed:', err)
+    reportError('Visa watch failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Visa watch failed' } },
       { status: 500 }

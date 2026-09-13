@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
+import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 
 /**
@@ -13,8 +15,7 @@ import { prisma } from '@/lib/db'
  * automatically without manual intervention.
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (err: any) {
-    console.error('Due-cycles scan failed:', err)
+    reportError('Due-cycles scan failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Due-cycles scan failed' } },
       { status: 500 }

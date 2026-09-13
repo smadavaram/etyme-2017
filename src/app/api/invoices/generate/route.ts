@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -631,7 +632,7 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       )
     }
-    console.error('Invoice generation failed:', err)
+    reportError('Invoice generation failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Invoice generation failed' } },
       { status: 500 }

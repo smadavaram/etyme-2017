@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getSessionEmail, getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
@@ -324,7 +325,7 @@ export async function POST(request: NextRequest) {
       },
     }, { status: 201 })
   } catch (err: any) {
-    console.error('Contract creation failed:', err)
+    reportError('Contract creation failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Contract creation failed' } },
       { status: 500 }

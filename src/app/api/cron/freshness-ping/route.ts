@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { cronAuthorized } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { dueAPing, freshnessText, PING_EVERY_DAYS, GIVE_UP_AFTER } from '@/lib/texts'
 import { send, configured } from '@/lib/messages'
@@ -23,8 +24,7 @@ import { send, configured } from '@/lib/messages'
  * actually on.
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

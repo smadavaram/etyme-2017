@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (err: any) {
-    console.error('Bulk invoice submission failed:', err)
+    reportError('Bulk invoice submission failed:', err)
     return NextResponse.json(
       { error: { code: 'INTERNAL', message: 'Bulk invoice submission failed' } },
       { status: 500 }

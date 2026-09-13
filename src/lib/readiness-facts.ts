@@ -8,6 +8,7 @@
 
 import { prisma } from '@/lib/db'
 import type { ReadinessFacts } from '@/lib/readiness'
+import { staffAddresses } from '@/lib/alerts'
 
 const DEMO_DOMAIN = '@demo.etyme.local'
 
@@ -31,9 +32,8 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     imports: { total: 0, committed: 0 },
     email: { sent: 0, unsent: 0 },
     teams: { channels: 0, sent: 0 },
-    // The daily job writes nothing down when it runs. Until it does, this
-    // is the honest answer, and lib/readiness says so.
-    cron: { tracked: false, lastRunAt: null },
+    cron: { tracked: true, lastRunAt: null, lastBroke: 0 },
+    watch: { staffConfigured: staffAddresses().length > 0, alertsSent: 0, incidentsToday: 0 },
     demo: { seeded: false, current: false },
   }
 
@@ -59,6 +59,7 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
   const [
     realCompanies, realSignIns, importsTotal, importsCommitted,
     emailSent, emailUnsent, teamsChannels, teamsSent, nike, nikeHr,
+    lastRun, runsTold, incidentsTold, incidentsToday,
   ] = await Promise.all([
     // Not a demo workspace, not one of the seeded world's firms.
     prisma.company.count({
@@ -77,6 +78,11 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     prisma.company.findUnique({ where: { slug: 'world-nike' }, select: { id: true } }),
     // The HR desk is what the 2026-09-13 seed adds; an older world has none.
     prisma.person.findUnique({ where: { primaryEmail: `world-nike-hr${DEMO_DOMAIN}` }, select: { id: true } }),
+    // The daily job's own diary, and whether anybody heard.
+    prisma.jobRun.findFirst({ where: { job: 'daily' }, orderBy: { startedAt: 'desc' }, select: { startedAt: true, finishedAt: true, broke: true } }),
+    prisma.jobRun.count({ where: { toldAt: { not: null } } }),
+    prisma.incident.count({ where: { toldAt: { not: null } } }),
+    prisma.incident.count({ where: { at: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } }),
   ])
 
   return {
@@ -87,7 +93,8 @@ export async function gatherFacts(): Promise<ReadinessFacts> {
     imports: { total: importsTotal, committed: importsCommitted },
     email: { sent: emailSent, unsent: emailUnsent },
     teams: { channels: teamsChannels, sent: teamsSent },
-    cron: { tracked: false, lastRunAt: null },
+    cron: { tracked: true, lastRunAt: lastRun ? (lastRun.finishedAt ?? lastRun.startedAt) : null, lastBroke: lastRun?.broke ?? 0 },
+    watch: { staffConfigured: staffAddresses().length > 0, alertsSent: runsTold + incidentsTold, incidentsToday },
     demo: { seeded: Boolean(nike), current: Boolean(nike && nikeHr) },
   }
 }
