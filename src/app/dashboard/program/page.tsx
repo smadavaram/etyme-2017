@@ -26,7 +26,7 @@ interface ProgramData {
   summary: {
     activeContractors: number
     vendors: number
-    monthlySpend: number
+    monthlySpend: number // cents, at 160 hours a month
     pendingApprovals: number
     openRoles: number
     endingSoon: number
@@ -49,7 +49,7 @@ interface ProgramData {
     name: string
     headcount: number
     avgRate: number
-    totalMonthlySpend: number
+    totalMonthlySpend: number // cents
   }[]
   approvalQueue: {
     id: string
@@ -78,302 +78,259 @@ interface ProgramData {
   }[]
 }
 
-type ViewScope = 'mine' | 'org'
-type Tab = 'overview' | 'contractors' | 'approvals' | 'vendors' | 'roles'
 
 // ── Page ───────────────────────────────────────────────────
 
-/**
- * The number.
- *
- * How long from opening a role to the first submission worth reading.
- * Not the first CV — a supplier can flood an inbox in an hour, and a
- * number that cannot tell flooding from a shortlist is a number that
- * rewards flooding.
- *
- * It sits above everything else because it is the one figure a client
- * already knows for their current process, and the only one on this page
- * they can compare against how things work today.
- */
-function TheNumber() {
-  const [n, setN] = useState<any>(null)
+type Tab = 'overview' | 'contractors' | 'approvals' | 'vendors' | 'roles'
 
-  useEffect(() => {
-    fetch('/api/first-good')
-      .then(r => r.json())
-      .then(b => { if (b.data) setN(b.data) })
-      // A dashboard strip that cannot load should be absent, not a red
-      // box above somebody's actual work.
-      .catch(() => {})
-  }, [])
-
-  if (!n) return null
-
-  return (
-    <div className="border border-etyme-rule rounded-lg p-5 mt-6 bg-etyme-surface">
-      <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
-        <div>
-          <div className="eyebrow mb-1">First one worth reading</div>
-          <div className="font-serif text-[34px] leading-none tabular-nums text-etyme-ink">
-            {n.hours == null ? (
-              <span className="text-etyme-faint text-[22px]">not yet</span>
-            ) : (
-              <>
-                {n.hours}
-                <span className="text-[16px] text-etyme-faint ml-1">hours</span>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="text-sm">
-          <div className="text-etyme-muted">{n.trend.says}</div>
-          <div className="text-etyme-faint text-xs mt-0.5">
-            Bar is {n.target.says}. {n.reading.says}
-          </div>
-        </div>
-
-        {n.hit && (
-          <span className="chip chip--verified ml-auto">Inside the bar</span>
-        )}
-      </div>
-
-      <p className="text-sm text-etyme-ink mt-3">{n.says}</p>
-
-      {/* Where the work is. A role with forty CVs and nothing worth
-          reading is somebody's whole afternoon. */}
-      {n.stuck.length > 0 && (
-        <ul className="mt-3 pt-3 border-t border-etyme-rule space-y-1">
-          {n.stuck.slice(0, 3).map((r: any) => (
-            <li key={r.requirementId} className="text-xs text-etyme-muted">
-              {r.says}
-            </li>
-          ))}
-          {n.stuckTotal > 3 && (
-            <li className="text-xs text-etyme-faint">
-              and {n.stuckTotal - 3} more waiting
-            </li>
-          )}
-        </ul>
-      )}
-    </div>
-  )
+/** One thing that needs a person, from /api/decisions. */
+interface Decision {
+  type: string
+  title: string
+  subtitle: string
+  urgency: 'HIGH' | 'MEDIUM' | 'LOW' | string
+  entityType: string
+  entityId: string
+  actionUrl: string
+  amount: number | null
+  createdAt: string
 }
 
+interface TenureRow {
+  personId: string
+  name: string
+  vendors: { id: string; name: string }[]
+  cumulativeMonths: number
+  status: 'OK' | 'WARNING' | 'BREAK_REQUIRED' | 'IN_BREAK' | 'ELIGIBLE' | string
+  eligibleDate: string | null
+}
+
+interface Tenure {
+  summary: { totalTracked: number; ok: number; warning: number; breakRequired: number; inBreak: number; eligible: number }
+  people: TenureRow[]
+}
+
+const KIND_WORD: Record<string, string> = {
+  TIMESHEET_APPROVAL: 'Hours',
+  EXPENSE_APPROVAL: 'Expense',
+  ROLLOFF_ACTION: 'Ending',
+  SUBMISSION_REVIEW: 'Candidate',
+  INVOICE_OVERDUE: 'Invoice',
+  RATE_CONFIRMATION: 'Rate',
+  BILL_DISPUTED: 'Bill',
+}
+
+function ago(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
+  return days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days`
+}
+
+const TENURE_WORD: Record<string, string> = {
+  BREAK_REQUIRED: 'Over the cap',
+  WARNING: 'Near the cap',
+  IN_BREAK: 'In a break',
+  ELIGIBLE: 'Clear to return',
+  OK: 'Inside the cap',
+}
+
+/**
+ * The client's desk.
+ *
+ * The page used to open with a vendor's number — hours to the first
+ * submission worth reading — and a wall of six stats, with what the
+ * client actually had to do buried in a tab. The founder's reading of
+ * it: "the client dashboard needs to be a lot better." The prototype
+ * (prototypes/client-console.tsx) opens with one sentence, the things
+ * that need you, and the picture underneath. So does this.
+ */
 export default function ProgramPage() {
   const [data, setData] = useState<ProgramData | null>(null)
+  const [decisions, setDecisions] = useState<Decision[] | null>(null)
+  const [tenure, setTenure] = useState<Tenure | null>(null)
+  const [firstGood, setFirstGood] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('overview')
-  const [scope, setScope] = useState<ViewScope>('mine')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
 
   async function loadData() {
     try {
       const res = await fetch('/api/program')
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const body = await res.json()
+      const body = await readJson(res)
       setData(body.data)
     } catch (err: any) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
+    // The queue and the exposure are their own reads. A desk whose queue
+    // cannot load still shows the picture; a picture whose queue fails
+    // says so in one line rather than taking the page down.
+    fetch('/api/decisions').then(readJson).then((b) => setDecisions(b?.data?.decisions ?? [])).catch(() => setDecisions([]))
+    fetch('/api/tenure').then(readJson).then((b) => setTenure(b?.data ?? null)).catch(() => setTenure(null))
+    fetch('/api/first-good').then(readJson).then((b) => setFirstGood(b?.data ?? null)).catch(() => {})
   }
 
   useEffect(() => {
     loadData()
   }, [])
 
-  async function handleApproveItem(item: ProgramData['approvalQueue'][number]) {
+  function say(message: string, type: 'success' | 'error' = 'success') {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), type === 'success' ? 3000 : 4500)
+  }
+
+  /** Approve from the row, for the two kinds a client signs here. */
+  async function approve(d: Decision) {
+    setBusy(d.entityId)
     try {
-      if (item.kind === 'timesheet') {
-        const res = await fetch(`/api/timesheets/${item.id}/approve`, { method: 'POST' })
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body.error?.message ?? 'Approval failed')
-        }
+      if (d.type === 'TIMESHEET_APPROVAL') {
+        await readJson(await fetch(`/api/timesheets/${d.entityId}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }))
       } else {
-        const res = await fetch('/api/expenses/actions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'approve', expenseIds: [item.id] }),
-        })
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body.error?.message ?? 'Approval failed')
-        }
+        await readJson(await fetch('/api/expenses/actions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'approve', expenseIds: [d.entityId] }),
+        }))
       }
-      setToast({ message: `${item.kind === 'timesheet' ? 'Timesheet' : 'Expense'} approved — ${item.person}`, type: 'success' })
-      setTimeout(() => setToast(null), 3000)
-      // Remove from local queue immediately
-      if (data) {
-        setData({
-          ...data,
-          approvalQueue: data.approvalQueue.filter(a => a.id !== item.id),
-          summary: { ...data.summary, pendingApprovals: data.summary.pendingApprovals - 1 },
-        })
-      }
+      say(`Approved — ${d.title.replace(/^(Approve|Review) (timesheet|expense) — /, '')}`)
+      setDecisions((cur) => (cur ?? []).filter((x) => x.entityId !== d.entityId))
+      // The same week sits on the Approvals tab; both queues move together.
+      setData((cur) => cur && cur.approvalQueue.some((a) => a.id === d.entityId)
+        ? { ...cur, approvalQueue: cur.approvalQueue.filter((a) => a.id !== d.entityId), summary: { ...cur.summary, pendingApprovals: Math.max(0, cur.summary.pendingApprovals - 1) } }
+        : cur)
     } catch (err: any) {
-      setToast({ message: err.message, type: 'error' })
-      setTimeout(() => setToast(null), 4000)
+      say(err.message, 'error')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function handleApproveItem(item: ProgramData['approvalQueue'][number]) {
+    await approve({
+      type: item.kind === 'timesheet' ? 'TIMESHEET_APPROVAL' : 'EXPENSE_APPROVAL',
+      title: item.person, subtitle: item.detail, urgency: 'MEDIUM', entityType: item.kind.toUpperCase(),
+      entityId: item.id, actionUrl: '', amount: item.amount, createdAt: item.submittedAt ?? new Date().toISOString(),
+    })
+    if (data) {
+      setData({
+        ...data,
+        approvalQueue: data.approvalQueue.filter((a) => a.id !== item.id),
+        summary: { ...data.summary, pendingApprovals: Math.max(0, data.summary.pendingApprovals - 1) },
+      })
     }
   }
 
   async function handleExtend(contractId: string) {
     try {
-      const res = await fetch(`/api/contracts/${contractId}/extend`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ months: 3 }),
-      })
-      const body = await readJson(res)
-      setToast({ message: body.data.message, type: 'success' })
+      const body = await readJson(await fetch(`/api/contracts/${contractId}/extend`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ months: 3 }),
+      }))
+      say(body.data.message)
       loadData()
     } catch (err: any) {
-      setToast({ message: err.message, type: 'error' })
+      say(err.message, 'error')
     }
-    setTimeout(() => setToast(null), 3500)
   }
 
   async function handleRolloff(contractId: string) {
     try {
-      const res = await fetch(`/api/contracts/${contractId}/rolloff`, { method: 'POST' })
-      const body = await readJson(res)
-      setToast({ message: body.data.message, type: 'success' })
+      const body = await readJson(await fetch(`/api/contracts/${contractId}/rolloff`, { method: 'POST' }))
+      say(body.data.message)
       loadData()
     } catch (err: any) {
-      setToast({ message: err.message, type: 'error' })
+      say(err.message, 'error')
     }
-    setTimeout(() => setToast(null), 3500)
   }
 
   if (loading) {
     return (
-      <div className="card text-center py-16">
-        <p className="text-sm text-etyme-muted">Loading program overview...</p>
+      <div className="animate-pulse space-y-4">
+        <div className="h-4 w-40 rounded bg-etyme-rule/50" />
+        <div className="h-9 w-2/3 rounded bg-etyme-rule/50" />
+        <div className="h-4 w-1/2 rounded bg-etyme-rule/40" />
+        <div className="h-40 rounded bg-etyme-rule/30 mt-8" />
       </div>
     )
   }
 
   if (error || !data) {
     return (
-      <div className="card text-center py-16">
-        <p className="text-sm text-red-600">Could not load program data: {error}</p>
+      <div className="panel p-6">
+        <p className="text-sm text-etyme-attention font-medium">This desk could not be read.</p>
+        <p className="text-sm text-etyme-muted mt-1">{error}</p>
+        <button onClick={() => { setError(null); setLoading(true); loadData() }} className="btn-secondary mt-4">Try again</button>
       </div>
     )
   }
 
   const s = data.summary
+  const queue = decisions ?? []
+  const urgent = queue.filter((d) => d.urgency === 'HIGH').length
+  const watch = tenure ? tenure.summary.warning + tenure.summary.breakRequired : null
+
   const TABS: { key: Tab; label: string; count?: number }[] = [
-    { key: 'overview', label: 'Program' },
+    { key: 'overview', label: 'Today' },
     { key: 'approvals', label: 'Approvals', count: s.pendingApprovals || undefined },
-    { key: 'contractors', label: 'Contractors' },
-    { key: 'vendors', label: 'Vendors' },
-    { key: 'roles', label: 'Open requirements', count: s.openRoles || undefined },
+    { key: 'contractors', label: 'Contractors', count: data.contractors.length || undefined },
+    { key: 'vendors', label: 'Suppliers', count: s.vendors || undefined },
+    { key: 'roles', label: 'Requirements', count: s.openRoles || undefined },
   ]
 
   return (
     <>
-      {/* ── Header ─────────────────────────────── */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-1">
-        <div>
-          <div className="eyebrow mb-1">Program</div>
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] font-serif">
-            {data.client.name}
+      {/* ── The sentence ─────────────────────────── */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-6">
+        <div className="max-w-2xl">
+          <p className="eyebrow">Workforce · {data.client.name}</p>
+          <h1 className="mt-1 font-serif text-3xl md:text-4xl leading-tight tracking-[-0.02em]" style={{ textWrap: 'balance' }}>
+            {decisions === null
+              ? 'Reading your desk…'
+              : queue.length === 0
+                ? 'Nothing needs you today.'
+                : (
+                  <>
+                    {queue.length} thing{queue.length === 1 ? '' : 's'} need{queue.length === 1 ? 's' : ''} you.
+                    {urgent > 0 && <span className="text-etyme-attention"> {urgent} {urgent === 1 ? 'is' : 'are'} urgent.</span>}
+                  </>
+                )}
           </h1>
-          <p className="text-sm text-etyme-muted mt-1">
-            Contingent workforce program — {s.activeContractors} active contractors across {s.vendors} vendor{s.vendors !== 1 ? 's' : ''}
+          <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">
+            {plural(s.activeContractors, 'contractor')} on site through {plural(s.vendors, 'supplier')}.
+            {' '}{compact(s.monthlySpend)} this month.
+            {s.endingSoon > 0 && ` ${plural(s.endingSoon, 'contract')} ending within 60 days.`}
+            {watch != null && watch > 0 && ` ${plural(watch, 'person', 'people')} at or near the tenure cap.`}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 mt-1">
+        <div className="flex flex-wrap items-center gap-2">
           {/* The paper behind the program. An order carries a ceiling, a
-              contract carries a rate, and an agreement carries permission —
+              contract carries a rate, an agreement carries permission —
               three different questions, so three different places. */}
-          <Link
-            href={{ pathname: '/dashboard/program/agreements' }}
-            className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted
-                       hover:text-etyme-ink hover:border-etyme-muted transition-colors"
-          >
+          <Link href={{ pathname: '/dashboard/program/agreements' }} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted hover:text-etyme-ink hover:border-etyme-muted transition-colors">
             Agreements
           </Link>
-          <Link
-            href={{ pathname: '/dashboard/program/milestones' }}
-            className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted
-                       hover:text-etyme-ink hover:border-etyme-muted transition-colors"
-          >
+          <Link href={{ pathname: '/dashboard/program/milestones' }} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted hover:text-etyme-ink hover:border-etyme-muted transition-colors">
             Milestones
           </Link>
-          <button
-            onClick={() => setScope(scope === 'mine' ? 'org' : 'mine')}
-            className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted
-                       hover:text-etyme-ink hover:border-etyme-muted transition-colors"
-          >
-            {scope === 'mine' ? 'View all IT' : 'View my team'}
-          </button>
+          <Link href={{ pathname: '/dashboard/program/team' }} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-muted hover:text-etyme-ink hover:border-etyme-muted transition-colors">
+            Program team
+          </Link>
         </div>
-      </div>
-
-      <TheNumber />
-
-      {/* ── Summary cards ──────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-6 mb-6">
-        <StatCard
-          label="Contractors"
-          value={s.activeContractors}
-        />
-        <StatCard
-          label="Monthly spend"
-          value={`$${Math.round(s.monthlySpend / 1000)}K`}
-          sub="estimated"
-        />
-        <StatCard
-          label="Pending"
-          value={s.pendingApprovals}
-          tone={s.pendingApprovals > 0 ? 'attention' : undefined}
-          sub="needs you"
-        />
-        <StatCard
-          label="Vendors"
-          value={s.vendors}
-        />
-        <StatCard
-          label="Open requirements"
-          value={s.openRoles}
-          tone={s.openRoles > 0 ? 'action' : undefined}
-        />
-        <StatCard
-          label="Ending soon"
-          value={s.endingSoon}
-          tone={s.endingSoon > 0 ? 'attention' : undefined}
-          sub="within 60 days"
-        />
       </div>
 
       {/* ── Tab bar ────────────────────────────── */}
       <div className="flex flex-wrap gap-1 mb-6 border-b border-etyme-rule">
-        {TABS.map(t => (
+        {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`
-              px-4 py-2.5 text-[13px] -mb-px flex items-center gap-2 transition-colors
-              border-b-2
-              ${tab === t.key
-                ? 'text-etyme-ink font-semibold border-etyme-ink'
-                : 'text-etyme-muted border-transparent hover:text-etyme-ink'
-              }
-            `}
+            className={`px-4 py-2.5 text-[13px] -mb-px flex items-center gap-2 transition-colors border-b-2 ${
+              tab === t.key ? 'text-etyme-ink font-semibold border-etyme-ink' : 'text-etyme-muted border-transparent hover:text-etyme-ink'
+            }`}
           >
             {t.label}
             {t.count !== undefined && (
-              <span className={`
-                text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums
-                ${tab === t.key
-                  ? 'bg-etyme-ink text-white'
-                  : 'bg-etyme-canvas text-etyme-muted'
-                }
-              `}>
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${tab === t.key ? 'bg-etyme-ink text-white' : 'bg-etyme-canvas text-etyme-muted'}`}>
                 {t.count}
               </span>
             )}
@@ -381,20 +338,27 @@ export default function ProgramPage() {
         ))}
       </div>
 
-      {/* ── Tab content ────────────────────────── */}
-      {tab === 'overview' && <OverviewTab data={data} onExtend={handleExtend} onRolloff={handleRolloff} />}
+      {tab === 'overview' && (
+        <Today
+          data={data}
+          onApprovals={() => setTab('approvals')}
+          queue={queue}
+          queueLoaded={decisions !== null}
+          tenure={tenure}
+          firstGood={firstGood}
+          busy={busy}
+          onApprove={approve}
+          onExtend={handleExtend}
+          onRolloff={handleRolloff}
+        />
+      )}
       {tab === 'approvals' && <ApprovalsTab items={data.approvalQueue} onApprove={handleApproveItem} />}
       {tab === 'contractors' && <ContractorsTab contractors={data.contractors} />}
       {tab === 'vendors' && <VendorsTab vendors={data.vendors} />}
       {tab === 'roles' && <RolesTab roles={data.openRoles} />}
 
-      {/* Toast notification */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium
-                         ${toast.type === 'success'
-                           ? 'bg-etyme-verified text-white'
-                           : 'bg-red-600 text-white'
-                         } animate-slide-up`}>
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium animate-slide-up ${toast.type === 'success' ? 'bg-etyme-verified text-white' : 'bg-etyme-attention text-white'}`}>
           {toast.message}
         </div>
       )}
@@ -402,244 +366,230 @@ export default function ProgramPage() {
   )
 }
 
-// ── Stat card ─────────────────────────────────────────────
+function plural(n: number, one: string, many = `${one}s`): string {
+  return `${n} ${n === 1 ? one : many}`
+}
 
-function StatCard({
-  label,
-  value,
-  sub,
-  tone,
-}: {
+// ── Stat ──────────────────────────────────────────────────
+
+function Stat({ label, value, sub, tone, href }: {
   label: string
   value: number | string
   sub?: string
   tone?: 'attention' | 'action' | 'verified'
+  href?: string
 }) {
-  const toneColors = {
-    attention: 'text-etyme-attention',
-    action: 'text-etyme-action',
-    verified: 'text-etyme-verified',
-  }
-  return (
-    <div className="card py-3 px-4">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-etyme-muted mb-1">
-        {label}
-      </p>
-      <p className={`text-2xl font-semibold tabular-nums font-serif ${
-        tone ? toneColors[tone] : 'text-etyme-ink'
-      }`}>
-        {value}
-      </p>
-      {sub && (
-        <p className="text-[10px] text-etyme-faint mt-0.5">{sub}</p>
-      )}
-    </div>
+  const color = tone === 'attention' ? 'text-etyme-attention' : tone === 'action' ? 'text-etyme-action' : tone === 'verified' ? 'text-etyme-verified' : 'text-etyme-ink'
+  const body = (
+    <>
+      <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-etyme-faint mb-1">{label}</p>
+      <p className={`font-serif text-3xl leading-none tabular-nums ${color}`}>{value}</p>
+      {sub && <p className="text-[11px] text-etyme-muted mt-1.5">{sub}</p>}
+    </>
   )
+  const cls = 'block bg-etyme-surface border border-etyme-rule rounded-lg px-4 py-3'
+  return href ? <a href={href} className={`${cls} hover:border-etyme-muted transition-colors`}>{body}</a> : <div className={cls}>{body}</div>
 }
 
-// ── Overview tab ──────────────────────────────────────────
+// ── Today ─────────────────────────────────────────────────
 
-function OverviewTab({ data, onExtend, onRolloff }: {
+/**
+ * What needs you, then the picture.
+ *
+ * The queue is every kind of decision across every supplier in one
+ * list — hours to sign, an expense to review, a bill that did not
+ * match, a contract ending — because the alternative is four inboxes.
+ * Hours and expenses are approved from the row; everything else opens
+ * where the decision is made.
+ */
+function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, onExtend, onRolloff, onApprovals }: {
   data: ProgramData
+  onApprovals: () => void
+  queue: Decision[]
+  queueLoaded: boolean
+  tenure: Tenure | null
+  firstGood: any
+  busy: string | null
+  onApprove: (d: Decision) => void
   onExtend: (contractId: string) => void
   onRolloff: (contractId: string) => void
 }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* Left column — main content */}
-      <div className="lg:col-span-3 space-y-6">
-        {/* Approval queue preview */}
-        {data.approvalQueue.length > 0 && (
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold">Needs your attention</h2>
-              <span className="text-[10px] font-semibold text-etyme-attention bg-etyme-attention/10 px-2 py-0.5 rounded-full tabular-nums">
-                {data.approvalQueue.length} pending
-              </span>
-            </div>
-            <div className="space-y-2">
-              {data.approvalQueue.slice(0, 5).map(item => (
-                <div
-                  key={item.id}
-                  className="flex items-start gap-4 py-2.5 border-b border-etyme-rule last:border-0"
-                >
-                  <span className={`
-                    text-[9px] font-semibold uppercase tracking-wider px-2 py-1 rounded
-                    ${item.kind === 'timesheet'
-                      ? 'bg-etyme-action/10 text-etyme-action'
-                      : 'bg-etyme-attention/10 text-etyme-attention'
-                    }
-                  `}>
-                    {item.kind}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-etyme-ink">{item.person}</p>
-                    <p className="text-xs text-etyme-muted mt-0.5">
-                      {item.detail}
-                      {item.amount != null && ` · $${item.amount.toFixed(2)}`}
-                      {' · '}{item.vendor}
-                    </p>
-                  </div>
-                  <span className="text-[11px] text-etyme-muted tabular-nums whitespace-nowrap">
-                    {item.daysWaiting > 0 ? `${item.daysWaiting}d ago` : 'today'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+  const s = data.summary
+  const watchList = (tenure?.people ?? []).filter((p) => p.status === 'BREAK_REQUIRED' || p.status === 'WARNING').slice(0, 5)
+  const watch = tenure ? tenure.summary.warning + tenure.summary.breakRequired : null
 
-        {/* Ending soon */}
-        {data.endingSoon.length > 0 && (
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold">Contracts ending soon</h2>
-              <span className="pill text-[10px] bg-amber-50 text-etyme-attention border border-amber-200">
-                {data.endingSoon.length} within 60 days
-              </span>
-            </div>
-            <div className="space-y-2">
-              {data.endingSoon.map(c => (
-                <div
-                  key={c.contractId}
-                  className={`flex items-center gap-4 py-3 px-4 rounded-lg border
-                    ${c.daysRemaining != null && c.daysRemaining <= 14
-                      ? 'border-red-200 bg-red-50/50'
-                      : c.daysRemaining != null && c.daysRemaining <= 30
-                        ? 'border-amber-200 bg-amber-50/50'
-                        : 'border-etyme-rule'
-                    }
-                  `}
-                >
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{c.person.name}</p>
-                    <p className="text-xs text-etyme-muted">{c.vendor.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-medium tabular-nums ${
-                      c.daysRemaining != null && c.daysRemaining <= 14 ? 'text-red-600' :
-                      c.daysRemaining != null && c.daysRemaining <= 30 ? 'text-etyme-attention' :
-                      'text-etyme-ink'
-                    }`}>
-                      {c.daysRemaining ?? '—'}d
-                    </p>
-                    <p className="text-[10px] text-etyme-muted">remaining</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => onExtend(c.contractId)}
-                      className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink
-                                       hover:bg-etyme-canvas transition-colors"
-                    >
-                      Extend
-                    </button>
-                    <button
-                      onClick={() => onRolloff(c.contractId)}
-                      className="text-xs px-3 py-1.5 bg-etyme-attention text-white rounded
-                                       hover:bg-etyme-attention/90 transition-colors"
-                    >
-                      Roll off
-                    </button>
-                  </div>
+  return (
+    <div className="space-y-8">
+      {/* ── Yours today ── */}
+      <section>
+        <div className="flex items-baseline justify-between gap-3 mb-3">
+          <h2 className="font-serif text-lg text-etyme-ink">Yours today</h2>
+          {queue.length > 0 && <Link href={{ pathname: '/dashboard/decisions' }} className="text-xs text-etyme-action hover:underline">All decisions</Link>}
+        </div>
+        <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+          {!queueLoaded && <p className="p-4 text-sm text-etyme-muted">Reading…</p>}
+          {queueLoaded && queue.length === 0 && (
+            <p className="p-4 text-sm text-etyme-muted">
+              {data.approvalQueue.length > 0 ? (
+                <>
+                  Nothing is waiting on you. {plural(data.approvalQueue.length, 'approval')} {data.approvalQueue.length === 1 ? 'is' : 'are'} waiting on the hiring managers who own them —{' '}
+                  <button type="button" onClick={onApprovals} className="text-etyme-action hover:underline">see Approvals</button>.
+                </>
+              ) : (
+                'Every week is signed, every claim reviewed, every invoice inside its terms. Nothing is waiting on you.'
+              )}
+            </p>
+          )}
+          {queue.slice(0, 8).map((d) => {
+            const inline = d.type === 'TIMESHEET_APPROVAL' || d.type === 'EXPENSE_APPROVAL'
+            return (
+              <div key={`${d.type}-${d.entityId}`} className={`p-4 flex flex-wrap items-start gap-x-4 gap-y-2 ${d.urgency === 'HIGH' ? 'bg-etyme-attention/[0.04]' : ''}`}>
+                <span className="w-[72px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium pt-1">{KIND_WORD[d.type] ?? d.entityType.toLowerCase()}</span>
+                <div className="flex-1 min-w-[220px]">
+                  <p className="text-sm text-etyme-ink">{d.title}</p>
+                  <p className="text-xs text-etyme-muted mt-0.5">{d.subtitle}</p>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+                <span className="text-xs text-etyme-faint tabular-nums pt-1">{ago(d.createdAt)}</span>
+                <div className="flex gap-2 shrink-0">
+                  {inline && (
+                    <button onClick={() => onApprove(d)} disabled={busy === d.entityId}
+                      className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50">
+                      {busy === d.entityId ? 'Approving…' : 'Approve'}
+                    </button>
+                  )}
+                  <Link href={{ pathname: d.actionUrl || '/dashboard/decisions' }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">
+                    {inline ? 'Look' : 'Open'}
+                  </Link>
+                </div>
+              </div>
+            )
+          })}
+          {queue.length > 8 && (
+            <Link href={{ pathname: '/dashboard/decisions' }} className="block p-3 text-center text-xs text-etyme-action hover:underline">
+              and {queue.length - 8} more
+            </Link>
+          )}
+        </div>
+      </section>
+
+      {/* ── The picture ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <Stat label="On site" value={s.activeContractors} sub="contractors" href="/dashboard/contractors" />
+        <Stat label="Suppliers" value={s.vendors} sub="with people here" href="/dashboard/suppliers" />
+        <Stat label="This month" value={compact(s.monthlySpend)} sub="from current rates" />
+        <Stat label="Ending soon" value={s.endingSoon} sub="within 60 days" tone={s.endingSoon > 0 ? 'attention' : undefined} href="/dashboard/rolloff" />
+        <Stat label="Tenure" value={watch ?? '—'} sub={watch == null ? 'reading' : watch === 0 ? 'everybody inside the cap' : 'at or near the cap'} tone={watch ? 'attention' : undefined} href="/dashboard/tenure" />
+        <Stat label="Requirements" value={s.openRoles} sub={firstGood?.hours == null ? 'published or drafted' : firstGood.hours < 1 ? 'first good candidate within the hour' : `first good candidate in ${firstGood.hours}h`} tone={s.openRoles > 0 ? 'action' : undefined} href="/dashboard/requisitions" />
       </div>
 
-      {/* Right column — sidebar */}
-      <div className="lg:col-span-2 space-y-6">
-        {/* Vendor distribution */}
-        <div className="card">
-          <h2 className="text-sm font-semibold mb-4">Vendor distribution</h2>
-          <div className="space-y-3">
-            {data.vendors.map(v => {
-              const pct = data.summary.activeContractors > 0
-                ? Math.round((v.headcount / data.summary.activeContractors) * 100)
-                : 0
-              return (
-                <div key={v.id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-etyme-ink">{v.name}</span>
-                    <span className="text-[10px] tabular-nums text-etyme-muted">
-                      {v.headcount} · ${Math.round(v.totalMonthlySpend / 1000)}K/mo
-                    </span>
-                  </div>
-                  <div className="w-full h-2 bg-etyme-canvas rounded-full">
-                    <div
-                      className="h-2 bg-etyme-action rounded-full transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Open requirements */}
-        {data.openRoles.length > 0 && (
-          <div className="card">
-            <h2 className="text-sm font-semibold mb-3">Open requirements</h2>
-            <div className="space-y-2">
-              {data.openRoles.map(r => (
-                <div key={r.id} className="flex items-center justify-between py-2 border-b border-etyme-rule last:border-0">
-                  <div>
-                    <p className="text-xs font-medium text-etyme-ink">{r.title}</p>
-                    <p className="text-[10px] text-etyme-muted">
-                      {r.submissions} submission{r.submissions !== 1 ? 's' : ''}
-                      {r.shortlisted > 0 && ` · ${r.shortlisted} shortlisted`}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="lg:col-span-3 space-y-8">
+          {/* ── Tenure to watch — the wedge ── */}
+          <section>
+            <h2 className="font-serif text-lg text-etyme-ink mb-3">Tenure to watch</h2>
+            <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+              {tenure === null && <p className="p-4 text-sm text-etyme-muted">Reading…</p>}
+              {tenure !== null && watchList.length === 0 && (
+                <p className="p-4 text-sm text-etyme-muted">
+                  {tenure.summary.totalTracked === 0
+                    ? 'Nobody on site yet, so nobody to count.'
+                    : `All ${tenure.summary.totalTracked} people on site are inside the cap, counted across every supplier.`}
+                </p>
+              )}
+              {watchList.map((p) => (
+                <div key={p.personId} className="p-4 flex flex-wrap items-center gap-3">
+                  <div className="flex-1 min-w-[200px]">
+                    <p className="text-sm text-etyme-ink">{p.name}</p>
+                    <p className="text-xs text-etyme-muted">
+                      {p.cumulativeMonths} months here through {p.vendors.map((v) => v.name).join(' and ')}
                     </p>
                   </div>
-                  <span className={`pill text-[10px] ${
-                    r.status === 'OPEN' ? 'bg-emerald-50 text-etyme-verified' : 'bg-etyme-canvas text-etyme-muted'
-                  }`}>
-                    {r.status}
+                  <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${p.status === 'BREAK_REQUIRED' ? 'bg-etyme-attention/10 text-etyme-attention' : 'bg-etyme-rule/50 text-etyme-muted'}`}>
+                    {TENURE_WORD[p.status] ?? p.status}
                   </span>
                 </div>
               ))}
+              {tenure !== null && tenure.summary.totalTracked > 0 && (
+                <Link href={{ pathname: '/dashboard/tenure' }} className="block p-3 text-center text-xs text-etyme-action hover:underline">
+                  Everybody's tenure, across every supplier
+                </Link>
+              )}
             </div>
-          </div>
-        )}
+          </section>
 
-        {/* Program health */}
-        <div className="card">
-          <h2 className="text-sm font-semibold mb-3">Program health</h2>
-          <div className="space-y-3">
-            <HealthItem
-              label="Timesheets"
-              status={data.approvalQueue.filter(a => a.kind === 'timesheet').length === 0 ? 'ok' : 'warn'}
-              detail={
-                data.approvalQueue.filter(a => a.kind === 'timesheet').length === 0
-                  ? 'All current'
-                  : `${data.approvalQueue.filter(a => a.kind === 'timesheet').length} awaiting approval`
-              }
-            />
-            <HealthItem
-              label="Expenses"
-              status={data.approvalQueue.filter(a => a.kind === 'expense').length === 0 ? 'ok' : 'warn'}
-              detail={
-                data.approvalQueue.filter(a => a.kind === 'expense').length === 0
-                  ? 'All reviewed'
-                  : `${data.approvalQueue.filter(a => a.kind === 'expense').length} pending review`
-              }
-            />
-            <HealthItem
-              label="Contract endings"
-              status={data.endingSoon.length === 0 ? 'ok' : 'warn'}
-              detail={
-                data.endingSoon.length === 0
-                  ? 'Nothing within 60 days'
-                  : `${data.endingSoon.length} ending within 60 days`
-              }
-            />
-            <HealthItem
-              label="Vendor count"
-              status={data.vendors.length <= 4 ? 'ok' : 'flag'}
-              detail={`${data.vendors.length} active vendor${data.vendors.length !== 1 ? 's' : ''}`}
-            />
-          </div>
+          {/* ── Ending soon ── */}
+          {data.endingSoon.length > 0 && (
+            <section>
+              <h2 className="font-serif text-lg text-etyme-ink mb-3">Ending within 60 days</h2>
+              <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+                {data.endingSoon.map((c) => (
+                  <div key={c.contractId} className="p-4 flex flex-wrap items-center gap-3">
+                    <div className="flex-1 min-w-[200px]">
+                      <p className="text-sm text-etyme-ink">{c.person.name}</p>
+                      <p className="text-xs text-etyme-muted">{c.vendor.name}</p>
+                    </div>
+                    <p className={`text-sm tabular-nums ${c.daysRemaining != null && c.daysRemaining <= 14 ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+                      {c.daysRemaining != null ? `${c.daysRemaining} days` : '—'}
+                    </p>
+                    <div className="flex gap-2">
+                      <button onClick={() => onExtend(c.contractId)} className="text-xs px-3 py-1.5 border border-etyme-rule rounded text-etyme-ink hover:bg-etyme-canvas">Extend</button>
+                      <button onClick={() => onRolloff(c.contractId)} className="text-xs px-3 py-1.5 bg-etyme-attention text-white rounded hover:opacity-90">Roll off</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        <div className="lg:col-span-2 space-y-8">
+          {/* ── Suppliers ── */}
+          <section>
+            <h2 className="font-serif text-lg text-etyme-ink mb-3">Suppliers</h2>
+            <div className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 space-y-3">
+              {data.vendors.length === 0 && <p className="text-sm text-etyme-muted">No supplier has anybody here yet.</p>}
+              {data.vendors.map((v) => {
+                const pct = s.activeContractors > 0 ? Math.round((v.headcount / s.activeContractors) * 100) : 0
+                return (
+                  <div key={v.id}>
+                    <div className="flex items-baseline justify-between gap-2 mb-1">
+                      <span className="text-sm text-etyme-ink">{v.name}</span>
+                      <span className="text-xs tabular-nums text-etyme-muted">{plural(v.headcount, 'person', 'people')} · {compact(v.totalMonthlySpend)}/mo</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-etyme-canvas rounded-full">
+                      <div className="h-1.5 bg-etyme-action rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                )
+              })}
+              <Link href={{ pathname: '/dashboard/suppliers' }} className="block pt-1 text-xs text-etyme-action hover:underline">Every supplier, and their standing</Link>
+            </div>
+          </section>
+
+          {/* ── Open roles ── */}
+          <section>
+            <h2 className="font-serif text-lg text-etyme-ink mb-3">Requirements <span className="text-xs text-etyme-faint tabular-nums font-sans">{s.openRoles}</span></h2>
+            <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+              {data.openRoles.length === 0 && <p className="p-4 text-sm text-etyme-muted">Nothing open. Raise a requirement and it publishes itself within plan.</p>}
+              {data.openRoles.slice(0, 6).map((r) => (
+                <Link key={r.id} href={{ pathname: `/dashboard/requisitions/${r.id}` }} className="block p-3 hover:bg-etyme-canvas/50">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm text-etyme-ink truncate">{r.title}</p>
+                    <span className="text-[11px] text-etyme-muted shrink-0">{r.status === 'OPEN' ? 'Published' : 'Draft'}</span>
+                  </div>
+                  <p className="text-xs text-etyme-muted mt-0.5">
+                    {r.submissions === 0 ? 'Nobody submitted yet' : `${plural(r.submissions, 'candidate')}${r.shortlisted > 0 ? ` · ${r.shortlisted} shortlisted` : ''}`}
+                  </p>
+                </Link>
+              ))}
+              {data.openRoles.length > 6 && (
+                <Link href={{ pathname: '/dashboard/requisitions' }} className="block p-3 text-center text-xs text-etyme-action hover:underline">and {data.openRoles.length - 6} more</Link>
+              )}
+              {firstGood?.says && data.openRoles.length > 0 && (
+                <p className="p-3 text-xs text-etyme-faint">{firstGood.says}</p>
+              )}
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -870,7 +820,7 @@ function VendorsTab({ vendors }: { vendors: ProgramData['vendors'] }) {
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-semibold tabular-nums font-serif">
-                    ${Math.round(v.totalMonthlySpend / 1000)}K
+                    {compact(v.totalMonthlySpend)}
                   </p>
                   <p className="text-[10px] text-etyme-muted">monthly spend</p>
                 </div>
@@ -962,34 +912,6 @@ function RolesTab({ roles }: { roles: ProgramData['openRoles'] }) {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  )
-}
-
-// ── Health status indicator ───────────────────────────────
-
-function HealthItem({
-  label,
-  status,
-  detail,
-}: {
-  label: string
-  status: 'ok' | 'warn' | 'flag'
-  detail: string
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className={`
-        w-2 h-2 rounded-full flex-shrink-0
-        ${status === 'ok' ? 'bg-etyme-verified' :
-          status === 'warn' ? 'bg-etyme-attention' :
-          'bg-red-500'
-        }
-      `} />
-      <div className="flex-1">
-        <p className="text-xs font-medium text-etyme-ink">{label}</p>
-        <p className="text-[10px] text-etyme-muted">{detail}</p>
       </div>
     </div>
   )

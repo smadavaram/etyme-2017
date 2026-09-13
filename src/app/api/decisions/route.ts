@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { staffOnly } from '@/lib/seat'
 import { hasAnyPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
+import { endClientFilter } from '@/lib/resolve-end-client'
 
 /**
  * GET /api/decisions
@@ -41,16 +42,27 @@ export async function GET(request: NextRequest) {
 
   // ── 1. Timesheets pending approval ────────────────
   if (hasAnyPermission(caller.permissions, ['timesheets.approve'])) {
+    // Two signatures, two desks. The sheet lives on the employer's
+    // contract, which in a chain is two firms away from the site — and
+    // the client desk that signs the work never heard it was waiting.
+    // Nike's hiring manager read "Nothing needs you" over six weeks of
+    // unsigned hours.
     const pendingTimesheets = await prisma.timesheet.findMany({
       where: {
         status: 'SUBMITTED',
-        sellContract: { companyId },
+        OR: [
+          // The employer, accepting what it will pay for.
+          { sellContract: { companyId }, employerAcceptedAt: null },
+          // The client, signing that the work happened.
+          { sellContract: endClientFilter(companyId), clientApprovedAt: null },
+        ],
       },
       include: {
         person: { select: { name: true } },
         sellContract: {
           select: {
-            billRate: true,
+            billRate: true, companyId: true, clientCompanyId: true, endClientCompanyId: true,
+            company: { select: { name: true } },
             clientCompany: { select: { name: true } },
           },
         },
@@ -59,21 +71,45 @@ export async function GET(request: NextRequest) {
       take: 20,
     })
 
+    // The client knows its people by the supplier it pays, not by the
+    // firm two rungs down that employs them.
+    const clientRows = pendingTimesheets.filter((ts) => ts.sellContract.companyId !== companyId)
+    const paidSupplier = new Map<string, string>()
+    if (clientRows.length > 0) {
+      const direct = await prisma.sellContract.findMany({
+        where: { clientCompanyId: companyId, personId: { in: clientRows.map((ts) => ts.personId) }, state: { in: ['IN_PROGRESS', 'VERIFIED', 'DRAFT'] } },
+        select: { personId: true, company: { select: { name: true } } },
+      })
+      for (const d of direct) paidSupplier.set(d.personId, d.company.name)
+    }
+
     for (const ts of pendingTimesheets) {
       const daysSinceSubmit = Math.floor(
         (now.getTime() - ts.periodEnd.getTime()) / (1000 * 60 * 60 * 24)
       )
+      const sc = ts.sellContract
+      const asClient = sc.companyId !== companyId
+      const supplier = paidSupplier.get(ts.personId) ?? sc.company.name
+      // A client sees the hours. The rate on this sheet is what the
+      // employer charges the rung above it, which is the client's own
+      // rate only on a direct placement — never a sub-supplier's.
+      const amount = !asClient || sc.clientCompanyId === companyId
+        ? Number(ts.totalHours) * (sc.billRate / 100)
+        : null
+      const period = `${ts.periodStart.toISOString().slice(0, 10)} to ${ts.periodEnd.toISOString().slice(0, 10)}`
 
       decisions.push({
         type: 'TIMESHEET_APPROVAL',
         title: `Approve timesheet — ${ts.person.name}`,
-        subtitle: `${ts.totalHours}h · ${ts.sellContract.clientCompany?.name ?? 'Unknown client'} · ${ts.periodStart.toISOString().slice(0, 10)} to ${ts.periodEnd.toISOString().slice(0, 10)}`,
+        subtitle: asClient
+          ? `${ts.totalHours}h · through ${supplier} · ${period}`
+          : `${ts.totalHours}h · ${sc.clientCompany?.name ?? 'Unknown client'} · ${period}`,
         urgency: daysSinceSubmit >= 5 ? 'HIGH' : daysSinceSubmit >= 2 ? 'MEDIUM' : 'LOW',
         entityType: 'TIMESHEET',
         entityId: ts.id,
         dueDate: null,
         actionUrl: '/dashboard/timesheets',
-        amount: Number(ts.totalHours) * (ts.sellContract.billRate / 100),
+        amount,
         createdAt: ts.periodEnd.toISOString(),
       })
     }

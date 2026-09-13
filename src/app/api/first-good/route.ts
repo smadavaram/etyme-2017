@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       mirroredFromId: null,
     },
     select: {
-      id: true, title: true, createdAt: true, openingId: true,
+      id: true, title: true, status: true, createdAt: true, openingId: true,
       mirrors: { select: { id: true } },
     },
   })
@@ -92,9 +92,16 @@ export async function GET(request: NextRequest) {
     arrivals: byRole.get(r.id) ?? [],
   })
 
-  const thisWindow = requirements.filter((r) => r.createdAt >= since).map(asRole)
+  // A role filled or closed without a good candidate ever arriving —
+  // history loaded by hand, or withdrawn — is not waiting for one, and
+  // a draft nobody can submit to is waiting on the client. Only a
+  // published role with nothing worth reading is stuck. Nike's page
+  // said seven roles were waiting when two were open.
+  const counts = (r: (typeof requirements)[number]) =>
+    r.status === 'OPEN' || (byRole.get(r.id) ?? []).some((a) => a.cleared === true)
+  const thisWindow = requirements.filter((r) => r.createdAt >= since && counts(r)).map(asRole)
   const lastWindow = requirements
-    .filter((r) => r.createdAt < since && r.createdAt >= before)
+    .filter((r) => r.createdAt < since && r.createdAt >= before && counts(r))
     .map(asRole)
 
   const number = theNumber(thisWindow, now)

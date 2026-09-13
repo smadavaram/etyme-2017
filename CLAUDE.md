@@ -652,6 +652,23 @@ accepted the literal header "Bearer undefined" on a deployment with no
 secret; all use `cronAuthorized` now. What production still needs from
 the founder: `ETYME_STAFF_EMAILS`.
 
+### The client dashboard reads as a desk ✓ (2026-09-13)
+
+"Client dashboard need to be lot better." It opens on a sentence about
+the reader — "6 things need you. 6 are urgent." or "Nothing needs you
+today." — with the queue under it and Approve on the row, then the
+picture: on site, suppliers, this month, ending soon, tenure,
+requirements, each a link (`app/dashboard/program`). Four numbers were
+real and computed the wrong way round, and each is now a sentence in
+`__tests__/invariants/client-desk.test.ts`: a person bought through a
+chain was counted once per rung and a sub-supplier's rate reached the
+client's page (`lib/chain-top`: the client sees the contract it pays);
+monthly spend was divided by a hundred twice; a role filled by history
+was "still waiting"; and the desk that signs the work was never told a
+week was waiting, because decisions scoped hours to the employer only.
+A client now sees the hours, through the supplier it pays, and signs
+from the dashboard.
+
 ### Demand opens, supply answers ✓ (2026-09-13)
 
 A client writes to one supplier from the role or from the candidate's

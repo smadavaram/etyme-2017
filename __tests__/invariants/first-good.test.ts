@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import {
   roleTime, theNumber, reading, trend, plain, middle, seatMap,
   TARGET_HOURS, ENOUGH_ROLES, type Role,
@@ -291,5 +293,13 @@ describe('one seat, one role', () => {
     const map = seatMap([{ id: 'lonely', openingId: null, mirrors: [] }], [])
     expect(map.get('lonely')).toBe('lonely')
     expect(map.size).toBe(1)
+  })
+})
+
+describe('which roles the route counts', () => {
+  it('a role filled or closed without a good candidate ever arriving is not waiting for one; only a published role with nothing worth reading is stuck', () => {
+    const src = readFileSync(join(process.cwd(), 'src/app/api/first-good/route.ts'), 'utf8')
+    expect(src).toContain("r.status === 'OPEN' || (byRole.get(r.id) ?? []).some((a) => a.cleared === true)")
+    expect(src).toContain('requirements.filter((r) => r.createdAt >= since && counts(r))')
   })
 })

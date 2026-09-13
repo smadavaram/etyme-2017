@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { chainTop } from '@/lib/chain-top'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { accountFilterFor } from '@/lib/account-walls'
 import { andAll } from '@/lib/walls'
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
   // account has no business reading who is staffed at another.
   const wall = await accountFilterFor(caller)
 
-  const contracts = await prisma.sellContract.findMany({
+  const everyRung = await prisma.sellContract.findMany({
     where: andAll(endClientFilter(clientCompany.id), wall.where, {
       state: { in: ['IN_PROGRESS', 'DRAFT', 'PENDING_VERIFICATION', 'VERIFIED'] },
     }),
@@ -62,8 +63,14 @@ export async function GET(request: NextRequest) {
     },
     orderBy: { endDate: 'asc' },
   })
+  // One row per person: the contract this client pays, never the rungs
+  // its suppliers arranged below it (`lib/chain-top`).
+  const contracts = chainTop(everyRung)
+  // On site means working now. A drafted contract is somebody who has
+  // not started; it is on the Contractors tab with that word on it.
+  const onSite = contracts.filter((c) => c.state === 'IN_PROGRESS')
 
-  // Aggregate by vendor
+  // Aggregate by vendor — the suppliers with people on site
   const vendorMap = new Map<string, {
     id: string
     name: string
@@ -72,7 +79,7 @@ export async function GET(request: NextRequest) {
     contracts: typeof contracts
   }>()
 
-  for (const c of contracts) {
+  for (const c of onSite) {
     const vendorId = c.company.id
     const vendorName = c.company.name
     const existing = vendorMap.get(vendorId)
@@ -96,14 +103,16 @@ export async function GET(request: NextRequest) {
     name: v.name,
     headcount: v.headcount,
     avgRate: v.headcount > 0 ? Math.round(v.totalBillRate / v.headcount) : 0,
-    totalMonthlySpend: Math.round((v.totalBillRate * 160) / 100), // 160 hrs/mo, rate in cents
+    totalMonthlySpend: v.totalBillRate * 160, // cents, at 160 hours a month
   }))
 
-  // Pending timesheets awaiting approval
+  // Weeks waiting for the client's signature. Once this client has
+  // signed, the sheet is the employer's to accept, not this desk's.
   const pendingTimesheets = await prisma.timesheet.findMany({
     where: {
       sellContract: endClientFilter(clientCompany.id),
       status: 'SUBMITTED',
+      clientApprovedAt: null,
     },
     include: {
       sellContract: {
@@ -174,11 +183,9 @@ export async function GET(request: NextRequest) {
     reason: `Program view at ${clientCompany.name}`,
   })
 
-  // Spend calculation
-  const totalMonthlySpend = contracts.reduce(
-    (sum, c) => sum + ((c.billRate ?? 0) * 160) / 100, // cents to dollars, 160 hrs
-    0
-  )
+  // What the client pays a month, in cents, at 160 hours: the top rung
+  // of every chain with somebody on site.
+  const totalMonthlySpend = onSite.reduce((sum, c) => sum + (c.billRate ?? 0) * 160, 0)
 
   // Build approval queue items
   const approvalQueue = [
@@ -214,9 +221,9 @@ export async function GET(request: NextRequest) {
         name: clientCompany.name,
       },
       summary: {
-        activeContractors: contracts.length,
+        activeContractors: new Set(onSite.map((c) => c.personId)).size,
         vendors: vendors.length,
-        monthlySpend: Math.round(totalMonthlySpend),
+        monthlySpend: totalMonthlySpend,
         pendingApprovals: approvalQueue.length,
         openRoles: requirements.length,
         endingSoon: endingSoon.length,
