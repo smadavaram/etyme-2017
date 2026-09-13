@@ -568,3 +568,14 @@ supplier told; money goes back through approval
 · Needs changes · Published · Cancelled · Archived — filled is a
 placement's word, read in Submissions. `/demo` seats the account owner,
 HR and Procurement at each programme.
+
+### Demand opens, supply answers ✓ (2026-09-13)
+
+A client writes to one supplier from the role or from the candidate's
+row; the supplier is told, reads it and answers on the same thread, and
+cannot start one — the refusal says to submit or answer the invitation
+instead (`lib/threads`, `components/thread`, `Conversation.withCompanyId`).
+A firm not on the deal is told nothing is there. Discussion stays the
+company's own. The 2017 rule, kept because the demand side still wants
+it. Requirements name the person they are for, first, every time; a
+paused requisition refuses submissions in a sentence.

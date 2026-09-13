@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
+import { whoMayOpen, sideOf, type TopicFacts, type Participant } from '@/lib/threads'
+import { tellThread } from '@/lib/thread-notices'
 
 /**
  * GET /api/conversations
@@ -13,8 +15,15 @@ import { prisma } from '@/lib/db'
  * LEGACY_RULES.md §7.1: Ten topic types. Consolidated to:
  *   GENERAL · REQUIREMENT · CONTRACT · SUBMISSION · DOCUMENT · INVOICE · EXPENSE · DIRECT
  *
- * Returns conversations scoped to the caller's company, with the latest
- * message preview and participant list.
+ * Two kinds of thread come back, and the row says which:
+ *
+ *   - a company's own — `withCompany` null; its people only
+ *   - one across a deal — opened by the demand side with one supplier
+ *     (`withCompany`), read from both sides and nowhere else
+ *
+ * `side` says which end of an across-thread the reader is on: OPENED
+ * (they started it) or ANSWERS (they were written to). The rule for who
+ * may open one is lib/threads and is enforced in POST below.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -25,13 +34,11 @@ export async function GET(request: NextRequest) {
   const topicId = url.searchParams.get('topicId')
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '25', 10)))
 
-  const where: any = {
-    archivedAt: null,
-  }
+  const me = caller.company?.id ?? null
+  const where: any = { archivedAt: null }
 
-  if (caller.company) {
-    where.companyId = caller.company.id
-  }
+  // Mine, and the ones somebody opened with me.
+  if (me) where.OR = [{ companyId: me }, { withCompanyId: me }]
 
   if (topic) where.topic = topic.toUpperCase()
   if (topicId) where.topicId = topicId
@@ -46,6 +53,8 @@ export async function GET(request: NextRequest) {
   const conversations = (await prisma.conversation.findMany({
     where,
     include: {
+      company: { select: { id: true, name: true } },
+      withCompany: { select: { id: true, name: true } },
       messages: {
         orderBy: { createdAt: 'desc' },
         take: 1,
@@ -65,109 +74,270 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     data: {
-      conversations: conversations.map((c) => ({
-        id: c.id,
-        topic: c.topic,
-        topicId: c.topicId,
-        title: c.title,
-        participants: c.participants,
-        messageCount: c._count.messages,
-        lastMessage: c.messages[0]
-          ? {
-              id: c.messages[0].id,
-              authorId: c.messages[0].authorId,
-              body: c.messages[0].body.slice(0, 120),
-              type: c.messages[0].type,
-              createdAt: c.messages[0].createdAt.toISOString(),
-            }
-          : null,
-        createdAt: c.createdAt.toISOString(),
-        updatedAt: c.updatedAt.toISOString(),
-      })),
+      conversations: conversations.map((c) => {
+        const side = sideOf(c, me)
+        return {
+          id: c.id,
+          topic: c.topic,
+          topicId: c.topicId,
+          title: c.title,
+          participants: c.participants,
+          withCompany: c.withCompany,
+          side,
+          /** The firm on the far end, from where the reader sits. Null on a company's own thread. */
+          otherCompany: side === 'OPENED' ? c.withCompany : side === 'ANSWERS' ? c.company : null,
+          messageCount: c._count.messages,
+          lastMessage: c.messages[0]
+            ? {
+                id: c.messages[0].id,
+                authorId: c.messages[0].authorId,
+                body: c.messages[0].body.slice(0, 120),
+                type: c.messages[0].type,
+                createdAt: c.messages[0].createdAt.toISOString(),
+              }
+            : null,
+          createdAt: c.createdAt.toISOString(),
+          updatedAt: c.updatedAt.toISOString(),
+        }
+      }),
     },
   })
+}
+
+const VALID_TOPICS = ['GENERAL', 'REQUIREMENT', 'CONTRACT', 'SUBMISSION', 'DOCUMENT', 'INVOICE', 'EXPENSE', 'DIRECT']
+
+/** The facts the rule needs about a role or a candidate, from the row itself. */
+async function loadFacts(topic: string, topicId: string): Promise<TopicFacts | null> {
+  if (topic === 'REQUIREMENT') {
+    const r = await prisma.requirement.findUnique({
+      where: { id: topicId },
+      select: {
+        id: true, title: true, companyId: true, payerCompanyId: true, clearedSupplierIds: true,
+        invitations: { select: { toCompanyId: true } },
+        submissions: { select: { fromCompanyId: true } },
+      },
+    })
+    if (!r) return null
+    return {
+      kind: 'REQUIREMENT',
+      id: r.id,
+      title: r.title,
+      demandCompanyId: r.payerCompanyId ?? r.companyId,
+      supplierIds: [
+        ...new Set([
+          ...r.invitations.map((i) => i.toCompanyId),
+          ...r.submissions.map((s) => s.fromCompanyId),
+          ...(r.clearedSupplierIds ?? []),
+        ]),
+      ],
+    }
+  }
+  if (topic === 'SUBMISSION') {
+    const s = await prisma.submission.findUnique({
+      where: { id: topicId },
+      select: {
+        id: true, toCompanyId: true, fromCompanyId: true,
+        fromCompany: { select: { name: true } },
+        person: { select: { name: true } },
+        requirement: { select: { title: true } },
+      },
+    })
+    if (!s) return null
+    return {
+      kind: 'SUBMISSION',
+      id: s.id,
+      roleTitle: s.requirement.title,
+      candidateName: s.person.name,
+      toCompanyId: s.toCompanyId,
+      fromCompanyId: s.fromCompanyId,
+      fromCompanyName: s.fromCompany.name,
+    }
+  }
+  return null
 }
 
 /**
  * POST /api/conversations
  *
- * Create a new conversation thread. Typically auto-created when a requirement,
- * contract, or submission is created — but can be created manually for direct
- * messages.
+ *   { topic, topicId?, title?, initialMessage?, withCompanyId?, participantIds? }
+ *
+ * Two things this makes.
+ *
+ * A company's own thread — no `withCompanyId`. Notes among its own
+ * people on a role, a contract, anything. Create-or-get: one per topic
+ * per company, and the route hands back the existing one so two people
+ * typing at once do not make two.
+ *
+ * A thread across a deal — `withCompanyId` names the other firm. Only
+ * the demand side may open one, only about a role or a candidate, and
+ * only with a firm that is on that deal. The rule and its sentences are
+ * lib/threads; a supplier trying to start one is told to submit instead.
+ *
+ * `participantIds`, where given, must hold a live seat at the caller's
+ * company — this used to take any list of names and ids and write it
+ * down as read, which is a way to put words in a stranger's mouth.
  */
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
-  const body = await request.json()
-  const { topic = 'GENERAL', topicId, title, participants, initialMessage } = body
+  const body = await request.json().catch(() => ({}))
+  const { topicId, title, initialMessage, withCompanyId, participantIds } = body
+  const topic = String(body.topic ?? 'GENERAL').toUpperCase()
 
   if (!caller.company) {
     return NextResponse.json(
-      { error: { code: 'FORBIDDEN', message: 'No company context' } },
+      { error: { code: 'FORBIDDEN', message: 'A conversation belongs to a company. Join one first.' } },
       { status: 403 }
     )
   }
 
-  const validTopics = ['GENERAL', 'REQUIREMENT', 'CONTRACT', 'SUBMISSION', 'DOCUMENT', 'INVOICE', 'EXPENSE', 'DIRECT']
-  if (!validTopics.includes(topic.toUpperCase())) {
+  if (!VALID_TOPICS.includes(topic)) {
     return NextResponse.json(
-      { error: { code: 'VALIDATION', message: `topic must be one of: ${validTopics.join(', ')}` } },
+      { error: { code: 'VALIDATION', message: `topic must be one of: ${VALID_TOPICS.join(', ')}` } },
       { status: 422 }
     )
   }
 
-  // For entity-linked topics, check if a conversation already exists
-  if (topicId && topic !== 'GENERAL' && topic !== 'DIRECT') {
-    const existing = await prisma.conversation.findUnique({
-      where: {
-        companyId_topic_topicId: {
-          companyId: caller.company.id,
-          topic: topic.toUpperCase(),
-          topicId,
+  const me = { id: caller.company.id, name: caller.company.name }
+  const now = new Date().toISOString()
+  const opener: Participant = { personId: caller.person.id, name: caller.person.name, companyId: me.id, joinedAt: now }
+
+  // ── Across a deal ────────────────────────────────────────────────────
+  if (typeof withCompanyId === 'string' && withCompanyId) {
+    if (isConsultantSeat(caller)) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Speaking for a company to another company is for its staff.' } },
+        { status: 403 }
+      )
+    }
+    if ((topic !== 'REQUIREMENT' && topic !== 'SUBMISSION') || typeof topicId !== 'string' || !topicId) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION',
+            message: 'A conversation with another company is about a role or a candidate. Open it from there.',
+          },
         },
-      },
+        { status: 422 }
+      )
+    }
+
+    const [facts, other] = await Promise.all([
+      loadFacts(topic, topicId),
+      prisma.company.findUnique({ where: { id: withCompanyId }, select: { id: true, name: true } }),
+    ])
+    if (!facts) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'That role or candidate is not here any more.' } },
+        { status: 404 }
+      )
+    }
+    if (!other) {
+      return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That company is not here.' } }, { status: 404 })
+    }
+
+    const verdict = whoMayOpen(facts, me, other)
+    if (!verdict.ok) {
+      return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
+    }
+
+    // Create-or-get on the four-part key. The unique index catches the
+    // race; the second reader gets the first one's thread.
+    let thread = await prisma.conversation.findFirst({
+      where: { companyId: me.id, withCompanyId: other.id, topic, topicId },
+      select: { id: true },
     })
-    if (existing) {
-      return NextResponse.json({
-        data: { conversation: { id: existing.id, existing: true } },
+    let existing = true
+    if (!thread) {
+      try {
+        thread = await prisma.conversation.create({
+          data: {
+            companyId: me.id,
+            withCompanyId: other.id,
+            topic,
+            topicId,
+            title: verdict.title,
+            participants: [opener] as unknown as object,
+          },
+          select: { id: true },
+        })
+        existing = false
+      } catch (e: any) {
+        if (e?.code !== 'P2002') throw e
+        thread = await prisma.conversation.findFirstOrThrow({
+          where: { companyId: me.id, withCompanyId: other.id, topic, topicId },
+          select: { id: true },
+        })
+      }
+    }
+
+    if (typeof initialMessage === 'string' && initialMessage.trim()) {
+      await prisma.message.create({
+        data: { conversationId: thread.id, authorId: caller.person.id, body: initialMessage.trim(), type: 'TEXT' },
       })
+      void tellThread({
+        conversationId: thread.id,
+        author: { personId: caller.person.id, name: caller.person.name, companyId: me.id, companyName: me.name },
+        body: initialMessage.trim(),
+      })
+    }
+
+    return NextResponse.json(
+      { data: { conversation: { id: thread.id, existing, withCompany: other, title: verdict.title } } },
+      { status: existing ? 200 : 201 }
+    )
+  }
+
+  // ── The company's own ────────────────────────────────────────────────
+  if (topicId && topic !== 'GENERAL' && topic !== 'DIRECT') {
+    const found = await prisma.conversation.findFirst({
+      where: { companyId: me.id, withCompanyId: null, topic, topicId },
+      select: { id: true },
+    })
+    if (found) {
+      return NextResponse.json({ data: { conversation: { id: found.id, existing: true } } })
     }
   }
 
-  // Build participant list — always include the creator
-  const participantList = Array.isArray(participants)
-    ? participants
-    : [{ personId: caller.person.id, name: caller.person.name, joinedAt: new Date().toISOString() }]
-
-  // Ensure creator is in the list
-  if (!participantList.some((p: any) => p.personId === caller.person.id)) {
-    participantList.unshift({
-      personId: caller.person.id,
-      name: caller.person.name,
-      joinedAt: new Date().toISOString(),
-    })
+  // Whoever was asked in, if they actually sit here. Names come from the
+  // seat, never from the request.
+  const askedIds: string[] = Array.isArray(participantIds)
+    ? participantIds.filter((x: unknown) => typeof x === 'string')
+    : Array.isArray(body.participants)
+      ? body.participants.map((p: any) => p?.personId).filter((x: unknown) => typeof x === 'string')
+      : []
+  const seated = askedIds.length
+    ? await prisma.context.findMany({
+        where: { companyId: me.id, revokedAt: null, personId: { in: askedIds } },
+        select: { person: { select: { id: true, name: true } } },
+      })
+    : []
+  const participantList: Participant[] = [opener]
+  for (const s of seated) {
+    if (!participantList.some((p) => p.personId === s.person.id)) {
+      participantList.push({ personId: s.person.id, name: s.person.name, companyId: me.id, joinedAt: now })
+    }
   }
 
   const conversation = await prisma.conversation.create({
     data: {
-      companyId: caller.company.id,
-      topic: topic.toUpperCase(),
-      topicId: topicId ?? null,
-      title: title ?? null,
-      participants: participantList,
+      companyId: me.id,
+      topic,
+      topicId: typeof topicId === 'string' ? topicId : null,
+      title: typeof title === 'string' && title.trim() ? title.trim() : null,
+      participants: participantList as unknown as object,
     },
   })
 
-  // Create initial message if provided
-  if (initialMessage) {
+  if (typeof initialMessage === 'string' && initialMessage.trim()) {
     await prisma.message.create({
-      data: {
-        conversationId: conversation.id,
-        authorId: caller.person.id,
-        body: initialMessage,
-        type: 'TEXT',
-      },
+      data: { conversationId: conversation.id, authorId: caller.person.id, body: initialMessage.trim(), type: 'TEXT' },
+    })
+    void tellThread({
+      conversationId: conversation.id,
+      author: { personId: caller.person.id, name: caller.person.name, companyId: me.id, companyName: me.name },
+      body: initialMessage.trim(),
     })
   }
 

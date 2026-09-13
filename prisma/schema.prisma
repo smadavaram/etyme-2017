@@ -386,6 +386,8 @@ model Company {
   expenses              Expense[]
   // Conversations
   conversations         Conversation[]
+  // Threads another company opened with this one (a client to its supplier).
+  threadsWithMe         Conversation[] @relation("ConversationWith")
   // Blacklist
   blacklists            Blacklist[]
   // Locations
@@ -3780,12 +3782,23 @@ model Blacklist {
 
 model Conversation {
   id           String    @id @default(cuid())
+  // Whose thread it is: the company that opened it.
   companyId    String
   company      Company   @relation(fields: [companyId], references: [id])
+  // The other company on the thread, when there is one.
+  //
+  // A company's own notes on a role have none. A client's question to one
+  // supplier about that role names the supplier here, and the thread is
+  // then readable from both sides and from nowhere else. Demand opens
+  // these and supply answers (src/lib/threads.ts) — the 2017 rule that
+  // kept a hiring manager from being cold-messaged by every firm with a
+  // CV, kept because it is still what the demand side wants.
+  withCompanyId String?
+  withCompany   Company?  @relation("ConversationWith", fields: [withCompanyId], references: [id])
   topic        String    @default("GENERAL") // GENERAL · REQUIREMENT · CONTRACT · SUBMISSION · DOCUMENT · INVOICE · EXPENSE · DIRECT
   topicId      String? // links to the entity (requirementId, sellContractId, etc.)
   title        String? // null for direct messages; auto-generated for topic threads
-  participants Json // [{ personId, name, joinedAt }]
+  participants Json // [{ personId, name, companyId?, joinedAt }]
   parentId     String? // branch conversations (sub-chats)
   archivedAt   DateTime?
   createdAt    DateTime  @default(now())
@@ -3793,8 +3806,13 @@ model Conversation {
 
   messages Message[]
 
-  @@unique([companyId, topic, topicId]) // one thread per entity
+  // One thread per entity per counterparty. Postgres reads two NULLs as
+  // different, so this binds only the threads with another company on
+  // them; a company's own thread per topic is kept to one by the
+  // create-or-get in app/api/conversations.
+  @@unique([companyId, withCompanyId, topic, topicId])
   @@index([companyId])
+  @@index([withCompanyId])
 }
 
 model Message {

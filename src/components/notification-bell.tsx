@@ -106,6 +106,10 @@ function notificationRoute(type: string, entityId?: string | null): string {
   if (entityId && type === 'MATCH_READY') {
     return `/dashboard/requirements/${entityId}`
   }
+  // The thread itself, open, rather than the list it is somewhere in.
+  if (entityId && type === 'CONVERSATION') {
+    return `/dashboard/conversations?open=${entityId}`
+  }
 
   return base
 }

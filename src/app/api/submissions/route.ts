@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   const requirement = await prisma.requirement.findUnique({
     where: { id: requirementId },
     select: {
-      id: true, companyId: true, status: true, title: true,
+      id: true, companyId: true, status: true, approvalState: true, title: true,
       endClientCompanyId: true, payerCompanyId: true,
       // For the consent text: enough detail that somebody can answer
       // without a phone call.
@@ -96,6 +96,25 @@ export async function POST(request: NextRequest) {
   if (requirement.status !== 'OPEN') {
     return NextResponse.json(
       { error: { code: 'NOT_OPEN', message: `Requirement is ${requirement.status}, not OPEN` } },
+      { status: 409 }
+    )
+  }
+
+  // Published, but paused. A change to the money on a published role sends
+  // it back through approval and leaves the status OPEN so the invitations
+  // and the submissions already in stay where they are — but nothing new
+  // comes in until the client has said yes again. The suppliers were told
+  // it was paused; this is the same sentence at the door.
+  if (requirement.approvalState === 'PENDING_APPROVAL') {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'PAUSED',
+          message:
+            `${requirement.title} is paused while ${requirement.company.name} re-approves the money. ` +
+            'You will be told when it is open again.',
+        },
+      },
       { status: 409 }
     )
   }

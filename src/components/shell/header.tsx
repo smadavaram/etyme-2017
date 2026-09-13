@@ -117,7 +117,9 @@ const PLUS_MENU: PlusMenuSection[] = [
       },
       {
         label: 'New conversation',
-        description: 'Message a client or candidate',
+        // A client is reached from the role or the candidate, on a thread
+        // the client opens. This is the note among your own people.
+        description: 'A note among your own people',
         href: '/dashboard/conversations?new=1',
         icon: '💬',
       },
@@ -142,7 +144,9 @@ const CLIENT_PLUS_MENU: PlusMenuSection[] = [
       },
       {
         label: 'New conversation',
-        description: 'Message a vendor or contractor',
+        // A supplier is written to from the role or the candidate, so the
+        // thread is about something. This is the note among your own people.
+        description: 'A note among your own people',
         href: '/dashboard/conversations?new=1',
         icon: '💬',
       },

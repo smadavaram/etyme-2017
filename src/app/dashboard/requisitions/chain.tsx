@@ -173,12 +173,15 @@ export function whoFor(r: {
   owner?: { id: string; name: string } | null
   raisedBy?: { id: string; name: string } | null
 }): string | null {
-  const owner = r.owner ?? null
+  // The owner first, always. "We can't see the person who owns the jobs"
+  // — because when the owner was also the raiser this said "raised by",
+  // which names an event, not the person whose need it is. Whose it is
+  // leads; who typed it in is a fact worth a word only when different.
+  const owner = r.owner ?? r.raisedBy ?? null
   const raiser = r.raisedBy ?? null
-  if (owner && raiser && owner.id !== raiser.id) return `for ${owner.name} · raised by ${raiser.name}`
-  if (raiser) return `raised by ${raiser.name}`
-  if (owner) return `for ${owner.name}`
-  return null
+  if (!owner) return null
+  if (raiser && raiser.id !== owner.id) return `for ${owner.name} · raised by ${raiser.name}`
+  return `for ${owner.name}`
 }
 
 /**

@@ -124,6 +124,8 @@ export const DOMAINS: Domain[] = [
       'app/api/conversations', 'app/api/texts', 'app/api/events',
       'app/answer', 'app/claim',
       'lib/notify', 'lib/notification-delivery', 'lib/texts', 'lib/messages',
+      // Demand opens, supply answers: who may start a thread across a deal, who hears.
+      'lib/threads', 'lib/thread-notices',
       'lib/reply-link', 'lib/answers',
       'app/reply', 'app/api/reply',
       'app/bench-invite', 'app/api/bench-invite',

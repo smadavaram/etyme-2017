@@ -12,6 +12,7 @@ import { hasPermission } from '@/lib/permissions'
 import { pageFraming } from '@/lib/page-framing'
 import { recall, remember } from '@/lib/remember'
 import { ProposeInterviewDialog } from '@/components/propose-interview'
+import { Thread, toSupplierAboutCandidate, answeringDemand } from '@/components/thread'
 
 /**
  * Submissions working surface — the vendor's outbound pipeline.
@@ -821,6 +822,9 @@ export default function SubmissionsPage() {
   const [sendOn, setSendOn] = useState<Submission | null>(null)
   // Who the client is asking to meet, and which round it will be.
   const [propose, setPropose] = useState<{ row: Submission; round: number } | null>(null)
+  // A question for the firm that sent this candidate — or, from their
+  // side, the client's question and the box to answer it in.
+  const [talk, setTalk] = useState<Submission | null>(null)
   const [said, setSaid] = useState<string | null>(null)
   const [converting, setConverting] = useState(false)
 
@@ -1073,6 +1077,23 @@ export default function SubmissionsPage() {
                 Send on →
               </button>
             )}
+
+          {/* A word with the other firm about this candidate. The desk
+              that received them opens it; the firm that sent them
+              answers. Not for an internal move: there is no other firm. */}
+          {row.kind !== 'INTERNAL' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setTalk(row)
+              }}
+              className="text-[10px] font-medium text-etyme-muted hover:text-etyme-ink
+                         border border-etyme-rule rounded px-2 py-0.5 hover:bg-etyme-canvas
+                         transition-colors whitespace-nowrap"
+            >
+              {direction === 'received' ? `Message ${row.fromCompany.name}` : 'Messages'}
+            </button>
+          )}
 
           {/* The interview step, client side only. A supplier does not
               book a round into its own client's diary — the route
@@ -1338,6 +1359,46 @@ export default function SubmissionsPage() {
             fetchSubmissions()
           }}
         />
+      )}
+
+      {/* The thread with the other firm about one candidate. Which side
+          the reader is on decides who may start it: the firm the
+          candidate went to opens, the firm they came from answers. */}
+      {talk && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-etyme-ink/30 p-4 md:p-8"
+          onClick={() => setTalk(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Messages about ${talk.person.name}`}
+        >
+          <div
+            className="w-full max-w-2xl bg-etyme-surface border border-etyme-rule rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 p-4 border-b border-etyme-rule">
+              <div>
+                <h2 className="font-serif text-lg text-etyme-ink">{talk.person.name}</h2>
+                <p className="text-xs text-etyme-muted mt-0.5">
+                  {talk.requirement.title} · with {direction === 'received' ? talk.fromCompany.name : talk.toCompany.name}
+                </p>
+              </div>
+              <button onClick={() => setTalk(null)} className="text-sm text-etyme-muted hover:text-etyme-ink">Close</button>
+            </div>
+            <Thread
+              topic="SUBMISSION"
+              topicId={talk.id}
+              title={`${talk.person.name} · ${talk.requirement.title}`}
+              withCompany={direction === 'received' ? talk.fromCompany : talk.toCompany}
+              canOpen={direction === 'received'}
+              words={
+                direction === 'received'
+                  ? toSupplierAboutCandidate(talk.fromCompany.name, talk.person.name)
+                  : answeringDemand(talk.toCompany.name, talk.person.name)
+              }
+            />
+          </div>
+        </div>
       )}
 
       {/* Asking for a round. One form, shared with the interviews page,

@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useSession } from '@/components/session-provider'
+import { readJson } from '@/lib/read-response'
 
 /**
  * Conversations page — messaging between vendors, clients, and candidates.
@@ -16,6 +18,14 @@ import { useRouter, useSearchParams } from 'next/navigation'
  * LEGACY_RULES.md §7.1: Conversations are always scoped to a company.
  *   Topics: GENERAL · REQUIREMENT · CONTRACT · SUBMISSION · DOCUMENT · INVOICE · EXPENSE · DIRECT
  *
+ * Two kinds of thread sit in the one list, and a row says which: your
+ * own people's, and one across a deal with another firm ("with Nike").
+ * The second kind is opened by the demand side from the role or the
+ * candidate — never from here, because a conversation with a supplier is
+ * about something — and answered from either side. A supplier hears
+ * from a client by being written to; it cannot start a thread with one
+ * (src/lib/threads.ts). The bell's deep link lands here with ?open=.
+ *
  * Layout: two-panel — thread list (left) and message pane (right).
  */
 
@@ -27,6 +37,9 @@ interface Conversation {
   topicId: string | null
   title: string
   participants: { personId: string; name: string }[]
+  /** The firm on the far end, from where the reader sits. Null on your own people's thread. */
+  otherCompany: { id: string; name: string } | null
+  side: 'OPENED' | 'ANSWERS' | null
   messageCount: number
   lastMessage: {
     body: string
@@ -41,6 +54,8 @@ interface Message {
   id: string
   authorId: string
   authorName: string | null
+  /** Which firm they write for, on a thread across a deal. */
+  authorCompany?: string | null
   body: string
   type: string
   metadata: any
@@ -65,17 +80,21 @@ function topicIcon(topic: string): string {
   return map[topic] ?? '●'
 }
 
-function topicChipClass(topic: string): string {
+/** The trade's word for what a thread is about — never the enum. */
+function topicLabel(topic: string): string {
   const map: Record<string, string> = {
-    REQUIREMENT: 'chip--action',
-    CONTRACT:    'chip--verified',
-    SUBMISSION:  'chip--action',
-    EXPENSE:     'chip--attention',
-    DIRECT:      'chip--passive',
-    GENERAL:     'chip--passive',
+    REQUIREMENT: 'a role',
+    CONTRACT:    'a contract',
+    SUBMISSION:  'a candidate',
+    DOCUMENT:    'paperwork',
+    INVOICE:     'an invoice',
+    EXPENSE:     'an expense',
+    DIRECT:      'direct',
+    GENERAL:     'general',
   }
-  return map[topic] ?? 'chip--passive'
+  return map[topic] ?? 'general'
 }
+
 
 function timeAgo(dateStr: string): string {
   const now = new Date()
@@ -115,13 +134,21 @@ function messageTypeClass(type: string): string {
 
 // ── New Conversation Modal ───────────────────────────
 
-function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({
-    subject: '',
-    channel: 'INTERNAL',
-    body: '',
-    recipientIds: '',
-  })
+/**
+ * A note among your own people.
+ *
+ * This form used to ask for a channel and a list of person ids and then
+ * post fields the route never read — a form whose answer is thrown away,
+ * which CLAUDE.md names as the thing never to hand anybody. It now asks
+ * for the two things that make a thread, and says plainly how the other
+ * kind of conversation starts.
+ */
+function NewConversationModal({ isClient, onClose, onCreated }: {
+  isClient: boolean
+  onClose: () => void
+  onCreated: (id: string) => void
+}) {
+  const [form, setForm] = useState({ title: '', body: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -129,39 +156,17 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
     e.preventDefault()
     setSubmitting(true)
     setError(null)
-
-    const ids = form.recipientIds.split(',').map((s) => s.trim()).filter(Boolean)
-    if (ids.length === 0) {
-      setError('At least one recipient is required.')
-      setSubmitting(false)
-      return
-    }
-
     try {
       const res = await fetch('/api/conversations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject: form.subject,
-          channel: form.channel,
-          body: form.body,
-          recipientIds: ids,
-        }),
+        body: JSON.stringify({ topic: 'GENERAL', title: form.title.trim(), initialMessage: form.body.trim() }),
       })
-
-      if (!res.ok) {
-        // Parsed inside the failure branch, so an empty body threw
-        // from the error handler itself and the message below never
-        // ran.
-        const body = await res.json().catch(() => ({}) as any)
-        setError(body.error?.message ?? 'Failed to create conversation')
-        return
-      }
-
-      onCreated()
+      const j = await readJson(res)
+      onCreated(j?.data?.conversation?.id)
       onClose()
-    } catch {
-      setError('Network error. Please try again.')
+    } catch (err: any) {
+      setError(err.message ?? 'That could not be started.')
     } finally {
       setSubmitting(false)
     }
@@ -170,14 +175,19 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
       <div className="card w-full max-w-lg mx-4 animate-slide-up" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold">New conversation</h2>
-          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1">
+          <button onClick={onClose} className="text-etyme-muted hover:text-etyme-ink p-1" aria-label="Close">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M5 5l10 10M15 5l-10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
         </div>
+        <p className="text-sm text-etyme-muted mb-5">
+          {isClient
+            ? 'Among your own people. To write to a supplier, open the role or the candidate and message them from there — they answer on that thread.'
+            : 'Among your own people. A client writes to you from their role or your candidate, and you answer on that thread; a supplier does not start one.'}
+        </p>
 
         {error && (
           <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
@@ -187,57 +197,30 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Subject *</label>
+            <label htmlFor="new-thread-title" className="block text-xs font-semibold text-etyme-muted mb-1">What it is about</label>
             <input
+              id="new-thread-title"
               type="text"
               required
-              value={form.subject}
-              onChange={(e) => setForm({ ...form, subject: e.target.value })}
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-              placeholder="e.g. SAP BRIM requirement discussion"
+              placeholder="e.g. Q4 hiring plan"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Channel *</label>
-            <select
-              required
-              value={form.channel}
-              onChange={(e) => setForm({ ...form, channel: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg bg-white
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-            >
-              <option value="INTERNAL">Internal</option>
-              <option value="EMAIL">Email</option>
-              <option value="TEAMS">Teams</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Recipients *</label>
-            <input
-              type="text"
-              required
-              value={form.recipientIds}
-              onChange={(e) => setForm({ ...form, recipientIds: e.target.value })}
-              className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action"
-              placeholder="person-id-1, person-id-2"
-            />
-            <p className="text-[10px] text-etyme-faint mt-1">(Enter person IDs, comma-separated)</p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-etyme-muted mb-1">Message *</label>
+            <label htmlFor="new-thread-body" className="block text-xs font-semibold text-etyme-muted mb-1">First note</label>
             <textarea
+              id="new-thread-body"
               required
               rows={4}
               value={form.body}
               onChange={(e) => setForm({ ...form, body: e.target.value })}
               className="w-full px-3 py-2 text-sm border border-etyme-rule rounded-lg
                          focus:outline-none focus:ring-2 focus:ring-etyme-action/20 focus:border-etyme-action resize-none"
-              placeholder="Type your message…"
+              placeholder="Type your note…"
             />
           </div>
 
@@ -245,8 +228,8 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
             <button type="button" onClick={onClose} className="btn-secondary">
               Cancel
             </button>
-            <button type="submit" disabled={submitting} className="btn-primary w-full disabled:opacity-50">
-              {submitting ? 'Creating…' : 'Start conversation'}
+            <button type="submit" disabled={submitting || !form.title.trim() || !form.body.trim()} className="btn-primary w-full disabled:opacity-50">
+              {submitting ? 'Starting…' : 'Start conversation'}
             </button>
           </div>
         </form>
@@ -260,6 +243,8 @@ function NewConversationModal({ onClose, onCreated }: { onClose: () => void; onC
 export default function ConversationsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { company } = useSession()
+  const isClient = company?.kind === 'CLIENT'
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -281,6 +266,36 @@ export default function ConversationsPage() {
     }
   }, [searchParams, router])
 
+  // The bell lands here with ?open=<thread>. Open that one, from the list
+  // if it is there, else by asking for it — a thread older than the first
+  // page is still the one the bell rang about.
+  const openId = searchParams.get('open')
+  useEffect(() => {
+    if (!openId || loading) return
+    const inList = conversations.find((c) => c.id === openId)
+    if (inList) {
+      setActiveConvo(inList)
+      return
+    }
+    fetch(`/api/conversations/messages?conversationId=${openId}&limit=1`)
+      .then(readJson)
+      .then((j) => {
+        const t = j?.data?.thread
+        if (!t) return
+        const mine = t.company?.id === company?.id
+        setActiveConvo({
+          id: t.id, topic: t.topic, topicId: t.topicId, title: t.title ?? 'Conversation',
+          participants: [], messageCount: 0, lastMessage: null,
+          otherCompany: mine ? t.withCompany ?? null : t.company ?? null,
+          side: t.withCompany ? (mine ? 'OPENED' : 'ANSWERS') : null,
+          createdAt: '', updatedAt: '',
+        })
+      })
+      .catch(() => {})
+    // conversations is read once the list has loaded; re-running per item would re-open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, loading])
+
   // Auto-dismiss toast
   useEffect(() => {
     if (!toast) return
@@ -293,13 +308,9 @@ export default function ConversationsPage() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/conversations')
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error?.message ?? `HTTP ${res.status}`)
-      }
-      const body = await res.json()
-      setConversations(body.data?.conversations ?? [])
+      const res = await fetch('/api/conversations?limit=50')
+      const body = await readJson(res)
+      setConversations(body?.data?.conversations ?? [])
     } catch (err: any) {
       setError(err.message)
       setConversations([])
@@ -444,8 +455,10 @@ export default function ConversationsPage() {
               {filtered.length === 0 && (
                 <div className="py-12 text-center">
                   <p className="text-sm text-etyme-muted">No conversations yet.</p>
-                  <p className="text-xs text-etyme-faint mt-1">
-                    Conversations are auto-created when requirements, contracts, or submissions are added.
+                  <p className="text-xs text-etyme-faint mt-1 px-6">
+                    {isClient
+                      ? 'Write to a supplier from a role or a candidate, or start a note among your own people.'
+                      : 'A client writes to you from their role or your candidate; it appears here. Notes among your own people start with + New.'}
                   </p>
                 </div>
               )}
@@ -470,8 +483,11 @@ export default function ConversationsPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 ml-5">
-                    <span className={`chip text-[9px] ${topicChipClass(c.topic)}`}>{c.topic}</span>
+                  <div className="flex items-center gap-2 ml-5 flex-wrap">
+                    {c.otherCompany
+                      ? <span className="chip text-[9px] chip--action">with {c.otherCompany.name}</span>
+                      : <span className="chip text-[9px] chip--passive">own people</span>}
+                    <span className="text-[10px] text-etyme-faint">{topicLabel(c.topic)}</span>
                     <span className="text-[10px] text-etyme-faint tabular-nums">{c.messageCount} msgs</span>
                   </div>
 
@@ -514,13 +530,16 @@ export default function ConversationsPage() {
                     <p className="text-[13px] font-medium text-etyme-ink truncate">
                       {activeConvo.title}
                     </p>
-                    <div className="flex items-center gap-2">
-                      <span className={`chip text-[9px] ${topicChipClass(activeConvo.topic)}`}>
-                        {activeConvo.topic}
-                      </span>
-                      <span className="text-[10px] text-etyme-faint">
-                        {activeConvo.participants.length} participant{activeConvo.participants.length !== 1 ? 's' : ''}
-                      </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {activeConvo.otherCompany
+                        ? <span className="chip text-[9px] chip--action">with {activeConvo.otherCompany.name}</span>
+                        : <span className="chip text-[9px] chip--passive">own people</span>}
+                      <span className="text-[10px] text-etyme-faint">{topicLabel(activeConvo.topic)}</span>
+                      {activeConvo.participants.length > 0 && (
+                        <span className="text-[10px] text-etyme-faint">
+                          {activeConvo.participants.length} on the thread
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -561,8 +580,11 @@ export default function ConversationsPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="text-[12px] font-medium text-etyme-ink">
-                              {msg.authorName ?? 'Unknown'}
+                              {msg.authorName ?? 'Somebody'}
                             </span>
+                            {activeConvo.otherCompany && msg.authorCompany && (
+                              <span className="text-[11px] text-etyme-muted">· {msg.authorCompany}</span>
+                            )}
                             {msg.type !== 'TEXT' && (
                               <span className="chip chip--passive text-[8px]">{msg.type.replace(/_/g, ' ')}</span>
                             )}
@@ -582,6 +604,11 @@ export default function ConversationsPage() {
 
                 {/* Compose */}
                 <div className="px-4 py-3 border-t border-etyme-rule bg-white">
+                  <p className="text-[10px] text-etyme-faint mb-2">
+                    {activeConvo.otherCompany
+                      ? `${activeConvo.otherCompany.name} sees this. Nobody else does.`
+                      : 'Your own people only.'}
+                  </p>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -615,10 +642,13 @@ export default function ConversationsPage() {
       {/* New conversation modal */}
       {showNew && (
         <NewConversationModal
+          isClient={isClient}
           onClose={() => setShowNew(false)}
-          onCreated={() => {
-            setToast('Conversation created')
-            fetchConversations()
+          onCreated={(id) => {
+            setToast('Conversation started')
+            fetchConversations().then(() => {
+              if (id) router.replace(`/dashboard/conversations?open=${id}`, { scroll: false })
+            })
           }}
         />
       )}

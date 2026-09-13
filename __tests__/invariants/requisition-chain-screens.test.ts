@@ -329,17 +329,19 @@ describe('Whose need it is, and who typed it', () => {
     ).toBe('for Marcus Oyelaran · raised by Dana Whitlock')
   })
 
-  it('a requisition raised for yourself does not say the same name twice', () => {
+  it('a requisition raised for yourself names you once, as the person it is for', () => {
+    // "We can't see the person who owns the jobs." It said "raised by"
+    // here — an event, not an owner. Whose need it is leads, every time.
     expect(
       whoFor({
         owner: { id: 'p-marcus', name: 'Marcus Oyelaran' },
         raisedBy: { id: 'p-marcus', name: 'Marcus Oyelaran' },
       })
-    ).toBe('raised by Marcus Oyelaran')
+    ).toBe('for Marcus Oyelaran')
   })
 
-  it('an owner nobody recorded leaves the line saying only what is known', () => {
-    expect(whoFor({ raisedBy: { id: 'p-dana', name: 'Dana Whitlock' } })).toBe('raised by Dana Whitlock')
+  it('an owner nobody recorded is taken to be whoever raised it, and is still named as the owner', () => {
+    expect(whoFor({ raisedBy: { id: 'p-dana', name: 'Dana Whitlock' } })).toBe('for Dana Whitlock')
     expect(whoFor({})).toBeNull()
   })
 

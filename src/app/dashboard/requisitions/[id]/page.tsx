@@ -1,6 +1,8 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { Thread, OWN_NOTES_ON_A_ROLE, toSupplierAboutRole } from '@/components/thread'
+import { suppliersOnRole } from '@/lib/threads'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useParams } from 'next/navigation'
@@ -137,7 +139,7 @@ function Why({ fit }: { fit: Fit }) {
 }
 
 /**
- * The thread on the requisition.
+ * The two kinds of conversation on a requisition.
  *
  * `Conversation` has carried `topic: 'REQUIREMENT'` with a `topicId`
  * since the model existed and nothing created one, so the argument about
@@ -145,133 +147,118 @@ function Why({ fit }: { fit: Fit }) {
  * weeks" — happened in email and was gone by the time anybody asked why
  * the band moved.
  *
- * The client's own people only, and that is the API's decision rather
- * than this screen's: /api/conversations scopes every read and write to
- * the caller's own company. A supplier working the role has a thread of
- * its own and cannot see this one.
+ * Discussion is the client's own people only, and that is the API's
+ * decision rather than this screen's: a thread with no other company on
+ * it is read by the company that made it. Suppliers is one thread per
+ * firm on the role, opened from here and answered from theirs — demand
+ * opens, supply answers (src/lib/threads.ts), which is how the 2017
+ * build kept hiring managers from being cold-messaged and is kept
+ * because the demand side still wants it that way.
  *
- * The thread is made by the first message, not by the requisition. A row
- * of empty threads on every requisition ever raised is noise nobody
- * reads.
+ * Both are made by the first message, not by the requisition. A row of
+ * empty threads on every requisition ever raised is noise nobody reads.
  */
 function Discussion({ requisitionId, title }: { requisitionId: string; title: string }) {
-  const [conversationId, setConversationId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<
-    { id: string; authorName: string | null; body: string; createdAt: string }[]
-  >([])
-  const [text, setText] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const [err, setErr] = useState<string | null>(null)
+  const [count, setCount] = useState<number>(0)
+  return (
+    <Panel title="Discussion" count={count > 0 ? count : undefined}>
+      <Thread
+        topic="REQUIREMENT"
+        topicId={requisitionId}
+        title={title}
+        withCompany={null}
+        canOpen
+        words={OWN_NOTES_ON_A_ROLE}
+        onChanged={setCount}
+      />
+    </Panel>
+  )
+}
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/conversations?topic=REQUIREMENT&topicId=${requisitionId}`)
-      const j = await readJson(res)
-      const thread = (j?.data?.conversations ?? [])[0] ?? null
-      setConversationId(thread?.id ?? null)
-      if (!thread) {
-        setMessages([])
-        return
-      }
-      const m = await fetch(`/api/conversations/messages?conversationId=${thread.id}`)
-      const mj = await readJson(m)
-      setMessages(mj?.data?.messages ?? [])
-    } catch (e: any) {
-      setErr(e.message)
-    } finally {
-      setLoading(false)
-    }
+/**
+ * Writing to one supplier at a time about this role.
+ *
+ * Only the firms actually on the deal are offered — invited, cleared by
+ * Procurement, or already submitting — because the route refuses anybody
+ * else in the same words. Whoever is hiring or runs the programme may
+ * open one; the AP clerk reads.
+ */
+function SupplierThreads({ requisitionId, title, suppliers, canOpen }: {
+  requisitionId: string
+  title: string
+  suppliers: { id: string; name: string }[]
+  canOpen: boolean
+}) {
+  const [open, setOpen] = useState<string | null>(null)
+  const [counts, setCounts] = useState<Record<string, number>>({})
+
+  // Which suppliers already have a thread, so the chip can say so before
+  // it is clicked.
+  useEffect(() => {
+    let live = true
+    fetch(`/api/conversations?topic=REQUIREMENT&topicId=${requisitionId}`)
+      .then(readJson)
+      .then((j) => {
+        if (!live) return
+        const next: Record<string, number> = {}
+        for (const c of j?.data?.conversations ?? []) {
+          if (c.otherCompany?.id) next[c.otherCompany.id] = c.messageCount
+        }
+        setCounts(next)
+      })
+      .catch(() => {})
+    return () => { live = false }
   }, [requisitionId])
 
-  useEffect(() => { load() }, [load])
-
-  async function post() {
-    const body = text.trim()
-    if (!body) return
-    setBusy(true)
-    setErr(null)
-    try {
-      let threadId = conversationId
-      if (!threadId) {
-        // Create-or-get: the route hands back the existing thread when
-        // there is one, so two people typing at once do not make two.
-        const res = await fetch('/api/conversations', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ topic: 'REQUIREMENT', topicId: requisitionId, title }),
-        })
-        const j = await readJson(res)
-        threadId = j?.data?.conversation?.id ?? null
-        setConversationId(threadId)
-      }
-      if (!threadId) throw new Error('That thread could not be started.')
-      const sent = await fetch('/api/conversations/messages', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ conversationId: threadId, body }),
-      })
-      await readJson(sent)
-      setText('')
-      await load()
-    } catch (e: any) {
-      setErr(e.message)
-    } finally {
-      setBusy(false)
-    }
-  }
+  const current = suppliers.find((f) => f.id === open) ?? null
 
   return (
-    <Panel title="Discussion" count={messages.length > 0 ? messages.length : undefined}>
-      <div className="p-4">
-        {loading && <p className="text-sm text-etyme-muted">Loading…</p>}
-
-        {!loading && messages.length === 0 && (
-          <p className="text-sm text-etyme-muted">
-            Nothing said yet. Notes here stay with your own people — no supplier sees them.
-          </p>
-        )}
-
-        {messages.length > 0 && (
-          <div className="space-y-4">
-            {messages.map(m => (
-              <div key={m.id}>
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-sm text-etyme-ink">{m.authorName ?? 'Somebody here'}</span>
-                  <span className="text-xs text-etyme-faint tabular-nums">
-                    {new Date(m.createdAt).toLocaleString()}
+    <Panel title="Suppliers" count={suppliers.length > 0 ? suppliers.length : undefined}>
+      {suppliers.length === 0 ? (
+        <p className="p-4 text-sm text-etyme-muted">
+          Nobody is on this role yet. Send it to suppliers and you can write to each of them here.
+        </p>
+      ) : (
+        <>
+          <div className="p-4 flex flex-wrap gap-2 border-b border-etyme-rule">
+            {suppliers.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setOpen(open === f.id ? null : f.id)}
+                aria-pressed={open === f.id}
+                className={`px-3 py-1 rounded text-sm border transition-colors ${
+                  open === f.id
+                    ? 'bg-etyme-action text-white border-etyme-action'
+                    : 'bg-etyme-raised text-etyme-ink border-etyme-rule hover:border-etyme-action'
+                }`}
+              >
+                {f.name}
+                {counts[f.id] > 0 && (
+                  <span className={`ml-1.5 text-xs tabular-nums ${open === f.id ? 'text-white/80' : 'text-etyme-muted'}`}>
+                    {counts[f.id]}
                   </span>
-                </div>
-                <p className="text-sm text-etyme-muted whitespace-pre-line mt-0.5">{m.body}</p>
-              </div>
+                )}
+              </button>
             ))}
           </div>
-        )}
-
-        <div className="mt-4 pt-4 border-t border-etyme-rule">
-          <label htmlFor="say" className="sr-only">Say something about this role</label>
-          <textarea
-            id="say"
-            rows={3}
-            value={text}
-            onChange={e => setText(e.target.value)}
-            placeholder="Anything your own people should know about this role."
-            className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised text-etyme-ink placeholder:text-etyme-faint focus:outline-none focus:border-etyme-action"
-          />
-          {err && <p className="mt-2 text-sm text-etyme-attention">{err}</p>}
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <span className="text-xs text-etyme-faint">Your own people only. Suppliers never see this.</span>
-            <button
-              onClick={post}
-              disabled={busy || text.trim().length === 0}
-              className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50"
-            >
-              {busy ? 'Posting…' : 'Post'}
-            </button>
-          </div>
-        </div>
-      </div>
+          {current ? (
+            <Thread
+              key={current.id}
+              topic="REQUIREMENT"
+              topicId={requisitionId}
+              title={title}
+              withCompany={current}
+              canOpen={canOpen}
+              words={toSupplierAboutRole(current.name)}
+              onChanged={(n) => setCounts((c) => ({ ...c, [current.id]: n }))}
+            />
+          ) : (
+            <p className="p-4 text-sm text-etyme-muted">
+              Pick a supplier to read what has been said, or to ask them something. They answer on the same thread; they cannot start one.
+            </p>
+          )}
+        </>
+      )}
     </Panel>
   )
 }
@@ -712,6 +699,20 @@ export default function RequisitionDetail() {
 
       {/* 5 — The argument about the role, kept with the role */}
       <Discussion requisitionId={id} title={r.title} />
+
+      {/* 6 — What was said to each supplier, and what they said back */}
+      <SupplierThreads
+        requisitionId={id}
+        title={r.title}
+        suppliers={suppliersOnRole({
+          invited: data.invitations.map((i: Invitation) => i.vendor),
+          submittedFrom: data.candidates.map((c: any) => c.vendor).filter(Boolean),
+          cleared: (r.clearedSupplierIds ?? [])
+            .filter((sid: string) => supplierNames[sid])
+            .map((sid: string) => ({ id: sid, name: supplierNames[sid] })),
+        })}
+        canOpen={hasPermission(permissions, 'requirements.write') || hasPermission(permissions, 'requirements.distribute')}
+      />
 
       {deciding && (
         <DecideModal

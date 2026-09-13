@@ -35,7 +35,12 @@ export async function POST(request: NextRequest) {
       {
         error: {
           code: 'FORBIDDEN',
-          message: 'Inviting somebody needs team.manage. It lets a person in who your domain rule would keep out, so it is the same decision as granting access.',
+          // Who can, not which permission. An invitation lets in a person
+          // the domain rule would keep out, so it is the same decision as
+          // granting access, and the same people make it.
+          message:
+            `Only the account owner or an admin at ${caller.company.name} can invite somebody. ` +
+            'Ask one of them, or tell the person to sign in with their company email if they have one.',
         },
       },
       { status: 403 }

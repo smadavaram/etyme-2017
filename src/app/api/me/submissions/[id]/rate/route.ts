@@ -32,7 +32,9 @@ async function load(submissionId: string, personId: string) {
   if (submission.personId !== personId) return { error: 'FORBIDDEN' as const }
 
   const thread = await prisma.conversation.findFirst({
-    where: { topic: 'SUBMISSION', topicId: submissionId, companyId: submission.fromCompanyId },
+    // The vendor's own thread on the submission — not the one a client
+    // may have opened with the vendor about the same candidate.
+    where: { topic: 'SUBMISSION', topicId: submissionId, companyId: submission.fromCompanyId, withCompanyId: null },
     select: { id: true },
   })
 

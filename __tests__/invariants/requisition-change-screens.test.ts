@@ -320,30 +320,36 @@ describe('Who is interviewing', () => {
 // ── 4. The discussion ─────────────────────────────────────
 
 describe('The discussion on a requisition', () => {
+  const THREAD = read('src/components/thread.tsx')
+
   it('a requisition has a discussion its own people can read and add to', () => {
-    const c = code(DETAIL_PAGE)
-    // Read: the thread for this requirement, and its messages.
-    expect(c).toContain('/api/conversations?topic=REQUIREMENT&topicId=')
+    // The page hands the requisition to the one shared thread component,
+    // as its own people's thread: nobody on the far end.
+    expect(code(DETAIL_PAGE)).toMatch(/<Thread\s+topic="REQUIREMENT"\s+topicId=\{requisitionId\}\s+title=\{title\}\s+withCompany=\{null\}\s+canOpen/)
+    const c = code(THREAD)
+    // Read: the thread for this topic, and its messages.
+    expect(c).toContain('/api/conversations?topic=${topic}&topicId=')
     expect(c).toContain('/api/conversations/messages?conversationId=')
     // Write: the thread is made by the first message, not by the row.
-    expect(c).toContain("topic: 'REQUIREMENT', topicId: requisitionId")
-    expect(c).toContain("conversationId: threadId, body")
+    expect(c).toContain('initialMessage: body')
+    expect(c).toContain('conversationId: threadId, body')
     // Names and times, so a thread reads as people talking.
-    expect(c).toContain('m.authorName ?? ')
+    expect(c).toContain("m.authorName ?? 'Somebody'")
     expect(c).toContain('new Date(m.createdAt).toLocaleString()')
-    expect(DETAIL_PAGE).toContain('Your own people only. Suppliers never see this.')
+    expect(THREAD).toContain('Your own people only. Suppliers never see this.')
   })
 
   it('the client’s own people are the participants, and the API decides that, not the screen', () => {
     const c = code(CONVERSATIONS)
-    expect(c).toContain('where.companyId = caller.company.id')
-    expect(c).toContain('companyId: caller.company.id')
-    // One thread per requirement, so two people posting at once do not
-    // make two threads.
-    expect(c).toContain('companyId_topic_topicId')
+    // Mine, and the ones opened with me — never a thread between two
+    // other firms.
+    expect(c).toContain('where.OR = [{ companyId: me }, { withCompanyId: me }]')
+    // One own thread per requirement, so two people posting at once do
+    // not make two threads.
+    expect(c).toContain('where: { companyId: me.id, withCompanyId: null, topic, topicId }')
   })
 
   it('an empty discussion says what it is for rather than showing an empty box', () => {
-    expect(DETAIL_PAGE).toContain('Nothing said yet. Notes here stay with your own people — no supplier sees them.')
+    expect(THREAD).toContain('Nothing said yet. Notes here stay with your own people — no supplier sees them.')
   })
 })
