@@ -3,6 +3,21 @@ import { timingSafeEqual } from 'node:crypto'
 import { seedWorld } from '@/lib/seed-world'
 
 /**
+ * A minute, not the default ten seconds.
+ *
+ * Walking twenty firms, their placements and three client programmes is
+ * hundreds of queries against a database in another building. On the
+ * first run most of them are writes; on a re-run they are the checks
+ * that make it idempotent, and there are just as many. Both take longer
+ * than the ten seconds a serverless function gets by default, and a
+ * function cut off at ten seconds leaves the world half-built with a
+ * gateway timeout for an answer — which is what happened on 2026-09-13:
+ * the seed was re-run to add the HR and Procurement desks, and nothing
+ * reached Nike. Sixty is the most a Hobby deployment allows.
+ */
+export const maxDuration = 60
+
+/**
  * POST /api/seed-world
  *
  * Builds the twenty-firm world described in lib/seed-world, on whichever

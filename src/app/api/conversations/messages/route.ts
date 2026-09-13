@@ -14,7 +14,7 @@ import { tellThread } from '@/lib/thread-notices'
  */
 async function open(request: NextRequest, conversationId: string) {
   const { caller, error } = await getCallerContext(request)
-  if (error) return { error }
+  if (error) return { ok: false as const, error }
 
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
@@ -35,13 +35,14 @@ async function open(request: NextRequest, conversationId: string) {
     (isConsultantSeat(caller) && !inIt)
   ) {
     return {
+      ok: false as const,
       error: NextResponse.json(
         { error: { code: 'NOT_FOUND', message: 'That conversation is not here.' } },
         { status: 404 }
       ),
     }
   }
-  return { caller, conversation, participants }
+  return { ok: true as const, caller, conversation, participants }
 }
 
 /**
@@ -52,7 +53,7 @@ async function open(request: NextRequest, conversationId: string) {
  * LEGACY_RULES.md §7.2: Message types:
  *   TEXT · SYSTEM · RATE_CONFIRMATION · INTERVIEW · DOCUMENT_REQUEST
  */
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   const url = request.nextUrl
   const conversationId = url.searchParams.get('conversationId')
   const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') ?? '50', 10)))
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
   }
 
   const opened = await open(request, conversationId)
-  if ('error' in opened) return opened.error
+  if (!opened.ok) return opened.error
   const { conversation, participants } = opened
 
   const where: any = { conversationId, deletedAt: null }
@@ -141,7 +142,7 @@ export async function GET(request: NextRequest) {
  * thread by writing, and everybody else on it — or, for a first note
  * across, the other firm's staff — is told (lib/threads, `whoHears`).
  */
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
   const body = await request.json().catch(() => ({}))
   const { conversationId, body: messageBody, type = 'TEXT', metadata } = body
 
@@ -153,7 +154,7 @@ export async function POST(request: NextRequest) {
   }
 
   const opened = await open(request, conversationId)
-  if ('error' in opened) return opened.error
+  if (!opened.ok) return opened.error
   const { caller, conversation } = opened
 
   const [message] = await prisma.$transaction([
