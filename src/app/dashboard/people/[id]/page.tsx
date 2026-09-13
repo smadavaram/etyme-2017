@@ -34,6 +34,7 @@ interface Person {
   representedBy: { id: string; name: string; how: 'bench' | 'submitted' }[]
   openRequirements: { id: string; title: string }[]
   alreadyOn: string[]
+  asks: { id: string; at: string; by: string; supplier: string; role: string; requirementId: string | null; conversationId: string }[]
 }
 
 const TENURE_WORD: Record<string, string> = {
@@ -86,6 +87,7 @@ export default function PersonPage() {
     try {
       const body = await readJson(await fetch(`/api/people/${id}/ask`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ requirementId, note }) }))
       setSaid({ text: body.data.says, tone: 'ok' }); setNote('')
+      load()
     } catch (err: any) {
       setSaid({ text: err.message, tone: 'error' })
     } finally {
@@ -153,6 +155,16 @@ export default function PersonPage() {
           </>
         )}
         {said && <p className={`text-[13px] ${said.tone === 'ok' ? 'text-etyme-verified' : 'text-etyme-attention'}`}>{said.text}</p>}
+        {data.asks.length > 0 && (
+          <ul className="border-t border-etyme-rule pt-3 space-y-1">
+            {data.asks.map((a) => (
+              <li key={a.id} className="text-[12.5px] text-etyme-muted">
+                {when(a.at)} — {a.by} asked {a.supplier} for {person.name.split(' ')[0]} on {a.role}.{' '}
+                <Link href={{ pathname: '/dashboard/conversations', query: { open: a.conversationId } }} className="text-etyme-action hover:underline">The thread</Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

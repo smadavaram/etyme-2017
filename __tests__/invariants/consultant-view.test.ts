@@ -59,6 +59,16 @@ describe('asking for a person', () => {
     expect(ask).toContain("code: 'NOT_PUBLISHED'")
     expect(ask).toContain("code: 'ALREADY_SUBMITTED'")
   })
+  it('the ask is written down where it can be found again: on the person’s page, on the dashboard, and at the top of Conversations', () => {
+    expect(ask).toContain("type: 'ASK', metadata: { personId: person.id")
+    expect(ask).toContain('await prisma.conversation.update({ where: { id: thread.id }, data: { updatedAt: now } })')
+    expect(api).toContain("where: { type: 'ASK', conversation: { companyId }, metadata: { path: ['personId'], equals: id } }")
+    expect(page).toContain('asked {a.supplier} for {person.name.split(\' \')[0]} on {a.role}.')
+    expect(read('src/app/api/program/route.ts')).toContain("what: 'Asked for'")
+  })
+  it('a client seat reaches Conversations from the menu, under Hire', () => {
+    expect(read('src/components/shell/sidebar.tsx')).toContain("{ label: 'Conversations', href: '/dashboard/conversations', icon: '💬', group: 'Hire' }")
+  })
   it('the page says where the ask goes before the button is pressed', () => {
     expect(page).toContain('The ask goes to {data.representedBy.map((r) => r.name).join(\' and \')}')
     expect(page).toContain('Ask for them')

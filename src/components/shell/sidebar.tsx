@@ -298,6 +298,11 @@ const CLIENT_NAV: NavSection[] = [
       // submissions list links into it — removing the entry without that
       // link would have orphaned it, since nothing else pointed there.
       { label: 'Submissions', href: '/dashboard/submissions', icon: '◇', group: 'Hire' },
+      // What this desk said to a supplier and what came back — the ask
+      // for a starred person, a question on a candidate — in one list,
+      // newest first. A client could reach it from the search box and
+      // nowhere else, so the founder asked whether it existed.
+      { label: 'Conversations', href: '/dashboard/conversations', icon: '💬', group: 'Hire' },
       // The one entry point for people, deliberately. This used to sit
       // next to a "Candidates" link to /dashboard/submissions — the raw,
       // one-row-per-submission feed — which is exactly what made the

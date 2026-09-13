@@ -70,7 +70,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         select: { id: true },
       })
     }
-    await prisma.message.create({ data: { conversationId: thread.id, authorId: caller.person.id, body: text, type: 'TEXT' } })
+    // Typed and tagged, so the person's page and the dashboard can find
+    // the ask again; and the thread rises to the top of Conversations.
+    await prisma.message.create({
+      data: { conversationId: thread.id, authorId: caller.person.id, body: text, type: 'ASK', metadata: { personId: person.id, personName: person.name, requirementId: requirement.id, roleTitle: requirement.title, supplierId: firm.id, supplierName: firm.name } },
+    })
+    await prisma.conversation.update({ where: { id: thread.id }, data: { updatedAt: now } })
     void tellThread({ conversationId: thread.id, author: { personId: caller.person.id, name: caller.person.name, companyId: me.id, companyName: me.name }, body: text })
     asked.push(firm.name)
   }

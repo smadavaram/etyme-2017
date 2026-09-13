@@ -111,6 +111,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     orderBy: { createdAt: 'desc' },
     take: 50,
   })
+  // The asks this company made for them, newest first, each a link
+  // back to the thread it sits on.
+  const askRows = await prisma.message.findMany({
+    where: { type: 'ASK', conversation: { companyId }, metadata: { path: ['personId'], equals: id } },
+    select: { id: true, createdAt: true, metadata: true, conversationId: true, authorId: true },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  })
+  const askers = await prisma.person.findMany({ where: { id: { in: [...new Set(askRows.map((m) => m.authorId))] } }, select: { id: true, name: true } })
+  const askerName = new Map(askers.map((a) => [a.id, a.name]))
+  const asks = askRows.map((m) => {
+    const md = (m.metadata ?? {}) as Record<string, string>
+    return { id: m.id, at: m.createdAt.toISOString(), by: askerName.get(m.authorId) ?? 'somebody', supplier: md.supplierName ?? '', role: md.roleTitle ?? '', requirementId: md.requirementId ?? null, conversationId: m.conversationId }
+  })
+
   const on = new Set(subs.map((s) => s.requirementId))
   const openRequirements = published.filter((r) => !on.has(r.id))
   const alreadyOn = published.filter((r) => on.has(r.id)).map((r) => r.title)
@@ -139,6 +154,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       representedBy: [...represented.values()],
       openRequirements,
       alreadyOn,
+      asks,
     },
   })
 }

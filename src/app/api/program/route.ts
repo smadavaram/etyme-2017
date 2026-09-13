@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
   // awarded.
   const dayStart = new Date(now)
   dayStart.setUTCHours(0, 0, 0, 0)
-  const [signedToday, claimsToday, awardedToday] = await Promise.all([
+  const [signedToday, claimsToday, awardedToday, asksToday] = await Promise.all([
     prisma.timesheet.findMany({
       where: { sellContract: endClientFilter(clientCompany.id), clientApprovedAt: { gte: dayStart } },
       select: { id: true, totalHours: true, clientApprovedAt: true, person: { select: { name: true } } },
@@ -170,12 +170,18 @@ export async function GET(request: NextRequest) {
       select: { id: true, decidedAt: true, person: { select: { name: true } }, requirement: { select: { title: true } } },
       orderBy: { decidedAt: 'desc' }, take: 10,
     }),
+    prisma.message.findMany({
+      where: { type: 'ASK', conversation: { companyId: clientCompany.id }, createdAt: { gte: dayStart } },
+      select: { id: true, createdAt: true, metadata: true },
+      orderBy: { createdAt: 'desc' }, take: 10,
+    }),
   ])
   const today = [
     ...signedToday.map((t) => ({ id: `t-${t.id}`, what: 'Hours signed', who: `${t.person.name}, ${Number(t.totalHours)}h`, at: t.clientApprovedAt!.toISOString() })),
     ...claimsToday.map((e) => ({ id: `e-${e.id}`, what: 'Expense approved', who: `${e.person.name}, $${Number(e.total).toFixed(2)}`, at: e.approvedAt!.toISOString() })),
     ...onSite.filter((c) => c.startDate >= dayStart).map((c) => ({ id: `s-${c.id}`, what: 'Started', who: `${c.person.name} through ${c.company.name}`, at: c.startDate.toISOString() })),
     ...awardedToday.map((a) => ({ id: `a-${a.id}`, what: 'Awarded', who: `${a.person.name} — ${a.requirement.title}`, at: a.decidedAt!.toISOString() })),
+    ...asksToday.map((m) => { const md = (m.metadata ?? {}) as Record<string, string>; return { id: `k-${m.id}`, what: 'Asked for', who: `${md.personName ?? 'somebody'} through ${md.supplierName ?? 'a supplier'} — ${md.roleTitle ?? ''}`, at: m.createdAt.toISOString() } }),
   ].sort((a, b) => b.at.localeCompare(a.at))
 
   // Weeks waiting for the client's signature. Once this client has
