@@ -669,6 +669,17 @@ week was waiting, because decisions scoped hours to the employer only.
 A client now sees the hours, through the supplier it pays, and signs
 from the dashboard.
 
+Then, on "fix the gaps and improvise": a week is checked against its
+contract before anybody signs it — over the role's hours, or past the
+last day — and says so in a sentence (`lib/timesheet-flag`); the
+headline counts exceptions; "Approve anyway" takes a reason and puts it
+on the signature. Under the queue, what was done today. Somebody
+starting soon shows the paperwork verdict a week early, in activation's
+own words. Each supplier carries its standing; a published role nobody
+has answered in five days says so; a client with nothing on it yet is
+told what to do first. The generic demo client's book is mostly history
+now, and the seeded Nike desk has one 44-hour week to read.
+
 ### Demand opens, supply answers ✓ (2026-09-13)
 
 A client writes to one supplier from the role or from the candidate's

@@ -40,6 +40,9 @@ const DELIBERATE: Record<string, string> = {
     'A week is seven days. Seven inputs at fifty pixels is not a week ' +
     'anybody can type into, so it is four across on a phone — two rows ' +
     'of a week, which is still a week — and seven where there is room.',
+  'src/app/dashboard/program/page.tsx':
+    'Six numbers with one figure each. Two across at 390 is still ' +
+    'readable; one across is a page of scrolling before the first list.',
 }
 
 describe('The app is opened on a phone, and the layout knows it', () => {

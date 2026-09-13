@@ -50,6 +50,7 @@ interface ProgramData {
     headcount: number
     avgRate: number
     totalMonthlySpend: number // cents
+    standing: string
   }[]
   approvalQueue: {
     id: string
@@ -65,9 +66,19 @@ interface ProgramData {
     id: string
     title: string
     status: string
+    openDays: number
     submissions: number
     shortlisted: number
   }[]
+  startingSoon: {
+    contractId: string
+    person: { id: string; name: string }
+    vendor: { id: string; name: string }
+    startDate: string
+    daysUntil: number
+    paperwork: { outcome: 'PASS' | 'WARN' | 'BLOCK'; says: string; fix: string | null }
+  }[]
+  today: { id: string; what: string; who: string; at: string }[]
   endingSoon: {
     contractId: string
     person: { id: string; name: string }
@@ -94,6 +105,8 @@ interface Decision {
   actionUrl: string
   amount: number | null
   createdAt: string
+  /** A sentence when the week does not fit the contract; approve anyway needs a reason. */
+  flag?: string | null
 }
 
 interface TenureRow {
@@ -182,11 +195,13 @@ export default function ProgramPage() {
   }
 
   /** Approve from the row, for the two kinds a client signs here. */
-  async function approve(d: Decision) {
+  async function approve(d: Decision, note?: string) {
     setBusy(d.entityId)
     try {
       if (d.type === 'TIMESHEET_APPROVAL') {
-        await readJson(await fetch(`/api/timesheets/${d.entityId}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }))
+        // A flagged week is approved anyway with the reason written on
+        // the signature — WARN, capture a reason, proceed. Never silently.
+        await readJson(await fetch(`/api/timesheets/${d.entityId}/approve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(note ? { note } : {}) }))
       } else {
         await readJson(await fetch('/api/expenses/actions', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -267,6 +282,7 @@ export default function ProgramPage() {
   const s = data.summary
   const queue = decisions ?? []
   const urgent = queue.filter((d) => d.urgency === 'HIGH').length
+  const exceptions = queue.filter((d) => d.flag || d.type === 'BILL_DISPUTED').length
   const watch = tenure ? tenure.summary.warning + tenure.summary.breakRequired : null
 
   const TABS: { key: Tab; label: string; count?: number }[] = [
@@ -291,7 +307,7 @@ export default function ProgramPage() {
                 : (
                   <>
                     {queue.length} thing{queue.length === 1 ? '' : 's'} need{queue.length === 1 ? 's' : ''} you.
-                    {urgent > 0 && <span className="text-etyme-attention"> {urgent} {urgent === 1 ? 'is' : 'are'} urgent.</span>}
+                    {exceptions > 0 && <span className="text-etyme-attention"> {exceptions} {exceptions === 1 ? 'has an exception' : 'have exceptions'}.</span>}
                   </>
                 )}
           </h1>
@@ -300,6 +316,7 @@ export default function ProgramPage() {
             {' '}{compact(s.monthlySpend)} this month.
             {s.endingSoon > 0 && ` ${plural(s.endingSoon, 'contract')} ending within 60 days.`}
             {watch != null && watch > 0 && ` ${plural(watch, 'person', 'people')} at or near the tenure cap.`}
+            {urgent > 0 && ` ${urgent} of yours ${urgent === 1 ? 'has' : 'have'} waited more than five days.`}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -399,8 +416,10 @@ function Stat({ label, value, sub, tone, href }: {
  * The queue is every kind of decision across every supplier in one
  * list — hours to sign, an expense to review, a bill that did not
  * match, a contract ending — because the alternative is four inboxes.
- * Hours and expenses are approved from the row; everything else opens
- * where the decision is made.
+ * Hours and expenses are approved from the row; a week that does not
+ * fit its contract says so and is approved anyway with a reason;
+ * everything else opens where the decision is made. Under the queue,
+ * what was done today, so a clear desk is not an empty page.
  */
 function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, onExtend, onRolloff, onApprovals }: {
   data: ProgramData
@@ -410,13 +429,37 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
   tenure: Tenure | null
   firstGood: any
   busy: string | null
-  onApprove: (d: Decision) => void
+  onApprove: (d: Decision, note?: string) => void
   onExtend: (contractId: string) => void
   onRolloff: (contractId: string) => void
 }) {
   const s = data.summary
-  const watchList = (tenure?.people ?? []).filter((p) => p.status === 'BREAK_REQUIRED' || p.status === 'WARNING').slice(0, 5)
+  const [reasonFor, setReasonFor] = useState<string | null>(null)
+  const [reason, setReason] = useState('')
+  const watchList = (tenure?.people ?? [])
+    .filter((p) => p.status === 'BREAK_REQUIRED' || p.status === 'WARNING' || p.status === 'IN_BREAK')
+    .slice(0, 5)
   const watch = tenure ? tenure.summary.warning + tenure.summary.breakRequired : null
+  const nothingYet = queueLoaded && queue.length === 0 && s.activeContractors === 0
+    && data.openRoles.length === 0 && data.startingSoon.length === 0 && data.approvalQueue.length === 0
+
+  if (nothingYet) {
+    return (
+      <section className="bg-etyme-surface border border-etyme-rule rounded-lg p-6 max-w-2xl">
+        <h2 className="font-serif text-xl text-etyme-ink">Nothing here yet.</h2>
+        <p className="mt-2 text-sm text-etyme-muted leading-relaxed">
+          Post a requirement and, within plan, it publishes itself to the suppliers Procurement cleared.
+          Their submissions, the interviews, the award, the paperwork, the hours and the invoices all come
+          back to this page — every contractor on site, across every supplier, with tenure added up.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link href={{ pathname: '/dashboard/requisitions' }} className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90">Post a requirement</Link>
+          <Link href={{ pathname: '/dashboard/suppliers' }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">Invite your suppliers</Link>
+          <Link href={{ pathname: '/dashboard/import' }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">Import who is already on site</Link>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -435,6 +478,8 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
                   Nothing is waiting on you. {plural(data.approvalQueue.length, 'approval')} {data.approvalQueue.length === 1 ? 'is' : 'are'} waiting on the hiring managers who own them —{' '}
                   <button type="button" onClick={onApprovals} className="text-etyme-action hover:underline">see Approvals</button>.
                 </>
+              ) : data.today.length > 0 ? (
+                'Queue clear. Everything below was done today.'
               ) : (
                 'Every week is signed, every claim reviewed, every invoice inside its terms. Nothing is waiting on you.'
               )}
@@ -442,25 +487,54 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
           )}
           {queue.slice(0, 8).map((d) => {
             const inline = d.type === 'TIMESHEET_APPROVAL' || d.type === 'EXPENSE_APPROVAL'
+            const who = d.title.replace(/^(Approve|Review) (timesheet|expense) — /, '')
+            const asking = reasonFor === d.entityId
             return (
-              <div key={`${d.type}-${d.entityId}`} className={`p-4 flex flex-wrap items-start gap-x-4 gap-y-2 ${d.urgency === 'HIGH' ? 'bg-etyme-attention/[0.04]' : ''}`}>
-                <span className="w-[72px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium pt-1">{KIND_WORD[d.type] ?? d.entityType.toLowerCase()}</span>
-                <div className="flex-1 min-w-[220px]">
-                  <p className="text-sm text-etyme-ink">{d.title}</p>
-                  <p className="text-xs text-etyme-muted mt-0.5">{d.subtitle}</p>
+              <div key={`${d.type}-${d.entityId}`} className={`p-4 ${d.flag ? 'bg-etyme-attention/[0.04]' : ''}`}>
+                <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+                  <span className="w-[72px] shrink-0 text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium pt-1">{KIND_WORD[d.type] ?? d.entityType.toLowerCase()}</span>
+                  <div className="flex-1 min-w-[220px]">
+                    <p className="text-sm text-etyme-ink">{who}</p>
+                    <p className="text-xs text-etyme-muted mt-0.5">{d.subtitle}</p>
+                    {d.flag && <p className="text-xs text-etyme-attention mt-1.5"><span className="font-mono mr-1.5">!</span>{d.flag}</p>}
+                  </div>
+                  <span className="text-xs text-etyme-faint tabular-nums pt-1">{ago(d.createdAt)}</span>
+                  <div className="flex gap-2 shrink-0">
+                    {inline && !d.flag && (
+                      <button onClick={() => onApprove(d)} disabled={busy === d.entityId}
+                        className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50">
+                        {busy === d.entityId ? 'Approving…' : 'Approve'}
+                      </button>
+                    )}
+                    {inline && d.flag && !asking && (
+                      <button onClick={() => { setReasonFor(d.entityId); setReason('') }} disabled={busy === d.entityId}
+                        className="px-3 py-1.5 bg-etyme-attention text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50">
+                        Approve anyway
+                      </button>
+                    )}
+                    <Link href={{ pathname: d.actionUrl || '/dashboard/decisions' }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">
+                      {inline ? 'Look' : 'Open'}
+                    </Link>
+                  </div>
                 </div>
-                <span className="text-xs text-etyme-faint tabular-nums pt-1">{ago(d.createdAt)}</span>
-                <div className="flex gap-2 shrink-0">
-                  {inline && (
-                    <button onClick={() => onApprove(d)} disabled={busy === d.entityId}
-                      className="px-3 py-1.5 bg-etyme-action text-white rounded text-xs font-medium hover:opacity-90 disabled:opacity-50">
-                      {busy === d.entityId ? 'Approving…' : 'Approve'}
+                {asking && (
+                  <form
+                    className="mt-3 md:ml-[88px] flex flex-wrap items-center gap-2"
+                    onSubmit={(e) => { e.preventDefault(); if (reason.trim()) { onApprove(d, reason.trim()); setReasonFor(null) } }}
+                  >
+                    <input
+                      autoFocus
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      placeholder="Why this week is right anyway — it goes on the signature"
+                      className="flex-1 min-w-[240px] px-3 py-1.5 text-xs border border-etyme-rule rounded bg-white text-etyme-ink"
+                    />
+                    <button type="submit" disabled={!reason.trim() || busy === d.entityId} className="px-3 py-1.5 bg-etyme-attention text-white rounded text-xs font-medium disabled:opacity-50">
+                      {busy === d.entityId ? 'Approving…' : 'Approve with this reason'}
                     </button>
-                  )}
-                  <Link href={{ pathname: d.actionUrl || '/dashboard/decisions' }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">
-                    {inline ? 'Look' : 'Open'}
-                  </Link>
-                </div>
+                    <button type="button" onClick={() => setReasonFor(null)} className="px-2 py-1.5 text-xs text-etyme-muted hover:underline">Not now</button>
+                  </form>
+                )}
               </div>
             )
           })}
@@ -470,10 +544,26 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
             </Link>
           )}
         </div>
+
+        {/* ── Done today ── */}
+        {data.today.length > 0 && (
+          <div className="mt-4">
+            <p className="text-[10px] uppercase tracking-[0.15em] text-etyme-faint font-medium mb-2">Done today</p>
+            <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+              {data.today.slice(0, 6).map((t) => (
+                <div key={t.id} className="px-4 py-2.5 flex items-center gap-3 text-sm">
+                  <span className="text-etyme-verified font-mono text-xs">✓</span>
+                  <span className="flex-1 text-etyme-muted">{t.what} — <span className="text-etyme-ink">{t.who}</span></span>
+                  <span className="text-xs text-etyme-faint tabular-nums">{clock(t.at)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ── The picture ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Stat label="On site" value={s.activeContractors} sub="contractors" href="/dashboard/contractors" />
         <Stat label="Suppliers" value={s.vendors} sub="with people here" href="/dashboard/suppliers" />
         <Stat label="This month" value={compact(s.monthlySpend)} sub="from current rates" />
@@ -484,6 +574,33 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="lg:col-span-3 space-y-8">
+          {/* ── Starting soon — the paperwork, read early ── */}
+          {data.startingSoon.length > 0 && (
+            <section>
+              <h2 className="font-serif text-lg text-etyme-ink mb-3">Starting soon</h2>
+              <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
+                {data.startingSoon.map((c) => (
+                  <div key={c.contractId} className="p-4 flex flex-wrap items-start gap-3">
+                    <div className="flex-1 min-w-[200px]">
+                      <p className="text-sm text-etyme-ink">{c.person.name} <span className="text-etyme-muted">through {c.vendor.name}</span></p>
+                      <p className={`text-xs mt-1 ${c.paperwork.outcome === 'BLOCK' ? 'text-etyme-attention' : c.paperwork.outcome === 'WARN' ? 'text-etyme-muted' : 'text-etyme-verified'}`}>
+                        {c.paperwork.outcome === 'PASS' ? 'Paperwork complete. Nothing stops the start.' : c.paperwork.says}
+                        {c.paperwork.outcome !== 'PASS' && c.paperwork.fix && <span className="text-etyme-muted"> {c.paperwork.fix}</span>}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-sm tabular-nums ${c.daysUntil <= 7 && c.paperwork.outcome === 'BLOCK' ? 'text-etyme-attention' : 'text-etyme-ink'}`}>
+                        {c.daysUntil > 0 ? `in ${plural(c.daysUntil, 'day')}` : c.daysUntil === 0 ? 'today' : `${plural(-c.daysUntil, 'day')} ago`}
+                      </p>
+                      <p className="text-xs text-etyme-faint">{shortDate(c.startDate)}</p>
+                    </div>
+                    <Link href={{ pathname: `/dashboard/placements/${c.contractId}` }} className="px-3 py-1.5 border border-etyme-rule rounded text-xs text-etyme-ink hover:bg-etyme-canvas">Open</Link>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* ── Tenure to watch — the wedge ── */}
           <section>
             <h2 className="font-serif text-lg text-etyme-ink mb-3">Tenure to watch</h2>
@@ -502,6 +619,7 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
                     <p className="text-sm text-etyme-ink">{p.name}</p>
                     <p className="text-xs text-etyme-muted">
                       {p.cumulativeMonths} months here through {p.vendors.map((v) => v.name).join(' and ')}
+                      {p.status === 'IN_BREAK' && p.eligibleDate && ` · can come back ${shortDate(p.eligibleDate)}`}
                     </p>
                   </div>
                   <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${p.status === 'BREAK_REQUIRED' ? 'bg-etyme-attention/10 text-etyme-attention' : 'bg-etyme-rule/50 text-etyme-muted'}`}>
@@ -526,7 +644,7 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
                   <div key={c.contractId} className="p-4 flex flex-wrap items-center gap-3">
                     <div className="flex-1 min-w-[200px]">
                       <p className="text-sm text-etyme-ink">{c.person.name}</p>
-                      <p className="text-xs text-etyme-muted">{c.vendor.name}</p>
+                      <p className="text-xs text-etyme-muted">{c.vendor.name}{c.endDate && ` · last day ${shortDate(c.endDate)}`}</p>
                     </div>
                     <p className={`text-sm tabular-nums ${c.daysRemaining != null && c.daysRemaining <= 14 ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
                       {c.daysRemaining != null ? `${c.daysRemaining} days` : '—'}
@@ -553,7 +671,10 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
                 return (
                   <div key={v.id}>
                     <div className="flex items-baseline justify-between gap-2 mb-1">
-                      <span className="text-sm text-etyme-ink">{v.name}</span>
+                      <span className="text-sm text-etyme-ink">
+                        {v.name}
+                        <span className={`ml-2 text-[10px] uppercase tracking-[0.1em] whitespace-nowrap ${v.standing === 'Preferred' ? 'text-etyme-verified' : v.standing === 'On probation' ? 'text-etyme-attention' : 'text-etyme-faint'}`}>{v.standing === 'Approved by agreement' ? 'Approved' : v.standing}</span>
+                      </span>
                       <span className="text-xs tabular-nums text-etyme-muted">{plural(v.headcount, 'person', 'people')} · {compact(v.totalMonthlySpend)}/mo</span>
                     </div>
                     <div className="w-full h-1.5 bg-etyme-canvas rounded-full">
@@ -566,22 +687,27 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
             </div>
           </section>
 
-          {/* ── Open roles ── */}
+          {/* ── Requirements ── */}
           <section>
             <h2 className="font-serif text-lg text-etyme-ink mb-3">Requirements <span className="text-xs text-etyme-faint tabular-nums font-sans">{s.openRoles}</span></h2>
             <div className="bg-etyme-surface border border-etyme-rule rounded-lg divide-y divide-etyme-rule">
               {data.openRoles.length === 0 && <p className="p-4 text-sm text-etyme-muted">Nothing open. Raise a requirement and it publishes itself within plan.</p>}
-              {data.openRoles.slice(0, 6).map((r) => (
-                <Link key={r.id} href={{ pathname: `/dashboard/requisitions/${r.id}` }} className="block p-3 hover:bg-etyme-canvas/50">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-sm text-etyme-ink truncate">{r.title}</p>
-                    <span className="text-[11px] text-etyme-muted shrink-0">{r.status === 'OPEN' ? 'Published' : 'Draft'}</span>
-                  </div>
-                  <p className="text-xs text-etyme-muted mt-0.5">
-                    {r.submissions === 0 ? 'Nobody submitted yet' : `${plural(r.submissions, 'candidate')}${r.shortlisted > 0 ? ` · ${r.shortlisted} shortlisted` : ''}`}
-                  </p>
-                </Link>
-              ))}
+              {data.openRoles.slice(0, 6).map((r) => {
+                const quiet = r.status === 'OPEN' && r.submissions === 0 && r.openDays >= 5
+                return (
+                  <Link key={r.id} href={{ pathname: `/dashboard/requisitions/${r.id}` }} className="block p-3 hover:bg-etyme-canvas/50">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-sm text-etyme-ink truncate">{r.title}</p>
+                      <span className="text-[11px] text-etyme-muted shrink-0">{r.status === 'OPEN' ? 'Published' : 'Draft'}{r.status === 'OPEN' && r.openDays > 0 ? ` ${plural(r.openDays, 'day')}` : ''}</span>
+                    </div>
+                    <p className={`text-xs mt-0.5 ${quiet ? 'text-etyme-attention' : 'text-etyme-muted'}`}>
+                      {r.submissions === 0
+                        ? (quiet ? `Nobody has submitted in ${plural(r.openDays, 'day')}. Widen the release or ask the suppliers.` : r.status === 'OPEN' ? 'Nobody submitted yet' : 'Not published yet')
+                        : `${plural(r.submissions, 'candidate')}${r.shortlisted > 0 ? ` · ${r.shortlisted} shortlisted` : ''}`}
+                    </p>
+                  </Link>
+                )
+              })}
               {data.openRoles.length > 6 && (
                 <Link href={{ pathname: '/dashboard/requisitions' }} className="block p-3 text-center text-xs text-etyme-action hover:underline">and {data.openRoles.length - 6} more</Link>
               )}
@@ -594,6 +720,16 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
       </div>
     </div>
   )
+}
+
+/** "Sep 3" from an ISO string. */
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+}
+
+/** "9:12 AM" from an ISO string. */
+function clock(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 }
 
 // ── Approvals tab ─────────────────────────────────────────

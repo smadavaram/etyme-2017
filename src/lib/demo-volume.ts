@@ -286,9 +286,13 @@ export async function addVolume(input: VolumeInput): Promise<VolumeResult> {
   const reqRows = Array.from({ length: wantReqs }, (_, i) => {
     const role = ROLES[i % ROLES.length]
     const age = Math.floor(r() * 180)
-    const status = weighted(r, [
-      ['OPEN', 55], ['FILLED', 22], ['DRAFT', 8], ['CANCELLED', 8], ['CLOSED', 7],
-    ])
+    // A client's book is mostly history — roles filled and closed over
+    // the last year, a few dozen open. Fifty-five percent open read as
+    // a program with a hundred and forty roles nobody had filled, next
+    // to one contractor on site. A supplier's pipeline is the reverse.
+    const status = weighted(r, isBuyer
+      ? [['OPEN', 12], ['FILLED', 48], ['CLOSED', 22], ['CANCELLED', 10], ['DRAFT', 8]]
+      : [['OPEN', 55], ['FILLED', 22], ['DRAFT', 8], ['CANCELLED', 8], ['CLOSED', 7]])
     const approvalState =
       status === 'DRAFT'
         ? weighted(r, [['DRAFT', 6], ['PENDING_APPROVAL', 3], ['CHANGES_REQUESTED', 1]])

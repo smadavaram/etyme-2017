@@ -74,6 +74,8 @@ interface Placement {
   via: string[]
   /** Cents an hour. The client pays the first; each hop keeps the gap. */
   rates: number[]
+  /** One awaiting week claimed over the role's hours, so the desk has an exception to read. */
+  exceptionHours?: number
   person: string
   workAuth: 'USC' | 'GC' | 'H1B'
   startedDaysAgo: number
@@ -140,7 +142,7 @@ const PROGRAMMES: Program[] = [
         person: 'Omar Haddad', workAuth: 'USC', startedDaysAgo: 45, endsInDays: 320, state: 'IN_PROGRESS',
         papers: 'BGC_EXPIRED', weeks: { approved: 2, awaiting: 0 }, invoice: 'PAID' },
       { role: 'Supply chain planning analyst', skills: ['Kinaxis', 'Demand planning'], loc: 'Beaverton, OR',
-        via: ['nike', 'pinnacle'], rates: [9800, 7400],
+        via: ['nike', 'pinnacle'], rates: [9800, 7400], exceptionHours: 44,
         person: 'Lucía Fernández', workAuth: 'USC', startedDaysAgo: 30, endsInDays: 335, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 2, awaiting: 1 }, invoice: null },
       // The same person, a year earlier, through a different supplier.
@@ -595,7 +597,8 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
         if (already) { if (!awaiting) signed.push(already); continue }
         const ts = await db.timesheet.create({
           data: {
-            sellContractId: bottom.id, personId: who.id, periodStart: ws, periodEnd: we, days, totalHours: 40,
+            sellContractId: bottom.id, personId: who.id, periodStart: ws, periodEnd: we, days,
+            totalHours: awaiting && w === 1 && pl.exceptionHours ? pl.exceptionHours : 40,
             status: awaiting ? 'SUBMITTED' : 'APPROVED', submittedAt: we,
             ...(awaiting ? {} : {
               approvedAt: day(-(w * 7 - 2)), approvedById: desk.hiring.personId,

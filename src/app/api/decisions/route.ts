@@ -4,6 +4,7 @@ import { staffOnly } from '@/lib/seat'
 import { hasAnyPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
 
 /**
  * GET /api/decisions
@@ -61,9 +62,10 @@ export async function GET(request: NextRequest) {
         person: { select: { name: true } },
         sellContract: {
           select: {
-            billRate: true, companyId: true, clientCompanyId: true, endClientCompanyId: true,
+            billRate: true, companyId: true, clientCompanyId: true, endClientCompanyId: true, endDate: true,
             company: { select: { name: true } },
             clientCompany: { select: { name: true } },
+            requirement: { select: { hoursPerWeek: true } },
           },
         },
       },
@@ -96,7 +98,13 @@ export async function GET(request: NextRequest) {
       const amount = !asClient || sc.clientCompanyId === companyId
         ? Number(ts.totalHours) * (sc.billRate / 100)
         : null
-      const period = `${ts.periodStart.toISOString().slice(0, 10)} to ${ts.periodEnd.toISOString().slice(0, 10)}`
+      const period = periodWord(ts.periodStart, ts.periodEnd)
+      // Checked against the contract, so the signer does not have to
+      // notice: more hours than the role runs, or a week past its end.
+      const flag = timesheetFlag({
+        hours: Number(ts.totalHours), hoursPerWeek: sc.requirement?.hoursPerWeek ?? null,
+        periodEnd: ts.periodEnd, contractEnd: sc.endDate,
+      })
 
       decisions.push({
         type: 'TIMESHEET_APPROVAL',
@@ -110,6 +118,7 @@ export async function GET(request: NextRequest) {
         dueDate: null,
         actionUrl: '/dashboard/timesheets',
         amount,
+        flag,
         createdAt: ts.periodEnd.toISOString(),
       })
     }

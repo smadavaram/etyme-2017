@@ -15,6 +15,8 @@ describe('what the client desk is told', () => {
   const decisions = read('src/app/api/decisions/route.ts')
   const program = read('src/app/api/program/route.ts')
   const page = read('src/app/dashboard/program/page.tsx')
+  const volume = read('src/lib/demo-volume.ts')
+  const seed = read('src/lib/seed-programmes.ts')
 
   it('a submitted week reaches the client desk that signs it, not only the supplier that pays for it', () => {
     expect(decisions).toContain('{ sellContract: endClientFilter(companyId), clientApprovedAt: null }')
@@ -51,5 +53,51 @@ describe('what the client desk is told', () => {
   it('the headline is a sentence about the reader, not a label', () => {
     expect(page).toContain("'Nothing needs you today.'")
     expect(page).toMatch(/need\{queue\.length === 1 \? 's' : ''\} you\./)
+  })
+
+  it('a week that does not fit its contract is flagged in a sentence before anybody signs it', () => {
+    expect(decisions).toContain("import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'")
+    expect(decisions).toContain('hoursPerWeek: sc.requirement?.hoursPerWeek ?? null')
+    expect(decisions).toMatch(/actionUrl: '\/dashboard\/timesheets',\s*amount,\s*flag,/)
+  })
+
+  it('the headline counts exceptions; a flagged week is approved anyway only with a reason, and the reason goes on the signature', () => {
+    expect(page).toContain("const exceptions = queue.filter((d) => d.flag || d.type === 'BILL_DISPUTED').length")
+    expect(page).toContain("{exceptions === 1 ? 'has an exception' : 'have exceptions'}")
+    expect(page).toContain('Approve anyway')
+    expect(page).toContain("if (reason.trim()) { onApprove(d, reason.trim()); setReasonFor(null) }")
+    expect(page).toContain('body: JSON.stringify(note ? { note } : {})')
+  })
+
+  it('a clear desk is not an empty page: what was done today is listed under the queue', () => {
+    expect(program).toContain("what: 'Hours signed'")
+    expect(program).toContain("what: 'Awarded'")
+    expect(page).toContain("'Queue clear. Everything below was done today.'")
+  })
+
+  it('somebody starting soon shows the paperwork verdict a week early, in the words activation would use', () => {
+    expect(program).toContain("contracts.filter((c) => c.state !== 'IN_PROGRESS').slice(0, 5)")
+    expect(program).toContain('paperwork: { outcome: papers.outcome, says: papers.says, fix: papers.fix }')
+    expect(page).toContain("'Paperwork complete. Nothing stops the start.'")
+  })
+
+  it('each supplier carries the standing this client gave it, and a published role with nobody in five days says so', () => {
+    expect(program).toContain('standing: tierWord(tierOf.get(v.id), agreed.has(v.id))')
+    expect(page).toContain("const quiet = r.status === 'OPEN' && r.submissions === 0 && r.openDays >= 5")
+    expect(page).toContain('Widen the release or ask the suppliers.')
+  })
+
+  it('a client with nothing on it yet is told what to do first, not shown six zeros', () => {
+    expect(page).toContain('Nothing here yet.')
+    expect(page).toContain('Post a requirement')
+  })
+
+  it("a demo client's book is mostly history — a few dozen open, not a hundred and forty", () => {
+    expect(volume).toContain("? [['OPEN', 12], ['FILLED', 48], ['CLOSED', 22], ['CANCELLED', 10], ['DRAFT', 8]]")
+  })
+
+  it('the seeded Nike desk has one week claimed over the role, so there is an exception to read', () => {
+    expect(seed).toContain("rates: [9800, 7400], exceptionHours: 44,")
+    expect(seed).toContain('totalHours: awaiting && w === 1 && pl.exceptionHours ? pl.exceptionHours : 40,')
   })
 })
