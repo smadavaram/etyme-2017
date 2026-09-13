@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 import { range as showRange } from '@/lib/money-display'
@@ -618,7 +618,7 @@ export default function RequirementsPage() {
       </div>
 
       {/* Data table */}
-      <DataTable<Requirement>
+      <ListSurface<Requirement>
         columns={columns}
         data={filtered}
         rowKey={(row) => row.id}

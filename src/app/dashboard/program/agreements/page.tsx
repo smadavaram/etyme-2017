@@ -4,7 +4,7 @@ import { readJson } from '@/lib/read-response'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Agreements — are we allowed to trade at all, and on what terms.
@@ -245,7 +245,7 @@ export default function AgreementsPage() {
         </div>
       )}
 
-      <DataTable
+      <ListSurface
         columns={columns}
         data={rows}
         rowKey={(r) => r.id}

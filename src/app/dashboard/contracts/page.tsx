@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 
@@ -1239,7 +1239,7 @@ export default function ContractsPage() {
       )}
 
       {/* DataTable with state filter tabs */}
-      <DataTable
+      <ListSurface
         columns={columns}
         data={filtered}
         rowKey={(row) => row.id}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Contacts, and who to call there.
@@ -15,6 +16,24 @@ import { useCallback, useEffect, useState } from 'react'
 
 const TABS = ['PEOPLE', 'COMPANIES'] as const
 type Tab = (typeof TABS)[number]
+
+
+const PEOPLE_COLUMNS: Column<any>[] = [
+  { key: 'name', label: 'Person', render: (c) => <span className="text-etyme-ink">{c.name}</span> },
+  { key: 'at', label: 'Firm', render: (c) => <span className="text-etyme-muted">{c.at.name}</span>, sortValue: (c) => c.at.name },
+  { key: 'title', label: 'Role', render: (c) => <span className="text-etyme-muted">{c.title ?? '—'}</span>, hideOnMobile: true },
+  { key: 'kindLabel', label: 'Desk', render: (c) => <span className="chip chip--passive">{c.kindLabel}</span> },
+  { key: 'email', label: 'Email', render: (c) => c.email ? <a href={`mailto:${c.email}`} className="text-etyme-action" onClick={(e) => e.stopPropagation()}>{c.email}</a> : '—' },
+  { key: 'joined', label: 'Here', render: (c) => (c.joined ? <span className="chip chip--verified">on the platform</span> : <span className="text-etyme-faint">—</span>), sortValue: (c) => (c.joined ? 1 : 0), hideOnMobile: true },
+]
+
+const COMPANY_COLUMNS: Column<any>[] = [
+  { key: 'otherCompanyName', label: 'Firm', render: (r) => <span className="text-etyme-ink">{r.otherCompanyName}</span> },
+  { key: 'relationship', label: 'To you', render: (r) => <span className="chip chip--action">{r.relationship.toLowerCase()}</span> },
+  { key: 'status', label: 'Standing', render: (r) => <span className={`chip ${r.status === 'BLOCKED' ? 'chip--attention' : 'chip--passive'}`}>{r.status.toLowerCase()}</span> },
+  { key: 'hasAgreement', label: 'Agreement', render: (r) => (r.hasAgreement ? <span className="chip chip--verified">on file</span> : <span className="text-etyme-faint">none</span>), sortValue: (r) => (r.hasAgreement ? 1 : 0) },
+  { key: 'contacts', label: 'Contacts', align: 'right', render: (r) => <span className="tabular-nums">{r.contacts}</span> },
+]
 
 export default function ContactsPage() {
   const [tab, setTab] = useState<Tab>('PEOPLE')
@@ -117,8 +136,16 @@ export default function ContactsPage() {
             ))}
           </div>
 
-          {people.map((c: any) => (
-            <article key={c.id} className="panel">
+          <ListSurface<any>
+            name="contacts-people"
+            defaultView="feed"
+            columns={PEOPLE_COLUMNS}
+            data={people}
+            rowKey={(c) => c.id}
+            exportName="contacts"
+            defaultPageSize={50}
+            card={(c) => (
+            <div>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
                   <p className="text-[15px] font-semibold text-etyme-ink">{c.name}</p>
@@ -139,8 +166,9 @@ export default function ContactsPage() {
                 {c.email && <a href={`mailto:${c.email}`} style={{ color: 'var(--color-action)' }}>{c.email}</a>}
                 {c.phone && <span className="tabular-nums">{c.phone}</span>}
               </div>
-            </article>
-          ))}
+            </div>
+            )}
+          />
 
           {people.length === 0 && (
             <div className="panel">
@@ -157,10 +185,16 @@ export default function ContactsPage() {
       {/* ── Companies ──────────────────────────────────────── */}
       {!loading && tab === 'COMPANIES' && reg && (
         <>
-          {reg.rows
-            .filter((r: any) => !q || r.otherCompanyName.toLowerCase().includes(q.toLowerCase()))
-            .map((r: any) => (
-              <article key={`${r.otherCompanyId}:${r.relationship}`} className="panel">
+          <ListSurface<any>
+            name="contacts-companies"
+            defaultView="feed"
+            columns={COMPANY_COLUMNS}
+            data={reg.rows.filter((r: any) => !q || r.otherCompanyName.toLowerCase().includes(q.toLowerCase()))}
+            rowKey={(r) => `${r.otherCompanyId}:${r.relationship}`}
+            exportName="counterparties"
+            defaultPageSize={50}
+            card={(r) => (
+              <div>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-[15px] font-semibold text-etyme-ink">{r.otherCompanyName}</p>
                   <div className="flex items-center gap-2">
@@ -176,8 +210,10 @@ export default function ContactsPage() {
                     ? `${r.contacts} contact${r.contacts === 1 ? '' : 's'} on file`
                     : 'No contacts on file — a counterparty with nobody to call is a logo, not a relationship.'}
                 </p>
-              </article>
-            ))}
+
+              </div>
+            )}
+          />
 
           {reg.rows.length === 0 && (
             <div className="panel">

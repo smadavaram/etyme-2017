@@ -4,7 +4,7 @@ import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { amount as formatRate, compact } from '@/lib/money-display'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Rate History working surface.
@@ -350,7 +350,7 @@ export default function RateHistoryPage() {
       </div>
 
       {/* DataTable */}
-      <DataTable
+      <ListSurface
         columns={columns}
         data={filtered}
         rowKey={(row) => row.id}

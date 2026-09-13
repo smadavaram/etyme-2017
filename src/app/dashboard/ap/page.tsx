@@ -3,7 +3,7 @@
 import { readJson } from '@/lib/read-response'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 import { compact, amount } from '@/lib/money-display'
 
 /**
@@ -436,7 +436,7 @@ function Hops({ data, book }: { data: any; book: any }) {
           {book.out.says}
         </p>
       </div>
-      <DataTable
+      <ListSurface
         columns={columns}
         data={rows}
         rowKey={(r) => r.id}

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Consultants working surface — the company's talent pool.
@@ -937,7 +937,7 @@ export default function ConsultantsPage() {
       </div>
 
       {/* Data table */}
-      <DataTable<Consultant>
+      <ListSurface<Consultant>
         columns={columns}
         data={consultants}
         rowKey={(row) => row.id}

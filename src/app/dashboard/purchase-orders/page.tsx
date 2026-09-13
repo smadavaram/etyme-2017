@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * What has been authorized, and how much of it is left.
@@ -212,31 +213,34 @@ export default function PurchaseOrdersPage() {
         </div>
       )}
 
-      {attention.length > 0 && (
-        <section className="mb-6">
-          <h2 className="font-serif text-[19px] text-etyme-ink mb-3 tracking-[-0.02em]">
-            Worth a look
-            <span className="ml-2 text-[12px] text-etyme-muted font-sans tabular-nums">{needsAttention}</span>
-          </h2>
-          <div className="space-y-2">
-            {attention.map((po) => <Row key={po.id} po={po} />)}
-          </div>
-        </section>
-      )}
-
-      {rest.length > 0 && (
-        <section>
-          {attention.length > 0 && (
-            <h2 className="font-serif text-[19px] text-etyme-ink mb-3 tracking-[-0.02em]">Everything else</h2>
-          )}
-          <div className="space-y-2">
-            {rest.map((po) => <Row key={po.id} po={po} />)}
-          </div>
-        </section>
+      {pos.length > 0 && (
+        <ListSurface<PO>
+          name="purchase-orders"
+          defaultView="feed"
+          columns={PO_COLUMNS}
+          data={[...attention, ...rest]}
+          rowKey={(po) => po.id}
+          exportName="purchase-orders"
+          defaultPageSize={50}
+          searchPlaceholder="Search by number or firm…"
+          searchFilter={(po, q) => `${po.number} ${po.counterparty.name}`.toLowerCase().includes(q)}
+          card={(po) => <Row po={po} />}
+        />
       )}
     </>
   )
 }
+
+
+const PO_COLUMNS: Column<PO>[] = [
+  { key: 'number', label: 'PO', render: (po) => <span className="font-mono text-etyme-ink">{po.number}</span> },
+  { key: 'counterparty', label: 'With', render: (po) => <span className="text-etyme-muted">{po.direction === 'issued' ? 'to' : 'from'} {po.counterparty.name}</span>, sortValue: (po) => po.counterparty.name },
+  { key: 'amount', label: 'Ceiling', align: 'right', render: (po) => <span className="tabular-nums">{money(po.amount, po.currency)}</span> },
+  { key: 'invoiced', label: 'Invoiced', align: 'right', render: (po) => <span className="tabular-nums">{money(po.invoiced, po.currency)}</span>, hideOnMobile: true },
+  { key: 'remaining', label: 'Left', align: 'right', render: (po) => <span className={`tabular-nums ${po.overdrawn ? 'text-etyme-attention' : ''}`}>{money(po.remaining, po.currency)}</span> },
+  { key: 'consumedPercent', label: 'Used', align: 'right', render: (po) => <span className="tabular-nums">{po.consumedPercent}%</span> },
+  { key: 'canInvoice', label: 'Standing', render: (po) => <span className={`chip ${po.overdrawn || po.expired ? 'chip--attention' : 'chip--verified'}`}>{po.overdrawn ? 'Overdrawn' : po.expired ? 'Expired' : 'Open'}</span>, sortValue: (po) => (po.canInvoice ? 1 : 0) },
+]
 
 function Row({ po }: { po: PO }) {
   return (

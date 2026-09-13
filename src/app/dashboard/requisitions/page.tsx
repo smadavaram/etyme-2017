@@ -3,6 +3,7 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
+import { ListSurface, type Column } from '@/components/list-surface'
 import { STAGES, stageOf, mayEdit, closedBecause, type Stage } from '@/lib/requisition-stage'
 import {
   Chain, Chip, DecideModal, EditRequisition, Lbl, PanelField, clearedForSentence, deskOf, myRow, whoFor, whoWillBeAsked,
@@ -518,6 +519,19 @@ function RaiseModal({ onClose, onRaised, team, me }: {
   )
 }
 
+
+/** The same rows as a table: one line each, for the day there are two hundred. */
+const REQ_COLUMNS: Column<Requisition>[] = [
+  { key: 'title', label: 'Requirement', render: (r) => <span className="text-etyme-ink">{r.title}</span> },
+  { key: 'status', label: 'Where it is', render: (r) => stageChip(r), sortValue: (r) => stageOf(r) },
+  { key: 'headcount', label: 'Positions', align: 'right' },
+  { key: 'location', label: 'Location', render: (r) => <span className="text-etyme-muted">{r.location ?? '—'}</span>, hideOnMobile: true },
+  { key: 'orgUnit', label: 'Department', render: (r) => <span className="text-etyme-muted">{r.orgUnit?.name ?? '—'}</span>, sortValue: (r) => r.orgUnit?.name ?? '', hideOnMobile: true },
+  { key: 'neededBy', label: 'Needed by', render: (r) => <span className="tabular-nums text-etyme-muted">{r.neededBy ? new Date(r.neededBy).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>, sortValue: (r) => r.neededBy ?? '' },
+  { key: 'billMax', label: 'Max rate', align: 'right', render: (r) => <span className="tabular-nums">{r.billMax != null ? `$${Math.round(r.billMax / 100)}/hr` : '—'}</span> },
+  { key: 'counts', label: 'Candidates', align: 'right', render: (r) => <span className="tabular-nums">{r.counts.submissions}</span>, sortValue: (r) => r.counts.submissions },
+]
+
 export default function RequisitionsPage() {
   const [reqs, setReqs] = useState<Requisition[]>([])
   const [summary, setSummary] = useState<any>(null)
@@ -767,8 +781,16 @@ export default function RequisitionsPage() {
       )}
 
       {!loading && !error && visible.length > 0 && (
-        <div className="space-y-4">
-          {visible.map(r => {
+        <ListSurface<Requisition>
+          name="requirements"
+          defaultView="feed"
+          columns={REQ_COLUMNS}
+          data={visible}
+          rowKey={(r) => r.id}
+          exportName="requirements"
+          defaultPageSize={50}
+          onRowClick={(r) => { window.location.href = `/dashboard/requisitions/${r.id}` }}
+          card={(r) => {
             const pending = r.approvals.find(a => a.outcome === 'PENDING')
             // Only your own row, at the rank in play — the same rule the
             // route enforces. A button that returns "this approval is not
@@ -896,8 +918,8 @@ export default function RequisitionsPage() {
                 </div>
               </div>
             )
-          })}
-        </div>
+          }}
+        />
       )}
 
       {raising && (

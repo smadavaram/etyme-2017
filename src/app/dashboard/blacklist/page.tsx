@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Blacklist — working surface for managing blocked candidates and companies.
@@ -419,7 +419,7 @@ export default function BlacklistPage() {
       )}
 
       {/* DataTable */}
-      <DataTable
+      <ListSurface
         columns={columns}
         data={filtered}
         rowKey={(row) => row.id}

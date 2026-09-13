@@ -3,7 +3,7 @@
 import { readJson } from '@/lib/read-response'
 
 import { useEffect, useMemo, useState } from 'react'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 import { compact, amount } from '@/lib/money-display'
 
 /**
@@ -454,7 +454,7 @@ function Customers({ book }: { book: any }) {
         yet billed plus what is committed for the rest of every running assignment —
         which is why a client owing a little can be the riskiest name on the list.
       </p>
-      <DataTable
+      <ListSurface
         columns={columns}
         data={book.customers}
         rowKey={(r) => r.customerId}
@@ -566,7 +566,7 @@ function Invoices({ book }: { book: any }) {
   ]
 
   return (
-    <DataTable
+    <ListSurface
       columns={columns}
       data={book.invoices}
       rowKey={(r) => r.id}

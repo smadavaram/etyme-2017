@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Alumni — "Worked here before"
@@ -249,7 +249,7 @@ export default function AlumniPage() {
       </div>
 
       {/* DataTable with filter tabs */}
-      <DataTable
+      <ListSurface
         columns={buildColumns(handleAskBack, acting)}
         data={filtered}
         rowKey={(row) => row.personId}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Tenure Tracking — Governance section
@@ -233,7 +233,7 @@ export default function TenurePage() {
       </div>
 
       {/* DataTable */}
-      <DataTable
+      <ListSurface
         columns={columns}
         data={data?.people ?? []}
         rowKey={(row) => row.personId}

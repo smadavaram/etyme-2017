@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { ListSurface, type Column } from '@/components/list-surface'
 import { compact } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
@@ -120,6 +121,23 @@ function UrgencyBadge({ daysUntilEnd }: { daysUntilEnd: number }) {
 }
 
 // ── Page ───────────────────────────────────────────────────
+
+
+const ENDING_COLUMNS: Column<UntrackedContract>[] = [
+  { key: 'person', label: 'Person', render: (c) => <span className="text-etyme-ink">{c.person?.name ?? 'Unknown'}</span>, sortValue: (c) => c.person?.name ?? '' },
+  { key: 'clientCompany', label: 'Where', render: (c) => <span className="text-etyme-muted">{clientLabel(c.clientCompany, c.endClientCompany)}</span>, sortValue: (c) => c.endClientCompany?.name ?? c.clientCompany?.name ?? '' },
+  { key: 'endDate', label: 'Last day', render: (c) => <span className="tabular-nums">{new Date(c.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span> },
+  { key: 'daysLeft', label: 'Days left', align: 'right', render: (c) => <span className={`tabular-nums ${c.daysLeft <= 14 ? 'text-etyme-attention' : ''}`}>{c.daysLeft}</span> },
+  { key: 'billRate', label: 'Rate', align: 'right', render: (c) => <span className="tabular-nums">{c.billRate != null ? `${compact(c.billRate)}/hr` : '—'}</span>, hideOnMobile: true },
+]
+
+const TRACKED_COLUMNS: Column<TrackedRolloff>[] = [
+  { key: 'person', label: 'Person', render: (e) => <span className="text-etyme-ink">{e.person?.name ?? 'Unknown'}</span>, sortValue: (e) => e.person?.name ?? '' },
+  { key: 'clientCompany', label: 'Where', render: (e) => <span className="text-etyme-muted">{clientLabel(e.clientCompany, e.endClientCompany)}</span>, sortValue: (e) => e.endClientCompany?.name ?? e.clientCompany?.name ?? '' },
+  { key: 'endDate', label: 'Last day', render: (e) => <span className="tabular-nums">{new Date(e.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span> },
+  { key: 'daysLeft', label: 'Days left', align: 'right', render: (e) => <span className={`tabular-nums ${e.daysLeft <= 14 ? 'text-etyme-attention' : ''}`}>{e.daysLeft}</span> },
+  { key: 'outcome', label: 'What happened', render: (e) => <span className="text-etyme-muted">{e.outcome ? e.outcome.toLowerCase().replace(/_/g, ' ') : e.claimedById ? 'claimed' : 'open'}</span>, sortValue: (e) => e.outcome ?? '' },
+]
 
 export default function RolloffPage() {
   const { company } = useSession()
@@ -358,8 +376,15 @@ export default function RolloffPage() {
               {untracked.length} untracked
             </span>
           </div>
-          <div className="space-y-3">
-            {[...untracked].sort((a, b) => a.daysLeft - b.daysLeft).map((c) => (
+          <ListSurface<UntrackedContract>
+            name="rolloff-untracked"
+            defaultView="feed"
+            columns={ENDING_COLUMNS}
+            data={[...untracked].sort((a, b) => a.daysLeft - b.daysLeft)}
+            rowKey={(c) => c.sellContractId}
+            exportName="ending-soon"
+            defaultPageSize={50}
+            card={(c) => (
               <div key={c.sellContractId} className={`card border-l-4 ${
                 c.daysLeft <= 7 ? 'border-l-red-400' : c.daysLeft <= 14 ? 'border-l-amber-400' : 'border-l-etyme-rule'
               }`}>
@@ -384,8 +409,9 @@ export default function RolloffPage() {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+
+            )}
+          />
         </div>
       )}
 
@@ -401,8 +427,15 @@ export default function RolloffPage() {
               {tracked.length} tracked
             </span>
           </div>
-          <div className="space-y-3">
-            {[...tracked].sort((a, b) => a.daysLeft - b.daysLeft).map((event) => {
+          <ListSurface<TrackedRolloff>
+            name="rolloff-tracked"
+            defaultView="feed"
+            columns={TRACKED_COLUMNS}
+            data={[...tracked].sort((a, b) => a.daysLeft - b.daysLeft)}
+            rowKey={(e) => e.id}
+            exportName="rolloffs"
+            defaultPageSize={50}
+            card={(event) => {
               const progress = checklistProgress(event.checklist)
               return (
                 <div key={event.id} className={`card ${event.daysLeft <= 7 ? 'border-red-200' : event.daysLeft <= 14 ? 'border-amber-200' : ''}`}>
@@ -540,8 +573,8 @@ export default function RolloffPage() {
                   )}
                 </div>
               )
-            })}
-          </div>
+            }}
+          />
         </div>
       )}
 

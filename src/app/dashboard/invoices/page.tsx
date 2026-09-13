@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { compact as fmtMinor, amount as fmtMinorExact } from '@/lib/money-display'
 import { minorPerUnit } from '@/lib/money'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 
@@ -1214,7 +1214,7 @@ export default function InvoicesPage() {
       </div>
 
       {/* Data table */}
-      <DataTable<Invoice>
+      <ListSurface<Invoice>
         columns={columns}
         data={invoices}
         rowKey={(row) => row.id}

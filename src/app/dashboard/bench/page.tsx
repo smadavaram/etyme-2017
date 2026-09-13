@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { range, compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Bench — working surface for the company's consultant bench.
@@ -736,7 +736,7 @@ export default function BenchPage() {
       )}
 
       {/* DataTable */}
-      <DataTable
+      <ListSurface
         columns={columns}
         data={filtered}
         rowKey={(row) => row.id}

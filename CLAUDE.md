@@ -325,6 +325,12 @@ getting it wrong first:
   the decision — the demo desk key `programme`, the seeded
   `world-nike-programme@` email, `seed-programmes.ts` — stay, because an
   address is not a word anybody reads. This file keeps its own spelling.
+- **Every list, two ways.** Decided 2026-09-13. A list is a table when
+  there are two hundred rows and a feed when there are eight, and the
+  reader chooses — every list offers both, from one description of its
+  rows (`components/list-surface`), and remembers the choice.
+  `__tests__/invariants/list-surface.test.ts` fails on a page that draws
+  a bare table.
 - **Explain in a sentence, not a code.** A refusal says what is missing
   and what to do — "Priya cannot start without an I-9. Get it on file,
   then activate." — never `DOCUMENTS_BLOCK`. The code is for the
@@ -768,6 +774,60 @@ each to find the door. Once seated, they appear on every client's
 Contacts page under their firm, sorted into the right chips
 (`__tests__/invariants/supplier-team.test.ts`,
 `__integration__/supplier-team.test.ts`).
+
+### Every list, two ways ✓ (2026-09-13)
+
+"All tables must have feed and table options like the contractor
+table." One component, `ListSurface`, wraps the working-surface table
+and adds the feed: the same rows as cards, title from the first column,
+subtitle from the second, the rest as lines; action columns stay off
+the card. A page that wants a richer card passes one. Nineteen pages
+that drew a bare table now offer both; Requirements, Ending soon, POs
+and Contacts, which had only cards, now have a table. The reader's
+choice is remembered per list on their device.
+
+### What this section taught, for the rest of the app (2026-09-13)
+
+Written after a week on the client's Network — dashboard, suppliers,
+contractors, contacts, teams — because each was learned by getting it
+wrong first.
+
+1. **Fill from the work, not from data entry.** The People tab was empty
+   because it listed only what somebody typed in. Every list should be
+   derived from the flows that already know the facts — seats, contracts,
+   submissions, threads — with hand entry as the exception. If a screen
+   is empty on the seeded world, that is the bug, not the seed.
+2. **Every figure on a screen has a sentence on the seeded world.** Five
+   contractors for three people, $972 for $60,000, seven roles waiting
+   when two were open, six approvals nobody was told about: all real
+   numbers computed the wrong way round, none caught until the founder
+   looked. A formatter takes minor units only; a chain is counted at
+   the rung the client pays; a "waiting" is checked against status.
+3. **The desk that acts is the desk that hears.** Decisions were scoped
+   to the employer, so the client who signs the work read "Nothing needs
+   you". Route every "needs you" through who may act, not who owns the
+   row, and tell them by email as well as in the app.
+4. **A form is a workflow in disguise.** "Add supplier" was a paste box
+   doing indirect procurement's job in one keystroke. Anything with a
+   compliance consequence walks desks in order, each verifying only its
+   own items, nobody deciding their own or twice, and the counterparty
+   supplies its side through a link of its own.
+5. **Roles in the trade's words, per kind of company, reaching existing
+   companies.** Account Manager, HR, Contract Manager, Accounts
+   Receivable, AP & Payroll — not "Accountant". A role added later must
+   appear for a firm formed earlier without a migration.
+6. **The same five questions on every list.** Everyone · On site now ·
+   Recent engagement · Favorites · Pending · Blocked, and a place. A
+   filter learned once is learned everywhere; a filter with nothing
+   behind it is not offered.
+7. **Walk it as each person, and keep the screens.** The mapping bug that
+   filed an account manager under Accounts payable was invisible in the
+   unit tests and obvious in one screenshot. Every module ends with a
+   browser walk as every desk it touches, and the screenshots go to the
+   founder.
+8. **Segregation is a BLOCK, said in a sentence.** "You recommended this
+   firm, so the desks decide it without you." Never a disabled button
+   with no words.
 
 ### Demand opens, supply answers ✓ (2026-09-13)
 

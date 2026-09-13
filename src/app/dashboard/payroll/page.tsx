@@ -4,7 +4,7 @@ import { readJson } from '@/lib/read-response'
 
 import { useEffect, useState, useCallback } from 'react'
 import { compact as formatRate } from '@/lib/money-display'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Payroll working surface — buy-side payment processing.
@@ -602,7 +602,7 @@ export default function PayrollPage() {
       </div>
 
       {/* Data table */}
-      <DataTable<PayItem>
+      <ListSurface<PayItem>
         columns={columns}
         data={filtered}
         rowKey={(row) => row.buyContractId}

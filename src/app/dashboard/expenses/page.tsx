@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 import { useSession } from '@/components/session-provider'
 import { pageFraming } from '@/lib/page-framing'
 
@@ -786,7 +786,7 @@ export default function ExpensesPage() {
       </div>
 
       {/* Data table */}
-      <DataTable<Expense>
+      <ListSurface<Expense>
         columns={columns}
         data={filtered}
         rowKey={(row) => row.id}

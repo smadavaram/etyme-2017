@@ -5,7 +5,7 @@ import Link from 'next/link'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 import { rate as showRate } from '@/lib/money-display'
 import { useSession } from '@/components/session-provider'
 import { hasPermission } from '@/lib/permissions'
@@ -1282,7 +1282,7 @@ export default function SubmissionsPage() {
       )}
 
       {/* Data table */}
-      <DataTable<Submission>
+      <ListSurface<Submission>
         columns={columns}
         data={filtered}
         rowKey={(row) => row.id}

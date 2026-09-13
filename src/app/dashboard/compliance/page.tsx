@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Compliance Overview — Governance section
@@ -423,7 +423,7 @@ export default function CompliancePage() {
       {/* Tab content */}
       {tab === 'policies' && <PoliciesTab policies={data?.policies ?? []} loading={loading} error={error} />}
       {tab === 'evaluations' && (
-        <DataTable
+        <ListSurface
           columns={EVAL_COLUMNS}
           data={data?.recentEvaluations ?? []}
           rowKey={(row) => row.id}

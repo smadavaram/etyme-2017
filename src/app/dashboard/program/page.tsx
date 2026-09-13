@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { compact } from '@/lib/money-display'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Client Program Overview
@@ -905,7 +905,7 @@ function ContractorsTab({ contractors }: { contractors: ProgramData['contractors
       <p className="text-sm text-etyme-muted mb-6">
         Everyone placed here, their vendor, rate, and contract status.
       </p>
-      <DataTable
+      <ListSurface
         columns={CONTRACTOR_COLUMNS}
         data={contractors}
         rowKey={(row) => row.contractId}

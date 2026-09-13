@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { DataTable, type Column } from '@/components/data-table'
+import { ListSurface, type Column } from '@/components/list-surface'
 
 /**
  * Companies working surface — manage vendor, client, MSP, and GSI companies.
@@ -686,7 +686,7 @@ export default function CompaniesPage() {
       </div>
 
       {/* Data table with kind filter tabs */}
-      <DataTable<Company>
+      <ListSurface<Company>
         columns={columns}
         data={filtered}
         rowKey={(row) => row.id}
