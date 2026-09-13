@@ -172,6 +172,15 @@ The founder cannot read code. This is the compensating discipline.
    plausible is worse than a delay. Especially in: timesheet valuation, invoice
    generation, cycle date arithmetic, tenure math.
 
+6. **Ready is the edges, and `/ready` is the only measure of it.** Tests
+   prove the inside. An edge with the outside world — a real tenant
+   signing in, a real file imported, an email that left, a Teams channel
+   that heard, a company that is not seed — is proven only when the
+   outside world has done it once on that deployment (`lib/readiness`).
+   Every edge has three states: missing, set up but never used, proven.
+   Nothing is production ready while a required edge is not proven,
+   however many tests are green. The matrix's BUILT means built.
+
 ---
 
 ## Who pays — decided 2026-09-10

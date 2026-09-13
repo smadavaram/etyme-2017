@@ -242,6 +242,8 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/layout', 'app/dashboard/settings', 'app/dashboard/companies',
       'app/dashboard/data', 'app/dashboard/automation', 'app/dashboard/checks',
       'app/api/health', 'app/api/demo', 'app/demo', 'app/api/auth', 'app/api/companies',
+      // Ready for a real company: the edges, judged and shown.
+      'lib/readiness', 'lib/readiness-facts', 'app/api/ready', 'app/ready',
       'app/api/cron', 'app/api/import',
       'components/',
     ],

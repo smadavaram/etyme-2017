@@ -109,9 +109,14 @@ export async function GET() {
         model: process.env.ANTHROPIC_API_KEY
           ? 'The CV evidence check is on.'
           : 'No API key, so the CV evidence check is skipped and reports itself as unverified. Every other check is arithmetic and runs anyway.',
-        says: ok
-          ? 'This deployment is working.'
-          : database.says,
+        // "Working" was the whole answer on a site nobody outside could
+        // sign in to. The machine being up is one fact; whether a real
+        // company could use it is /ready's, and this points there.
+        says: !ok
+          ? database.says
+          : providers.length === 0
+            ? 'Working for the demo. Nobody outside can sign in yet — /ready says what is missing.'
+            : 'This deployment is working. /ready says whether it is ready for a real company.',
       },
     },
     { status: ok ? 200 : 503 }
