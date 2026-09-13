@@ -131,6 +131,7 @@ export default function ContactsPage() {
                   <span className="chip chip--passive">{c.kindLabel}</span>
                 </div>
               </div>
+              {c.via && <p className="mt-1 text-[12px] text-etyme-muted">{c.via}</p>}
               {c.callAbout && (
                 <p className="mt-1 text-[12px] text-etyme-muted">Call about: {c.callAbout}</p>
               )}

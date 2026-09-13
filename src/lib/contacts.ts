@@ -185,3 +185,20 @@ export function claimMatches(
       says: `${c.name} on this rolodex is the person who just signed in. Linked, not merged — the notes stay the owner's.`,
     }))
 }
+
+/**
+ * The kind a seat at the other firm is, read off the role they hold
+ * there — a recruiter is Recruiting, an accountant is Accounts payable,
+ * an owner is Executive — so the people at a vendor sort into the same
+ * chips as the ones typed in by hand.
+ */
+export function kindOfRole(roleName: string | null | undefined): ContactKind {
+  const r = (roleName ?? '').toLowerCase()
+  if (/hiring/.test(r)) return 'HIRING_MANAGER'
+  if (/procure|supplier manager|vendor/.test(r)) return 'PROCUREMENT'
+  if (/account|ap clerk|payable|finance/.test(r)) return 'AP'
+  if (/deliver|resource|coordinator|compliance/.test(r)) return 'DELIVERY'
+  if (/recruit|sourc|contractor desk/.test(r)) return 'RECRUITING'
+  if (/owner|admin|program manager|approver|vp|executive|director|team lead/.test(r)) return 'EXECUTIVE'
+  return 'OTHER'
+}
