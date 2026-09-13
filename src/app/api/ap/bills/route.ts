@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { hasPermission } from '@/lib/permissions'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { notifyBulk } from '@/lib/notify'
 import { completeCycle } from '@/lib/cycle-complete'
 import { fractionFor } from '@/lib/contract-links'
 import { staffOnly } from '@/lib/seat'
@@ -479,6 +480,30 @@ export async function POST(request: NextRequest) {
     },
     select: { id: true, number: true, totalCents: true, currency: true, dueAt: true, status: true },
   })
+
+  // A bill that did not match is a decision for the AP desk, not a row
+  // to find. Everybody who can record a payment here is told which
+  // check failed and why; the decisions queue carries it until it is
+  // waived with a reason or paid.
+  if (statusAfterMatch === 'DISPUTED') {
+    const [desk, vendor] = await Promise.all([
+      prisma.context.findMany({
+        where: { companyId, revokedAt: null, type: { not: 'CONSULTANT' }, role: { permissions: { has: 'payments.record' } } },
+        select: { personId: true },
+        take: 10,
+      }),
+      prisma.company.findUnique({ where: { id: vendorCompanyId }, select: { name: true } }),
+    ])
+    void notifyBulk(desk.map((d) => ({
+      personId: d.personId,
+      companyId,
+      type: 'INVOICE' as const,
+      title: `A bill from ${vendor?.name ?? 'a supplier'} does not match`,
+      body: failedSoft.map((c) => c.reason).join(' ') || 'A check failed.',
+      entityId: bill.id,
+      data: { vendorBillId: bill.id, href: '/dashboard/ap' },
+    })))
+  }
 
   // The "vendor bill to raise" cycle on the buy contract is done — and
   // if the bill arrived already paid, so is "vendor bill due".

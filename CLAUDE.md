@@ -587,6 +587,41 @@ supplier told; money goes back through approval
 placement's word, read in Submissions. `/demo` seats the account owner,
 HR and Procurement at each programme.
 
+### Phases 2 and 3, the pieces that were words on the schema ✓ (2026-09-14)
+
+Directed by the founder over the sequencing rule, and said so. Every
+status that a scan found nothing writing now moves, each as sentences
+in tests and a story on the seeded world:
+
+- an approved, client-billable expense rides on the next invoice as a
+  line of its own and is PAID with it (`lib/expense-billing`); the
+  three-way match takes the approved expense as the receipt
+- a document asked for is SENT (the person told), UPLOADED or SIGNED by
+  attestation from their own page (`lib/document-request`, Paperwork
+  page, `/api/me/papers`)
+- a visa petition is FILED, gets an RFE and the answer, is APPROVED with
+  the date it runs out, STAMPED, ACTIVE, and the watch job runs it out
+  (`lib/visa-petition`, Visas tab on compliance)
+- a course is added and somebody enrolled, started, finished with a
+  score, or dropped with a reason (`lib/training`)
+- a supplier's standing — probation, approved, preferred — is set from
+  the suppliers page and read by the VENDOR_TIER rule
+  (`lib/supplier-tier`); a seat unadvertised for six weeks goes COLD
+  (`cron/cold-openings`); a unit of every kind can be added
+  (`/api/program/units`)
+- a milestone the client accepted bills on the next invoice as a line
+  with the acceptance as its receipt (INVOICED); a commission-type buy
+  contract is paid by a run that posts COMMISSION against the order,
+  once per period, under the cap (`lib/commission`,
+  `/api/payroll/commissions`); somebody else takes a seat as a new
+  contract on the same terms with the old one ENDED and the candidate
+  REPLACED (`lib/replacement`); a bill that did not match is a decision
+  on the AP desk; a holiday marked for another country does not move
+  this site's dates (`appliesTo` in `lib/holidays`)
+
+`InvoiceLine.timesheetId`, `sellContractId` and `personId` are optional
+now: a line is an hours line, an expense line or a milestone line.
+
 ### Every table moves ✓ (2026-09-14)
 
 "We need all tables to keep moving their respective statuses across

@@ -236,7 +236,18 @@ export async function POST(request: NextRequest) {
     orderBy: { periodEnd: 'asc' },
   })
 
-  if (timesheets.length === 0 && expenseRows.length === 0) {
+  // ── Milestones accepted under this engagement's orders ──────────────
+  //
+  // A fixed sum the client has accepted, on a sales order for this
+  // engagement, not yet billed. No person and no contract behind it —
+  // the acceptance is the receipt.
+  const milestones = await prisma.orderMilestone.findMany({
+    where: { status: 'ACCEPTED', order: { engagementId, companyId: caller.company!.id } },
+    include: { order: { select: { id: true, number: true, title: true } } },
+    orderBy: { acceptedAt: 'asc' },
+  })
+
+  if (timesheets.length === 0 && expenseRows.length === 0 && milestones.length === 0) {
     return NextResponse.json(
       { error: { code: 'NO_TIMESHEETS', message: 'No approved uninvoiced timesheets found for this engagement and period' } },
       { status: 422 }
@@ -268,7 +279,13 @@ export async function POST(request: NextRequest) {
   // containing the most recent work when nobody asked.
   // The contract whose terms shape the period: the first with hours, or,
   // on an expenses-only invoice, the first expense's own contract.
-  const anchorContract = billing[0]?.sellContract ?? expenseRows[0].sellContract
+  const anchorContract =
+    billing[0]?.sellContract ??
+    expenseRows[0]?.sellContract ??
+    (await prisma.sellContract.findFirstOrThrow({
+      where: { engagementId },
+      select: { id: true, billCurrency: true, startDate: true, billFrequency: true, billAnchor: true, billStraddle: true },
+    }))
   const terms: Terms = {
     frequency: anchorContract.billFrequency as Terms['frequency'],
     anchor: anchorContract.billAnchor as Terms['anchor'],
@@ -276,7 +293,7 @@ export async function POST(request: NextRequest) {
     startedOn: anchorContract.startDate,
   }
 
-  const latestWork = [...billing.map((t) => t.periodEnd), ...expenseRows.map((e) => e.periodEnd)]
+  const latestWork = [...billing.map((t) => t.periodEnd), ...expenseRows.map((e) => e.periodEnd), ...milestones.map((m) => m.acceptedAt ?? new Date())]
     .reduce((latest, d) => (d > latest ? d : latest))
   const askedAbout = periodStart ? new Date(periodStart) : latestWork
 
@@ -334,7 +351,7 @@ export async function POST(request: NextRequest) {
 
   }
 
-  if (linesByContract.size === 0 && expenseRows.length === 0) {
+  if (linesByContract.size === 0 && expenseRows.length === 0 && milestones.length === 0) {
     return NextResponse.json(
       { error: { code: 'ZERO_VALUE', message: 'All timesheets have zero hours or zero rate' } },
       { status: 422 }
@@ -361,8 +378,11 @@ export async function POST(request: NextRequest) {
   // post, and `currency = lines[0].currency` was quietly asserting they
   // all matched.
   const contractById = new Map(engagement.sellContracts.map((sc) => [sc.id, sc]))
+  // A milestone bills to the engagement's client through the contract
+  // whose terms shape the period; it has no contract of its own.
+  const milestoneParties = milestones.map(() => ({ sellContractId: anchorContract.id, currency: anchorContract.billCurrency }))
   const consolidation = mayConsolidate(
-    [...lines, ...expLines].map((l) => {
+    [...lines, ...expLines, ...milestoneParties].map((l) => {
       const sc = contractById.get(l.sellContractId)
       const billTo = sc?.clientCompany ?? engagement.msa.client
       return {
@@ -382,11 +402,12 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const currency = lines[0]?.currency ?? expLines[0].currency // one currency per invoice, now checked
-  const total = lines.reduce((sum, line) => sum + line.amount, 0) + expenseTotal(expLines, minorPerUnit(currency))
+  const currency = lines[0]?.currency ?? expLines[0]?.currency ?? anchorContract.billCurrency // one currency per invoice, now checked
+  const milestoneCents = milestones.reduce((sum, m) => sum + m.amountCents, 0)
+  const total = lines.reduce((sum, line) => sum + line.amount, 0) + expenseTotal(expLines, minorPerUnit(currency)) + milestoneCents / minorPerUnit(currency)
 
   // ── The four parties ────────────────────────────────────────────────
-  const firstContract = contractById.get(lines[0]?.sellContractId ?? expLines[0].sellContractId)
+  const firstContract = contractById.get(lines[0]?.sellContractId ?? expLines[0]?.sellContractId ?? anchorContract.id)
   const agreementClient: Party = {
     id: engagement.msa.client.id,
     name: engagement.msa.client.name,
@@ -508,7 +529,16 @@ export async function POST(request: NextRequest) {
             tax?.rateBps == null
               ? null
               : Math.round((Math.round(total * per) * tax.rateBps) / 10_000),
-          lines: [...expLines.map((l) => ({
+          lines: [...milestones.map((m) => ({
+            sellContractId: null,
+            personId: null,
+            milestoneId: m.id,
+            description: `${m.order.number} — milestone: ${m.name}`,
+            billRate: 0,
+            totalHours: 0,
+            amount: m.amountCents / per,
+            tax: null,
+          })), ...expLines.map((l) => ({
             sellContractId: l.sellContractId,
             personId: l.personId,
             expenseId: l.expenseId,
@@ -584,6 +614,25 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // The milestones: a line each, the acceptance behind it, the
+      // milestone marked INVOICED.
+      for (const m of milestones) {
+        await tx.invoiceLine.create({
+          data: {
+            invoiceId: invoice.id,
+            milestoneId: m.id,
+            timesheetId: null,
+            sellContractId: null,
+            personId: null,
+            hours: 0,
+            rateCents: 0,
+            amountCents: m.amountCents,
+            description: `${m.order.number} — milestone: ${m.name}`,
+          },
+        })
+        await tx.orderMilestone.update({ where: { id: m.id }, data: { status: 'INVOICED' } })
+      }
+
       // The expenses, each a line of its own with the expense behind it,
       // and the expense marked INVOICED with this invoice on it.
       for (const l of expLines) {
@@ -618,7 +667,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId: caller.company!.id,
           action: 'INVOICE_GENERATED',
-          summary: `Invoice ${number} generated: ${lines.length} line item(s), ${allTimesheetIds.length} timesheet(s)${expLines.length ? `, ${expLines.length} expense(s)` : ''}, $${total.toFixed(2)} total, due ${dueAt.toISOString().slice(0, 10)}`,
+          summary: `Invoice ${number} generated: ${lines.length} line item(s), ${allTimesheetIds.length} timesheet(s)${expLines.length ? `, ${expLines.length} expense(s)` : ''}${milestones.length ? `, ${milestones.length} milestone(s)` : ''}, $${total.toFixed(2)} total, due ${dueAt.toISOString().slice(0, 10)}`,
           reason: `Generated by ${caller.person.name}`,
           payload: {
             invoiceId: invoice.id,

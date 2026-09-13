@@ -122,6 +122,35 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ── 2b. Bills that did not match ─────────────────
+  //
+  // Three-way match exceptions, routed to the desk that pays. A bill
+  // recorded as DISPUTED stays out of every payment run until somebody
+  // with authority says why it should go in — so it is a decision, and
+  // it belongs here rather than in a filter on the AP page.
+  if (hasAnyPermission(caller.permissions, ['payments.record'])) {
+    const disputed = await prisma.vendorBill.findMany({
+      where: { companyId, status: 'DISPUTED' },
+      include: { vendorCompany: { select: { name: true } } },
+      orderBy: { receivedAt: 'asc' },
+      take: 20,
+    })
+    for (const b of disputed) {
+      decisions.push({
+        type: 'BILL_DISPUTED',
+        title: `Bill ${b.number} from ${b.vendorCompany.name} does not match`,
+        subtitle: `$${(b.totalCents / 100).toFixed(2)} · held out of payment runs until somebody says why it should go in`,
+        urgency: 'HIGH',
+        entityType: 'VENDOR_BILL',
+        entityId: b.id,
+        dueDate: b.dueAt?.toISOString() ?? null,
+        actionUrl: '/dashboard/ap',
+        amount: b.totalCents / 100,
+        createdAt: b.receivedAt.toISOString(),
+      })
+    }
+  }
+
   // ── 3. Rolloff warnings ───────────────────────────
   if (hasAnyPermission(caller.permissions, ['assignments.read'])) {
     const rolloffWindow = new Date(now)

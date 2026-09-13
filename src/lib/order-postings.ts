@@ -644,3 +644,42 @@ export async function reversePostingsFor(
   }
   return out
 }
+
+// ── Commission ────────────────────────────────────────────────────────
+//
+// What a commission agent earned on a project, for a period, posted as
+// cost against the order the work billed to (lib/commission decides the
+// figure). Unique per contract per period, so a re-run adds nothing.
+
+export interface CommissionWrite {
+  projectOrderId: string
+  companyId: string
+  /** The agent. */
+  personId: string | null
+  buyContractId: string
+  sellContractId: string | null
+  amountCents: number
+  postedAt: Date
+  sourceId: string
+  says: string
+  txCurrency: string
+  createdById?: string | null
+}
+
+export function postCommission(w: CommissionWrite) {
+  return write({
+    projectOrderId: w.projectOrderId,
+    companyId: w.companyId,
+    kind: 'COMMISSION',
+    amountCents: w.amountCents,
+    personId: w.personId,
+    buyContractId: w.buyContractId,
+    sellContractId: w.sellContractId,
+    postedAt: w.postedAt,
+    source: 'PAYROLL',
+    sourceId: w.sourceId,
+    says: w.says,
+    createdById: w.createdById ?? null,
+    txCurrency: w.txCurrency,
+  })
+}

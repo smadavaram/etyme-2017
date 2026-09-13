@@ -234,6 +234,8 @@ export async function GET(request: NextRequest) {
   const linesInWindow = lines.filter((l) => countedAt(l.invoice) >= since)
   const byPerson = new Map<string, Exposure>()
   for (const l of linesInWindow) {
+    // A milestone line has no person; it is money, not somebody's hours.
+    if (!l.personId || !l.person) continue
     const had = byPerson.get(l.personId)
     byPerson.set(l.personId, {
       id: l.personId,

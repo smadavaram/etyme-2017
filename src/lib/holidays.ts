@@ -7,19 +7,35 @@ import { prisma } from '@/lib/db'
  * Recurring holidays are expanded for the target year range.
  * The Set contains strings like "2026-12-25", "2027-01-01".
  */
+/**
+ * Whether a holiday on a company's calendar applies where the work is.
+ *
+ * A calendar carries the whole company's days off; a holiday marked
+ * with a country is that country's alone. A Tokyo site's Golden Week
+ * shifted a Lakewood contractor's pay day, because every holiday on the
+ * calendar was applied everywhere. Where the work site's country is
+ * known, a holiday marked for another country is not this site's.
+ */
+export function appliesTo(holidayCountry: string | null, siteCountry: string | null | undefined): boolean {
+  if (!holidayCountry || !siteCountry) return true
+  return holidayCountry.toUpperCase() === siteCountry.toUpperCase()
+}
+
 export async function loadCompanyHolidays(
   companyId: string,
   startYear: number,
-  endYear: number
+  endYear: number,
+  siteCountry?: string | null
 ): Promise<Set<string>> {
   const holidays = await prisma.holiday.findMany({
     where: { companyId },
-    select: { date: true, isRecurring: true },
+    select: { date: true, isRecurring: true, country: true },
   })
 
   const set = new Set<string>()
 
   for (const h of holidays) {
+    if (!appliesTo(h.country, siteCountry)) continue
     const dateStr = h.date.toISOString().slice(0, 10)
     set.add(dateStr)
 
@@ -46,11 +62,12 @@ export async function loadContractHolidays(
   vendorCompanyId: string,
   clientCompanyId: string,
   startYear: number,
-  endYear: number
+  endYear: number,
+  siteCountry?: string | null
 ): Promise<Set<string>> {
   const [vendorHolidays, clientHolidays] = await Promise.all([
-    loadCompanyHolidays(vendorCompanyId, startYear, endYear),
-    loadCompanyHolidays(clientCompanyId, startYear, endYear),
+    loadCompanyHolidays(vendorCompanyId, startYear, endYear, siteCountry),
+    loadCompanyHolidays(clientCompanyId, startYear, endYear, siteCountry),
   ])
 
   // Union both sets

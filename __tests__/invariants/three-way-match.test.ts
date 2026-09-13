@@ -481,7 +481,7 @@ describe('An expense on the invoice is witnessed by the approved expense behind 
   it('an approved expense for the amount claimed is a receipt, and the invoice matches', () => {
     const r = threeWayMatch(withExpense('INVOICED'))
     expect(failed(r, 'RECEIPT')).toBeUndefined()
-    expect(r.checks.find(c => c.code === 'RECEIPT')?.reason).toContain('or an approved expense')
+    expect(r.checks.find(c => c.code === 'RECEIPT')?.reason).toContain('an approved expense')
   })
 
   it('an expense line is not asked to multiply out — its amount is the expense', () => {
@@ -494,5 +494,31 @@ describe('An expense on the invoice is witnessed by the approved expense behind 
 
   it('a receipt for a different number is no receipt', () => {
     expect(failed(threeWayMatch(withExpense('APPROVED', 40_000)), 'RECEIPT')?.lines).toEqual(['l2'])
+  })
+})
+
+describe('A milestone on the invoice is witnessed by the client’s acceptance', () => {
+  const withMilestone = (status: string, amountCents = 500_000) => clean({
+    invoice: { id: 'inv1', totalCents: 1_540_000, periodStart: PERIOD_START, periodEnd: PERIOD_END },
+    lines: [
+      { id: 'l1', timesheetId: 'ts1', personName: 'Priya Raman', hours: 80, rateCents: 13_000, amountCents: 1_040_000 },
+      { id: 'l3', timesheetId: null, milestoneId: 'm1', personName: 'Milestone', hours: 0, rateCents: 0, amountCents: 500_000 },
+    ],
+    milestones: { m1: { id: 'm1', status, amountCents } },
+  })
+
+  it('an accepted milestone for the amount billed is a receipt, and the line is not asked to multiply out', () => {
+    const r = threeWayMatch(withMilestone('INVOICED'))
+    expect(failed(r, 'RECEIPT')).toBeUndefined()
+    expect(failed(r, 'EXTENSION')).toBeUndefined()
+    expect(r.checks.find(c => c.code === 'RECEIPT')?.reason).toContain('accepted milestone')
+  })
+
+  it('a milestone the client has not accepted is no receipt', () => {
+    expect(failed(threeWayMatch(withMilestone('DELIVERED')), 'RECEIPT')?.lines).toEqual(['l3'])
+  })
+
+  it('a milestone billed for a different number is no receipt', () => {
+    expect(failed(threeWayMatch(withMilestone('ACCEPTED', 450_000)), 'RECEIPT')?.lines).toEqual(['l3'])
   })
 })

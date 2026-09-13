@@ -82,7 +82,6 @@ const VENDOR_NAV: NavSection[] = [
       // High in the list on purpose. It is a queue, not a report, and a
       // report is something somebody has to think to ask for.
       { label: 'Missing paperwork', href: '/dashboard/loose-ends', icon: '⛓' },
-      { label: 'Paperwork', href: '/dashboard/documents', icon: '▪' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Money' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
       // Next to Invoices deliberately: same money, different question.
@@ -94,6 +93,7 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Money' },
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
+      { label: 'Paperwork', href: '/dashboard/documents', icon: '▪', group: 'Checks & compliance' },
       { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
       { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Checks & compliance' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Checks & compliance' },
@@ -184,7 +184,6 @@ const GSI_NAV: NavSection[] = [
     label: 'Operate',
     items: [
       { label: 'Missing paperwork', href: '/dashboard/loose-ends', icon: '⛓' },
-      { label: 'Paperwork', href: '/dashboard/documents', icon: '▪' },
       { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Money' },
       { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
       { label: 'AR', href: '/dashboard/ar', icon: '◧', group: 'Money' },
@@ -192,6 +191,7 @@ const GSI_NAV: NavSection[] = [
       { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Money' },
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
+      { label: 'Paperwork', href: '/dashboard/documents', icon: '▪', group: 'Checks & compliance' },
       { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
       { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Checks & compliance' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Checks & compliance' },

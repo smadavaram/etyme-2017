@@ -19,6 +19,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
         include: {
           person: { select: { name: true } },
           expense: { select: { id: true, status: true, total: true } },
+          milestone: { select: { id: true, status: true, amountCents: true } },
           timesheet: {
             select: {
               id: true, status: true, totalHours: true,
@@ -64,7 +65,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
   // The rate the contract carried on the day the work was done. Amendments
   // are effective-dated and approved, so a rate that genuinely changed is
   // expressed on the contract rather than argued about on the invoice.
-  const contractIds = [...new Set(invoice.invoiceLines.map(l => l.sellContractId))]
+  const contractIds = [...new Set(invoice.invoiceLines.flatMap(l => (l.sellContractId ? [l.sellContractId] : [])))]
   const rateRows = contractIds.length
     ? await prisma.rateHistory.findMany({
         where: { contractType: 'SELL', contractId: { in: contractIds } },
@@ -113,11 +114,17 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       id: l.id,
       timesheetId: l.timesheetId,
       expenseId: l.expenseId,
-      personName: l.person.name,
+      milestoneId: l.milestoneId,
+      personName: l.person?.name ?? (l.milestone ? 'Milestone' : 'Expense'),
       hours: Number(l.hours),
       rateCents: l.rateCents,
       amountCents: l.amountCents,
     })),
+    milestones: Object.fromEntries(
+      invoice.invoiceLines
+        .flatMap(l => (l.milestone ? [l.milestone] : []))
+        .map(m => [m.id, { id: m.id, status: m.status, amountCents: m.amountCents }])
+    ),
     expenses: Object.fromEntries(
       invoice.invoiceLines
         .flatMap(l => (l.expense ? [l.expense] : []))
@@ -140,7 +147,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
             // says today" — otherwise amending a rate retroactively breaks
             // every invoice already paid.
             contractRateCents: contractedRateFor(
-              l.sellContractId,
+              l.sellContractId ?? l.timesheet.sellContractId,
               l.timesheet.sellContract.billRate,
               l.timesheet.periodStart
             ),

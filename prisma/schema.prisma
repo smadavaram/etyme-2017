@@ -702,6 +702,7 @@ model OrderMilestone {
 
   createdAt DateTime @default(now())
 
+  invoiceLines    InvoiceLine[]
   @@index([orderId, status])
 }
 
@@ -3594,11 +3595,15 @@ model InvoiceLine {
   timesheet   Timesheet? @relation(fields: [timesheetId], references: [id])
   expenseId   String?
   expense     Expense?   @relation(fields: [expenseId], references: [id])
+  /// A milestone line: a fixed sum on a sales order, accepted by the
+  /// client, with no person and no contract of its own behind it.
+  milestoneId String?
+  milestone   OrderMilestone? @relation(fields: [milestoneId], references: [id])
 
-  sellContractId String
-  sellContract   SellContract @relation(fields: [sellContractId], references: [id])
-  personId       String
-  person         Person       @relation(fields: [personId], references: [id])
+  sellContractId String?
+  sellContract   SellContract? @relation(fields: [sellContractId], references: [id])
+  personId       String?
+  person         Person?      @relation(fields: [personId], references: [id])
 
   // Cents throughout, matching every other rate in the schema.
   // Invoice.total remains a Decimal in whole currency; the two are reconciled
@@ -3628,6 +3633,8 @@ model InvoiceLine {
   @@unique([timesheetId, sellContractId])
   /// An expense is billed once, full stop — there is no chain to bill it up.
   @@unique([expenseId])
+  /// So is a milestone.
+  @@unique([milestoneId])
   @@index([invoiceId])
   @@index([sellContractId])
   @@index([personId])

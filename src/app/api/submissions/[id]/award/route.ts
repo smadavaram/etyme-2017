@@ -363,8 +363,15 @@ export async function POST(
 
   // Both calendars, so a due date lands on nobody's holiday. Loaded
   // before the transaction: it is a read, and it needs the years.
+  // Where the work is: the client's primary site. A holiday marked for
+  // another country on either calendar does not move this site's dates.
+  const site = await prisma.companyLocation.findFirst({
+    where: { companyId: payerId },
+    orderBy: [{ isPrimary: 'desc' }],
+    select: { country: true },
+  })
   const holidays = end
-    ? await loadContractHolidays(submission.fromCompanyId, payerId, start.getFullYear(), end.getFullYear())
+    ? await loadContractHolidays(submission.fromCompanyId, payerId, start.getFullYear(), end.getFullYear(), site?.country ?? null)
     : new Set<string>()
 
   const result = await prisma.$transaction(async (tx) => {

@@ -103,7 +103,7 @@ export const DOMAINS: Domain[] = [
       'lib/order', 'lib/order-postings', 'lib/gl', 'lib/contract-links', 'lib/work-chain', 'lib/work-chain-read',
       'lib/profitability',
       'lib/pay-model', 'lib/bench-policy', 'lib/money', 'lib/money-display',
-      'lib/periods', 'lib/recurring', 'lib/cycle-generator', 'lib/cycle-kinds', 'lib/contract-cycles', 'lib/cycle-complete', 'lib/expense-billing', 'lib/holidays',
+      'lib/periods', 'lib/recurring', 'lib/cycle-generator', 'lib/cycle-kinds', 'lib/contract-cycles', 'lib/cycle-complete', 'lib/expense-billing', 'lib/commission', 'lib/holidays',
       'lib/invoice-loop', 'lib/invoice-match', 'lib/billing-cascade', 'lib/billing-plan',
       'lib/payroll-export', 'lib/three-way-match', 'lib/purchase-order',
       'lib/cost-allocation', 'lib/contract-rate', 'lib/expense-approval',
@@ -233,6 +233,8 @@ export const DOMAINS: Domain[] = [
       // and money in one answer, so it belongs to none of them and is
       // owned here by the same rule the schema is.
       'app/api/placements', 'app/dashboard/placements',
+      // Somebody else in the seat: a new contract on the same terms, the old one ended.
+      'lib/replacement',
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix',

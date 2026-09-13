@@ -66,7 +66,7 @@ describe('the routes carry it through', () => {
   })
 
   it('an invoice with only expenses on it can still be raised', () => {
-    expect(GENERATE).toContain('if (timesheets.length === 0 && expenseRows.length === 0)')
+    expect(GENERATE).toContain('if (timesheets.length === 0 && expenseRows.length === 0 && milestones.length === 0)')
   })
 
   it('paying the invoice in full pays the expenses on it', () => {
