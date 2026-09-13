@@ -5,6 +5,8 @@ import { hasAnyPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
+import { desksFor } from '@/lib/supplier-desks'
+import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-onboarding'
 
 /**
  * GET /api/decisions
@@ -197,32 +199,41 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // ── 2c. Suppliers recommended, waiting on Procurement ──
-  if (hasAnyPermission(caller.permissions, ['vendors.manage'])) {
+  // ── 2c. Suppliers in the pipeline, on this caller's desk ──
+  {
     const waiting = await prisma.supplierRequest.findMany({
       where: { companyId, state: { in: ['RECOMMENDED', 'IN_REVIEW'] } },
       orderBy: { createdAt: 'asc' },
-      take: 10,
+      take: 20,
     })
-    const names = await prisma.person.findMany({ where: { id: { in: waiting.map((w) => w.recommendedById) } }, select: { id: true, name: true } })
-    const nameOf = new Map(names.map((n) => [n.id, n.name]))
-    for (const w of waiting) {
-      const items = (w.checklist as any[]) ?? []
-      const required = items.filter((i) => i.required)
-      const held = required.filter((i) => i.state !== 'MISSING').length
-      const days = Math.floor((now.getTime() - w.createdAt.getTime()) / 86_400_000)
-      decisions.push({
-        type: 'SUPPLIER_REVIEW',
-        title: `Review supplier — ${w.name}`,
-        subtitle: `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${held} of ${required.length} documents on file`,
-        urgency: days >= 7 ? 'HIGH' : 'MEDIUM',
-        entityType: 'SUPPLIER_REQUEST',
-        entityId: w.id,
-        dueDate: null,
-        actionUrl: '/dashboard/suppliers',
-        amount: null,
-        createdAt: w.createdAt.toISOString(),
-      })
+    if (waiting.length > 0) {
+      const desks = await desksFor(companyId)
+      const names = await prisma.person.findMany({ where: { id: { in: waiting.map((w) => w.recommendedById) } }, select: { id: true, name: true } })
+      const nameOf = new Map(names.map((n) => [n.id, n.name]))
+      for (const w of waiting) {
+        const stage = w.stage as Stage
+        const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: w.recommendedById, decisions: (w.decisions as unknown as Decision[]) ?? [], desks, firmName: w.name })
+        if (!verdict.ok) continue
+        const items = (w.checklist as any[]) ?? []
+        const required = items.filter((i) => i.required)
+        const held = required.filter((i) => i.state === 'HELD' || i.state === 'WAIVED').length
+        const provided = required.filter((i) => i.state === 'PROVIDED').length
+        const days = Math.floor((now.getTime() - w.createdAt.getTime()) / 86_400_000)
+        decisions.push({
+          type: 'SUPPLIER_REVIEW',
+          title: `Review supplier — ${w.name}`,
+          subtitle: stage === 'PROCUREMENT'
+            ? `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${held} of ${required.length} verified${provided ? `, ${provided} to verify` : ''}`
+            : `Recommended by ${nameOf.get(w.recommendedById) ?? 'somebody'} · ${STAGE_WORD[stage]} desk: ${w.skills.length ? w.skills.join(', ') : w.reason.slice(0, 60)}`,
+          urgency: days >= 7 ? 'HIGH' : 'MEDIUM',
+          entityType: 'SUPPLIER_REQUEST',
+          entityId: w.id,
+          dueDate: null,
+          actionUrl: '/dashboard/suppliers',
+          amount: null,
+          createdAt: w.createdAt.toISOString(),
+        })
+      }
     }
   }
 

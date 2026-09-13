@@ -3811,11 +3811,22 @@ model SupplierRequest {
   contactName     String?
   contactEmail    String?
   reason          String
+  /// What the firm supplies, in the recommender's words; HR reads it.
+  skills          String[] @default([])
   recommendedById String
   /// RECOMMENDED · IN_REVIEW · APPROVED · DECLINED
   state           String   @default("RECOMMENDED")
-  /// [{ key, label, required, state: MISSING|HELD|WAIVED, note, at }]
+  /// Which desk it is on: TEAM · HR · PROCUREMENT · DONE
+  stage           String   @default("TEAM")
+  /// [{ stage, outcome: APPROVED|DECLINED, byId, byName, at, note }]
+  decisions       Json     @default("[]")
+  /// [{ key, label, required, by: VENDOR|PROCUREMENT, state: MISSING|PROVIDED|HELD|WAIVED, note, at, fileName }]
   checklist       Json
+  /// The vendor's own link: they apply and upload against it, no sign-in.
+  token           String   @unique @default(cuid())
+  linkSentAt      DateTime?
+  /// What the vendor supplied through the link.
+  application     Json?
   decidedById     String?
   decidedAt       DateTime?
   decisionNote    String?

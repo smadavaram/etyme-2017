@@ -5,19 +5,26 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { defaultPostureFor } from '@/lib/walls'
-import { mayDecide, markItem, readiness, type ChecklistItem, type ItemState } from '@/lib/supplier-onboarding'
+import { desksFor, deskPeople } from '@/lib/supplier-desks'
+import { sendLink } from '@/lib/supplier-link'
+import {
+  mayActAt, markItem, readiness, nextStage, STAGE_WORD,
+  type ChecklistItem, type ItemState, type Decision, type Stage,
+} from '@/lib/supplier-onboarding'
 
 /**
  * PATCH /api/supplier-requests/[id]
- *   { action: 'mark', key, state: 'HELD' | 'WAIVED' | 'MISSING', note? }   — Procurement marks the paperwork
- *   { action: 'approve', note? }                                           — refused while a required item is missing
- *   { action: 'decline', note }                                            — with a reason
+ *   { action: 'approve', note? }     — the desk it is on says yes; it moves to the next desk, or becomes a supplier
+ *   { action: 'decline', note }      — with a reason the recommender reads
+ *   { action: 'mark', key, state, note? }   — Procurement verifies (HELD), waives with a reason, or unmarks
+ *   { action: 'resend' }             — send the firm its link again
  *
- * Procurement only, and never the person who recommended the firm.
- * Approval writes what the paste flow used to write in one keystroke:
- * a company row (or the real firm, if it is already here under its own
- * domain), an agreement stub, a register row at APPROVED standing, a
- * contact, and an invitation.
+ * Program office, then HR, then Procurement, in that order. Never the
+ * recommender, never somebody who decided an earlier desk. Procurement's
+ * yes writes what the paste flow used to write in one keystroke: a
+ * company row (or the real firm, if it is already here under its own
+ * domain), an agreement stub, a register row at approved standing, a
+ * contact, and an invitation to sign in.
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -28,52 +35,86 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const companyId = caller.company!.id
   const row = await prisma.supplierRequest.findFirst({ where: { id, companyId } })
   if (!row) return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'That recommendation is not here.' } }, { status: 404 })
-
-  const verdict = mayDecide({ permissions: caller.permissions, callerId: caller.person.id, recommendedById: row.recommendedById, firmName: row.name })
-  if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
   if (row.state === 'APPROVED' || row.state === 'DECLINED') {
     return NextResponse.json({ error: { code: 'DECIDED', message: `${row.name} was already ${row.state.toLowerCase()}.` } }, { status: 409 })
   }
 
   const body = await request.json().catch(() => ({}))
   const action = String(body?.action ?? '')
-  const note = typeof body?.note === 'string' ? body.note : null
+  const note = typeof body?.note === 'string' ? body.note.trim() : ''
   const now = new Date()
+  const stage = row.stage as Stage
   const checklist = row.checklist as unknown as ChecklistItem[]
+  const decisions = ((row.decisions as unknown as Decision[]) ?? [])
+  const desks = await desksFor(companyId)
+
+  if (action === 'resend') {
+    if (!row.contactEmail) return NextResponse.json({ error: { code: 'NO_CONTACT', message: `${row.name} has no contact email on the recommendation.` } }, { status: 422 })
+    const delivery = await sendLink({ to: row.contactEmail, contactName: row.contactName, firmName: row.name, clientName: caller.company!.name, token: row.token })
+    await prisma.supplierRequest.update({ where: { id }, data: { linkSentAt: now } })
+    return NextResponse.json({ data: { delivery, says: `${row.name} has been sent its link again.` } })
+  }
+
+  const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: row.recommendedById, decisions, desks, firmName: row.name })
+  if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
 
   if (action === 'mark') {
+    if (stage !== 'PROCUREMENT') {
+      return NextResponse.json({ error: { code: 'NOT_YET', message: `The paperwork is Procurement’s desk; ${row.name} is with ${STAGE_WORD[stage]} first.` } }, { status: 409 })
+    }
     const state = body?.state as ItemState
     if (!['HELD', 'WAIVED', 'MISSING'].includes(state)) {
-      return NextResponse.json({ error: { code: 'VALIDATION', message: 'Held, waived or missing.' } }, { status: 422 })
+      return NextResponse.json({ error: { code: 'VALIDATION', message: 'Verified, waived or missing.' } }, { status: 422 })
     }
-    const marked = markItem(checklist, String(body?.key ?? ''), state, note, now)
+    const marked = markItem(checklist, String(body?.key ?? ''), state, note || null, now)
     if (!marked.ok) return NextResponse.json({ error: { code: 'VALIDATION', message: marked.message } }, { status: 422 })
-    const updated = await prisma.supplierRequest.update({
-      where: { id },
-      data: { checklist: marked.checklist as unknown as object, state: 'IN_REVIEW' },
-    })
+    const updated = await prisma.supplierRequest.update({ where: { id }, data: { checklist: marked.checklist as unknown as object, state: 'IN_REVIEW' } })
     const ready = readiness(row.name, marked.checklist)
     return NextResponse.json({ data: { request: { ...updated, checklist: marked.checklist }, readiness: ready, says: ready.says } })
   }
 
   if (action === 'decline') {
-    if (!note?.trim()) return NextResponse.json({ error: { code: 'NEEDS_REASON', message: 'Declining needs a reason the recommender can read.', field: 'note' } }, { status: 422 })
+    if (!note) return NextResponse.json({ error: { code: 'NEEDS_REASON', message: 'Declining needs a reason the recommender can read.', field: 'note' } }, { status: 422 })
+    const decision: Decision = { stage, outcome: 'DECLINED', byId: caller.person.id, byName: caller.person.name, at: now.toISOString(), note }
     const updated = await prisma.supplierRequest.update({
-      where: { id }, data: { state: 'DECLINED', decidedById: caller.person.id, decidedAt: now, decisionNote: note.trim() },
+      where: { id },
+      data: { state: 'DECLINED', decidedById: caller.person.id, decidedAt: now, decisionNote: note, decisions: [...decisions, decision] as unknown as object },
     })
     void notify({
       personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
-      title: `${row.name} was not approved`, body: `${caller.person.name}: ${note.trim()}`, data: { href: '/dashboard/suppliers' },
+      title: `${row.name} was not approved`, body: `${caller.person.name} (${STAGE_WORD[stage]}): ${note}`, data: { href: '/dashboard/suppliers' },
     })
-    return NextResponse.json({ data: { request: updated, says: `${row.name} declined. ${nameOf(caller)} has been told why.` } })
+    return NextResponse.json({ data: { request: updated, says: `${row.name} declined at ${STAGE_WORD[stage]}. The recommender has been told why.` } })
   }
 
   if (action === 'approve') {
-    const ready = readiness(row.name, checklist)
-    if (!ready.ok) return NextResponse.json({ error: { code: 'PAPERWORK_MISSING', message: ready.says, missing: ready.missing } }, { status: 409 })
+    const decision: Decision = { stage, outcome: 'APPROVED', byId: caller.person.id, byName: caller.person.name, at: now.toISOString(), note: note || null }
+    const next = nextStage(stage)
 
-    // The real firm, if it is already here under its own proven domain;
-    // otherwise a shell with no domain at all (see /api/suppliers).
+    if (next !== 'DONE') {
+      const updated = await prisma.supplierRequest.update({
+        where: { id },
+        data: { stage: next, state: 'IN_REVIEW', decisions: [...decisions, decision] as unknown as object },
+      })
+      for (const personId of (await deskPeople(companyId, next, desks)).filter((p) => p !== caller.person.id)) {
+        void notify({
+          personId, companyId, type: 'SYSTEM', entityId: id,
+          title: `Supplier to review — ${row.name}`,
+          body: `${caller.person.name} (${STAGE_WORD[stage]}) cleared ${row.name}${note ? `: ${note}` : ''}. It is on your desk now.`,
+          data: { href: '/dashboard/suppliers' },
+        })
+      }
+      void notify({
+        personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
+        title: `${row.name} cleared ${STAGE_WORD[stage]}`, body: `${caller.person.name} said yes${note ? `: ${note}` : ''}. Now with ${STAGE_WORD[next]}.`, data: { href: '/dashboard/suppliers' },
+      })
+      return NextResponse.json({ data: { request: updated, says: `${row.name} cleared ${STAGE_WORD[stage]} and is with ${STAGE_WORD[next]} now.` } })
+    }
+
+    // Procurement's yes.
+    const ready = readiness(row.name, checklist)
+    if (!ready.ok) return NextResponse.json({ error: { code: 'PAPERWORK_MISSING', message: ready.says, missing: ready.missing, toVerify: ready.toVerify } }, { status: 409 })
+
     const claimed = row.domain
       ? await prisma.company.findFirst({ where: { domain: row.domain, claimedAt: { not: null }, isDemo: caller.company!.isDemo }, select: { id: true, name: true } })
       : null
@@ -84,7 +125,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       },
       select: { id: true, name: true },
     }))
-
     const agreementHeld = checklist.find((i) => i.key === 'AGREEMENT')?.state === 'HELD'
     if (!(await prisma.masterAgreement.findFirst({ where: { vendorId: supplier.id, clientId: companyId }, select: { id: true } }))) {
       await prisma.masterAgreement.create({ data: { vendorId: supplier.id, clientId: companyId, paymentTerms: 30, ...(agreementHeld ? { signedAt: now } : {}) } })
@@ -107,33 +147,30 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         update: {},
       })
     }
-
     const updated = await prisma.supplierRequest.update({
       where: { id },
-      data: { state: 'APPROVED', decidedById: caller.person.id, decidedAt: now, decisionNote: note?.trim() || null, supplierCompanyId: supplier.id },
+      data: { state: 'APPROVED', stage: 'DONE', decidedById: caller.person.id, decidedAt: now, decisionNote: note || null, supplierCompanyId: supplier.id, decisions: [...decisions, decision] as unknown as object },
     })
     void notify({
       personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
-      title: `${row.name} is approved`, body: `${caller.person.name} approved ${row.name}. You can send them a role now.`, data: { href: '/dashboard/suppliers' },
+      title: `${row.name} is approved`, body: `${caller.person.name} (Procurement) approved ${row.name}. You can send them a role now.`, data: { href: '/dashboard/suppliers' },
     })
     await prisma.automationLog.create({
       data: {
         companyId, action: 'SUPPLIER_APPROVED',
-        summary: `${row.name} approved as a supplier by ${caller.person.name}.`,
-        reason: `Recommended by ${await recommenderName(row.recommendedById)}: ${row.reason}. ${ready.says}`,
-        payload: { requestId: id, supplierCompanyId: supplier.id, checklist: checklist as unknown as object },
+        summary: `${row.name} approved as a supplier by ${caller.person.name}, after the program office and HR.`,
+        reason: `Recommended by ${await nameOf(row.recommendedById)}: ${row.reason}. ${ready.says}`,
+        payload: { requestId: id, supplierCompanyId: supplier.id, checklist: checklist as unknown as object, decisions: [...decisions, decision] as unknown as object },
         reversible: true,
       },
     })
     return NextResponse.json({ data: { request: updated, supplier, says: `${row.name} is a supplier now, at approved standing. Send them a role.` } })
   }
 
-  return NextResponse.json({ error: { code: 'VALIDATION', message: 'Mark, approve or decline.' } }, { status: 422 })
+  return NextResponse.json({ error: { code: 'VALIDATION', message: 'Approve, decline, mark or resend.' } }, { status: 422 })
 }
 
-function nameOf(caller: { person: { name: string } }): string { return caller.person.name }
-
-async function recommenderName(id: string): Promise<string> {
+async function nameOf(id: string): Promise<string> {
   return (await prisma.person.findUnique({ where: { id }, select: { name: true } }))?.name ?? 'somebody'
 }
 

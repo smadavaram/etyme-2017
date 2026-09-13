@@ -700,18 +700,30 @@ firm that supplied her.
 ### A supplier is a workflow, and a person has a page ✓ (2026-09-13)
 
 "Add supplier is a huge waste of real estate — for an activity that has
-to happen through workflow and compliance with indirect procurement."
-The paste box is gone from the top of Suppliers. Anybody who raises
-requirements may recommend a firm with a reason; it lands on
-Procurement's desk as a decision; the certificate of insurance, the tax
-form, the Dun & Bradstreet report and the vendor screening go on file
-one at a time, or are waived with a reason written down; approval is
-refused in a sentence until they are; nobody approves their own
-recommendation; and only then are the company row, the agreement stub
-and the register row written, at approved standing, with the
-recommender told (`lib/supplier-onboarding`, `SupplierRequest`,
-`/api/supplier-requests`). Procurement's own import of firms it has
-approved before is folded away at the bottom.
+to happen through workflow and compliance with indirect procurement.
+The hiring manager recommends; his team audits; HR assesses the skill
+set; indirect Procurement screens the vendor — W-9, bank data, past
+experience and references, revenue and delivery proofs, proposals —
+and the vendor gets an external link to apply and upload." The paste
+box is gone from the top of Suppliers. A firm walks three desks in
+order, the way a requisition does: the program office (whoever owns the
+governance rules) confirms the need; the HR standing desk reads what
+the firm supplies against what the program hires for; Procurement
+verifies what the firm sent and adds its own — a D&B report, sanctions
+and litigation screening, references contacted — and approves only
+when every required item is verified or waived with a reason
+(`lib/supplier-onboarding`, `lib/supplier-desks`, `SupplierRequest`,
+`/api/supplier-requests`). Nobody decides their own recommendation and
+nobody decides two desks. The firm gets a link of its own the moment it
+is recommended (`/apply/[token]`, `/api/supplier-apply`): no sign-in,
+files recorded by name against the item they answer, bank details kept
+to the bank, the account name and four digits; what the firm supplies
+is received, never verified, until Procurement says so. The link stops
+working once the client has decided; in time it is the supplier's door
+into the client portal. A firm in the pipeline shows on the suppliers
+list as Pending with the desk it is on, and on that desk's dashboard as
+a decision. Procurement's own import of firms it approved before is
+folded away at the bottom.
 
 "Can a hiring manager save a consultant as a favorite, and how will he
 invite?" One page per person as this client knows them — where they are
@@ -724,8 +736,9 @@ the supplier holding their consent on its bench, else whoever last
 submitted them, on the thread for that role — never to the consultant,
 because Etyme places nobody (`/api/people/[id]/ask`). A blocked person,
 an unpublished role and a role they are already on are refused in
-words. The seeded Nike desk holds Vertex Talent with two of four
-documents in.
+words. The seeded Nike desk holds Vertex Talent at Procurement, cleared
+by the program office and HR, with the firm's side in and two items
+verified.
 
 ### Demand opens, supply answers ✓ (2026-09-13)
 
