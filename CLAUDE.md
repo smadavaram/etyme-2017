@@ -680,6 +680,23 @@ has answered in five days says so; a client with nothing on it yet is
 told what to do first. The generic demo client's book is mostly history
 now, and the seeded Nike desk has one 44-hour week to read.
 
+### Network ✓ (2026-09-13)
+
+"People & Suppliers can be changed to Network; contractors and
+suppliers should have a table view as well as the feed; filter
+suppliers by their existing contractors, and contractors by recent
+engagement, favorites, location, blocked." The nav group is Network.
+Both pages switch between the feed and a table of the same rows
+(`components/network-view`), under one filter bar that asks the same
+five questions on both — Everyone · On site now · Recent engagement ·
+Favorites · Blocked — and a place (`lib/network-filters`). A favorite
+is the opposite of a block: a person or a firm this company would take
+again, marked with a star on the row, kept per company and never read
+across companies (`Favorite`, `/api/favorites`). Somebody on site is
+engaged today; a block keeps the row on the register but out of every
+list except its own. The seeded Nike desk stars Helena Marsh and the
+firm that supplied her.
+
 ### Demand opens, supply answers ✓ (2026-09-13)
 
 A client writes to one supplier from the role or from the candidate's

@@ -305,16 +305,16 @@ const CLIENT_NAV: NavSection[] = [
       // rendered as four separate rows with four separate names. That
       // link is gone; every submission is still here, merged onto the
       // one person it belongs to and expandable per row.
-      { label: 'Contractors', href: '/dashboard/people', icon: '◍', group: 'People & suppliers' },
+      { label: 'Contractors', href: '/dashboard/people', icon: '◍', group: 'Network' },
       // The growth loop. A client arrives with twelve suppliers already
       // and an MSA with each; until those are reachable in here, none of
       // the rest of this nav has anything to work on.
-      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'People & suppliers' },
+      { label: 'Suppliers', href: '/dashboard/suppliers', icon: '⬡', group: 'Network' },
       // The rolodex — the one thing this whole nav was missing. Vendor
       // has had it for a while as "Who we work with"; a client asks the
       // same question about the people at their own suppliers just as
       // often, and had no way in.
-      { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'People & suppliers' },
+      { label: 'Contacts', href: '/dashboard/contacts', icon: '☎', group: 'Network' },
       // The contracts list, under the name a client uses for it. It sat
       // under Hire, which is where the trail that produces a placement
       // ends — but the record itself is the parent of everything below

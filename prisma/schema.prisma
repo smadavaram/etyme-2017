@@ -390,6 +390,8 @@ model Company {
   threadsWithMe         Conversation[] @relation("ConversationWith")
   // Blacklist
   blacklists            Blacklist[]
+  // The people and firms this company would take again
+  favorites             Favorite[]
   // Locations
   locations             CompanyLocation[]
   // Holidays
@@ -3789,6 +3791,24 @@ model Blacklist {
   @@unique([companyId, targetType, targetId])
   @@index([companyId])
   @@index([targetType, targetId])
+}
+
+/// The opposite of a block: a person or a firm this company would take
+/// again, marked by somebody who worked with them. Per company — Nike's
+/// star says nothing about Corning — and never a score, just a name on a
+/// short list the filters can read.
+model Favorite {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  targetType String // PERSON | COMPANY
+  targetId   String
+  byId       String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  @@unique([companyId, targetType, targetId])
+  @@index([companyId, targetType])
 }
 
 // ─────────────────────────────────────────────

@@ -46,13 +46,13 @@ export async function GET(request: NextRequest) {
 
   const personIds = [...new Set(subs.map((s) => s.personId))]
 
-  const [contracts, barred, cap, interviews, profiles] = await Promise.all([
+  const [contracts, barred, cap, interviews, profiles, stars] = await Promise.all([
     // Time served here, through anybody. Counted against the person,
     // which is the entire reason this register is worth having.
     prisma.sellContract.findMany({
       where: { ...endClientFilter(companyId), personId: { in: personIds } },
       select: {
-        personId: true, startDate: true, endDate: true,
+        personId: true, startDate: true, endDate: true, state: true,
         company: { select: { name: true } },
       },
     }),
@@ -90,7 +90,13 @@ export async function GET(request: NextRequest) {
       where: { personId: { in: personIds } },
       select: { personId: true, mobile: true, location: true, skills: true },
     }),
+    // The ones this client would take again. Its own list, nobody else's.
+    prisma.favorite.findMany({
+      where: { companyId, targetType: 'PERSON', targetId: { in: personIds } },
+      select: { targetId: true },
+    }),
   ])
+  const starred = new Set(stars.map((f) => f.targetId))
 
   const capMonths = (cap?.parameters as any)?.maxMonths ?? null
   const barredBy = new Map(barred.map((b) => [b.targetId, b]))
@@ -213,8 +219,32 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // The Network filters: here now, here lately, would take again,
+  // barred, and where. Read off what the register already holds.
+  const lastSubmission = new Map<string, Date>()
+  for (const sub of subs) if (!lastSubmission.has(sub.personId)) lastSubmission.set(sub.personId, sub.submittedAt)
+  const people = rows.map((row) => {
+    const mine = contractsFor(row.personId)
+    const dates = [
+      lastSubmission.get(row.personId) ?? null,
+      ...mine.map((c) => c.startDate),
+      ...mine.map((c) => c.endDate),
+    ].filter((d): d is Date => d != null && d <= now)
+    const last = dates.length ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null
+    const onSite = mine.some((c) => c.state === 'IN_PROGRESS')
+    return {
+      ...row,
+      onSite,
+      // Somebody on site is engaged today, whatever day the contract began.
+      lastEngagement: onSite ? now.toISOString() : last?.toISOString() ?? null,
+      favorite: starred.has(row.personId),
+      blocked: row.barred,
+      location: profileByPerson.get(row.personId)?.location ?? null,
+    }
+  })
+
   return NextResponse.json({
-    data: { people: rows, summary: summarize(rows), capMonths },
+    data: { people, summary: summarize(rows), capMonths },
   })
 }
 

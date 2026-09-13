@@ -76,6 +76,8 @@ interface Placement {
   rates: number[]
   /** One awaiting week claimed over the role's hours, so the desk has an exception to read. */
   exceptionHours?: number
+  /** The client marked this person, and the firm that supplied them, as ones to take again. */
+  takeAgain?: boolean
   person: string
   workAuth: 'USC' | 'GC' | 'H1B'
   startedDaysAgo: number
@@ -134,7 +136,7 @@ const PROGRAMMES: Program[] = [
     governance: { tenureCapMonths: 18, breakDays: 90, band: [7000, 15000] },
     placements: [
       { role: 'SAP S/4 finance lead', skills: ['SAP FICO', 'S/4HANA', 'Central Finance'], loc: 'Beaverton, OR',
-        via: ['nike', 'computer-systems', 'cloudepa'], rates: [14500, 11800, 9000],
+        via: ['nike', 'computer-systems', 'cloudepa'], rates: [14500, 11800, 9000], takeAgain: true,
         person: 'Helena Marsh', workAuth: 'GC', startedDaysAgo: 200, endsInDays: 160, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
       { role: 'Commerce platform architect', skills: ['Salesforce Commerce', 'Node.js'], loc: 'Beaverton, OR',
@@ -583,6 +585,17 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
             result: { outcome: 'CLEAR' },
           },
         })
+      }
+
+      // ── Would take again ─────────────────────────────────────────
+      if (pl.takeAgain) {
+        for (const [targetType, targetId] of [['PERSON', who.id], ['COMPANY', firmBySlug.get(chain[0])!.id]] as const) {
+          await db.favorite.upsert({
+            where: { companyId_targetType_targetId: { companyId: client.id, targetType, targetId } },
+            create: { companyId: client.id, targetType, targetId, byId: desk.hiring.personId },
+            update: {},
+          })
+        }
       }
 
       // ── Hours, and what became of them ───────────────────────────

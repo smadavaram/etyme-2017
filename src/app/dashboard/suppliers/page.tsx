@@ -1,8 +1,11 @@
 'use client'
 
 import { readJson } from '@/lib/read-response'
+import { DataTable, type Column } from '@/components/data-table'
+import { ViewToggle, FilterBar, Star, emptyWord, type View } from '@/components/network-view'
+import { applyFilter, locationsOf, isRecent, type NetworkFilter } from '@/lib/network-filters'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 
 /**
  * Your suppliers.
@@ -45,7 +48,26 @@ interface Supplier {
   invitedAt: string | null
   where: string
   tier: string | null
+  // The Network questions
+  onSiteCount: number
+  onSite: boolean
+  lastEngagement: string | null
+  favorite: boolean
+  blocked: boolean
+  blockedReason: string | null
+  location: string | null
 }
+
+function when(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+const STANDING: { value: string; word: string }[] = [
+  { value: 'PROBATION', word: 'On probation' },
+  { value: 'APPROVED', word: 'Approved' },
+  { value: 'PREFERRED', word: 'Preferred' },
+]
 
 export default function SuppliersPage() {
   const [text, setText] = useState('')
@@ -69,6 +91,35 @@ export default function SuppliersPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
+  const [view, setView] = useState<View>('feed')
+  const [filter, setFilter] = useState<NetworkFilter>('ALL')
+  const [place, setPlace] = useState<string | null>(null)
+  const [now] = useState(() => new Date())
+
+  // The star: a firm this client would send the next role to first.
+  async function star(s: Supplier) {
+    const on = !s.favorite
+    setSuppliers((cur) => cur.map((x) => (x.companyId === s.companyId ? { ...x, favorite: on } : x)))
+    try {
+      await readJson(await fetch('/api/favorites', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ targetType: 'COMPANY', targetId: s.companyId, on }),
+      }))
+    } catch (err: any) {
+      setSuppliers((cur) => cur.map((x) => (x.companyId === s.companyId ? { ...x, favorite: !on } : x)))
+      setError(err.message)
+    }
+  }
+
+  const places = useMemo(() => locationsOf(suppliers), [suppliers])
+  const shown = useMemo(() => applyFilter(suppliers, filter, place, now), [suppliers, filter, place, now])
+  const counts = useMemo(() => ({
+    ALL: suppliers.filter((r) => !r.blocked).length,
+    ON_SITE: suppliers.filter((r) => r.onSite && !r.blocked).length,
+    RECENT: suppliers.filter((r) => isRecent(r.lastEngagement, now) && !r.blocked).length,
+    FAVORITES: suppliers.filter((r) => r.favorite && !r.blocked).length,
+    BLOCKED: suppliers.filter((r) => r.blocked).length,
+  }), [suppliers, now])
 
   const load = useCallback(async () => {
     try {
@@ -162,13 +213,47 @@ export default function SuppliersPage() {
     setRows(next)
   }
 
-  const blocked = rows?.filter((r) => !r.company).length ?? 0
+  const needFirm = rows?.filter((r) => !r.company).length ?? 0
+
+  const standingSelect = (s: Supplier) => (
+    <select
+      aria-label={`Standing of ${s.name}`}
+      value={s.tier ?? ''}
+      onClick={(e) => e.stopPropagation()}
+      onChange={(e) => setStanding(s.companyId, e.target.value)}
+      className="border border-etyme-rule rounded px-2 py-1 text-[12px] bg-etyme-raised"
+    >
+      <option value="">{s.agreement ? 'Approved by agreement' : 'Not rated'}</option>
+      {STANDING.map((o) => <option key={o.value} value={o.value}>{o.word}</option>)}
+    </select>
+  )
+
+  const columns: Column<Supplier>[] = [
+    {
+      key: 'name', label: 'Supplier',
+      render: (s) => (
+        <div>
+          <p className="text-etyme-ink">{s.name}</p>
+          <p className="text-[11px] text-etyme-faint">{s.contacts[0]?.email ?? 'No contact on file'}</p>
+        </div>
+      ),
+    },
+    { key: 'tier', label: 'Standing', render: (s) => standingSelect(s), sortValue: (s) => s.tier ?? '' },
+    { key: 'onSiteCount', label: 'On site', align: 'right', render: (s) => <span className="tabular-nums">{s.onSiteCount}</span> },
+    { key: 'lastEngagement', label: 'Last engagement', render: (s) => <span className="tabular-nums text-etyme-muted">{when(s.lastEngagement)}</span>, sortValue: (s) => s.lastEngagement ?? '', hideOnMobile: true },
+    { key: 'location', label: 'Location', render: (s) => <span className="text-etyme-muted">{s.location ?? '—'}</span>, hideOnMobile: true },
+    { key: 'joined', label: 'Here', render: (s) => <span className={`chip ${s.joined ? 'chip--verified' : 'chip--passive'}`}>{s.joined ? 'Signed in' : 'Listed'}</span>, sortValue: (s) => (s.joined ? 1 : 0) },
+    {
+      key: 'favorite', label: 'First call', align: 'center', sortValue: (s) => (s.favorite ? 1 : 0),
+      render: (s) => <Star on={s.favorite} onClick={(e) => { e.stopPropagation(); star(s) }} name={s.name} />,
+    },
+  ]
 
   return (
-    <div className="mx-auto max-w-[820px] space-y-6 px-4 py-6">
+    <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">
       <header>
-        <p className="eyebrow">Program</p>
-        <h1 className="headline-serif text-[30px] leading-tight">Your suppliers</h1>
+        <p className="eyebrow">Network</p>
+        <h1 className="headline-serif text-[30px] leading-tight">Suppliers</h1>
         <p className="mt-2 max-w-[58ch] text-[13px] text-etyme-muted">
           Paste the list you already email. Nobody has to switch anything, and
           none of them has to sign up before you can send them a role — they
@@ -262,15 +347,15 @@ export default function SuppliersPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={add}
-                disabled={busy || blocked > 0}
+                disabled={busy || needFirm > 0}
                 className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white
                            disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {busy ? 'Adding…' : `Add ${rows.length} ${rows.length === 1 ? 'contact' : 'contacts'}`}
               </button>
-              {blocked > 0 && (
+              {needFirm > 0 && (
                 <span className="text-[12px] text-etyme-attention">
-                  {blocked} still {blocked === 1 ? 'needs' : 'need'} a firm — a personal
+                  {needFirm} still {needFirm === 1 ? 'needs' : 'need'} a firm — a personal
                   address does not say which.
                 </span>
               )}
@@ -313,33 +398,56 @@ export default function SuppliersPage() {
 
       {/* ── Who you buy from ──────────────────────────────────────── */}
       <section className="space-y-3">
-        <p className="stat-label">Who you buy from</p>
-        <p className="text-[13px] text-etyme-muted">{listSummary}</p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="stat-label">Who you buy from</p>
+            <p className="text-[13px] text-etyme-muted">{listSummary}</p>
+          </div>
+          {suppliers.length > 0 && <ViewToggle view={view} onChange={setView} />}
+        </div>
 
-        {suppliers.map((s) => (
+        {suppliers.length > 0 && (
+          <FilterBar filter={filter} onFilter={setFilter} counts={counts} places={places} place={place} onPlace={setPlace} />
+        )}
+
+        {suppliers.length > 0 && shown.length === 0 && (
+          <div className="panel">
+            <p className="text-[13px] text-etyme-muted">{emptyWord(filter, place).replace(/^Nobody/, 'No supplier')}</p>
+          </div>
+        )}
+
+        {view === 'table' && suppliers.length > 0 && (
+          <DataTable<Supplier>
+            columns={columns}
+            data={shown}
+            rowKey={(s) => s.companyId}
+            searchPlaceholder="Search by firm, contact or place…"
+            searchFilter={(s, q) => `${s.name} ${s.contacts.map((c) => c.email).join(' ')} ${s.location ?? ''}`.toLowerCase().includes(q.toLowerCase())}
+            exportName="suppliers"
+            defaultPageSize={50}
+            emptyMessage={emptyWord(filter, place).replace(/^Nobody/, 'No supplier')}
+            rowClassName={(s) => (s.blocked ? 'opacity-70' : '')}
+          />
+        )}
+
+        {view === 'feed' && shown.map((s) => (
           <article key={s.companyId} className="panel">
-            <div className="flex items-baseline justify-between gap-4">
-              <div>
-                <p className="text-[15px] font-semibold text-etyme-ink">{s.name}</p>
+            <div className="flex flex-wrap items-baseline justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[15px] font-semibold text-etyme-ink">
+                  {s.name}
+                  {s.location && <span className="ml-2 text-[12px] font-normal text-etyme-faint">{s.location}</span>}
+                </p>
                 <p className="text-[12px] text-etyme-faint">
                   {s.contacts.map((c) => c.email).join(' · ') || 'No contact on file'}
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                <Star on={s.favorite} onClick={() => star(s)} name={s.name} />
                 {/* Their standing with you. The VENDOR_TIER rule reads it;
                     an agreement on file counts as approved until you say
                     otherwise. */}
-                <select
-                  aria-label={`Standing of ${s.name}`}
-                  value={s.tier ?? ''}
-                  onChange={(e) => setStanding(s.companyId, e.target.value)}
-                  className="border border-etyme-rule rounded px-2 py-1 text-[12px] bg-etyme-raised"
-                >
-                  <option value="">{s.agreement ? 'Approved by agreement' : 'Not rated'}</option>
-                  <option value="PROBATION">On probation</option>
-                  <option value="APPROVED">Approved</option>
-                  <option value="PREFERRED">Preferred</option>
-                </select>
+                {standingSelect(s)}
                 <span
                   className={`chip ${s.joined ? 'chip--verified' : 'chip--passive'}`}
                 >
@@ -347,7 +455,14 @@ export default function SuppliersPage() {
                 </span>
               </div>
             </div>
-            <p className="mt-2 text-[12px] text-etyme-muted">{s.where}</p>
+            <p className="mt-2 text-[12px] text-etyme-muted">
+              {s.onSiteCount > 0 ? `${s.onSiteCount} ${s.onSiteCount === 1 ? 'person' : 'people'} on site now. ` : ''}
+              {s.lastEngagement ? `Last engagement ${when(s.lastEngagement)}. ` : ''}
+              {s.where}
+            </p>
+            {s.blocked && (
+              <p className="mt-1 text-[12px] text-etyme-attention">Blocked{s.blockedReason ? ` — ${s.blockedReason}` : ''}. Nothing is sent to them.</p>
+            )}
           </article>
         ))}
       </section>

@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
 
   const companyId = caller.company!.id
 
-  const [invites, agreements, standings] = await Promise.all([
+  const now = new Date()
+  const [invites, agreements, standings, engagements, stars, blocks, places] = await Promise.all([
     prisma.supplierInvite.findMany({
       where: { byId: companyId, state: { not: 'REVOKED' } },
       include: {
@@ -60,8 +61,34 @@ export async function GET(request: NextRequest) {
       where: { companyId, relationship: 'SUPPLIER' },
       select: { otherCompanyId: true, tier: true },
     }),
+    // Who has people here now, and when we last dealt with each: the
+    // contracts this client pays, by supplier.
+    prisma.sellContract.findMany({
+      where: { clientCompanyId: companyId },
+      select: { companyId: true, state: true, startDate: true, endDate: true },
+    }),
+    prisma.favorite.findMany({ where: { companyId, targetType: 'COMPANY' }, select: { targetId: true } }),
+    prisma.blacklist.findMany({
+      where: { companyId, targetType: 'COMPANY', liftedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+      select: { targetId: true, reason: true },
+    }),
+    prisma.companyLocation.findMany({
+      where: { isPrimary: true },
+      select: { companyId: true, city: true, state: true, country: true },
+    }),
   ])
   const tierOf = new Map(standings.map((s) => [s.otherCompanyId, s.tier]))
+  const starred = new Set(stars.map((f) => f.targetId))
+  const blockedBy = new Map(blocks.map((b) => [b.targetId, b.reason]))
+  const placeOf = new Map(places.map((l) => [l.companyId, [l.city, l.state ?? l.country].filter(Boolean).join(', ') || null]))
+  const onSiteCount = new Map<string, number>()
+  const lastDealt = new Map<string, Date>()
+  for (const c of engagements) {
+    if (c.state === 'IN_PROGRESS') onSiteCount.set(c.companyId, (onSiteCount.get(c.companyId) ?? 0) + 1)
+    for (const d of [c.startDate, c.endDate]) {
+      if (d && d <= now && (!lastDealt.has(c.companyId) || lastDealt.get(c.companyId)! < d)) lastDealt.set(c.companyId, d)
+    }
+  }
 
   // One row per firm, however many contacts were listed there.
   const byCompany = new Map<string, any>()
@@ -100,6 +127,14 @@ export async function GET(request: NextRequest) {
 
   const rows = [...byCompany.values()].map((r) => ({
     ...r,
+    onSiteCount: onSiteCount.get(r.companyId) ?? 0,
+    onSite: (onSiteCount.get(r.companyId) ?? 0) > 0,
+    // A firm with people on site is engaged today, whatever day they started.
+    lastEngagement: (onSiteCount.get(r.companyId) ?? 0) > 0 ? now.toISOString() : lastDealt.get(r.companyId)?.toISOString() ?? r.invitedAt ?? null,
+    favorite: starred.has(r.companyId),
+    blocked: blockedBy.has(r.companyId),
+    blockedReason: blockedBy.get(r.companyId) ?? null,
+    location: placeOf.get(r.companyId) ?? null,
     where: r.joined
       ? 'Signed in. Can be sent a role.'
       : r.invitedAt
