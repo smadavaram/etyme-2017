@@ -420,6 +420,9 @@ export default function ProgramTeamPage() {
         {draft.kind !== 'VALUE' && ruleForm}
       </section>
 
+      {/* ── A new unit ── */}
+      <AddUnit teams={team.teams} onAdded={reload} />
+
       {/* ── Rules on the money ── */}
       <section className="panel mb-6">
         <h2 className="headline-serif text-[17px] text-etyme-ink">Rules on the money</h2>
@@ -575,5 +578,58 @@ export default function ProgramTeamPage() {
         </p>
       </section>
     </div>
+  )
+}
+
+/**
+ * A business unit, practice, account, project or department. Units came
+ * only from the seed; a real client had no way to add the one a new
+ * desk sits in.
+ */
+function AddUnit({ teams, onAdded }: { teams: { id: string; name: string }[]; onAdded: () => void }) {
+  const [form, setForm] = useState({ name: '', kind: 'DEPARTMENT', parentId: '' })
+  const [said, setSaid] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  async function add(e: React.FormEvent) {
+    e.preventDefault()
+    setErr(null)
+    const res = await fetch('/api/program/units', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(form) })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) { setErr(j?.error?.message ?? 'That could not be added.'); return }
+    setSaid(j.data.says)
+    setForm({ name: '', kind: 'DEPARTMENT', parentId: '' })
+    onAdded()
+  }
+  return (
+    <section className="mb-10">
+      <h2 className="headline-serif text-[17px] text-etyme-ink">Add a unit</h2>
+      <p className="text-[13px] text-etyme-muted mt-1 mb-3">A business unit, practice, account, project or department. A desk named on the unit above answers for it until you name its own.</p>
+      {said && <p className="mb-2 text-sm text-etyme-verified">{said}</p>}
+      {err && <p className="mb-2 text-sm text-etyme-attention">{err}</p>}
+      <form onSubmit={add} className="bg-etyme-surface border border-etyme-rule rounded-lg p-4 flex flex-wrap gap-3 items-end">
+        <label className="flex-1 min-w-[180px]">
+          <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Name</span>
+          <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="Data practice" className="w-full border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised" />
+        </label>
+        <label>
+          <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Kind</span>
+          <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })} className="border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised">
+            <option value="BU">Business unit</option>
+            <option value="PRACTICE">Practice</option>
+            <option value="ACCOUNT">Account</option>
+            <option value="PROJECT">Project</option>
+            <option value="DEPARTMENT">Department</option>
+          </select>
+        </label>
+        <label>
+          <span className="block text-[10px] uppercase tracking-[0.12em] text-etyme-faint font-medium mb-1">Under</span>
+          <select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })} className="border border-etyme-rule rounded px-3 py-2 text-sm bg-etyme-raised">
+            <option value="">Top level</option>
+            {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </label>
+        <button type="submit" disabled={!form.name.trim()} className="px-4 py-2 bg-etyme-action text-white rounded text-sm font-medium hover:opacity-90 disabled:opacity-50">Add</button>
+      </form>
+    </section>
   )
 }

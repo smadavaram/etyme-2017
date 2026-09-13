@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { meets as tierMeets } from '@/lib/supplier-tier'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 
@@ -415,41 +416,29 @@ async function evaluateVendorTier(
 ): Promise<EvaluationResult> {
   const requiredTier = params.requiredTier ?? 'APPROVED'
 
-  // Check if the vendor has a relationship with this client at the required tier
-  // For now, check if the vendor has any active MSA with this client
-  const msa = await prisma.masterAgreement.findFirst({
-    where: {
-      vendorId: vendorCompanyId,
-      clientId: endClientCompanyId,
-      // Active: not expired
-    },
-    select: { id: true },
-  })
-
-  const vendor = await prisma.company.findUnique({
-    where: { id: vendorCompanyId },
-    select: { name: true },
-  })
+  // The standing the client gave this supplier, from its own register;
+  // an agreement on file counts as approved where nobody has rated them.
+  const [msa, standing, vendor] = await Promise.all([
+    prisma.masterAgreement.findFirst({
+      where: { vendorId: vendorCompanyId, clientId: endClientCompanyId },
+      select: { id: true },
+    }),
+    prisma.counterparty.findFirst({
+      where: { companyId: endClientCompanyId, otherCompanyId: vendorCompanyId, relationship: 'SUPPLIER' },
+      select: { tier: true },
+    }),
+    prisma.company.findUnique({ where: { id: vendorCompanyId }, select: { name: true } }),
+  ])
   const vendorName = vendor?.name ?? vendorCompanyId.slice(0, 8)
 
-  if (!msa) {
-    return {
-      ruleId,
-      ruleType: 'VENDOR_TIER',
-      enforcementMode,
-      outcome: enforcementMode,
-      reason: `${vendorName} has no active MSA with this client. ${description}`,
-      overridable: enforcementMode === 'WARN',
-    }
-  }
-
+  const verdict = tierMeets({ supplierName: vendorName, tier: standing?.tier, hasAgreement: Boolean(msa), required: String(requiredTier) })
   return {
     ruleId,
     ruleType: 'VENDOR_TIER',
     enforcementMode,
-    outcome: 'PASS',
-    reason: `${vendorName} has an active MSA`,
-    overridable: false,
+    outcome: verdict.ok ? 'PASS' : enforcementMode,
+    reason: verdict.ok ? verdict.reason : `${verdict.reason} ${description}`,
+    overridable: !verdict.ok && enforcementMode === 'WARN',
   }
 }
 

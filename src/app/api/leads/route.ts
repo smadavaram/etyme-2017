@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { splitAdverts, readLead, pasteSentence } from '@/lib/lead-reader'
-import { sameSeat, type Lead as SeatLead } from '@/lib/openings'
+import { sameSeat, type Lead as SeatLead, COLD_AFTER_DAYS as WINDOW_DAYS } from '@/lib/openings'
 
 /**
  * The door into the demand cone.
@@ -22,8 +22,6 @@ import { sameSeat, type Lead as SeatLead } from '@/lib/openings'
  * because a wrongly merged seat loses a live role and nobody notices.
  */
 
-/** How far back to look for a seat this might be. */
-const WINDOW_DAYS = 45
 
 export async function POST(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)

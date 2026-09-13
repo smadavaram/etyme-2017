@@ -36,6 +36,7 @@ const JOBS = [
   { path: 'visa-watch', does: 'finds permits expiring inside a contract' },
   { path: 'loose-ends', does: 'chases placements billed with no cost behind them' },
   { path: 'expire-invitations', does: 'closes invitations nobody answered' },
+  { path: 'cold-openings', does: 'marks seats nobody has advertised in six weeks as cold' },
   { path: 'proactive-match', does: 'looks for people worth putting forward' },
   { path: 'freshness-ping', does: 'asks the bench whether they are still looking' },
   { path: 'deliver-webhooks', does: 'retries webhooks that did not land' },

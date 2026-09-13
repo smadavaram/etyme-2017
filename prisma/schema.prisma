@@ -981,6 +981,10 @@ model Counterparty {
   riskLevel    String?
   riskReviewBy DateTime?
 
+  // The standing a client gives a supplier: PROBATION · APPROVED · PREFERRED.
+  // Read by the VENDOR_TIER rule; set from the suppliers page. Null means
+  // never rated, and an agreement on file counts as APPROVED.
+  tier         String?
   @@unique([companyId, otherCompanyId, relationship])
   @@index([otherCompanyId])
   @@index([companyId, status])

@@ -75,6 +75,8 @@ export const DOMAINS: Domain[] = [
       'lib/worker-classification', 'lib/holds', 'lib/representation',
       'lib/work-authorisation', 'lib/visa-worksite', 'lib/sourcing-exit', 'lib/sourcing-approach', 'lib/candidate-fixture', 'lib/profile-readiness', 'lib/rate-negotiation', 'lib/bench-consent', 'lib/bench-invite', 'lib/signed-link',
       'lib/governance', 'lib/governance-authorship', 'lib/governance-horizon', 'lib/tenure-days',
+      // A supplier's standing with a client, and what a rule makes of it.
+      'lib/supplier-tier',
       'lib/requisition-approval', 'lib/requisition-stage',
       'lib/document-share', 'lib/template-packs',
       'lib/access-log', 'lib/access-grant', 'lib/walls', 'lib/account-walls',

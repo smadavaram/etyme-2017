@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isTier, tierWord } from '@/lib/supplier-tier'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
@@ -193,6 +194,28 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => ({}))
   const otherCompanyId = String(body?.otherCompanyId ?? '')
   const relationship = String(body?.relationship ?? '')
+
+  // The standing alone, or the risk judgment alone, or both. A tier is
+  // a word from a short list; anything else is refused by name.
+  const tierAsked = body?.tier !== undefined
+  const tier = tierAsked ? String(body.tier ?? '').toUpperCase() : null
+  if (tierAsked && tier !== '' && !isTier(tier)) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: `A supplier is on probation, approved or preferred — not "${body.tier}".` } },
+      { status: 422 }
+    )
+  }
+  if (tierAsked && body?.riskLevel === undefined) {
+    const updated = await prisma.counterparty.updateMany({
+      where: { companyId, otherCompanyId, relationship },
+      data: { tier: tier === '' ? null : tier },
+    })
+    if (updated.count === 0) {
+      return NextResponse.json({ error: { code: 'NOT_FOUND', message: 'No register row for that pair and relationship.' } }, { status: 404 })
+    }
+    return NextResponse.json({ data: { says: tier ? `Standing set to ${tierWord(tier, false).toLowerCase()}.` : 'Standing cleared.' } })
+  }
+
   const level = String(body?.riskLevel ?? '')
   const reviewBy = body?.riskReviewBy ? new Date(String(body.riskReviewBy)) : null
 
@@ -206,7 +229,7 @@ export async function PATCH(request: NextRequest) {
 
   const updated = await prisma.counterparty.updateMany({
     where: { companyId, otherCompanyId, relationship },
-    data: { riskLevel: level, riskReviewBy: reviewBy },
+    data: { riskLevel: level, riskReviewBy: reviewBy, ...(tierAsked ? { tier: tier === '' ? null : tier } : {}) },
   })
   if (updated.count === 0) {
     return NextResponse.json(

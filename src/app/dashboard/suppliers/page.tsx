@@ -44,10 +44,22 @@ interface Supplier {
   contacts: { email: string; name: string | null; state: string }[]
   invitedAt: string | null
   where: string
+  tier: string | null
 }
 
 export default function SuppliersPage() {
   const [text, setText] = useState('')
+
+  /** A word from a short list, saved on the register row for that firm. */
+  async function setStanding(companyId: string, tier: string) {
+    const res = await fetch('/api/counterparties', {
+      method: 'PATCH', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ otherCompanyId: companyId, relationship: 'SUPPLIER', tier }),
+    })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok) { setError(j?.error?.message ?? 'That could not be saved.'); return }
+    setSuppliers((cur) => cur.map((x) => (x.companyId === companyId ? { ...x, tier: tier || null } : x)))
+  }
   const [rows, setRows] = useState<Row[] | null>(null)
   const [readSummary, setReadSummary] = useState('')
   const [skipped, setSkipped] = useState<string[]>([])
@@ -313,11 +325,27 @@ export default function SuppliersPage() {
                   {s.contacts.map((c) => c.email).join(' · ') || 'No contact on file'}
                 </p>
               </div>
-              <span
-                className={`chip ${s.joined ? 'chip--verified' : 'chip--passive'}`}
-              >
-                {s.joined ? 'Signed in' : 'Listed'}
-              </span>
+              <div className="flex items-center gap-2">
+                {/* Their standing with you. The VENDOR_TIER rule reads it;
+                    an agreement on file counts as approved until you say
+                    otherwise. */}
+                <select
+                  aria-label={`Standing of ${s.name}`}
+                  value={s.tier ?? ''}
+                  onChange={(e) => setStanding(s.companyId, e.target.value)}
+                  className="border border-etyme-rule rounded px-2 py-1 text-[12px] bg-etyme-raised"
+                >
+                  <option value="">{s.agreement ? 'Approved by agreement' : 'Not rated'}</option>
+                  <option value="PROBATION">On probation</option>
+                  <option value="APPROVED">Approved</option>
+                  <option value="PREFERRED">Preferred</option>
+                </select>
+                <span
+                  className={`chip ${s.joined ? 'chip--verified' : 'chip--passive'}`}
+                >
+                  {s.joined ? 'Signed in' : 'Listed'}
+                </span>
+              </div>
             </div>
             <p className="mt-2 text-[12px] text-etyme-muted">{s.where}</p>
           </article>

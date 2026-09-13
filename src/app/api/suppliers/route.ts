@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
   const companyId = caller.company!.id
 
-  const [invites, agreements] = await Promise.all([
+  const [invites, agreements, standings] = await Promise.all([
     prisma.supplierInvite.findMany({
       where: { byId: companyId, state: { not: 'REVOKED' } },
       include: {
@@ -56,7 +56,12 @@ export async function GET(request: NextRequest) {
       where: { clientId: companyId },
       select: { vendorId: true, signedAt: true, vendor: { select: { id: true, name: true, claimedAt: true } } },
     }),
+    prisma.counterparty.findMany({
+      where: { companyId, relationship: 'SUPPLIER' },
+      select: { otherCompanyId: true, tier: true },
+    }),
   ])
+  const tierOf = new Map(standings.map((s) => [s.otherCompanyId, s.tier]))
 
   // One row per firm, however many contacts were listed there.
   const byCompany = new Map<string, any>()
@@ -64,6 +69,7 @@ export async function GET(request: NextRequest) {
   for (const a of agreements) {
     byCompany.set(a.vendorId, {
       companyId: a.vendorId,
+      tier: tierOf.get(a.vendorId) ?? null,
       name: a.vendor.name,
       joined: a.vendor.claimedAt != null,
       agreement: true,
@@ -77,6 +83,7 @@ export async function GET(request: NextRequest) {
   for (const i of invites) {
     const row = byCompany.get(i.companyId) ?? {
       companyId: i.companyId,
+      tier: tierOf.get(i.companyId) ?? null,
       name: i.company.name,
       joined: i.company.claimedAt != null,
       agreement: false,

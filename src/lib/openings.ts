@@ -296,3 +296,21 @@ export function clientLabel(o: {
 }): string {
   return o.clientName ?? o.inferredClient ?? 'this client'
 }
+
+// ── When a seat goes cold ─────────────────────────────────────────────
+//
+// COLD was a documented status nothing set, so a seat last seen in March
+// was still "live" in September and matched against every new paste.
+// The daily job (cron/cold-openings) applies this.
+
+/** How far back to look for a seat this might be, and how long a seat stays warm. */
+export const COLD_AFTER_DAYS = 45
+
+export function goneCold(lastSeen: Date, now: Date): boolean {
+  return now.getTime() - lastSeen.getTime() > COLD_AFTER_DAYS * 86_400_000
+}
+
+export function coldSince(lastSeen: Date, now: Date): string {
+  const days = Math.floor((now.getTime() - lastSeen.getTime()) / 86_400_000)
+  return `last seen ${days} days ago`
+}
