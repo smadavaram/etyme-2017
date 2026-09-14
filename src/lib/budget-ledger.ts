@@ -61,8 +61,19 @@ export interface ContractFact {
 
 export interface AcceptedWork {
   contractId: string
-  /** Hours the client signed for. */
+  /** Hours the client signed for, at the ordinary rate. */
   hours: number
+  /**
+   * Of those, the hours over the week's limit — worth the multiplier.
+   *
+   * Passed in already split rather than split here, because the split
+   * is a weekly judgment on the daily hours and this file never sees
+   * a day. `lib/overtime` does it once, for the invoice and for this,
+   * so the two cannot disagree about what a week was worth.
+   */
+  overtimeHours?: number
+  /** Basis points of the rate an overtime hour is worth. */
+  overtimeMultiplierBps?: number
   /** Whether a bill for it has arrived and been settled. */
   invoiced: boolean
   paid: boolean
@@ -180,12 +191,22 @@ export function ledgerFor(input: {
     const mine = work.filter((w) => w.contractId === c.id)
     const myExpenses = expenses.filter((e) => e.contractId === c.id)
 
-    const hoursCents = mine.reduce((n, w) => n + Math.round(w.hours * c.billRateCents * share), 0)
+    const hoursCents = mine.reduce((n, w) => {
+      const ot = w.overtimeHours ?? 0
+      const bps = w.overtimeMultiplierBps ?? 15_000
+      const plain = Math.max(0, w.hours - ot) * c.billRateCents
+      return n + Math.round((plain + ot * c.billRateCents * (bps / 10_000)) * share)
+    }, 0)
     const expenseCents = myExpenses.reduce((n, e) => n + Math.round(e.amountCents * share), 0)
     const actual = hoursCents + expenseCents
 
+    const valueOfWork = (w: AcceptedWork) => {
+      const ot = w.overtimeHours ?? 0
+      const bps = w.overtimeMultiplierBps ?? 15_000
+      return Math.round((Math.max(0, w.hours - ot) * c.billRateCents + ot * c.billRateCents * (bps / 10_000)) * share)
+    }
     const settled = (paid: boolean) =>
-      mine.filter((w) => w.invoiced && w.paid === paid).reduce((n, w) => n + Math.round(w.hours * c.billRateCents * share), 0) +
+      mine.filter((w) => w.invoiced && w.paid === paid).reduce((n, w) => n + valueOfWork(w), 0) +
       myExpenses.filter((e) => e.invoiced && e.paid === paid).reduce((n, e) => n + Math.round(e.amountCents * share), 0)
 
     const paidCents = settled(true)

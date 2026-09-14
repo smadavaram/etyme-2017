@@ -7,6 +7,77 @@ import { commissionFor } from '@/lib/commission'
 import { orderFor, postCommission, NoRate } from '@/lib/order-postings'
 
 /**
+ * GET — what has been earned, and on what.
+ *
+ * The run posted commissions from the day it was built and nothing
+ * read them back, so the only way to see a recruiter's earnings was a
+ * database query. Postings are the record, so they are what this reads:
+ * one row per person per period, with the contract each came from.
+ */
+export async function GET(request: NextRequest) {
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
+  const notStaff = staffOnly(caller, 'Commissions')
+  if (notStaff) return notStaff
+  if (!hasPermission(caller.permissions, 'payroll.run') && !hasPermission(caller.permissions, 'invoices.read')) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'Commissions are the money desk’s. Ask whoever runs payroll here.' } },
+      { status: 403 }
+    )
+  }
+  const companyId = caller.company!.id
+
+  const postings = await prisma.orderPosting.findMany({
+    where: { companyId, kind: 'COMMISSION' },
+    orderBy: { postedAt: 'desc' },
+    take: 500,
+    select: {
+      id: true, amountCents: true, currency: true, postedAt: true, says: true,
+      person: { select: { id: true, name: true } },
+      projectOrder: { select: { code: true, name: true } },
+    },
+  })
+
+  // Grouped by the person who earned it and the period it landed in,
+  // because "what did Ruth earn in September" is the only question
+  // anybody opens this for.
+  const byKey = new Map<string, {
+    personId: string | null; name: string; period: string
+    amountCents: number; currency: string; lines: { says: string; amountCents: number; order: string }[]
+  }>()
+  for (const p of postings) {
+    const period = p.postedAt.toISOString().slice(0, 7)
+    const key = `${p.person?.id ?? 'none'}:${period}`
+    const row = byKey.get(key) ?? {
+      personId: p.person?.id ?? null,
+      name: p.person?.name ?? 'Unattributed',
+      period, amountCents: 0, currency: p.currency, lines: [],
+    }
+    row.amountCents += p.amountCents
+    row.lines.push({ says: p.says ?? '', amountCents: p.amountCents, order: p.projectOrder?.code ?? '—' })
+    byKey.set(key, row)
+  }
+  const earnings = [...byKey.values()].sort((a, b) => b.period.localeCompare(a.period) || b.amountCents - a.amountCents)
+  const total = earnings.reduce((n, e) => n + e.amountCents, 0)
+
+  const agents = await prisma.buyContract.count({
+    where: { companyId, commissionType: { not: null }, state: { in: ['IN_PROGRESS', 'VERIFIED', 'DRAFT'] } },
+  })
+
+  return NextResponse.json({
+    data: {
+      earnings, agents,
+      mayRun: hasPermission(caller.permissions, 'payroll.run'),
+      summary: agents === 0
+        ? 'Nobody is on a commission agreement here yet. A buy contract with a commission type is what puts them on one.'
+        : earnings.length === 0
+          ? `${agents} ${agents === 1 ? 'person is' : 'people are'} on a commission agreement, and nothing has been run yet.`
+          : `$${Math.round(total / 100).toLocaleString('en-US')} earned across ${earnings.length} ${earnings.length === 1 ? 'person-period' : 'person-periods'}.`,
+    },
+  })
+}
+
+/**
  * POST /api/payroll/commissions   { periodStart, periodEnd }
  *
  * The commission run. For every commission-type buy contract at this

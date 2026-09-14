@@ -14,6 +14,7 @@ import {
 import { minorPerUnit } from '@/lib/money'
 import { whereHoursLive } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
+import { policyOf, splitWeeks } from '@/lib/overtime'
 
 /**
  * POST /api/invoices/generate
@@ -173,6 +174,7 @@ export async function POST(request: NextRequest) {
       sellContract: {
         select: {
           id: true, billRate: true, billCurrency: true, purchaseOrderId: true,
+          overtimeAfterHours: true, overtimeMultiplierBps: true,
           startDate: true,
           // The contract says what a period is. Without these three the
           // period was invented from whatever timesheets happened to be
@@ -203,6 +205,12 @@ export async function POST(request: NextRequest) {
         billRate: ours.billRate,
         billCurrency: ours.billCurrency,
         purchaseOrderId: ours.purchaseOrderId,
+        // From the contract being billed, never the one underneath it.
+        // A prime's overtime terms with its client are its own; reading
+        // the sub's here would bill the client on somebody else's
+        // agreement, the same way reading the sub's rate would.
+        overtimeAfterHours: ours.overtimeAfterHours,
+        overtimeMultiplierBps: ours.overtimeMultiplierBps,
         startDate: ours.startDate,
         billFrequency: ours.billFrequency,
         billAnchor: ours.billAnchor,
@@ -262,6 +270,7 @@ export async function POST(request: NextRequest) {
     billRate: number
     currency: string
     totalHours: number
+    overtimeHours?: number
     amount: number
     timesheetIds: string[]
     periodEnd: Date
@@ -325,12 +334,26 @@ export async function POST(request: NextRequest) {
     // Guard: LEGACY_RULES.md — cannot invoice if time <= 0 or rate <= 0
     if (hours <= 0 || rate <= 0) continue
 
+    // Overtime, where the contract says so. Judged on the real week —
+    // `share.days` is only the days inside the billing period, so a
+    // week split across a month boundary is still weighed whole before
+    // its hours are apportioned.
+    const policy = policyOf(ts.sellContract)
+    const otSplit = splitWeeks((ts.days as Record<string, number>) ?? {}, policy)
+    const otShare = otSplit.overtimeHours > 0 && hours > 0
+      ? Math.min(otSplit.overtimeHours, hours) * (hours / Number(ts.totalHours || hours))
+      : 0
+
     const key = ts.sellContractId
     const existing = linesByContract.get(key)
 
     if (existing) {
       existing.totalHours += hours
-      existing.amount += hours * rate / 100 // convert cents to dollars
+      existing.overtimeHours = (existing.overtimeHours ?? 0) + otShare
+      // Overtime hours are worth the multiplier; the rest are worth the
+      // rate. One place decides that — `lib/overtime` — so an invoice
+      // and a budget can never disagree about what a week was worth.
+      existing.amount += ((hours - otShare) * rate + otShare * rate * (policy.multiplierBps / 10_000)) / 100
       existing.timesheetIds.push(ts.id)
       if (ts.periodEnd > existing.periodEnd) existing.periodEnd = ts.periodEnd
     } else {
@@ -341,7 +364,8 @@ export async function POST(request: NextRequest) {
         billRate: rate,
         currency: ts.sellContract.billCurrency,
         totalHours: hours,
-        amount: hours * rate / 100,
+        overtimeHours: otShare,
+        amount: ((hours - otShare) * rate + otShare * rate * (policy.multiplierBps / 10_000)) / 100,
         timesheetIds: [ts.id],
         // The latest week on the line, so the "invoice to raise" cycle
         // it completes is the one this billing period was heading for.

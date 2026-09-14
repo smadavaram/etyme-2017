@@ -93,6 +93,10 @@ const VENDOR_NAV: NavSection[] = [
       { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Money' },
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
+      // What a recruiter earned on a placement. The run has been there
+      // since commissions were built; nothing in the nav reached it, so
+      // the only way in was the API.
+      { label: 'Commissions', href: '/dashboard/payroll/commissions', icon: '◈', group: 'Money' },
       { label: 'Paperwork', href: '/dashboard/documents', icon: '▪', group: 'Checks & compliance' },
       { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
       { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Checks & compliance' },
@@ -191,6 +195,10 @@ const GSI_NAV: NavSection[] = [
       { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Money' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Money' },
       { label: 'Payroll', href: '/dashboard/payroll', icon: '▩', group: 'Money' },
+      // What a recruiter earned on a placement. The run has been there
+      // since commissions were built; nothing in the nav reached it, so
+      // the only way in was the API.
+      { label: 'Commissions', href: '/dashboard/payroll/commissions', icon: '◈', group: 'Money' },
       { label: 'Paperwork', href: '/dashboard/documents', icon: '▪', group: 'Checks & compliance' },
       { label: 'Check queue', href: '/dashboard/checks', icon: '⊙', group: 'Checks & compliance' },
       { label: 'Automation', href: '/dashboard/automation', icon: '⚙', group: 'Checks & compliance' },
@@ -326,11 +334,30 @@ const CLIENT_NAV: NavSection[] = [
       // it here: a timesheet, an invoice, a PO and an expense each draw
       // on one contract. First in Operate, because the rest of the
       // section is what happens to it.
+      // ── Two desks, two groups ──────────────────────────────────
+      //
+      // Operate and Money were one section, and they are not one job.
+      // HR and indirect procurement administer the workforce — the
+      // contract, the purchase order behind it, the weeks worked and
+      // what was spent on the road. Finance pays for it. The same
+      // person does both only at a small client; at a real one they sit
+      // in different buildings and neither wants the other's screens in
+      // the way.
       { label: 'Contracts', href: '/dashboard/contracts', icon: '▤', group: 'Operate' },
-      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Operate' },
-      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Operate' },
       { label: 'POs', href: '/dashboard/purchase-orders', icon: '▤', group: 'Operate' },
+      { label: 'Timesheets', href: '/dashboard/timesheets', icon: '▦', group: 'Operate' },
       { label: 'Expenses', href: '/dashboard/expenses', icon: '◫', group: 'Operate' },
+      // Money is finance's. A client buys, so its whole money side is
+      // payable: the bills its suppliers send, what is owed and aging,
+      // and the budget all of it draws down.
+      //
+      // No AR and no payroll here, deliberately. Nobody owes a client
+      // money for contract labor, and the supplier employs the
+      // contractor — so both would be a menu entry with nothing behind
+      // it, which this nav already has a rule against.
+      { label: 'Invoices', href: '/dashboard/invoices', icon: '▧', group: 'Money' },
+      { label: 'AP', href: '/dashboard/ap', icon: '◨', group: 'Money' },
+      { label: 'Budget', href: '/dashboard/program/budget', icon: '◱', group: 'Money' },
       { label: 'Ending soon', href: '/dashboard/rolloff', icon: '⚠', group: 'Offboard' },
       { label: 'Past contractors', href: '/dashboard/alumni', icon: '◎', group: 'Offboard' },
     ],
@@ -342,7 +369,6 @@ const CLIENT_NAV: NavSection[] = [
       // answerable for each budget. Three facts that were in three
       // places, none of which showed the result as one picture.
       { label: 'Program team', href: '/dashboard/program/team', icon: '⌸', group: 'Oversight' },
-      { label: 'Budget', href: '/dashboard/program/budget', icon: '◱', group: 'Oversight' },
       { label: 'Org view', href: '/dashboard/program/org', icon: '⬢', group: 'Oversight' },
       { label: 'Compliance', href: '/dashboard/compliance', icon: '◆', group: 'Oversight' },
       { label: 'Document requests', href: '/dashboard/packets', icon: '◱', group: 'Oversight' },

@@ -5,6 +5,7 @@ import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { ledgerFor, type AcceptedExpense, type AcceptedWork, type ContractFact } from '@/lib/budget-ledger'
+import { policyOf, splitWeeks } from '@/lib/overtime'
 
 /**
  * GET   /api/program/budget   — every cost center, what it has committed and spent
@@ -71,8 +72,9 @@ export async function GET(request: NextRequest) {
         prisma.timesheet.findMany({
           where: { sellContractId: { in: contractIds }, clientApprovedAt: { not: null } },
           select: {
-            id: true, sellContractId: true, totalHours: true, acceptedHours: true,
+            id: true, sellContractId: true, totalHours: true, acceptedHours: true, days: true,
             invoiceLines: { select: { invoice: { select: { status: true } } } },
+            sellContract: { select: { overtimeAfterHours: true, overtimeMultiplierBps: true } },
           },
         }),
         prisma.expense.findMany({
@@ -91,13 +93,24 @@ export async function GET(request: NextRequest) {
     paid: lines.some((l) => l.invoice.status === 'PAID'),
   })
 
-  const work: AcceptedWork[] = sheets.map((t) => ({
-    contractId: t.sellContractId,
+  const work: AcceptedWork[] = sheets.map((t) => {
     // Fewer hours accepted than submitted is the accepted figure, never
     // the submitted one: the client is charged for what it signed for.
-    hours: Number(t.acceptedHours ?? t.totalHours),
-    ...cash(t.invoiceLines),
-  }))
+    const hours = Number(t.acceptedHours ?? t.totalHours)
+    const policy = policyOf(t.sellContract)
+    // The overtime split is a weekly judgment on the daily hours, and
+    // it is made in one place for the invoice and for this. Capped at
+    // the accepted hours, so cutting a week back cannot leave more
+    // overtime on it than there are hours.
+    const split = splitWeeks((t.days as Record<string, number>) ?? {}, policy)
+    return {
+      contractId: t.sellContractId,
+      hours,
+      overtimeHours: Math.min(split.overtimeHours, hours),
+      overtimeMultiplierBps: policy.multiplierBps,
+      ...cash(t.invoiceLines),
+    }
+  })
   const spend: AcceptedExpense[] = expenses.map((e) => ({
     contractId: e.sellContractId,
     amountCents: Math.round(Number(e.total) * 100),

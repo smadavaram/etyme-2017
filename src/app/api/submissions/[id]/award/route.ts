@@ -394,6 +394,11 @@ export async function POST(
         hiringManagerId: req.raisedById,
         orgUnitId: req.orgUnitId,
         billRate: awardedRate,
+        // Copied from the role, not read through it. A contract carries
+        // its rate; it carries its overtime terms the same way, so
+        // editing the requisition later cannot reprice a live week.
+        overtimeAfterHours: req.overtimeAfterHours ?? null,
+        overtimeMultiplierBps: req.overtimeMultiplierBps ?? 15_000,
         billCurrency: terms.currency.value,
         paymentTerms: terms.paymentTermsDays.value,
         state: 'DRAFT',

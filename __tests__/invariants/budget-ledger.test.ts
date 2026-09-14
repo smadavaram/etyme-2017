@@ -214,3 +214,44 @@ describe('every contract under the cost center, which is the other half of the q
     expect(l.unknowns.join(' ')).toMatch(/no end date/)
   })
 })
+
+describe('overtime against the budget', () => {
+  it('an overtime hour draws more from the budget than an ordinary one', () => {
+    const c = contract({ startDate: new Date('2026-09-07'), endDate: new Date('2026-09-21') })
+    const plain = ledgerFor({
+      budgetCents: 100_000_00, contracts: [c],
+      work: [{ contractId: 'c1', hours: 45, invoiced: false, paid: false }],
+      expenses: [], on: ON,
+    })
+    const withOt = ledgerFor({
+      budgetCents: 100_000_00, contracts: [c],
+      work: [{ contractId: 'c1', hours: 45, overtimeHours: 5, overtimeMultiplierBps: 15_000, invoiced: false, paid: false }],
+      expenses: [], on: ON,
+    })
+    expect(withOt.actualCents - plain.actualCents).toBe(Math.round(5 * 9800 * 0.5))
+    // And it eats the commitment by exactly what it cost, so the two
+    // still add to the contract.
+    expect(withOt.committedCents + withOt.actualCents).toBe(contractValueOf(c))
+  })
+
+  it('a week with no overtime is worth exactly what it always was', () => {
+    const c = contract({ startDate: new Date('2026-09-07'), endDate: new Date('2026-09-21') })
+    const l = ledgerFor({
+      budgetCents: 100_000_00, contracts: [c],
+      work: [{ contractId: 'c1', hours: 40, overtimeHours: 0, invoiced: false, paid: false }],
+      expenses: [], on: ON,
+    })
+    expect(l.actualCents).toBe(40 * 9800)
+  })
+
+  it('what is paid carries the overtime too, so cash and cost stay the same shape', () => {
+    const c = contract({ startDate: new Date('2026-09-07'), endDate: new Date('2026-09-21') })
+    const l = ledgerFor({
+      budgetCents: 100_000_00, contracts: [c],
+      work: [{ contractId: 'c1', hours: 45, overtimeHours: 5, overtimeMultiplierBps: 20_000, invoiced: true, paid: true }],
+      expenses: [], on: ON,
+    })
+    expect(l.paidCents).toBe(l.actualCents)
+    expect(l.actualCents).toBe(40 * 9800 + 5 * 9800 * 2)
+  })
+})

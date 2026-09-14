@@ -134,6 +134,7 @@ export async function POST(request: NextRequest) {
     title, skills, location, headcount, billMin, billMax, months,
     neededBy, justification, costCenterId, orgUnitId, raisedById,
     budget, hoursPerWeek, description,
+    overtimeAfterHours, overtimeMultiplierBps,
     // Whose need it is, when somebody raises it on their behalf.
     ownerId: ownerAsked,
   } = body
@@ -337,6 +338,14 @@ export async function POST(request: NextRequest) {
         justification: justification ?? null,
         budgetCents: Number.isFinite(budget) && Number(budget) > 0 ? Number(budget) : null,
         hoursPerWeek: Number.isFinite(hoursPerWeek) && Number(hoursPerWeek) > 0 ? Number(hoursPerWeek) : null,
+        // Straight time unless the role says otherwise. A rate that
+        // multiplies itself because a field was left blank is the kind
+        // of error that reaches an invoice before anybody notices.
+        overtimeAfterHours:
+          Number.isFinite(overtimeAfterHours) && Number(overtimeAfterHours) > 0 ? Number(overtimeAfterHours) : null,
+        ...(Number.isFinite(overtimeMultiplierBps) && Number(overtimeMultiplierBps) > 0
+          ? { overtimeMultiplierBps: Number(overtimeMultiplierBps) }
+          : {}),
         costCenterId: costCenter?.id ?? null,
         orgUnitId: team,
         raisedById: raiser,

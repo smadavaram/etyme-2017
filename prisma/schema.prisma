@@ -1369,14 +1369,23 @@ model Requirement {
   /// twenty-hour validation seat was valued at twice its cost and routed
   /// for an approval it did not need.
   hoursPerWeek Int?
-  months       Int?
-  startDate    DateTime?
-  status       String    @default("OPEN") // DRAFT · OPEN · FILLED · CLOSED
-  source       String    @default("MANUAL") // MANUAL · EMAIL · VMS · NETWORK
-  parseConf    Json? // per field confidence when it came from a parser
+
+  /// Hours in a week after which overtime is paid. Null is straight
+  /// time, which is most corp-to-corp work and is the default because a
+  /// rate nobody set should never quietly multiply itself.
+  overtimeAfterHours    Int?
+  /// What an overtime hour is worth, in basis points of the rate.
+  /// 15000 is time and a half. Set beside the threshold so a client on
+  /// double time past sixty does not need a code change.
+  overtimeMultiplierBps Int       @default(15000)
+  months                Int?
+  startDate             DateTime?
+  status                String    @default("OPEN") // DRAFT · OPEN · FILLED · CLOSED
+  source                String    @default("MANUAL") // MANUAL · EMAIL · VMS · NETWORK
+  parseConf             Json? // per field confidence when it came from a parser
   // Addendum D: rate transparency per requirement
-  marginClass  String? // ARBITRAGE · EXPERTISE — distinguishes opacity-based vs capability-based margin
-  rateVisible  Boolean   @default(false) // vendor rate visibility setting, inherited by contracts
+  marginClass           String? // ARBITRAGE · EXPERTISE — distinguishes opacity-based vs capability-based margin
+  rateVisible           Boolean   @default(false) // vendor rate visibility setting, inherited by contracts
 
   /// Whether any supplier may see this, or only the ones invited.
   ///
@@ -2170,16 +2179,25 @@ model SellContract {
   // How the end client splits this cost across their budgets.
   costAllocations ContractCostAllocation[]
 
-  billRate           Int // cents per hour
-  billCurrency       String            @default("USD")
-  paymentTerms       Int               @default(30) // NET days — cascades from MSA, overridable
-  state              SellContractState @default(DRAFT)
-  startDate          DateTime
-  endDate            DateTime?
-  conversionFee      Int? // contract-to-hire conversion fee (cents)
-  conversionEligible DateTime? // earliest eligible date
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  billRate Int // cents per hour
+
+  /// Hours in a week after which overtime is paid. Null is straight
+  /// time, which is most corp-to-corp work and is the default because a
+  /// rate nobody set should never quietly multiply itself.
+  overtimeAfterHours    Int?
+  /// What an overtime hour is worth, in basis points of the rate.
+  /// 15000 is time and a half. Set beside the threshold so a client on
+  /// double time past sixty does not need a code change.
+  overtimeMultiplierBps Int               @default(15000)
+  billCurrency          String            @default("USD")
+  paymentTerms          Int               @default(30) // NET days — cascades from MSA, overridable
+  state                 SellContractState @default(DRAFT)
+  startDate             DateTime
+  endDate               DateTime?
+  conversionFee         Int? // contract-to-hire conversion fee (cents)
+  conversionEligible    DateTime? // earliest eligible date
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
 
   /// Somebody named to approve this contract's timesheets without
   /// company-wide timesheets.approve.
