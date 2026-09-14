@@ -162,6 +162,7 @@ export const DOMAINS: Domain[] = [
       'app/api/checks', 'app/api/why',
       'lib/openings', 'lib/lead-reader', 'lib/requirement-quality',
       'lib/screening', 'lib/checks', 'lib/award', 'lib/first-good', 'lib/chain-top', 'lib/timesheet-flag',
+      'lib/budget-ledger', 'app/api/program/budget', 'app/dashboard/program/budget',
       'lib/invitation-visibility', 'lib/outcomes', 'lib/review',
       'lib/resolve-client-company', 'lib/resolve-end-client',
       'lib/timesheet-authority', 'lib/timesheet-reversal', 'lib/work-ledger',

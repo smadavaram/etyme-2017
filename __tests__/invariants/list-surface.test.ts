@@ -28,7 +28,18 @@ describe('every list, two ways', () => {
   it('the reader’s choice is remembered per list, on their device, and never breaks the page when storage is blocked', () => {
     const src = read('src/components/list-surface.tsx')
     expect(src).toContain('window.localStorage.getItem(key)')
-    expect(src).toMatch(/try \{ const saved = window\.localStorage\.getItem\(key\).*\} catch \{\}/)
+    // What matters is that every touch of storage is inside a try, not
+    // how it is laid out. This pinned the whole statement on one line
+    // and failed the first time it was reformatted, which taught
+    // nothing about whether the page still survives blocked storage.
+    for (const call of ['getItem(key)', 'setItem(key, v)']) {
+      const at = src.indexOf(call)
+      expect(at, `${call} is not there at all`).toBeGreaterThan(-1)
+      const before = src.slice(0, at)
+      const after = src.slice(at)
+      expect(before.lastIndexOf('try {'), `${call} is not inside a try`).toBeGreaterThan(before.lastIndexOf('catch {}'))
+      expect(after.indexOf('catch {}'), `${call} has no catch after it`).toBeGreaterThan(-1)
+    }
   })
   it('at least a dozen list pages use it', () => {
     const users = pages.filter((p) => read(p).includes("from '@/components/list-surface'"))

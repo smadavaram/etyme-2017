@@ -43,6 +43,11 @@ const DELIBERATE: Record<string, string> = {
   'src/app/dashboard/program/page.tsx':
     'Six numbers with one figure each. Two across at 390 is still ' +
     'readable; one across is a page of scrolling before the first list.',
+  'src/app/dashboard/program/budget/page.tsx':
+    'Budget, committed, spent, left — four figures that are read as a ' +
+    'set, because the fourth is the first three subtracted. Two across ' +
+    'keeps all four in one glance on a phone; one across puts the ' +
+    'answer below the fold, under the numbers it comes from.',
 }
 
 describe('The app is opened on a phone, and the layout knows it', () => {

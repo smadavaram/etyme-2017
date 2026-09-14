@@ -23,6 +23,14 @@ export interface ListSurfaceProps<T> extends DataTableProps<T> {
   /** Remembers the view under this name; defaults to exportName. */
   name?: string
   defaultView?: View
+  /**
+   * Drive the view from the page, for a list whose two views are not
+   * interchangeable for acting — a table row that starts something the
+   * card finishes has to be able to move the reader to the card.
+   * Uncontrolled and remembered per reader when left out, as before.
+   */
+  view?: View
+  onView?: (v: View) => void
   /** A richer card than the one derived from the columns. */
   card?: (row: T) => ReactNode
   /** Columns to leave off the derived card (an action column, say). */
@@ -30,13 +38,23 @@ export interface ListSurfaceProps<T> extends DataTableProps<T> {
 }
 
 export function ListSurface<T extends Record<string, any>>(props: ListSurfaceProps<T>) {
-  const { name, defaultView = 'table', card, feedOmit = [], ...table } = props
+  const { name, defaultView = 'table', card, feedOmit = [], view: given, onView, ...table } = props
   const key = `etyme.view.${name ?? table.exportName ?? 'list'}`
-  const [view, setView] = useState<View>(defaultView)
+  const [own, setOwn] = useState<View>(defaultView)
+  const view = given ?? own
   useEffect(() => {
-    try { const saved = window.localStorage.getItem(key); if (saved === 'feed' || saved === 'table') setView(saved) } catch {}
+    try {
+      const saved = window.localStorage.getItem(key)
+      if (saved === 'feed' || saved === 'table') { setOwn(saved); onView?.(saved) }
+    } catch {}
+    // The remembered choice is read once, on mount, for this list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
-  const choose = (v: View) => { setView(v); try { window.localStorage.setItem(key, v) } catch {} }
+  const choose = (v: View) => {
+    setOwn(v)
+    onView?.(v)
+    try { window.localStorage.setItem(key, v) } catch {}
+  }
 
   return (
     <div className={table.className}>

@@ -293,7 +293,7 @@ describe('somebody placed twice, years apart, through two agencies', () => {
    * sequential placements as a live bidding war and a fourteen-month
    * rate progression as a price spread.
    */
-  const lucia = () => ({
+  const lucia = (): Person => ({
     personId: 'lucia', name: 'Lucía Fernández', capMonths: 18,
     barred: null,
     stints: [
