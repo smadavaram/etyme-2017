@@ -253,9 +253,9 @@ export const DOMAINS: Domain[] = [
       'app/dashboard/data', 'app/dashboard/automation', 'app/dashboard/checks',
       'app/api/health', 'app/api/demo', 'app/demo', 'app/api/auth', 'app/api/companies',
       // Ready for a real company: the edges, judged and shown.
-      'lib/readiness', 'lib/readiness-facts', 'app/api/ready', 'app/ready',
+      'lib/readiness', 'lib/readiness-facts', 'app/api/ready', 'app/ready', 'components/reseed-button',
       // Somebody is told when it breaks: the diary, the reporter, the boundaries.
-      'lib/alerts', 'lib/cron-auth', 'app/api/incidents', 'app/error', 'app/global-error',
+      'lib/alerts', 'lib/staff', 'lib/cron-auth', 'app/api/incidents', 'app/error', 'app/global-error',
       'app/api/cron', 'app/api/import',
       'components/',
     ],

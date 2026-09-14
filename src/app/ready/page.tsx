@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { EtymeLogo } from '@/components/logo'
+import { ReseedButton } from '@/components/reseed-button'
 import { assess, type Edge } from '@/lib/readiness'
 import { gatherFacts } from '@/lib/readiness-facts'
 
@@ -86,6 +87,15 @@ function Row({ edge }: { edge: Edge }) {
         </div>
         <p className="mt-1 text-sm text-etyme-ink">{edge.says}</p>
         {edge.fix && <p className="mt-1 text-sm text-etyme-muted">{edge.fix}</p>}
+        {/* The one row whose fix this page can carry out itself. It
+            draws nothing unless the server says the reader is staff.
+
+            Shown even when the row reads green: the seed is idempotent,
+            and hiding the only remedy behind this page's own assessment
+            means a wrong assessment leaves staff with no way out but a
+            bearer token in a browser console — which is the thing this
+            button exists to end. */}
+        {edge.key === 'demo' && <ReseedButton proven={edge.state === 'PROVEN'} />}
       </div>
     </div>
   )

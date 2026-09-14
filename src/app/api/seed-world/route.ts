@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
+import { callerIsStaff } from '@/lib/staff'
 import { timingSafeEqual } from 'node:crypto'
 import { seedWorld } from '@/lib/seed-world'
 
@@ -31,7 +32,22 @@ export const maxDuration = 60
  *
  * ── The guard ────────────────────────────────────────────────────────
  *
- * `Authorization: Bearer <CRON_SECRET>`, compared in constant time.
+ * Two credentials, and a caller needs one of them.
+ *
+ * `Authorization: Bearer <CRON_SECRET>`, compared in constant time — for
+ * a machine, and for anybody holding the secret.
+ *
+ * Or a signed-in member of Etyme's own staff: an address in
+ * `ETYME_STAFF_EMAILS`. That list already means "our own people" — it
+ * is who hears when this deployment breaks — and the people who may
+ * reseed a demo world are the same set. One variable rather than two,
+ * because a second one is a second thing to forget.
+ *
+ * It exists so the founder can press a button instead of pasting a
+ * bearer token into a browser console, which is what re-seeding took
+ * before and is not a thing to ask of somebody who does not write code.
+ * With the list unset nobody qualifies and the refusal says to set it —
+ * the same variable the alerting row on /ready is already asking for.
  *
  * Deliberately not the comparison the cron routes use. They test
  * `header !== ` + "`Bearer ${process.env.CRON_SECRET}`" + `, which on a deployment
@@ -47,6 +63,18 @@ export const maxDuration = 60
  * rather than duplicating, and the roster it returns is the same either
  * way.
  */
+
+/**
+ * GET /api/seed-world — may whoever is asking press the button?
+ *
+ * So the page can leave it off the screen rather than show a control
+ * that refuses on click. Says nothing about the world itself; /api/ready
+ * already reports that, and this one answers only about the caller.
+ */
+export async function GET() {
+  const verdict = await callerIsStaff()
+  return NextResponse.json({ data: { mayReseed: verdict.ok, says: verdict.says } })
+}
 
 /** Constant time, and false when either side is missing. */
 function sameSecret(given: string | null, expected: string | undefined): boolean {
@@ -64,7 +92,14 @@ export async function POST(request: NextRequest) {
   const secret = process.env.CRON_SECRET
   const offered = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? null
 
-  if (!secret) {
+  // A signed-in member of staff needs no secret. Checked first so that a
+  // deployment with no CRON_SECRET at all is still usable by us, and so
+  // the refusal a person reads is about them rather than about a
+  // variable they were not asked for.
+  const staff = offered === null ? await callerIsStaff() : { ok: false, says: '' }
+  if (staff.ok) {
+    // Falls through to the seed below.
+  } else if (!secret) {
     // No secret configured. In development that is ordinary and the route
     // is a convenience; anywhere else it means the guard cannot be
     // enforced, and a writing route with no guard should not answer.
@@ -73,7 +108,9 @@ export async function POST(request: NextRequest) {
         {
           error: {
             code: 'NO_SECRET',
-            message: 'CRON_SECRET is not set on this deployment, so this route refuses to run.',
+            message:
+              'CRON_SECRET is not set on this deployment, so this route refuses to run.' +
+              (staff.says ? ` ${staff.says}` : ''),
           },
         },
         { status: 503 }
@@ -81,7 +118,14 @@ export async function POST(request: NextRequest) {
     }
   } else if (!sameSecret(offered, secret)) {
     return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Bearer CRON_SECRET required.' } },
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: offered === null
+            ? staff.says
+            : 'That is not the CRON_SECRET for this deployment.',
+        },
+      },
       { status: 401 }
     )
   }

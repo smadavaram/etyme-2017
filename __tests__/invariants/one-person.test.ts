@@ -213,7 +213,7 @@ describe('an ordinary single submission', () => {
 describe('ordering the register', () => {
   function m(over: Partial<Merged>): Merged {
     return {
-      personId: 'x', name: 'Zed', vendors: 1, vendorNames: [], spread: null,
+      personId: 'x', name: 'Zed', vendors: 1, vendorNames: [], sellingNames: [], spread: null,
       monthsHere: 0, headroomMonths: 12, barred: false, state: 'SUBMITTED',
       roles: [], offers: [], stints: [], says: '', unknowns: [],
       ...over,
@@ -252,7 +252,7 @@ describe('ordering the register', () => {
 describe('the line above the register', () => {
   function m(over: Partial<Merged>): Merged {
     return {
-      personId: 'x', name: 'x', vendors: 1, vendorNames: [], spread: null,
+      personId: 'x', name: 'x', vendors: 1, vendorNames: [], sellingNames: [], spread: null,
       monthsHere: 0, headroomMonths: null, barred: false, state: 'SUBMITTED',
       roles: [], offers: [], stints: [], says: '', unknowns: [],
       ...over,
@@ -276,5 +276,69 @@ describe('the line above the register', () => {
 
   it('says nothing clever about an empty register', () => {
     expect(summarize([])).toBe('Nobody has been put in front of you yet.')
+  })
+})
+
+describe('somebody placed twice, years apart, through two agencies', () => {
+  /**
+   * Lucía Fernández on the seeded Nike desk, and the row the founder
+   * could not make sense of:
+   *
+   *   "2 suppliers are selling them. 25 months here already — past your
+   *    cap. $89 from one supplier, $98 from another — $9 apart."
+   *
+   * She was placed in May 2025 through Brightmoor at $89, finished, and
+   * was placed again in July 2026 through Pinnacle at $98. Nobody is
+   * competing over her and nobody is being undercut. The row read two
+   * sequential placements as a live bidding war and a fourteen-month
+   * rate progression as a price spread.
+   */
+  const lucia = () => ({
+    personId: 'lucia', name: 'Lucía Fernández', capMonths: 18,
+    barred: null,
+    stints: [
+      { months: 13, endedAt: new Date('2026-06-28'), vendorName: 'Brightmoor Staffing' },
+      { months: 12, endedAt: new Date('2027-08-12'), vendorName: 'Pinnacle Resourcing' },
+    ],
+    offers: [
+      { vendorName: 'Brightmoor Staffing', vendorId: 'b', rateCents: 8900, submittedAt: new Date('2025-05-07'), requirementId: 'r1', roleTitle: 'Demand planner', cleared: null, state: 'PLACED' as const },
+      { vendorName: 'Pinnacle Resourcing', vendorId: 'p', rateCents: 9800, submittedAt: new Date('2026-07-21'), requirementId: 'r2', roleTitle: 'Supply chain planning analyst', cleared: null, state: 'PLACED' as const },
+    ],
+  })
+
+  it('is not described as two suppliers selling her, because both submissions already ended in a placement', () => {
+    expect(merge(lucia(), NOW).says).not.toMatch(/suppliers are selling/)
+  })
+
+  it('does not call fourteen months of rate progression a price spread', () => {
+    const m = merge(lucia(), NOW)
+    expect(m.spread).toBeNull()
+    expect(m.says).not.toMatch(/apart/)
+  })
+
+  it('still says the thing that actually matters — her time here, across both agencies, past the cap', () => {
+    expect(merge(lucia(), NOW).says).toBe('25 months here already — past your cap.')
+  })
+
+  it('keeps both agencies on the row, because a client wants to know everybody who has represented her', () => {
+    expect(merge(lucia(), NOW).vendorNames).toEqual(['Brightmoor Staffing', 'Pinnacle Resourcing'])
+    expect(merge(lucia(), NOW).sellingNames).toEqual([])
+  })
+
+  it('and when two agencies really are selling her at once, it says so and compares their prices', () => {
+    const now = lucia()
+    now.offers[0] = { ...now.offers[0], state: 'SUBMITTED' as const }
+    now.offers[1] = { ...now.offers[1], state: 'INTERVIEWING' as const }
+    const m = merge(now, NOW)
+    expect(m.says).toMatch(/2 suppliers are selling them right now/)
+    expect(m.spread?.says).toMatch(/\$9 apart/)
+    expect(m.vendors).toBe(2)
+  })
+
+  it('somebody on site with nothing outstanding is told plainly that nothing needs them', () => {
+    const quiet = lucia()
+    quiet.capMonths = null
+    quiet.stints = []
+    expect(merge(quiet, NOW).says).toBe('On site here. Nothing needs you.')
   })
 })

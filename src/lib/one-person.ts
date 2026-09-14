@@ -72,7 +72,10 @@ export interface Merged {
   name: string
   /** How many suppliers are selling this person right now. */
   vendors: number
+  /** Everybody who has ever represented them here. */
   vendorNames: string[]
+  /** Only those with a submission still in play. */
+  sellingNames: string[]
   spread: Spread | null
   /** Months worked here, across every supplier. */
   monthsHere: number
@@ -121,8 +124,23 @@ const RANK: Record<Offer['state'], number> = {
  */
 export const WORTH_MENTIONING = 0.1
 
+/**
+ * Still in play — a supplier is actually selling them right now.
+ *
+ * PLACED is not: that submission did its job and ended in an
+ * engagement. Counting it made a person with two consecutive
+ * placements, fourteen months apart through two agencies, read as two
+ * agencies competing over them today — and put a 2025 rate beside a
+ * 2026 one and called the difference a spread. The founder read that
+ * row and asked what on earth was happening, which is the right
+ * question to ask of a screen saying two contradictory things at once.
+ */
+const OPEN: readonly Offer['state'][] = ['SUBMITTED', 'INTERVIEWING', 'OFFERED']
+const isOpen = (o: Offer) => OPEN.includes(o.state)
+
 export function merge(p: Person, now: Date): Merged {
   const live = p.offers.filter((o) => o.state !== 'REJECTED')
+  const selling = p.offers.filter(isOpen)
 
   // Keyed on the id, not the name. Two suppliers can be called Apex
   // Staffing, and collapsing them by name would show one firm where
@@ -130,10 +148,21 @@ export function merge(p: Person, now: Date): Merged {
   // submission rather than surfacing it.
   const byId = new Map<string, string>()
   for (const o of p.offers) if (!byId.has(o.vendorId)) byId.set(o.vendorId, o.vendorName)
+  // Everybody who has ever represented them, for the row's subtitle: a
+  // client wants the whole list, including the firm that placed them
+  // two years ago.
   const vendorNames = [...byId.values()]
 
-  const rates = p.offers.map((o) => o.rateCents).filter((r): r is number => r != null)
-  const spread = rateSpread(rates, vendorNames.length)
+  // And, separately, whoever is selling them today. Only these two are
+  // a competition, and only their prices are comparable — two rates
+  // from different years are a progression, which is a healthy thing
+  // and not something to flag.
+  const sellingById = new Map<string, string>()
+  for (const o of selling) if (!sellingById.has(o.vendorId)) sellingById.set(o.vendorId, o.vendorName)
+  const sellingNames = [...sellingById.values()]
+
+  const rates = selling.map((o) => o.rateCents).filter((r): r is number => r != null)
+  const spread = rateSpread(rates, sellingNames.length)
 
   const monthsHere = p.stints.reduce((n, s) => n + s.months, 0)
   const headroom = p.capMonths == null ? null : p.capMonths - monthsHere
@@ -163,8 +192,9 @@ export function merge(p: Person, now: Date): Merged {
   return {
     personId: p.personId,
     name: p.name,
-    vendors: new Set(live.map((o) => o.vendorId)).size,
+    vendors: sellingNames.length,
     vendorNames,
+    sellingNames,
     spread,
     monthsHere,
     headroomMonths: headroom,
@@ -173,7 +203,7 @@ export function merge(p: Person, now: Date): Merged {
     roles: [...new Set(p.offers.map((o) => o.roleTitle))],
     offers: [...p.offers].sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime()),
     stints: p.stints,
-    says: sentence(p, monthsHere, headroom, vendorNames, spread, state),
+    says: sentence(p, monthsHere, headroom, sellingNames, spread, state),
     unknowns,
   }
 }
@@ -220,7 +250,7 @@ function sentence(
   const bits: string[] = []
 
   if (vendorNames.length > 1) {
-    bits.push(`${vendorNames.length} suppliers are selling them`)
+    bits.push(`${vendorNames.length} suppliers are selling them right now`)
   }
 
   // Ordered so the thing that stops a hire comes before the thing that
@@ -238,6 +268,7 @@ function sentence(
   if (spread?.says) bits.push(spread.says.replace(/\.$/, ''))
 
   if (bits.length === 0) {
+    if (state === 'PLACED') return 'On site here. Nothing needs you.'
     return vendorNames.length === 1
       ? `Put forward by ${vendorNames[0]}.`
       : 'Nothing unusual on this one.'
