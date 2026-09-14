@@ -39,6 +39,9 @@ model Person {
   // agreement can cover several people at their own rates.
   buyCandidacies         BuyContractCandidate[]
   timesheets             Timesheet[]
+  overtimeDecisions      OvertimeDecision[]     @relation("overtimeDecider")
+  timeOff                TimeOffEntry[]         @relation("timeOffPerson")
+  timeOffRecorded        TimeOffEntry[]         @relation("timeOffBy")
   invoiceLines           InvoiceLine[]
   matchOverrides         InvoiceMatchOverride[]
   verifications          Verification[]
@@ -477,11 +480,13 @@ model Company {
   ordersBillTo SalesOrder[] @relation("orderBillTo")
   ordersPayer  SalesOrder[] @relation("orderPayer")
 
-  invoicesSoldTo Invoice[]       @relation("invoiceSoldTo")
-  invoicesBillTo Invoice[]       @relation("invoiceBillTo")
-  invoicesPayer  Invoice[]       @relation("invoicePayer")
-  IdentityMatch  IdentityMatch[]
-  WorkAssertion  WorkAssertion[]
+  invoicesSoldTo    Invoice[]          @relation("invoiceSoldTo")
+  invoicesBillTo    Invoice[]          @relation("invoiceBillTo")
+  invoicesPayer     Invoice[]          @relation("invoicePayer")
+  IdentityMatch     IdentityMatch[]
+  WorkAssertion     WorkAssertion[]
+  overtimeDecisions OvertimeDecision[] @relation("overtimeDecidingCompany")
+  timeOffEntries    TimeOffEntry[]     @relation("timeOffCompany")
 
   orderPostings       OrderPosting[]
   clientOrderPostings OrderPosting[] @relation("postingClient")
@@ -812,6 +817,9 @@ model WorkAssertion {
   supersedesId String?        @unique
   supersedes   WorkAssertion? @relation("supersedes", fields: [supersedesId], references: [id])
   supersededBy WorkAssertion? @relation("supersedes")
+
+  /// The overtime decision made alongside this signature, where one was.
+  overtimeDecision OvertimeDecision?
 
   @@index([timesheetId, state])
   @@index([companyId, role, state])
@@ -2209,16 +2217,18 @@ model SellContract {
   approverPersonId String?
   approver         Person? @relation("contractApprover", fields: [approverPersonId], references: [id])
 
-  buyLinks     ContractLink[] // linked buy contracts (for profitability)
+  buyLinks          ContractLink[] // linked buy contracts (for profitability)
   /// Buy contracts, at whichever firm is above us, that this contract is
   /// the supply side of. One hop up the ladder.
-  suppliesBuys BuyContract[]  @relation("suppliedBy")
-  timesheets   Timesheet[]
-  invoiceLines InvoiceLine[]
-  sellCycles   Cycle[]        @relation("sellCycles")
-  rolloff      RolloffEvent?
-  docs         DocInstance[]  @relation("sellDocs")
-  expenses     Expense[]
+  suppliesBuys      BuyContract[]      @relation("suppliedBy")
+  timesheets        Timesheet[]
+  invoiceLines      InvoiceLine[]
+  sellCycles        Cycle[]            @relation("sellCycles")
+  rolloff           RolloffEvent?
+  overtimeDecisions OvertimeDecision[]
+  timeOffEntries    TimeOffEntry[]
+  docs              DocInstance[]      @relation("sellDocs")
+  expenses          Expense[]
   // ── What a period is, on this contract ─────────────────────────────
   //
   // The contract says what a period is; the timesheet does not. Invoice
@@ -2647,10 +2657,177 @@ model Timesheet {
   /// only so the two-party history still reads.
   assertions WorkAssertion[]
 
+  /// Hours in this sheet that are paid leave drawn from the bank, not
+  /// worked. Same shape as `days`: ISO date → hours.
+  ///
+  /// Per day rather than a sheet total, because the overtime threshold
+  /// is judged per week and a semi-monthly sheet holds two of them. A
+  /// scalar cannot say which week the leave fell in — and leave that
+  /// counts toward the threshold manufactures fresh overtime, which
+  /// banks more leave. That loop is the sharpest correctness risk here.
+  leaveDays Json?
+
+  /// What was decided about this sheet's overtime. One row per week per leg.
+  overtimeDecisions OvertimeDecision[]
+  /// Banked hours this sheet drew down as paid leave.
+  timeOffDraws      TimeOffEntry[]     @relation("timeOffDraws")
+
   @@unique([sellContractId, periodStart])
   @@index([status])
   /// a consultant's own timesheet list
   @@index([personId])
+}
+
+/// What a client does with the hours above the weekly threshold.
+///
+/// Decided at approval, each week, by whoever signs the work — never
+/// applied because a multiplier was sitting on a contract. A threshold
+/// says which hours may be claimed; it does not say what they are worth.
+/// Three answers are ordinary and none of them is a default: bill them
+/// flat, bill them at a premium, or bank them as time off and bill them
+/// later as paid leave.
+///
+/// ── Why per leg and per week ─────────────────────────────────────────
+///
+/// Per leg, because a prime's overtime terms with its client are its
+/// own. Reading the sub's would bill the client on somebody else's
+/// agreement, which is the error `InvoiceLine`'s unique key exists to
+/// prevent one rung further down.
+///
+/// Per week, because overtime is a weekly fact and a semi-monthly
+/// timesheet holds two and a bit weeks. One decision per sheet cannot
+/// say "week one at a premium, week two as time off", and quietly
+/// reintroduces the per-timesheet arithmetic `lib/overtime` exists to
+/// stop.
+model OvertimeDecision {
+  id String @id @default(cuid())
+
+  timesheetId String
+  timesheet   Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+
+  /// The leg. A prime's decision with its client is not its sub's
+  /// decision with the prime, the same way the rate is not.
+  sellContractId String
+  sellContract   SellContract @relation(fields: [sellContractId], references: [id], onDelete: Cascade)
+
+  /// The Monday the week began — `weekStart()` in lib/overtime, the same
+  /// function the split uses. A semi-monthly sheet gets a row per
+  /// overtime week.
+  weekOf DateTime @db.Date
+
+  /// SAME_RATE · PREMIUM · TIME_OFF
+  ///
+  /// SAME_RATE  the threshold was passed and nobody is paying extra.
+  /// PREMIUM    worth the multiplier below, which the approver chose.
+  /// TIME_OFF   not billed now; banked, and billed later as paid leave.
+  treatment String
+
+  // ── The terms as they stood when somebody decided ──────────────────
+  //
+  // Snapshotted, following InvoiceMatchOverride.invoiceTotalCentsAtOverride:
+  // a later reader must be able to tell whether the decision still
+  // describes the same contract. RateHistory means these move.
+
+  /// Hours above the threshold in this week, on this leg, at decision
+  /// time. Recomputing and finding a different number is the signal that
+  /// the sheet was amended and the decision no longer describes the week.
+  overtimeHours Decimal @db.Decimal(7, 2)
+  /// The threshold that produced them.
+  afterHours    Int
+  /// What the contract said an overtime hour was worth.
+  multiplierBps Int
+  /// What was actually applied. 10000 for SAME_RATE, the approver's
+  /// choice for PREMIUM, 0 for TIME_OFF. The invoice prices from this
+  /// and never from the contract, so amending terms cannot restate an
+  /// invoice already sent.
+  appliedBps    Int
+
+  /// One hour off per overtime hour unless somebody says otherwise. A
+  /// bank that quietly multiplies itself is the same error as a rate
+  /// that does. Only read when treatment is TIME_OFF.
+  accrualBps Int @default(10000)
+
+  decidedById        String
+  decidedBy          Person   @relation("overtimeDecider", fields: [decidedById], references: [id])
+  /// Which company's position this is. A sub cannot decide the client's leg.
+  decidedByCompanyId String
+  decidedByCompany   Company  @relation("overtimeDecidingCompany", fields: [decidedByCompanyId], references: [id])
+  decidedAt          DateTime @default(now())
+  /// Asked for on TIME_OFF and on a multiplier that differs from the
+  /// contract's; free elsewhere.
+  reason             String?
+
+  /// The signature this was made alongside, where the chain ledger is in play.
+  workAssertionId String?        @unique
+  workAssertion   WorkAssertion? @relation(fields: [workAssertionId], references: [id])
+
+  /// Set when this reaches an invoice. Immutable from then on: a
+  /// decision that has been billed is history, not a setting.
+  billedAt DateTime?
+
+  timeOff TimeOffEntry[]
+
+  /// One decision per week per leg.
+  @@unique([timesheetId, sellContractId, weekOf])
+  @@index([sellContractId, weekOf])
+  @@index([decidedById])
+  @@index([decidedByCompanyId])
+}
+
+/// Hours banked instead of billed, and hours taken back out.
+///
+/// A ledger, not a balance. The grain here — WorkAssertion, OrderPosting,
+/// AccessLog, AutomationLog — is append-only, and a mutable `balance`
+/// column cannot answer "what was banked in March" at all, which is one
+/// of the two questions asked of it. The balance is the sum of the rows.
+model TimeOffEntry {
+  id String @id @default(cuid())
+
+  personId       String
+  person         Person        @relation("timeOffPerson", fields: [personId], references: [id])
+  /// Whose books this sits on — the company that owes the hours. A
+  /// person's bank at one supplier is not their bank at another. Unlike
+  /// tenure, this is a commercial obligation of one counterparty, not an
+  /// exposure of the person, so it does not aggregate across firms.
+  companyId      String
+  company        Company       @relation("timeOffCompany", fields: [companyId], references: [id])
+  /// The leg it arose on, for provenance and for the rate it bills at.
+  sellContractId String?
+  sellContract   SellContract? @relation(fields: [sellContractId], references: [id])
+
+  /// ACCRUAL · DRAW · PAYOUT · EXPIRY · ADJUSTMENT
+  ///
+  /// Stored rather than inferred from the sign: a payout and an expiry
+  /// are both negative and mean entirely different things to the person.
+  kind String
+
+  /// Signed. Positive adds, negative takes away. The balance is the sum.
+  hours Decimal @db.Decimal(7, 2)
+
+  /// The decision that banked it. Unique: a decision banks once, ever —
+  /// this is the idempotency guard, not a nicety.
+  decisionId String?           @unique
+  decision   OvertimeDecision? @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+
+  /// The week of leave that drew it down.
+  drawnByTimesheetId String?
+  drawnByTimesheet   Timesheet? @relation("timeOffDraws", fields: [drawnByTimesheetId], references: [id])
+
+  effectiveOn DateTime  @db.Date
+  /// Null is the default and means it does not lapse. A client who wants
+  /// a use-by gets one when they ask, not because a legacy client might.
+  expiresOn   DateTime? @db.Date
+
+  byId      String?
+  by        Person?  @relation("timeOffBy", fields: [byId], references: [id])
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([personId, companyId, effectiveOn])
+  @@index([companyId, kind, effectiveOn])
+  @@index([drawnByTimesheetId])
+  @@index([sellContractId])
+  @@index([byId])
 }
 
 model Invoice {
