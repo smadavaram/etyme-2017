@@ -5,6 +5,7 @@ import { staffOnly } from '@/lib/seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { merge, order, summarize, type Person, type Offer } from '@/lib/one-person'
 import { bestMatchPerPerson, type Candidate } from '@/lib/identity-resolution'
+import { says as inviteSays, stepsOf as inviteSteps, STATE_WORD, type Answer, type InviteState } from '@/lib/contractor-invite'
 
 /**
  * GET /api/people — everyone who has been put in front of you, merged
@@ -17,6 +18,16 @@ import { bestMatchPerPerson, type Candidate } from '@/lib/identity-resolution'
  * Scoped to submissions addressed to this company. A person a supplier
  * has on their bench and has never put forward here is none of this
  * client's business.
+ *
+ * ── And the people this client asked for itself ──────────────────────
+ *
+ * Built from submissions, the register cannot hold the one person a
+ * hiring manager is surest about: somebody they already know, who no
+ * supplier has put forward. Those are the Pending rows — an open
+ * `ContractorInvitation` each — and they carry the step rather than a
+ * rate, because until a supplier represents them there is no rate to
+ * carry. They leave Pending by becoming an ordinary row, the moment a
+ * supplier submits them.
  */
 
 const DAY = 86_400_000
@@ -243,8 +254,53 @@ export async function GET(request: NextRequest) {
     }
   })
 
+  // ── Pending: asked by this client, not yet put forward by anybody ──
+  //
+  // A separate query rather than a join: these people are on the
+  // register for a different reason and carry different facts, and
+  // folding them into the submission scan would mean inventing an
+  // empty submission for each.
+  const invites = await prisma.contractorInvitation.findMany({
+    where: { companyId, state: { in: ['ASKED', 'NEEDS_SUPPLIER', 'REPRESENTED'] } },
+    orderBy: { createdAt: 'desc' },
+  })
+  const inviteSupplierIds = invites.map((i) => i.supplierCompanyId).filter((x): x is string => !!x)
+  const inviteSuppliers = inviteSupplierIds.length
+    ? await prisma.company.findMany({ where: { id: { in: inviteSupplierIds } }, select: { id: true, name: true } })
+    : []
+  const inviteSupplierName = new Map(inviteSuppliers.map((c) => [c.id, c.name]))
+
+  const pending = invites.map((i) => {
+    const state = i.state as InviteState
+    const answer = i.answer as unknown as Answer | null
+    const supplierName = i.supplierCompanyId ? inviteSupplierName.get(i.supplierCompanyId) ?? null : null
+    const line = inviteSays({ state, name: i.name, answer, supplierName })
+    return {
+      inviteId: i.id,
+      personId: i.personId,
+      name: i.name,
+      skills: i.skills,
+      state,
+      stateWord: STATE_WORD[state],
+      steps: inviteSteps(state),
+      says: line.now,
+      next: line.next,
+      supplierName,
+      firmNamed: answer?.firmName ?? null,
+      askedAt: i.createdAt.toISOString(),
+      // The five questions every Network list answers, so one filter
+      // bar reads both kinds of row.
+      onSite: false,
+      lastEngagement: i.createdAt.toISOString(),
+      favorite: false,
+      blocked: false,
+      location: null,
+      pending: true,
+    }
+  })
+
   return NextResponse.json({
-    data: { people, summary: summarize(rows), capMonths },
+    data: { people, pending, summary: summarize(rows), capMonths },
   })
 }
 

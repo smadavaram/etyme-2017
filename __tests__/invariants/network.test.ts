@@ -19,12 +19,22 @@ describe('the five questions every Network list answers', () => {
   it('reads Everyone · On site now · Recent engagement · Favorites · Pending · Blocked, in that order', () => {
     expect(NETWORK_FILTERS.map((f) => FILTER_WORD[f])).toEqual(['Everyone', 'On site now', 'Recent engagement', 'Favorites', 'Pending', 'Blocked'])
   })
-  it('Pending is the firms still in the pipeline; a list with nothing pending does not offer the filter', () => {
+  it('Pending is whoever is still in a pipeline — a firm walking the desks, or somebody asked who no supplier has put forward yet', () => {
     const rows = [row({ id: 'p', pending: { stageWord: 'HR' } } as any), row({ id: 'q' })]
     expect(applyFilter(rows, 'PENDING', null, now).map((r) => r.id)).toEqual(['p'])
     expect(read('src/components/network-view.tsx')).toContain('NETWORK_FILTERS.filter((f) => counts[f] !== undefined)')
     expect(read('src/app/dashboard/suppliers/page.tsx')).toContain('PENDING: listed.filter((r) => !!r.pending).length')
-    expect(read('src/app/dashboard/people/page.tsx')).not.toContain('PENDING:')
+  })
+
+  it('a list offers Pending only once something is behind it — Contractors had nothing until a client could ask for somebody itself', () => {
+    // This read `not.toContain('PENDING:')` on the contractors page,
+    // which was the truth while the register was built from submissions
+    // alone: nobody could be pending because nobody could be on it
+    // without a supplier. Now a client can ask for somebody it already
+    // knows, so the rule to hold is the general one both lists follow —
+    // the count is offered conditionally, never hard-coded on.
+    const page = read('src/app/dashboard/people/page.tsx')
+    expect(page).toContain('...(pending.length > 0 ? { PENDING: pending.length } : {})')
   })
   it('somebody engaged within ninety days is recent; ninety-one days ago is not; never engaged is not', () => {
     expect(isRecent('2026-06-16T00:00:00Z', now)).toBe(true)

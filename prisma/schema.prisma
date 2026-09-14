@@ -387,13 +387,14 @@ model Company {
   // Conversations
   conversations         Conversation[]
   // Threads another company opened with this one (a client to its supplier).
-  threadsWithMe         Conversation[] @relation("ConversationWith")
+  threadsWithMe         Conversation[]          @relation("ConversationWith")
   // Blacklist
   blacklists            Blacklist[]
   // The people and firms this company would take again
   favorites             Favorite[]
   // Suppliers recommended here, waiting on Procurement
   supplierRequests      SupplierRequest[]
+  contractorInvitations ContractorInvitation[]
   // Locations
   locations             CompanyLocation[]
   // Holidays
@@ -706,7 +707,8 @@ model OrderMilestone {
 
   createdAt DateTime @default(now())
 
-  invoiceLines    InvoiceLine[]
+  invoiceLines InvoiceLine[]
+
   @@index([orderId, status])
 }
 
@@ -989,7 +991,8 @@ model Counterparty {
   // The standing a client gives a supplier: PROBATION · APPROVED · PREFERRED.
   // Read by the VENDOR_TIER rule; set from the suppliers page. Null means
   // never rated, and an agreement on file counts as APPROVED.
-  tier         String?
+  tier String?
+
   @@unique([companyId, otherCompanyId, relationship])
   @@index([otherCompanyId])
   @@index([companyId, status])
@@ -2727,30 +2730,30 @@ model Invoice {
 // Lifecycle: DRAFT → SUBMITTED → APPROVED → INVOICED → PAID  or  → REJECTED at any point.
 // BUILD.md §6.3: "Client-billable expenses appear on invoices."
 model Expense {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   companyId      String
-  company        Company      @relation(fields: [companyId], references: [id])
+  company        Company       @relation(fields: [companyId], references: [id])
   sellContractId String
-  sellContract   SellContract @relation(fields: [sellContractId], references: [id])
+  sellContract   SellContract  @relation(fields: [sellContractId], references: [id])
   personId       String // consultant who incurred the expense
-  person         Person       @relation(fields: [personId], references: [id])
+  person         Person        @relation(fields: [personId], references: [id])
   category       String // TRAVEL · EQUIPMENT · TRAINING · RELOCATION · MEALS · OTHER
-  billable       Boolean      @default(true) // client-billable vs internal company expense
+  billable       Boolean       @default(true) // client-billable vs internal company expense
   description    String
   periodStart    DateTime
   periodEnd      DateTime
   items          Json // [{ description, quantity, unitPrice, expenseType }]
-  total          Decimal      @db.Decimal(12, 2)
+  total          Decimal       @db.Decimal(12, 2)
   receiptUrl     String?
-  status         String       @default("DRAFT") // DRAFT · SUBMITTED · APPROVED · INVOICED · PAID · REJECTED
+  status         String        @default("DRAFT") // DRAFT · SUBMITTED · APPROVED · INVOICED · PAID · REJECTED
   submittedAt    DateTime?
   approvedById   String?
   approvedAt     DateTime?
   rejectedReason String?
   invoiceId      String? // linked when invoiced (client-billable only)
   invoiceLines   InvoiceLine[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([companyId, status])
   @@index([sellContractId])
@@ -3596,9 +3599,9 @@ model InvoiceLine {
   /// Null on an expense line: a client-billable expense rides on the
   /// next invoice as a line of its own, with the expense behind it.
   timesheetId String?
-  timesheet   Timesheet? @relation(fields: [timesheetId], references: [id])
+  timesheet   Timesheet?      @relation(fields: [timesheetId], references: [id])
   expenseId   String?
-  expense     Expense?   @relation(fields: [expenseId], references: [id])
+  expense     Expense?        @relation(fields: [expenseId], references: [id])
   /// A milestone line: a fixed sum on a sales order, accepted by the
   /// client, with no person and no contract of its own behind it.
   milestoneId String?
@@ -3607,7 +3610,7 @@ model InvoiceLine {
   sellContractId String?
   sellContract   SellContract? @relation(fields: [sellContractId], references: [id])
   personId       String?
-  person         Person?      @relation(fields: [personId], references: [id])
+  person         Person?       @relation(fields: [personId], references: [id])
 
   // Cents throughout, matching every other rate in the schema.
   // Invoice.total remains a Decimal in whole currency; the two are reconciled
@@ -3803,44 +3806,98 @@ model Blacklist {
 /// then, a company row, an agreement stub and a register row are
 /// written — the same three the paste flow writes.
 model SupplierRequest {
-  id              String   @id @default(cuid())
-  companyId       String
-  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  name            String
-  domain          String?
-  contactName     String?
-  contactEmail    String?
-  reason          String
+  id                String    @id @default(cuid())
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name              String
+  domain            String?
+  contactName       String?
+  contactEmail      String?
+  reason            String
   /// What the firm supplies, in the recommender's words; HR reads it.
-  skills          String[] @default([])
-  recommendedById String
+  skills            String[]  @default([])
+  recommendedById   String
   /// RECOMMENDED · IN_REVIEW · APPROVED · DECLINED
-  state           String   @default("RECOMMENDED")
+  state             String    @default("RECOMMENDED")
   /// Which desk it is on: LEAD · PROCUREMENT · HR · FINANCE · DONE.
   /// The first desk, so a row written without one starts where the
   /// chain starts. It defaulted to TEAM, a desk that stopped existing
   /// when the chain became four — which routed to Finance and then
   /// walked backwards.
-  stage           String   @default("LEAD")
+  stage             String    @default("LEAD")
   /// [{ stage, outcome: APPROVED|DECLINED, byId, byName, at, note }]
-  decisions       Json     @default("[]")
+  decisions         Json      @default("[]")
   /// [{ key, label, required, by: VENDOR|PROCUREMENT, state: MISSING|PROVIDED|HELD|WAIVED, note, at, fileName }]
-  checklist       Json
+  checklist         Json
   /// The vendor's own link: they apply and upload against it, no
   /// sign-in. A bearer credential, so it is generated the way every
   /// other one here is — from the crypto random, never a cuid, which
   /// is ordered and guessable from a neighbour.
-  token           String   @unique
-  linkSentAt      DateTime?
+  token             String    @unique
+  linkSentAt        DateTime?
   /// What the vendor supplied through the link.
-  application     Json?
-  decidedById     String?
-  decidedAt       DateTime?
-  decisionNote    String?
+  application       Json?
+  decidedById       String?
+  decidedAt         DateTime?
+  decisionNote      String?
   supplierCompanyId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
+  @@index([companyId, state])
+}
+
+/// Somebody the client's own team wants on its network, who no supplier
+/// has put in front of it yet.
+///
+/// The register of contractors is built from submissions, which is
+/// right — a person is on it because a firm put them there. It leaves
+/// out the case a hiring manager hits most often: somebody they already
+/// know. A contractor who finished here last year, a referral, a name
+/// from a conference. "Ask for them" refuses all three with "that
+/// person has not been put in front of you", which is true and useless.
+///
+/// The invitation is the other door. It never makes the client the
+/// employer — co-employment is the exposure this product exists to
+/// measure — and Etyme places nobody, so it always ends with a supplier
+/// holding the paper. Three ways it can, and all three are honored:
+/// the person is already on an approved supplier's bench; they name a
+/// firm this client does not have, which then walks the four desks; or
+/// nobody represents them and the client picks one of its own
+/// suppliers to take them on.
+model ContractorInvitation {
+  id                String    @id @default(cuid())
+  companyId         String
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// Who they are, as the person inviting them knows them.
+  name              String
+  email             String
+  /// What they do, in the inviter's words, so the supplier asked to
+  /// represent them knows what they are being asked about.
+  skills            String[]  @default([])
+  /// Why we want them — worked here before, a referral, met at a show.
+  reason            String
+  invitedById       String
+  /// ASKED · REPRESENTED · NEEDS_SUPPLIER · JOINED · DECLINED · WITHDRAWN
+  state             String    @default("ASKED")
+  /// Their own link: they answer against it with nothing to sign up
+  /// for. A bearer credential, so it is crypto random and never a cuid.
+  token             String    @unique
+  linkSentAt        DateTime?
+  /// What they said: { interested, represents, firmName, note, at }
+  answer            Json?
+  /// The firm that represents them, where this client already has it.
+  supplierCompanyId String?
+  /// The firm they named that this client does not have — its own walk.
+  supplierRequestId String?
+  /// The person on the register, once a supplier has put them forward.
+  personId          String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  /// One open invitation per person per client. Asking twice is the
+  /// same ask, not a second one.
+  @@unique([companyId, email])
   @@index([companyId, state])
 }
 
@@ -3870,10 +3927,10 @@ model Favorite {
 // ─────────────────────────────────────────────
 
 model Conversation {
-  id           String    @id @default(cuid())
+  id            String    @id @default(cuid())
   // Whose thread it is: the company that opened it.
-  companyId    String
-  company      Company   @relation(fields: [companyId], references: [id])
+  companyId     String
+  company       Company   @relation(fields: [companyId], references: [id])
   // The other company on the thread, when there is one.
   //
   // A company's own notes on a role have none. A client's question to one
@@ -3884,14 +3941,14 @@ model Conversation {
   // CV, kept because it is still what the demand side wants.
   withCompanyId String?
   withCompany   Company?  @relation("ConversationWith", fields: [withCompanyId], references: [id])
-  topic        String    @default("GENERAL") // GENERAL · REQUIREMENT · CONTRACT · SUBMISSION · DOCUMENT · INVOICE · EXPENSE · DIRECT
-  topicId      String? // links to the entity (requirementId, sellContractId, etc.)
-  title        String? // null for direct messages; auto-generated for topic threads
-  participants Json // [{ personId, name, companyId?, joinedAt }]
-  parentId     String? // branch conversations (sub-chats)
-  archivedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  topic         String    @default("GENERAL") // GENERAL · REQUIREMENT · CONTRACT · SUBMISSION · DOCUMENT · INVOICE · EXPENSE · DIRECT
+  topicId       String? // links to the entity (requirementId, sellContractId, etc.)
+  title         String? // null for direct messages; auto-generated for topic threads
+  participants  Json // [{ personId, name, companyId?, joinedAt }]
+  parentId      String? // branch conversations (sub-chats)
+  archivedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   messages Message[]
 

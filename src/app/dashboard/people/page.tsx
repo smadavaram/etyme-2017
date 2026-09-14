@@ -35,6 +35,31 @@ interface Offer {
   state: string
 }
 
+/**
+ * Somebody this client asked for itself, who no supplier has put
+ * forward yet. A different kind of row: no rate, no tenure, no
+ * supplier — a step, and whatever the client has to do next.
+ */
+interface Pending {
+  inviteId: string
+  name: string
+  skills: string[]
+  state: string
+  stateWord: string
+  steps: { label: string; status: string }[]
+  says: string
+  next: string | null
+  supplierName: string | null
+  firmNamed: string | null
+  askedAt: string
+}
+
+interface Supplier {
+  companyId: string
+  name: string
+  tier: string | null
+}
+
 interface Row {
   personId: string
   name: string
@@ -82,6 +107,12 @@ const TONE: Record<string, string> = {
 export default function PeoplePage() {
   const router = useRouter()
   const [rows, setRows] = useState<Row[]>([])
+  const [pending, setPending] = useState<Pending[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [asking, setAsking] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [said, setSaid] = useState<string | null>(null)
+  const [picking, setPicking] = useState<string | null>(null)
   const [summary, setSummary] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -97,6 +128,7 @@ export default function PeoplePage() {
       const res = await fetch('/api/people')
       const body = await readJson(res)
       setRows(body.data.people)
+      setPending(body.data.pending ?? [])
       setSummary(body.data.summary)
       setError(null)
     } catch (err: any) {
@@ -124,6 +156,42 @@ export default function PeoplePage() {
     }
   }
 
+  /** Ask somebody we already know. */
+  async function ask(form: { name: string; email: string; skills: string; reason: string }) {
+    setBusy(true)
+    try {
+      const body = await readJson(await fetch('/api/contractor-invites', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(form),
+      }))
+      setSaid(body.data.says)
+      setAsking(false)
+      setFilter('PENDING')
+      await load()
+    } catch (err: any) { setError(err.message) } finally { setBusy(false) }
+  }
+
+  /** The client's side of an answer: pick a firm, sponsor theirs, or stop. */
+  async function act(inviteId: string, payload: Record<string, unknown>) {
+    setBusy(true)
+    try {
+      const body = await readJson(await fetch(`/api/contractor-invites/${inviteId}`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+      }))
+      setSaid(body.data.says)
+      setPicking(null)
+      await load()
+    } catch (err: any) { setError(err.message) } finally { setBusy(false) }
+  }
+
+  /** Only fetched when somebody actually has to pick one. */
+  const loadSuppliers = useCallback(async () => {
+    if (suppliers.length > 0) return
+    try {
+      const body = await readJson(await fetch('/api/suppliers'))
+      setSuppliers((body.data.suppliers ?? []).filter((x: Supplier) => x.tier === 'APPROVED' || x.tier === 'PREFERRED'))
+    } catch { /* the picker says so below */ }
+  }, [suppliers.length])
+
   const places = useMemo(() => locationsOf(rows), [rows])
   const shown = useMemo(() => applyFilter(rows, filter, place, now), [rows, filter, place, now])
   const counts = useMemo(() => ({
@@ -131,8 +199,11 @@ export default function PeoplePage() {
     ON_SITE: rows.filter((r) => r.onSite && !r.blocked).length,
     RECENT: rows.filter((r) => isRecent(r.lastEngagement, now) && !r.blocked).length,
     FAVORITES: rows.filter((r) => r.favorite && !r.blocked).length,
+    // Offered only once there is something behind it, the rule every
+    // Network filter follows.
+    ...(pending.length > 0 ? { PENDING: pending.length } : {}),
     BLOCKED: rows.filter((r) => r.blocked).length,
-  }), [rows, now])
+  }), [rows, pending, now])
 
   const columns: Column<Row>[] = [
     {
@@ -156,6 +227,14 @@ export default function PeoplePage() {
     },
   ]
 
+  const pendingColumns: Column<Pending>[] = [
+    { key: 'name', label: 'Person', render: (p) => <span className="text-etyme-ink">{p.name}</span>, sortValue: (p) => p.name },
+    { key: 'skills', label: 'What they do', render: (p) => <span className="text-etyme-muted">{p.skills.join(', ') || '—'}</span> },
+    { key: 'stateWord', label: 'Step', render: (p) => <span className="chip chip--passive">{p.stateWord}</span>, sortValue: (p) => p.stateWord },
+    { key: 'supplierName', label: 'Through', render: (p) => <span className="text-etyme-muted">{p.supplierName ?? p.firmNamed ?? '—'}</span> },
+    { key: 'askedAt', label: 'Asked', render: (p) => <span className="tabular-nums text-etyme-muted">{when(p.askedAt)}</span>, sortValue: (p) => p.askedAt, hideOnMobile: true },
+  ]
+
   return (
     <div className="mx-auto max-w-[980px] space-y-6 px-4 py-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -167,8 +246,24 @@ export default function PeoplePage() {
             Every fact here sits in a different vendor&rsquo;s system and none of them can see the others.
           </p>
         </div>
-        <ViewToggle view={view} onChange={setView} />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => { setAsking((v) => !v); setSaid(null) }}
+            className="rounded-lg border border-etyme-rule bg-etyme-surface px-3 py-2 text-[13px] text-etyme-ink hover:border-etyme-ink"
+          >
+            {asking ? 'Not now' : 'Ask somebody you know'}
+          </button>
+          <ViewToggle view={view} onChange={setView} />
+        </div>
       </header>
+
+      {asking && <AskForm busy={busy} onSubmit={ask} />}
+
+      {said && (
+        <div className="panel">
+          <p className="text-[13px] text-etyme-ink">{said}</p>
+        </div>
+      )}
 
       <p className="border-b border-etyme-rule pb-4 text-[14px] text-etyme-ink">{summary}</p>
 
@@ -182,21 +277,122 @@ export default function PeoplePage() {
         </div>
       )}
 
-      {!loading && rows.length === 0 && !error && (
+      {!loading && rows.length === 0 && pending.length === 0 && !error && (
         <div className="panel">
           <p className="text-[13px] text-etyme-muted">
-            Nobody yet. This fills in as suppliers put people forward.
+            Nobody yet. This fills in as suppliers put people forward — and if there is
+            somebody you already want, ask them yourself.
           </p>
         </div>
       )}
 
-      {!loading && rows.length > 0 && shown.length === 0 && (
+      {/* ── Pending: asked by you, not yet put forward by anybody ── */}
+      {!loading && filter === 'PENDING' && (
+        view === 'table' ? (
+          <DataTable<Pending>
+            columns={pendingColumns}
+            data={pending}
+            rowKey={(p) => p.inviteId}
+            searchPlaceholder="Search by name or skill…"
+            searchFilter={(p, q) => `${p.name} ${p.skills.join(' ')}`.toLowerCase().includes(q.toLowerCase())}
+            exportName="asked"
+            defaultPageSize={50}
+            emptyMessage={emptyWord('PENDING', place, 'people')}
+          />
+        ) : (
+          pending.map((p) => (
+            <article key={p.inviteId} className="panel">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[15px] font-semibold text-etyme-ink">{p.name}</p>
+                  <p className="text-[12px] text-etyme-faint">
+                    {p.skills.join(', ') || 'What they do was not recorded'} · asked {when(p.askedAt)}
+                  </p>
+                </div>
+                <span className="chip chip--passive shrink-0">{p.stateWord}</span>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {p.steps.map((st) => (
+                  <span
+                    key={st.label}
+                    className={`rounded-full px-2 py-0.5 text-[11px] ${
+                      st.status === 'done' ? 'bg-etyme-verified/10 text-etyme-verified'
+                      : st.status === 'now' ? 'bg-etyme-ink text-white'
+                      : 'bg-etyme-canvas text-etyme-faint'
+                    }`}
+                  >
+                    {st.label}
+                  </span>
+                ))}
+              </div>
+
+              <p className="mt-3 text-[13px] text-etyme-muted">{p.says}</p>
+              {p.next && <p className="mt-1 text-[13px] text-etyme-attention">{p.next}</p>}
+
+              {p.next && (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {p.firmNamed && (
+                    <button
+                      disabled={busy}
+                      onClick={() => act(p.inviteId, { action: 'sponsor' })}
+                      className="rounded-lg bg-etyme-action px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-40"
+                    >
+                      Recommend {p.firmNamed}
+                    </button>
+                  )}
+                  {picking === p.inviteId ? (
+                    <select
+                      autoFocus
+                      aria-label={`A supplier to take ${p.name} on`}
+                      disabled={busy}
+                      defaultValue=""
+                      onChange={(e) => e.target.value && act(p.inviteId, { action: 'pick', supplierCompanyId: e.target.value })}
+                      className="rounded-lg border border-etyme-rule bg-etyme-surface px-2 py-1.5 text-[12px]"
+                    >
+                      <option value="" disabled>Which of your suppliers?</option>
+                      {suppliers.map((sup) => <option key={sup.companyId} value={sup.companyId}>{sup.name}</option>)}
+                      {suppliers.length === 0 && <option value="" disabled>No approved suppliers yet</option>}
+                    </select>
+                  ) : (
+                    <button
+                      disabled={busy}
+                      onClick={() => { setPicking(p.inviteId); void loadSuppliers() }}
+                      className="rounded-lg border border-etyme-rule px-3 py-1.5 text-[12px] text-etyme-ink hover:border-etyme-ink disabled:opacity-40"
+                    >
+                      Pick one of your suppliers
+                    </button>
+                  )}
+                  <button
+                    disabled={busy}
+                    onClick={() => act(p.inviteId, { action: 'withdraw' })}
+                    className="text-[12px] text-etyme-muted hover:text-etyme-ink disabled:opacity-40"
+                  >
+                    Stop asking
+                  </button>
+                </div>
+              )}
+            </article>
+          ))
+        )
+      )}
+
+      {/* Pending draws its own rows below, so the register's empty panel
+          must stand down — it fired anyway and showed the suppliers
+          sentence under a perfectly full Pending list. */}
+      {!loading && filter !== 'PENDING' && rows.length > 0 && shown.length === 0 && (
         <div className="panel">
-          <p className="text-[13px] text-etyme-muted">{emptyWord(filter, place)}</p>
+          <p className="text-[13px] text-etyme-muted">{emptyWord(filter, place, 'people')}</p>
         </div>
       )}
 
-      {view === 'table' && rows.length > 0 && (
+      {!loading && filter === 'PENDING' && pending.length === 0 && (
+        <div className="panel">
+          <p className="text-[13px] text-etyme-muted">{emptyWord('PENDING', place, 'people')}</p>
+        </div>
+      )}
+
+      {view === 'table' && filter !== 'PENDING' && rows.length > 0 && (
         <DataTable<Row>
           columns={columns}
           data={shown}
@@ -206,12 +402,12 @@ export default function PeoplePage() {
           onRowClick={(r) => router.push(`/dashboard/people/${r.personId}` as any)}
           exportName="contractors"
           defaultPageSize={50}
-          emptyMessage={emptyWord(filter, place)}
+          emptyMessage={emptyWord(filter, place, 'people')}
           rowClassName={(r) => (r.blocked ? 'opacity-70' : '')}
         />
       )}
 
-      {view === 'feed' && shown.map((r) => (
+      {view === 'feed' && filter !== 'PENDING' && shown.map((r) => (
         <article key={r.personId} className="panel">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -325,5 +521,70 @@ export default function PeoplePage() {
         </article>
       ))}
     </div>
+  )
+}
+
+/**
+ * Asking somebody you already know.
+ *
+ * Four fields, and the one that matters is the last: the reason is read
+ * by the person themselves and by the supplier asked to represent them,
+ * so it is not paperwork. The note under the form says plainly that
+ * this does not hire anybody, because a hiring manager who thinks it
+ * does will be surprised later, and surprise is the thing a product
+ * nobody is trained on cannot afford.
+ */
+function AskForm({ busy, onSubmit }: {
+  busy: boolean
+  onSubmit: (form: { name: string; email: string; skills: string; reason: string }) => void
+}) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [skills, setSkills] = useState('')
+  const [reason, setReason] = useState('')
+  const ready = name.trim().length > 1 && email.trim().length > 3 && reason.trim().length >= 10
+
+  return (
+    <form
+      className="panel space-y-3"
+      onSubmit={(e) => { e.preventDefault(); if (ready) onSubmit({ name, email, skills, reason }) }}
+    >
+      <p className="text-[13px] text-etyme-ink">
+        Somebody you have worked with, or been referred. They hear from you by email.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="lbl">Their name</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Lucía Fernández"
+            className="mt-1 w-full rounded border border-etyme-rule px-2 py-1.5 text-[13px]" />
+        </label>
+        <label className="block">
+          <span className="lbl">Their email</span>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="lucia@example.com"
+            className="mt-1 w-full rounded border border-etyme-rule px-2 py-1.5 text-[13px]" />
+        </label>
+      </div>
+      <label className="block">
+        <span className="lbl">What they do</span>
+        <input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="Demand planning, S&amp;OP"
+          className="mt-1 w-full rounded border border-etyme-rule px-2 py-1.5 text-[13px]" />
+      </label>
+      <label className="block">
+        <span className="lbl">Why you want them</span>
+        <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2}
+          placeholder="Finished a twelve-month stint on our planning team last year and we would take her back."
+          className="mt-1 w-full rounded border border-etyme-rule px-2 py-1.5 text-[13px]" />
+      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={!ready || busy}
+          className="rounded-lg bg-etyme-action px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-40">
+          Ask them
+        </button>
+        <p className="text-[12px] text-etyme-muted">
+          This does not hire them. You contract through suppliers, so they will be asked who
+          represents them — and if nobody does, you pick one of your own firms to take them on.
+        </p>
+      </div>
+    </form>
   )
 }

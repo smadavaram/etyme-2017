@@ -87,13 +87,24 @@ export function Star({ on, onClick, name }: { on: boolean; onClick: (e: MouseEve
   )
 }
 
-export function emptyWord(filter: NetworkFilter, place: string | null): string {
+/**
+ * `of` is what the list holds — 'firms' or 'people'.
+ *
+ * Pending means something different on each and the word has to follow:
+ * a firm is pending while it walks the desks, a person while nobody has
+ * put them forward yet. The contractors list showed the firms sentence
+ * for a week because this took no argument.
+ */
+export function emptyWord(filter: NetworkFilter, place: string | null, of: 'firms' | 'people' = 'firms'): string {
   const where = place ? ` in ${place}` : ''
   switch (filter) {
     case 'ON_SITE': return `Nobody on site${where} right now.`
     case 'RECENT': return `Nobody engaged${where} in the last ninety days.`
     case 'FAVORITES': return `Nobody marked to take again${where} yet. The star on a row does it.`
-    case 'PENDING': return `Nothing in the pipeline${where}. Recommend a supplier and it shows here until every desk has said yes.`
+    case 'PENDING':
+      return of === 'people'
+        ? `Nobody waiting${where}. Ask somebody you already know and they show here until a supplier puts them forward.`
+        : `Nothing in the pipeline${where}. Recommend a supplier and it shows here until every desk has said yes.`
     case 'BLOCKED': return `Nobody blocked${where}.`
     default: return `Nobody${where}.`
   }
