@@ -28,6 +28,7 @@
  * there, and an audit six months later needs to find them.
  */
 
+import { hasPermission } from '@/lib/permissions'
 export type AccessState = 'INVITED' | 'ACTIVE' | 'SUSPENDED' | 'REVOKED'
 
 export interface AccessRow {
@@ -74,7 +75,7 @@ function othersWhoCanManage(rows: AccessRow[], excludingContextId: string): numb
       !r.suspendedAt &&
       // An invited person who has never signed in cannot rescue anybody.
       r.hasSignedIn &&
-      (r.rolePermissions.includes('*') || r.rolePermissions.includes('team.manage'))
+      hasPermission(r.rolePermissions, 'team.manage')
   ).length
 }
 
@@ -89,7 +90,7 @@ export function canSuspend(target: AccessRow, all: AccessRow[]): Verdict {
   }
 
   const canManage =
-    target.rolePermissions.includes('*') || target.rolePermissions.includes('team.manage')
+    hasPermission(target.rolePermissions, 'team.manage')
 
   if (canManage && othersWhoCanManage(all, target.contextId) === 0) {
     return {
@@ -141,7 +142,7 @@ export function canRevoke(target: AccessRow, all: AccessRow[]): Verdict {
   }
 
   const canManage =
-    target.rolePermissions.includes('*') || target.rolePermissions.includes('team.manage')
+    hasPermission(target.rolePermissions, 'team.manage')
 
   if (canManage && othersWhoCanManage(all, target.contextId) === 0) {
     return {

@@ -5,6 +5,7 @@ import { staffOnly } from '@/lib/seat'
 import { notify } from '@/lib/notify'
 import { desksFor, deskPeople } from '@/lib/supplier-desks'
 import { applyUrl, newApplyToken, sendLink } from '@/lib/supplier-link'
+import { hasPermission } from '@/lib/permissions'
 import {
   mayRecommend, mayActAt, newChecklist, readiness, stepsOf, STAGE_WORD,
   type ChecklistItem, type Decision, type Stage, type RequestState,
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
         }
       })),
       mayRecommend: mayRecommend(caller.permissions),
-      mayDecide: caller.permissions.includes('vendors.manage'),
+      mayDecide: hasPermission(caller.permissions, 'vendors.manage'),
     },
   })
 }

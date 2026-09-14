@@ -34,6 +34,7 @@
  * — which is what they are owed — and not for how much.
  */
 
+import { hasPermission } from '@/lib/permissions'
 export type Via =
   /** The next party is on Etyme, so the hop becomes a real submission. */
   | 'ONWARD'
@@ -86,7 +87,7 @@ export function mayForward(
   s: Submission,
   to: Destination
 ): Verdict {
-  if (!actor.permissions.includes('*') && !actor.permissions.includes('submissions.create')) {
+  if (!hasPermission(actor.permissions, 'submissions.create')) {
     return {
       ok: false,
       code: 'NO_PERMISSION',

@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
         // Roles rather than headcount alone, because the fix for a wrong
         // answer is editing a role.
         canSeeOutside: roles
-          .filter((r) => r.permissions.includes('network.read') || r.permissions.includes('*'))
+          .filter((r) => hasPermission(r.permissions, 'network.read'))
           .map((r) => ({ role: r.name, heldBy: heldBy.get(r.id) ?? 0 })),
       },
       roles: roles.map((r) => ({

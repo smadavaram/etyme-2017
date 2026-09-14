@@ -44,6 +44,8 @@
  * somebody switches between two email accounts.
  */
 
+import { hasPermission, type Permission } from '@/lib/permissions'
+
 /** What a context is doing. Not what the company is. */
 export type Side = 'BUY' | 'SELL'
 
@@ -161,7 +163,10 @@ export function may(actor: Actor, permission: string, subject: Subject): Verdict
     }
   }
 
-  if (!actor.permissions.includes(permission)) {
+  // Through the helper: a company owner holds ['*'] and a literal match
+  // on the permission name does not see it, which refused the owner
+  // their own records.
+  if (!hasPermission(actor.permissions, permission as Permission)) {
     return { allowed: false, says: `Your role does not include ${permission}.` }
   }
 

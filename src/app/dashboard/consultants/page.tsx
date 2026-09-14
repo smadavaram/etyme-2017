@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { compact } from '@/lib/money-display'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ListSurface, type Column } from '@/components/list-surface'
+import { hasPermission } from '@/lib/permissions'
 
 /**
  * Consultants working surface — the company's talent pool.
@@ -762,7 +763,7 @@ export default function ConsultantsPage() {
         rateMax: c.listings?.[0]?.rateMax ?? c.rateMax ?? null,
       }))
       setConsultants(mapped)
-      setHasCostPermission(body.data?.permissions?.includes('consultants.cost') ?? false)
+      setHasCostPermission(hasPermission(body.data?.permissions ?? [], 'consultants.cost'))
     } catch (err: any) {
       setError(err.message)
       setConsultants([])

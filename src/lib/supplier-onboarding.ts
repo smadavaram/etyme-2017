@@ -10,6 +10,8 @@
  * decides their own recommendation, and nobody decides two desks.
  */
 
+import { hasPermission } from '@/lib/permissions'
+
 export const STAGES = ['LEAD', 'PROCUREMENT', 'HR', 'FINANCE', 'DONE'] as const
 export type Stage = (typeof STAGES)[number]
 
@@ -86,9 +88,18 @@ export function newChecklist(): ChecklistItem[] {
   return CHECKLIST.map((c) => ({ ...c, state: 'MISSING', note: null, at: null, fileName: null }))
 }
 
-/** Anybody who may raise a requirement may recommend a supplier for it. */
+/**
+ * Anybody who may raise a requirement may recommend a supplier for it.
+ *
+ * Through `hasPermission`, never a raw `includes`. A company's owner
+ * holds `['*']` — everything — and a literal match on the permission
+ * name does not see it, so the one person who set the company up was
+ * the one person with no way to recommend a supplier. The page told
+ * them it was possible and showed them no button. Every check on this
+ * chain had the same hole; they all go through the helper now.
+ */
 export function mayRecommend(permissions: readonly string[]): boolean {
-  return permissions.includes('requirements.write') || permissions.includes('vendors.manage')
+  return hasPermission(permissions, 'requirements.write') || hasPermission(permissions, 'vendors.manage')
 }
 
 export interface Decision {
@@ -182,12 +193,12 @@ export function mayActAt(input: {
   if (input.decisions.some((d) => d.byId === callerId)) {
     return { ok: false, code: 'DECIDED_BEFORE', message: `You already decided an earlier desk on ${firmName}. Somebody else takes this one.` }
   }
-  const pmo = permissions.includes('governance.write')
+  const pmo = hasPermission(permissions, 'governance.write')
   const onDesk =
     stage === 'LEAD' ? (barred(input.desks.leadId) ? pmo : callerId === input.desks.leadId)
-    : stage === 'PROCUREMENT' ? callerId === input.desks.procurementId || permissions.includes('vendors.manage')
+    : stage === 'PROCUREMENT' ? callerId === input.desks.procurementId || hasPermission(permissions, 'vendors.manage')
     : stage === 'HR' ? (barred(input.desks.hrId) ? pmo : callerId === input.desks.hrId)
-    : permissions.includes('payments.record')
+    : hasPermission(permissions, 'payments.record')
   if (!onDesk) {
     return { ok: false, code: 'NOT_THIS_DESK', message: `${firmName} is on the ${STAGE_WORD[stage]} desk. That desk decides it; you will be told what they said.` }
   }

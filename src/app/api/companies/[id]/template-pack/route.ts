@@ -3,6 +3,7 @@ import { reportError } from '@/lib/alerts'
 import { getSessionEmail } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { getTemplatePack, TEMPLATE_PACK_IDS } from '@/lib/template-packs'
+import { hasPermission } from '@/lib/permissions'
 
 /**
  * POST /api/companies/:id/template-pack
@@ -101,7 +102,7 @@ export async function POST(
     })
 
     const perms = callerContext?.role?.permissions ?? []
-    const hasAccess = perms.includes('*') || perms.includes('settings.manage')
+    const hasAccess = hasPermission(perms, 'settings.manage')
     if (!callerContext || !hasAccess) {
       return NextResponse.json(
         { error: { code: 'FORBIDDEN', message: 'You need settings.manage permission on this company' } },
