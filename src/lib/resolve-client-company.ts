@@ -281,7 +281,16 @@ export async function resolveClientCompany(
   const fallback = contract?.endClientCompany ?? contract?.clientCompany ?? null
 
   if (!fallback) {
-    return notFound('No client company found for this caller')
+    // A code is for the machine; the sentence is the product. This said
+    // "No client company found for this caller", which tells somebody
+    // running a program office nothing about what to do next — and they
+    // are exactly who hits it, because an MSP places nobody itself.
+    return notFound(
+      `${caller.company.name} is not tied to a client yet. A role belongs to the ` +
+        `company that is hiring, so until ${caller.company.name} places somebody — or ` +
+        `somebody at the client's own program office raises it — there is no client ` +
+        `to raise it for.`
+    )
   }
 
   return { client: fallback, error: null }

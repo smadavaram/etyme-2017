@@ -113,7 +113,7 @@ describe('the routes and the pages', () => {
   })
   it('a recommendation sends the firm its link at once and emails the recommender’s lead', () => {
     expect(list).toContain("delivery = await sendLink({ to: contactEmail")
-    expect(list).toContain("deskPeople(companyId, 'LEAD', desks)")
+    expect(list).toContain("deskPeople(companyId, 'LEAD', desks, [caller.person.id])")
     expect(list).toContain("channel: 'EMAIL',\n      title: `Supplier recommended — ${name}`")
   })
   it('each yes moves it to the next desk by email, and no desk marks another desk’s items', () => {

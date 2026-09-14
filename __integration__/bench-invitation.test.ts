@@ -58,6 +58,18 @@ beforeAll(async () => {
     },
   })
   requirementId = rq.id
+
+  // The client released the role to this vendor. Being invited is a
+  // separate precondition from holding the consultant's consent, and
+  // the submissions route now checks both — so the fixture has to be a
+  // supplier the client actually sent it to, which it always meant to
+  // be.
+  await prisma.requirementInvitation.create({
+    data: {
+      requirementId, fromCompanyId: client.id, toCompanyId: companyId,
+      expiresAt: new Date(Date.now() + 30 * 24 * 3600 * 1000),
+    },
+  })
 }, 180_000)
 
 describe('adding somebody to a bench is a question, not a fact', () => {

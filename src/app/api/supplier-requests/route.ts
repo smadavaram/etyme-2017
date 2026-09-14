@@ -46,7 +46,12 @@ export async function GET(request: NextRequest) {
         const stage = r.stage as Stage
         const state = r.state as RequestState
         const desks = await desksOf(r.recommendedById)
-        const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: r.recommendedById, decisions, desks, firmName: r.name })
+        const verdict = mayActAt({
+          stage, permissions: caller.permissions, callerId: caller.person.id,
+          recommendedById: r.recommendedById, decisions, desks, firmName: r.name,
+          deskHolders: stage === 'DONE' ? undefined : await deskPeople(companyId, stage, desks),
+          companyName: caller.company!.name,
+        })
         const application = (r.application ?? null) as Record<string, unknown> | null
         return {
           id: r.id, name: r.name, domain: r.domain, contactName: r.contactName, contactEmail: r.contactEmail,
@@ -136,7 +141,7 @@ export async function POST(request: NextRequest) {
   // The recommender's own lead hears, by email as well as in the app.
   const desks = await desksFor(companyId, caller.person.id)
   const leadWord = desks.leadId ? 'your department lead' : 'the program office'
-  for (const personId of (await deskPeople(companyId, 'LEAD', desks)).filter((p) => p !== caller.person.id)) {
+  for (const personId of (await deskPeople(companyId, 'LEAD', desks, [caller.person.id])).filter((p) => p !== caller.person.id)) {
     void notify({
       personId, companyId, type: 'SYSTEM', entityId: row.id, channel: 'EMAIL',
       title: `Supplier recommended — ${name}`,

@@ -45,16 +45,30 @@ export async function desksFor(companyId: string, recommendedById?: string | nul
   return { leadId, hrId: pick('HR'), procurementId: pick('PROCUREMENT') }
 }
 
-/** Everybody who sits on the desk a request is on now, to be told. */
-export async function deskPeople(companyId: string, stage: 'LEAD' | 'PROCUREMENT' | 'HR' | 'FINANCE', desks: Desks): Promise<string[]> {
-  if (stage === 'LEAD' && desks.leadId) return [desks.leadId]
-  if (stage === 'HR' && desks.hrId) return [desks.hrId]
+/**
+ * Everybody who sits on the desk a request is on now, to be told.
+ *
+ * `barred` is whoever cannot decide this one — the recommender, and
+ * anybody who decided an earlier desk. A named lead or HR holder who is
+ * barred stands down and the program office is told instead, which is
+ * the same fallback `mayActAt` applies; without it the one email went
+ * to the one person who would be refused on arrival.
+ */
+export async function deskPeople(
+  companyId: string,
+  stage: 'LEAD' | 'PROCUREMENT' | 'HR' | 'FINANCE',
+  desks: Desks,
+  barred: readonly string[] = []
+): Promise<string[]> {
+  const free = (id: string | null): boolean => id !== null && !barred.includes(id)
+  if (stage === 'LEAD' && free(desks.leadId)) return [desks.leadId!]
+  if (stage === 'HR' && free(desks.hrId)) return [desks.hrId!]
   const permission = stage === 'PROCUREMENT' ? 'vendors.manage' : stage === 'FINANCE' ? 'payments.record' : 'governance.write'
   const rows = await prisma.context.findMany({
     where: { companyId, revokedAt: null, role: { permissions: { has: permission } } },
     select: { personId: true },
   })
   const ids = new Set(rows.map((r) => r.personId))
-  if (stage === 'PROCUREMENT' && desks.procurementId) ids.add(desks.procurementId)
+  if (stage === 'PROCUREMENT' && free(desks.procurementId)) ids.add(desks.procurementId!)
   return [...ids]
 }

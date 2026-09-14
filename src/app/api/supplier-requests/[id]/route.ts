@@ -49,10 +49,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const decisions = ((row.decisions as unknown as Decision[]) ?? [])
   const desks = await desksFor(companyId, row.recommendedById)
 
+  // Who cannot take this desk, whoever they are: the recommender, and
+  // anybody who decided an earlier one.
+  const barred = [row.recommendedById, ...decisions.map((d) => d.byId)]
+
   // Every action here, resending the firm's link included, belongs to
   // the desk the request is on. Resending used to return before this
   // gate, so anybody seated could make the app send a credential.
-  const verdict = mayActAt({ stage, permissions: caller.permissions, callerId: caller.person.id, recommendedById: row.recommendedById, decisions, desks, firmName: row.name })
+  const verdict = mayActAt({
+    stage, permissions: caller.permissions, callerId: caller.person.id,
+    recommendedById: row.recommendedById, decisions, desks, firmName: row.name,
+    deskHolders: stage === 'DONE' ? undefined : await deskPeople(companyId, stage, desks),
+    companyName: caller.company!.name,
+  })
   if (!verdict.ok) return NextResponse.json({ error: { code: verdict.code, message: verdict.message } }, { status: 403 })
 
   if (action === 'resend') {
@@ -107,7 +116,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         where: { id },
         data: { stage: next, state: 'IN_REVIEW', decisions: [...decisions, decision] as unknown as object },
       })
-      for (const personId of (await deskPeople(companyId, next, desks)).filter((p) => p !== caller.person.id)) {
+      for (const personId of (await deskPeople(companyId, next, desks, [...barred, caller.person.id])).filter((p) => p !== caller.person.id)) {
         void notify({
           personId, companyId, type: 'SYSTEM', entityId: id, channel: 'EMAIL',
           title: `Supplier to review — ${row.name}`,

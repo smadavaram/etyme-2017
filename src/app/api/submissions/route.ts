@@ -12,6 +12,7 @@ import { consentText, mayMessage } from '@/lib/texts'
 import { mayMarket, type State } from '@/lib/bench-consent'
 import { send as sendMessage } from '@/lib/messages'
 import { submissionScope } from '@/lib/resolve-client-company'
+import { isConsultantSeat } from '@/lib/seat'
 
 /**
  * POST /api/submissions
@@ -26,6 +27,22 @@ import { submissionScope } from '@/lib/resolve-client-company'
  *   - Every read of another person's data writes an AccessLog row
  */
 export async function POST(request: NextRequest) {
+  // Who is asking, and for which firm.
+  //
+  // This route authenticated by email alone and then took
+  // `fromCompanyId` from the body on trust. Anybody signed in could
+  // therefore put a candidate in front of a client *as somebody else's
+  // firm* — a client employee, a consultant, a competitor — as long as
+  // that firm held a granted bench listing on the person. The
+  // submission, the rate and the representation notice all went out in
+  // the other firm's name.
+  //
+  // Nothing in the vendor's own walk found it, because a vendor always
+  // passes its own id. It was found by asking the same station of all
+  // eight positions in `__integration__/party-uniform.test.ts`.
+  const { caller, error: callerError } = await getCallerContext(request)
+  if (callerError) return callerError
+
   const email = await getSessionEmail()
 
   if (!email) {
@@ -44,6 +61,59 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json()
   const { requirementId, personIds, rate, fromCompanyId } = body
+
+  // A consultant's seat is not the firm's seat.
+  //
+  // Somebody on a bench holds a CONSULTANT context at the firm that
+  // benches them, so "the caller's company" is that firm — which let
+  // them submit themselves, and anybody else on that bench, in the
+  // firm's name. A seat on a bench is a seat to file hours and answer
+  // for yourself, never to sell.
+  if (isConsultantSeat(caller)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_YOUR_FIRM',
+          message:
+            'A consultant is put forward by the firm that holds their consent, not from ' +
+            'their own seat. Ask your agency to submit you.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // A firm is put forward by its own people. Never by anybody else's.
+  if (fromCompanyId && caller.company && fromCompanyId !== caller.company.id) {
+    const other = await prisma.company.findUnique({
+      where: { id: fromCompanyId },
+      select: { name: true },
+    })
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_YOUR_FIRM',
+          message:
+            `Only ${other?.name ?? 'that firm'}’s own people can put somebody forward in ` +
+            `its name. You are signed in at ${caller.company.name}.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+  if (fromCompanyId && !caller.company) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_YOUR_FIRM',
+          message:
+            'A consultant is put forward by a firm that holds their consent, not by ' +
+            'themselves. Ask the firm you are on the bench of to submit you.',
+        },
+      },
+      { status: 403 }
+    )
+  }
 
   if (!requirementId || typeof requirementId !== 'string') {
     return NextResponse.json(
@@ -78,7 +148,7 @@ export async function POST(request: NextRequest) {
     where: { id: requirementId },
     select: {
       id: true, companyId: true, status: true, approvalState: true, title: true,
-      endClientCompanyId: true, payerCompanyId: true,
+      endClientCompanyId: true, payerCompanyId: true, openToNetwork: true,
       // For the consent text: enough detail that somebody can answer
       // without a phone call.
       location: true, startDate: true,
@@ -118,6 +188,37 @@ export async function POST(request: NextRequest) {
       },
       { status: 409 }
     )
+  }
+
+  // A role the buyer released to named suppliers is answered by those
+  // suppliers.
+  //
+  // The program office choosing who sees a role is the client's control
+  // over its own supply base, and it was enforced at the release door
+  // and nowhere else: any firm with the id could answer a role it was
+  // never shown. A firm's own record of somebody else's advert carries
+  // a payer and has no invitation, so this asks only about a buyer's
+  // own requisition — and never about one deliberately opened to the
+  // network.
+  if (requirement.payerCompanyId === null && !requirement.openToNetwork) {
+    const invited = await prisma.requirementInvitation.findUnique({
+      where: { requirementId_toCompanyId: { requirementId, toCompanyId: fromCompanyId } },
+      select: { status: true },
+    })
+    if (!invited) {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_INVITED',
+            message:
+              `${requirement.company.name} chose which suppliers see “${requirement.title}”, ` +
+              `and ${caller.company?.name ?? 'your firm'} is not among them. Ask their program ` +
+              'office to send it to you, and it will be on your Requirements page.',
+          },
+        },
+        { status: 403 }
+      )
+    }
   }
 
   // Who the candidate is actually being submitted to.

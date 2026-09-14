@@ -111,7 +111,7 @@ export interface Desks {
 
 export type ActVerdict =
   | { ok: true }
-  | { ok: false; code: 'NOT_THIS_DESK' | 'OWN_RECOMMENDATION' | 'ALREADY_DECIDED' | 'DECIDED_BEFORE' | 'DONE'; message: string }
+  | { ok: false; code: 'NOT_THIS_DESK' | 'OWN_RECOMMENDATION' | 'ALREADY_DECIDED' | 'DECIDED_BEFORE' | 'DONE' | 'NOBODY_ELSE'; message: string }
 
 /**
  * Who may decide at the desk the request is on now.
@@ -123,6 +123,25 @@ export type ActVerdict =
  *
  * Never the recommender; never somebody who decided an earlier desk.
  * Segregation of duties is a BLOCK, not a warning.
+ *
+ * ── When the named desk cannot decide it ─────────────────────────────
+ *
+ * CLAUDE.md, decided 2026-09-13: a desk nobody has named falls back; it
+ * never refuses. The same is true of a desk named to somebody who
+ * cannot act on this one — the VP who recommended the firm herself, or
+ * the HR lead who already cleared it at an earlier desk. Holding the
+ * request on a desk whose one holder is barred from it is a deadlock
+ * with no words, and the request sits there until somebody notices.
+ * The program office stands in, and the screen says so.
+ *
+ * ── When nobody at the firm can decide it ────────────────────────────
+ *
+ * A one-person corporation, or a client in its first week with one
+ * seat, has no second desk to stand in. The control stays — nobody
+ * signs their own — but the refusal has to say what is actually needed
+ * rather than "that desk decides it", which names a desk that does not
+ * exist. Pass `deskHolders` (everybody who could hold this desk) and
+ * the refusal explains; leave it out and the old wording stands.
  */
 export function mayActAt(input: {
   stage: Stage
@@ -132,9 +151,31 @@ export function mayActAt(input: {
   decisions: Decision[]
   desks: Desks
   firmName: string
+  /** Everybody who could hold this desk, when the caller knows. */
+  deskHolders?: readonly string[]
+  /** The firm doing the buying, for the sentence. */
+  companyName?: string
 }): ActVerdict {
   const { stage, permissions, callerId, firmName } = input
   if (stage === 'DONE') return { ok: false, code: 'DONE', message: `${firmName} has already been decided.` }
+
+  /** Barred from this desk, whoever they are: they recommended it, or they decided an earlier one. */
+  const barred = (id: string | null): boolean =>
+    id === null || id === input.recommendedById || input.decisions.some((d) => d.byId === id)
+
+  if (input.deskHolders && input.deskHolders.every((id) => barred(id))) {
+    const here = input.companyName ?? 'this company'
+    return {
+      ok: false,
+      code: 'NOBODY_ELSE',
+      message:
+        `Nobody else at ${here} can take the ${STAGE_WORD[stage]} desk on ${firmName}. ` +
+        'Everybody who could either recommended the firm or has already decided an ' +
+        'earlier desk, and nobody signs their own. Invite a second person under Users ' +
+        'and permissions, or have somebody else recommend the firm.',
+    }
+  }
+
   if (callerId === input.recommendedById) {
     return { ok: false, code: 'OWN_RECOMMENDATION', message: `You recommended ${firmName}, so the desks decide it without you. Nobody signs their own.` }
   }
@@ -143,9 +184,9 @@ export function mayActAt(input: {
   }
   const pmo = permissions.includes('governance.write')
   const onDesk =
-    stage === 'LEAD' ? (input.desks.leadId ? callerId === input.desks.leadId : pmo)
+    stage === 'LEAD' ? (barred(input.desks.leadId) ? pmo : callerId === input.desks.leadId)
     : stage === 'PROCUREMENT' ? callerId === input.desks.procurementId || permissions.includes('vendors.manage')
-    : stage === 'HR' ? (input.desks.hrId ? callerId === input.desks.hrId : pmo)
+    : stage === 'HR' ? (barred(input.desks.hrId) ? pmo : callerId === input.desks.hrId)
     : permissions.includes('payments.record')
   if (!onDesk) {
     return { ok: false, code: 'NOT_THIS_DESK', message: `${firmName} is on the ${STAGE_WORD[stage]} desk. That desk decides it; you will be told what they said.` }
