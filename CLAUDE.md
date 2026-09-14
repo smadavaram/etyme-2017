@@ -249,6 +249,19 @@ variance across suppliers · multi-manager org · the supplier's bench,
 releasing-soon and rolloff · screening and interviews as a pipeline ·
 1099 and sub-vendor payment down the chain · matching with reasons.
 
+**A program office that is not the client.** Decided 2026-09-14, over
+the uniform test. An MSP runs a client's program and places nobody, so
+nothing ties it to a client the way a placement ties a supplier — and
+so it cannot raise a requisition at all. Letting a firm's own record of
+a counterparty stand in would let any firm claim any client, which is
+worse than the gap. The answer is a seat: the client grants the MSP a
+desk in its program office, the way it grants one to its own people,
+and the MSP acts there under the client's own rules with every read
+logged. Until that is built the refusal says what is missing rather
+than "No client company found for this caller"
+(`lib/resolve-client-company`), and
+`__integration__/party-uniform.test.ts` holds the sentence.
+
 ### Phase 3 — scale
 
 Multi-region programmes · IR35, GST, withholding · supplier scorecards
