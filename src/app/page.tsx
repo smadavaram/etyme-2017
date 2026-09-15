@@ -28,31 +28,50 @@ import type { Route } from 'next'
  * started, timesheeted, invoiced, and nineteen months of tenure across
  * three suppliers. Nobody looks at that and thinks recruiting tool.
  *
- * ── Everything below it, rewritten ───────────────────────────────────
+ * ── The order below it, settled 2026-09-15 ───────────────────────────
  *
- * The hero was right and the rest of the page was written to somebody
- * we are not selling to yet. "Three checks your suppliers cannot run",
- * "Stop reading bad submissions", "Nobody has to be replaced" — every
- * section addressed a client with eleven suppliers. Phase 1 ships to
- * paying staffing firms, so the page was selling to the people who are
- * not the customers in front of the people who are.
+ * The page argued its wedge in section seven of nine. The tenure worked
+ * example — nineteen months across three suppliers — is the entire
+ * argument, and almost nobody reads that far. Before it sat eighteen
+ * numbered lifecycle stages, which is a build artifact, and four
+ * audiences addressed as equals, which is the plan from before the
+ * client became the customer on 2026-09-10.
  *
- * And nowhere did it say how any of this works as a business: not who
- * pays, not what it costs, not what it sits beside, not what anybody
- * does differently on Monday. A visitor could not answer "is this for
- * me and what would I do with it", which is the only question a landing
- * page has to answer.
+ * The order now is the conversation a client actually has:
  *
- * So, in order: who it is for and why the chain needs the same product
- * at every hop; what it sits beside rather than replaces; the four
- * questions a firm answers with a phone call and a guess today; the
- * tenure argument on its own, because it is the sharpest wedge and it
- * was the second of three bullets in a grid; and what it costs, which
- * is not settled and says so.
+ *   1. what is this            the hero, untouched
+ *   2. why do I care           #gap — the question you cannot answer
+ *   3. is that real            #tenure — the ledger, and #lifecycle
+ *   4. what changes            #monday — four questions, four screens
+ *   5. does it replace         #alongside — your ATS, your VMS, your suppliers
+ *   6. who else is on it       #who — the chain, over the client's shoulder
+ *   7. the AI honesty          #compliance
  *
- * Cut: the shortlist panel and the score breakdown. Both were real
- * proof and both made the page read as a screening tool — the demo
- * button proves the product better than a picture of it does.
+ * Then what it costs, which is not settled and says so.
+ *
+ * ── The hook is the not-knowing, not the penalty ─────────────────────
+ *
+ * This page used to say tenure is "an exposure rather than a saving",
+ * and lead with it. The founder was right that this loses: nobody is
+ * fined at month nineteen, there is no tenure regulator, and a
+ * compliance pitch loses to "we have never been caught" — which is
+ * worse than losing to "we are managing fine", because it is true.
+ *
+ * What people actually feel is being asked a basic question about their
+ * own workforce and not being able to answer it. How many contractors
+ * do we have. What are we spending. Who has been here longest. That
+ * happens monthly; the penalty is hypothetical. So #gap opens on the
+ * not-knowing and closes on what it costs the week somebody insists —
+ * two sentences doing two different jobs, in that order.
+ *
+ * ── Written to the client, read over the shoulder ────────────────────
+ *
+ * "Who this is for" used to address hiring companies, primes, subs and
+ * bench operators as four equals. A hiring manager reads "primes, subs,
+ * bench operators" and concludes this is software for staffing firms.
+ * The client is the customer; the suppliers come anyway, because their
+ * client is there. So the chain is one section, late, and it says out
+ * loud who pays.
  *
  * ── Every claim here is checkable ────────────────────────────────────
  *
@@ -61,10 +80,12 @@ import type { Route } from 'next'
  * feature that does not exist, which is the only reason a "Look around"
  * button can sit next to it.
  *
- * Two claims came off this page because nothing stands behind them:
+ * Three claims came off this page because nothing stands behind them:
  * "your data exports in full, any time" — the eighteen lists built on
- * the shared table export to CSV, which is a smaller promise — and
- * "set-up takes an afternoon", which nobody has measured.
+ * the shared table export to CSV, which is a smaller promise —
+ * "set-up takes an afternoon", which nobody has measured — and the
+ * names of three real enterprises, which were the seeded demo tenants
+ * and read as three live customers.
  */
 
 /**
@@ -95,10 +116,10 @@ const NAV_MENUS: { label: string; items: { t: string; d?: string; href: string }
   {
     label: 'Products',
     items: [
-      { t: 'Requisitions & sourcing', d: 'Roles arrive as seats — duplicates merge on their own.', href: '#lifecycle' },
-      { t: 'Screening & submissions', d: 'Rules run first, one judgment second.', href: '#lifecycle' },
-      { t: 'Timesheets & invoicing', d: 'Hours approved, invoices matched to the order.', href: '#monday' },
+      { t: 'Your contractors', d: 'Everybody on site, across every supplier, one row each.', href: '#monday' },
       { t: 'Tenure ledger', d: 'One number, across every supplier a person has worked through.', href: '#tenure' },
+      { t: 'Requisitions & suppliers', d: 'Raised, approved, released to the firms you cleared.', href: '#lifecycle' },
+      { t: 'Hours, invoices & bills', d: 'Signed hours, invoices matched to the order.', href: '#lifecycle' },
     ],
   },
   {
@@ -140,173 +161,135 @@ const RECORD = [
 ]
 
 /**
- * The contingent contract lifecycle. Eighteen stages, in order.
+ * The four questions a client cannot answer about its own workforce.
  *
- * This is the actual visual proof of the product — not a list of nine
- * module names with arrows between them, which told a visitor nothing
- * about how a placement actually moves. Eighteen numbered stages does:
- * it is the closest thing on the page to opening the app.
+ * Not invented for the page. These are the ones that arrive from a board
+ * member, an auditor or a new CFO, and each is answered today by asking
+ * every supplier for a spreadsheet and adding them up by hand.
  *
- * gate: true marks the four stages that can stop the deal rather than
- * only record it — the same four the internal delivery matrix marks in
- * clay, for the same reason.
+ * They are the hook, and they are deliberately not compliance questions.
+ * Nobody is fined at month nineteen; everybody is asked "how many
+ * contractors do we have" at some point this quarter.
+ */
+const CANNOT_ANSWER = [
+  'How many contractors are on our sites right now?',
+  'What are we spending on them this quarter?',
+  'Who has been here longest?',
+  'Are we paying two suppliers different money for the same work?',
+]
+
+/**
+ * How a placement moves — six milestones, not eighteen states.
+ *
+ * This was eighteen numbered stages, which is the internal lifecycle
+ * printed on a marketing page. It broke the product's own rule: "three
+ * words, not nineteen states — group internal states into the handful
+ * of milestones a person actually acts on". That rule exists because
+ * the 2017 timeline exposed the cycle engine's own enum to users, and
+ * the eighteen-stage grid was doing it to a stranger who has not even
+ * signed up.
+ *
+ * gate: true marks the three milestones that can stop the deal rather
+ * than only record it.
  */
 const LIFECYCLE: { t: string; d: string; gate?: boolean }[] = [
-  { t: 'Demand raised', d: 'A manager needs somebody' },
-  { t: 'Approved to source', d: 'Budget, headcount, rate band', gate: true },
-  { t: 'Released to suppliers', d: 'Who sees it, at what rate band' },
-  { t: 'Submitted', d: 'CV, rate, availability, right to represent' },
-  { t: 'Screened', d: 'Rules first, then one judgment' },
-  { t: 'Interviewed', d: 'Three-party scheduling and feedback' },
-  { t: 'Selected', d: 'The client picks' },
-  { t: 'Awarded', d: 'Seat closes, others stood down', gate: true },
-  { t: 'Papered', d: 'MSA, SOW, PO, sell and buy contracts' },
-  { t: 'Cleared', d: 'Work authorization, checks, insurance', gate: true },
-  { t: 'Started', d: 'Badge, access, first day on site' },
-  { t: 'Working', d: 'Time and expense, approved and accepted' },
-  { t: 'Billed', d: 'Invoice raised against the order' },
-  { t: 'Paid', d: 'Consultant paid, client collected' },
-  { t: 'Changed', d: 'Rate change, extension, transfer', gate: true },
-  { t: 'Rolled off', d: 'Notice, handover, releasing-soon pool' },
-  { t: 'Settled', d: 'Order closed, balance to the cost center' },
-  { t: 'Alumni', d: 'Tenure ledger keeps counting' },
-]
-
-/**
- * The chain, as positions rather than as kinds of company.
- *
- * Nobody says this out loud and it is the thing that decides the shape
- * of the product: the same firm is a prime on Monday's role and a sub
- * on Tuesday's. Build for one of them and the other has to keep the
- * spreadsheet anyway.
- */
-const POSITIONS = [
-  {
-    who: 'The company hiring',
-    sees:
-      'Eleven suppliers, eleven spreadsheets. You know what each contract costs. ' +
-      'You don’t know what any one person actually costs you, or how long ' +
-      'they’ve really been on site.',
-  },
-  {
-    who: 'The prime',
-    sees:
-      'Holds the client relationship, and an agreement that says don’t name ' +
-      'the client further down the chain. Forwards the raw email anyway — ' +
-      'redacting it properly is more work than most people bother with.',
-  },
-  {
-    who: 'The sub',
-    sees:
-      'Answers a role with half the picture. Prices it off a title, a rate, ' +
-      'and a guess about who is really behind it.',
-  },
-  {
-    who: 'The bench operator',
-    sees:
-      'Has the person, can’t see the job. Only learns the client’s name ' +
-      'once there is a signed right to represent — which is exactly why ' +
-      'benches don’t trust portals.',
-  },
-]
-
-/**
- * The same four parties, said as what they get rather than what they
- * are missing. Concur's own homepage does this: one card per audience,
- * three lines each, nothing to scroll past to find your own name.
- *
- * Every line is a real screen or a real rule already built — nothing
- * here is a feature promised for later.
- */
-const GETS = [
-  {
-    who: 'The company hiring',
-    lines: [
-      'One record per contractor, across every supplier they use',
-      'Real tenure and real margin — not what a vendor self-reports',
-      'Approvals that clear on their own, inside the policy you set',
-    ],
-  },
-  {
-    who: 'The prime',
-    lines: [
-      'Forward a role without leaking who the client is',
-      'See a duplicate submission before your client does',
-      'Bill the moment a milestone is signed off, not a guess later',
-    ],
-  },
-  {
-    who: 'The sub',
-    lines: [
-      'Know the real band before you price a role',
-      'One submission, never sent twice by accident',
-      'Paid on hours that were actually approved, not disputed later',
-    ],
-  },
-  {
-    who: 'The bench operator',
-    lines: [
-      'Your bench stays private until there is a signed right to represent',
-      'See exactly what a day of waiting is costing you',
-      'One profile, submitted anywhere, tracked everywhere it goes',
-    ],
-  },
+  { t: 'Raised', d: 'A manager needs somebody, with a budget and a band', gate: true },
+  { t: 'Released', d: 'To the suppliers your program office cleared' },
+  { t: 'Awarded', d: 'One person, one seat. Contracts written by the award', gate: true },
+  { t: 'Cleared', d: 'Work authorization, checks, insurance. An I-9 blocks', gate: true },
+  { t: 'Working', d: 'Hours signed, invoices matched, everybody paid' },
+  { t: 'Ended', d: 'Notice, handover — and tenure keeps counting' },
 ]
 
 /**
  * Four questions, four screens that already exist.
  *
- * Not a feature list. These are the four things a staffing firm answers
- * today with a phone call, a spreadsheet and a guess, and each line
- * describes what the screen actually does rather than what it is called.
+ * Not a feature list, and written to the client rather than to the
+ * supplier — these four were the staffing firm's questions (leads,
+ * bench cost, placement margin, who is financing whom) on a page whose
+ * customer is the company hiring.
+ *
+ * `route` is the screen it opens, and the test checks the folder is
+ * really there. A page describing a screen nobody built is the exact
+ * failure the positioning guard exists to stop.
  */
 const MONDAY = [
   {
-    screen: 'Leads',
-    q: 'A role arrived. Is it four roles, or one role four times?',
+    screen: 'Program',
+    route: 'program',
+    q: 'What needs me today, and what are we spending?',
     a:
-      'Adverts and forwarded emails turn into seats on their own. Three primes ' +
-      'carrying the same seat show up as one — because submitting your person ' +
-      'through all three just gets them rejected three times.',
+      'Opens on a sentence about you — six things need you, six are urgent, or ' +
+      'nothing does. Under it: on site now, suppliers, this month, ending soon. ' +
+      'Every number is a link to the rows that made it.',
   },
   {
-    screen: 'Bench',
-    q: 'Do we have anybody, and what is the bench costing while it waits?',
+    screen: 'Workforce',
+    route: 'people',
+    q: 'How many contractors do we have, and whose are they?',
     a:
-      'Who’s free right now, who’s about to be, and what every idle ' +
-      'day is costing you — per person and across the whole bench, against ' +
-      'what’s actually open.',
+      'One row per person, not one per contract. A consultant bought through a ' +
+      'prime and a sub is one person on your site, counted once — with the ' +
+      'contract you actually pay on the row, never somebody else’s margin.',
   },
   {
-    screen: 'Profitability',
-    q: 'What does this placement actually make?',
+    screen: 'Tenure',
+    route: 'tenure',
+    q: 'Who has been here longest?',
     a:
-      'Not bill rate minus pay rate times hours. The client signed off on forty ' +
-      'hours, you accepted thirty-eight — the real margin is neither of those ' +
-      'simple numbers. Every figure comes straight off what actually happened.',
+      'Days on site, added up across every supplier that has ever supplied them, ' +
+      'counted once per day however many firms billed for it. Against your own ' +
+      'cap, with the contracts that made the number.',
   },
   {
-    screen: 'Payables',
-    q: 'Who owes us, and whose work are we financing?',
+    screen: 'Rates',
+    route: 'rate-history',
+    q: 'Are we paying two suppliers differently for the same work?',
     a:
-      'Your client pays you on day 75 against 60-day terms. You pay your sub on ' +
-      'day 30. That gap is your own cash funding somebody else’s payroll — and ' +
-      'nobody sends you a bill for it.',
+      'Every rate, when it changed and who agreed it. The spread across suppliers ' +
+      'for one skill is a number no single supplier can show you, because each ' +
+      'one only knows its own.',
   },
 ]
 
 /**
- * The tenure ledger, as a worked example.
+ * The supply side, in three lines, near the end.
  *
- * Three suppliers, three honest answers, one number none of them can
- * produce. It is the same person and the same client as the hero panel,
- * so a reader who scrolls sees the arithmetic behind the line they
- * already read.
+ * ── Why it is three lines and not four columns ───────────────────────
+ *
+ * This was "Who this is for": the company hiring, the prime, the sub and
+ * the bench operator, four columns of equal weight. A hiring manager
+ * reads "primes, subs, bench operators" and concludes this is software
+ * for staffing firms, which is the plan from before the client became
+ * the customer on 2026-09-10. Speaking to four audiences is speaking
+ * sharply to none.
+ *
+ * Subtle is not absent. The network only works because the suppliers
+ * are on it, and a supplier who reads this page as hostile — or as
+ * having forgotten them — does not join. So the section is a client
+ * narrative about the chain the client already buys through, and these
+ * three lines sit at the end of it: a supplier recognizes itself,
+ * understands it is welcome, and the page never turns to face it.
  */
-const LEDGER = [
-  { supplier: 'Cloudepa Systems', months: '14 months', span: 'Feb 2024 – Apr 2025' },
-  { supplier: 'Brightmoor Talent', months: '3 months', span: 'May 2025 – Aug 2025' },
-  { supplier: 'Vertex Group', months: '2 months', span: 'Sep 2025 – Oct 2025' },
+const SUPPLY = [
+  {
+    who: 'A prime',
+    line:
+      'Send a role down the chain without leaking who the client is, and see a ' +
+      'duplicate submission before your client does.',
+  },
+  {
+    who: 'A sub',
+    line:
+      'Know the real band before you price a role, and get paid on the hours ' +
+      'that were actually approved rather than the ones that were argued about.',
+  },
+  {
+    who: 'A bench operator',
+    line:
+      'Your bench stays private until there is a signed right to represent, and ' +
+      'what you are being paid never travels — in either direction, at any depth.',
+  },
 ]
 
 /** What is settled about the commercials, in the absence of a price. */
@@ -334,6 +317,20 @@ const DECIDED = [
       'If it’s not obviously useful in there, no price tag was going to ' +
       'fix that.',
   },
+]
+
+/**
+ * The tenure ledger, as a worked example.
+ *
+ * Three suppliers, three honest answers, one number none of them can
+ * produce. It is the same person and the same client as the hero panel,
+ * so a reader who scrolls sees the arithmetic behind the line they
+ * already read.
+ */
+const LEDGER = [
+  { supplier: 'Cloudepa Systems', months: '14 months', span: 'Feb 2024 – Apr 2025' },
+  { supplier: 'Brightmoor Talent', months: '3 months', span: 'May 2025 – Aug 2025' },
+  { supplier: 'Vertex Group', months: '2 months', span: 'Sep 2025 – Oct 2025' },
 ]
 
 /**
@@ -376,17 +373,18 @@ const FOOTER: { heading: string; links: { label: string; href: string }[]; note?
   {
     heading: 'The product',
     links: [
-      { label: 'How a placement moves', href: '#lifecycle' },
-      { label: 'Who this is for', href: '#who' },
+      { label: 'The question you cannot answer', href: '#gap' },
       { label: 'Tenure', href: '#tenure' },
+      { label: 'How a placement moves', href: '#lifecycle' },
       { label: 'What changes on Monday', href: '#monday' },
+      { label: 'Who else is on it', href: '#who' },
       { label: 'What it costs', href: '#why' },
     ],
   },
   {
     heading: 'Start',
     links: [
-      { label: 'Look around a running program', href: '/demo' },
+      { label: 'Look around an example program', href: '/demo' },
       { label: 'Ask us something', href: '#contact' },
       { label: 'Sign in', href: '/login' },
     ],
@@ -518,9 +516,23 @@ export default function LandingPage() {
               </p>
               {/* The buyer's demo, by desk. A program office is four
                   or five jobs, and the person evaluating this runs one of
-                  them — so the door says which. */}
+                  them — so the door says which.
+
+                  This line named Nike, Corning and Terumo BCT until
+                  2026-09-15. They are the seeded demo tenants, and above a
+                  button that says "a running program" they read as three
+                  live customers — three trademarked enterprises on a public
+                  marketing page, none of whom has heard of us.
+
+                  Describing them rather than naming them is the honest fix
+                  and not only the safe one: inventing three plausible names
+                  would still read as a customer list, and would name firms
+                  the demo does not contain. What is true is that the
+                  programs are seeded examples, and that they span three
+                  industries on purpose — which is the thing worth saying. */}
               <p className="mt-2 font-mono text-xs text-white/55">
-                Or sit at a running program — Nike, Corning, Terumo BCT — from whichever desk is yours.{' '}
+                Or sit in one of three example programs we seeded — a consumer brand, a
+                materials manufacturer, a medical device maker — at whichever desk is yours.{' '}
                 <a href="/demo" className="text-white/70 underline underline-offset-2 hover:text-white">
                   Pick a desk →
                 </a>
@@ -578,227 +590,93 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── The lifecycle ────────────────────────────────────────── */}
-      {/* A layer is proved by breadth, not by argument, and a picture of
-          the whole thing beats a paragraph describing it every time. This
-          is the one section on the page that shows the product rather
-          than talking about it. */}
-      <section id="lifecycle" className="border-b border-etyme-rule bg-etyme-surface scroll-mt-6">
-        <div className="mx-auto max-w-6xl px-6 py-14 md:py-16">
-          <p className="eyebrow mb-2">How a placement actually moves</p>
-          <h2 className="max-w-[26ch] text-balance font-serif text-2xl leading-tight
-                         tracking-[-0.02em] text-etyme-ink md:text-3xl">
-            Eighteen stages, one record the whole way through
-          </h2>
-          <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-etyme-muted">
-            The four in clay can stop the deal. Everything else just
-            records what happened.
-          </p>
-
-          <div className="mt-8 grid grid-cols-1 gap-px overflow-hidden rounded-lg
-                          border border-etyme-rule bg-etyme-rule sm:grid-cols-2
-                          md:grid-cols-3 lg:grid-cols-6">
-            {LIFECYCLE.map((s, i) => (
-              <div
-                key={s.t}
-                className="p-3.5"
-                style={{
-                  background: s.gate ? 'var(--color-raised)' : 'var(--color-surface)',
-                  boxShadow: s.gate ? 'inset 3px 0 0 var(--color-attention)' : undefined,
-                }}
-              >
-                <span className="block font-mono text-[10px] text-etyme-faint">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <span className="mt-0.5 block text-[13px] font-semibold leading-snug text-etyme-ink">
-                  {s.t}
-                </span>
-                <span className="mt-0.5 block text-[11.5px] leading-snug text-etyme-muted">
-                  {s.d}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-4 text-[13px] text-etyme-muted">
-            One record, end to end — one company, or nine of them in a chain.
-          </p>
-        </div>
-      </section>
-
-      {/* ── Who this is for ──────────────────────────────────────── */}
-      {/* The page used to pick one reader — a client with eleven
-          suppliers — and every other reader bounced. The product serves
-          a chain, so the page says so. */}
-      <section id="who" className="mx-auto max-w-6xl px-6 py-16 md:py-24 scroll-mt-6">
-        <p className="eyebrow mb-3">Who this is for</p>
-        <h2 className="max-w-[22ch] text-balance font-serif text-3xl leading-tight
-                       tracking-[-0.02em] text-etyme-ink md:text-4xl">
-          A role goes down a chain. A person comes back up it.
-        </h2>
-        <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-muted">
-          Client, MSP, prime, sub, bench vendor — a role passes through all of
-          them. At every hop, someone forwards an email with more in it than they
-          should send, because retyping it properly takes too long. Every firm
-          ends up holding its own half of the same contractor’s story.
-          Nobody has the whole thing.
-        </p>
-        <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-ink">
-          Prime, sub and bench are positions on a deal, not kinds of company. The
-          same firm can be a prime this week and a sub next week — same people,
-          different deal. That’s why this is one product, not four.
-        </p>
-
-        <div className="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          {POSITIONS.map((p) => (
-            <div key={p.who} className="border-t-2 border-etyme-ink pt-5">
-              <h3 className="mb-2 text-[17px] font-semibold text-etyme-ink">{p.who}</h3>
-              <p className="text-[15px] leading-relaxed text-etyme-muted">{p.sees}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── What each one gets ───────────────────────────────────── */}
-      {/* The Concur move: one card per audience, three lines each, and
-          you find your own name in one glance instead of reading four
-          paragraphs to work out which one is you. */}
-      <section className="border-y border-etyme-rule bg-etyme-surface">
-        <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
-          <p className="eyebrow mb-3">What each one gets</p>
+      {/* ── Why do I care ────────────────────────────────────────── */}
+      {/* The hook is the not-knowing. Nobody is fined at month nineteen,
+          and a page that opens on the penalty is selling a fear the
+          buyer does not hold — "we have never been caught" is true and
+          it ends the conversation. Being asked how many contractors you
+          have and not knowing happens monthly. */}
+      <section id="gap" className="border-b border-etyme-rule bg-etyme-surface scroll-mt-6">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+          <p className="eyebrow mb-3">Why this matters</p>
           <h2 className="max-w-[20ch] text-balance font-serif text-3xl leading-tight
                          tracking-[-0.02em] text-etyme-ink md:text-4xl">
-            Find yourself below — that&rsquo;s what you get
+            Every contractor on your sites. Including the ones you didn’t hire.
           </h2>
 
-          <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {GETS.map((g) => (
-              <div key={g.who} className="rounded-xl border border-etyme-rule bg-etyme-raised p-5">
-                <h3 className="mb-3 text-[15px] font-semibold text-etyme-ink">{g.who}</h3>
-                <ul className="space-y-2.5">
-                  {g.lines.map((line) => (
-                    <li key={line} className="flex gap-2 text-[13.5px] leading-snug text-etyme-muted">
-                      <span aria-hidden style={{ color: 'var(--color-verified)' }}>✓</span>
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── What it sits beside ──────────────────────────────────── */}
-      {/* This was thirteen-pixel gray text under an arrow diagram and it
-          is the most useful sentence on the page. */}
-      <section className="border-y border-etyme-rule bg-etyme-surface">
-        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
-          <div className="grid gap-12 lg:grid-cols-[1fr_0.85fr] lg:items-start">
+          <div className="mt-8 grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
             <div>
-              <p className="eyebrow mb-3">What it sits beside</p>
-              <h2 className="max-w-[20ch] text-balance font-serif text-3xl leading-tight
-                             tracking-[-0.02em] text-etyme-ink md:text-4xl">
-                Keep your ATS, your VMS and every supplier you already use
-              </h2>
-              <p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted">
-                Etyme sits in front of what you already use — it doesn’t
-                replace it. Nothing to switch off, no supplier onboarding
-                project, nobody to kick out. It just keeps the one record that
-                spans everything else, which none of your other tools do.
+              <p className="max-w-[46ch] font-serif text-[21px] leading-snug text-etyme-ink md:text-[24px]">
+                You can name every employee on your payroll. Nobody can name
+                every contractor on your sites.
+              </p>
+              <p className="mt-5 max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
+                You hired almost none of them yourself. A supplier did — or a
+                supplier’s supplier. They badge in on Monday, they turn up on an
+                invoice at the end of the month, and no system you own counts
+                them the same way twice.
+              </p>
+              <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-etyme-ink">
+                So when somebody asks a simple question about your own workforce,
+                the honest answer is “let me come back to you”. Then three weeks
+                of asking eleven suppliers for spreadsheets. Then a number nobody
+                fully trusts, including the person who assembled it.
+              </p>
+              <p className="mt-4 max-w-[54ch] text-[15px] leading-relaxed text-etyme-muted">
+                Nobody is fined on the day a contractor passes eighteen months.
+                That is not why this gets fixed. It gets fixed because the
+                question comes round monthly — a board member, an auditor, a new
+                CFO — and every time, the answer costs three weeks and still has
+                to be caveated. The exposure decides what it costs the week
+                somebody stops accepting the caveat: a co-employment claim, a
+                misclassification finding, a rate you cannot defend because you
+                never knew you were paying it twice.
               </p>
             </div>
 
-            <ul className="space-y-6">
-              <li className="border-t border-etyme-rule pt-4">
-                <p className="text-[15px] font-semibold text-etyme-ink">
-                  Roles arrive the way they already do
-                </p>
-                <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
-                  Paste in a forwarded email, an advert, five of them at once —
-                  they come back as seats, duplicates already merged. Nobody
-                  has to change how they send you work.
-                </p>
-              </li>
-              <li className="border-t border-etyme-rule pt-4">
-                <p className="text-[15px] font-semibold text-etyme-ink">
-                  Your suppliers don’t need to sign up first
-                </p>
-                <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
-                  Paste the distribution list you already use. Every firm on
-                  it, you can send a role to today — whether they’ve
-                  heard of Etyme or not.
-                </p>
-              </li>
-              <li className="border-t border-etyme-rule pt-4">
-                <p className="text-[15px] font-semibold text-etyme-ink">
-                  What’s yours stays yours
-                </p>
-                <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
-                  Your bench, your rates, your client relationships — all
-                  yours. Every list exports to CSV straight from the screen.
-                  You never have to ask us for your own data.
-                </p>
-              </li>
+            <ul className="space-y-px overflow-hidden rounded-xl border border-etyme-rule bg-etyme-rule">
+              {CANNOT_ANSWER.map((q) => (
+                <li key={q} className="bg-etyme-raised px-5 py-4">
+                  <p className="text-[16px] leading-snug text-etyme-ink">{q}</p>
+                  <p className="mt-1 font-mono text-[11px] text-etyme-faint">
+                    Today: ask every supplier, then add it up by hand
+                  </p>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
       </section>
 
-      {/* ── Monday ───────────────────────────────────────────────── */}
-      {/* Four questions a firm answers today with a phone call and a
-          guess, and the four screens that answer them instead. */}
-      <section id="monday" className="mx-auto max-w-6xl px-6 py-16 md:py-24 scroll-mt-6">
-        <p className="eyebrow mb-3">What changes on Monday</p>
-        <h2 className="max-w-[24ch] text-balance font-serif text-3xl leading-tight
-                       tracking-[-0.02em] text-etyme-ink md:text-4xl">
-          Four questions, answered before lunch instead of by Thursday
-        </h2>
-        <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
-          Right now, every one of these gets answered with a phone call, a
-          spreadsheet and a guess. Here, they’re four screens, and every
-          figure on them comes off what actually happened. Open all four in
-          the demo.
-        </p>
-
-        <div className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2">
-          {MONDAY.map((m) => (
-            <div key={m.screen} className="rounded-xl border border-etyme-rule bg-etyme-raised p-6">
-              <p className="stat-label">{m.screen}</p>
-              <h3 className="mt-2 text-balance text-[19px] font-semibold leading-snug text-etyme-ink">
-                {m.q}
-              </h3>
-              <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">{m.a}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Tenure ───────────────────────────────────────────────── */}
-      {/* The sharpest wedge, and it was the second of three bullets in a
-          grid. Efficiency loses to "we are managing fine". A number
-          nobody can produce and a lawyer wants does not. */}
-      <section id="tenure" className="border-y border-etyme-rule bg-etyme-surface scroll-mt-6">
+      {/* ── Is that real ─────────────────────────────────────────── */}
+      {/* The sharpest wedge, and it used to be in section seven of nine.
+          Tenure is the wedge because it is the number nobody can
+          produce — a VMS sees inside one program, a supplier sees its
+          own slice, neither can add them up — not because somebody gets
+          punished for it. */}
+      <section id="tenure" className="border-b border-etyme-rule scroll-mt-6">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
           <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
             <div>
-              <p className="eyebrow mb-3">Tenure</p>
+              <p className="eyebrow mb-3">Is that real</p>
               <h2 className="max-w-[20ch] text-balance font-serif text-3xl leading-tight
                              tracking-[-0.02em] text-etyme-ink md:text-4xl">
                 Nobody can tell you how long a contractor has actually been on site
               </h2>
               <p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted">
                 Ask each supplier and each one tells you the truth — about
-                their own contract. Fourteen months. Three months. Two
-                months. But the person’s actually been at that client
-                for nineteen months straight. No single supplier can add
-                that up, because none of them can see the other two.
+                its own contract. Fourteen months. Three months. Two
+                months. The person has been at that client for nineteen
+                months without a break. No supplier can add that up,
+                because none of them can see the other two.
               </p>
               <p className="mt-4 max-w-[52ch] text-[17px] leading-relaxed text-etyme-ink">
-                It is an exposure rather than a saving, and that’s
-                exactly why we lead with it. A company doing fine on
-                efficiency is still carrying this risk — and usually finds
-                out about it from a lawyer, not from us.
+                Neither can the tools you already have. A VMS sees inside
+                one program. A supplier sees its own slice. You cannot get
+                it by asking, because nobody you could ask is holding all
+                three answers. That is the number this is built around,
+                and it is why the record has to sit above the suppliers
+                rather than inside one of them.
               </p>
               <p className="mt-4 max-w-[52ch] text-[15px] leading-relaxed text-etyme-muted">
                 Where a cap is legally grounded, the system blocks and says
@@ -845,38 +723,265 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+
+          {/* The argument is made; the next thing a buyer wants is to
+              poke it. A page that saves every door for the footer makes
+              a reader who is convinced in section three scroll past six
+              sections to act on it. */}
+          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-4
+                          border-t border-etyme-rule pt-6">
+            <p className="max-w-[46ch] text-[15px] leading-relaxed text-etyme-muted">
+              That ledger is seeded and live, on an example program you can open
+              right now. Sort it, filter it, try to break the block.
+            </p>
+            <TryDemo
+              side="HIRING"
+              asks
+              label="See it as a company →"
+              className="rounded-lg bg-etyme-action px-5 py-3 text-sm font-semibold text-white
+                         transition-opacity hover:opacity-90"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it gets there ────────────────────────────────────── */}
+      {/* Six milestones. This was eighteen numbered stages, which is the
+          internal lifecycle printed on a marketing page — the same
+          mistake the 2017 timeline made when it showed users the cycle
+          engine's own enum. Three words, not nineteen states. */}
+      <section id="lifecycle" className="border-b border-etyme-rule bg-etyme-surface scroll-mt-6">
+        <div className="mx-auto max-w-6xl px-6 py-14 md:py-16">
+          <p className="eyebrow mb-2">How a placement moves</p>
+          <h2 className="max-w-[26ch] text-balance font-serif text-2xl leading-tight
+                         tracking-[-0.02em] text-etyme-ink md:text-3xl">
+            Six milestones, one record the whole way through
+          </h2>
+          <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-etyme-muted">
+            The three in clay can stop the deal. Everything else just
+            records what happened.
+          </p>
+
+          <div className="mt-8 grid grid-cols-1 gap-px overflow-hidden rounded-lg
+                          border border-etyme-rule bg-etyme-rule sm:grid-cols-2
+                          md:grid-cols-3 lg:grid-cols-6">
+            {LIFECYCLE.map((s, i) => (
+              <div
+                key={s.t}
+                className="p-3.5"
+                style={{
+                  background: s.gate ? 'var(--color-raised)' : 'var(--color-surface)',
+                  boxShadow: s.gate ? 'inset 3px 0 0 var(--color-attention)' : undefined,
+                }}
+              >
+                <span className="block font-mono text-[10px] text-etyme-faint">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className="mt-0.5 block text-[13px] font-semibold leading-snug text-etyme-ink">
+                  {s.t}
+                </span>
+                <span className="mt-0.5 block text-[11.5px] leading-snug text-etyme-muted">
+                  {s.d}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-4 text-[13px] text-etyme-muted">
+            Inside, a placement moves through a good deal more than six states.
+            Nobody using it has to learn any of them — one record, end to end,
+            one company or nine of them in a chain.
+          </p>
+        </div>
+      </section>
+
+      {/* ── What changes ─────────────────────────────────────────── */}
+      {/* Four questions a client answers today with a phone call and a
+          guess, and the four screens that answer them instead. These
+          were the staffing firm's four questions until 2026-09-15, on a
+          page whose customer is the company hiring. */}
+      <section id="monday" className="mx-auto max-w-6xl px-6 py-16 md:py-24 scroll-mt-6">
+        <p className="eyebrow mb-3">What changes on Monday</p>
+        <h2 className="max-w-[24ch] text-balance font-serif text-3xl leading-tight
+                       tracking-[-0.02em] text-etyme-ink md:text-4xl">
+          Four questions, answered before lunch instead of by Thursday
+        </h2>
+        <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
+          Right now, every one of these gets answered with a phone call, a
+          spreadsheet and a guess. Here, they’re four screens, and every
+          figure on them comes off what actually happened — a signed
+          timesheet, a matched invoice, a day on site. Open all four in
+          the example program.
+        </p>
+
+        <div className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2">
+          {MONDAY.map((m) => (
+            <div key={m.screen} className="rounded-xl border border-etyme-rule bg-etyme-raised p-6">
+              <p className="stat-label">{m.screen}</p>
+              <h3 className="mt-2 text-balance text-[19px] font-semibold leading-snug text-etyme-ink">
+                {m.q}
+              </h3>
+              <p className="mt-3 text-[15px] leading-relaxed text-etyme-muted">{m.a}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Does it replace what I have ──────────────────────────── */}
+      {/* This was thirteen-pixel gray text under an arrow diagram and it
+          is the most useful sentence on the page. */}
+      <section id="alongside" className="border-y border-etyme-rule bg-etyme-surface scroll-mt-6">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
+          <div className="grid gap-12 lg:grid-cols-[1fr_0.85fr] lg:items-start">
+            <div>
+              <p className="eyebrow mb-3">What it sits beside</p>
+              <h2 className="max-w-[20ch] text-balance font-serif text-3xl leading-tight
+                             tracking-[-0.02em] text-etyme-ink md:text-4xl">
+                Keep your ATS, your VMS and every supplier you already use
+              </h2>
+              <p className="mt-5 max-w-[52ch] text-[17px] leading-relaxed text-etyme-muted">
+                Etyme sits in front of what you already use — it doesn’t
+                replace it. Nothing to switch off, no supplier onboarding
+                project, nobody to kick out. It just keeps the one record that
+                spans everything else, which none of your other tools do.
+              </p>
+            </div>
+
+            <ul className="space-y-6">
+              <li className="border-t border-etyme-rule pt-4">
+                <p className="text-[15px] font-semibold text-etyme-ink">
+                  Work arrives the way it already does
+                </p>
+                <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
+                  Paste in a forwarded email, a role description, five of them at
+                  once — they come back as seats, duplicates already merged.
+                  Nobody has to change how they send you work.
+                </p>
+              </li>
+              <li className="border-t border-etyme-rule pt-4">
+                <p className="text-[15px] font-semibold text-etyme-ink">
+                  Your suppliers don’t need to sign up first
+                </p>
+                <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
+                  Paste the distribution list you already use. Every firm on
+                  it, you can send a role to today — whether they’ve
+                  heard of Etyme or not.
+                </p>
+              </li>
+              <li className="border-t border-etyme-rule pt-4">
+                <p className="text-[15px] font-semibold text-etyme-ink">
+                  What’s yours stays yours
+                </p>
+                <p className="mt-1 text-[15px] leading-relaxed text-etyme-muted">
+                  Your rates, your suppliers, your contractors’ records — all
+                  yours. Every list exports to CSV straight from the screen.
+                  You never have to ask us for your own data.
+                </p>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Who else is on it ────────────────────────────────────── */}
+      {/* The client is the customer, decided 2026-09-10. The suppliers
+          are here because their client is, and they read this section
+          over the client's shoulder — it is not four audiences as
+          equals, which is how a hiring manager came away believing this
+          was software for staffing firms. */}
+      <section id="who" className="mx-auto max-w-6xl px-6 py-16 md:py-24 scroll-mt-6">
+        <p className="eyebrow mb-3">The chain you already buy through</p>
+        <h2 className="max-w-[22ch] text-balance font-serif text-3xl leading-tight
+                       tracking-[-0.02em] text-etyme-ink md:text-4xl">
+          Your role goes further down than you think. So does your name.
+        </h2>
+        <p className="mt-5 max-w-[58ch] text-[17px] leading-relaxed text-etyme-muted">
+          You send a role to a supplier. It goes to a prime, who sends it to a
+          sub, who sends it to the firm that actually has the person. At every
+          hop somebody forwards the email as it arrived, because redacting it
+          properly takes longer than anybody has — which is how your company
+          name, your rate and your manager’s words end up two firms past the
+          agreement that said they wouldn’t.
+        </p>
+        <p className="mt-4 max-w-[58ch] text-[17px] leading-relaxed text-etyme-ink">
+          It is also why the same résumé reaches you three times from three
+          firms, why you cannot tell whether a rate is the person’s or the
+          chain’s, and why somebody you have already used arrives as a
+          stranger. One record across the whole chain is what fixes all
+          three at once — and every hop is written down: what was sent, to
+          whom, under which agreement, and what was withheld.
+        </p>
+
+        <div className="mt-12 rounded-xl border border-etyme-rule bg-etyme-surface p-6 md:p-8">
+          <p className="max-w-[58ch] text-[15px] leading-relaxed text-etyme-ink">
+            <span className="font-semibold">Supplying into a program like this?</span>{' '}
+            You are on it because your client is, and nothing about it competes
+            with you — Etyme never runs a bench and never places anybody. Prime,
+            sub and bench are positions on a deal, not kinds of company: the same
+            firm is a prime this week and a sub next week, which is why this is
+            one product and not four.
+          </p>
+
+          <ul className="mt-6 grid gap-5 sm:grid-cols-3">
+            {SUPPLY.map((s) => (
+              <li key={s.who} className="border-t border-etyme-rule pt-3">
+                <p className="stat-label">{s.who}</p>
+                <p className="mt-1.5 text-[14px] leading-relaxed text-etyme-muted">{s.line}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
       {/* ── Rules first, model second ────────────────────────────── */}
       {/* Two cards instead of two paragraphs — the split itself is the
-          point, so it should look split. */}
-      <section id="compliance" className="mx-auto max-w-6xl px-6 py-16 md:py-20 scroll-mt-6">
-        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-          <h2 className="max-w-[18ch] text-balance font-serif text-3xl leading-tight
-                         tracking-[-0.02em] text-etyme-ink md:text-4xl">
-            About half of what looks like AI here is not
-          </h2>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-5">
-              <p className="stat-label" style={{ color: 'var(--color-verified)' }}>
-                Plain rules
-              </p>
-              <p className="mt-2 text-[15px] leading-relaxed text-etyme-muted">
-                Rate against the band. An expiring permit. A missing
-                document. The same person submitted twice. Right every
-                time, free to run, and each one explains itself in a
-                sentence you can push back on.
+          point, so it should look split.
+
+          The heading used to say "about half of what looks like AI here
+          is not", which nobody could check. The count below is from
+          lib/autonomy, which names every action this system takes, and
+          the test recomputes it rather than trusting the words. The
+          denominator is stated on the page for the same reason: it is
+          thirteen unprompted actions, not the whole product. */}
+      <section id="compliance" className="border-y border-etyme-rule bg-etyme-surface scroll-mt-6">
+        <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
+          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+            <div>
+              <h2 className="max-w-[18ch] text-balance font-serif text-3xl leading-tight
+                             tracking-[-0.02em] text-etyme-ink md:text-4xl">
+                Most of what looks like AI here is a rule, and we would rather say so
+              </h2>
+              <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-etyme-muted">
+                Thirteen things in here happen without anybody asking for them.
+                Twelve of the thirteen are a date, a threshold or a count —
+                a permit running out, a contract whose last day has passed, the
+                same person submitted twice. The thirteenth scores a person
+                against a role, and even that falls back to arithmetic when
+                there is no model to call.
               </p>
             </div>
-            <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-5">
-              <p className="stat-label">A model, on what&rsquo;s left</p>
-              <p className="mt-2 text-[15px] leading-relaxed text-etyme-muted">
-                Reads CVs, drafts messages. Never decides whether someone
-                can legally work. Every score comes with what it&rsquo;s
-                made of and what it couldn&rsquo;t find — a bare number
-                with no explanation is a bug here, not a feature.
-              </p>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-5">
+                <p className="stat-label" style={{ color: 'var(--color-verified)' }}>
+                  Plain rules
+                </p>
+                <p className="mt-2 text-[15px] leading-relaxed text-etyme-muted">
+                  Rate against the band. An expiring permit. A missing
+                  document. The same person submitted twice. Right every
+                  time, free to run, and each one explains itself in a
+                  sentence you can push back on.
+                </p>
+              </div>
+              <div className="rounded-xl border border-etyme-rule bg-etyme-raised p-5">
+                <p className="stat-label">A model, on what&rsquo;s left</p>
+                <p className="mt-2 text-[15px] leading-relaxed text-etyme-muted">
+                  Reads CVs, drafts messages, scores a person against a
+                  role. Never decides whether someone can legally work.
+                  Every score comes with what it&rsquo;s made of and what
+                  it couldn&rsquo;t find — a bare number with no
+                  explanation is a bug here, not a feature.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -886,7 +991,7 @@ export default function LandingPage() {
       {/* A page with no price makes a reader assume enterprise sales and
           leave. We do not have one yet, so it says that rather than
           nothing — and says what is settled, which is the shape. */}
-      <section id="why" className="border-y border-etyme-rule bg-etyme-surface scroll-mt-6">
+      <section id="why" className="border-b border-etyme-rule scroll-mt-6">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
           <p className="eyebrow mb-3">What it costs</p>
           <h2 className="max-w-[22ch] text-balance font-serif text-3xl leading-tight
@@ -925,7 +1030,7 @@ export default function LandingPage() {
             Start with one role and one supplier you already use
           </h2>
           <p className="mx-auto mt-4 max-w-[48ch] text-[17px] leading-relaxed text-etyme-muted">
-            We’re building this with a small number of firms instead
+            We’re building this with a small number of companies instead
             of launching to everyone. You get direct access to the people
             building it. We get a real chain to build against.
           </p>

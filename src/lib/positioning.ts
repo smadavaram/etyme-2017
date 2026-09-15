@@ -91,6 +91,55 @@ const NEUTRALITY = [
   'we find you', 'we hire', 'our talent pool', 'we recruit',
 ]
 
+/**
+ * Real companies, named on a public page.
+ *
+ * ── Why this is a rule and not a matter of taste ──────────────────────
+ *
+ * The page said "Or sit at a running program — Nike, Corning, Terumo BCT
+ * — from whichever desk is yours." Those are the seeded demo tenants.
+ * On a marketing page, above a button, "a running program" reads as
+ * *these companies run their programs on Etyme*: three trademarked
+ * enterprises framed as live customers, none of whom has heard of us.
+ *
+ * It walked straight past "claims no paying customers", because that
+ * guard looked for the words a testimonial uses — "customers say",
+ * "keep paying" — and a logo wall does not use them. A name is the
+ * claim. So the name is what is checked.
+ *
+ * ── Why the list is short and named, not a trademark database ─────────
+ *
+ * There is no way to detect "is this a real company" from a string, and
+ * a rule that tried would fail on Calder Manufacturing and Brightmoor
+ * Talent, which are inventions in the worked examples and have to stay.
+ * This is instead the specific set that has been on this page, plus the
+ * ones somebody would reach for next: the household names, the peer
+ * systems a comparison would name, and the large staffing firms. A
+ * comparison is caught too, deliberately — "unlike Fieldglass" is a
+ * claim about somebody else's product that nobody here has tested.
+ *
+ * Two-word names are matched whole, so "General Electric" is caught and
+ * a sentence about electric vehicles is not. Nothing shorter than four
+ * letters is listed, because "GE" and "SAP" appear inside ordinary words
+ * and a guard that cries wolf gets deleted.
+ */
+const TRADEMARKED = [
+  // On this page, until today.
+  'nike', 'corning', 'terumo', 'terumo bct',
+  // Household names, the sort a page reaches for to look established.
+  'apple', 'google', 'microsoft', 'amazon', 'meta', 'facebook', 'tesla',
+  'boeing', 'pfizer', 'siemens', 'general electric', 'johnson johnson',
+  'walmart', 'intel', 'nvidia', 'netflix', 'starbucks', 'coca cola',
+  // The systems a comparison would name.
+  'fieldglass', 'beeline', 'coupa', 'workday', 'oracle', 'salesforce',
+  'bullhorn', 'greenhouse', 'ceipal', 'icims', 'taleo', 'successfactors',
+  'linkedin', 'indeed', 'ziprecruiter',
+  // The large staffing and consulting firms.
+  'accenture', 'deloitte', 'infosys', 'wipro', 'cognizant', 'capgemini',
+  'randstad', 'adecco', 'manpower', 'aerotek', 'robert half',
+  'insight global', 'kelly services', 'allegis',
+]
+
 function hits(text: string, words: string[]): string[] {
   const raw = text.toLowerCase()
   // Punctuation goes, so "Every contractor." still matches "contractor".
@@ -100,6 +149,20 @@ function hits(text: string, words: string[]): string[] {
   return words.filter((w) =>
     w.includes('.') ? raw.includes(w) : lower.includes(` ${w} `)
   )
+}
+
+/**
+ * Every real company named in a piece of copy.
+ *
+ * Empty is the only acceptable answer on a public page. Each hit is the
+ * name as listed, so somebody can search the file for it rather than
+ * reading the whole page looking for the sentence.
+ */
+export function namedCompanies(text: string): string[] {
+  const found = hits(text, TRADEMARKED)
+  // "Terumo BCT" also matches "terumo"; report the longest form only, so
+  // the message names the company the way the page did.
+  return found.filter((name) => !found.some((other) => other !== name && other.includes(name)))
 }
 
 export interface Copy {
@@ -174,6 +237,25 @@ export function check(copy: Copy): Finding[] {
     })
   }
 
+  // ── Somebody else's company, named on our page ──────────────────────
+  //
+  // Whether it is framed as a customer, a logo or a comparison, we
+  // cannot stand behind it: nobody named has agreed to appear here.
+  const named = namedCompanies(all)
+  if (named.length > 0) {
+    findings.push({
+      rule: 'names-a-real-company',
+      severity: 'WRONG',
+      found: named.join(', '),
+      says:
+        `The page names ${named[0]}, and nobody at ${named[0]} has agreed to appear on it. ` +
+        'A real company on a marketing page reads as a customer whatever the sentence ' +
+        'around it says — "sit at a running program" made three seeded demo tenants read ' +
+        'as three live programs. Use an invented firm, or describe the company instead ' +
+        'of naming it.',
+    })
+  }
+
   // ── Neutrality is absolute ──────────────────────────────────────────
   const claims = hits(all, NEUTRALITY)
   if (claims.length > 0) {
@@ -223,10 +305,42 @@ export function verdict(copy: Copy): Verdict {
 export function copyFrom(source: string): string[] {
   const out: string[] = []
 
-  // Text between tags: >Some words here<
-  for (const m of source.matchAll(/>([^<>{}]{4,})</g)) {
+  // Text between tags, up to the next tag *or the next expression*:
+  //
+  //     >Some words here<
+  //     >Some words here.{' '}
+  //
+  // The second shape is not a curiosity. The line naming three real
+  // companies — "Or sit at a running program — Nike, Corning, Terumo BCT
+  // — from whichever desk is yours.{' '}" — ended in a JSX space
+  // expression, so the old pattern, which required a closing `<`, never
+  // saw a word of it. A whole sentence of the page was outside every
+  // rule in this file for as long as it was live. Anything a reader can
+  // read has to be inside the guard, and a sentence with a link at the
+  // end of it is the most ordinary thing on a marketing page.
+  for (const m of source.matchAll(/>([^<>{}]{4,})(?=[<{])/g)) {
     const t = m[1].replace(/\s+/g, ' ').trim()
     if (t && /[a-zA-Z]/.test(t)) out.push(t)
+  }
+
+  // And the other half of the same sentence: prose that *starts* after an
+  // expression, which is what a paragraph with a bold lead-in or an
+  // inline link looks like.
+  //
+  //     <span>Supplying into a program?</span>{' '}
+  //     You are on it because your client is, and nothing competes with you.
+  //
+  // A `}` also closes a block of code, and what follows that is code. So
+  // this keeps only what cannot be code: prose has no `=`, no `;`, no
+  // brackets, no slashes and no straight quotes, and starts with a
+  // letter. Crude, and it is the difference between a guard that reads
+  // the page and a guard that reads most of it.
+  for (const m of source.matchAll(/\}([^<>{}]{4,})(?=[<{])/g)) {
+    const t = m[1].replace(/\s+/g, ' ').trim()
+    if (!/^[A-Za-z]/.test(t)) continue
+    if (/[=;*[\]'`\\/]/.test(t)) continue
+    if (t.split(' ').length < 3) continue
+    out.push(t)
   }
 
   // String literals long enough to be prose rather than a class name.
