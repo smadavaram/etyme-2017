@@ -1,0 +1,160 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { reportError } from '@/lib/alerts'
+import { callerIsStaff } from '@/lib/staff'
+import { timingSafeEqual } from 'node:crypto'
+import { seedWorld } from '@/lib/seed-world'
+
+/**
+ * A minute, not the default ten seconds.
+ *
+ * Walking twenty firms, their placements and three client programs is
+ * hundreds of queries against a database in another building. On the
+ * first run most of them are writes; on a re-run they are the checks
+ * that make it idempotent, and there are just as many. Both take longer
+ * than the ten seconds a serverless function gets by default, and a
+ * function cut off at ten seconds leaves the world half-built with a
+ * gateway timeout for an answer — which is what happened on 2026-09-13:
+ * the seed was re-run to add the HR and Procurement desks, and nothing
+ * reached Nike. Sixty is the most a Hobby deployment allows.
+ */
+export const maxDuration = 60
+
+/**
+ * POST /api/seed-world
+ *
+ * Builds the twenty-firm world described in lib/seed-world, on whichever
+ * database this deployment is pointed at.
+ *
+ * It exists so the world can be seeded without a production database URL
+ * leaving the deployment it belongs to. The alternative was pasting that
+ * credential into a shell somewhere, and a credential that never moves
+ * cannot be mislaid.
+ *
+ * ── The guard ────────────────────────────────────────────────────────
+ *
+ * Two credentials, and a caller needs one of them.
+ *
+ * `Authorization: Bearer <CRON_SECRET>`, compared in constant time — for
+ * a machine, and for anybody holding the secret.
+ *
+ * Or a signed-in member of Etyme's own staff: an address in
+ * `ETYME_STAFF_EMAILS`. That list already means "our own people" — it
+ * is who hears when this deployment breaks — and the people who may
+ * reseed a demo world are the same set. One variable rather than two,
+ * because a second one is a second thing to forget.
+ *
+ * It exists so the founder can press a button instead of pasting a
+ * bearer token into a browser console, which is what re-seeding took
+ * before and is not a thing to ask of somebody who does not write code.
+ * With the list unset nobody qualifies and the refusal says to set it —
+ * the same variable the alerting row on /ready is already asking for.
+ *
+ * Deliberately not the comparison the cron routes use. They test
+ * `header !== ` + "`Bearer ${process.env.CRON_SECRET}`" + `, which on a deployment
+ * with no CRON_SECRET set interpolates to the literal string "Bearer
+ * undefined" — and anybody who sends exactly that is let in. Here a
+ * missing secret refuses everything outside development instead, which
+ * is the direction to fail in for a route that writes.
+ *
+ * ── Safe to call twice ───────────────────────────────────────────────
+ *
+ * The seed is idempotent by slug, so a second call adds nothing. That
+ * also makes it safe to retry after a serverless timeout: it resumes
+ * rather than duplicating, and the roster it returns is the same either
+ * way.
+ */
+
+/**
+ * GET /api/seed-world — may whoever is asking press the button?
+ *
+ * So the page can leave it off the screen rather than show a control
+ * that refuses on click. Says nothing about the world itself; /api/ready
+ * already reports that, and this one answers only about the caller.
+ */
+export async function GET() {
+  const verdict = await callerIsStaff()
+  return NextResponse.json({ data: { mayReseed: verdict.ok, says: verdict.says } })
+}
+
+/** Constant time, and false when either side is missing. */
+function sameSecret(given: string | null, expected: string | undefined): boolean {
+  if (!given || !expected) return false
+  const a = Buffer.from(given)
+  const b = Buffer.from(expected)
+  // timingSafeEqual throws on a length mismatch, which would itself leak
+  // the length. Compare a fixed-width digest of each instead — here, pad
+  // to the longer of the two.
+  if (a.length !== b.length) return false
+  return timingSafeEqual(a, b)
+}
+
+export async function POST(request: NextRequest) {
+  const secret = process.env.CRON_SECRET
+  const offered = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? null
+
+  // A signed-in member of staff needs no secret. Checked first so that a
+  // deployment with no CRON_SECRET at all is still usable by us, and so
+  // the refusal a person reads is about them rather than about a
+  // variable they were not asked for.
+  const staff = offered === null ? await callerIsStaff() : { ok: false, says: '' }
+  if (staff.ok) {
+    // Falls through to the seed below.
+  } else if (!secret) {
+    // No secret configured. In development that is ordinary and the route
+    // is a convenience; anywhere else it means the guard cannot be
+    // enforced, and a writing route with no guard should not answer.
+    if (process.env.NODE_ENV !== 'development') {
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NO_SECRET',
+            message:
+              'CRON_SECRET is not set on this deployment, so this route refuses to run.' +
+              (staff.says ? ` ${staff.says}` : ''),
+          },
+        },
+        { status: 503 }
+      )
+    }
+  } else if (!sameSecret(offered, secret)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'UNAUTHORIZED',
+          message: offered === null
+            ? staff.says
+            : 'That is not the CRON_SECRET for this deployment.',
+        },
+      },
+      { status: 401 }
+    )
+  }
+
+  try {
+    const result = await seedWorld()
+    return NextResponse.json({
+      data: {
+        ...result,
+        says:
+          `${result.firms} firms, ${result.placements} placements, ` +
+          `${result.consultants} consultants. Enter one with ` +
+          `POST /api/demo {"as":"world-cloudepa"}, or sit at a client desk at /demo — ` +
+          `POST /api/demo {"as":"world-nike","desk":"ap"}.`,
+      },
+    })
+  } catch (err: any) {
+    // Loud and specific. A half-built world is worse than none, and the
+    // seed is idempotent, so the honest advice is to run it again.
+    reportError('seed-world: could not build the world', err)
+    return NextResponse.json(
+      {
+        error: {
+          code: 'SEED_FAILED',
+          message: String(err?.message ?? err),
+          hint: 'The seed is idempotent — running it again resumes where it stopped.',
+        },
+      },
+      { status: 500 }
+    )
+  }
+}
