@@ -15,7 +15,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  check, verdict, copyFrom, gridsWithoutBreakpoint, type Copy,
+  check, verdict, copyFrom, gridsWithoutBreakpoint, priceClaims, type Copy,
 } from '@/lib/positioning'
 
 const PAGE = readFileSync(join(process.cwd(), 'src/app/page.tsx'), 'utf8')
@@ -437,5 +437,149 @@ describe('The home page is read on a phone', () => {
   it('catches an unbreakpointed column template written by hand', () => {
     expect(gridsWithoutBreakpoint('<div className="grid grid-cols-[1fr_0.85fr]">'))
       .toEqual(['grid-cols-[1fr_0.85fr]'])
+  })
+})
+
+// ── The footer ────────────────────────────────────────────────────────
+//
+// Three legal pages shipped and the home page had no link to any of
+// them, so they were live and invisible — which, to the client security
+// reviewer who goes looking in the footer, is the same as not having
+// written them. The footer was a logo and a tagline: the end of a page
+// rather than a company.
+
+const FOOTER_SRC = PAGE.slice(PAGE.indexOf('const FOOTER'), PAGE.indexOf('export default function'))
+const FOOTER_LINKS = [...FOOTER_SRC.matchAll(/href: '([^']+)'/g)].map((m) => m[1])
+
+describe('The footer is where a company keeps its papers', () => {
+
+  it('a visitor can reach the terms and the privacy notice from the home page', () => {
+    expect(FOOTER_LINKS).toContain('/terms')
+    expect(FOOTER_LINKS).toContain('/privacy')
+    // And the list is actually rendered, rather than sitting in the file
+    // as data nothing draws — which is how it was invisible in the first
+    // place, one level up.
+    expect(PAGE).toContain('FOOTER.map')
+  })
+
+  it('offers the data processing addendum too, because that is the document a buyer\u2019s counsel asks for', () => {
+    expect(FOOTER_LINKS).toContain('/dpa')
+  })
+
+  it('says the legal documents are drafts before somebody clicks one, not after', () => {
+    expect(FOOTER_SRC).toContain('not yet reviewed by a lawyer')
+  })
+
+  it('every page the footer points at exists, so none of it is a dead link', () => {
+    for (const href of FOOTER_LINKS) {
+      if (href.startsWith('#')) {
+        expect(PAGE, `${href} has no section on the page`).toContain(`id="${href.slice(1)}"`)
+      } else {
+        // A route may sit inside a route group — /login is
+        // src/app/(auth)/login — and a group folder is not part of the URL.
+        const candidates = ['', '(auth)'].map((group) =>
+          join(process.cwd(), 'src/app', group, href.slice(1), 'page.tsx')
+        )
+        expect(candidates.some(existsSync), `no page for ${href}`).toBe(true)
+      }
+    }
+  })
+
+  it('gives a visitor a way to reach a person, and it is the one channel that exists', () => {
+    // Alerts go out to staff and nothing came in from a prospect except
+    // this box, which somebody reads and answers.
+    expect(FOOTER_LINKS).toContain('#contact')
+    expect(PAGE).toContain('id="contact"')
+    expect(PAGE).toContain('<Ask source="HOME_PAGE" />')
+  })
+
+  it('invents no support mailbox, no office and no social account', () => {
+    // A footer full of links to things that do not exist costs more
+    // trust than a short one. Nothing here may be furniture.
+    expect(FOOTER_SRC).not.toMatch(/mailto:/)
+    expect(FOOTER_SRC.toLowerCase()).not.toMatch(/linkedin|twitter|x\.com|facebook|status\.|careers|\babout us\b/)
+  })
+
+  it('names the company and the year rather than a hardcoded copyright that goes stale', () => {
+    expect(PAGE).toContain('Etyme Inc.')
+    expect(PAGE).toContain('new Date().getFullYear()')
+  })
+
+  it('says what Etyme is in the footer, in the words from CLAUDE.md', () => {
+    // Somebody who scrolled past the hero and read nothing else still
+    // leaves knowing the category.
+    expect(PAGE).toContain('The system of record for contingent workers')
+  })
+
+  it('repeats the neutrality commitment where a supplier reading the page will see it', () => {
+    const footerJsx = PAGE.slice(PAGE.indexOf('<footer'))
+    expect(footerJsx).toContain('never runs a bench and never places anybody')
+  })
+})
+
+// ── The four sentences the founder reads ──────────────────────────────
+
+describe('The public page still says the four things it may not stop saying', () => {
+
+  it('the home page names what Etyme is before it names anything it does', () => {
+    // The eyebrow is the category and it sits above the headline. A
+    // visitor knows what kind of thing this is before they know what is
+    // good about it — the Concur move.
+    expect(words[1]).toBe('Contingent workforce management')
+    expect(check(live).map((f) => f.rule)).not.toContain('category-first')
+    expect(check(live).map((f) => f.rule)).not.toContain('module-not-category')
+  })
+
+  it('nothing on the public page states a price', () => {
+    // Free while it is proved out with the first five firms, and the
+    // number is settled after that. A figure invented for a landing page
+    // is a figure we have to walk back.
+    const found = priceClaims(all)
+    expect(found, found.join('; ')).toEqual([])
+    expect(body).toContain('There is no price on this page because we have not settled one')
+  })
+
+  it('nothing on the public page claims Etyme places anybody', () => {
+    expect(check(live).map((f) => f.rule)).not.toContain('neutrality')
+    expect(all).toContain('never runs a bench and never places anybody')
+  })
+
+  it('claims no paying customers, because there are none yet', () => {
+    // "they are why firms keep paying after month one" was on the page
+    // under four screens, three sections above a section explaining that
+    // Etyme is free and nobody has been charged anything.
+    expect(all).not.toContain('keep paying')
+    expect(all).not.toMatch(/\bcustomers (?:say|trust|love)\b/)
+  })
+})
+
+// ── The price rule itself ─────────────────────────────────────────────
+
+describe('A price on a page is caught by its unit, not by its dollar sign', () => {
+
+  it('catches a price per seat', () => {
+    expect(priceClaims('Etyme is $40 per user, per month.').length).toBeGreaterThan(0)
+  })
+
+  it('catches a cut of spend, which is a price without a dollar sign', () => {
+    expect(priceClaims('We take 2% of spend under management.').length).toBeGreaterThan(0)
+  })
+
+  it('catches "starting at", and "contact us for pricing", which is a price with the number hidden', () => {
+    expect(priceClaims('Plans starting at $199.').length).toBeGreaterThan(0)
+    expect(priceClaims('Contact us for pricing.').length).toBeGreaterThan(0)
+  })
+
+  it('lets the worked example carry a contractor rate and an invoice, which are the product, not the bill', () => {
+    expect(priceClaims('Submitted 2 Sep · $78/hr · screened. Invoiced $11,856 on 45 day terms.'))
+      .toEqual([])
+  })
+
+  it('lets the page say one record per contractor without reading it as a billing unit', () => {
+    expect(priceClaims('One record per contractor, across every supplier they use.')).toEqual([])
+  })
+
+  it('says which words tripped it, so somebody can go and look', () => {
+    expect(priceClaims('Etyme is $40 per seat.')[0]).toContain('per seat')
   })
 })

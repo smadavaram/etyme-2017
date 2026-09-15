@@ -274,3 +274,56 @@ export function gridsWithoutBreakpoint(source: string): string[] {
   }
   return out
 }
+
+// ── A price nobody has settled ────────────────────────────────────────
+//
+// Etyme is free while it is proved out with the first five firms, and
+// the price is set after that. Until then no page, deck or conversation
+// invents a number, a range or a unit — a figure put on a landing page
+// to look like a real company is a figure we have to walk back, and a
+// reader would be right to hold it against us.
+//
+// The page is allowed to carry money: the worked example shows a
+// contractor at $78/hr and an invoice at $11,856, which is what the
+// product records rather than what it charges. So this looks for the
+// *units a software price is quoted in* rather than for dollar signs,
+// which is the difference between "here is a placement" and "here is
+// what we would bill you for it".
+
+/**
+ * The shapes a SaaS price takes when somebody writes one down.
+ *
+ * Deliberately not "per contractor" or "per hire": the page already
+ * says "one record per contractor, across every supplier they use",
+ * which is a description of the record and not a billing unit. A guard
+ * that fires on that sentence gets deleted by the next person, and then
+ * nothing is guarding anything.
+ */
+const PRICE_UNITS: { pattern: RegExp; says: string }[] = [
+  { pattern: /\bper\s+(?:seat|user|month|year|placement|requisition)\b/i,
+    says: 'a billing unit' },
+  { pattern: /\$\s?\d[\d,]*(?:\.\d+)?\s*(?:\/|\bper\b)\s*(?:seat|user|mo\b|month|yr\b|year)/i,
+    says: 'a rate per seat or per period' },
+  { pattern: /\b\d+(?:\.\d+)?\s*%\s*(?:of\s+)?(?:spend|margin|bill rate|markup|invoice value)\b/i,
+    says: 'a percentage of spend' },
+  { pattern: /\bstarting at\b/i, says: 'an opening price' },
+  { pattern: /\bpricing (?:starts|plans|tiers)\b/i, says: 'a price list' },
+  { pattern: /\b(?:contact us for|request) (?:a )?(?:pricing|a quote)\b/i,
+    says: 'a quote, which is a price with the number hidden' },
+]
+
+/**
+ * Anything on a page that reads as a price for Etyme itself.
+ *
+ * Empty is the only acceptable answer while the price is unsettled.
+ * Each hit carries the words that triggered it, so somebody can go and
+ * look rather than guess which sentence is the problem.
+ */
+export function priceClaims(text: string): string[] {
+  const out: string[] = []
+  for (const { pattern, says } of PRICE_UNITS) {
+    const m = text.match(pattern)
+    if (m) out.push(`${m[0].trim()} — ${says}`)
+  }
+  return out
+}

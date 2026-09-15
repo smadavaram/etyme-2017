@@ -3,6 +3,10 @@ import { TryDemo } from '@/components/try-demo'
 import { Ask } from '@/app/site/ask'
 import { ASK_COPY } from '@/lib/public-site/leads'
 import Link from 'next/link'
+// Typed routes widen a string in an array to `string`, which Link will not
+// take. The footer's routes are literals two lines below; the cast is at
+// the render rather than on the data so the list stays readable.
+import type { Route } from 'next'
 
 /**
  * The front door.
@@ -329,6 +333,73 @@ const DECIDED = [
       'You get a live workspace with a real worked example — go break it. ' +
       'If it’s not obviously useful in there, no price tag was going to ' +
       'fix that.',
+  },
+]
+
+/**
+ * The footer.
+ *
+ * ── Why this is not decoration ───────────────────────────────────────
+ *
+ * Three legal pages shipped and nothing pointed at them, so they were
+ * live and invisible. A client's security review finds a document by
+ * looking in the footer; finding nothing there is indistinguishable
+ * from a company that never wrote one.
+ *
+ * The rest of it is the same argument. A logo and a tagline is a page
+ * that ended, not a company that exists. What a first-time enterprise
+ * visitor looks for down here is narrow and known: where the legal
+ * documents are, how to reach a person, and what the sections above
+ * were called so they can get back to one.
+ *
+ * ── What is deliberately not here ────────────────────────────────────
+ *
+ * No About, no Careers, no Blog, no status page, no social links, no
+ * street address and no support mailbox. Every one of those is a link
+ * to something that does not exist, and a footer full of dead links
+ * costs more trust than a short one. The only inbound channel that
+ * exists is the ask box on this page, which a person reads and answers,
+ * so it is the only one offered.
+ *
+ * The three legal documents each say on their own face that they are
+ * drafts written from the code and not yet reviewed by a lawyer. The
+ * footer says it too, before the click rather than after it. A link
+ * labeled "Terms of service" that opens a draft is exactly the small
+ * dishonesty the rest of this page argues against.
+ *
+ * The DPA is in the list rather than held back for procurement. It is
+ * counsel's document and a visitor will never read it — but the person
+ * sent here to find it is a buyer's reviewer with a checklist, and one
+ * extra line costs us nothing next to an email round trip.
+ */
+const FOOTER: { heading: string; links: { label: string; href: string }[]; note?: string }[] = [
+  {
+    heading: 'The product',
+    links: [
+      { label: 'How a placement moves', href: '#lifecycle' },
+      { label: 'Who this is for', href: '#who' },
+      { label: 'Tenure', href: '#tenure' },
+      { label: 'What changes on Monday', href: '#monday' },
+      { label: 'What it costs', href: '#why' },
+    ],
+  },
+  {
+    heading: 'Start',
+    links: [
+      { label: 'Look around a running program', href: '/demo' },
+      { label: 'Ask us something', href: '#contact' },
+      { label: 'Sign in', href: '/login' },
+    ],
+    note: 'No card and no sign-up to look. A person reads what you send.',
+  },
+  {
+    heading: 'Legal',
+    links: [
+      { label: 'Terms of service', href: '/terms' },
+      { label: 'Privacy notice', href: '/privacy' },
+      { label: 'Data processing addendum', href: '/dpa' },
+    ],
+    note: 'Drafts, written from the code itself and not yet reviewed by a lawyer. Each one says so on its face, and lists what counsel still has to decide.',
   },
 ]
 
@@ -685,8 +756,9 @@ export default function LandingPage() {
         </h2>
         <p className="mt-4 max-w-[54ch] text-[17px] leading-relaxed text-etyme-muted">
           Right now, every one of these gets answered with a phone call, a
-          spreadsheet and a guess. Here, they’re four screens — and
-          they’re why firms keep paying after month one.
+          spreadsheet and a guess. Here, they’re four screens, and every
+          figure on them comes off what actually happened. Open all four in
+          the demo.
         </p>
 
         <div className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2">
@@ -900,7 +972,7 @@ export default function LandingPage() {
           them: no newsletter, no sequence, no price. The price is settled
           — free until five real vendors — and it is settled in CLAUDE.md
           rather than invented on a form somebody has to take back. */}
-      <section className="border-t border-etyme-rule bg-etyme-surface">
+      <section id="contact" className="border-t border-etyme-rule bg-etyme-surface scroll-mt-6">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
           <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
             <div>
@@ -918,13 +990,64 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="mx-auto max-w-6xl px-6 py-10">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-t
-                        border-etyme-rule pt-6">
-          <EtymeLogo size="sm" />
-          <p className="font-mono text-[11px] text-etyme-faint">
-            Contract staffing, end to end.
-          </p>
+      <footer className="border-t border-etyme-rule bg-etyme-surface">
+        <div className="mx-auto max-w-6xl px-6 py-12 md:py-16">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+            <div>
+              <EtymeLogo size="md" />
+              <p className="mt-4 max-w-[32ch] text-[14px] leading-relaxed text-etyme-muted">
+                The system of record for contingent workers — the layer between a
+                company and every staffing supplier it uses.
+              </p>
+              <p className="mt-3 max-w-[32ch] text-[13px] leading-relaxed text-etyme-faint">
+                Etyme never runs a bench and never places anybody.
+              </p>
+            </div>
+
+            {FOOTER.map((group) => (
+              <div key={group.heading}>
+                <p className="stat-label">{group.heading}</p>
+                <ul className="mt-3 space-y-2">
+                  {group.links.map((l) => (
+                    <li key={l.href}>
+                      {l.href.startsWith('#') ? (
+                        <a
+                          href={l.href}
+                          className="text-[14px] leading-snug text-etyme-muted underline-offset-2
+                                     transition-colors hover:text-etyme-ink hover:underline"
+                        >
+                          {l.label}
+                        </a>
+                      ) : (
+                        <Link
+                          href={l.href as Route}
+                          className="text-[14px] leading-snug text-etyme-muted underline-offset-2
+                                     transition-colors hover:text-etyme-ink hover:underline"
+                        >
+                          {l.label}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                {group.note && (
+                  <p className="mt-3 max-w-[30ch] text-[12px] leading-snug text-etyme-faint">
+                    {group.note}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-12 flex flex-wrap items-center justify-between gap-3
+                          border-t border-etyme-rule pt-6">
+            <p className="font-mono text-[11px] text-etyme-faint">
+              © {new Date().getFullYear()} Etyme Inc.
+            </p>
+            <p className="font-mono text-[11px] text-etyme-faint">
+              Requisition to invoice, across every supplier.
+            </p>
+          </div>
         </div>
       </footer>
     </main>
