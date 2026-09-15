@@ -3,6 +3,10 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { sellContractScope } from '@/lib/resolve-client-company'
 import { mayEnter } from '@/lib/timesheet-authority'
+import {
+  policyOf, splitWeeks, valueOf, weeksAwaitingDecision, saysAwaiting, treatmentSays,
+  type Decision, type Treatment,
+} from '@/lib/overtime'
 
 /**
  * GET /api/timesheets
@@ -44,10 +48,17 @@ export async function GET(request: NextRequest) {
             id: true,
             billRate: true,
             billCurrency: true,
+            overtimeAfterHours: true,
+            overtimeMultiplierBps: true,
             clientCompany: { select: { id: true, name: true } },
             endClientCompany: { select: { id: true, name: true } },
             engagement: { select: { id: true, title: true } },
           },
+        },
+        // The list has to be able to say "this one has a question on it"
+        // before anybody clicks Approve and is refused.
+        overtimeDecisions: {
+          select: { weekOf: true, treatment: true, appliedBps: true, overtimeHours: true },
         },
       },
       orderBy: { periodStart: 'desc' },
@@ -77,10 +88,70 @@ export async function GET(request: NextRequest) {
         anomalyScore: t.anomalyScore,
         anomalyReason: t.anomalyReason,
         approvedAt: t.approvedAt?.toISOString() ?? null,
+        overtime: overtimeOf(t),
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     },
   })
+}
+
+/**
+ * What this sheet still has to be asked, and what it was already told.
+ *
+ * A week over the contract's threshold cannot be approved until
+ * somebody says what happens to the hours, so the list says which rows
+ * hold a question before anybody clicks Approve and is refused. The
+ * sentence is the same one the approval route would return, written
+ * once in `lib/overtime` so the screen and the refusal cannot disagree.
+ */
+function overtimeOf(t: {
+  person: { name: string }
+  days: unknown
+  leaveDays: unknown
+  sellContract: { billRate: number; overtimeAfterHours: number | null; overtimeMultiplierBps: number | null }
+  overtimeDecisions: { weekOf: Date; treatment: string; appliedBps: number; overtimeHours: unknown }[]
+}) {
+  const policy = policyOf(t.sellContract)
+  const decisions: Decision[] = t.overtimeDecisions.map((d) => ({
+    weekOf: d.weekOf.toISOString().slice(0, 10),
+    treatment: d.treatment as Treatment,
+    appliedBps: d.appliedBps,
+    overtimeHours: Number(d.overtimeHours),
+  }))
+  const split = splitWeeks((t.days as Record<string, number>) ?? {}, policy, {
+    leaveDays: (t.leaveDays as Record<string, number>) ?? {},
+    decisions,
+  })
+  const waiting = weeksAwaitingDecision(split)
+
+  return {
+    afterHours: policy.afterHours,
+    multiplierBps: policy.multiplierBps,
+    rateCents: t.sellContract.billRate,
+    /**
+     * What the sheet is worth to bill, priced from each week's own
+     * decision. Hours nobody has decided are not in it — a screen that
+     * prints 45 billed hours with 40 hours of money against them is the
+     * bug this whole feature exists to remove.
+     */
+    billableCents: valueOf(split, t.sellContract.billRate).totalCents,
+    pendingHours: split.pendingHours,
+    bankedHours: split.bankedHours,
+    leaveHours: split.leaveHours,
+    weeks: waiting.map((w) => ({
+      weekOf: w.weekOf,
+      workedHours: w.workedHours,
+      overtimeHours: w.pendingHours,
+    })),
+    decided: split.weeks
+      .filter((w) => w.treatment != null)
+      .map((w) => ({
+        weekOf: w.weekOf,
+        hours: w.overtimeHours + w.bankedHours,
+        says: treatmentSays(w.treatment!, w.appliedBps ?? 10_000),
+      })),
+    says: waiting.length > 0 ? saysAwaiting(waiting, t.person.name, policy) : null,
+  }
 }
 
 /**
@@ -93,7 +164,7 @@ export async function POST(request: NextRequest) {
   if (error) return error
 
   const body = await request.json()
-  const { sellContractId, periodStart, periodEnd, days } = body
+  const { sellContractId, periodStart, periodEnd, days, leaveDays } = body
 
   if (!sellContractId) return err('sellContractId is required', 'sellContractId')
   if (!periodStart) return err('periodStart is required', 'periodStart')
@@ -141,6 +212,25 @@ export async function POST(request: NextRequest) {
     0
   )
 
+  // ── Which of those hours were paid leave ────────────────────────────
+  //
+  // Leave sits inside the day's hours rather than beside them: the
+  // consultant is paid for the day either way, and what changes is that
+  // the hours were not worked. Recorded per day, because the overtime
+  // threshold is judged per week and a sheet total cannot say which
+  // week the leave fell in — and leave that counted toward the
+  // threshold would manufacture overtime, which would bank more leave.
+  const leave: Record<string, number> = {}
+  for (const [dayKey, h] of Object.entries((leaveDays ?? {}) as Record<string, unknown>)) {
+    const n = Number(h)
+    if (!Number.isFinite(n) || n <= 0) continue
+    const worked = Number((days as Record<string, number>)[dayKey] ?? 0)
+    if (worked <= 0) {
+      return err(`There are no hours on ${dayKey} for the leave to come out of.`, 'leaveDays')
+    }
+    leave[dayKey] = Math.min(n, worked)
+  }
+
   // Simple anomaly detection: > 12 hours in a day or > 60 hours in a week
   let anomalyScore: number | null = null
   let anomalyReason: string | null = null
@@ -164,6 +254,7 @@ export async function POST(request: NextRequest) {
         periodStart: new Date(periodStart),
         periodEnd: new Date(periodEnd),
         days: days as any,
+        leaveDays: Object.keys(leave).length > 0 ? (leave as any) : undefined,
         totalHours,
         status: 'OPEN',
         anomalyScore,

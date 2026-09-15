@@ -61,10 +61,10 @@ export interface ContractFact {
 
 export interface AcceptedWork {
   contractId: string
-  /** Hours the client signed for, at the ordinary rate. */
+  /** Hours the client signed for and will be charged for, at the ordinary rate. */
   hours: number
   /**
-   * Of those, the hours over the week's limit — worth the multiplier.
+   * Of those, the hours over the week's limit that somebody has decided.
    *
    * Passed in already split rather than split here, because the split
    * is a weekly judgment on the daily hours and this file never sees
@@ -72,8 +72,27 @@ export interface AcceptedWork {
    * so the two cannot disagree about what a week was worth.
    */
   overtimeHours?: number
-  /** Basis points of the rate an overtime hour is worth. */
-  overtimeMultiplierBps?: number
+  /**
+   * What the approver actually applied, in basis points — the decision's
+   * own `appliedBps`, never the contract's multiplier.
+   *
+   * There is no default premium here on purpose. A contract carrying
+   * `overtimeMultiplierBps: 15000` used to make this file charge a cost
+   * center time and a half for a week nobody had agreed to, which is
+   * the bug this whole change exists to remove. Absent means the plain
+   * rate.
+   */
+  overtimeAppliedBps?: number
+  /**
+   * Hours over the limit that nobody has decided yet.
+   *
+   * Not priced — they are worth somewhere between the plain rate and
+   * the multiplier and nobody knows which, so they are named in
+   * `unknowns` rather than guessed at. A plausible wrong number on a
+   * budget screen is worse than a blank, because nobody audits good
+   * news.
+   */
+  pendingOvertimeHours?: number
   /** Whether a bill for it has arrived and been settled. */
   invoiced: boolean
   paid: boolean
@@ -191,20 +210,17 @@ export function ledgerFor(input: {
     const mine = work.filter((w) => w.contractId === c.id)
     const myExpenses = expenses.filter((e) => e.contractId === c.id)
 
-    const hoursCents = mine.reduce((n, w) => {
-      const ot = w.overtimeHours ?? 0
-      const bps = w.overtimeMultiplierBps ?? 15_000
-      const plain = Math.max(0, w.hours - ot) * c.billRateCents
-      return n + Math.round((plain + ot * c.billRateCents * (bps / 10_000)) * share)
-    }, 0)
-    const expenseCents = myExpenses.reduce((n, e) => n + Math.round(e.amountCents * share), 0)
-    const actual = hoursCents + expenseCents
-
     const valueOfWork = (w: AcceptedWork) => {
       const ot = w.overtimeHours ?? 0
-      const bps = w.overtimeMultiplierBps ?? 15_000
+      // Absent is the plain rate, not a premium. Nothing multiplies a
+      // rate here unless a person chose to.
+      const bps = w.overtimeAppliedBps ?? 10_000
       return Math.round((Math.max(0, w.hours - ot) * c.billRateCents + ot * c.billRateCents * (bps / 10_000)) * share)
     }
+
+    const hoursCents = mine.reduce((n, w) => n + valueOfWork(w), 0)
+    const expenseCents = myExpenses.reduce((n, e) => n + Math.round(e.amountCents * share), 0)
+    const actual = hoursCents + expenseCents
     const settled = (paid: boolean) =>
       mine.filter((w) => w.invoiced && w.paid === paid).reduce((n, w) => n + valueOfWork(w), 0) +
       myExpenses.filter((e) => e.invoiced && e.paid === paid).reduce((n, e) => n + Math.round(e.amountCents * share), 0)
@@ -242,6 +258,16 @@ export function ledgerFor(input: {
         `so the commitment assumes ${CENTS_PER_HOUR_DEFAULT_WEEK}.`
     )
   }
+  const undecided = work.reduce((n, w) => n + (w.pendingOvertimeHours ?? 0), 0)
+  if (undecided > 0) {
+    const weeks = work.filter((w) => (w.pendingOvertimeHours ?? 0) > 0).length
+    unknowns.push(
+      `${Math.round(undecided * 100) / 100} hours of overtime on ${weeks} ` +
+        `${weeks === 1 ? 'timesheet is' : 'timesheets are'} waiting on somebody to say what ` +
+        'happens to them, so they are not costed here yet.'
+    )
+  }
+
   const openEnded = contracts.filter((c) => c.live && !c.endDate).length
   if (openEnded > 0) {
     unknowns.push(

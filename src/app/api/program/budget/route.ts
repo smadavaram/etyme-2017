@@ -72,9 +72,17 @@ export async function GET(request: NextRequest) {
         prisma.timesheet.findMany({
           where: { sellContractId: { in: contractIds }, clientApprovedAt: { not: null } },
           select: {
-            id: true, sellContractId: true, totalHours: true, acceptedHours: true, days: true,
+            id: true, sellContractId: true, totalHours: true, acceptedHours: true,
+            days: true, leaveDays: true,
             invoiceLines: { select: { invoice: { select: { status: true } } } },
             sellContract: { select: { overtimeAfterHours: true, overtimeMultiplierBps: true } },
+            // What somebody decided about each overtime week on this
+            // leg. Without it the multiplier on the contract would be
+            // charged to a cost center that never agreed to it, which
+            // is the whole reason overtime became a decision.
+            overtimeDecisions: {
+              select: { weekOf: true, treatment: true, appliedBps: true, overtimeHours: true },
+            },
           },
         }),
         prisma.expense.findMany({
@@ -93,23 +101,65 @@ export async function GET(request: NextRequest) {
     paid: lines.some((l) => l.invoice.status === 'PAID'),
   })
 
-  const work: AcceptedWork[] = sheets.map((t) => {
-    // Fewer hours accepted than submitted is the accepted figure, never
-    // the submitted one: the client is charged for what it signed for.
-    const hours = Number(t.acceptedHours ?? t.totalHours)
+  const work: AcceptedWork[] = sheets.flatMap((t) => {
     const policy = policyOf(t.sellContract)
     // The overtime split is a weekly judgment on the daily hours, and
-    // it is made in one place for the invoice and for this. Capped at
-    // the accepted hours, so cutting a week back cannot leave more
-    // overtime on it than there are hours.
-    const split = splitWeeks((t.days as Record<string, number>) ?? {}, policy)
-    return {
-      contractId: t.sellContractId,
-      hours,
-      overtimeHours: Math.min(split.overtimeHours, hours),
-      overtimeMultiplierBps: policy.multiplierBps,
-      ...cash(t.invoiceLines),
+    // it is made in one place for the invoice and for this. Leave drawn
+    // from the bank is paid but not worked, so it never counts toward
+    // the threshold.
+    const split = splitWeeks((t.days as Record<string, number>) ?? {}, policy, {
+      leaveDays: (t.leaveDays as Record<string, number>) ?? {},
+      decisions: t.overtimeDecisions.map((d) => ({
+        weekOf: d.weekOf.toISOString().slice(0, 10),
+        treatment: d.treatment as 'SAME_RATE' | 'PREMIUM' | 'TIME_OFF',
+        appliedBps: d.appliedBps,
+        overtimeHours: Number(d.overtimeHours),
+      })),
+    })
+    const settled = cash(t.invoiceLines)
+
+    // ── One row per price, not one row per sheet ──────────────────────
+    //
+    // A semi-monthly sheet can hold two overtime weeks answered
+    // differently — one at the usual rate, one at double time. A single
+    // multiplier per sheet cannot say that, so each price gets its own
+    // row against the same contract and the ledger adds them up.
+    const byBps = new Map<number, number>()
+    for (const w of split.weeks) {
+      if (w.overtimeHours <= 0 || w.appliedBps == null) continue
+      byBps.set(w.appliedBps, (byBps.get(w.appliedBps) ?? 0) + w.overtimeHours)
     }
+
+    // Fewer hours accepted than submitted is the accepted figure, never
+    // the submitted one: the client is charged for what it signed for.
+    // The cut comes off the ordinary hours — an hour somebody struck
+    // out is not the hour a decision was made about.
+    const accepted = t.acceptedHours == null ? null : Number(t.acceptedHours)
+    const decidedOt = [...byBps.values()].reduce((n, h) => n + h, 0)
+    const plain =
+      accepted == null
+        ? split.regularHours + split.leaveHours
+        : Math.max(0, accepted - decidedOt)
+
+    const rows: AcceptedWork[] = [
+      {
+        contractId: t.sellContractId,
+        hours: plain,
+        overtimeHours: 0,
+        pendingOvertimeHours: split.pendingHours,
+        ...settled,
+      },
+    ]
+    for (const [appliedBps, hours] of byBps) {
+      rows.push({
+        contractId: t.sellContractId,
+        hours,
+        overtimeHours: hours,
+        overtimeAppliedBps: appliedBps,
+        ...settled,
+      })
+    }
+    return rows
   })
   const spend: AcceptedExpense[] = expenses.map((e) => ({
     contractId: e.sellContractId,

@@ -225,7 +225,7 @@ describe('overtime against the budget', () => {
     })
     const withOt = ledgerFor({
       budgetCents: 100_000_00, contracts: [c],
-      work: [{ contractId: 'c1', hours: 45, overtimeHours: 5, overtimeMultiplierBps: 15_000, invoiced: false, paid: false }],
+      work: [{ contractId: 'c1', hours: 45, overtimeHours: 5, overtimeAppliedBps: 15_000, invoiced: false, paid: false }],
       expenses: [], on: ON,
     })
     expect(withOt.actualCents - plain.actualCents).toBe(Math.round(5 * 9800 * 0.5))
@@ -244,11 +244,45 @@ describe('overtime against the budget', () => {
     expect(l.actualCents).toBe(40 * 9800)
   })
 
+  it('an overtime week nobody has decided is not costed to the center, and the page says so', () => {
+    const c = contract({ startDate: new Date('2026-09-07'), endDate: new Date('2026-09-21') })
+    const l = ledgerFor({
+      budgetCents: 100_000_00, contracts: [c],
+      // Forty hours signed for; five more over the line with no answer yet.
+      work: [{ contractId: 'c1', hours: 40, pendingOvertimeHours: 5, invoiced: false, paid: false }],
+      expenses: [], on: ON,
+    })
+    expect(l.actualCents).toBe(40 * 9800)
+    expect(l.unknowns.join(' ')).toMatch(/5 hours of overtime on 1 timesheet is waiting/)
+  })
+
+  it('a cost center is charged the multiplier the approver chose, never the one sitting on the contract', () => {
+    const c = contract({ startDate: new Date('2026-09-07'), endDate: new Date('2026-09-21') })
+    // The contract offers time and a half. The approver said the usual rate.
+    const l = ledgerFor({
+      budgetCents: 100_000_00, contracts: [c],
+      work: [{ contractId: 'c1', hours: 45, overtimeHours: 5, overtimeAppliedBps: 10_000, invoiced: false, paid: false }],
+      expenses: [], on: ON,
+    })
+    expect(l.actualCents).toBe(45 * 9800)
+  })
+
+  it('overtime with no decision behind it is never priced at a premium by default', () => {
+    const c = contract({ startDate: new Date('2026-09-07'), endDate: new Date('2026-09-21') })
+    const l = ledgerFor({
+      budgetCents: 100_000_00, contracts: [c],
+      // No appliedBps: nobody decided, so nothing multiplies.
+      work: [{ contractId: 'c1', hours: 45, overtimeHours: 5, invoiced: false, paid: false }],
+      expenses: [], on: ON,
+    })
+    expect(l.actualCents).toBe(45 * 9800)
+  })
+
   it('what is paid carries the overtime too, so cash and cost stay the same shape', () => {
     const c = contract({ startDate: new Date('2026-09-07'), endDate: new Date('2026-09-21') })
     const l = ledgerFor({
       budgetCents: 100_000_00, contracts: [c],
-      work: [{ contractId: 'c1', hours: 45, overtimeHours: 5, overtimeMultiplierBps: 20_000, invoiced: true, paid: true }],
+      work: [{ contractId: 'c1', hours: 45, overtimeHours: 5, overtimeAppliedBps: 20_000, invoiced: true, paid: true }],
       expenses: [], on: ON,
     })
     expect(l.paidCents).toBe(l.actualCents)
