@@ -78,6 +78,18 @@ interface Placement {
   rates: number[]
   /** One awaiting week claimed over the role's hours, so the desk has an exception to read. */
   exceptionHours?: number
+  /**
+   * Hours over this may be claimed on the contract. The threshold says
+   * which hours may be claimed; it never says what they are worth.
+   */
+  overtimeAfterHours?: number
+  /**
+   * One submitted week, this long, sitting on the desk that signs it
+   * with nobody having said what the hours over the line are worth. Its
+   * own calendar week rather than one of the rolling spans, because the
+   * threshold is judged Monday to Monday.
+   */
+  overtimeWeekHours?: number
   /** The client marked this person, and the firm that supplied them, as ones to take again. */
   takeAgain?: boolean
   person: string
@@ -133,7 +145,7 @@ interface Program {
 // an SAP consultant through the same product. Nothing here is IT
 // staffing except where the role happens to be.
 
-const PROGRAMMES: Program[] = [
+export const PROGRAMMES: Program[] = [
   {
     client: 'nike', loc: 'Beaverton, OR',
     people: { programme: 'Dana Whitlock', hiring: 'Marcus Oyelaran', hr: 'Meera Krishnan', procurement: 'Tomas Reyes', ap: 'Renata Kowal', compliance: 'Sophie Lindgren' },
@@ -144,8 +156,17 @@ const PROGRAMMES: Program[] = [
         via: ['nike', 'computer-systems', 'cloudepa'], rates: [14500, 11800, 9000], takeAgain: true,
         person: 'Helena Marsh', workAuth: 'GC', startedDaysAgo: 200, endsInDays: 160, state: 'IN_PROGRESS',
         papers: 'CLEAR', weeks: { approved: 3, awaiting: 1 }, invoice: 'SUBMITTED' },
+      // A week over the line, and nobody has said what it is worth. The
+      // contract lets hours over forty be claimed; it does not price
+      // them. Five hours at $132 are $660 flat, $990 at the contract's
+      // time and a half, or nothing now and five hours in the bank —
+      // and the desk that signs the week chooses, this week, on its own.
+      // Direct, not through a chain: a decision is written against the
+      // leg the hours sit on, and on a chain that is not yet the leg the
+      // client pays.
       { role: 'Commerce platform architect', skills: ['Salesforce Commerce', 'Node.js'], loc: 'Beaverton, OR',
         via: ['nike', 'brightmoor'], rates: [13200, 9600],
+        overtimeAfterHours: 40, overtimeWeekHours: 45,
         person: 'Omar Haddad', workAuth: 'USC', startedDaysAgo: 45, endsInDays: 320, state: 'IN_PROGRESS',
         papers: 'BGC_EXPIRED', weeks: { approved: 2, awaiting: 0 }, invoice: 'PAID' },
       { role: 'Supply chain planning analyst', skills: ['Kinaxis', 'Demand planning'], loc: 'Beaverton, OR',
@@ -274,12 +295,54 @@ const PROGRAMMES: Program[] = [
 const emailOf = (name: string) =>
   `${name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]+/g, '.')}@seed.etyme.invalid`
 
-/** Five working days, eight hours each, ending `w` weeks ago. Same shape as the world seed. */
-function week(w: number) {
+/**
+ * `hours` across `n` days, the odd hours on the later ones.
+ *
+ * Forty-four over five days is 8, 9, 9, 9, 9 — not four eights and a
+ * twelve, which is a day nobody worked and the anomaly check would be
+ * right to hold.
+ */
+export function spread(hours: number, n: number): number[] {
+  const each = Math.floor(hours / n)
+  const out = Array.from({ length: n }, () => each)
+  for (let i = n - 1, over = hours - each * n; over > 0; i--, over--) out[i] += 1
+  return out
+}
+
+/**
+ * Five working days ending `w` weeks ago. Same shape as the world seed.
+ *
+ * The hours go into `days`, not only into the sheet total: a sheet
+ * whose days and whose total disagree is a figure nobody can stand
+ * behind, and everything that prices a week reads the days.
+ */
+export function week(w: number, hours = 40) {
   const start = day(-(w * 7 + 4)), end = day(-(w * 7))
   const days: Record<string, number> = {}
-  for (let d = 0; d < 5; d++) days[day(-(w * 7 + 4) + d).toISOString().slice(0, 10)] = 8
+  const each = spread(hours, 5)
+  for (let d = 0; d < 5; d++) days[day(-(w * 7 + 4) + d).toISOString().slice(0, 10)] = each[d]
   return { start, end, days }
+}
+
+/**
+ * A real calendar week, Monday to Friday, `back` weeks ago.
+ *
+ * The spans above are five days counted back from whenever the seed
+ * ran, so on six days in seven they straddle a weekend. A threshold is
+ * judged Monday to Monday, which reads such a span as two part-weeks —
+ * a forty-five hour one as twenty-seven and eighteen, neither of them
+ * over forty, and nobody is ever asked the question. A week that has to
+ * be over the line has to be a week.
+ */
+export function mondayWeek(back: number, hours: number) {
+  const today = day(0)
+  const start = day(-(((today.getUTCDay() + 6) % 7) + 7 * back))
+  const days: Record<string, number> = {}
+  const each = spread(hours, 5)
+  for (let d = 0; d < 5; d++) {
+    days[new Date(start.getTime() + d * 86_400_000).toISOString().slice(0, 10)] = each[d]
+  }
+  return { start, end: new Date(start.getTime() + 4 * 86_400_000), days }
 }
 
 export async function seedProgrammes(world: World): Promise<{ placements: number; people: number }> {
@@ -546,7 +609,21 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
         const existing = await db.sellContract.findFirst({
           where: { companyId: seller.id, personId: who.id, clientCompanyId: buyer.id, requirementId: requirement.id },
         })
-        if (existing) { supplierSellContractId = existing.id; contracts.push(existing); continue }
+        if (existing) {
+          // The seed renames and adds; it never duplicates. A contract
+          // written before this placement carried overtime terms picks
+          // them up on the next run rather than waiting for a fresh
+          // database — the same rule a role added later follows.
+          if ((pl.overtimeAfterHours ?? null) !== existing.overtimeAfterHours) {
+            await db.sellContract.update({
+              where: { id: existing.id },
+              data: { overtimeAfterHours: pl.overtimeAfterHours ?? null },
+            })
+          }
+          supplierSellContractId = existing.id
+          contracts.push(existing)
+          continue
+        }
 
         const { msa, eng } = await agreement(sellerSlug, buyerSlug, pl.role)
         const sell = await db.sellContract.create({
@@ -556,6 +633,9 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
             hiringManagerId: desk.hiring.personId, orgUnitId: unitByName.get('Apps')?.id ?? null,
             billRate: pl.rates[i], billCurrency: 'USD', paymentTerms: 45, state: pl.state,
             startDate: start, endDate: end,
+            // Which hours may be claimed. What they are worth is decided
+            // week by week by whoever signs the week, never here.
+            overtimeAfterHours: pl.overtimeAfterHours ?? null,
           },
         })
         const employs = i === chain.length - 1
@@ -648,14 +728,21 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
       const signed: { id: string; periodStart: Date; periodEnd: Date }[] = []
       const total = pl.weeks.approved + pl.weeks.awaiting
       for (let w = total; w >= 1; w--) {
-        const { start: ws, end: we, days } = week(w)
         const awaiting = w <= pl.weeks.awaiting
+        // The one week still waiting is the long one, where there is a
+        // long one. A week already signed was signed at the ordinary
+        // hours, and re-pricing history is not what this seed is for.
+        const longHours = awaiting && w === 1 ? pl.exceptionHours ?? null : null
+        const { start: ws, end: we, days } = week(w, longHours ?? 40)
         const already = await db.timesheet.findFirst({ where: { sellContractId: bottom.id, periodStart: ws } })
         if (already) { if (!awaiting) signed.push(already); continue }
         const ts = await db.timesheet.create({
           data: {
             sellContractId: bottom.id, personId: who.id, periodStart: ws, periodEnd: we, days,
-            totalHours: awaiting && w === 1 && pl.exceptionHours ? pl.exceptionHours : 40,
+            // The total the days add up to. A sheet whose total and
+            // whose days disagree is a figure nobody can stand behind,
+            // and the overtime split reads the days.
+            totalHours: longHours ?? 40,
             status: awaiting ? 'SUBMITTED' : 'APPROVED', submittedAt: we,
             ...(awaiting ? {} : {
               approvedAt: day(-(w * 7 - 2)), approvedById: desk.hiring.personId,
@@ -674,6 +761,67 @@ export async function seedProgrammes(world: World): Promise<{ placements: number
             ],
           })
           signed.push(ts)
+        }
+      }
+
+      // ── The week nobody has priced yet ───────────────────────────
+      //
+      // Submitted, longer than the contract's ordinary week, and not
+      // signed. Opening it asks the question the whole feature exists
+      // for: the hours over the line are worth the usual rate, a
+      // premium, or time off in the bank, and until somebody says
+      // which, they reach no invoice.
+      //
+      // Its own calendar week, never one of the spans above. A
+      // threshold is judged Monday to Monday, and those spans are five
+      // consecutive days counted back from whenever the seed ran, so on
+      // six days in seven they straddle a weekend — forty-five hours
+      // across one reads as twenty-seven and eighteen, neither over the
+      // line, and the desk is never asked anything.
+      if (pl.overtimeWeekHours) {
+        const overlapping = (from: Date, to: Date) =>
+          db.timesheet.findFirst({
+            where: { sellContractId: bottom.id, periodStart: { lte: to }, periodEnd: { gte: from } },
+          })
+
+        // Clear of every week above, not merely off their start dates.
+        // Two sheets claiming the same Tuesday is a day billed twice and
+        // a figure nobody can reconcile.
+        let back = 1
+        const oldest = day(-(total * 7 + 4)).getTime()
+        while (mondayWeek(back, 40).end.getTime() >= oldest) back += 1
+
+        let slot = mondayWeek(back, pl.overtimeWeekHours)
+        let sitting = await overlapping(slot.start, slot.end)
+        // Anything already signed there stays signed: re-opening a week
+        // an invoice was paid on would leave the payment pointing at
+        // hours nobody had approved.
+        while (sitting && sitting.status !== 'SUBMITTED' && back < 12) {
+          back += 1
+          slot = mondayWeek(back, pl.overtimeWeekHours)
+          sitting = await overlapping(slot.start, slot.end)
+        }
+
+        if (sitting && sitting.status !== 'SUBMITTED') {
+          // Twelve weeks back and every one of them signed. Leave them be.
+        } else if (sitting) {
+          // Ours, from an earlier run. One week to decide, never two —
+          // its length is corrected if an earlier run wrote it shorter,
+          // and no second sheet is made.
+          if (Number(sitting.totalHours) !== pl.overtimeWeekHours) {
+            await db.timesheet.update({
+              where: { id: sitting.id },
+              data: { days: slot.days, totalHours: pl.overtimeWeekHours, periodEnd: slot.end },
+            })
+          }
+        } else {
+          await db.timesheet.create({
+            data: {
+              sellContractId: bottom.id, personId: who.id,
+              periodStart: slot.start, periodEnd: slot.end, days: slot.days,
+              totalHours: pl.overtimeWeekHours, status: 'SUBMITTED', submittedAt: slot.end,
+            },
+          })
         }
       }
 

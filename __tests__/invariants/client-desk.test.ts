@@ -98,6 +98,10 @@ describe('what the client desk is told', () => {
 
   it('the seeded Nike desk has one week claimed over the role, so there is an exception to read', () => {
     expect(seed).toContain("rates: [9800, 7400], exceptionHours: 44,")
-    expect(seed).toContain('totalHours: awaiting && w === 1 && pl.exceptionHours ? pl.exceptionHours : 40,')
+    expect(seed).toContain('const longHours = awaiting && w === 1 ? pl.exceptionHours ?? null : null')
+    // The hours reach the days, not only the total: a sheet that says
+    // 44 over five eight-hour days is a figure with nothing behind it.
+    expect(seed).toContain('const { start: ws, end: we, days } = week(w, longHours ?? 40)')
+    expect(seed).toContain('totalHours: longHours ?? 40,')
   })
 })
