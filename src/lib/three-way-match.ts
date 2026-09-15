@@ -105,6 +105,18 @@ export interface InvoiceLineFacts {
   hours: number
   rateCents: number
   amountCents: number
+  /**
+   * What this line is worth above plain hours × rate, because somebody
+   * signed a premium for a week that went over the line.
+   *
+   * Recomputed from the overtime decisions behind the timesheet, never
+   * read off the invoice — which is what keeps this a check rather than
+   * a restatement. Absent where there is no decision to read: on every
+   * expense line, on straight-time work, and on every invoice raised
+   * before overtime became a decision, where the check is exactly what
+   * it always was.
+   */
+  premiumCents?: number | null
 }
 
 /** The receipt behind an expense line. */
@@ -398,11 +410,21 @@ export function threeWayMatch(input: MatchInput): MatchResult {
         lines: wrongRate.map(l => l.id),
       })
 
-  // ── EXTENSION — does hours × rate equal the line? ──
+  // ── EXTENSION — does hours × rate, plus what was signed, equal the line? ──
   // An expense line has no hours and no rate; its amount is the expense
   // itself, and RECEIPT has already held it to the approved figure.
+  //
+  // A week over the line is worth more than hours × rate, and by exactly
+  // as much as whoever approved it said — so the sum this check expects
+  // is the plain extension plus that premium, recomputed from the
+  // decision rather than taken from the invoice. Where nobody decided a
+  // premium there is nothing to add and this is the arithmetic it has
+  // always been.
+  const extensionOf = (l: InvoiceLineFacts): number =>
+    Math.round(l.hours * l.rateCents) + (l.premiumCents ?? 0)
+
   const badMath = lines.filter(l =>
-    !l.expenseId && !l.milestoneId && Math.abs(Math.round(l.hours * l.rateCents) - l.amountCents) > EXTENSION_TOLERANCE_CENTS
+    !l.expenseId && !l.milestoneId && Math.abs(extensionOf(l) - l.amountCents) > EXTENSION_TOLERANCE_CENTS
   )
   checks.push(badMath.length === 0
     ? { code: 'EXTENSION', outcome: 'PASS', reason: 'Every line multiplies out correctly' }
@@ -410,7 +432,9 @@ export function threeWayMatch(input: MatchInput): MatchResult {
         code: 'EXTENSION',
         outcome: 'FAIL',
         reason: badMath.map(l =>
-          `${l.personName}: ${l.hours}h × ${money(l.rateCents)} is ${money(Math.round(l.hours * l.rateCents))}, billed ${money(l.amountCents)}`
+          l.premiumCents
+            ? `${l.personName}: ${l.hours}h × ${money(l.rateCents)} plus ${money(l.premiumCents)} of approved overtime is ${money(extensionOf(l))}, billed ${money(l.amountCents)}`
+            : `${l.personName}: ${l.hours}h × ${money(l.rateCents)} is ${money(Math.round(l.hours * l.rateCents))}, billed ${money(l.amountCents)}`
         ).join('; '),
         lines: badMath.map(l => l.id),
       })

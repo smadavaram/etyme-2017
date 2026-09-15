@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db'
 import { completeCycle } from '@/lib/cycle-complete'
 import { billableNow, expenseLine, expenseTotal } from '@/lib/expense-billing'
 import { emit } from '@/lib/events'
-import { periodFor, hoursInPeriod, type Terms } from '@/lib/periods'
+import { periodFor, billableInPeriod, type Terms } from '@/lib/periods'
 import {
   partnerFunctions, mayConsolidate, selfBilling, taxFor,
   type Place, type Party,
@@ -14,7 +14,7 @@ import {
 import { minorPerUnit } from '@/lib/money'
 import { whereHoursLive } from '@/lib/work-chain'
 import { ladderFor } from '@/lib/work-chain-read'
-import { policyOf, splitWeeks } from '@/lib/overtime'
+import { policyOf, type Decision } from '@/lib/overtime'
 
 /**
  * POST /api/invoices/generate
@@ -171,6 +171,12 @@ export async function POST(request: NextRequest) {
     where: timesheetWhere,
     include: {
       person: { select: { id: true, name: true } },
+      // What somebody decided about each week that went over the line.
+      // The invoice prices from these and from nothing else: a contract
+      // multiplier says what an overtime hour COULD be worth, never what
+      // this week's was, and a week nobody has answered is not billable
+      // at any price.
+      overtimeDecisions: true,
       sellContract: {
         select: {
           id: true, billRate: true, billCurrency: true, purchaseOrderId: true,
@@ -263,6 +269,10 @@ export async function POST(request: NextRequest) {
   }
 
   // Build line items grouped by sell contract (person)
+  //
+  // In cents, added up as integers and divided into whole currency once
+  // at the end. Adding fractions of a dollar and rounding at the bottom
+  // is how a header disagrees with its own lines by a cent.
   const linesByContract = new Map<string, {
     sellContractId: string
     personId: string
@@ -270,8 +280,10 @@ export async function POST(request: NextRequest) {
     billRate: number
     currency: string
     totalHours: number
-    overtimeHours?: number
-    amount: number
+    overtimeHours: number
+    /** Over the line and undecided. Not billed, and said out loud. */
+    pendingHours: number
+    amountCents: number
     timesheetIds: string[]
     periodEnd: Date
   }>()
@@ -308,52 +320,103 @@ export async function POST(request: NextRequest) {
 
   const period = periodFor(askedAbout, terms)
 
+  /**
+   * What each timesheet is worth to this invoice, priced once and read
+   * twice — once into the person's grouped line, once into the
+   * `InvoiceLine` row the three-way match reads. They were computed two
+   * different ways before, so a premium reached the header and never the
+   * lines, and the match failed its own addition on every invoice that
+   * carried one.
+   */
+  const priced = new Map<string, { hours: number; cents: number }>()
+
+  /**
+   * Decisions whose hours reach this invoice. A decision that has been
+   * billed is history and cannot be changed afterwards — `mayChange` in
+   * lib/overtime enforces it and this is what makes the flag true.
+   */
+  const decisionsBilled = new Set<string>()
+
+  /** Over the line and nobody has answered. Left off, and said out loud. */
+  let pendingHours = 0
+
   for (const ts of billing) {
     const rate = ts.sellContract.billRate // cents per hour
 
-    // How much of this timesheet belongs to the period being billed.
+    // Guard: LEGACY_RULES.md — cannot invoice if rate <= 0
+    if (rate <= 0) continue
+
+    // ── What this week was decided to be worth ────────────────────────
     //
-    // Read from the daily hours, so a week crossing the boundary gives
-    // each month exactly its own days — nothing apportioned, nothing
-    // rounded, and the same hour never billed twice.
-    const share = hoursInPeriod(
+    // The terms are our contract's; the answers are the ones given on
+    // our own leg, because a sub's agreement with a prime is not the
+    // prime's agreement with the client. Where the chain has answered
+    // only on the leg the hours live on — which is every chain today,
+    // since approval records one decision per timesheet — that answer
+    // is used rather than dropping decided overtime off the invoice
+    // silently. Noted in the matrix; it is demand's route to split.
+    const policy = policyOf(ts.sellContract)
+    const rows = ts.overtimeDecisions ?? []
+    const ownLeg = rows.filter((d) => d.sellContractId === ts.sellContractId)
+    const answering = ownLeg.length > 0 ? ownLeg : rows
+
+    const decisions: Decision[] = answering.map((d) => ({
+      weekOf: d.weekOf.toISOString().slice(0, 10),
+      treatment: d.treatment as Decision['treatment'],
+      // The price comes from what was applied when somebody decided,
+      // never from the contract's multiplier as it stands today.
+      appliedBps: d.appliedBps,
+      overtimeHours: Number(d.overtimeHours),
+      accrualBps: d.accrualBps,
+    }))
+    const idOfWeek = new Map(answering.map((d) => [d.weekOf.toISOString().slice(0, 10), d.id]))
+
+    // How much of this timesheet belongs to the period being billed, and
+    // in which bands. Read from the daily hours, so a week crossing the
+    // boundary gives each month exactly its own days — nothing
+    // apportioned, nothing rounded, and the same hour never billed
+    // twice. The week is still judged whole against the threshold.
+    const billable = billableInPeriod(
       {
         id: ts.id,
         periodStart: ts.periodStart,
         periodEnd: ts.periodEnd,
         days: (ts.days as Record<string, number>) ?? {},
+        leaveDays: (ts.leaveDays as Record<string, number>) ?? {},
         totalHours: Number(ts.totalHours),
       },
       period,
-      terms.straddle
+      terms.straddle,
+      rate,
+      policy,
+      decisions
     )
 
-    if (!share) continue
-    const hours = share.hours
+    if (!billable) continue
 
-    // Guard: LEGACY_RULES.md — cannot invoice if time <= 0 or rate <= 0
-    if (hours <= 0 || rate <= 0) continue
+    // Hours over the line that nobody has answered are not on this
+    // invoice at any price — not as a zero-valued line and not folded
+    // into the ordinary hours. They wait for a decision and bill on the
+    // next run.
+    pendingHours = Math.round((pendingHours + billable.pendingHours) * 100) / 100
 
-    // Overtime, where the contract says so. Judged on the real week —
-    // `share.days` is only the days inside the billing period, so a
-    // week split across a month boundary is still weighed whole before
-    // its hours are apportioned.
-    const policy = policyOf(ts.sellContract)
-    const otSplit = splitWeeks((ts.days as Record<string, number>) ?? {}, policy)
-    const otShare = otSplit.overtimeHours > 0 && hours > 0
-      ? Math.min(otSplit.overtimeHours, hours) * (hours / Number(ts.totalHours || hours))
-      : 0
+    // Guard: LEGACY_RULES.md — cannot invoice if time <= 0
+    if (billable.hours <= 0) continue
+
+    priced.set(ts.id, { hours: billable.hours, cents: billable.value.totalCents })
+    for (const week of billable.weeksBilled) {
+      const id = idOfWeek.get(week)
+      if (id) decisionsBilled.add(id)
+    }
 
     const key = ts.sellContractId
     const existing = linesByContract.get(key)
 
     if (existing) {
-      existing.totalHours += hours
-      existing.overtimeHours = (existing.overtimeHours ?? 0) + otShare
-      // Overtime hours are worth the multiplier; the rest are worth the
-      // rate. One place decides that — `lib/overtime` — so an invoice
-      // and a budget can never disagree about what a week was worth.
-      existing.amount += ((hours - otShare) * rate + otShare * rate * (policy.multiplierBps / 10_000)) / 100
+      existing.totalHours = Math.round((existing.totalHours + billable.hours) * 100) / 100
+      existing.overtimeHours = Math.round((existing.overtimeHours + billable.split.overtimeHours) * 100) / 100
+      existing.pendingHours = Math.round((existing.pendingHours + billable.pendingHours) * 100) / 100
+      existing.amountCents += billable.value.totalCents
       existing.timesheetIds.push(ts.id)
       if (ts.periodEnd > existing.periodEnd) existing.periodEnd = ts.periodEnd
     } else {
@@ -363,9 +426,10 @@ export async function POST(request: NextRequest) {
         personName: ts.person.name,
         billRate: rate,
         currency: ts.sellContract.billCurrency,
-        totalHours: hours,
-        overtimeHours: otShare,
-        amount: ((hours - otShare) * rate + otShare * rate * (policy.multiplierBps / 10_000)) / 100,
+        totalHours: billable.hours,
+        overtimeHours: billable.split.overtimeHours,
+        pendingHours: billable.pendingHours,
+        amountCents: billable.value.totalCents,
         timesheetIds: [ts.id],
         // The latest week on the line, so the "invoice to raise" cycle
         // it completes is the one this billing period was heading for.
@@ -426,9 +490,20 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Said, never swallowed. Hours over the line that nobody has answered
+  // are the one thing on this run that will not be billed, and an AR
+  // clerk who is not told reads a short invoice as a short month.
+  const pendingSays =
+    pendingHours > 0
+      ? `${pendingHours} hour${pendingHours === 1 ? '' : 's'} over the weekly limit ` +
+        'are not on this invoice, because nobody has decided yet whether they are ' +
+        'paid at the usual rate, at a premium, or banked as time off. ' +
+        'Decide them and they bill on the next run.'
+      : null
+
   const currency = lines[0]?.currency ?? expLines[0]?.currency ?? anchorContract.billCurrency // one currency per invoice, now checked
   const milestoneCents = milestones.reduce((sum, m) => sum + m.amountCents, 0)
-  const total = lines.reduce((sum, line) => sum + line.amount, 0) + expenseTotal(expLines, minorPerUnit(currency)) + milestoneCents / minorPerUnit(currency)
+  const total = lines.reduce((sum, line) => sum + line.amountCents, 0) / minorPerUnit(currency) + expenseTotal(expLines, minorPerUnit(currency)) + milestoneCents / minorPerUnit(currency)
 
   // ── The four parties ────────────────────────────────────────────────
   const firstContract = contractById.get(lines[0]?.sellContractId ?? expLines[0]?.sellContractId ?? anchorContract.id)
@@ -577,7 +652,12 @@ export async function POST(request: NextRequest) {
             personName: l.personName,
             billRate: l.billRate,
             totalHours: l.totalHours,
-            amount: l.amount,
+            // The hours on the line and the money on the line are the
+            // same hours. Where a week is still waiting on a decision,
+            // neither its hours nor its money is here.
+            overtimeHours: l.overtimeHours,
+            pendingHours: l.pendingHours,
+            amount: l.amountCents / per,
             // How the tax was determined at the moment of billing, kept
             // with the line rather than recomputed later. A rate table
             // changes; what was charged does not.
@@ -591,7 +671,7 @@ export async function POST(request: NextRequest) {
                   amountMinor:
                     tax.rateBps == null
                       ? null
-                      : Math.round((Math.round(l.amount * per) * tax.rateBps) / 10_000),
+                      : Math.round((l.amountCents * tax.rateBps) / 10_000),
                 }
               : null,
           }))],
@@ -620,22 +700,44 @@ export async function POST(request: NextRequest) {
       for (const group of lines) {
         for (const tsId of group.timesheetIds) {
           const ts = billing.find((t) => t.id === tsId)
-          if (!ts) continue
-          const hours = Number(ts.totalHours)
-          const rateCents = ts.sellContract.billRate
+          const worth = priced.get(tsId)
+          if (!ts || !worth) continue
+          // The same figures the header was added up from, not a second
+          // calculation of them. This line used to be the whole
+          // timesheet at the plain rate whatever the header said, so an
+          // invoice with a premium on it — or one billing half a
+          // straddling week — could never pass its own addition.
           await tx.invoiceLine.create({
             data: {
               invoiceId: invoice.id,
               timesheetId: ts.id,
               sellContractId: ts.sellContractId,
               personId: ts.person.id,
-              hours,
-              rateCents,
-              amountCents: Math.round(hours * rateCents),
+              hours: worth.hours,
+              rateCents: ts.sellContract.billRate,
+              amountCents: worth.cents,
               description: `${ts.person.name} — ${ts.periodStart.toISOString().slice(0, 10)} to ${ts.periodEnd.toISOString().slice(0, 10)}`,
             },
           })
         }
+      }
+
+      // ── A decision that has reached an invoice is history ────────────
+      //
+      // Stamped inside the same transaction as the lines, so a decision
+      // is billed if and only if the invoice carrying it exists. Until
+      // this write, `mayChange` in lib/overtime had nothing to read and
+      // a week could be re-answered after the client had been sent a
+      // document priced on the first answer.
+      //
+      // A banked week is stamped too: its ordinary hours are on this
+      // invoice, so changing the answer to a premium afterwards would
+      // restate a document already sent.
+      if (decisionsBilled.size > 0) {
+        await tx.overtimeDecision.updateMany({
+          where: { id: { in: [...decisionsBilled] }, billedAt: null },
+          data: { billedAt: new Date() },
+        })
       }
 
       // The milestones: a line each, the acceptance behind it, the
@@ -691,7 +793,7 @@ export async function POST(request: NextRequest) {
         data: {
           companyId: caller.company!.id,
           action: 'INVOICE_GENERATED',
-          summary: `Invoice ${number} generated: ${lines.length} line item(s), ${allTimesheetIds.length} timesheet(s)${expLines.length ? `, ${expLines.length} expense(s)` : ''}${milestones.length ? `, ${milestones.length} milestone(s)` : ''}, $${total.toFixed(2)} total, due ${dueAt.toISOString().slice(0, 10)}`,
+          summary: `Invoice ${number} generated: ${lines.length} line item(s), ${allTimesheetIds.length} timesheet(s)${expLines.length ? `, ${expLines.length} expense(s)` : ''}${milestones.length ? `, ${milestones.length} milestone(s)` : ''}, $${total.toFixed(2)} total, due ${dueAt.toISOString().slice(0, 10)}${pendingSays ? `. ${pendingSays}` : ''}`,
           reason: `Generated by ${caller.person.name}`,
           payload: {
             invoiceId: invoice.id,
@@ -752,6 +854,9 @@ export async function POST(request: NextRequest) {
           says: partners.says,
         },
         consolidation: { count: lines.length, says: consolidation.says },
+        // What was left off, and why. A blank is an answer here: nothing
+        // was waiting.
+        overtime: { pendingHours, says: pendingSays },
         selfBilling: { selfBilled: self.selfBilled, says: self.says },
         // Determined and shown. It is NOT a queryable field on the
         // invoice — `Invoice` carries no tax columns, so this lives with

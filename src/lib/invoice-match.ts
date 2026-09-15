@@ -1,7 +1,8 @@
 import { prisma } from '@/lib/db'
 import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from '@/lib/three-way-match'
 import { rateInForce } from '@/lib/contract-rate'
-import { periodFor, type Terms } from '@/lib/periods'
+import { billableInPeriod, periodFor, type Terms } from '@/lib/periods'
+import { policyOf, type Decision } from '@/lib/overtime'
 
 /**
  * Load the three records and match them.
@@ -27,9 +28,16 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
               // done, not just when to price it from.
               periodStart: true, periodEnd: true,
               sellContractId: true,
+              // The daily hours and the answers given about the weeks
+              // that went over the line, so the extension check can add
+              // up a premium somebody signed instead of calling it bad
+              // arithmetic.
+              days: true, leaveDays: true,
+              overtimeDecisions: true,
               sellContract: {
                 select: {
                   billRate: true, startDate: true,
+                  overtimeAfterHours: true, overtimeMultiplierBps: true,
                   billFrequency: true, billAnchor: true, billStraddle: true,
                 },
               },
@@ -46,6 +54,9 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
   })
 
   if (!invoice) return null
+  // Narrowed once, so the helpers below can read it without TypeScript
+  // re-asking whether the invoice exists.
+  const inv = invoice
 
   // What else has drawn on this purchase order. Computed rather than stored:
   // a denormalised balance drifts, and a drifted ceiling is worse than none.
@@ -102,6 +113,83 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       })
     : null
 
+  /**
+   * What an hours line is worth above plain hours × rate.
+   *
+   * Recomputed here from the decision rows and the daily hours — the
+   * approval record — and compared against the invoice, which is what a
+   * three-way match is for. Null where there is nothing to recompute
+   * from: no timesheet, no decision on this leg, or straight-time work,
+   * in which case the extension check is the multiplication it always
+   * was rather than an opinion.
+   */
+  function premiumOn(line: {
+    hours: unknown
+    rateCents: number
+    sellContractId: string | null
+    timesheet: {
+      id: string
+      periodStart: Date
+      periodEnd: Date
+      totalHours: unknown
+      days: unknown
+      leaveDays: unknown
+      sellContractId: string
+      overtimeDecisions: {
+        sellContractId: string
+        weekOf: Date
+        treatment: string
+        appliedBps: number
+        overtimeHours: unknown
+        accrualBps: number
+      }[]
+      sellContract: {
+        overtimeAfterHours: number | null
+        overtimeMultiplierBps: number
+        billStraddle: string
+      }
+    } | null
+  }): number | null {
+    const ts = line.timesheet
+    if (!ts) return null
+
+    // The answers on the leg being billed, or — in a chain, where
+    // approval records one decision per timesheet — the ones on the leg
+    // the hours live on. Same rule the invoice priced by.
+    const ownLeg = ts.overtimeDecisions.filter(d => d.sellContractId === (line.sellContractId ?? ts.sellContractId))
+    const answering = ownLeg.length > 0 ? ownLeg : ts.overtimeDecisions
+    if (answering.length === 0) return null
+
+    const decisions: Decision[] = answering.map(d => ({
+      weekOf: d.weekOf.toISOString().slice(0, 10),
+      treatment: d.treatment as Decision['treatment'],
+      appliedBps: d.appliedBps,
+      overtimeHours: Number(d.overtimeHours),
+      accrualBps: d.accrualBps,
+    }))
+
+    const billable = billableInPeriod(
+      {
+        id: ts.id,
+        periodStart: ts.periodStart,
+        periodEnd: ts.periodEnd,
+        days: (ts.days as Record<string, number>) ?? {},
+        leaveDays: (ts.leaveDays as Record<string, number>) ?? {},
+        totalHours: Number(ts.totalHours),
+      },
+      // The period this invoice actually covers, as it was written on
+      // the day it was raised.
+      { start: inv.periodStart, end: inv.periodEnd, label: '' },
+      ts.sellContract.billStraddle as Terms['straddle'],
+      line.rateCents,
+      policyOf(ts.sellContract),
+      decisions
+    )
+    if (!billable) return null
+
+    return billable.value.totalCents - Math.round(Number(line.hours) * line.rateCents)
+  }
+
   const input: MatchInput = {
     invoice: {
       id: invoice.id,
@@ -119,6 +207,7 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       hours: Number(l.hours),
       rateCents: l.rateCents,
       amountCents: l.amountCents,
+      premiumCents: premiumOn(l),
     })),
     milestones: Object.fromEntries(
       invoice.invoiceLines

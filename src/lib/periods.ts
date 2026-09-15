@@ -41,6 +41,18 @@
  * reconciliation argument every month.
  */
 
+import {
+  billableHours,
+  splitWeeks,
+  valueOf,
+  weekStart,
+  type Decision,
+  type OvertimePolicy,
+  type Split,
+  type Valuation,
+  type WeekLine,
+} from '@/lib/overtime'
+
 export type Frequency = 'WEEKLY' | 'BIWEEKLY' | 'SEMIMONTHLY' | 'MONTHLY'
 
 /** Where a monthly or semi-monthly period begins. */
@@ -358,5 +370,157 @@ export function collect(sheets: Sheet[], period: Period, straddle: Straddle): {
       lines.length === 0
         ? `Nothing approved for ${period.label}.`
         : `${totalHours}h for ${period.label}, from ${lines.length} timesheet${lines.length === 1 ? '' : 's'}${partials > 0 ? `, ${partials} of them part-period` : ''}.`,
+  }
+}
+
+// ── What a period may bill, once somebody has decided the overtime ────
+//
+// `hoursInPeriod` answers "how many hours", which was enough while every
+// hour was worth the same. It is not enough now: a week over the line
+// holds hours of three different kinds — ordinary, decided overtime, and
+// hours nobody has answered yet — and only the first two may be billed.
+// A single number cannot say which of them it is made of, so an invoice
+// reading it either billed an undecided hour or dropped a decided one.
+//
+// This restricts the weekly split to the days the period may bill, and
+// leaves the judging of the week to `splitWeeks`. Two rules make that
+// safe:
+//
+// **The week is judged whole, then apportioned.** A week running 27 July
+// to 2 August is weighed against the threshold across all seven days,
+// whichever months they fall in. Judging the four days in July on their
+// own would find no overtime at all and the five hours would vanish.
+//
+// **The hours that took the week over the line are the last ones
+// worked.** Walking the days in order and giving each day the part of
+// its hours that sits above the running threshold is exact, needs no
+// pro-rata, and says the same thing a timekeeper would: you went into
+// overtime on Thursday afternoon. The fraction the old invoice code used
+// — overtime hours times the share of the sheet in the period — was a
+// guess that happened to be right when nothing straddled.
+
+/** Two decimals, the precision hours are stored at. */
+const r2 = (n: number): number => Math.round(n * 100) / 100
+
+export interface BilledInPeriod {
+  /** The bands, restricted to the days this period may bill. */
+  split: Split
+  /** What those bands are worth at this rate. */
+  value: Valuation
+  /** The hours that may be printed on the line — never a pending one. */
+  hours: number
+  /** How the period took them: the whole timesheet, or these days of it. */
+  share: InPeriod
+  /**
+   * The weeks whose hours reach this invoice and have a live decision
+   * behind them. Their decisions are billed, and billed is immutable.
+   */
+  weeksBilled: string[]
+  /** Over the line, undecided, and therefore left off. Say so; never bill it. */
+  pendingHours: number
+}
+
+/**
+ * What a timesheet is worth to one billing period.
+ *
+ * Returns null where the timesheet is none of this period's business —
+ * the same answer `hoursInPeriod` gives, for the same reasons.
+ */
+export function billableInPeriod(
+  sheet: Sheet & { leaveDays?: Record<string, number> | null },
+  period: Period,
+  straddle: Straddle,
+  rateCents: number,
+  policy: OvertimePolicy,
+  decisions: Decision[] = []
+): BilledInPeriod | null {
+  const share = hoursInPeriod(sheet, period, straddle)
+  if (!share) return null
+
+  const days = sheet.days ?? {}
+  const leave = sheet.leaveDays ?? {}
+
+  // The week judged whole: the threshold, the decision, and whether that
+  // decision still describes the week. None of that changes because a
+  // month boundary runs through the middle of it.
+  const whole = splitWeeks(days, policy, { leaveDays: leave, decisions })
+
+  const inside = (isoDay: string): boolean => {
+    if (!share.partial) return true
+    const when = new Date(`${isoDay}T00:00:00.000Z`)
+    return when >= dayOf(period.start) && when <= dayOf(period.end)
+  }
+
+  // Day by day, in order, so the hours above the line land on the day
+  // the week actually crossed it.
+  const kept = new Map<string, { regular: number; leave: number; over: number }>()
+  const running = new Map<string, number>()
+
+  for (const [isoDay, raw] of Object.entries(days).sort((a, b) => a[0].localeCompare(b[0]))) {
+    const hours = Number(raw)
+    if (!Number.isFinite(hours) || hours <= 0) continue
+
+    const week = weekStart(isoDay)
+    const onLeave = Math.min(Math.max(Number(leave[isoDay]) || 0, 0), hours)
+    const worked = r2(hours - onLeave)
+
+    const before = running.get(week) ?? 0
+    const after = r2(before + worked)
+    running.set(week, after)
+
+    const line = policy.afterHours
+    const over = line == null ? 0 : r2(Math.max(0, after - Math.max(line, before)))
+    const regular = r2(worked - over)
+
+    if (!inside(isoDay)) continue
+    const acc = kept.get(week) ?? { regular: 0, leave: 0, over: 0 }
+    kept.set(week, {
+      regular: r2(acc.regular + regular),
+      leave: r2(acc.leave + onLeave),
+      over: r2(acc.over + over),
+    })
+  }
+
+  const weeks: WeekLine[] = whole.weeks.map((w) => {
+    const got = kept.get(w.weekOf) ?? { regular: 0, leave: 0, over: 0 }
+    return {
+      ...w,
+      hours: r2(got.regular + got.leave + got.over),
+      workedHours: r2(got.regular + got.over),
+      leaveHours: got.leave,
+      regularHours: got.regular,
+      overHours: got.over,
+      // Which band the over-hours fall in is the week's answer, not this
+      // period's. This period only says how many of them it holds.
+      overtimeHours: w.overtimeHours > 0 ? got.over : 0,
+      bankedHours: w.bankedHours > 0 ? got.over : 0,
+      pendingHours: w.pendingHours > 0 ? got.over : 0,
+    }
+  })
+
+  const sum = (pick: (w: WeekLine) => number) => r2(weeks.reduce((n, w) => n + pick(w), 0))
+
+  const split: Split = {
+    regularHours: sum((w) => w.regularHours),
+    leaveHours: sum((w) => w.leaveHours),
+    overtimeHours: sum((w) => w.overtimeHours),
+    pendingHours: sum((w) => w.pendingHours),
+    bankedHours: sum((w) => w.bankedHours),
+    weeks,
+  }
+
+  return {
+    split,
+    value: valueOf(split, rateCents),
+    hours: billableHours(split),
+    share,
+    // A week whose hours reach this invoice and whose decision priced
+    // them. A banked week counts: its ordinary hours are on this
+    // invoice, so changing the answer afterwards would restate a
+    // document somebody has already been sent.
+    weeksBilled: weeks
+      .filter((w) => w.treatment !== null && w.hours > 0)
+      .map((w) => w.weekOf),
+    pendingHours: split.pendingHours,
   }
 }
