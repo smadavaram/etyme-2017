@@ -18,37 +18,39 @@
  * an unaccepted sheet is left out and reported rather than included with
  * a flag somebody was supposed to notice.
  *
- * ── What this file does NOT do, and why it has not been changed ───────
+ * ── The three things that were wrong here, and now are not ───────────
  *
- * Every hour here is valued flat: `hours × rateCents`, and the ADP
- * column is headed "Reg Hours". So a 45-hour week that the client was
- * billed $4,750 for is paid $4,500, and nothing says so.
+ * **It paid people the bill rate.** `rateCents` was the sell contract's
+ * `billRate`, so every file this produced paid a consultant what the
+ * client was charged for them — $132 an hour against a $96 pay rate on
+ * the seeded world, on a document that becomes a bank transfer the same
+ * week. Pay comes off the buy leg now, and a person with no pay rate
+ * there is left off and named rather than paid at the client's price.
  *
- * That gap is deliberate for now, because closing it correctly needs two
- * things this codebase does not have:
+ * **It called everybody a W2.** The contract type was hardcoded, so a
+ * corp-to-corp consultant — a company — could land on an ADP run as a
+ * wage. `weekWage` refuses that as NOT_A_WAGE and this gates on it, the
+ * way the 1099 half of `worker-classification` already refused to issue
+ * one a NEC.
  *
- * **A rate to pay the premium at.** The client's treatment is a *billing*
- * treatment on the sell leg. What the employer owes is the buy leg, and
- * `BuyContract` carries no overtime terms at all — pay is
- * `BuyContractCandidate.payRate`, with `RateHistory.overtimeRate`
- * alongside it, which the rate-history route writes and nothing reads.
- * Mirroring the client's `appliedBps` onto the pay line would price
- * somebody's wages off an agreement they are not party to, which is the
- * same error as billing a client at its sub-vendor's rate.
+ * **It valued every hour flat.** A 45-hour week billed at $4,750 paid
+ * $4,500 and nothing said so. Hours over the line are priced by
+ * `weekWage` against the wage rules, at the pay rate, from the
+ * employer's own exempt assertion — never by mirroring what the client
+ * agreed to be billed, which is a fact about a different contract.
  *
- * **A classification.** Under the FLSA a nonexempt W2 employee must be
- * paid time and a half in MONEY for hours over forty in a workweek, and
- * comp time in lieu is lawful for public agencies only (29 U.S.C.
- * §207(o)). So a client's TIME_OFF decision must never reach a private
- * employer's W2 pay line — and nothing in the schema records whether a
- * given person is exempt, so this file cannot tell which rule applies.
- *
- * Until both exist, paying flat and saying so here is the honest
- * position: a plausible premium computed off the wrong leg would be
- * worse than a known gap, because nobody audits a number that looks
- * right. What is needed is written up for the architect and for
- * etyme-regulatory rather than guessed at here.
+ * Every figure it produces is a floor rather than an answer: §207(e)
+ * folds bonuses and shift differentials into the regular rate, and
+ * states price overtime differently. The caveats travel with the file.
  */
+
+import {
+  weekWage,
+  type ClientChoice,
+  type ExemptAssertion,
+  type WageRuleName,
+  type WeekOfHours,
+} from '@/lib/worker-classification'
 
 export type Provider = 'ADP' | 'PAYCHEX' | 'GENERIC'
 
@@ -60,20 +62,45 @@ export interface Line {
   contractType: string
   periodStart: Date
   periodEnd: Date
-  /** Only ever hours the employer accepted. */
+  /** Ordinary hours the employer accepted, including paid leave. */
   hours: number
+  /** Hours over the weekly line. Their own column on the file. */
+  overtimeHours: number
+  /**
+   * Cents an hour, from the BUY leg.
+   *
+   * This used to be the sell contract's bill rate, so every payroll file
+   * this system produced paid consultants what the client was charged
+   * for them. On the seeded world that is $132 an hour against a $96
+   * pay rate — a thirty-eight per cent overpayment, on a file that
+   * becomes a bank transfer the same week.
+   */
   rateCents: number
+  /** Ordinary hours at the pay rate. */
+  regularCents: number
+  /** What the hours over the line must be paid, at minimum. */
+  overtimeCents: number
+  totalCents: number
+  /**
+   * The part of the statutory premium the client's own choice did not
+   * price, at the pay rate. Not a margin figure — see `weekWage`.
+   */
+  uncoveredPremiumCents: number
   currency: string
   /** Where the cost lands in the client's books. */
   costCode: string | null
   /** The order this bills under, for reconciliation. */
   orderNumber: string | null
+  /** Things true of these figures that the figures cannot say themselves. */
+  notes: string[]
 }
 
 export interface Skipped {
   personName: string
   periodEnd: Date
   why: string
+  /** What somebody has to do about it. */
+  action?: string | null
 }
 
 export interface Export {
@@ -81,34 +108,82 @@ export interface Export {
   lines: Line[]
   skipped: Skipped[]
   totalHours: number
+  /** Hours over the line, across the file. */
+  totalOvertimeHours: number
   totalCents: number
+  /** Across the file: what mirroring the client's choice would have underpaid. */
+  uncoveredPremiumCents: number
   says: string
+  /** Every caveat on every line, said once. */
+  caveats: string[]
+}
+
+/**
+ * One person's week, as this file needs to read it.
+ *
+ * Weeks rather than a sheet total, because overtime is a weekly fact and
+ * a semi-monthly sheet holds two and a bit of them. Split by
+ * `lib/overtime` before it gets here — this file does not re-derive what
+ * the approval desk already decided.
+ */
+export interface WeekToPay extends WeekOfHours {
+  /** What the CLIENT decided about this week, on the sell leg. */
+  client: ClientChoice
+}
+
+export interface SheetToPay {
+  personName: string
+  payrollId: string | null
+  /** From the buy contract. Never assumed: assuming W2 is how a company lands on a wage file. */
+  contractType: string
+  /** False where somebody else employs them — a sub-vendor, or their own company. */
+  weAreTheEmployer: boolean
+  periodStart: Date
+  periodEnd: Date
+  weeks: WeekToPay[]
+  submittedHours: number
+  /** What the employer accepted for pay, where it differs from what was filed. */
+  acceptedHours: number | null
+  employerAcceptedAt: Date | null
+  /** Cents an hour from the buy leg. Null where nothing says what they are paid. */
+  payRateCents: number | null
+  payModel: string
+  paidOnSalaryBasis: boolean
+  rule: WageRuleName
+  /** What the employer asserted about exemption. Null means nobody has said. */
+  assertion: ExemptAssertion | null
+  currency: string
+  costCode: string | null
+  orderNumber: string | null
+  employerName?: string | null
+  clientName?: string | null
 }
 
 /**
  * Build the run.
  *
- * Sheets with no employer acceptance are skipped and named. A payroll
- * file that quietly omits somebody is how a contractor goes unpaid for a
- * fortnight and nobody can say why.
+ * ── What this refuses to put on a file ───────────────────────────────
+ *
+ * A week nobody accepted. A person with no pay rate on the buy side —
+ * the bill rate is what the client is charged and is not anybody's wage.
+ * A corp-to-corp consultant or a sub-vendor's employee, who are settled
+ * by invoice and whose wage duty belongs to whoever signs their
+ * paycheck. And a week over the line on somebody nobody has classified,
+ * because the two lawful answers are "salary, no premium" and "money, at
+ * time and a half", and picking one to keep the file moving is picking
+ * one at random.
+ *
+ * Every refusal is named. A payroll file that quietly omits somebody is
+ * how a contractor goes unpaid for a fortnight and nobody can say why.
+ *
+ * ── Why the whole sheet goes when one week cannot be priced ───────────
+ *
+ * Paying three weeks of four and saying nothing looks like a full
+ * payment to everybody who reads the file, including the person being
+ * paid. A partial wage nobody flagged is worse than a line that did not
+ * go, because the second gets fixed.
  */
-export function buildExport(
-  provider: Provider,
-  sheets: {
-    personName: string
-    payrollId: string | null
-    contractType: string
-    periodStart: Date
-    periodEnd: Date
-    submittedHours: number
-    acceptedHours: number | null
-    employerAcceptedAt: Date | null
-    rateCents: number
-    currency: string
-    costCode: string | null
-    orderNumber: string | null
-  }[]
-): Export {
+export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
   const lines: Line[] = []
   const skipped: Skipped[] = []
 
@@ -118,16 +193,64 @@ export function buildExport(
         personName: s.personName,
         periodEnd: s.periodEnd,
         why: 'Nobody has accepted these hours for pay yet.',
+        action: 'Accept the hours on the timesheet, then run this again.',
       })
       continue
     }
 
-    const hours = s.acceptedHours ?? s.submittedHours
-    if (hours <= 0) {
+    // ── The pay rate, and never the bill rate ───────────────────────
+    if (!s.payRateCents || s.payRateCents <= 0) {
+      skipped.push({
+        personName: s.personName,
+        periodEnd: s.periodEnd,
+        why:
+          `Nothing on the buy side says what ${s.personName} is paid, and what the client is ` +
+          'billed for them is not their wage.',
+        action: `Put a pay rate on ${s.personName}'s buy contract, then run this again.`,
+      })
+      continue
+    }
+
+    const weeks = payable(s)
+    const hours = round2(weeks.reduce((n, w) => n + w.regularHours + w.leaveHours, 0))
+    const overtimeHours = round2(weeks.reduce((n, w) => n + w.overHours, 0))
+
+    if (hours + overtimeHours <= 0) {
       skipped.push({
         personName: s.personName,
         periodEnd: s.periodEnd,
         why: 'Accepted at zero hours.',
+        action: null,
+      })
+      continue
+    }
+
+    // ── What the law says each week is worth ────────────────────────
+    const verdicts = weeks.map((w) =>
+      weekWage(w, {
+        personName: s.personName,
+        contractType: s.contractType,
+        weAreTheEmployer: s.weAreTheEmployer,
+        pay: {
+          payModel: s.payModel,
+          payRateCents: s.payRateCents!,
+          paidOnSalaryBasis: s.paidOnSalaryBasis,
+        },
+        rule: s.rule,
+        assertion: s.assertion,
+        client: w.client,
+        employerName: s.employerName,
+        clientName: s.clientName,
+      })
+    )
+
+    const refused = verdicts.find((v) => !v.ok)
+    if (refused) {
+      skipped.push({
+        personName: s.personName,
+        periodEnd: s.periodEnd,
+        why: refused.says,
+        action: refused.action,
       })
       continue
     }
@@ -139,45 +262,87 @@ export function buildExport(
       periodStart: s.periodStart,
       periodEnd: s.periodEnd,
       hours,
-      rateCents: s.rateCents,
+      overtimeHours,
+      rateCents: s.payRateCents,
+      regularCents: verdicts.reduce((n, v) => n + (v.regularCents ?? 0), 0),
+      overtimeCents: verdicts.reduce((n, v) => n + (v.overtimeCents ?? 0), 0),
+      totalCents: verdicts.reduce((n, v) => n + (v.regularCents ?? 0) + (v.overtimeCents ?? 0), 0),
+      uncoveredPremiumCents: verdicts.reduce((n, v) => n + (v.uncoveredPremiumCents ?? 0), 0),
       currency: s.currency,
       costCode: s.costCode,
       orderNumber: s.orderNumber,
+      notes: [...new Set(verdicts.flatMap((v) => v.caveats))],
     })
   }
 
-  const totalHours = lines.reduce((n, l) => n + l.hours, 0)
-  const totalCents = lines.reduce((n, l) => n + Math.round(l.hours * l.rateCents), 0)
+  const totalHours = round2(lines.reduce((n, l) => n + l.hours, 0))
+  const totalOvertimeHours = round2(lines.reduce((n, l) => n + l.overtimeHours, 0))
+  const totalCents = lines.reduce((n, l) => n + l.totalCents, 0)
+  const uncoveredPremiumCents = lines.reduce((n, l) => n + l.uncoveredPremiumCents, 0)
 
   return {
     provider,
     lines,
     skipped,
     totalHours,
+    totalOvertimeHours,
     totalCents,
-    says: exportSays(lines.length, skipped.length, totalHours, totalCents, provider),
+    uncoveredPremiumCents,
+    says: exportSays(lines.length, skipped.length, totalHours, totalOvertimeHours, totalCents, provider),
+    caveats: [...new Set(lines.flatMap((l) => l.notes))],
   }
+}
+
+const round2 = (n: number): number => Math.round(n * 100) / 100
+
+/**
+ * The weeks as the employer accepted them.
+ *
+ * Fewer hours accepted than filed is ordinary — a manager strikes out an
+ * hour nobody agreed. The cut comes off ordinary hours and off the
+ * latest week first: an hour somebody struck out is not one of the hours
+ * that took an earlier week over the line, and taking it off overtime
+ * would quietly reduce a premium the law requires.
+ */
+function payable(s: SheetToPay): WeekToPay[] {
+  const weeks = s.weeks.map((w) => ({ ...w }))
+  if (s.acceptedHours == null) return weeks
+
+  const filed = round2(weeks.reduce((n, w) => n + w.regularHours + w.leaveHours + w.overHours, 0))
+  let cut = round2(filed - s.acceptedHours)
+  if (cut <= 0) return weeks
+
+  for (let i = weeks.length - 1; i >= 0 && cut > 0; i--) {
+    const off = Math.min(cut, weeks[i].regularHours)
+    weeks[i].regularHours = round2(weeks[i].regularHours - off)
+    cut = round2(cut - off)
+  }
+
+  return weeks
 }
 
 function exportSays(
   n: number,
   skippedCount: number,
   hours: number,
+  overtimeHours: number,
   cents: number,
   provider: Provider
 ): string {
   if (n === 0) {
     return skippedCount > 0
-      ? `Nothing to send. ${skippedCount} ${skippedCount === 1 ? 'person is' : 'people are'} waiting on somebody to accept their hours.`
+      ? `Nothing to send. ${skippedCount} ${skippedCount === 1 ? 'person is' : 'people are'} left out, each for a reason on the row.`
       : 'Nothing to send. No accepted hours in this period.'
   }
 
   const money = `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  const tail = skippedCount
-    ? ` ${skippedCount} left out — nobody has accepted their hours.`
-    : ''
+  const ot = overtimeHours > 0 ? `, ${overtimeHours} of them over the line` : ''
+  // Never "nobody has accepted their hours" any more: a row is left out
+  // for one of four reasons now, and saying the wrong one sends somebody
+  // to the wrong desk.
+  const tail = skippedCount ? ` ${skippedCount} left out, each with a reason on the row.` : ''
 
-  return `${n} ${n === 1 ? 'person' : 'people'}, ${hours} hours, ${money} for ${provider}.${tail}`
+  return `${n} ${n === 1 ? 'person' : 'people'}, ${hours} hours${ot}, ${money} for ${provider}.${tail}`
 }
 
 /**
@@ -192,28 +357,42 @@ export function toCsv(e: Export): string {
   const iso = (d: Date) => d.toISOString().slice(0, 10)
   const money = (c: number) => (c / 100).toFixed(2)
 
+  // Overtime hours get their own column, and on Paychex their own row,
+  // because that is how both providers price them. A file that put
+  // forty-five hours in "Reg Hours" paid the premium to nobody and left
+  // the employer owing it.
   const rows: string[][] =
     e.provider === 'ADP'
       ? [
-          ['Co Code', 'File #', 'Name', 'Reg Hours', 'Rate', 'Period Start', 'Period End', 'Dept'],
+          ['Co Code', 'File #', 'Name', 'Reg Hours', 'O/T Hours', 'Rate', 'Period Start', 'Period End', 'Dept'],
           ...e.lines.map((l) => [
-            '', l.payrollId ?? '', l.personName, String(l.hours),
+            '', l.payrollId ?? '', l.personName, String(l.hours), String(l.overtimeHours),
             money(l.rateCents), iso(l.periodStart), iso(l.periodEnd), l.costCode ?? '',
           ]),
         ]
       : e.provider === 'PAYCHEX'
         ? [
-            ['Employee ID', 'Employee Name', 'Earnings Code', 'Hours', 'Rate', 'Pay Period End', 'Cost Center'],
-            ...e.lines.map((l) => [
-              l.payrollId ?? '', l.personName, 'REG', String(l.hours),
-              money(l.rateCents), iso(l.periodEnd), l.costCode ?? '',
+            ['Employee ID', 'Employee Name', 'Earnings Code', 'Hours', 'Rate', 'Amount', 'Pay Period End', 'Cost Center'],
+            ...e.lines.flatMap((l) => [
+              [
+                l.payrollId ?? '', l.personName, 'REG', String(l.hours),
+                money(l.rateCents), money(l.regularCents), iso(l.periodEnd), l.costCode ?? '',
+              ],
+              ...(l.overtimeHours > 0
+                ? [[
+                    l.payrollId ?? '', l.personName, 'OT', String(l.overtimeHours),
+                    money(l.rateCents), money(l.overtimeCents), iso(l.periodEnd), l.costCode ?? '',
+                  ]]
+                : []),
             ]),
           ]
         : [
-            ['payroll_id', 'name', 'contract_type', 'period_start', 'period_end', 'hours', 'rate', 'currency', 'cost_code', 'order'],
+            ['payroll_id', 'name', 'contract_type', 'period_start', 'period_end', 'hours', 'overtime_hours', 'rate', 'regular_amount', 'overtime_amount', 'currency', 'cost_code', 'order'],
             ...e.lines.map((l) => [
               l.payrollId ?? '', l.personName, l.contractType, iso(l.periodStart), iso(l.periodEnd),
-              String(l.hours), money(l.rateCents), l.currency, l.costCode ?? '', l.orderNumber ?? '',
+              String(l.hours), String(l.overtimeHours), money(l.rateCents),
+              money(l.regularCents), money(l.overtimeCents),
+              l.currency, l.costCode ?? '', l.orderNumber ?? '',
             ]),
           ]
 
