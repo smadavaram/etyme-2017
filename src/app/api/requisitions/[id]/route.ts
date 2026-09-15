@@ -14,7 +14,7 @@ import {
   type Seat,
 } from '@/lib/requisition-approval'
 import { ancestry } from '@/lib/org-tree'
-import { endClientFilter } from '@/lib/resolve-end-client'
+import { ownPriceMedian } from '@/lib/chain-top'
 import { notifyBulk, type NotifyParams } from '@/lib/notify'
 
 /**
@@ -912,22 +912,31 @@ async function checksFor(
  * The median hourly rate this client already pays for any of these
  * skills. The same figure the raise route compares against, for the same
  * reason: what they actually pay beats an abstract band.
+ *
+ * Its own prices — the contracts it is billed on — and not every rung
+ * standing at its sites. Both readings asked the wrong question in the
+ * same way, because they were two copies of one function; the
+ * arithmetic is `ownPriceMedian` in lib/chain-top now, written once.
  */
 async function medianRateForSkills(clientId: string, skills: string[]): Promise<number | null> {
   if (skills.length === 0) return null
 
   const contracts = await prisma.sellContract.findMany({
-    where: { ...endClientFilter(clientId), state: { in: ['IN_PROGRESS', 'VERIFIED'] } },
-    select: { billRate: true, person: { select: { consultant: { select: { skills: true } } } } },
+    where: { clientCompanyId: clientId, state: { in: ['IN_PROGRESS', 'VERIFIED'] } },
+    select: {
+      clientCompanyId: true,
+      billRate: true,
+      person: { select: { consultant: { select: { skills: true } } } },
+    },
   })
 
-  const wanted = new Set(skills.map(s => s.toLowerCase()))
-  const rates = contracts
-    .filter(c => (c.person.consultant?.skills ?? []).some(s => wanted.has(s.toLowerCase())))
-    .map(c => c.billRate)
-    .sort((a, b) => a - b)
-
-  if (rates.length === 0) return null
-  const mid = Math.floor(rates.length / 2)
-  return rates.length % 2 === 0 ? Math.round((rates[mid - 1] + rates[mid]) / 2) : rates[mid]
+  return ownPriceMedian(
+    contracts.map(c => ({
+      clientCompanyId: c.clientCompanyId,
+      billRate: c.billRate,
+      skills: c.person.consultant?.skills ?? [],
+    })),
+    clientId,
+    skills
+  )
 }

@@ -24,9 +24,19 @@ describe('what the client desk is told', () => {
   })
 
   it("a client sees the hours on a sheet, never the rate its supplier's supplier charges", () => {
-    expect(decisions).toContain('const amount = !asClient || sc.clientCompanyId === companyId')
     expect(decisions).toContain('`${ts.totalHours}h · through ${supplier} · ${period}`')
     expect(decisions).toContain('const supplier = paidSupplier.get(ts.personId) ?? sc.company.name')
+  })
+
+  it('the queue a client approves from prices a week at the contract that client is billed on', () => {
+    // A week is filed against the employer's leg, which in a chain is two
+    // firms below the reader. Priced there it was blank for the client
+    // and, before that, its supplier's supplier's rate. Walked up, Nike
+    // reads its own $145.
+    expect(decisions).toContain("import { payerRung } from '@/lib/chain-top'")
+    expect(decisions).toContain('const filed = rungs.find((r) => r.id === sc.id)')
+    expect(decisions).toContain('payerRung(filed, rungs)')
+    expect(decisions).toContain('paying && (!asClient || paying.clientCompanyId === companyId)')
   })
 
   it('the dashboard counts the contracts the client pays — the top of every chain — and only people working now', () => {

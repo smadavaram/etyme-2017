@@ -64,6 +64,7 @@ interface OrgData {
     vendors: number
     oneTimeVendors: number
     headcount: number
+    unpriced: number
     unassigned: number
     annualSpend: number
     annualSaving: number
@@ -187,7 +188,16 @@ export default function ProgramOrgPage() {
       {/* Stat row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-px bg-etyme-rule border border-etyme-rule mb-10">
         {[
-          { label: 'Annual run rate', value: money(summary.annualSpend), note: `${summary.headcount} contractor${summary.headcount === 1 ? '' : 's'}` },
+          {
+            label: 'Annual run rate',
+            value: money(summary.annualSpend),
+            // Somebody on site through a chain whose top contract is not
+            // live here is a head without a price, and the note says so
+            // rather than letting the run rate read as covering everybody.
+            note:
+              `${summary.headcount} contractor${summary.headcount === 1 ? '' : 's'}` +
+              (summary.unpriced > 0 ? ` · ${summary.unpriced} unpriced` : ''),
+          },
           { label: 'Rate variance', value: money(summary.annualSaving), note: 'same skill, different price', tone: hasFinding },
           { label: 'One-time vendors', value: String(summary.oneTimeVendors), note: `of ${summary.vendors} · full onboarding each` },
           { label: 'Unassigned', value: String(summary.unassigned), note: 'no named manager' },

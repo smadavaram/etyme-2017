@@ -45,6 +45,35 @@ async function expectedLegs(sellContractId: string) {
   if (!sell) return null
 
   const endClient = sell.endClientCompany ?? sell.clientCompany
+
+  // KNOWN OPEN, and named here rather than left for somebody to find.
+  //
+  // Two rate-party defects live in this function and neither can be
+  // fixed from inside it:
+  //
+  //   1. On a chained placement the end client is not a party to this
+  //      contract — it pays the rung above — so `sell.billRate` here is
+  //      its supplier's supplier's price. Nike reads $118 where it pays
+  //      $145, and asserts at $118.
+  //   2. GET returns every leg with its rate, so the end client also
+  //      reads the pass-through leg's bill rate and the employer leg's
+  //      PAY rate. A client reading what its supplier pays the person
+  //      is the sharpest version of the same rule.
+  //
+  // Walking (1) up the chain with lib/chain-top was tried and reverted:
+  // `postAssertion` (lib/order-postings, etyme-money) computes REVENUE
+  // as hours x rateCents and posts it against the project order of the
+  // contract the sheet is filed on — the bottom rung. Raising the
+  // client leg's rate without moving the posting to the asserting leg's
+  // own order books the prime's margin as the sub's revenue, which is a
+  // worse number than the one being fixed.
+  //
+  // So `WorkAssertion.rateCents` has two readers that disagree in a
+  // chain: work-ledger says it is the asserting company's own leg
+  // ("their money, their number") and order-postings reads it as the
+  // filed contract's rate. That is one decision, and it is etyme-money's
+  // to make before either of these moves. (2) is etyme-demand's and does
+  // not wait on it.
   const legs: { companyId: string; companyName: string; role: Role; rateCents: number }[] = [
     {
       companyId: endClient.id,

@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
+import { asPayer } from '@/lib/chain-top'
 import { logBulkAccess } from '@/lib/access-log'
 
 /**
@@ -57,8 +58,13 @@ export async function GET(request: NextRequest) {
   )
   if (clientError) return clientError
 
-  // Live contractors at this end client, across every vendor.
-  const contracts = await prisma.sellContract.findMany({
+  // Every rung standing at this end client, across every vendor.
+  //
+  // A chain puts the same person here more than once — Nike buys Helena
+  // from Computer Systems, who buys her from CloudEPA, and both legs
+  // name Nike as the site. Read as rows that was two contractors, two
+  // vendors and two rates, the lower of them the prime's cost.
+  const rungs = await prisma.sellContract.findMany({
     where: {
       ...endClientFilter(clientCompany.id),
       state: { in: ['IN_PROGRESS', 'VERIFIED', 'PENDING_VERIFICATION'] },
@@ -68,6 +74,7 @@ export async function GET(request: NextRequest) {
       billRate: true,
       personId: true,
       companyId: true,
+      clientCompanyId: true,
       hiringManagerId: true,
       orgUnitId: true,
       person: {
@@ -83,7 +90,18 @@ export async function GET(request: NextRequest) {
     },
   })
 
-  logBulkAccess([...new Set(contracts.map(c => c.personId))], {
+  // One row per placement, and a rate only on the rung this client is
+  // itself billed on. A person whose top rung is not in this list is
+  // still standing on the site and is still a head; they carry no price,
+  // and the basis line below says how many.
+  const rows = asPayer(rungs, clientCompany.id)
+  const contracts = rows
+    .filter(r => r.rateCents !== null)
+    .map(r => ({ ...r.contract, billRate: r.rateCents as number }))
+  const headcount = rows.length
+  const unpriced = rows.length - contracts.length
+
+  logBulkAccess([...new Set(rungs.map(c => c.personId))], {
     actorPersonId: caller.person.id,
     actorCompanyId: caller.company?.id,
     action: 'CONTRACT_VIEW',
@@ -274,7 +292,8 @@ export async function GET(request: NextRequest) {
         managers: managers.length,
         vendors: vendors.length,
         oneTimeVendors,
-        headcount: contracts.length,
+        headcount,
+        unpriced,
         unassigned,
         annualSpend: Math.round(totalAnnualSpend),
         annualSaving: Math.round(totalSaving),
@@ -286,7 +305,14 @@ export async function GET(request: NextRequest) {
       // Stated so a reader knows what they are looking at (CLAUDE.md: a bare
       // number is a bug).
       basis:
-        `Annualised from bill rates at ${HOURS_PER_MONTH} hours/month across ${contracts.length} live contractor(s) at ${clientCompany.name}. ` +
+        `Annualised from the rates ${clientCompany.name} is itself billed, at ${HOURS_PER_MONTH} hours/month, across ` +
+        `${contracts.length} of ${headcount} live contractor(s) on site. ` +
+        (unpriced > 0
+          ? `${unpriced} ${unpriced === 1 ? 'is' : 'are'} on site through a supplier chain whose top contract is not live here, ` +
+            `so ${unpriced === 1 ? 'that person is' : 'those people are'} counted as head(s) and carry no rate — ` +
+            `what a supplier pays its own supplier is not this client's price. `
+          : '') +
+        `Somebody bought through a chain is counted once, at the contract ${clientCompany.name} pays. ` +
         `Rate variance is the difference between what a contractor is billed at and the median for that skill; ` +
         `each person is counted once even when they appear under several skills. It is an opportunity, not a committed saving.`,
     },

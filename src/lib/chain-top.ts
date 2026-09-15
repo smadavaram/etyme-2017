@@ -80,3 +80,66 @@ function overlaps(a: DatedRung, b: DatedRung): boolean {
   const bEnd = b.endDate?.getTime() ?? Number.POSITIVE_INFINITY
   return a.startDate.getTime() <= bEnd && b.startDate.getTime() <= aEnd
 }
+
+/**
+ * One row per placement, priced only where this client is the payer.
+ *
+ * The client's org page asked the site the work happens at — every rung
+ * of every chain at Nike's buildings — and put `billRate` on each. So
+ * Helena stood there twice, once at the $145 Nike pays and once at the
+ * $118 its supplier pays, and the headcount, the spend and the rate
+ * spread were all computed over both.
+ *
+ * Two separate wrongs, so two separate answers. `chainTop` says which
+ * rows are placements rather than rungs of one; the party test says
+ * which of those this client may be told a price for. They are not the
+ * same question: a chain whose top rung is not in the list handed in —
+ * a draft, an ended leg, a rung bought by somebody else — still has a
+ * person standing on the site, and dropping them would understate a
+ * headcount that is a governance number. They are counted and left
+ * unpriced, and the screen says how many.
+ */
+export function asPayer<T extends Rung & { billRate: number }>(
+  all: T[],
+  clientCompanyId: string
+): { contract: T; rateCents: number | null }[] {
+  return chainTop(all).map((contract) => ({
+    contract,
+    rateCents: contract.clientCompanyId === clientCompanyId ? contract.billRate : null,
+  }))
+}
+
+/**
+ * The median hourly rate this client itself pays for any of these skills.
+ *
+ * The benchmark a hiring manager is shown when they raise a role — "what
+ * you already pay for these skills" — was a median over every rung
+ * standing at the client's sites. In a chain that blends the prime's
+ * cost into the client's own prices and pulls the benchmark down by the
+ * whole of somebody else's margin, which is both a wrong number on the
+ * screen and a margin the client must not be able to compute.
+ *
+ * A client's own price is the rung it is billed on: `clientCompanyId`.
+ * Null rather than zero where it has never bought the skill — there is
+ * no figure, and a zero would read as free.
+ */
+export function ownPriceMedian(
+  rungs: { clientCompanyId: string; billRate: number; skills: string[] }[],
+  clientCompanyId: string,
+  skills: string[]
+): number | null {
+  if (skills.length === 0) return null
+  const wanted = new Set(skills.map((s) => s.toLowerCase()))
+
+  const rates = rungs
+    .filter((r) => r.clientCompanyId === clientCompanyId)
+    .filter((r) => r.skills.some((s) => wanted.has(s.toLowerCase())))
+    .map((r) => r.billRate)
+    .sort((a, b) => a - b)
+
+  if (rates.length === 0) return null
+  const mid = Math.floor(rates.length / 2)
+  return rates.length % 2 === 0
+    ? Math.round((rates[mid - 1] + rates[mid]) / 2)
+    : rates[mid]
+}

@@ -401,28 +401,18 @@ describe('in a chain the client reads the rung it pays and never the one underne
   /**
    * Known open, each with the sentence and the owner.
    *
-   * Silence about a gap is worse than the gap. These three are the same
-   * defect in three more files, found by this scanner rather than by
-   * walking the app, and all three are etyme-demand's to fix. A fourth
-   * fails the build.
+   * Silence about a gap is worse than the gap, so a defect this scanner
+   * finds and nobody has fixed yet is named here with its owner rather
+   * than quietly excluded — and the next one of the same shape fails the
+   * build.
+   *
+   * The four this list was opened with — the client's org page, the
+   * decision queue and both copies of the requisition benchmark — are
+   * fixed and their lines are gone, which is the other half of the
+   * design: a file that stops leaking fails the test below until
+   * somebody deletes its entry, so the list cannot outlive the defects.
    */
-  const KNOWN_OPEN: Record<string, string> = {
-    'src/app/api/program/org/route.ts':
-      'The org page lists every rung standing at the client’s sites and returns ' +
-      '`rate: c.billRate` on each, so a chained person appears twice and the ' +
-      'lower figure is the prime’s cost. etyme-demand.',
-    'src/app/api/decisions/route.ts':
-      'The client’s queue values a week at the rate on the leg the hours were ' +
-      'filed against and prints it in the row subtitle, which in a chain is the ' +
-      'supplier’s supplier’s rate. etyme-demand.',
-    'src/app/api/requisitions/route.ts':
-      '`medianRateForSkills` takes the median over every rung at the client, so ' +
-      'the benchmark a raiser is shown blends its prime’s cost into its own ' +
-      'prices. etyme-demand.',
-    'src/app/api/requisitions/[id]/route.ts':
-      'The same `medianRateForSkills`, copied. Two readings of one benchmark, ' +
-      'both over every rung. etyme-demand.',
-  }
+  const KNOWN_OPEN: Record<string, string> = {}
 
   it('walks the rate up to the payer on every list that is scoped by the site and carries a rate', () => {
     const leaking = walk(join(ROOT, 'src'))

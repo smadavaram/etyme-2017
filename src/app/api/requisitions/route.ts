@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
-import { endClientFilter } from '@/lib/resolve-end-client'
+import { ownPriceMedian } from '@/lib/chain-top'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import {
   evaluateRequisition,
@@ -466,6 +466,14 @@ export async function POST(request: NextRequest) {
  * The median hourly rate this client already pays for any of these skills.
  * Comparing against what they actually pay beats an abstract market band,
  * and it reuses the same signal the org view surfaces as rate variance.
+ *
+ * Its own prices, which means the contracts it is billed on. This asked
+ * where the work happens instead, and in a chain every rung names the
+ * same site — so the benchmark a hiring manager was shown blended its
+ * prime's cost into its own prices and read low by the whole of
+ * somebody else's margin. The arithmetic is `ownPriceMedian` in
+ * lib/chain-top, shared with the single-requisition reading so the two
+ * cannot drift.
  */
 async function medianRateForSkills(
   clientId: string,
@@ -475,26 +483,23 @@ async function medianRateForSkills(
 
   const contracts = await prisma.sellContract.findMany({
     where: {
-      ...endClientFilter(clientId),
+      clientCompanyId: clientId,
       state: { in: ['IN_PROGRESS', 'VERIFIED'] },
     },
     select: {
+      clientCompanyId: true,
       billRate: true,
       person: { select: { consultant: { select: { skills: true } } } },
     },
   })
 
-  const wanted = new Set(skills.map(s => s.toLowerCase()))
-  const rates = contracts
-    .filter(c =>
-      (c.person.consultant?.skills ?? []).some(s => wanted.has(s.toLowerCase()))
-    )
-    .map(c => c.billRate)
-    .sort((a, b) => a - b)
-
-  if (rates.length === 0) return null
-  const mid = Math.floor(rates.length / 2)
-  return rates.length % 2 === 0
-    ? Math.round((rates[mid - 1] + rates[mid]) / 2)
-    : rates[mid]
+  return ownPriceMedian(
+    contracts.map(c => ({
+      clientCompanyId: c.clientCompanyId,
+      billRate: c.billRate,
+      skills: c.person.consultant?.skills ?? [],
+    })),
+    clientId,
+    skills
+  )
 }

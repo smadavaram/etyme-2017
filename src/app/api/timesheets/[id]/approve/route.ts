@@ -421,6 +421,16 @@ export async function POST(
 
   // The ledger is the record now. The columns below stay in step so the
   // two-party history still reads, but nothing derives from them.
+  //
+  // The rate on an assertion is the asserting company's own rate on its
+  // own leg — "their money, their number" (lib/work-ledger). This wrote
+  // the rate of the leg the hours were filed against, whoever pressed
+  // the button, so a client approving a chained week recorded its
+  // approval at its supplier's supplier's price: not a leak, because it
+  // goes nowhere near a caller, but a wrong number in a permanent ledger
+  // that billing reads back. `deciding` is the leg being answered and is
+  // already what the refusal, the valuation and the notice all quote.
+  // On a direct placement it is the same contract, so nothing moves.
   const assertion = await prisma.workAssertion.create({
     data: {
       timesheetId: id,
@@ -429,7 +439,7 @@ export async function POST(
         ? asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE'
         : asParty === 'CLIENT' ? 'CLIENT_APPROVAL' : 'EMPLOYER_ACCEPTANCE',
       hours: accepted.hours ?? hours,
-      rateCents: timesheet.sellContract.billRate,
+      rateCents: deciding.billRate,
       state: 'LIVE',
       byId: person.id,
       auto: false,
@@ -455,7 +465,7 @@ export async function POST(
         companyId: caller.company!.id,
         role: 'EMPLOYER_ACCEPTANCE',
         hours: accepted.hours ?? hours,
-        rateCents: timesheet.sellContract.billRate,
+        rateCents: deciding.billRate,
         state: 'LIVE',
         byId: person.id,
         auto: false,

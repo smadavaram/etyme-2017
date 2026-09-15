@@ -4,6 +4,7 @@ import { staffOnly } from '@/lib/seat'
 import { hasAnyPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
+import { payerRung } from '@/lib/chain-top'
 import { timesheetFlag, periodWord } from '@/lib/timesheet-flag'
 import { desksFor } from '@/lib/supplier-desks'
 import { mayActAt, STAGE_WORD, type Stage, type Decision } from '@/lib/supplier-onboarding'
@@ -65,7 +66,8 @@ export async function GET(request: NextRequest) {
         person: { select: { name: true } },
         sellContract: {
           select: {
-            billRate: true, companyId: true, clientCompanyId: true, endClientCompanyId: true, endDate: true,
+            id: true, personId: true, startDate: true, endDate: true,
+            billRate: true, companyId: true, clientCompanyId: true, endClientCompanyId: true,
             company: { select: { name: true } },
             clientCompany: { select: { name: true } },
             requirement: { select: { hoursPerWeek: true } },
@@ -80,12 +82,30 @@ export async function GET(request: NextRequest) {
     // firm two rungs down that employs them.
     const clientRows = pendingTimesheets.filter((ts) => ts.sellContract.companyId !== companyId)
     const paidSupplier = new Map<string, string>()
+    // Every rung of every chain these people stand on here, so a week
+    // filed against the employer's leg can be walked up to the contract
+    // this reader is actually billed on. A queue that prices a week at
+    // the leg it happens to be filed against is quoting the client its
+    // supplier's supplier's rate.
+    let rungs: {
+      id: string; personId: string; companyId: string; clientCompanyId: string
+      startDate: Date; endDate: Date | null; billRate: number
+    }[] = []
     if (clientRows.length > 0) {
+      const people = [...new Set(clientRows.map((ts) => ts.personId))]
       const direct = await prisma.sellContract.findMany({
-        where: { clientCompanyId: companyId, personId: { in: clientRows.map((ts) => ts.personId) }, state: { in: ['IN_PROGRESS', 'VERIFIED', 'DRAFT'] } },
+        where: { clientCompanyId: companyId, personId: { in: people }, state: { in: ['IN_PROGRESS', 'VERIFIED', 'DRAFT'] } },
         select: { personId: true, company: { select: { name: true } } },
       })
       for (const d of direct) paidSupplier.set(d.personId, d.company.name)
+
+      rungs = await prisma.sellContract.findMany({
+        where: { ...endClientFilter(companyId), personId: { in: people } },
+        select: {
+          id: true, personId: true, companyId: true, clientCompanyId: true,
+          startDate: true, endDate: true, billRate: true,
+        },
+      })
     }
 
     for (const ts of pendingTimesheets) {
@@ -97,10 +117,22 @@ export async function GET(request: NextRequest) {
       const supplier = paidSupplier.get(ts.personId) ?? sc.company.name
       // A client sees the hours. The rate on this sheet is what the
       // employer charges the rung above it, which is the client's own
-      // rate only on a direct placement — never a sub-supplier's.
-      const amount = !asClient || sc.clientCompanyId === companyId
-        ? Number(ts.totalHours) * (sc.billRate / 100)
-        : null
+      // rate only on a direct placement. Where the reader is further up
+      // the chain the week is priced at the rung it is billed on, and
+      // where no single rung covers it there is no price at all — a
+      // guess here is either the prime's margin on its own customer's
+      // screen or an understated bill.
+      const filed = rungs.find((r) => r.id === sc.id)
+      const paying =
+        !asClient || sc.clientCompanyId === companyId
+          ? { clientCompanyId: sc.clientCompanyId, billRate: sc.billRate }
+          : filed
+            ? payerRung(filed, rungs)
+            : null
+      const amount =
+        paying && (!asClient || paying.clientCompanyId === companyId)
+          ? Number(ts.totalHours) * (paying.billRate / 100)
+          : null
       const period = periodWord(ts.periodStart, ts.periodEnd)
       // Checked against the contract, so the signer does not have to
       // notice: more hours than the role runs, or a week past its end.
