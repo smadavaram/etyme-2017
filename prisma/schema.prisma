@@ -4112,23 +4112,13 @@ model RateHistory {
   contractId   String // sellContractId or buyContractId
   rate         Int // cents per hour (or per period depending on rateType)
   rateType     String    @default("HOURLY") // HOURLY · DAILY · WEEKLY · MONTHLY
-  /// DEAD. Written by `app/api/rate-history`, read by nothing, and now
-  /// superseded.
-  ///
-  /// The premium is a term of the contract, not a version of the rate:
-  /// `SellContract.overtimeMultiplierBps` is what the client is billed
-  /// and `BuyContract.overtimeMultiplierBps` is what the worker is paid,
-  /// both in basis points of the rate in force on the day. This column
-  /// holds a third copy of the same fact in different units, and a third
-  /// copy is how two records come to disagree about what an hour past
-  /// forty was worth — the one question in this table that has a legal
-  /// consequence.
-  ///
-  /// It is still here only because deleting it and removing its writer
-  /// have to land in one commit, and the writer is in etyme-money's
-  /// files. Named as their next piece of work rather than left silent.
-  /// Nothing new may read it.
-  overtimeRate Int? // cents per hour for overtime — deprecated, see above
+  // No overtime rate here. The premium is a term of the contract rather
+  // than a version of the rate: `SellContract.overtimeMultiplierBps` is
+  // what the client is billed and `BuyContract.overtimeMultiplierBps` is
+  // what the worker is paid, both in basis points of whatever rate is in
+  // force on the day. A cents-per-hour copy alongside was a third record
+  // of one fact, and a third record is how two of them come to disagree
+  // about the one question in this table with a legal consequence.
   fromDate     DateTime
   toDate       DateTime? // null = current/open-ended
   reason       String? // why the rate changed

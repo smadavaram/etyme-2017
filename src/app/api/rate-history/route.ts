@@ -126,7 +126,6 @@ export async function GET(request: NextRequest) {
             contractId: h.contractId,
             rate: h.rate,
             rateType: h.rateType,
-            overtimeRate: h.overtimeRate,
             fromDate: h.fromDate.toISOString(),
             toDate: h.toDate?.toISOString() ?? null,
             reason: h.reason,
@@ -209,7 +208,6 @@ export async function GET(request: NextRequest) {
         contractId: h.contractId,
         rate: h.rate,
         rateType: h.rateType,
-        overtimeRate: h.overtimeRate,
         fromDate: h.fromDate.toISOString(),
         toDate: h.toDate?.toISOString() ?? null,
         reason: h.reason,
@@ -244,7 +242,14 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { contractType, contractId, rate, rateType = 'HOURLY', overtimeRate, fromDate, toDate, reason } = body
+  // No `overtimeRate` here any more. What an overtime hour is worth is a
+  // term of the contract — `overtimeMultiplierBps` on the sell leg for
+  // what the client is billed, and on the buy leg for what the worker is
+  // paid — in basis points of whatever rate is in force that day. A
+  // separate cents-per-hour column was a third copy of the same fact,
+  // and a third copy is how two records come to disagree about the one
+  // question in this table with a legal consequence.
+  const { contractType, contractId, rate, rateType = 'HOURLY', fromDate, toDate, reason } = body
 
   if (!contractType || !contractId || rate === undefined || !fromDate) {
     return NextResponse.json(
@@ -341,7 +346,6 @@ export async function POST(request: NextRequest) {
       contractId,
       rate,
       rateType: rateType.toUpperCase(),
-      overtimeRate: overtimeRate ?? null,
       fromDate: from,
       toDate: to,
       reason: reason ?? null,

@@ -26,7 +26,6 @@ interface RateHistoryRecord {
   contractId: string
   rate: number         // cents
   rateType: string
-  overtimeRate: number | null
   fromDate: string
   toDate: string | null
   reason: string | null
