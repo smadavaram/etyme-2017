@@ -8,8 +8,8 @@ import { emit } from '@/lib/events'
 import { notify } from '@/lib/notify'
 import {
   policyOf, splitWeeks, valueOf, weekStart, weeksAwaitingDecision, saysAwaiting,
-  mayDecide, mayChange, priceChoice, isTreatment, treatmentSays,
-  type Decision, type Treatment,
+  mayDecide, mayChange, priceChoice, isTreatment, treatmentSays, decidingLeg,
+  type Decision, type Treatment, type ChainRung,
 } from '@/lib/overtime'
 import { accrualFor, balanceOf, drawFor, hoursIn, type Entry } from '@/lib/time-off'
 
@@ -166,9 +166,55 @@ export async function POST(
   // Nothing about this sheet moves until the weeks that went over the
   // threshold have an answer each, from somebody entitled to give one.
 
-  const policy = policyOf(timesheet.sellContract)
+  // ── Whose leg is this ───────────────────────────────────────────────
+  //
+  // A week is filed once, against the contract of the firm that employs
+  // the person. In a chain the firms above it all have something to say
+  // about the same week, and they are saying different things: a leg is
+  // an agreement between two firms at one rate, and what one pair agreed
+  // is not what another pair agreed.
+  //
+  // So the answer is written against the leg of the firm being asked to
+  // pay for it. This route used to write every answer against the leg
+  // the hours sit on, whoever gave it — which left a prime with no
+  // answer of its own to bill from, and put the client's agreement on
+  // its supplier's row where the supplier could read it.
+  const rungs = await ladderAbove(timesheet.sellContractId, {
+    sellContractId: timesheet.sellContractId,
+    companyId: timesheet.sellContract.companyId,
+    clientCompanyId: timesheet.sellContract.clientCompanyId,
+    endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+    supplierSellContractId: null,
+  })
+  const leg = decidingLeg(caller.company?.id, rungs.map((r) => r.rung), timesheet.sellContractId)
+
+  // The terms, the rate and the names of the leg being answered. On a
+  // direct placement — and for the employer in any chain — this is the
+  // contract the hours are filed against, which is the ordinary case and
+  // reads the row already loaded.
+  const above = rungs.find((r) => r.rung.sellContractId === leg.sellContractId)
+  const deciding: LegContract = above?.contract ?? {
+        id: timesheet.sellContract.id,
+        billRate: timesheet.sellContract.billRate,
+        overtimeAfterHours: timesheet.sellContract.overtimeAfterHours,
+        overtimeMultiplierBps: timesheet.sellContract.overtimeMultiplierBps,
+        companyId: timesheet.sellContract.companyId,
+        clientCompanyId: timesheet.sellContract.clientCompanyId,
+        endClientCompanyId: timesheet.sellContract.endClientCompanyId,
+        companyName: timesheet.sellContract.company?.name ?? null,
+        clientName:
+          timesheet.sellContract.endClientCompany?.name ??
+          timesheet.sellContract.clientCompany?.name ??
+          null,
+      }
+
+  const policy = policyOf(deciding)
   const leaveDays = (timesheet.leaveDays as Record<string, number>) ?? {}
-  const priorDecisions: Decision[] = timesheet.overtimeDecisions.map((d) => ({
+  // Only what has been said on this leg. A prime's agreement with its
+  // client is not the sub's agreement with the prime, and reading the
+  // wrong one is the same error as reading the wrong rate.
+  const ownLeg = timesheet.overtimeDecisions.filter((d) => d.sellContractId === leg.sellContractId)
+  const priorDecisions: Decision[] = ownLeg.map((d) => ({
     weekOf: d.weekOf.toISOString().slice(0, 10),
     treatment: d.treatment as Treatment,
     appliedBps: d.appliedBps,
@@ -212,7 +258,9 @@ export async function POST(
             overtimeHours: w.pendingHours,
             afterHours: policy.afterHours,
             multiplierBps: policy.multiplierBps,
-            rateCents: timesheet.sellContract.billRate,
+            // Our own rate on our own leg. Quoting the one underneath it
+            // would show a client what its supplier's supplier charges.
+            rateCents: deciding.billRate,
           })),
         },
       },
@@ -246,21 +294,21 @@ export async function POST(
       { personId: caller.person.id, companyId: caller.company?.id },
       {
         personId: timesheet.personId,
-        employerCompanyId: timesheet.sellContract.companyId,
-        clientCompanyId: timesheet.sellContract.clientCompanyId,
-        endClientCompanyId: timesheet.sellContract.endClientCompanyId,
-        clientName:
-          timesheet.sellContract.endClientCompany?.name ?? timesheet.sellContract.clientCompany?.name,
-        employerName: timesheet.sellContract.company?.name,
+        // The parties to the leg being answered, which in a chain is not
+        // the leg the hours sit on. A firm that is on neither is refused
+        // in a sentence rather than quietly writing on somebody's row.
+        employerCompanyId: deciding.companyId,
+        clientCompanyId: deciding.clientCompanyId,
+        endClientCompanyId: deciding.endClientCompanyId,
+        clientName: deciding.clientName ?? undefined,
+        employerName: deciding.companyName ?? undefined,
       }
     )
     if (!may.ok) {
       return NextResponse.json({ error: { code: 'FORBIDDEN', message: may.says } }, { status: 403 })
     }
 
-    const prior = timesheet.overtimeDecisions.find(
-      (d) => d.weekOf.toISOString().slice(0, 10) === weekOf
-    )
+    const prior = ownLeg.find((d) => d.weekOf.toISOString().slice(0, 10) === weekOf)
     // Once a week has been billed, what was decided about it is history.
     const changeable = mayChange(prior)
     if (prior && !changeable.ok) {
@@ -325,8 +373,19 @@ export async function POST(
     leaveDays,
     decisions: settled,
   })
-  const value = valueOf(finalSplit, timesheet.sellContract.billRate)
+  const value = valueOf(finalSplit, deciding.billRate)
   const billAmount = value.totalCents / 100
+
+  // Where a row that carries this figure is filed.
+  //
+  // The figure above is the leg that was answered, at that leg's rate.
+  // On a direct placement, and for the employer in any chain, that is
+  // the supplier's own contract and the row goes where it always did.
+  // Where a client answered on a leg further up, the number is the
+  // client's and filing it under the supplier would put the client's
+  // rate on the supplier's page — the same leak as showing a sub's rate
+  // to a client, pointing the other way.
+  const moneyCompanyId = leg.onHoursLeg ? timesheet.sellContract.companyId : caller.company!.id
 
   // On a direct placement the two parties are one company, so one press
   // signs both — and the record still carries two signatures, which is
@@ -416,9 +475,17 @@ export async function POST(
   // company that employs and pays the consultant. A person's bank at one
   // supplier is not their bank at another, so nothing here aggregates
   // across firms the way tenure does.
+  //
+  // And only the leg the hours are filed on can put an hour into it. A
+  // client choosing time off on its own leg is saying it will not be
+  // billed for that hour; what the consultant is owed is a matter for
+  // whoever employs them, decided on their own contract. Without this,
+  // two firms in a chain both answering TIME_OFF would bank ten hours
+  // for five worked — a debt to the consultant that nobody agreed.
   const bankCompanyId = timesheet.sellContract.companyId
+  const banking = leg.onHoursLeg ? writing : []
   const leaveAsked = hoursIn(leaveDays)
-  const touchesBank = leaveAsked > 0 || writing.some((w) => w.treatment === 'TIME_OFF' || w.priorWas?.treatment === 'TIME_OFF')
+  const touchesBank = leaveAsked > 0 || banking.some((w) => w.treatment === 'TIME_OFF' || w.priorWas?.treatment === 'TIME_OFF')
 
   /** A refusal raised inside the transaction, so nothing half-lands. */
   class Refusal extends Error {
@@ -446,7 +513,7 @@ export async function POST(
 
       await tx.automationLog.create({
         data: {
-          companyId: timesheet.sellContract.companyId,
+          companyId: moneyCompanyId,
           action: 'TIMESHEET_APPROVED',
           // Says what is billable, which is no longer hours × rate: an
           // hour over the line is worth what somebody decided it was
@@ -454,15 +521,18 @@ export async function POST(
           summary:
             `Timesheet approved: ${hours}h filed, ` +
             `${finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours}h billable ` +
-            `at $${(timesheet.sellContract.billRate / 100).toFixed(2)}/hr = $${billAmount.toFixed(2)}` +
+            `at $${(deciding.billRate / 100).toFixed(2)}/hr = $${billAmount.toFixed(2)}` +
             (finalSplit.bankedHours > 0 ? `, ${finalSplit.bankedHours}h banked as time off` : '') +
             (finalSplit.pendingHours > 0 ? `, ${finalSplit.pendingHours}h still undecided` : ''),
           reason: `Approved by ${person.name} — ${allowed.reason}`,
           payload: {
             timesheetId: id,
             hours,
-            billRate: timesheet.sellContract.billRate,
+            billRate: deciding.billRate,
             billAmount,
+            // Which contract was answered, and therefore whose money the
+            // figures above are.
+            sellContractId: leg.sellContractId,
             billableHours: finalSplit.regularHours + finalSplit.leaveHours + finalSplit.overtimeHours,
             bankedHours: finalSplit.bankedHours,
           },
@@ -497,7 +567,7 @@ export async function POST(
       // What this sheet's decisions would add to or take out of the bank,
       // net of whatever they banked last time round.
       let delta = 0
-      for (const w of writing) {
+      for (const w of banking) {
         const fresh = accrualFor({ treatment: w.treatment, overtimeHours: w.overtimeHours, accrualBps: w.accrualBps })
         const before = w.priorId ? ledger.find((e) => e.decisionId === w.priorId) : undefined
         delta += fresh - (before ? Number(before.hours) : 0)
@@ -540,12 +610,12 @@ export async function POST(
         const row = await tx.overtimeDecision.upsert({
           where: { timesheetId_sellContractId_weekOf: {
             timesheetId: id,
-            sellContractId: timesheet.sellContractId,
+            sellContractId: leg.sellContractId,
             weekOf: new Date(`${w.weekOf}T00:00:00.000Z`),
           } },
           create: {
             timesheetId: id,
-            sellContractId: timesheet.sellContractId,
+            sellContractId: leg.sellContractId,
             weekOf: new Date(`${w.weekOf}T00:00:00.000Z`),
             // One signature cannot stand alongside two weeks — the column
             // is unique — so it is linked only where this call decided a
@@ -562,7 +632,9 @@ export async function POST(
         // Keyed on the decision, which is unique on the entry: approval
         // running twice — a retry, a second signature, a re-approval
         // after an amendment — cannot bank the same week twice.
-        const hoursBanked = accrualFor({ treatment: w.treatment, overtimeHours: w.overtimeHours, accrualBps: w.accrualBps })
+        const hoursBanked = leg.onHoursLeg
+          ? accrualFor({ treatment: w.treatment, overtimeHours: w.overtimeHours, accrualBps: w.accrualBps })
+          : 0
         const existing = ledger.find((e) => e.decisionId === row.id)
         if (hoursBanked > 0 || existing) {
           await tx.timeOffEntry.upsert({
@@ -626,7 +698,7 @@ export async function POST(
   // integration cares about most.
   void emit({
     type: 'timesheet.approved',
-    companyId: timesheet.sellContract.companyId,
+    companyId: moneyCompanyId,
     subjectType: 'Timesheet',
     subjectId: id,
     actorPersonId: person?.id ?? null,
@@ -634,7 +706,10 @@ export async function POST(
       personId: timesheet.personId,
       sellContractId: timesheet.sellContractId,
       hours,
-      billRateCents: timesheet.sellContract.billRate,
+      // The leg that was answered, and its rate. Not the leg the hours
+      // sit on, where a chain keeps somebody else's number.
+      decidedOnSellContractId: leg.sellContractId,
+      billRateCents: deciding.billRate,
       billAmount,
       // ── The audit trail for the overtime answer ──────────────────────
       //
@@ -709,4 +784,104 @@ export async function POST(
           : `Approved ${hours}h — $${billAmount.toFixed(2)} billable`,
     },
   })
+}
+
+/** One contract as answering a leg needs it: its terms, its rate, its two firms. */
+interface LegContract {
+  id: string
+  billRate: number
+  overtimeAfterHours: number | null
+  overtimeMultiplierBps: number | null
+  companyId: string
+  clientCompanyId: string
+  endClientCompanyId: string | null
+  companyName: string | null
+  clientName: string | null
+}
+
+/**
+ * The rungs above the contract the hours are filed against.
+ *
+ * `lib/work-chain-read` descends, because a firm billing for hours needs
+ * to find them underneath it. This is the opposite question and it is
+ * asked by the approver, not about them: which of the contracts on this
+ * ladder is the one I buy on. A client cannot find its own leg by
+ * descending, because its leg is at the top.
+ *
+ * `BuyContract.supplierSellContractId` is the edge in both directions —
+ * followed downward it finds the hours; followed upward it finds
+ * whoever bought them from us. Two queries per rung above, and none at
+ * all on a direct placement, which is the ordinary case: the walk stops
+ * the first time nobody has bought this contract's person from us.
+ *
+ * It returns nothing a firm is not entitled to on its own leg: the
+ * caller reads the rate off the one rung it is a party to, and
+ * `decidingLeg` picks that rung before anything is priced.
+ */
+async function ladderAbove(
+  hoursOn: string,
+  bottom: ChainRung
+): Promise<{ rung: ChainRung; contract: LegContract | null }[]> {
+  const out: { rung: ChainRung; contract: LegContract | null }[] = []
+  const seen = new Set<string>([hoursOn])
+  let frontier = [hoursOn]
+
+  // A chain deeper than eight firms is a data fault rather than a
+  // business arrangement, and stopping beats looping forever on one.
+  for (let depth = 0; depth < 8 && frontier.length > 0; depth++) {
+    const links = await prisma.contractLink.findMany({
+      where: { buyContract: { supplierSellContractId: { in: frontier } } },
+      select: {
+        sellContractId: true,
+        buyContract: { select: { supplierSellContractId: true } },
+      },
+    })
+
+    const wanted = [...new Set(links.map((l) => l.sellContractId))].filter((id) => !seen.has(id))
+    if (wanted.length === 0) break
+    wanted.forEach((id) => seen.add(id))
+
+    const rows = await prisma.sellContract.findMany({
+      where: { id: { in: wanted } },
+      select: {
+        id: true, billRate: true, companyId: true,
+        clientCompanyId: true, endClientCompanyId: true,
+        overtimeAfterHours: true, overtimeMultiplierBps: true,
+        company: { select: { name: true } },
+        clientCompany: { select: { name: true } },
+        endClientCompany: { select: { name: true } },
+      },
+    })
+
+    for (const row of rows) {
+      const below = links.find((l) => l.sellContractId === row.id)?.buyContract.supplierSellContractId ?? null
+      out.push({
+        rung: {
+          sellContractId: row.id,
+          companyId: row.companyId,
+          clientCompanyId: row.clientCompanyId,
+          endClientCompanyId: row.endClientCompanyId,
+          supplierSellContractId: below,
+        },
+        contract: {
+          id: row.id,
+          billRate: row.billRate,
+          overtimeAfterHours: row.overtimeAfterHours,
+          overtimeMultiplierBps: row.overtimeMultiplierBps,
+          companyId: row.companyId,
+          clientCompanyId: row.clientCompanyId,
+          endClientCompanyId: row.endClientCompanyId,
+          companyName: row.company?.name ?? null,
+          clientName: row.endClientCompany?.name ?? row.clientCompany?.name ?? null,
+        },
+      })
+    }
+
+    frontier = wanted
+  }
+
+  // The bottom rung comes back too, with no contract of its own: the
+  // caller already holds that row, and handing it back a second copy is
+  // how two readings of one contract drift apart.
+  return [...out, { rung: bottom, contract: null }]
 }

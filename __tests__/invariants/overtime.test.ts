@@ -14,7 +14,10 @@ import {
   priceChoice,
   treatmentSays,
   STRAIGHT_TIME,
+  decidingLeg,
+  ladderOrder,
   type Decision,
+  type ChainRung,
 } from '@/lib/overtime'
 
 /**
@@ -394,5 +397,109 @@ describe('the split still values a plain week the way it always did', () => {
   it('valueOf takes a rate and a split, and needs no policy to price a decided week', () => {
     const s = splitWeeks(week('2026-09-07', [8, 8, 8, 8, 8]), OT)
     expect(valueOf(s, 5_000).totalCents).toBe(200_000)
+  })
+})
+
+describe('in a chain, nobody decides their own leg', () => {
+  // Adobe buys Priya from Computer Systems, who buys her from CloudEPA,
+  // who employs her. The hours are filed once, at the bottom.
+  const TOP: ChainRung = {
+    sellContractId: 'cs-adobe',
+    companyId: 'computer-systems',
+    clientCompanyId: 'adobe',
+    endClientCompanyId: 'adobe',
+    supplierSellContractId: 'cloudepa-cs',
+  }
+  const BOTTOM: ChainRung = {
+    sellContractId: 'cloudepa-cs',
+    companyId: 'cloudepa',
+    clientCompanyId: 'computer-systems',
+    endClientCompanyId: 'adobe',
+    supplierSellContractId: null,
+  }
+  const CHAIN = [BOTTOM, TOP] // deliberately out of order; the walk sorts it
+  const HOURS = 'cloudepa-cs'
+
+  it('a client approving in a chain decides its own leg, not the leg the hours sit on', () => {
+    const leg = decidingLeg('adobe', CHAIN, HOURS)
+    expect(leg.sellContractId).toBe('cs-adobe')
+    expect(leg.role).toBe('CLIENT_APPROVAL')
+    expect(leg.onHoursLeg).toBe(false)
+  })
+
+  it("a sub-vendor's decision is its own and the client never sees it", () => {
+    const sub = decidingLeg('cloudepa', CHAIN, HOURS)
+    const client = decidingLeg('adobe', CHAIN, HOURS)
+    expect(sub.sellContractId).toBe('cloudepa-cs')
+    expect(sub.role).toBe('EMPLOYER_ACCEPTANCE')
+    expect(sub.sellContractId).not.toBe(client.sellContractId)
+  })
+
+  it('a prime answers on the contract it buys from its sub, never on the one it sells', () => {
+    const prime = decidingLeg('computer-systems', CHAIN, HOURS)
+    expect(prime.role).toBe('PASS_THROUGH')
+    expect(prime.sellContractId).toBe('cloudepa-cs')
+    expect(prime.sellContractId).not.toBe('cs-adobe')
+  })
+
+  it('a direct placement has one leg, and deciding it is the ordinary case', () => {
+    const only: ChainRung = {
+      sellContractId: 'brightmoor-nike',
+      companyId: 'brightmoor',
+      clientCompanyId: 'nike',
+      endClientCompanyId: null,
+      supplierSellContractId: null,
+    }
+    for (const who of ['nike', 'brightmoor']) {
+      const leg = decidingLeg(who, [only], 'brightmoor-nike')
+      expect(leg.sellContractId).toBe('brightmoor-nike')
+      expect(leg.onHoursLeg).toBe(true)
+    }
+    expect(decidingLeg('nike', [only], 'brightmoor-nike').role).toBe('CLIENT_APPROVAL')
+    expect(decidingLeg('brightmoor', [only], 'brightmoor-nike').role).toBe('EMPLOYER_ACCEPTANCE')
+  })
+
+  it('the end client is named on every rung and buys only on the top one', () => {
+    // Adobe appears as end client on the sub's contract too. Reading that
+    // as a purchase would put Adobe's agreement on CloudEPA's row, which
+    // is the bug this exists to stop.
+    expect(BOTTOM.endClientCompanyId).toBe('adobe')
+    expect(decidingLeg('adobe', CHAIN, HOURS).sellContractId).toBe('cs-adobe')
+  })
+
+  it('a firm that is nobody on this ladder is left where it was, and refused elsewhere', () => {
+    const stranger = decidingLeg('some-other-firm', CHAIN, HOURS)
+    expect(stranger.sellContractId).toBe(HOURS)
+    expect(mayDecide(
+      { personId: 'somebody', companyId: 'some-other-firm' },
+      { personId: 'priya', employerCompanyId: 'cloudepa', clientCompanyId: 'computer-systems', endClientCompanyId: 'adobe' }
+    ).ok).toBe(false)
+  })
+
+  it('a caller with no company has no leg to answer on, and the sentence says so', () => {
+    const none = decidingLeg(null, CHAIN, HOURS)
+    expect(none.role).toBeNull()
+    expect(none.sellContractId).toBe(HOURS)
+    expect(none.says).toContain('no leg to answer on')
+  })
+
+  it('the ladder reads top to bottom however the rungs arrive', () => {
+    expect(ladderOrder(CHAIN).map((r) => r.sellContractId)).toEqual(['cs-adobe', 'cloudepa-cs'])
+    expect(ladderOrder([TOP, BOTTOM]).map((r) => r.sellContractId)).toEqual(['cs-adobe', 'cloudepa-cs'])
+  })
+
+  it('a rung whose neighbours were not read keeps its place rather than vanishing', () => {
+    // A partial read is a partial read. Dropping the rung would silently
+    // move somebody's answer onto a contract they are not on.
+    const partial = ladderOrder([{ ...BOTTOM, supplierSellContractId: 'a-rung-nobody-fetched' }])
+    expect(partial.map((r) => r.sellContractId)).toEqual(['cloudepa-cs'])
+  })
+
+  it('every sentence on this desk is English, and never a contract id', () => {
+    for (const who of ['adobe', 'computer-systems', 'cloudepa']) {
+      const leg = decidingLeg(who, CHAIN, HOURS)
+      expect(leg.says).not.toContain('cloudepa-cs')
+      expect(leg.says.endsWith('.')).toBe(true)
+    }
   })
 })

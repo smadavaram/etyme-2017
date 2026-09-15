@@ -534,3 +534,175 @@ export function says(policy: OvertimePolicy): string {
     'or time off in the bank.'
   )
 }
+
+// ── Which leg is whose ─────────────────────────────────────────────────
+
+/**
+ * A rung of the ladder, reduced to what deciding a leg needs to read.
+ *
+ * One rung is one sell contract: a seller, a buyer, and — where the
+ * seller bought the person's time from somebody else — the rung below.
+ */
+export interface ChainRung {
+  sellContractId: string
+  /** The firm that sells on this leg and bills under it. */
+  companyId: string
+  /** The firm that buys on this leg. The one asked to pay the premium. */
+  clientCompanyId: string
+  /**
+   * Where the work is actually done. Named on every rung so each one
+   * knows the site, which is exactly why it is not a buyer: the end
+   * client is named on a sub's contract it has never seen the rate of.
+   */
+  endClientCompanyId?: string | null
+  /** The rung below, where this firm buys the person's time. Null at the bottom. */
+  supplierSellContractId?: string | null
+}
+
+export interface DecidingLeg {
+  /** The contract this company's answer is written against. */
+  sellContractId: string
+  role: 'EMPLOYER_ACCEPTANCE' | 'CLIENT_APPROVAL' | 'PASS_THROUGH' | null
+  /** True where that is also the contract the hours are filed against. */
+  onHoursLeg: boolean
+  says: string
+}
+
+/**
+ * The rungs from the top of the ladder down to the employer.
+ *
+ * The top is the rung nobody names as their supplier — the contract the
+ * end client actually pays. From there the `supplierSellContractId` edge
+ * walks down to the firm that employs the person.
+ *
+ * A single rung is a ladder of one, which is the ordinary case and not a
+ * special case: the same walk returns it unchanged.
+ */
+export function ladderOrder(rungs: readonly ChainRung[]): ChainRung[] {
+  const bought = new Set(
+    rungs.map((r) => r.supplierSellContractId).filter((id): id is string => !!id)
+  )
+  const by = new Map(rungs.map((r) => [r.sellContractId, r]))
+  const out: ChainRung[] = []
+  const seen = new Set<string>()
+
+  for (const top of rungs.filter((r) => !bought.has(r.sellContractId))) {
+    let at: string | null = top.sellContractId
+    while (at && !seen.has(at)) {
+      const rung: ChainRung | undefined = by.get(at)
+      if (!rung) break
+      seen.add(at)
+      out.push(rung)
+      at = rung.supplierSellContractId ?? null
+    }
+  }
+
+  // Anything the walk did not reach is a partial read of the ladder
+  // rather than a rung that does not exist, so it keeps its place at the
+  // end instead of disappearing.
+  for (const r of rungs) if (!seen.has(r.sellContractId)) out.push(r)
+
+  return out
+}
+
+/**
+ * The contract one company's overtime answer belongs on.
+ *
+ * ── The question this settles ────────────────────────────────────────
+ *
+ * A week of somebody's life is filed once, against the contract of the
+ * firm that employs them. In a chain, four firms may have something to
+ * say about it and they are saying four different things, because a leg
+ * is an agreement between two firms at one rate and what one pair agreed
+ * is not what another pair agreed.
+ *
+ * So the answer goes on the leg of the firm **being asked to pay for
+ * it** — the buyer. The client answers on the contract it buys on, at
+ * the top of the ladder, and never on the contract its supplier's
+ * supplier files hours against. A prime answers on the contract it buys
+ * from its sub, which is a different row at a different rate. And a firm
+ * that buys nobody's time on this ladder is the employer at the bottom,
+ * whose leg is the one the hours are filed on.
+ *
+ * Writing everything against the leg the hours sit on — which is what
+ * happened until now — left a prime with no answer of its own to bill
+ * from, and put the client's agreement on the sub's contract where the
+ * sub could read it.
+ *
+ * ── The direct placement ─────────────────────────────────────────────
+ *
+ * One rung. The client buys on it, the employer sells on it, and it is
+ * the same row either way. That is the ordinary case and the same two
+ * lines of arithmetic produce it — no branch for it here, and none
+ * wanted.
+ */
+export function decidingLeg(
+  companyId: string | null | undefined,
+  rungs: readonly ChainRung[],
+  hoursOn: string
+): DecidingLeg {
+  const ordered = ladderOrder(rungs)
+  const top = ordered[0]
+  const bottom = ordered[ordered.length - 1]
+
+  const unreadable = (says: string): DecidingLeg => ({
+    sellContractId: hoursOn,
+    role: null,
+    onHoursLeg: true,
+    says,
+  })
+
+  if (!top || !bottom) {
+    return unreadable(
+      'The chain above these hours could not be read, so the answer stays on the contract they are filed against.'
+    )
+  }
+  if (!companyId) {
+    return unreadable('Nobody signed in on behalf of a company, so there is no leg to answer on.')
+  }
+
+  const client = top.endClientCompanyId ?? top.clientCompanyId
+  const role =
+    companyId === bottom.companyId
+      ? 'EMPLOYER_ACCEPTANCE'
+      : companyId === client
+        ? 'CLIENT_APPROVAL'
+        : 'PASS_THROUGH'
+
+  // Top first, so the highest rung this firm buys on wins. The end
+  // client is named all the way down the ladder and buys only at the
+  // top; a prime is named once, on the rung it buys from its sub.
+  const buys =
+    role === 'EMPLOYER_ACCEPTANCE'
+      ? undefined
+      : ordered.find(
+          (r) => r.clientCompanyId === companyId || r.endClientCompanyId === companyId
+        )
+
+  const sellContractId = buys?.sellContractId ?? hoursOn
+  const onHoursLeg = sellContractId === hoursOn
+
+  return { sellContractId, role, onHoursLeg, says: legSays(role, ordered.length, onHoursLeg) }
+}
+
+function legSays(
+  role: 'EMPLOYER_ACCEPTANCE' | 'CLIENT_APPROVAL' | 'PASS_THROUGH',
+  rungs: number,
+  onHoursLeg: boolean
+): string {
+  if (rungs === 1) {
+    return 'One contract, one answer — what you decide is what this week bills at.'
+  }
+  if (role === 'EMPLOYER_ACCEPTANCE') {
+    return 'You employ them, so your answer is written against the contract the hours are filed on.'
+  }
+  if (!onHoursLeg) {
+    return (
+      'Your answer is written against the contract you buy on. What your supplier ' +
+      'agrees with its own supplier is a different week at a different rate, and not yours to set.'
+    )
+  }
+  return (
+    'You buy this week on the contract the hours are filed against, so your answer is written there.'
+  )
+}

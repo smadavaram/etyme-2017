@@ -75,7 +75,10 @@ describe('a drawn balance never goes negative', () => {
 
 describe('what the invoice is told', () => {
   it('the sheet’s value is priced from the decisions, never from the contract multiplier', () => {
-    expect(APPROVE).toContain('valueOf(finalSplit, timesheet.sellContract.billRate)')
+    // At the rate of the leg that was answered — which on a direct
+    // placement is the contract the hours are filed against, and in a
+    // chain is the answering firm's own.
+    expect(APPROVE).toContain('valueOf(finalSplit, deciding.billRate)')
     expect(APPROVE).toContain('const billAmount = value.totalCents / 100')
     // The old line, which multiplied every hour by the rate whatever
     // anybody had decided about the week.
@@ -84,5 +87,55 @@ describe('what the invoice is told', () => {
 
   it('the prior answer goes on the event, so a decision cannot be changed without trace', () => {
     expect(APPROVE).toContain('replaced: w.priorWas')
+  })
+})
+
+describe('in a chain, nobody decides their own leg', () => {
+  it('the decision is written against the leg the approver buys on, never the leg the hours are filed against', () => {
+    expect(APPROVE).toContain('sellContractId: leg.sellContractId,')
+    // The old line, which put every answer — the client's included — on
+    // the contract the person's employer files hours against.
+    expect(APPROVE).not.toContain('sellContractId: timesheet.sellContractId,\n            weekOf:')
+    expect(at('decidingLeg(')).toBeLessThan(at('overtimeDecision.upsert'))
+  })
+
+  it('the threshold and the rate come from the leg being answered, so nobody is quoted a rate they are not a party to', () => {
+    expect(APPROVE).toContain('const policy = policyOf(deciding)')
+    expect(APPROVE).toContain('valueOf(finalSplit, deciding.billRate)')
+    expect(APPROVE).toContain('rateCents: deciding.billRate,')
+    expect(APPROVE).not.toContain('policyOf(timesheet.sellContract)')
+  })
+
+  it('what was already answered is read from this leg alone, never from the one underneath it', () => {
+    expect(APPROVE).toContain(
+      'const ownLeg = timesheet.overtimeDecisions.filter((d) => d.sellContractId === leg.sellContractId)'
+    )
+    expect(APPROVE).toContain('const prior = ownLeg.find(')
+  })
+
+  it('whether the caller may answer is asked about their own leg, not about somebody else’s', () => {
+    expect(APPROVE).toContain('employerCompanyId: deciding.companyId,')
+    expect(APPROVE).toContain('clientCompanyId: deciding.clientCompanyId,')
+  })
+
+  it('only the leg the hours are filed on can put an hour into the consultant’s bank', () => {
+    // Two firms in a chain both answering "bank it" would otherwise owe
+    // the consultant ten hours for five worked.
+    expect(APPROVE).toContain('const banking = leg.onHoursLeg ? writing : []')
+    expect(APPROVE).toContain('const hoursBanked = leg.onHoursLeg')
+  })
+
+  it('a row carrying a figure is filed under a company entitled to read it', () => {
+    expect(APPROVE).toContain(
+      'const moneyCompanyId = leg.onHoursLeg ? timesheet.sellContract.companyId : caller.company!.id'
+    )
+    expect(APPROVE).toContain('companyId: moneyCompanyId,')
+  })
+
+  it('a direct placement asks the database nothing extra, because the walk stops where nobody bought', () => {
+    // One query for the rung above, which returns nothing, and the walk
+    // ends. The ordinary case stays the ordinary case.
+    expect(APPROVE).toContain('if (wanted.length === 0) break')
+    expect(APPROVE).toContain('for (let depth = 0; depth < 8 && frontier.length > 0; depth++)')
   })
 })

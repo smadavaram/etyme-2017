@@ -151,10 +151,40 @@ export async function POST(
   const { limit, forceRefresh } = body
 
   try {
+    const startedAt = new Date()
     const result = await runMatchEngine(requirementId, {
       limit: limit ?? 20,
       forceRefresh: forceRefresh ?? false,
     })
+
+    // ── Was this a model or was it arithmetic ─────────────────────────
+    //
+    // The founder is asked by buyers how much of this product is AI, and
+    // the only answer worth giving is a measured one. This row is one of
+    // the few actions that genuinely could be either: the engine scores
+    // with the model where there is a key and with rules where there is
+    // not, and it falls back to rules when the call fails.
+    //
+    // So the fact is read from where the engine already wrote it. Every
+    // scoring pass records an AgentRun, and a pass that called the model
+    // carries the model's name and its token count; a pass scored with
+    // arithmetic carries neither. That is a recorded fact rather than an
+    // inference from the basis sentence, which is prose and would be a
+    // guess dressed as an answer.
+    //
+    // `decidedBy` is the spelling `lib/autonomy` reads. Any other and
+    // the row goes on saying it does not know.
+    const byModel = await prisma.agentRun.count({
+      where: {
+        recordType: 'REQUIREMENT',
+        recordId: requirementId,
+        agent: 'match.score',
+        verdict: 'PASS',
+        model: { not: null },
+        at: { gte: startedAt },
+      },
+    })
+    const decidedBy: 'MODEL' | 'RULE' = byModel > 0 ? 'MODEL' : 'RULE'
 
     // Write AutomationLog
     await prisma.automationLog.create({
@@ -169,6 +199,7 @@ export async function POST(
           topScore: result.matches[0]?.score ?? null,
           topConfidence: result.matches[0]?.confidence ?? null,
           basis: result.basis,
+          decidedBy,
           forceRefresh: forceRefresh ?? false,
         },
         reversible: true,
@@ -200,6 +231,9 @@ export async function POST(
         title: requirement.title,
         matchCount: result.matches.length,
         basis: result.basis,
+        // Said on the screen as well as in the log: a reader asking what
+        // scored this should not have to open the automation page.
+        decidedBy,
         matches: result.matches.map((m) => ({
           consultantId: m.consultantId,
           personId: m.personId,
