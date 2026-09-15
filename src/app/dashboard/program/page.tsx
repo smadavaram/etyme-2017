@@ -565,7 +565,7 @@ function Today({ data, queue, queueLoaded, tenure, firstGood, busy, onApprove, o
 
       {/* ── The picture ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <Stat label="On site" value={s.activeContractors} sub="contractors" href="/dashboard/contractors" />
+        <Stat label="On site" value={s.activeContractors} sub="contractors" href="/dashboard/people" />
         <Stat label="Suppliers" value={s.vendors} sub="with people here" href="/dashboard/suppliers" />
         <Stat label="This month" value={compact(s.monthlySpend)} sub="from current rates" />
         <Stat label="Ending soon" value={s.endingSoon} sub="within 60 days" tone={s.endingSoon > 0 ? 'attention' : undefined} href="/dashboard/rolloff" />

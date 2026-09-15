@@ -216,26 +216,29 @@ describe('Contract list scoping — every caller sees only their own side', () =
     expect(scope).toEqual({ companyId: 'vendor-cloudepa' })
   })
 
-  it('a client sees contracts where they are the end client', () => {
+  it('a client sees the contracts it is billed on, and not the ones underneath them', () => {
+    // This used to be endClientFilter, which matches every rung of
+    // every chain at this client's sites. In a chain the sub-vendor's
+    // contract also names the client as its end client, so the client
+    // read what its prime pays — and the difference between the two
+    // rows is the prime's whole margin.
     const scope = sellContractScope(
       caller({ companyId: TERUMO.id, companyKind: 'CLIENT' })
     )
-    // endClientFilter: matches endClientCompanyId, or a direct placement
-    expect(scope).toEqual({
-      OR: [
-        { endClientCompanyId: TERUMO.id },
-        { clientCompanyId: TERUMO.id, endClientCompanyId: null },
-      ],
-    })
+    expect(scope).toEqual({ clientCompanyId: TERUMO.id })
   })
 
-  it('a client still sees a consultant billed through an MSP', () => {
-    // Three-party: Cloudepa bills GlobalStaff MSP, consultant works at Terumo.
-    // The contract carries endClientCompanyId = Terumo, so the first OR arm matches.
+  it('a client is shown nothing rather than its supplier\u2019s cost where a chain has no top rung', () => {
+    // Three-party: Cloudepa bills GlobalStaff MSP, consultant works at
+    // Terumo, and no contract names Terumo as the buyer. Terumo is not
+    // a party to the money of that row, so it is not on this list —
+    // who is on site is endClientFilter's question, asked on the
+    // screens built for it, where no rate is shown.
     const scope = sellContractScope(
       caller({ companyId: TERUMO.id, companyKind: 'CLIENT' })
     ) as any
-    expect(scope.OR[0]).toEqual({ endClientCompanyId: TERUMO.id })
+    expect(scope.OR).toBeUndefined()
+    expect(JSON.stringify(scope)).not.toContain('endClientCompanyId')
   })
 
   it('an MSP sees contracts they sell and contracts they pay for', () => {

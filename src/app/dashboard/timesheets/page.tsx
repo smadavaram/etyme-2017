@@ -36,10 +36,24 @@ interface Timesheet {
   person: { id: string; name: string }
   sellContract: {
     id: string
-    billRate: number
-    billCurrency: string
     clientCompany: { id: string; name: string }
     engagement: { id: string; title: string } | null
+  }
+  /**
+   * Whose rate this row carries, and whether there is one.
+   *
+   * The server decides. A client is shown what it pays — walked up the
+   * chain, never the leg its supplier buys on — and a consultant is
+   * shown their own pay and never the bill rate taken out of it.
+   * `cents` is null where the paper cannot say, and `says` is the
+   * sentence that goes in the blank's place.
+   */
+  rate: {
+    cents: number | null
+    currency: string | null
+    basis: 'BILL' | 'PAY'
+    label: string
+    says: string | null
   }
   periodStart: string
   periodEnd: string
@@ -48,6 +62,11 @@ interface Timesheet {
   anomalyScore: number | null
   anomalyReason: string | null
   approvedAt: string | null
+  /** Whether the server would let this seat sign this week. */
+  mayApprove: boolean
+  mayApproveWhyNot: string | null
+  /** Whether this seat may file or send these hours. */
+  maySubmit: boolean
   overtime?: OvertimeState | null
 }
 
@@ -69,9 +88,13 @@ interface PendingWeek {
 interface OvertimeState {
   afterHours: number | null
   multiplierBps: number
-  rateCents: number
-  /** What this sheet is worth to bill. Never includes an undecided hour. */
-  billableCents: number
+  /** Null where this reader is owed no rate for this row. */
+  rateCents: number | null
+  /**
+   * What this sheet is worth at this reader's own rate. Never includes
+   * an undecided hour, and null where there is no rate to price it at.
+   */
+  billableCents: number | null
   pendingHours: number
   bankedHours: number
   leaveHours: number
@@ -81,6 +104,20 @@ interface OvertimeState {
 }
 
 type StatusFilter = 'ALL' | 'OPEN' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
+
+/**
+ * What this week is worth to the person reading it, or nothing.
+ *
+ * Priced from what somebody decided about each week rather than from
+ * the multiplier sitting on the contract, and left blank where the
+ * server could not name a rate — a row valued at an unknown rate of
+ * zero is a wrong number wearing a right one's clothes.
+ */
+function centsOf(t: Timesheet): number | null {
+  if (t.overtime) return t.overtime.billableCents
+  if (t.rate.cents == null) return null
+  return t.totalHours * t.rate.cents
+}
 
 // ── Status chip class ───────────────────────────────
 
@@ -490,7 +527,7 @@ function DecideOvertimeModal({
 }) {
   const contractBps = row.overtime?.multiplierBps ?? 15_000
   const afterHours = row.overtime?.afterHours ?? 40
-  const rateCents = row.overtime?.rateCents ?? row.sellContract.billRate
+  const rateCents = row.overtime?.rateCents ?? row.rate.cents ?? 0
 
   const [answers, setAnswers] = useState<Record<string, Answer>>(() =>
     Object.fromEntries(
@@ -745,9 +782,23 @@ export default function TimesheetsPage() {
   const totalHours = timesheets.reduce((sum, t) => sum + t.totalHours, 0)
   const pendingApproval = timesheets.filter((t) => t.status === 'SUBMITTED').length
   const anomalies = timesheets.filter((t) => t.anomalyScore != null && t.anomalyScore > 0).length
-  const approvedValue = timesheets
-    .filter((t) => t.status === 'APPROVED')
-    .reduce((sum, t) => sum + (t.overtime?.billableCents ?? t.totalHours * t.sellContract.billRate) / 100, 0)
+  // What has been approved, valued at the rate this reader is billed —
+  // which in a chain is the client's own contract and not its
+  // supplier's. Rows nobody can price are left out of the number and
+  // counted separately, because a total that quietly treats an unknown
+  // rate as zero is a figure nobody can stand behind.
+  // Whose rate the column and the export are headed with. The server
+  // says it per row and it is the same answer for every row a given
+  // seat can see, so the first row that has one speaks for the page.
+  const rateLabel = timesheets.find((t) => t.rate)?.rate.label ?? 'Bill rate'
+  // Whether this seat signs anything here at all. A consultant's session
+  // opens this page; it does not get an Approve button on it.
+  const canSignAny = timesheets.some((t) => t.mayApprove)
+
+  const approvedRows = timesheets.filter((t) => t.status === 'APPROVED')
+  const valued = approvedRows.filter((t) => centsOf(t) != null)
+  const approvedValue = valued.reduce((sum, t) => sum + centsOf(t)! / 100, 0)
+  const unpriced = approvedRows.length - valued.length
   // Hours over the weekly limit that nobody has answered for yet. Not a
   // failure and not an anomaly — a question waiting on a person.
   const toDecide = timesheets.filter((t) => (t.overtime?.weeks?.length ?? 0) > 0).length
@@ -756,11 +807,18 @@ export default function TimesheetsPage() {
   async function handleBulkApprove(selectedIds: Set<string>) {
     const submittedIds = Array.from(selectedIds).filter(id => {
       const ts = timesheets.find(t => t.id === id)
-      return ts?.status === 'SUBMITTED'
+      // Only what this seat may actually sign. Sending the rest would
+      // collect a row of refusals the screen already knew about.
+      return ts?.status === 'SUBMITTED' && ts.mayApprove
     })
 
     if (submittedIds.length === 0) {
-      setToast({ message: 'No submitted timesheets selected — only submitted timesheets can be approved.', type: 'error' })
+      setToast({
+        message: canSignAny
+          ? 'No submitted timesheets selected — only submitted timesheets can be approved.'
+          : 'These are not yours to approve. Whoever is billed for the work signs it.',
+        type: 'error',
+      })
       setTimeout(() => setToast(null), 4000)
       return
     }
@@ -941,13 +999,18 @@ export default function TimesheetsPage() {
     },
     {
       key: 'billRate',
-      label: 'Bill rate',
-      render: (row) => (
-        <span className="tabular-nums text-etyme-muted">
-          {compact(row.sellContract.billRate)}<span className="text-etyme-faint">/hr</span>
-        </span>
-      ),
-      sortValue: (row) => row.sellContract.billRate,
+      label: rateLabel,
+      render: (row) =>
+        row.rate.cents == null ? (
+          <span className="text-[11px] text-etyme-faint" title={row.rate.says ?? ''}>
+            not recorded
+          </span>
+        ) : (
+          <span className="tabular-nums text-etyme-muted">
+            {compact(row.rate.cents)}<span className="text-etyme-faint">/hr</span>
+          </span>
+        ),
+      sortValue: (row) => row.rate.cents ?? -1,
       align: 'right' as const,
       hideOnMobile: true,
     },
@@ -958,8 +1021,15 @@ export default function TimesheetsPage() {
         // Priced from what somebody decided about each week, not from
         // the multiplier sitting on the contract — and with undecided
         // hours left out rather than valued at a number nobody chose.
-        const cents = row.overtime?.billableCents ?? row.totalHours * row.sellContract.billRate
+        const cents = centsOf(row)
         const waiting = row.overtime?.pendingHours ?? 0
+        if (cents == null) {
+          return (
+            <span className="text-[11px] text-etyme-faint" title={row.rate.says ?? ''}>
+              —
+            </span>
+          )
+        }
         return (
           <span className="tabular-nums font-medium">
             {compact(cents)}
@@ -971,7 +1041,7 @@ export default function TimesheetsPage() {
           </span>
         )
       },
-      sortValue: (row) => row.overtime?.billableCents ?? row.totalHours * row.sellContract.billRate,
+      sortValue: (row) => centsOf(row) ?? -1,
       align: 'right' as const,
     },
     {
@@ -996,7 +1066,7 @@ export default function TimesheetsPage() {
               Overtime to decide
             </button>
           )}
-          {row.status === 'OPEN' && (
+          {row.status === 'OPEN' && row.maySubmit && (
             <button
               onClick={(e) => { e.stopPropagation(); handleSubmitTimesheet(row.id) }}
               disabled={acting === row.id}
@@ -1005,7 +1075,13 @@ export default function TimesheetsPage() {
               {acting === row.id ? '…' : '→ Submit'}
             </button>
           )}
-          {row.status === 'SUBMITTED' && (
+          {/* A button the server would refuse is not a button. The
+              commonest case is the person whose week it is: their hours,
+              somebody else's signature. */}
+          {row.status === 'SUBMITTED' && !row.mayApprove && row.mayApproveWhyNot && (
+            <span className="text-[11px] text-etyme-faint">{row.mayApproveWhyNot}</span>
+          )}
+          {row.status === 'SUBMITTED' && row.mayApprove && (
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); handleApproveTimesheet(row.id) }}
@@ -1097,7 +1173,11 @@ export default function TimesheetsPage() {
           <p className="stat-value text-etyme-verified">
             ${approvedValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}
           </p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">billable</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">
+            {unpriced > 0
+              ? `${unpriced} more with no rate on file`
+              : rateLabel === 'Your rate' ? 'your pay' : 'billable'}
+          </p>
         </div>
       </div>
 
@@ -1131,6 +1211,7 @@ export default function TimesheetsPage() {
         selectable
         bulkActions={(selected) => (
           <>
+            {canSignAny && (
             <button
               onClick={() => handleBulkApprove(selected)}
               disabled={approving}
@@ -1140,13 +1221,14 @@ export default function TimesheetsPage() {
             >
               {approving ? 'Approving…' : `Approve (${selected.size})`}
             </button>
+            )}
             <button
               onClick={() => {
                 const rows = filtered.filter((t) => selected.has(t.id))
                 if (rows.length === 0) return
-                const header = ['Consultant','Client','Engagement','Period Start','Period End','Hours','Bill Rate','Billable Value','Status']
+                const header = ['Consultant','Client','Engagement','Period Start','Period End','Hours',rateLabel,'Value','Status']
                 const csvRows = rows.map((t) => {
-                  const value = t.totalHours * (t.sellContract.billRate / 100)
+                  const value = centsOf(t)
                   return [
                     t.person.name,
                     t.sellContract.clientCompany.name,
@@ -1154,8 +1236,8 @@ export default function TimesheetsPage() {
                     t.periodStart,
                     t.periodEnd,
                     t.totalHours.toFixed(1),
-                    (t.sellContract.billRate / 100).toFixed(2),
-                    value.toFixed(2),
+                    t.rate.cents == null ? '' : (t.rate.cents / 100).toFixed(2),
+                    value == null ? '' : (value / 100).toFixed(2),
                     t.status,
                   ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')
                 })

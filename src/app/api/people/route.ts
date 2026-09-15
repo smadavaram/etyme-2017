@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { merge, order, summarize, type Person, type Offer } from '@/lib/one-person'
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { bestMatchPerPerson, type Candidate } from '@/lib/identity-resolution'
 import { says as inviteSays, stepsOf as inviteSteps, STATE_WORD, type Answer, type InviteState } from '@/lib/contractor-invite'
 
@@ -128,6 +129,35 @@ export async function GET(request: NextRequest) {
   }
   const contractsFor = (personId: string) => contractsByPerson.get(personId) ?? []
 
+  /**
+   * The contracts that count as time on site.
+   *
+   * The same three states the tenure ledger counts (`/api/tenure`, and
+   * the person's own page). A draft is a contract nobody has started —
+   * counting one said somebody who starts next week had been here a
+   * year — and a cancelled one never happened.
+   */
+  const SERVED = ['IN_PROGRESS', 'ENDED', 'PAUSED']
+  const servedBy = (personId: string) =>
+    contractsFor(personId).filter((c) => SERVED.includes(c.state))
+
+  /**
+   * The day somebody arrives, where they have not arrived.
+   *
+   * A contract awarded and not yet started is not tenure and is not on
+   * site. It is still what the row should say about that person, and
+   * saying nothing let the sentence fall through to "On site here".
+   */
+  const AWAITED = ['DRAFT', 'VERIFIED', 'PENDING_VERIFICATION']
+  const startingOn = (personId: string): Date | null => {
+    const mine = contractsFor(personId)
+    if (mine.some((c) => c.state === 'IN_PROGRESS')) return null
+    const ahead = mine
+      .filter((c) => AWAITED.includes(c.state) && c.startDate > now)
+      .map((c) => c.startDate.getTime())
+    return ahead.length > 0 ? new Date(Math.min(...ahead)) : null
+  }
+
   const byPerson = new Map<string, Person>()
 
   for (const s of subs) {
@@ -137,16 +167,16 @@ export async function GET(request: NextRequest) {
         personId: s.personId,
         name: s.person.name,
         offers: [] as Offer[],
-        stints: contractsFor(s.personId)
-          .filter((c) => c.endDate)
-          .map((c) => ({
-            months: Math.max(
-              0,
-              Math.round((c.endDate!.getTime() - c.startDate.getTime()) / DAY / 30.44)
-            ),
-            endedAt: c.endDate,
-            vendorName: c.company.name,
-          })),
+        // The dates, never a length. merge() counts the days actually
+        // served and counts a person bought through two legs of one
+        // chain once — an open-ended contract included, which the
+        // `endDate` filter here used to drop entirely.
+        stints: servedBy(s.personId).map((c) => ({
+          startedAt: c.startDate,
+          endedAt: c.endDate,
+          vendorName: c.company.name,
+        })),
+        startingOn: startingOn(s.personId),
         barred: barredBy.has(s.personId)
           ? {
               at: barredBy.get(s.personId)!.blockedAt,
@@ -202,13 +232,11 @@ export async function GET(request: NextRequest) {
       email: null,
       location: profile?.location ?? null,
       skills: profile?.skills ?? [],
-      stints: contractsFor(p.personId).map((c) => ({
+      stints: servedBy(p.personId).map((c) => ({
         start: c.startDate,
         end: c.endDate,
         vendorName: c.company.name,
-        months: c.endDate
-          ? Math.max(0, Math.round((c.endDate.getTime() - c.startDate.getTime()) / DAY / 30.44))
-          : 0,
+        months: monthsOf(daysOnSite([{ startDate: c.startDate, endDate: c.endDate }], now)),
       })),
     }
   })

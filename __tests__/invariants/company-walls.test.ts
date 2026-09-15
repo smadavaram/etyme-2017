@@ -31,13 +31,20 @@ describe('a client sees who is on its site, and not what they cost', () => {
     expect(payerScope(caller('CLIENT', 'harlow'))).toEqual({ clientCompanyId: 'harlow' })
   })
 
-  it('still lets the client reach every contract at its site where no rate is shown', () => {
-    // Timesheets and rolloff both use this: the client signs off hours
-    // for people it never contracted with, and needs to know who is
-    // rolling off its site whoever employs them.
-    const scope = sellContractScope(caller('CLIENT', 'harlow')) as { OR: unknown[] }
-    expect(scope.OR).toBeDefined()
-    expect(JSON.stringify(scope)).toContain('endClientCompanyId')
+  it('no longer offers a second, wider answer for somebody to pick by mistake', () => {
+    // This said timesheets and rolloff needed the wide one because a
+    // client signs off hours for people it never contracted with. The
+    // rows, yes. The rate, never — and both routes printed a
+    // sub-vendor's rate on the client's own screen for a year.
+    //
+    // Who is on site is endClientFilter from lib/resolve-end-client,
+    // asked out loud by the route that wants it. It is not something a
+    // scope helper hands over quietly beside a rate.
+    expect(sellContractScope(caller('CLIENT', 'harlow'))).toEqual(
+      payerScope(caller('CLIENT', 'harlow'))
+    )
+    expect(JSON.stringify(sellContractScope(caller('CLIENT', 'harlow'))))
+      .not.toContain('endClientCompanyId')
   })
 
   it('leaves a vendor seeing its own book either way', () => {

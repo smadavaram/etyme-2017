@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
-import { sellContractScope } from '@/lib/resolve-client-company'
-import { mayEnter } from '@/lib/timesheet-authority'
+import { payerScope } from '@/lib/resolve-client-company'
+import { endClientFilter } from '@/lib/resolve-end-client'
+import { payerRung } from '@/lib/chain-top'
+import { isConsultantSeat } from '@/lib/seat'
+import { mayEnter, mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
 import {
   policyOf, splitWeeks, valueOf, weeksAwaitingDecision, saysAwaiting, treatmentSays,
   type Decision, type Treatment,
@@ -13,6 +16,28 @@ import {
  *
  * Timesheets live on the sell side — they track billable hours
  * against a SellContract.
+ *
+ * ── Whose rate is on the row ─────────────────────────────────────────
+ *
+ * Three seats read this list and they are owed three different numbers.
+ *
+ * A vendor is owed what it bills. That is the rate on its own contract
+ * and there is nothing to work out.
+ *
+ * A client is owed what it pays. In a chain the hours hang off the
+ * bottom rung — the leg where the employer is — so reading the rate off
+ * the timesheet's own contract printed CloudEPA's $118 on Nike's screen
+ * beside the $145 Nike is billed, and the difference is the prime's
+ * entire margin. The rows stay, because a client signs the hours of
+ * people it never contracted with; the rate is walked up the chain to
+ * the contract the client actually pays.
+ *
+ * A consultant is owed their own pay rate and never the bill rate. This
+ * page is not in their nav and their session opens it anyway, and it
+ * handed them the markup taken out of their own week.
+ *
+ * Where the paper cannot say, the rate is null and the row says why. A
+ * plausible wrong rate on a timesheet is worse than a blank.
  */
 export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
@@ -24,9 +49,14 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10))
   const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit') ?? '20', 10)))
 
-  // A client approves hours worked at their sites; a vendor sees the hours
-  // they bill. Both read the same table through their own side of it.
-  const scope = sellContractScope(caller)
+  const onBench = isConsultantSeat(caller)
+  const asClient = !onBench && caller.company?.kind === 'CLIENT'
+
+  // Which rows. A client signs the hours of everybody on its sites,
+  // whoever employs them, so the rows are the end-client's — and only
+  // the rows. What each one costs is settled below, at the rung this
+  // client pays, never at the rung underneath it.
+  const scope = asClient ? endClientFilter(caller.company!.id) : payerScope(caller)
   if (!scope) {
     return NextResponse.json(
       { error: { code: 'FORBIDDEN', message: 'No company context' } },
@@ -46,6 +76,12 @@ export async function GET(request: NextRequest) {
         sellContract: {
           select: {
             id: true,
+            personId: true,
+            companyId: true,
+            clientCompanyId: true,
+            endClientCompanyId: true,
+            startDate: true,
+            endDate: true,
             billRate: true,
             billCurrency: true,
             overtimeAfterHours: true,
@@ -68,50 +104,246 @@ export async function GET(request: NextRequest) {
     prisma.timesheet.count({ where }),
   ])
 
+  const priced = await priceFor(caller, timesheets, { asClient, onBench })
+
+  const actor = {
+    personId: caller.person.id,
+    companyId: caller.company?.id,
+    permissions: caller.permissions,
+  }
+
   return NextResponse.json({
     data: {
-      timesheets: timesheets.map((t) => ({
-        id: t.id,
-        person: t.person,
-        sellContract: {
-          id: t.sellContract.id,
-          billRate: t.sellContract.billRate,
-          billCurrency: t.sellContract.billCurrency,
-          clientCompany: t.sellContract.clientCompany,
-          endClientCompany: t.sellContract.endClientCompany,
-          engagement: t.sellContract.engagement,
-        },
-        periodStart: t.periodStart.toISOString(),
-        periodEnd: t.periodEnd.toISOString(),
-        totalHours: Number(t.totalHours),
-        status: t.status,
-        anomalyScore: t.anomalyScore,
-        anomalyReason: t.anomalyReason,
-        approvedAt: t.approvedAt?.toISOString() ?? null,
-        overtime: overtimeOf(t),
-      })),
+      timesheets: timesheets.map((t) => {
+        const seen = priced.get(t.id)!
+        const parties = {
+          personId: t.sellContract.personId,
+          vendorCompanyId: t.sellContract.companyId,
+          clientCompanyId: t.sellContract.clientCompanyId,
+          endClientCompanyId: t.sellContract.endClientCompanyId,
+        }
+        // The same two checks the approve route makes, in the same
+        // order, so the screen never offers a button the server will
+        // refuse. A consultant opening their own week is the case this
+        // was drawn for: the hours are theirs and the decision is not.
+        const own = approvingOwnHours(actor, parties)
+        const approve = own
+          ? { ok: false, reason: 'Nobody approves their own hours.' }
+          : mayApprove(actor, parties)
+        const enter = mayEnter(actor, parties)
+
+        return {
+          id: t.id,
+          person: t.person,
+          sellContract: {
+            id: t.sellContract.id,
+            // Whose paper this row is read against. For a client in a
+            // chain that is its own contract, not its supplier's.
+            clientCompany: seen.clientCompany,
+            endClientCompany: t.sellContract.endClientCompany,
+            engagement: seen.engagement,
+          },
+          rate: seen.rate,
+          periodStart: t.periodStart.toISOString(),
+          periodEnd: t.periodEnd.toISOString(),
+          totalHours: Number(t.totalHours),
+          status: t.status,
+          anomalyScore: t.anomalyScore,
+          anomalyReason: t.anomalyReason,
+          approvedAt: t.approvedAt?.toISOString() ?? null,
+          mayApprove: approve.ok,
+          mayApproveWhyNot: approve.ok ? null : approve.reason,
+          maySubmit: enter.ok,
+          overtime: overtimeOf(t, seen),
+        }
+      }),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     },
   })
 }
 
 /**
+ * What this reader is allowed to see a rate for, and which rate.
+ *
+ * One pass over the page's rows, two extra queries at most — never a
+ * lookup per row.
+ */
+interface Seen {
+  rate: {
+    cents: number | null
+    currency: string | null
+    basis: 'BILL' | 'PAY'
+    label: string
+    says: string | null
+  }
+  afterHours: number | null
+  multiplierBps: number | null
+  clientCompany: { id: string; name: string }
+  engagement: { id: string; title: string } | null
+}
+
+type Row = {
+  id: string
+  sellContract: {
+    id: string
+    personId: string
+    companyId: string
+    clientCompanyId: string
+    startDate: Date
+    endDate: Date | null
+    billRate: number
+    billCurrency: string
+    overtimeAfterHours: number | null
+    overtimeMultiplierBps: number | null
+    clientCompany: { id: string; name: string }
+    engagement: { id: string; title: string } | null
+  }
+}
+
+async function priceFor(
+  caller: NonNullable<Awaited<ReturnType<typeof getCallerContext>>['caller']>,
+  rows: Row[],
+  seat: { asClient: boolean; onBench: boolean }
+): Promise<Map<string, Seen>> {
+  const out = new Map<string, Seen>()
+  if (rows.length === 0) return out
+
+  const asIs = (r: Row): Seen => ({
+    rate: {
+      cents: r.sellContract.billRate,
+      currency: r.sellContract.billCurrency,
+      basis: 'BILL',
+      label: 'Bill rate',
+      says: null,
+    },
+    afterHours: r.sellContract.overtimeAfterHours,
+    multiplierBps: r.sellContract.overtimeMultiplierBps,
+    clientCompany: r.sellContract.clientCompany,
+    engagement: r.sellContract.engagement,
+  })
+
+  // ── The person whose week it is ────────────────────────────────────
+  //
+  // Their pay, from the agreement that pays them, or nothing. The bill
+  // rate is what their agency charges for them and it is not theirs to
+  // read — /api/me/work was fixed for exactly this and the fix did not
+  // reach the other page the same seat can open.
+  if (seat.onBench) {
+    const lines = await prisma.buyContractCandidate.findMany({
+      where: { personId: caller.person.id, state: 'ACTIVE' },
+      select: { payRate: true, payCurrency: true, buyContract: { select: { companyId: true } } },
+    })
+    const byCompany = new Map(lines.map((l) => [l.buyContract.companyId, l]))
+    for (const r of rows) {
+      const pay = byCompany.get(r.sellContract.companyId)
+      out.set(r.id, {
+        rate: {
+          cents: pay?.payRate ?? null,
+          currency: pay?.payCurrency ?? null,
+          basis: 'PAY',
+          label: 'Your rate',
+          says: pay
+            ? null
+            : 'Your rate is not recorded on Etyme for this placement. Your agency has it.',
+        },
+        afterHours: r.sellContract.overtimeAfterHours,
+        multiplierBps: r.sellContract.overtimeMultiplierBps,
+        clientCompany: r.sellContract.clientCompany,
+        engagement: r.sellContract.engagement,
+      })
+    }
+    return out
+  }
+
+  if (!seat.asClient) {
+    for (const r of rows) out.set(r.id, asIs(r))
+    return out
+  }
+
+  // ── The client ─────────────────────────────────────────────────────
+  //
+  // Every rung of every chain these people are on at this client, so
+  // each row can be walked up to the contract this client is billed on.
+  const rungs = await prisma.sellContract.findMany({
+    where: {
+      ...endClientFilter(caller.company!.id),
+      personId: { in: [...new Set(rows.map((r) => r.sellContract.personId))] },
+    },
+    select: {
+      id: true, personId: true, companyId: true, clientCompanyId: true,
+      startDate: true, endDate: true, billRate: true, billCurrency: true,
+      overtimeAfterHours: true, overtimeMultiplierBps: true,
+      clientCompany: { select: { id: true, name: true } },
+      engagement: { select: { id: true, title: true } },
+    },
+  })
+
+  for (const r of rows) {
+    const top = payerRung(r.sellContract, rungs)
+    if (!top) {
+      // Two legs above this week covering the same days. There is no one
+      // contract to price it at, and a guess here is the prime's margin
+      // on the client's screen or the client's rate on nobody's.
+      out.set(r.id, {
+        rate: {
+          cents: null,
+          currency: null,
+          basis: 'BILL',
+          label: 'Bill rate',
+          says:
+            'More than one of your contracts covers this week, so there is no single ' +
+            'rate to price it at. Check the contracts for this person.',
+        },
+        afterHours: null,
+        multiplierBps: null,
+        clientCompany: r.sellContract.clientCompany,
+        engagement: r.sellContract.engagement,
+      })
+      continue
+    }
+    out.set(r.id, {
+      rate: {
+        cents: top.billRate,
+        currency: top.billCurrency,
+        basis: 'BILL',
+        label: 'Bill rate',
+        says: null,
+      },
+      afterHours: top.overtimeAfterHours,
+      multiplierBps: top.overtimeMultiplierBps,
+      clientCompany: top.clientCompany,
+      engagement: top.engagement,
+    })
+  }
+  return out
+}
+
+/**
  * What this sheet still has to be asked, and what it was already told.
  *
- * A week over the contract's threshold cannot be approved until
- * somebody says what happens to the hours, so the list says which rows
- * hold a question before anybody clicks Approve and is refused. The
- * sentence is the same one the approval route would return, written
- * once in `lib/overtime` so the screen and the refusal cannot disagree.
+ * A week over the threshold cannot be approved until somebody says what
+ * happens to the hours, so the list says which rows hold a question
+ * before anybody clicks Approve and is refused. The sentence is the
+ * same one the approval route would return, written once in
+ * `lib/overtime` so the screen and the refusal cannot disagree.
+ *
+ * Hours are a fact and money is a reading of it. Where the reader is
+ * owed no rate — a consultant whose pay is not recorded, a week two
+ * contracts both cover — the hours still split and the value is null.
  */
-function overtimeOf(t: {
-  person: { name: string }
-  days: unknown
-  leaveDays: unknown
-  sellContract: { billRate: number; overtimeAfterHours: number | null; overtimeMultiplierBps: number | null }
-  overtimeDecisions: { weekOf: Date; treatment: string; appliedBps: number; overtimeHours: unknown }[]
-}) {
-  const policy = policyOf(t.sellContract)
+function overtimeOf(
+  t: {
+    person: { name: string }
+    days: unknown
+    leaveDays: unknown
+    overtimeDecisions: { weekOf: Date; treatment: string; appliedBps: number; overtimeHours: unknown }[]
+  },
+  seen: Seen
+) {
+  const policy = policyOf({
+    overtimeAfterHours: seen.afterHours,
+    overtimeMultiplierBps: seen.multiplierBps,
+  })
   const decisions: Decision[] = t.overtimeDecisions.map((d) => ({
     weekOf: d.weekOf.toISOString().slice(0, 10),
     treatment: d.treatment as Treatment,
@@ -127,14 +359,14 @@ function overtimeOf(t: {
   return {
     afterHours: policy.afterHours,
     multiplierBps: policy.multiplierBps,
-    rateCents: t.sellContract.billRate,
+    rateCents: seen.rate.cents,
     /**
-     * What the sheet is worth to bill, priced from each week's own
-     * decision. Hours nobody has decided are not in it — a screen that
-     * prints 45 billed hours with 40 hours of money against them is the
-     * bug this whole feature exists to remove.
+     * What the sheet is worth at this reader's own rate, priced from
+     * each week's own decision. Hours nobody has decided are not in it
+     * — a screen that prints 45 billed hours with 40 hours of money
+     * against them is the bug this whole feature exists to remove.
      */
-    billableCents: valueOf(split, t.sellContract.billRate).totalCents,
+    billableCents: seen.rate.cents == null ? null : valueOf(split, seen.rate.cents).totalCents,
     pendingHours: split.pendingHours,
     bankedHours: split.bankedHours,
     leaveHours: split.leaveHours,

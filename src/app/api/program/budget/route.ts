@@ -5,6 +5,8 @@ import { staffOnly } from '@/lib/seat'
 import { hasPermission } from '@/lib/permissions'
 import { resolveClientCompany } from '@/lib/resolve-client-company'
 import { ledgerFor, type AcceptedExpense, type AcceptedWork, type ContractFact } from '@/lib/budget-ledger'
+import { endClientFilter } from '@/lib/resolve-end-client'
+import { payerRung } from '@/lib/chain-top'
 import { policyOf, splitWeeks } from '@/lib/overtime'
 
 /**
@@ -64,13 +66,49 @@ export async function GET(request: NextRequest) {
 
   const contractIds = centers.flatMap((c) => c.allocations.map((a) => a.sellContract.id))
 
+  // ── The legs a week can be filed against ────────────────────────────
+  //
+  // A cost center is allocated the contract the client pays. In a chain
+  // the hours hang off the bottom rung instead — the leg where the
+  // employer is — so a person bought through a prime had every one of
+  // their weeks miss the budget entirely. Nike's cost center read $18k
+  // against $35,800 of work it had signed for.
+  //
+  // So each rung is walked up to the contract the client pays, and a
+  // week filed on any rung is charged to the allocated contract above
+  // it — at that contract's rate, which is the rate the client is
+  // billed and the only rate a budget may be spent at.
+  const charges = new Map<string, string>(contractIds.map((id) => [id, id]))
+  if (contractIds.length > 0) {
+    const allocated = await prisma.sellContract.findMany({
+      where: { id: { in: contractIds } },
+      select: { personId: true },
+    })
+    const rungs = await prisma.sellContract.findMany({
+      where: {
+        ...endClientFilter(client.id),
+        personId: { in: [...new Set(allocated.map((c) => c.personId))] },
+      },
+      select: {
+        id: true, personId: true, companyId: true, clientCompanyId: true,
+        startDate: true, endDate: true,
+      },
+    })
+    for (const rung of rungs) {
+      if (charges.has(rung.id)) continue
+      const top = payerRung(rung, rungs)
+      if (top && charges.get(top.id) === top.id) charges.set(rung.id, top.id)
+    }
+  }
+  const chargeable = [...charges.keys()]
+
   // Accepted work and accepted expenses — the cost is incurred when the
   // client signs for it, so the gate is the client's signature, not the
   // invoice and not the payment.
-  const [sheets, expenses] = contractIds.length
+  const [sheets, expenses] = chargeable.length
     ? await Promise.all([
         prisma.timesheet.findMany({
-          where: { sellContractId: { in: contractIds }, clientApprovedAt: { not: null } },
+          where: { sellContractId: { in: chargeable }, clientApprovedAt: { not: null } },
           select: {
             id: true, sellContractId: true, totalHours: true, acceptedHours: true,
             days: true, leaveDays: true,
@@ -86,7 +124,7 @@ export async function GET(request: NextRequest) {
           },
         }),
         prisma.expense.findMany({
-          where: { sellContractId: { in: contractIds }, billable: true, status: { in: ['APPROVED', 'INVOICED', 'PAID'] } },
+          where: { sellContractId: { in: chargeable }, billable: true, status: { in: ['APPROVED', 'INVOICED', 'PAID'] } },
           select: {
             id: true, sellContractId: true, total: true, status: true,
             invoiceLines: { select: { invoice: { select: { status: true } } } },
@@ -143,7 +181,7 @@ export async function GET(request: NextRequest) {
 
     const rows: AcceptedWork[] = [
       {
-        contractId: t.sellContractId,
+        contractId: charges.get(t.sellContractId)!,
         hours: plain,
         overtimeHours: 0,
         pendingOvertimeHours: split.pendingHours,
@@ -152,7 +190,7 @@ export async function GET(request: NextRequest) {
     ]
     for (const [appliedBps, hours] of byBps) {
       rows.push({
-        contractId: t.sellContractId,
+        contractId: charges.get(t.sellContractId)!,
         hours,
         overtimeHours: hours,
         overtimeAppliedBps: appliedBps,
@@ -162,7 +200,7 @@ export async function GET(request: NextRequest) {
     return rows
   })
   const spend: AcceptedExpense[] = expenses.map((e) => ({
-    contractId: e.sellContractId,
+    contractId: charges.get(e.sellContractId)!,
     amountCents: Math.round(Number(e.total) * 100),
     ...cash(e.invoiceLines),
   }))

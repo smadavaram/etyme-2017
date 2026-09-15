@@ -82,43 +82,46 @@ async function hasPlacementRelationship(
 }
 
 /**
- * Prisma WHERE fragment restricting SellContract reads to what the caller's
- * company is party to. Which side of the placement they sit on decides it:
+ * Which contracts this caller is a party to the money of.
  *
- *   CLIENT    → contracts where they are the end client
- *   VENDOR    → contracts they sell
- *   MSP · GSI → either — they can be the seller or the paying intermediary
+ * The scope for every list that shows a rate, a value or a bill — which,
+ * on a sell contract, is every list there is.
  *
- * Returns null when the caller has no company, meaning "entitled to nothing".
+ *   CLIENT    → the contracts it pays for
+ *   VENDOR    → the contracts it sells
+ *   MSP · GSI → either, since it can be the seller or the paying middle
  *
- * Without this, a list route with no `?companyId=` built an empty WHERE and
+ * A client legitimately sees everybody working at its sites — that is
+ * how tenure aggregates across suppliers and how it answers for
+ * co-employment. That is a different question, asked with
+ * `endClientFilter` on the screens built for it, and it is not this one.
+ *
+ * In a chain the sub-vendor's contract also carries the client as its
+ * end client, so an end-client filter handed a client the row where
+ * CloudEPA sells to Computer Systems at $118 — next to the row where
+ * Computer Systems sells to the client at $145. Subtracting one from
+ * the other is the prime's whole margin, and a prime whose margin its
+ * client can read has no business left.
+ *
+ * Returns null when the caller has no company, meaning "entitled to
+ * nothing". Never an empty object: a list route that built `where = {}`
  * returned every contract in the database to any authenticated caller.
- */
-/**
- * The same scope, for a list that carries rates.
- *
- * A client legitimately sees everybody working at its site — that is how
- * tenure aggregates across suppliers and how it answers for
- * co-employment, and `sellContractScope` gives it exactly that.
- *
- * It must not see what they cost. In a chain the sub-vendor's contract
- * also carries the client as its end client, so the broad filter handed
- * a client the row where CloudEPA sells to Computer Systems at $112 —
- * next to the row where Computer Systems sells to the client at $138.
- * Subtracting one from the other is the prime's whole margin, and a
- * prime whose margin its client can read has no business left.
- *
- * So a rate-bearing list is scoped to what the client is actually billed
- * for. Who is on site is a different question, asked on the screens
- * built for it.
  */
 export function payerScope(caller: CallerContext): Record<string, unknown> | null {
   if (isConsultantSeat(caller)) return { personId: caller.person.id }
   if (!caller.company) return null
 
   const id = caller.company.id
-  if (caller.company.kind === 'CLIENT') return { clientCompanyId: id }
-  return sellContractScope(caller)
+
+  switch (caller.company.kind) {
+    case 'CLIENT':
+      return { clientCompanyId: id }
+    case 'MSP':
+    case 'GSI':
+      return { OR: [{ companyId: id }, { clientCompanyId: id }] }
+    default:
+      return { companyId: id }
+  }
 }
 
 /**
@@ -149,27 +152,28 @@ export function contractSide(
   return null
 }
 
+/**
+ * @deprecated Use `payerScope`. This is the same function.
+ *
+ * It used to be a second, wider answer: a client got `endClientFilter`,
+ * every rung of every chain at its sites, rates and all. Two routes
+ * picked it — timesheets and rolloff — and both printed a sub-vendor's
+ * rate on the client's own screen. That is the fourth rate leak of the
+ * same shape found in this codebase, and the shape is always this one:
+ * a narrow helper exists beside a broad one and a caller reaches for
+ * the broad one.
+ *
+ * So the broad one is gone rather than documented. The name survives
+ * only because `app/api/rolloff` imports it and that file belongs to
+ * another domain; delete the export once they have switched.
+ *
+ * Who is on site, as opposed to what they cost, is `endClientFilter`
+ * from lib/resolve-end-client, asked explicitly and never by accident.
+ */
 export function sellContractScope(
   caller: CallerContext
 ): Record<string, unknown> | null {
-  // A consultant's context points at the agency whose bench they are on.
-  // That is true and it is not employment — read as employment it handed a
-  // contractor the agency's whole book. Theirs, and only theirs.
-  if (isConsultantSeat(caller)) return { personId: caller.person.id }
-
-  if (!caller.company) return null
-
-  const id = caller.company.id
-
-  switch (caller.company.kind) {
-    case 'CLIENT':
-      return endClientFilter(id)
-    case 'MSP':
-    case 'GSI':
-      return { OR: [{ companyId: id }, { clientCompanyId: id }] }
-    default:
-      return { companyId: id }
-  }
+  return payerScope(caller)
 }
 
 /**

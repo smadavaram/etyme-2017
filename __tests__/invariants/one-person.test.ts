@@ -17,6 +17,20 @@ import {
 const NOW = new Date('2026-08-24T12:00:00Z')
 const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000)
 
+/**
+ * A stretch on site that really ran for this many months.
+ *
+ * Stints carry dates now, not a length: the length used to be
+ * `endDate − startDate`, the whole contracted term booked as already
+ * served, and the register summed one of those per rung of a chain.
+ * The helper writes the dates a stint of that many months would have.
+ */
+const stint = (months: number, endedAt: Date | null, vendorName: string) => ({
+  startedAt: new Date((endedAt ?? NOW).getTime() - Math.round(months * 30.44) * 86_400_000),
+  endedAt,
+  vendorName,
+})
+
 function offer(over: Partial<Offer> = {}): Offer {
   return {
     vendorName: 'Cloudepa',
@@ -96,8 +110,8 @@ describe('time already served here', () => {
     const m = merge(
       person({
         stints: [
-          { months: 12, endedAt: daysAgo(700), vendorName: 'Vertex' },
-          { months: 12, endedAt: daysAgo(200), vendorName: 'Cloudepa' },
+          stint(12, daysAgo(700), 'Vertex'),
+          stint(12, daysAgo(200), 'Cloudepa'),
         ],
       }),
       NOW
@@ -106,9 +120,112 @@ describe('time already served here', () => {
     expect(m.headroomMonths).toBe(-6)
   })
 
+  it('counts days actually served, never the length of the contract', () => {
+    // The register read `endDate − startDate` and called it tenure, so
+    // a twelve-month contract signed this morning said twelve months
+    // here. Helena's is 200 days old and runs another 160.
+    const m = merge(
+      person({
+        stints: [
+          { startedAt: daysAgo(200), endedAt: new Date(NOW.getTime() + 160 * 86_400_000), vendorName: 'Computer Systems' },
+        ],
+      }),
+      NOW
+    )
+    expect(m.monthsHere).toBe(7)
+    expect(m.says).toBe('7 months here, 11 left before your cap.')
+  })
+
+  it('has served nothing at all before the first day', () => {
+    // Ingrid was awarded a role and starts in a week. The register said
+    // twelve months here and six left, about somebody who has not
+    // walked in yet.
+    const starts = new Date(NOW.getTime() + 7 * 86_400_000)
+    const m = merge(
+      person({
+        stints: [
+          { startedAt: starts, endedAt: new Date(NOW.getTime() + 372 * 86_400_000), vendorName: 'Pinnacle' },
+        ],
+      }),
+      NOW
+    )
+    expect(m.monthsHere).toBe(0)
+    expect(m.says).not.toMatch(/months here/)
+  })
+
+  it('says the day somebody starts instead of saying they are already on site', () => {
+    // Ingrid was awarded the role and the register said "On site here.
+    // Nothing needs you." — about somebody whose first day is next
+    // week, with the tenure page one nav item away saying "has not
+    // started".
+    const m = merge(
+      person({
+        offers: [offer({ state: 'PLACED' })],
+        stints: [
+          {
+            startedAt: new Date('2026-09-22T00:00:00Z'),
+            endedAt: new Date('2027-09-22T00:00:00Z'),
+            vendorName: 'Pinnacle',
+          },
+        ],
+      }),
+      new Date('2026-09-15T12:00:00Z')
+    )
+    expect(m.says).toBe('Starts Sep 22.')
+  })
+
+  it('does not say anybody starts when they are already here', () => {
+    const m = merge(
+      person({
+        offers: [offer({ state: 'PLACED' })],
+        stints: [{ startedAt: daysAgo(200), endedAt: null, vendorName: 'Computer Systems' }],
+      }),
+      NOW
+    )
+    expect(m.says).not.toMatch(/Starts/)
+  })
+
+  it('has served one set of days, not two, when bought through two legs of one chain', () => {
+    // Nike buys Helena from Computer Systems, who buys her from
+    // CloudEPA. Two sell contracts, one person, the same days on the
+    // same site. Summed, they said fourteen months and printed "past
+    // your cap" about somebody seven months in — the double-count
+    // lib/chain-top was written to kill on the dashboard, alive on the
+    // page next door.
+    const from = daysAgo(200)
+    const to = new Date(NOW.getTime() + 160 * 86_400_000)
+    const oneLeg = merge(person({ stints: [{ startedAt: from, endedAt: to, vendorName: 'Computer Systems' }] }), NOW)
+    const twoLegs = merge(
+      person({
+        stints: [
+          { startedAt: from, endedAt: to, vendorName: 'Computer Systems' },
+          { startedAt: from, endedAt: to, vendorName: 'CloudEPA' },
+        ],
+      }),
+      NOW
+    )
+    expect(twoLegs.monthsHere).toBe(oneLeg.monthsHere)
+    expect(twoLegs.monthsHere).toBe(7)
+  })
+
+  it('still adds up two real stretches that happen to overlap by a week', () => {
+    // A union, not a maximum. Overlapping paper is one stretch; two
+    // stretches that touch are still the whole span of both.
+    const m = merge(
+      person({
+        stints: [
+          { startedAt: daysAgo(400), endedAt: daysAgo(200), vendorName: 'Vertex' },
+          { startedAt: daysAgo(205), endedAt: daysAgo(40), vendorName: 'Cloudepa' },
+        ],
+      }),
+      NOW
+    )
+    expect(m.monthsHere).toBe(12)
+  })
+
   it('says plainly when somebody is already past the cap', () => {
     const m = merge(
-      person({ stints: [{ months: 19, endedAt: daysAgo(40), vendorName: 'Vertex' }] }),
+      person({ stints: [stint(19, daysAgo(40), 'Vertex')] }),
       NOW
     )
     expect(m.says).toBe('19 months here already — past your cap.')
@@ -116,7 +233,7 @@ describe('time already served here', () => {
 
   it('says how much room is left when there is some', () => {
     const m = merge(
-      person({ stints: [{ months: 6, endedAt: daysAgo(40), vendorName: 'Vertex' }] }),
+      person({ stints: [stint(6, daysAgo(40), 'Vertex')] }),
       NOW
     )
     expect(m.says).toBe('6 months here, 12 left before your cap.')
@@ -126,7 +243,7 @@ describe('time already served here', () => {
     const m = merge(
       person({
         capMonths: null,
-        stints: [{ months: 6, endedAt: daysAgo(40), vendorName: 'Vertex' }],
+        stints: [stint(6, daysAgo(40), 'Vertex')],
       }),
       NOW
     )
@@ -287,6 +404,11 @@ describe('somebody placed twice, years apart, through two agencies', () => {
    *   "2 suppliers are selling them. 25 months here already — past your
    *    cap. $89 from one supplier, $98 from another — $9 apart."
    *
+   * Every clause of it was wrong, and the tenure clause outlived the
+   * other two: twenty-five months was thirteen served plus the whole
+   * unstarted remainder of a live contract, counted as though she had
+   * already worked it.
+   *
    * She was placed in May 2025 through Brightmoor at $89, finished, and
    * was placed again in July 2026 through Pinnacle at $98. Nobody is
    * competing over her and nobody is being undercut. The row read two
@@ -297,8 +419,8 @@ describe('somebody placed twice, years apart, through two agencies', () => {
     personId: 'lucia', name: 'Lucía Fernández', capMonths: 18,
     barred: null,
     stints: [
-      { months: 13, endedAt: new Date('2026-06-28'), vendorName: 'Brightmoor Staffing' },
-      { months: 12, endedAt: new Date('2027-08-12'), vendorName: 'Pinnacle Resourcing' },
+      stint(13, new Date('2026-06-28'), 'Brightmoor Staffing'),
+      { startedAt: new Date('2026-07-13'), endedAt: new Date('2027-08-12'), vendorName: 'Pinnacle Resourcing' },
     ],
     offers: [
       { vendorName: 'Brightmoor Staffing', vendorId: 'b', rateCents: 8900, submittedAt: new Date('2025-05-07'), requirementId: 'r1', roleTitle: 'Demand planner', cleared: null, state: 'PLACED' as const },
@@ -316,8 +438,24 @@ describe('somebody placed twice, years apart, through two agencies', () => {
     expect(m.says).not.toMatch(/apart/)
   })
 
-  it('still says the thing that actually matters — her time here, across both agencies, past the cap', () => {
-    expect(merge(lucia(), NOW).says).toBe('25 months here already — past your cap.')
+  it('still says the thing that actually matters — her time here, added up across both agencies', () => {
+    // Thirteen months through Brightmoor and six weeks so far through
+    // Pinnacle. Neither supplier can see the other's, and the client
+    // can only see it here.
+    expect(merge(lucia(), NOW).monthsHere).toBe(14)
+    expect(merge(lucia(), NOW).says).toBe('14 months here, 4 left before your cap.')
+  })
+
+  it('does not count the rest of her live contract as time she has already served', () => {
+    // Her Pinnacle contract runs to August 2027. On this screen it read
+    // as twelve months already here, which added to Brightmoor's
+    // thirteen made twenty-five and printed "past your cap" in clay —
+    // about somebody with four months of room. A program manager
+    // believes the alarming screen and calls the supplier.
+    const m = merge(lucia(), NOW)
+    expect(m.monthsHere).toBeLessThan(18)
+    expect(m.headroomMonths).toBe(4)
+    expect(m.says).not.toMatch(/past your cap/)
   })
 
   it('keeps both agencies on the row, because a client wants to know everybody who has represented her', () => {

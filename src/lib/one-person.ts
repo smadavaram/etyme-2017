@@ -30,6 +30,8 @@
  * because nobody has the two numbers side by side.
  */
 
+import { daysOnSite, monthsOf } from '@/lib/tenure-days'
+
 export interface Offer {
   vendorName: string
   vendorId: string
@@ -42,8 +44,23 @@ export interface Offer {
   state: 'SUBMITTED' | 'INTERVIEWING' | 'OFFERED' | 'PLACED' | 'REJECTED'
 }
 
+/**
+ * One contract at this client, with the dates it actually covers.
+ *
+ * The dates, not a precomputed length. This carried `months` as
+ * `endDate − startDate` — the whole contracted term counted as already
+ * served — and the register summed one of those per rung, so a person
+ * bought through a two-rung chain on a twelve-month term read as
+ * twenty-four months here on the day they started. A program manager
+ * reads "past your cap" in clay and calls a supplier about a person who
+ * is seven months in.
+ *
+ * Tenure is days served, and the union of the periods rather than their
+ * sum (Addendum E, lib/tenure-days). Both are the merge's job now, so
+ * the register and the tenure ledger cannot drift apart.
+ */
 export interface Stint {
-  months: number
+  startedAt: Date
   endedAt: Date | null
   vendorName: string
 }
@@ -58,6 +75,27 @@ export interface Person {
   barred: { at: Date; reason: string | null } | null
   /** The client's tenure cap in months, where they have one. */
   capMonths: number | null
+  /**
+   * The first day of a contract that has not begun.
+   *
+   * Not a stint: a draft contract is not time on site and must never
+   * reach the tenure arithmetic. It is still the truest thing on the
+   * row for somebody who was awarded a role last week, and without it
+   * the register said "On site here. Nothing needs you." about
+   * somebody who has not walked in.
+   */
+  startingOn?: Date | null
+}
+
+/** The day they arrive, where they are not here yet. */
+function notStartedYet(p: Person, now: Date): Date | null {
+  const live = p.stints.some((s) => s.startedAt <= now && (s.endedAt == null || s.endedAt > now))
+  if (live) return null
+  const ahead = [
+    ...p.stints.filter((s) => s.startedAt > now).map((s) => s.startedAt.getTime()),
+    ...(p.startingOn && p.startingOn > now ? [p.startingOn.getTime()] : []),
+  ]
+  return ahead.length > 0 ? new Date(Math.min(...ahead)) : null
 }
 
 export interface Spread {
@@ -65,6 +103,12 @@ export interface Spread {
   highCents: number
   gapCents: number
   says: string | null
+}
+
+/** A stint with its length worked out, for the row's subtitle. */
+export interface ServedStint extends Stint {
+  /** Months actually served on this contract so far. Never its term. */
+  months: number
 }
 
 export interface Merged {
@@ -86,7 +130,7 @@ export interface Merged {
   state: 'PLACED' | 'OFFERED' | 'INTERVIEWING' | 'SUBMITTED' | 'REJECTED' | 'BARRED'
   roles: string[]
   offers: Offer[]
-  stints: Stint[]
+  stints: ServedStint[]
   /** The sentence a program manager reads. */
   says: string
   /** What this record cannot account for. */
@@ -164,7 +208,11 @@ export function merge(p: Person, now: Date): Merged {
   const rates = selling.map((o) => o.rateCents).filter((r): r is number => r != null)
   const spread = rateSpread(rates, sellingNames.length)
 
-  const monthsHere = p.stints.reduce((n, s) => n + s.months, 0)
+  // Days on site, overlaps counted once, and only days that have
+  // happened. The same two functions the tenure ledger calls, on the
+  // same contracts, so the two screens cannot disagree about a person.
+  const periods = p.stints.map((s) => ({ startDate: s.startedAt, endDate: s.endedAt }))
+  const monthsHere = monthsOf(daysOnSite(periods, now))
   const headroom = p.capMonths == null ? null : p.capMonths - monthsHere
 
   const furthest = p.offers.reduce<Offer['state']>(
@@ -173,6 +221,10 @@ export function merge(p: Person, now: Date): Merged {
   )
 
   const state: Merged['state'] = p.barred ? 'BARRED' : furthest
+  // Awarded, papers in progress, first day next week. The row said "On
+  // site here. Nothing needs you." about somebody who has not walked in
+  // — the tenure page beside it said "has not started".
+  const starts = notStartedYet(p, now)
 
   const unknowns: string[] = []
   const unpriced = p.offers.filter((o) => o.rateCents == null).length
@@ -202,8 +254,11 @@ export function merge(p: Person, now: Date): Merged {
     state,
     roles: [...new Set(p.offers.map((o) => o.roleTitle))],
     offers: [...p.offers].sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime()),
-    stints: p.stints,
-    says: sentence(p, monthsHere, headroom, sellingNames, spread, state),
+    stints: p.stints.map((s) => ({
+      ...s,
+      months: monthsOf(daysOnSite([{ startDate: s.startedAt, endDate: s.endedAt }], now)),
+    })),
+    says: sentence(p, monthsHere, headroom, sellingNames, spread, state, starts),
     unknowns,
   }
 }
@@ -239,7 +294,8 @@ function sentence(
   headroom: number | null,
   vendorNames: string[],
   spread: Spread | null,
-  state: Merged['state']
+  state: Merged['state'],
+  starts: Date | null
 ): string {
   if (state === 'BARRED') {
     return p.barred?.reason
@@ -266,6 +322,12 @@ function sentence(
   }
 
   if (spread?.says) bits.push(spread.says.replace(/\.$/, ''))
+
+  if (starts) {
+    bits.push(
+      `Starts ${starts.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}`
+    )
+  }
 
   if (bits.length === 0) {
     if (state === 'PLACED') return 'On site here. Nothing needs you.'
