@@ -18,6 +18,8 @@
  * placement was recorded as W2 whatever it actually was.
  */
 
+import type { Treatment } from './overtime'
+
 export type WorkerType = 'W2' | 'C2C' | 'IND_1099' | 'C2H_W2'
 
 export interface ClassificationVerdict {
@@ -908,4 +910,901 @@ function withStaleness(
       `${days} day${days === 1 ? '' : 's'} ago`,
     action: 'Retest the arrangement and record a fresh call',
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// EXEMPT OR NONEXEMPT — the second question, and why it has a different
+// shape from the first
+// ══════════════════════════════════════════════════════════════════════
+//
+// Everything above answers "is this person an employee at all". This
+// answers the question that comes next, only for the ones who are: does
+// the Fair Labor Standards Act entitle them to overtime pay, or are they
+// exempt from it.
+//
+// It is a different question with a different answer and it is asked of
+// a different party. Somebody can be plainly an employee and plainly
+// exempt. Somebody can be an employee at Brightmoor and exempt there,
+// and an employee at Vertex six months later and nonexempt there,
+// because the job changed. The status belongs to the employment
+// relationship, not to the person.
+//
+// ── Why Etyme may record it and may not decide it ────────────────────
+//
+// The employee-or-independent test above works because the facts it
+// weighs are facts a platform genuinely sees: who directs the method,
+// who supplies the laptop, whether they bill anybody else. Etyme can ask
+// those nine questions and get answers.
+//
+// Exemption turns on three prongs, and the third is invisible from here:
+//
+//   **Salary basis** — a predetermined amount, paid whole for any week
+//   in which any work is done, not reduced for the quantity or quality
+//   of the work (29 CFR §541.602).
+//
+//   **Salary level** — at or above a stated floor (§541.600).
+//
+//   **Duties** — the employee's *primary duty* must actually fit one of
+//   the exemptions in §541: executive, administrative, learned or
+//   creative professional, computer employee, outside sales.
+//
+// A job title is not a duty. "Software Engineer" on a requirement is not
+// "the application of systems analysis techniques and procedures". A
+// platform that inferred exempt status from a title and a rate would be
+// manufacturing the employer's case out of data that does not contain
+// it — and exemption is an **affirmative defense**, which the employer
+// bears the burden of proving. Get it wrong and the employer owes two
+// years of back overtime, three if the violation was willful, plus
+// liquidated damages equal again to the unpaid wages.
+//
+// So: record only. The employer asserts, Etyme holds the assertion with
+// who made it, when, on what basis and in whose words.
+//
+// ── The asymmetry, which is the whole design ─────────────────────────
+//
+// Etyme can never conclude *exempt*. It can sometimes conclude *cannot
+// be exempt*, and that is not the same act: it is arithmetic on two
+// numbers this system already holds, against a floor written in the
+// regulation. Somebody paid $22 an hour with no guaranteed salary
+// fails the salary basis and the salary level of every exemption that
+// has one, and fails the hourly floor of the one that does not. No
+// duties knowledge is needed to say so, and no judgment about the person
+// is made by saying it.
+//
+// That asymmetry is in the return type on purpose. `screenExemption`
+// returns CANNOT_BE_EXEMPT or ETYME_CANNOT_SAY, and there is no third
+// value. A reviewer reading the type sees the ruling without reading the
+// code — the same reason `overallVerdict` throws instead of returning a
+// boolean.
+//
+// ── Why this does not reuse ClassificationCall ───────────────────────
+//
+// It reuses the *pattern* — test first, record the position, a departure
+// needs a written reason, a review date or it rots — and not the row.
+// Four reasons, and the first is sufficient:
+//
+//   A `ClassificationCall` is keyed on (company, person). Exempt status
+//   is a property of one employment relationship, and the same person
+//   can honestly hold two different answers at two employers at once.
+//   Hanging it off the person would make one of the two wrong.
+//
+//   Its `position` is EMPLOYEE or INDEPENDENT. Adding EXEMPT to that
+//   union would let a row say "independent and exempt", which is not a
+//   thing: an independent contractor has no exemption because they have
+//   no entitlement to be exempt from.
+//
+//   Its `arrangement` holds the nine answers Etyme asked for. There is
+//   no equivalent here, because the duties test is not a form Etyme is
+//   entitled to score.
+//
+//   Its decider is anybody at the owning company. Here only the employer
+//   on the buy leg may assert, and a client asserting exempt status for
+//   its supplier's employee is asserting something about a relationship
+//   it is not a party to.
+
+/** The two answers, and there is no third. */
+export type ExemptStatus = 'EXEMPT' | 'NONEXEMPT'
+
+/** Which exemption is being claimed, in §541's own terms. */
+export type ExemptionBasis =
+  | 'EXECUTIVE'
+  | 'ADMINISTRATIVE'
+  | 'PROFESSIONAL'
+  | 'COMPUTER'
+  | 'OUTSIDE_SALES'
+  | 'HIGHLY_COMPENSATED'
+
+export const EXEMPTION_LABEL: Record<ExemptionBasis, string> = {
+  EXECUTIVE: 'executive',
+  ADMINISTRATIVE: 'administrative',
+  PROFESSIONAL: 'learned or creative professional',
+  COMPUTER: 'computer employee',
+  OUTSIDE_SALES: 'outside sales',
+  HIGHLY_COMPENSATED: 'highly compensated employee',
+}
+
+/** The exemptions that require pay on a salary basis. Two do not. */
+const SALARIED_EXEMPTIONS: ExemptionBasis[] = [
+  'EXECUTIVE', 'ADMINISTRATIVE', 'PROFESSIONAL', 'HIGHLY_COMPENSATED',
+]
+
+/**
+ * What an employer told us, held as a fact about an event.
+ *
+ * Never a computed field, never defaulted. Absent means nobody has said,
+ * which is a different thing from nonexempt and is treated as such
+ * everywhere below.
+ */
+export interface ExemptAssertion {
+  status: ExemptStatus
+  /** Null is honest for NONEXEMPT — there is no exemption to name. */
+  basis: ExemptionBasis | null
+  /** The employer on the buy leg. Never Etyme, never the client. */
+  assertedByCompanyId: string
+  assertedByCompanyName: string | null
+  assertedByName: string | null
+  assertedAt: Date
+  /** The employer's own words on the duties. The only evidence there is. */
+  note: string | null
+  reviewBy: Date | null
+}
+
+// ── The wage rules, as data, per jurisdiction ─────────────────────────
+//
+// Every number here is a number that moves, so each is stated with the
+// provision it comes from and the date this build believed it. A change
+// of law is a change of a line.
+
+export type WageRuleName = 'US_FLSA' | 'UK' | 'DEFAULT'
+
+interface WageRules {
+  label: string
+  /** Does statute price an overtime hour here at all? */
+  statutoryPremium: boolean
+  /** Basis points of the regular rate owed per overtime hour. */
+  floorBps: number | null
+  /** Hours in a fixed workweek past which the floor bites. */
+  weeklyAfterHours: number | null
+  /** Weekly salary floor, in cents, for the exemptions that require a salary. */
+  salaryFloorCentsPerWeek: number | null
+  /** Hourly floor, in cents, for the one exemption payable by the hour. */
+  computerHourlyFloorCents: number | null
+  /** May a private employer give time off instead of overtime pay? */
+  compTimeLawfulForPrivateEmployer: boolean
+  /** Where a state or region may require more than this table holds. */
+  mayBeHigherLocally: string | null
+}
+
+const WAGE_RULES: Record<WageRuleName, WageRules> = {
+  // 29 U.S.C. §207(a)(1): one and one-half times the regular rate for
+  // hours over forty in a workweek.
+  //
+  // §207(o): compensatory time in lieu of overtime pay is available to
+  // public agencies. A private employer may not do it, which is the
+  // single fact that stops a client's TIME_OFF choice from ever
+  // reaching a W2 pay line.
+  //
+  // §541.600: the salary level is $684 a week. The 2024 rule raising it
+  // to $1,128 was vacated nationwide in November 2024, so $684 is what
+  // is operative — and it is exactly the kind of figure that will move
+  // again, which is why it is a line in a table rather than a constant
+  // in a branch.
+  //
+  // §541.400(b): the computer employee exemption, and only that one, may
+  // be paid hourly, at not less than $27.63 an hour.
+  US_FLSA: {
+    label: 'Fair Labor Standards Act',
+    statutoryPremium: true,
+    floorBps: 15_000,
+    weeklyAfterHours: 40,
+    salaryFloorCentsPerWeek: 68_400,
+    computerHourlyFloorCents: 2_763,
+    compTimeLawfulForPrivateEmployer: false,
+    mayBeHigherLocally:
+      'Several states require more than the federal floor — California prices a ninth ' +
+      'hour in a day and a seventh consecutive day, and sets its own salary level. This ' +
+      'build does not hold any state table, so the figure below is a floor and not the answer.',
+  },
+
+  // The Working Time Regulations cap average weekly hours and guarantee
+  // rest. They do not price an overtime hour, and there is no statutory
+  // premium in the UK at all — what an overtime hour is worth is
+  // whatever the contract says. Quoting a time-and-a-half floor to a UK
+  // employer would be inventing an entitlement.
+  UK: {
+    label: 'Working Time Regulations',
+    statutoryPremium: false,
+    floorBps: null,
+    weeklyAfterHours: null,
+    salaryFloorCentsPerWeek: null,
+    computerHourlyFloorCents: null,
+    compTimeLawfulForPrivateEmployer: true,
+    mayBeHigherLocally: null,
+  },
+
+  // Everywhere we have not written a table for. Not a default of "no
+  // overtime" — a default of "we do not know", which refuses rather than
+  // permits, because permitting silently is the one thing never allowed.
+  DEFAULT: {
+    label: 'no wage rules on file',
+    statutoryPremium: false,
+    floorBps: null,
+    weeklyAfterHours: null,
+    salaryFloorCentsPerWeek: null,
+    computerHourlyFloorCents: null,
+    compTimeLawfulForPrivateEmployer: false,
+    mayBeHigherLocally: null,
+  },
+}
+
+export function wageRuleLabel(name: WageRuleName): string {
+  return WAGE_RULES[name].label
+}
+
+/** True where this jurisdiction lets a private employer bank hours instead of paying them. */
+export function compTimeLawful(name: WageRuleName): boolean {
+  return WAGE_RULES[name].compTimeLawfulForPrivateEmployer
+}
+
+// ── What Etyme may say on its own ─────────────────────────────────────
+
+/**
+ * How this person is paid, which is the half of the test Etyme can see.
+ *
+ * `payModel` is `BuyContract.payModel`. Only FIXED_HOURLY with a stated
+ * salary equivalent could ever be a salary; every share model varies
+ * with what was billed, which is a reduction for the quantity of the
+ * work and so is not a salary basis at all.
+ */
+export interface PayShape {
+  /** FIXED_HOURLY · SHARE_OF_BILL · SHARE_OF_MARGIN · SHARE_OF_BILL_LESS_COSTS */
+  payModel: string
+  /** Cents per hour, as `BuyContractCandidate.payRate` holds it. */
+  payRateCents: number
+  /**
+   * True where the employer pays a fixed weekly amount whatever the
+   * hours. Nothing in the schema records this today, so a caller that
+   * does not know passes false and gets the honest, conservative read.
+   */
+  paidOnSalaryBasis: boolean
+  /** Where a salary is paid, what it is per week in cents. */
+  weeklySalaryCents?: number | null
+}
+
+export interface ExemptionScreen {
+  /** There is no third value, and that is the ruling. */
+  outcome: 'CANNOT_BE_EXEMPT' | 'ETYME_CANNOT_SAY'
+  /** The exemptions this pay shape rules out, named. */
+  rulesOut: ExemptionBasis[]
+  /** The ones it does not rule out, which is not the same as supporting. */
+  leavesOpen: ExemptionBasis[]
+  says: string
+}
+
+/**
+ * What the arithmetic alone establishes.
+ *
+ * It can rule an exemption out. It can never rule one in, because the
+ * duties test is not in this data and never will be. An employer whose
+ * counsel disagrees may still assert exempt status — `checkAssertion`
+ * takes that assertion and asks for the reason in writing, exactly as
+ * `checkCall` does for the position above.
+ */
+export function screenExemption(pay: PayShape, rule: WageRuleName = 'US_FLSA'): ExemptionScreen {
+  const r = WAGE_RULES[rule]
+
+  if (!r.statutoryPremium || r.salaryFloorCentsPerWeek == null) {
+    return {
+      outcome: 'ETYME_CANNOT_SAY',
+      rulesOut: [],
+      leavesOpen: [],
+      says:
+        `There is no overtime exemption to test under ${r.label} — statute does not price ` +
+        `an overtime hour here, so what these hours are worth is whatever the contract says.`,
+    }
+  }
+
+  const rulesOut: ExemptionBasis[] = []
+
+  // The salary basis. A share of the bill moves with the work, which is
+  // a reduction for quantity, which is the definition of not a salary.
+  const shareModel = pay.payModel.startsWith('SHARE_OF')
+  const onSalary = pay.paidOnSalaryBasis && !shareModel
+
+  if (!onSalary) {
+    rulesOut.push(...SALARIED_EXEMPTIONS)
+  } else if (
+    pay.weeklySalaryCents != null &&
+    pay.weeklySalaryCents < r.salaryFloorCentsPerWeek
+  ) {
+    rulesOut.push(...SALARIED_EXEMPTIONS)
+  }
+
+  // The computer employee exemption, the only one payable by the hour.
+  if (!onSalary && r.computerHourlyFloorCents != null && pay.payRateCents < r.computerHourlyFloorCents) {
+    rulesOut.push('COMPUTER')
+  }
+
+  const all: ExemptionBasis[] = [
+    'EXECUTIVE', 'ADMINISTRATIVE', 'PROFESSIONAL', 'COMPUTER', 'OUTSIDE_SALES', 'HIGHLY_COMPENSATED',
+  ]
+  const leavesOpen = all.filter((e) => !rulesOut.includes(e))
+
+  // Outside sales has no pay test at all, so it is never ruled out here
+  // — and somebody filing a weekly timesheet for hours on a client site
+  // is not an outside salesperson. It is left open rather than dismissed
+  // because dismissing it would be Etyme reasoning about duties.
+  if (rulesOut.length === 0) {
+    return {
+      outcome: 'ETYME_CANNOT_SAY',
+      rulesOut,
+      leavesOpen,
+      says:
+        `The way this person is paid does not rule out any exemption. Whether one applies ` +
+        `turns on what they actually do day to day, which is the employer's to say and not ` +
+        `Etyme's to guess.`,
+    }
+  }
+
+  const money = (c: number) => `$${(c / 100).toFixed(2)}`
+
+  if (leavesOpen.length <= 1) {
+    return {
+      outcome: 'CANNOT_BE_EXEMPT',
+      rulesOut,
+      leavesOpen,
+      says:
+        `Paid ${money(pay.payRateCents)} an hour with no guaranteed salary. That is below the ` +
+        `${money(r.computerHourlyFloorCents ?? 0)} an hour the computer employee exemption requires ` +
+        `and it is not a salary at all, so every exemption with a pay test fails on arithmetic ` +
+        `alone — no view of the duties needed. These hours are nonexempt unless somebody can ` +
+        `explain in writing why they are not.`,
+    }
+  }
+
+  return {
+    outcome: 'CANNOT_BE_EXEMPT',
+    rulesOut,
+    leavesOpen,
+    says:
+      `Not paid on a salary basis, so the ${rulesOut.map((e) => EXEMPTION_LABEL[e]).join(', ')} ` +
+      `exemption${rulesOut.length === 1 ? '' : 's'} cannot apply — each requires a predetermined ` +
+      `salary of at least ${money(r.salaryFloorCentsPerWeek)} a week. ` +
+      `${leavesOpen.map((e) => EXEMPTION_LABEL[e]).join(' and ')} are untouched by the pay test ` +
+      `and turn on the duties, which is the employer's to say.`,
+  }
+}
+
+// ── Recording what the employer asserted ──────────────────────────────
+
+export interface AssertionProposal {
+  status: ExemptStatus | string
+  basis: ExemptionBasis | string | null
+  /** The screen, from screenExemption. */
+  screen: ExemptionScreen
+  /** The employer's written reason. Required where the screen contradicts. */
+  note?: string | null
+  /** The company asserting, and the employer on the leg. They must match. */
+  assertedByCompanyId: string
+  employerCompanyId: string
+  assertedByCompanyName?: string | null
+  assertedAt: Date
+  reviewBy?: Date | null
+}
+
+export interface AssertionCheck {
+  ok: boolean
+  code:
+    | 'AGREES'
+    | 'DEPARTS_WITH_REASON'
+    | 'NEEDS_A_REASON'
+    | 'NOT_A_STATUS'
+    | 'NOT_THE_EMPLOYER'
+    | 'NO_BASIS_NAMED'
+  says: string
+  /** What belongs on the record. Evidence, never a verdict. */
+  reasons: string[]
+  reviewBy: Date
+}
+
+/**
+ * Whether this assertion may be recorded as it stands.
+ *
+ * Three refusals, each in a sentence:
+ *
+ * **Not the employer.** Only the party carrying the wage-and-hour
+ * liability may assert the defense to it. A client asserting exempt
+ * status for its supplier's employee would be writing a defense into
+ * somebody else's file, and the client is not the one a Wage and Hour
+ * investigator bills.
+ *
+ * **No basis named.** "Exempt" with no exemption named is not an
+ * assertion, it is a preference. §541 is a list, and the employer has
+ * to say which entry it is standing on.
+ *
+ * **Against the arithmetic, with no reason.** Same rule as `checkCall`,
+ * for the same reason: counsel may legitimately differ and silence may
+ * not, and on the day somebody asks, the note is the whole of the file.
+ */
+export function checkAssertion(p: AssertionProposal): AssertionCheck {
+  const reviewBy = p.reviewBy ?? defaultReviewBy(p.assertedAt)
+
+  if (p.assertedByCompanyId !== p.employerCompanyId) {
+    return {
+      ok: false,
+      code: 'NOT_THE_EMPLOYER',
+      says:
+        `Only the employer can say whether one of its own people is exempt from overtime. ` +
+        `Exemption is a defense the employer has to prove, and the bill for getting it wrong ` +
+        `goes to them — so the assertion has to come from them.`,
+      reasons: [],
+      reviewBy,
+    }
+  }
+
+  if (p.status !== 'EXEMPT' && p.status !== 'NONEXEMPT') {
+    return {
+      ok: false,
+      code: 'NOT_A_STATUS',
+      says:
+        `"${p.status}" is not an answer. Somebody is exempt from overtime or they are not. ` +
+        `Where nobody knows yet, the honest record is no assertion at all — not a third ` +
+        `value that reads as though somebody decided.`,
+      reasons: [],
+      reviewBy,
+    }
+  }
+
+  const note = (p.note ?? '').trim()
+
+  if (p.status === 'NONEXEMPT') {
+    // Nobody ever has to justify the conservative answer. Asking for a
+    // reason here would be a required field between a worker and their
+    // overtime.
+    return {
+      ok: true,
+      code: 'AGREES',
+      says:
+        'Recorded as nonexempt. Overtime is owed in money at the statutory rate, ' +
+        'whatever the client decided about billing it.',
+      reasons: note ? [note] : [],
+      reviewBy,
+    }
+  }
+
+  const basis = p.basis as ExemptionBasis
+  if (!basis || !(basis in EXEMPTION_LABEL)) {
+    return {
+      ok: false,
+      code: 'NO_BASIS_NAMED',
+      says:
+        `Exempt under which exemption? Executive, administrative, professional, computer ` +
+        `employee, outside sales or highly compensated. "Exempt" on its own is a preference, ` +
+        `not a position — the regulation is a list and the file has to say which entry it stands on.`,
+      reasons: [],
+      reviewBy,
+    }
+  }
+
+  const contradicted =
+    p.screen.outcome === 'CANNOT_BE_EXEMPT' && p.screen.rulesOut.includes(basis)
+
+  if (!contradicted) {
+    return {
+      ok: true,
+      code: 'AGREES',
+      says:
+        `Recorded as exempt on the ${EXEMPTION_LABEL[basis]} exemption. Etyme holds what ` +
+        `you asserted and has taken no view on the duties, which are yours to establish.`,
+      reasons: note ? [p.screen.says, note] : [p.screen.says],
+      reviewBy,
+    }
+  }
+
+  if (note.length < MIN_REASON_CHARS) {
+    return {
+      ok: false,
+      code: 'NEEDS_A_REASON',
+      says:
+        `The ${EXEMPTION_LABEL[basis]} exemption needs a salary this contract does not pay. ` +
+        `${p.screen.says} Recording it anyway is allowed and it needs a written reason, because ` +
+        `exemption is a defense you have to prove and the note is the whole of the evidence ` +
+        `on the day somebody asks.`,
+      reasons: [],
+      reviewBy,
+    }
+  }
+
+  return {
+    ok: true,
+    code: 'DEPARTS_WITH_REASON',
+    says:
+      `Recorded as exempt on the ${EXEMPTION_LABEL[basis]} exemption, against a pay shape that ` +
+      `does not support it, with the reason on the file.`,
+    reasons: [note, p.screen.says],
+    reviewBy,
+  }
+}
+
+// ── What the pay side may do with a decided overtime week ─────────────
+//
+// The gap this closes, in one line: the client's overtime treatment is a
+// **billing** fact on the sell leg, and pricing somebody's wages off it
+// would be the same error as billing a client at its sub-vendor's rate.
+//
+// `SAME_RATE`, `PREMIUM` and `TIME_OFF` say what the client pays its
+// supplier for hours over the line. None of them says what the supplier
+// owes the person who worked them. For a nonexempt employee that second
+// number is set by statute and cannot be moved by an agreement the
+// employee is not party to — §207 rights cannot be waived or bargained
+// away even by the employee themselves, let alone by their employer's
+// customer.
+//
+// So the two legs are computed separately and the difference is a real
+// commercial fact the supplier's margin has to carry. It is reported
+// rather than buried, because a supplier that does not know a client's
+// TIME_OFF choice costs it a half-rate premium in cash this period is a
+// supplier that will agree to it cheerfully and be surprised twice.
+
+/** What the client decided on the sell leg. Narrated here, never priced from. */
+export interface ClientChoice {
+  treatment: Treatment | null
+  /** The basis points the client's own decision applied to its bill rate. */
+  appliedBps: number | null
+}
+
+/** One week of a timesheet, already split by `lib/overtime`. */
+export interface WeekOfHours {
+  weekOf: string
+  /** Worked hours at or under the contract's weekly line. */
+  regularHours: number
+  /** Paid leave drawn from the bank. Paid flat, never overtime. */
+  leaveHours: number
+  /** Worked hours over the line, however the client priced them. */
+  overHours: number
+}
+
+export interface WagePosition {
+  personName: string
+  /** W2 · C2C · IND_1099 · C2H_W2 · FIXED_TERM · CDD */
+  contractType: WorkerType | string
+  /** False where somebody else employs them — a sub-vendor, or their own company. */
+  weAreTheEmployer: boolean
+  pay: PayShape
+  rule: WageRuleName
+  /** What the employer asserted. Null means nobody has said, which is not nonexempt. */
+  assertion: ExemptAssertion | null
+  client: ClientChoice
+  /** The firm's own latest employee-or-independent call, for the sole-trader boundary. */
+  call?: LatestCall | null
+  employerName?: string | null
+  clientName?: string | null
+}
+
+export interface WagePay {
+  /** May payroll put this week on a file? */
+  ok: boolean
+  code:
+    | 'NO_OVERTIME_THIS_WEEK'
+    | 'OWED_IN_MONEY'
+    | 'CONTRACT_GOVERNS'
+    | 'NOT_A_WAGE'
+    | 'CANNOT_SAY'
+    | 'CONTRADICTED_BY_OWN_CALL'
+  /** Regular and leave hours at the pay rate. Null where no figure stands. */
+  regularCents: number | null
+  /** What the hours over the line must be paid, at minimum. */
+  overtimeCents: number | null
+  /** The multiple actually applied to those hours. */
+  appliedBps: number | null
+  /**
+   * The part of the statutory premium the client's own choice did not
+   * price — computed at the **pay** rate, not the bill rate.
+   *
+   * It is not the margin hit. The margin needs the bill rate, which this
+   * function deliberately does not take, and is `lib/profitability`'s to
+   * compute. What this says is narrower and exactly true: had the
+   * employer mirrored what the client decided, it would have paid this
+   * much less than the law requires.
+   */
+  uncoveredPremiumCents: number | null
+  says: string
+  /** What somebody has to do. Null where nothing is outstanding. */
+  action: string | null
+  /** Things true of the figure that the figure cannot say for itself. */
+  caveats: string[]
+}
+
+const DAY_NAME = (iso: string): string =>
+  new Date(`${iso}T00:00:00.000Z`).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
+
+const HRS = (n: number): string => `${n} ${n === 1 ? 'hour' : 'hours'}`
+
+const USD = (c: number): string =>
+  `$${(c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+function multiple(bps: number): string {
+  const x = bps / 10_000
+  if (x === 1) return 'the usual rate'
+  if (x === 1.5) return 'time and a half'
+  if (x === 2) return 'double time'
+  return `${x}×`
+}
+
+/**
+ * What the employer owes for one week, given a known exempt status.
+ *
+ * Refuses rather than guesses. A payroll file becomes a bank transfer,
+ * usually the same week, and nobody reads it first — so a week whose
+ * status nobody has asserted is left out and named, never exported flat
+ * with a note somebody was supposed to notice.
+ */
+export function weekWage(week: WeekOfHours, at: WagePosition): WagePay {
+  const r = WAGE_RULES[at.rule]
+  const rate = at.pay.payRateCents
+  const flat = Math.round((week.regularHours + week.leaveHours) * rate)
+  const employer = at.employerName ?? 'the employer'
+  const client = at.clientName ?? 'the client'
+  const who = at.personName
+
+  const nothing = { regularCents: null, overtimeCents: null, appliedBps: null, uncoveredPremiumCents: null }
+
+  // ── Not our wage to pay ────────────────────────────────────────────
+  //
+  // A corp-to-corp consultant is paid by their own company; a
+  // sub-vendor's employee is paid by the sub-vendor. Both are settled by
+  // invoice. Whatever wage-and-hour duty exists sits with whoever signs
+  // their paycheck, and it is not visible from here and not ours.
+  //
+  // This refuses rather than paying flat, because a corporation on an
+  // ADP file is a company being paid as a person — the same assertion
+  // the 1099 rules already refuse to make about a C2C sub-vendor.
+  const type = String(at.contractType).toUpperCase()
+  if (!at.weAreTheEmployer || type === 'C2C' || type === 'CORP_TO_CORP') {
+    return {
+      ok: false,
+      code: 'NOT_A_WAGE',
+      ...nothing,
+      says:
+        type === 'C2C' || type === 'CORP_TO_CORP'
+          ? `${who} works through their own company, so this is a bill to settle and not a ` +
+            `wage to run. Whatever that company owes them is that company's to work out.`
+          : `${who} is employed by somebody else, so ${employer} pays an invoice rather than a ` +
+            `wage. Their employer's overtime duty is theirs and is not visible from here.`,
+      action: 'Settle it through accounts payable, not payroll.',
+      caveats: [],
+    }
+  }
+
+  // ── A week under the line asks nobody anything ─────────────────────
+  //
+  // Checked before the status, on purpose. Refusing every payroll line
+  // in the book because nobody has filled in an exempt flag is the rule
+  // that gets switched off in week one, and almost every week is under
+  // forty hours.
+  if (week.overHours <= 0) {
+    return {
+      ok: true,
+      code: 'NO_OVERTIME_THIS_WEEK',
+      regularCents: flat,
+      overtimeCents: 0,
+      appliedBps: 10_000,
+      uncoveredPremiumCents: null,
+      says: `${HRS(week.regularHours + week.leaveHours)} at the usual rate. Nothing went over the line.`,
+      action: null,
+      caveats: [],
+    }
+  }
+
+  // ── A sole trader raises no overtime duty, unless our own file disagrees ──
+  if (type === 'IND_1099' || type === '1099' || type === 'C1099') {
+    if (at.call?.position === 'EMPLOYEE') {
+      return {
+        ok: true,
+        code: 'CONTRADICTED_BY_OWN_CALL',
+        regularCents: flat,
+        overtimeCents: Math.round(week.overHours * rate),
+        appliedBps: 10_000,
+        uncoveredPremiumCents: null,
+        says:
+          `${who} is engaged as a sole trader, so nothing here computes overtime for them — ` +
+          `but ${employer}'s own latest classification call says they are an employee. Paying ` +
+          `${HRS(week.overHours)} flat against your own written determination is the fact that ` +
+          `turns a back-pay claim into a willful one, which doubles the damages and adds a year.`,
+        action: `Remake the classification call, or engage ${who} on payroll and record an exempt status.`,
+        caveats: [],
+      }
+    }
+    return {
+      ok: true,
+      code: 'CONTRACT_GOVERNS',
+      regularCents: flat,
+      overtimeCents: Math.round(week.overHours * rate),
+      appliedBps: 10_000,
+      uncoveredPremiumCents: null,
+      says:
+        `${who} is engaged as a sole trader. Wage and hour law prices overtime for employees, ` +
+        `so what these ${HRS(week.overHours)} are worth is whatever the contract says.`,
+      action: null,
+      caveats: [],
+    }
+  }
+
+  // ── Somewhere we have no rules for ─────────────────────────────────
+  if (at.rule === 'DEFAULT') {
+    return {
+      ok: false,
+      code: 'CANNOT_SAY',
+      ...nothing,
+      says:
+        `${who} worked ${HRS(week.overHours)} over the line in the week of ` +
+        `${DAY_NAME(week.weekOf)}, and Etyme holds no wage rules for where they work. ` +
+        `Rather than guess, it is left off the file.`,
+      action: 'Tell Etyme which country these hours were worked in, then run payroll again.',
+      caveats: [],
+    }
+  }
+
+  // ── Nowhere statute prices an overtime hour ────────────────────────
+  if (!r.statutoryPremium || r.floorBps == null) {
+    return {
+      ok: true,
+      code: 'CONTRACT_GOVERNS',
+      regularCents: flat,
+      overtimeCents: Math.round(week.overHours * rate),
+      appliedBps: 10_000,
+      uncoveredPremiumCents: null,
+      says:
+        `Under the ${r.label} there is no statutory premium for an overtime hour, so what ` +
+        `${who}'s ${HRS(week.overHours)} are worth is whatever their contract says. Paid flat ` +
+        `because nothing on the buy contract says otherwise.`,
+      action: null,
+      caveats: [
+        'This build holds no overtime terms on a buy contract, so a contractual premium the ' +
+          'employer agreed with the worker is not applied here.',
+      ],
+    }
+  }
+
+  // ── Nobody has said, so nothing is exported ────────────────────────
+  if (!at.assertion) {
+    return {
+      ok: false,
+      code: 'CANNOT_SAY',
+      ...nothing,
+      says: saysCannotClassify(who, week.weekOf, week.overHours, employer, r),
+      action: `Record on ${who}'s contract whether they are exempt from overtime, then run payroll again.`,
+      caveats: [],
+    }
+  }
+
+  // ── Exempt: the contract governs, and two things stay true ─────────
+  if (at.assertion.status === 'EXEMPT') {
+    const named = at.assertion.basis ? EXEMPTION_LABEL[at.assertion.basis] : 'an unnamed'
+    const caveats = [
+      `An exempt employee is owed their full salary for any week in which they do any work, ` +
+        `whatever the hours (29 CFR §541.602). Deductions for a short week are what most ` +
+        `often destroys the exemption after the fact.`,
+    ]
+    const shareModel = at.pay.payModel.startsWith('SHARE_OF')
+    if (!at.pay.paidOnSalaryBasis || shareModel) {
+      caveats.push(
+        `${who} is paid by the hour rather than on a salary, which is the single fact that ` +
+          `most often defeats a ${named} exemption on review. ${employer} asserted it anyway ` +
+          `and the reason is on the file.`
+      )
+    }
+    return {
+      ok: true,
+      code: 'CONTRACT_GOVERNS',
+      regularCents: flat,
+      overtimeCents: Math.round(week.overHours * rate),
+      appliedBps: 10_000,
+      uncoveredPremiumCents: null,
+      says:
+        `${employer} asserts ${who} is exempt under the ${named} exemption, so the ` +
+        `${r.label} entitles them to no premium and their contract governs these ` +
+        `${HRS(week.overHours)}. Paid flat.`,
+      action: null,
+      caveats,
+    }
+  }
+
+  // ── Nonexempt: money, at the floor, whatever the client chose ──────
+  const overtimeCents = Math.round(week.overHours * rate * (r.floorBps / 10_000))
+  const clientBps = at.client.appliedBps
+  const mirrored = clientBps == null ? null : Math.round(week.overHours * rate * (clientBps / 10_000))
+  const uncovered = mirrored == null ? null : Math.max(0, overtimeCents - mirrored)
+
+  const caveats = [
+    `Computed on the pay rate as the regular rate. A nondiscretionary bonus, a shift ` +
+      `differential or anything else paid for this week raises the regular rate and the ` +
+      `premium with it (29 U.S.C. §207(e)), so this is a floor rather than the answer.`,
+  ]
+  if (r.mayBeHigherLocally) caveats.push(r.mayBeHigherLocally)
+
+  let says: string
+  if (at.client.treatment === 'TIME_OFF') {
+    says =
+      `${client} banked ${who}'s ${HRS(week.overHours)} from the week of ${DAY_NAME(week.weekOf)} ` +
+      `as paid time off. That is how ${client} is billed and it does not reach the pay line: time ` +
+      `off instead of overtime pay is lawful for public agencies only (29 U.S.C. §207(o)), and ` +
+      `${employer} is not one. ${who} is owed ${HRS(week.overHours)} at ${multiple(r.floorBps)} ` +
+      `— ${USD(overtimeCents)} — on this period's payroll.`
+  } else if (at.client.treatment === 'SAME_RATE') {
+    says =
+      `${client} is billed ${who}'s ${HRS(week.overHours)} from the week of ${DAY_NAME(week.weekOf)} ` +
+      `at the usual rate. ${who} is nonexempt, so ${employer} owes ${multiple(r.floorBps)} on them ` +
+      `regardless — ${USD(overtimeCents)}. What a client agrees to pay its supplier does not set ` +
+      `what the supplier owes its employee.`
+  } else if (at.client.treatment === 'PREMIUM' && uncovered != null && uncovered > 0) {
+    says =
+      `${client} priced ${who}'s ${HRS(week.overHours)} at ${multiple(clientBps!)}, which is under ` +
+      `the ${multiple(r.floorBps)} a nonexempt employee is owed. ${employer} pays ` +
+      `${USD(overtimeCents)}.`
+  } else {
+    says =
+      `${who} is nonexempt, so ${HRS(week.overHours)} over the line are owed in money at ` +
+      `${multiple(r.floorBps)} — ${USD(overtimeCents)}.`
+  }
+
+  if (uncovered != null && uncovered > 0) {
+    says +=
+      ` ${USD(uncovered)} of that is premium ${client}'s own choice did not price, and ` +
+      `${employer} carries it.`
+  }
+
+  // Banked hours are a timing difference until they are not. The leave
+  // bills when it is taken, so the supplier is out of pocket this period
+  // and whole later — unless the assignment ends first, or the leave is
+  // never taken, in which case the whole premium was a real loss. Said
+  // here because a supplier that agrees to TIME_OFF cheerfully is a
+  // supplier that has been told none of this.
+  if (at.client.treatment === 'TIME_OFF') {
+    caveats.push(
+      `${employer} pays this now. It bills ${client} when the banked leave is taken, so it is ` +
+        `out of pocket in between — and out of pocket for good if the assignment ends before ` +
+        `the leave is used.`
+    )
+  }
+
+  return {
+    ok: true,
+    code: 'OWED_IN_MONEY',
+    regularCents: flat,
+    overtimeCents,
+    appliedBps: r.floorBps,
+    uncoveredPremiumCents: uncovered,
+    says,
+    action: null,
+    caveats,
+  }
+}
+
+/**
+ * The refusal, said to a payroll clerk who has never seen this product.
+ *
+ * Names the person, the week, the hours, the line they went over, who
+ * has to answer and what happens next. Never a code: a clerk who reads
+ * FLSA_UNKNOWN has to find somebody who knows what it means before they
+ * can do anything, and that person is usually on leave.
+ */
+export function saysCannotClassify(
+  personName: string,
+  weekOf: string,
+  overHours: number,
+  employerName: string,
+  rules: WageRules = WAGE_RULES.US_FLSA
+): string {
+  const after = rules.weeklyAfterHours ?? 40
+  return (
+    `${personName} worked ${HRS(overHours)} over ${after} in the week of ${DAY_NAME(weekOf)}. ` +
+    `${employerName} has not said whether ${personName} is exempt from overtime, so nobody can ` +
+    `say what those hours are worth — time and a half if they are not, the contract rate if they ` +
+    `are. The week is left off the payroll file rather than paid at the wrong one.`
+  )
 }

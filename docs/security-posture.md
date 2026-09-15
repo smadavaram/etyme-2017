@@ -148,8 +148,8 @@ sentence rather than a code.
 
 ## 6. Evidence rather than assertion
 
-Three places where the system keeps what it was told rather than what it
-concluded. A reviewer should care about all three, because each is a
+Four places where the system keeps what it was told rather than what it
+concluded. A reviewer should care about all four, because each is a
 place where a convenient boolean would have been easier.
 
 1. **Attestations, not verdicts.** A record says "verified by Acme on 12
@@ -162,7 +162,28 @@ place where a convenient boolean would have been easier.
    and silence may not.
    `src/lib/worker-classification.ts`,
    `__tests__/invariants/classification-call.test.ts`
-3. **A match score always carries its factors, basis, confidence and
+3. **Exempt status is recorded and never decided.** Whether an employee
+   is exempt from overtime turns on what they actually do day to day,
+   which only their employer knows, and it is an affirmative defense
+   that employer has to prove. So the employer asserts it, naming which
+   exemption under 29 CFR §541 it stands on, and Etyme holds the
+   assertion with who made it and when. What the platform may do on its
+   own is arithmetic in one direction only: it can rule an exemption
+   out on a pay rate that cannot reach the regulation's floor, and it
+   has no verdict that means exempt. The return type carries two values
+   and neither of them is EXEMPT, for the same reason the
+   cleared-to-place function throws.
+
+   The consequence on the pay side is the one worth checking: a
+   client's choice to bank overtime as time off is a billing treatment
+   between a client and its supplier, and it never reduces what a
+   nonexempt employee is paid — time off in lieu of overtime pay is
+   lawful for public agencies only (29 U.S.C. §207(o)). A payroll week
+   whose status nobody has asserted is left off the file and named,
+   rather than exported at whichever rate was handy.
+   `src/lib/worker-classification.ts`,
+   `__tests__/invariants/exempt-status.test.ts`
+4. **A match score always carries its factors, basis, confidence and
    unknowns.** A bare number is treated as a defect.
    `src/lib/match-engine.ts`, `src/lib/why.ts`
 

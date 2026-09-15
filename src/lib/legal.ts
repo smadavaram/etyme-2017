@@ -340,6 +340,20 @@ export const HELD: HeldCategory[] = [
     provenBy: 'DocumentPacket, PacketItem, VerificationDoc in prisma/schema.prisma',
   },
   {
+    category: 'Positions taken about how somebody is engaged',
+    examples:
+      'Whether a company treats somebody as its employee or as an independent ' +
+      'contractor, and — where they are an employee — whether that employer says they ' +
+      'are exempt from overtime. Both are held as what a company asserted: the answers ' +
+      'it gave, the position it took, who took it, when, the written reason where the ' +
+      'position departs from what the answers indicate, and a date to remake it. Etyme ' +
+      'takes neither position itself: it is neither the employer nor their lawyer, and a ' +
+      'determination about employment status is the duty of whoever carries the liability ' +
+      'for getting it wrong.',
+    about: 'Candidates',
+    provenBy: 'ClassificationCall in prisma/schema.prisma; src/lib/worker-classification.ts',
+  },
+  {
     category: 'Money about a person',
     examples:
       'Pay rates and bill rates on contracts, timesheets and the hours accepted, ' +
@@ -594,8 +608,19 @@ export const TERMS: { title: string; intro: string; sections: Section[] } = {
           'happened — who ran it, when, and when it expires — and refuses to convert ' +
           'those records into a single verdict about a person. The duty to decide stays ' +
           'with whoever is legally accountable for it.',
+        'The same holds for employment status. Etyme does not decide whether somebody is ' +
+          'an employee or an independent contractor, and it does not decide whether an ' +
+          'employee is exempt from overtime. It records what a company asserted, with the ' +
+          'reason where the assertion departs from what the facts on file indicate. Where ' +
+          'arithmetic alone settles part of the question — a pay rate below the floor every ' +
+          'overtime exemption requires — it says so, and it still never concludes that ' +
+          'anybody is exempt, because that turns on what the person actually does and only ' +
+          'their employer knows it.',
       ],
-      provenBy: 'src/lib/attestation.ts, where the function that would return a single verdict throws instead',
+      provenBy:
+        'src/lib/attestation.ts, where the function that would return a single verdict throws ' +
+        'instead; src/lib/worker-classification.ts, where the exemption screen has no verdict ' +
+        'that means exempt',
     },
     {
       heading: 'Accounts and seats',
