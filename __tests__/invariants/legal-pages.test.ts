@@ -36,6 +36,10 @@ import { ACTIONS, ALL_ACTIONS } from '@/lib/autonomy'
 const ROOT = process.cwd()
 const PROSE = allProse()
 const POSTURE = readFileSync(join(ROOT, 'docs/security-posture.md'), 'utf8')
+const POLICY = readFileSync(join(ROOT, 'SECURITY.md'), 'utf8')
+
+/** The address that does not exist yet, written once so a test can find it. */
+const PLACEHOLDER = 'security@etyme.example'
 
 const ALL_SECTIONS: Section[] = [...TERMS.sections, ...PRIVACY.sections, ...DPA.sections]
 
@@ -372,7 +376,7 @@ describe('The security posture is as plain about what is absent as what is prese
     expect(POSTURE).toMatch(/No SOC 2 Type I or Type II/i)
     expect(POSTURE).toMatch(/No ISO 27001/i)
     expect(POSTURE).toMatch(/No third-party penetration test, ever/i)
-    expect(POSTURE).toMatch(/no published vulnerability disclosure address/i)
+    expect(POSTURE).toMatch(/No live vulnerability disclosure address/i)
     expect(POSTURE).toMatch(/No retention schedule/i)
     expect(POSTURE).toMatch(/No rate limiting/i)
     expect(POSTURE).toMatch(/No disaster recovery plan/i)
@@ -412,5 +416,72 @@ describe('The security posture is as plain about what is absent as what is prese
   it('every file the security posture names actually exists', () => {
     const missing = pathsNamedIn(POSTURE).filter((p) => !exists(p))
     expect(missing, `paths named in docs/security-posture.md that do not exist:\n  ${missing.join('\n  ')}`).toEqual([])
+  })
+})
+
+describe('The security policy tells a researcher what to do, and promises nothing nobody has promised', () => {
+  it('it is a real policy and not the GitHub template it was', () => {
+    expect(POLICY).not.toMatch(/Use this section to tell people/i)
+    expect(POLICY).not.toMatch(/white_check_mark/)
+    expect(POLICY).toMatch(/## Reporting a vulnerability/)
+    expect(POLICY).toMatch(/## Scope/)
+    expect(POLICY).toMatch(/## Coordinated disclosure/)
+  })
+
+  it('the reporting address is marked on its face as a placeholder nobody reads', () => {
+    expect(POLICY).toContain(PLACEHOLDER)
+    // The warning is above the address, not buried under it.
+    const banner = POLICY.indexOf('does not exist and nobody reads it')
+    const heading = POLICY.indexOf('## Reporting a vulnerability')
+    expect(banner, 'the placeholder warning must come before the reporting section').toBeGreaterThan(-1)
+    expect(banner).toBeLessThan(heading)
+    expect(POLICY).toMatch(/The founder has to set the real address/i)
+    // Every mention of it is either inside the banner or flagged beside it.
+    expect(POLICY).toMatch(/placeholder; see the banner above/i)
+  })
+
+  it('it promises no response time, because nobody has committed to one', () => {
+    expect(POLICY).toMatch(/No response-time commitment is made in this document/i)
+    expect(
+      POLICY,
+      'a clock nobody agreed to must not appear'
+    ).not.toMatch(/within \d+\s*(hours|business days|days)/i)
+    expect(POLICY).toMatch(/would be inventing a commitment nobody has made/i)
+  })
+
+  it('it says what is in scope and what is not, and sends the known gaps back to the posture', () => {
+    expect(POLICY).toMatch(/### In scope/)
+    expect(POLICY).toMatch(/### Out of scope/)
+    // The legacy Rails tree is in the repository and is not deployed.
+    expect(POLICY).toMatch(/2017 Rails tree/i)
+    expect(existsSync(join(ROOT, 'Gemfile')), 'the out-of-scope claim assumes it is still here').toBe(true)
+    // A reporter is pointed at the published gap list rather than rediscovering it.
+    expect(POLICY).toMatch(/docs\/security-posture\.md/)
+    expect(POLICY).toMatch(/is a welcome nudge but is not a new finding/i)
+  })
+
+  it('it offers no bounty, because there is no budget for one', () => {
+    expect(POLICY).toMatch(/There is no bug bounty and no payment/i)
+    expect(POLICY).not.toMatch(/\$\s?\d/)
+  })
+
+  it('it asks for coordinated disclosure and leaves the binding safe harbor to counsel', () => {
+    expect(POLICY).toMatch(/give us a reasonable chance to fix it/i)
+    expect(POLICY).toMatch(/agree a disclosure date with you rather than impose one/i)
+    expect(POLICY).toMatch(/states an intent, not a/i)
+    expect(POLICY).toMatch(/warranty/i)
+    expect(POLICY).toMatch(/For counsel/i)
+  })
+
+  it('the policy and the security posture say the same thing about the address', () => {
+    // Both say it exists as a document and that the address in it is not live.
+    expect(POSTURE).toContain(PLACEHOLDER)
+    expect(POSTURE).toMatch(/visibly marked placeholder/i)
+    expect(POSTURE).toMatch(/No live vulnerability disclosure address/i)
+    // And the posture no longer describes a template that is gone.
+    expect(POSTURE).not.toMatch(/unedited GitHub template/i)
+    // Both send a reporter to the same place meanwhile.
+    expect(POLICY).toMatch(/use the commercial contact/i)
+    expect(POSTURE).toMatch(/commercial contact who sent it to you/i)
   })
 })

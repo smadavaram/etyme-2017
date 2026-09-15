@@ -313,17 +313,24 @@ server-side across every path.
 **Not there.** No severity scale, no on-call rotation, no defined
 notification clock, no named customer contact, no rehearsed runbook, no
 log aggregation or SIEM beyond the platform's own request logs, no
-alerting on anomalous access patterns. `SECURITY.md` at the repository
-root is still the unedited GitHub template, so **there is no published
-vulnerability disclosure address**. That is the cheapest thing on this
-list to fix and it has not been fixed.
+alerting on anomalous access patterns.
+
+**Vulnerability reporting.** `SECURITY.md` at the repository root is a
+real policy now — how to report, what happens next, what is in scope,
+what is out, and a coordinated-disclosure posture. **The address in it is
+a visibly marked placeholder**: `security@etyme.example` does not exist
+and nobody reads it. The policy says so at the top of its own file rather
+than reading as though it were live. Setting the real address and
+pointing it at a watched mailbox is the founder's, and until it is done a
+reporter is told to use their commercial contact. No response-time
+commitment is made, because nobody has made one.
 
 ---
 
 ## 13. Software assurance
 
-- **4,717 tests across 243 files** at the commit this document was
-  written on (2026-09-15), run on every change. Never merged on a red
+- **4,724 tests across 243 files** at the commit this document was last
+  revised on (2026-09-15), run on every change. Never merged on a red
   test — a stated rule, not an aspiration.
 - Tests are named as English sentences, because the founder cannot read
   code and reads test names to confirm the behavior is what he meant.
@@ -353,8 +360,14 @@ Stated in one place so a reviewer does not have to assemble it.
 - No SOC 2 Type I or Type II.
 - No ISO 27001.
 - No third-party penetration test, ever.
-- No bug bounty, and no published vulnerability disclosure address
-  (`SECURITY.md` is the unedited GitHub template).
+- No bug bounty and no reward of any kind; `SECURITY.md` says so plainly.
+- **No live vulnerability disclosure address.** The policy exists; the
+  address in it is a marked placeholder until the founder sets a real
+  one.
+- No PGP key published for encrypted reports.
+- No legally reviewed safe harbor. `SECURITY.md` states an intent not to
+  pursue good-faith research in scope, and flags the binding wording as
+  counsel's.
 - No cyber insurance disclosed here.
 
 **Data lifecycle**
@@ -407,9 +420,10 @@ Stated in one place so a reviewer does not have to assemble it.
 Only things somebody has actually committed to, per the rule that
 "planned" must not be decoration.
 
-- **A published vulnerability disclosure address**, replacing the GitHub
-  template in `SECURITY.md`. Uncommitted as of this writing but it is a
-  one-line change with no dependency.
+- **A live vulnerability disclosure address.** The policy is written and
+  committed (`SECURITY.md`); what remains is the founder setting a real
+  mailbox and replacing the marked placeholder in it. One change, no
+  dependency on anything else.
 - **The retention and erasure question** is on the counsel list at
   `/dpa` and `/privacy` and blocks the first paying client. No period is
   stated anywhere until one is implemented.
@@ -422,6 +436,9 @@ of the rest of the document.
 
 ## 16. Who to ask
 
-There is no security contact address yet. Until `SECURITY.md` carries
-one, questions go through the commercial contact who sent you this
-document.
+`SECURITY.md` at the repository root is the policy for reporting a
+vulnerability — scope, process and coordinated disclosure.
+
+**The address in it is a placeholder and nobody reads it.** Until the
+founder sets a real one, both a vulnerability report and a question about
+this document go to the commercial contact who sent it to you.
