@@ -17,6 +17,37 @@
  * the only hours in it are ones the employer has accepted for pay, and
  * an unaccepted sheet is left out and reported rather than included with
  * a flag somebody was supposed to notice.
+ *
+ * ── What this file does NOT do, and why it has not been changed ───────
+ *
+ * Every hour here is valued flat: `hours × rateCents`, and the ADP
+ * column is headed "Reg Hours". So a 45-hour week that the client was
+ * billed $4,750 for is paid $4,500, and nothing says so.
+ *
+ * That gap is deliberate for now, because closing it correctly needs two
+ * things this codebase does not have:
+ *
+ * **A rate to pay the premium at.** The client's treatment is a *billing*
+ * treatment on the sell leg. What the employer owes is the buy leg, and
+ * `BuyContract` carries no overtime terms at all — pay is
+ * `BuyContractCandidate.payRate`, with `RateHistory.overtimeRate`
+ * alongside it, which the rate-history route writes and nothing reads.
+ * Mirroring the client's `appliedBps` onto the pay line would price
+ * somebody's wages off an agreement they are not party to, which is the
+ * same error as billing a client at its sub-vendor's rate.
+ *
+ * **A classification.** Under the FLSA a nonexempt W2 employee must be
+ * paid time and a half in MONEY for hours over forty in a workweek, and
+ * comp time in lieu is lawful for public agencies only (29 U.S.C.
+ * §207(o)). So a client's TIME_OFF decision must never reach a private
+ * employer's W2 pay line — and nothing in the schema records whether a
+ * given person is exempt, so this file cannot tell which rule applies.
+ *
+ * Until both exist, paying flat and saying so here is the honest
+ * position: a plausible premium computed off the wrong leg would be
+ * worse than a known gap, because nobody audits a number that looks
+ * right. What is needed is written up for the architect and for
+ * etyme-regulatory rather than guessed at here.
  */
 
 export type Provider = 'ADP' | 'PAYCHEX' | 'GENERIC'

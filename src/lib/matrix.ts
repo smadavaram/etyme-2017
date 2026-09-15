@@ -371,7 +371,7 @@ export const MATRIX: L1[] = [
             'An hour nobody has decided is not billed at any price, and the invoice says how many it left off',
             'A decision that has reached an invoice is stamped billed, and billed cannot be changed'],
           implementedBy: ['src/lib/invoice-loop.ts', 'src/lib/periods.ts', 'src/lib/cycle-generator.ts',
-            'src/app/api/invoices/generate/route.ts'],
+            'src/app/api/invoices/generate/route.ts', 'scripts/backfill-overtime-decisions.ts'],
           testedBy: ['__tests__/invariants/invoice-loop.test.ts', '__tests__/invariants/periods.test.ts',
             '__tests__/invariants/cycles.test.ts', '__tests__/invariants/invoice-overtime.test.ts'] },
         { code: 'L3.4.1.2', name: 'Partner functions', owner: 'AR clerk', status: B,

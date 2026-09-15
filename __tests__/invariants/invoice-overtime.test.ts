@@ -334,6 +334,25 @@ describe('what an invoice may bill for a week that went over the line', () => {
     expect(unbackfilled.value.totalCents).toBe(40 * RATE)
   })
 
+  it('the backfill answers only weeks somebody already approved, and never the worker whose hours they are', () => {
+    const script = read('scripts/backfill-overtime-decisions.ts')
+    // Approved by the column or by the ledger, and nothing else. An
+    // open week is a question for the approval desk.
+    expect(script).toContain("{ status: 'APPROVED' }")
+    expect(script).toContain("role: 'CLIENT_APPROVAL', state: 'LIVE'")
+    // Nobody decides overtime on their own hours, including a script.
+    expect(script).toContain('id !== sheet.personId')
+    // What was applied is what the contract said, because that is what
+    // the invoice charged.
+    expect(script).toContain("treatment: 'PREMIUM'")
+    expect(script).toContain('appliedBps: contract.overtimeMultiplierBps')
+    // A week already on an invoice is stamped billed with that
+    // invoice's own date, so it cannot be re-answered afterwards.
+    expect(script).toContain('billedAt: billedOn')
+    // And it says in words that nobody signed these.
+    expect(script).toContain('Derived, not decided')
+  })
+
   it('straight time is straight time: no threshold means no premium and nothing pending', () => {
     const b = billableInPeriod(
       sheet(week('2026-09-07', [12, 12, 12, 12, 12])), SEPTEMBER, 'SPLIT', RATE,
