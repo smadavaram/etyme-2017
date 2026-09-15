@@ -133,6 +133,7 @@ export const MATRIX: L1[] = [
             'Category before cleverness, the way Concur says travel and expense',
             'Never one module describing itself',
             'Never lead with AI, and never claim we place anybody',
+            'The terms, the privacy notice and the DPA are reachable from the footer, and no price is on the page',
           ],
           implementedBy: ['src/lib/positioning.ts', 'src/app/page.tsx'],
           testedBy: ['__tests__/invariants/positioning.test.ts'] },
