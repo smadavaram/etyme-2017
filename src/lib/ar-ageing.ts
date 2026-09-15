@@ -209,6 +209,23 @@ export interface ArInvoice {
   receiptsMinor?: number | null
   /** When the last receipt landed, where receipts were read. */
   lastPaymentAt?: Date | null
+  /**
+   * Whether the payment clock has actually started.
+   *
+   * Absent means yes, which is what every invoice counted from the end
+   * of its work period or from the day it was issued looks like.
+   *
+   * False is the case this exists for: terms that run from receipt of
+   * the invoice, where nobody has confirmed receipt. The days are real
+   * and the anchor is real and the date they are counted from has not
+   * happened, so the invoice is not current, not late, and not payable —
+   * it is waiting. Ageing it anyway would put a client into a dunning
+   * run for a bill our own contract says is not yet due, which is the
+   * one direction an AR report must never be wrong in.
+   */
+  clockStarted?: boolean
+  /** What the clock is waiting for, in words, where it has not started. */
+  waitingFor?: string | null
 }
 
 export interface AgedInvoice extends ArInvoice {
@@ -294,7 +311,11 @@ export function settlementOf(inv: ArInvoice): {
 }
 
 export function ageInvoice(inv: ArInvoice, now: Date): AgedInvoice {
-  const days = daysOverdue(inv.dueAt, now)
+  // A clock that has not started cannot have run out. The stored due
+  // date on those is the earliest the invoice could fall due, never a
+  // promise anybody made, so nothing counts days against it.
+  const running = inv.clockStarted !== false
+  const days = running ? daysOverdue(inv.dueAt, now) : 0
   const s = settlementOf(inv)
 
   // Only a finding where both numbers were actually read. Null receipts
@@ -314,7 +335,13 @@ export function ageInvoice(inv: ArInvoice, now: Date): AgedInvoice {
     unappliedMinor: s.unappliedMinor,
     disputed: s.disputed,
     receiptsDisagree,
-    says: saysOf(inv, days, s),
+    says: running
+      ? saysOf(inv, days, s)
+      : s.settlement === 'SETTLED' || s.settlement === 'OVERPAID'
+        ? saysOf(inv, days, s)
+        : `${inv.number} is not payable yet: the payment terms count from a day that has not ` +
+          `happened, and we are waiting on ${inv.waitingFor ?? 'the client'}. ` +
+          'It is not late and must not be chased.',
   }
 }
 

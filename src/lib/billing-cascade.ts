@@ -32,10 +32,33 @@ export interface Resolved<T> {
   overrode: { value: T; source: Source } | null
 }
 
+/**
+ * What the net days are counted from.
+ *
+ * All four are real arrangements, which is why this is a term and not a
+ * constant. `PERIOD_END` is the default because it is what every invoice
+ * raised before the column existed was counted from, so adding the term
+ * moved nothing.
+ */
+export type TermsAnchor = 'RECEIPT_DATE' | 'INVOICE_DATE' | 'PERIOD_END' | 'APPROVAL_DATE'
+
+export const ANCHORS: TermsAnchor[] = ['RECEIPT_DATE', 'INVOICE_DATE', 'PERIOD_END', 'APPROVAL_DATE']
+
+export function isAnchor(x: unknown): x is TermsAnchor {
+  return typeof x === 'string' && (ANCHORS as string[]).includes(x)
+}
+
 /** The system's own assumptions, used only when nobody has said otherwise. */
 export const PLATFORM_DEFAULTS = {
   paymentTermsDays: 30,
   currency: 'USD',
+  /**
+   * Where the clock starts when nobody has said. The end of the work
+   * period, because that is what the arithmetic did before anybody could
+   * choose — so an agreement written before the term existed keeps the
+   * due dates it already had.
+   */
+  paymentTermsFrom: 'PERIOD_END' as TermsAnchor,
   /** Whether an invoice must quote a purchase order to be payable. */
   poRequired: false,
 } as const
@@ -97,14 +120,28 @@ export interface CascadeInputs {
   agreement: {
     paymentTermsDays?: number | null
     currency?: string | null
+    /**
+     * Where the days are counted from. Two levels rather than three:
+     * `Company` carries no anchor and is not going to. Payment terms are
+     * negotiated in an agreement and varied on a placement, and a
+     * company-wide "we always count from receipt" is a knob nobody has
+     * asked for — the kind that took the 2017 cycle engine to four
+     * thousand commits.
+     */
+    paymentTermsFrom?: string | null
     counterpartyName: string
   } | null
-  contract: { paymentTermsDays?: number | null; currency?: string | null } | null
+  contract: {
+    paymentTermsDays?: number | null
+    currency?: string | null
+    paymentTermsFrom?: string | null
+  } | null
 }
 
 export interface BillingTerms {
   paymentTermsDays: Resolved<number>
   currency: Resolved<string>
+  paymentTermsFrom: Resolved<TermsAnchor>
 }
 
 export function resolveBillingTerms(input: CascadeInputs): BillingTerms {
@@ -131,6 +168,152 @@ export function resolveBillingTerms(input: CascadeInputs): BillingTerms {
       PLATFORM_DEFAULTS.currency,
       'nobody has set a currency, so US dollars is assumed'
     ),
+    paymentTermsFrom: resolve<TermsAnchor>(
+      [
+        {
+          source: 'CONTRACT',
+          value: isAnchor(input.contract?.paymentTermsFrom) ? input.contract!.paymentTermsFrom as TermsAnchor : null,
+          label: 'set on this contract',
+        },
+        {
+          source: 'AGREEMENT',
+          value: isAnchor(input.agreement?.paymentTermsFrom) ? input.agreement!.paymentTermsFrom as TermsAnchor : null,
+          label: agreementLabel,
+        },
+      ],
+      PLATFORM_DEFAULTS.paymentTermsFrom,
+      'nobody has said what the days run from, so the end of the work period is assumed'
+    ),
+  }
+}
+
+// ── When it is actually due ───────────────────────────────────────────
+//
+// `dueAt = period.end + paymentTerms` was what the invoice route did, and
+// it is wrong against almost every agreement anybody signs. NET 30 runs
+// from receipt of the invoice. A period ending the 31st is invoiced on
+// the 6th, once the hours are in and approved, and counting from the 31st
+// claims it due six days early — so we chase a client who is not late,
+// and every days-sales-outstanding figure in the company is overstated by
+// however long it takes us to raise the bill.
+//
+// ── Why a clock can fail to start ─────────────────────────────────────
+//
+// Two of the four anchors depend on something the client does. An
+// invoice on RECEIPT_DATE terms has, at the moment it is raised,
+// definitionally not been received; one on APPROVAL_DATE has not been
+// approved. The due date is then not late, not early, and not thirty
+// days from today — it is **unknown**, and the only honest thing to
+// print is what it is waiting for.
+//
+// Defaulting to the invoice date "for now" is what a reasonable person
+// does here, and it is exactly the flattering guess this refuses: the
+// invoice would age, turn up in a dunning run, and a client would get a
+// reminder for a bill whose payment clock our own contract says has not
+// started.
+//
+// So `dueOn` returns the earliest the invoice could become due, together
+// with `clockStarted: false` and a sentence. Every reader — the aging,
+// the dunning ladder, the screen — asks whether the clock has started
+// before it calls anything late.
+
+export interface DueInput {
+  anchor: TermsAnchor
+  /** Net days. Zero is real: due on the anchor itself. */
+  days: number
+  /** The last day of the work period being billed. */
+  periodEnd: Date
+  /** The day we raised it. */
+  issuedAt: Date
+  /** The day the client confirmed it landed. Null until they say. */
+  receivedAt?: Date | null
+  /** The day the client approved it for payment. Null until they do. */
+  approvedAt?: Date | null
+}
+
+export interface DueVerdict {
+  /** The due date, or the earliest it could be where the clock has not started. */
+  dueAt: Date
+  /** The date the days were counted from, null where that date has not happened. */
+  anchoredOn: Date | null
+  /**
+   * False where the anchor's own date has not happened yet. A false here
+   * means `dueAt` is the earliest possible date and nothing may call the
+   * invoice late.
+   */
+  clockStarted: boolean
+  /** What the clock is waiting for, in words. Null where it is running. */
+  waitingFor: string | null
+  /** The whole thing as a person would say it. */
+  says: string
+}
+
+const A_DAY = 86_400_000
+
+const plus = (d: Date, days: number): Date => new Date(d.getTime() + days * A_DAY)
+const said = (d: Date): string => d.toISOString().slice(0, 10)
+
+/** What each anchor is called on a screen. */
+export function anchorWords(anchor: TermsAnchor): string {
+  switch (anchor) {
+    case 'RECEIPT_DATE': return 'the day the client received it'
+    case 'INVOICE_DATE': return 'the day it was issued'
+    case 'PERIOD_END': return 'the end of the work period'
+    case 'APPROVAL_DATE': return 'the day the client approved it'
+  }
+}
+
+/**
+ * When this invoice is due, and whether that is yet knowable.
+ *
+ * No database, no Prisma row, no rounding: four dates and a number of
+ * days. Every place that needs a due date asks this one, so an invoice,
+ * an aging bucket and a dunning letter cannot hold three opinions about
+ * when the money was promised.
+ */
+export function dueOn(input: DueInput): DueVerdict {
+  const { anchor, days } = input
+
+  const from =
+    anchor === 'PERIOD_END' ? input.periodEnd
+    : anchor === 'INVOICE_DATE' ? input.issuedAt
+    : anchor === 'RECEIPT_DATE' ? input.receivedAt ?? null
+    : input.approvedAt ?? null
+
+  if (from) {
+    const dueAt = plus(from, days)
+    return {
+      dueAt,
+      anchoredOn: from,
+      clockStarted: true,
+      waitingFor: null,
+      says:
+        days === 0
+          ? `Due on ${said(dueAt)} — on ${anchorWords(anchor)}.`
+          : `Due ${said(dueAt)} — net ${days} from ${anchorWords(anchor)}, ${said(from)}.`,
+    }
+  }
+
+  // The clock has not started. The earliest it could start is today —
+  // the day we raised the invoice — so that is the earliest this could
+  // possibly fall due. It is a floor and never a due date, which is what
+  // `clockStarted: false` says to everything downstream.
+  const waitingFor =
+    anchor === 'RECEIPT_DATE'
+      ? 'the client to confirm they received it'
+      : 'the client to approve it'
+
+  const missing =
+    anchor === 'RECEIPT_DATE' ? 'nobody has confirmed receipt' : 'nobody has approved it'
+
+  return {
+    dueAt: plus(input.issuedAt, days),
+    anchoredOn: null,
+    clockStarted: false,
+    waitingFor,
+    says:
+      `Not payable yet: net ${days} runs from ${anchorWords(anchor)}, and ${missing}. ` +
+      `The earliest this could fall due is ${said(plus(input.issuedAt, days))}.`,
   }
 }
 

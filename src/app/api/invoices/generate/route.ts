@@ -8,7 +8,7 @@ import { billableNow, expenseLine, expenseTotal } from '@/lib/expense-billing'
 import { emit } from '@/lib/events'
 import { periodFor, billableInPeriod, bandsOf, type Terms } from '@/lib/periods'
 import {
-  partnerFunctions, mayConsolidate, selfBilling, taxFor,
+  partnerFunctions, mayConsolidate, selfBilling, taxFor, dueOn, resolveBillingTerms,
   type Place, type Party,
 } from '@/lib/billing-cascade'
 import { minorPerUnit } from '@/lib/money'
@@ -599,13 +599,56 @@ export async function POST(request: NextRequest) {
       ? tax.says
       : null
 
-  // Payment terms from the first contract (they cascade from MSA)
-  // Payment terms run from the end of the period the contract bills, not
-  // from whenever the last timesheet happened to finish. Thirty days from
-  // the 31st is the 30th of next month, every month, whatever shape the
-  // hours arrived in.
-  const paymentTerms = engagement.sellContracts[0].paymentTerms ?? 30
-  const dueAt = new Date(period.end.getTime() + paymentTerms * 86400000)
+  // ── When this is due, and what that counts from ─────────────────────
+  //
+  // It used to be `period.end + paymentTerms`, always. That is wrong
+  // against almost every agreement anybody signs: NET 30 runs from
+  // receipt of the invoice, and a period ending the 31st is billed on
+  // the 6th once the hours are in — so we claimed it due six days early
+  // and chased a client who was not late.
+  //
+  // The anchor cascades the way the days do: this contract, then the
+  // agreement, then the end of the work period, which is what every
+  // invoice raised before the term existed was counted from.
+  const termsContract = firstContract ?? engagement.sellContracts[0]
+  const terms_ = resolveBillingTerms({
+    company: { name: caller.company!.name },
+    agreement: {
+      paymentTermsDays: engagement.msa.paymentTerms,
+      paymentTermsFrom: engagement.msa.paymentTermsFrom,
+      counterpartyName: engagement.msa.client.name,
+    },
+    contract: {
+      paymentTermsDays: termsContract?.paymentTerms,
+      paymentTermsFrom: termsContract?.paymentTermsFrom,
+    },
+  })
+  const paymentTerms = terms_.paymentTermsDays.value
+  const issuedAt = new Date()
+
+  // Receipt cannot have happened: we are raising it now. Approval
+  // likewise. Both leave the clock unstarted, which `dueOn` says out
+  // loud rather than quietly counting from today.
+  const due = dueOn({
+    anchor: terms_.paymentTermsFrom.value,
+    days: paymentTerms,
+    periodEnd: period.end,
+    issuedAt,
+    receivedAt: null,
+    approvedAt: null,
+  })
+  const dueAt = due.dueAt
+
+  // Nothing records when a client approves an invoice — `Invoice` has
+  // `receivedAt` and no `approvedAt` — so a contract on APPROVAL_DATE
+  // terms cannot be dated at all, and says that rather than counting
+  // from a date nobody agreed to.
+  const termsNote =
+    terms_.paymentTermsFrom.value === 'APPROVAL_DATE'
+      ? 'This contract counts its payment days from the day the client approves the invoice, ' +
+        'and nothing here records that yet. Until it does, the invoice cannot be dated and ' +
+        'will not be chased.'
+      : null
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -631,7 +674,7 @@ export async function POST(request: NextRequest) {
           // week with nothing writing it, so every DSO fell back to
           // periodEnd and understated the age. Adding a column is not
           // building a feature; this is the write.
-          issuedAt: new Date(),
+          issuedAt,
           // Queryable, not only in the lines JSON — a rate that exists
           // only inside a blob is not something a return can be filed
           // from. The columns landed for exactly this write.
@@ -870,6 +913,19 @@ export async function POST(request: NextRequest) {
           says: partners.says,
         },
         consolidation: { count: lines.length, says: consolidation.says },
+        // What the due date counts from, said rather than assumed. An AR
+        // clerk who sees "net 30 from the end of the work period" on a
+        // client whose agreement says receipt knows which document to go
+        // and read.
+        terms: {
+          days: paymentTerms,
+          anchor: terms_.paymentTermsFrom.value,
+          because: terms_.paymentTermsFrom.because,
+          clockStarted: due.clockStarted,
+          waitingFor: due.waitingFor,
+          says: due.says,
+          note: termsNote,
+        },
         // What was left off, and why. A blank is an answer here: nothing
         // was waiting.
         overtime: { pendingHours, says: pendingSays },

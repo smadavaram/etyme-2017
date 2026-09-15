@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { fromPrismaDecimal, minorPerUnit } from '@/lib/money'
 import { ageBook, type ArInvoice, type Book } from '@/lib/ar-ageing'
+import { resolveBillingTerms } from '@/lib/billing-cascade'
 
 /**
  * The receivable book, loaded once and used by every AR route.
@@ -35,6 +36,11 @@ export async function loadReceivables(companyId: string) {
     select: {
       id: true, number: true, currency: true, total: true, paid: true,
       dueAt: true, status: true, periodStart: true, periodEnd: true, issuedAt: true,
+      // The day the client confirmed it landed. Null is not "today" — it
+      // is nobody having said, and on terms counted from receipt that is
+      // the difference between an invoice that is late and one whose
+      // payment clock has not started.
+      receivedAt: true,
       payments: { select: { amount: true, receivedAt: true } },
       // Credit notes come off the invoice before it is aged. An invoice
       // credited in full and then chased for ninety days is the failure
@@ -44,7 +50,22 @@ export async function loadReceivables(companyId: string) {
       engagement: {
         select: {
           title: true,
-          msa: { select: { client: { select: { id: true, name: true } }, paymentTerms: true } },
+          msa: {
+            select: {
+              client: { select: { id: true, name: true } },
+              paymentTerms: true, paymentTermsFrom: true,
+            },
+          },
+          // What the payment days are counted from, as this placement
+          // agreed it. Read for the anchor only — the due date itself was
+          // decided when the invoice was raised and is not recomputed
+          // here, because a contract amended in March must not restate a
+          // February promise.
+          sellContracts: {
+            select: { paymentTerms: true, paymentTermsFrom: true },
+            orderBy: { createdAt: 'asc' },
+            take: 1,
+          },
         },
       },
     },
@@ -104,8 +125,52 @@ export function toArInvoices(raw: RawReceivable[]): ArInvoice[] {
       status: i.status,
       receiptsMinor: receipts,
       lastPaymentAt: lastAt,
+      ...clockOf(i),
     }
   })
+}
+
+/**
+ * Has this invoice's payment clock started?
+ *
+ * Two of the four anchors depend on the client doing something —
+ * confirming receipt, approving the invoice — and until they do, the
+ * days have nothing to count from. The stored due date on those is the
+ * earliest the invoice could fall due and not a date anybody promised,
+ * so the aging is told to leave it alone.
+ *
+ * The anchor is read from the contract and the agreement rather than
+ * held on the invoice, which is a known soft spot: amending the anchor
+ * on a live contract changes whether an old invoice is chaseable. The
+ * due date itself does not move, because that was decided and written
+ * when the invoice was raised. Snapshotting the anchor onto `Invoice`
+ * would close it and is the architect's to grant.
+ */
+function clockOf(i: RawReceivable): { clockStarted: boolean; waitingFor: string | null } {
+  const contract = i.engagement.sellContracts[0] ?? null
+  const anchor = resolveBillingTerms({
+    company: { name: i.engagement.msa.client.name },
+    agreement: {
+      paymentTermsDays: i.engagement.msa.paymentTerms,
+      paymentTermsFrom: i.engagement.msa.paymentTermsFrom,
+      counterpartyName: i.engagement.msa.client.name,
+    },
+    contract: {
+      paymentTermsDays: contract?.paymentTerms,
+      paymentTermsFrom: contract?.paymentTermsFrom,
+    },
+  }).paymentTermsFrom.value
+
+  if (anchor === 'RECEIPT_DATE' && !i.receivedAt) {
+    return { clockStarted: false, waitingFor: 'the client to confirm they received it' }
+  }
+  if (anchor === 'APPROVAL_DATE') {
+    // Nothing records when a client approves an invoice, so this clock
+    // cannot start. Said rather than aged: chasing on a date nobody
+    // agreed to is the fault this whole change exists to fix.
+    return { clockStarted: false, waitingFor: 'the client to approve it' }
+  }
+  return { clockStarted: true, waitingFor: null }
 }
 
 /** Every invoice still carrying a balance, across every currency. */
