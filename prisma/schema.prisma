@@ -82,6 +82,8 @@ model Person {
   paymentRunsApproved  PaymentRun[]          @relation("paymentRunApprover")
   classificationsAbout ClassificationCall[]  @relation("classificationSubject")
   classificationsMade  ClassificationCall[]  @relation("classificationDecider")
+  exemptAbout          ExemptAssertion[]     @relation("exemptSubject")
+  exemptAsserted       ExemptAssertion[]     @relation("exemptDecider")
   reconRunsMade        ReconciliationRun[]   @relation("reconRunner")
   /// Contracts whose timesheets they were named to approve.
   approvesContracts    SellContract[]        @relation("contractApprover")
@@ -510,6 +512,9 @@ model Company {
 
   paymentRuns         PaymentRun[]         @relation("paymentRunOwner")
   classificationCalls ClassificationCall[] @relation("classificationOwner")
+  /// Exempt positions this company has taken as the employer. Never as
+  /// the client — the client is not the party an investigator bills.
+  exemptAssertions    ExemptAssertion[]    @relation("exemptAsserter")
   reconRuns           ReconciliationRun[]  @relation("reconOwner")
   reconAgainst        ReconciliationRun[]  @relation("reconAgainst")
 
@@ -663,9 +668,11 @@ model SalesOrder {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  milestones    OrderMilestone[]
-  sellContracts SellContract[]
-  invoices      Invoice[]
+  milestones            OrderMilestone[]
+  sellContracts         SellContract[]
+  invoices              Invoice[]
+  /// Overrides the agreement's rungs for this order's spend.
+  earlyPaymentDiscounts EarlyPaymentDiscount[]
 
   @@unique([companyId, number])
   @@index([companyId, status])
@@ -1286,12 +1293,45 @@ model VisaEvent {
 // ─────────────────────────────────────────────
 
 model MasterAgreement {
-  id           String    @id @default(cuid())
+  id           String  @id @default(cuid())
   vendorId     String
-  vendor       Company   @relation("vendor", fields: [vendorId], references: [id])
+  vendor       Company @relation("vendor", fields: [vendorId], references: [id])
   clientId     String
-  client       Company   @relation("client", fields: [clientId], references: [id])
-  paymentTerms Int       @default(30)
+  client       Company @relation("client", fields: [clientId], references: [id])
+  paymentTerms Int     @default(30)
+
+  // ── What the net days run FROM ─────────────────────────────────────
+  //
+  // NET 30 runs from receipt of the invoice, not from the end of the work
+  // period. The two are the same number only when the invoice goes out on
+  // the last day of the period, which it never does: a period ending the
+  // 31st is invoiced on the 6th once the hours are in and approved, and
+  // counting from the 31st claims it due six days early. The visible cost
+  // of that is chasing a client who is not late, and the invisible one is
+  // a days-sales-outstanding figure that is wrong on every row.
+  //
+  // It is a term, not a constant, because all four answers are real:
+  //
+  //   RECEIPT_DATE   when the client says they got it. The contractual
+  //                  answer almost everywhere, and the one that needs
+  //                  `Invoice.receivedAt` to be honest.
+  //   INVOICE_DATE   when we billed. What most small agreements mean.
+  //   PERIOD_END     when the work finished. Stable, predictable, and
+  //                  what every invoice raised before this column existed
+  //                  was counted from — which is why it is the default.
+  //   APPROVAL_DATE  when the client approved the invoice. Common with
+  //                  an MSP or a VMS portal in the middle.
+  //
+  // Default PERIOD_END on purpose: it is what the arithmetic already
+  // does, so adding this column moves no invoice already raised. A new
+  // contract chooses.
+  //
+  // Cascades the way `paymentTerms` does — contract, then agreement,
+  // then company default (`lib/billing-cascade`).
+  //
+  /// RECEIPT_DATE · INVOICE_DATE · PERIOD_END · APPROVAL_DATE
+  paymentTermsFrom String @default("PERIOD_END")
+
   currency     String    @default("USD")
   /// When it was actually signed. Null means work is running on a
   /// handshake — which is the ordinary state of this industry between an
@@ -1303,13 +1343,80 @@ model MasterAgreement {
   capacity     Int? // max resources for GSA global contracts (null = unlimited)
   createdAt    DateTime  @default(now())
 
-  engagements   Engagement[]
-  requirements  Requirement[]
-  sellContracts SellContract[]
-  salesOrders   SalesOrder[]
+  engagements           Engagement[]
+  requirements          Requirement[]
+  sellContracts         SellContract[]
+  salesOrders           SalesOrder[]
+  /// "3% at zero days, 2% at ten, otherwise net thirty."
+  earlyPaymentDiscounts EarlyPaymentDiscount[]
 
   @@index([vendorId])
   @@index([clientId])
+}
+
+/// One rung of an early-payment discount: pay this fast, take this much off.
+///
+/// ── Why a table and not two columns ─────────────────────────────────
+///
+/// The trade writes it "3/10 net 30" and means one rung, but a supplier
+/// offering a better rate for same-day settlement and a lesser one at ten
+/// days is naming two, and a client comparing them wants both on file. A
+/// pair of columns holds exactly one rung and the second one gets typed
+/// into a notes field, where no arithmetic can reach it. Several rows on
+/// one document is what the founder described — "additional discount if
+/// we pay in 10 days and even better discount when paid net zero" — and
+/// three named tiers is a table.
+///
+/// ── Which document it hangs on ──────────────────────────────────────
+///
+/// Exactly one of `msaId`, `salesOrderId` and `purchaseOrderId` is set.
+/// The agreement carries the standing terms; an order overrides them for
+/// its own spend, the way `paymentTerms` already cascades. Postgres
+/// cannot be asked to enforce "exactly one" from this schema — there are
+/// no migration files, so no CHECK constraint — so the writer enforces
+/// it and a reader that finds none or two should refuse rather than
+/// guess. Same shape and same reasoning as `InvoiceLine`, which is an
+/// hours line, an expense line or a milestone line and never two.
+///
+/// ── What the days are counted from ──────────────────────────────────
+///
+/// The same anchor as the net terms on the same document —
+/// `paymentTermsFrom`. A discount for paying within ten days of an
+/// invoice we have not confirmed was received is not a term anybody
+/// agreed to, and holding a second anchor here is how the two come to
+/// disagree.
+model EarlyPaymentDiscount {
+  id String @id @default(cuid())
+
+  msaId           String?
+  msa             MasterAgreement? @relation(fields: [msaId], references: [id], onDelete: Cascade)
+  /// The sell-side order this narrows. What we offer a client.
+  salesOrderId    String?
+  salesOrder      SalesOrder?      @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  /// The buy-side order this narrows. What a supplier offers us.
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  /// Days from the anchor. Zero is real and is the point — "net zero" is
+  /// settlement on the day, and it carries the best rate precisely
+  /// because it is the hardest to hit.
+  withinDays  Int
+  /// Basis points off the amount owed. 300 is three per cent. Basis
+  /// points rather than a percent so a 1.5% tier does not need a
+  /// decimal, which is the same reason every other rate here is in bps.
+  discountBps Int
+
+  /// Why this rung exists, in the words whoever agreed it used. Shown
+  /// beside the figure so an AP clerk deciding whether to pay early
+  /// reads a reason and not just a number.
+  note String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([msaId, withinDays])
+  @@unique([salesOrderId, withinDays])
+  @@unique([purchaseOrderId, withinDays])
 }
 
 model Requirement {
@@ -2199,6 +2306,10 @@ model SellContract {
   overtimeMultiplierBps Int               @default(15000)
   billCurrency          String            @default("USD")
   paymentTerms          Int               @default(30) // NET days — cascades from MSA, overridable
+  /// RECEIPT_DATE · INVOICE_DATE · PERIOD_END · APPROVAL_DATE — what the
+  /// net days above are counted from. Cascades from the MSA, overridable
+  /// here. See `MasterAgreement.paymentTermsFrom` for why this is a term.
+  paymentTermsFrom      String            @default("PERIOD_END")
   state                 SellContractState @default(DRAFT)
   startDate             DateTime
   endDate               DateTime?
@@ -2350,9 +2461,37 @@ model BuyContract {
   // it: a consultant on a share of the deal takes that hit, a consultant
   // on a fixed wage does not. And a person paid a percentage of a number
   // has to be able to see the number.
-  payModel  PayModel         @default(FIXED_HOURLY)
+  payModel PayModel @default(FIXED_HOURLY)
   /// Basis points of the basis their model names. 7500 = 75%.
-  shareBps  Int?
+  shareBps Int?
+
+  // ── What an overtime hour is worth to the person ───────────────────
+  //
+  // These mirror the two columns on `SellContract`, and they are not the
+  // same fact. The sell leg says what the client is billed for an hour
+  // past the threshold; this says what the worker is paid for it. A
+  // client on straight time and a worker on time-and-a-half is an
+  // ordinary arrangement and the margin absorbs the difference.
+  //
+  // The gap they close: statute sets a floor, not a ceiling, and where an
+  // employer agreed MORE than the floor with the worker — double time
+  // past sixty, a premium after eight in a day — Etyme held that nowhere
+  // at all, so payroll had nothing to value a premium week from except
+  // the client's billing terms, which are not a wage.
+  //
+  // Null threshold is straight time, which is most corp-to-corp work and
+  // is the default because a rate nobody set should never quietly
+  // multiply itself. Where these are null and the person is nonexempt
+  // under a wage rule that prices an overtime hour, the statutory floor
+  // applies — the absence of a term is not a waiver of one.
+
+  /// Hours in a week after which the worker is paid a premium. Null is
+  /// straight time.
+  overtimeAfterHours    Int?
+  /// What an overtime hour is worth to the worker, in basis points of
+  /// their pay rate. 15000 is time and a half.
+  overtimeMultiplierBps Int  @default(15000)
+
   state     BuyContractState @default(DRAFT)
   startDate DateTime
   endDate   DateTime?
@@ -2412,6 +2551,16 @@ model BuyContract {
   //             move the whole timesheet one way. Some clients will not
   //             accept a part-week line.
 
+  /// What the net days on a vendor bill are counted from.
+  ///
+  /// RECEIPT_DATE · INVOICE_DATE · PERIOD_END · APPROVAL_DATE. The days
+  /// themselves are not held here — they cascade from the agreement and
+  /// the company default (`lib/billing-cascade`) — but the anchor is a
+  /// term of this leg: a sub-vendor paid thirty days from the day its
+  /// bill landed is not the same promise as thirty days from the end of
+  /// the month it worked. See `MasterAgreement.paymentTermsFrom`.
+  paymentTermsFrom String @default("PERIOD_END")
+
   /// WEEKLY · BIWEEKLY · SEMIMONTHLY · MONTHLY
   payFrequency String @default("MONTHLY")
   /// CALENDAR · CONTRACT
@@ -2420,6 +2569,9 @@ model BuyContract {
   payStraddle  String @default("SPLIT")
 
   orderPostings OrderPosting[]
+
+  /// The exempt position the employer took on this leg, per person.
+  exemptAssertions ExemptAssertion[]
 
   projectOrderId String?
   projectOrder   ProjectOrder? @relation(fields: [projectOrderId], references: [id])
@@ -2855,6 +3007,20 @@ model Invoice {
   /// no honest value, and guessing one would corrupt the history the
   /// countback reads.
   issuedAt       DateTime?
+  /// The day the CLIENT received it.
+  ///
+  /// `issuedAt` is the day we billed; this is the day the clock a
+  /// contract actually names starts. NET 30 from receipt is the ordinary
+  /// term and the gap between issue and receipt — a portal that queues
+  /// submissions, an AP inbox that does not read on a Friday, a paper
+  /// invoice — was invisible, so a due date computed from anything else
+  /// was a guess wearing a date.
+  ///
+  /// Null until the client tells us, and null is honest: it means nobody
+  /// has confirmed receipt, not that it was received today. A due date
+  /// anchored on RECEIPT_DATE with no receipt has to say so rather than
+  /// quietly fall back to a date that flatters the ageing.
+  receivedAt     DateTime?
   status         String                 @default("ISSUED")
   submittedAt    DateTime?
 
@@ -3885,10 +4051,12 @@ model PurchaseOrder {
   status     String    @default("OPEN") // OPEN · CLOSED · CANCELLED
   createdAt  DateTime  @default(now())
 
-  sellContracts SellContract[]
-  buyContracts  BuyContract[] // the issuer's own subcontracts drawing on it
-  invoices      Invoice[]
-  vendorBills   VendorBill[]
+  sellContracts         SellContract[]
+  buyContracts          BuyContract[] // the issuer's own subcontracts drawing on it
+  invoices              Invoice[]
+  vendorBills           VendorBill[]
+  /// Overrides the agreement's rungs for this order's spend.
+  earlyPaymentDiscounts EarlyPaymentDiscount[]
 
   @@unique([issuedById, number])
   @@index([issuedToId, status])
@@ -3944,7 +4112,23 @@ model RateHistory {
   contractId   String // sellContractId or buyContractId
   rate         Int // cents per hour (or per period depending on rateType)
   rateType     String    @default("HOURLY") // HOURLY · DAILY · WEEKLY · MONTHLY
-  overtimeRate Int? // cents per hour for overtime
+  /// DEAD. Written by `app/api/rate-history`, read by nothing, and now
+  /// superseded.
+  ///
+  /// The premium is a term of the contract, not a version of the rate:
+  /// `SellContract.overtimeMultiplierBps` is what the client is billed
+  /// and `BuyContract.overtimeMultiplierBps` is what the worker is paid,
+  /// both in basis points of the rate in force on the day. This column
+  /// holds a third copy of the same fact in different units, and a third
+  /// copy is how two records come to disagree about what an hour past
+  /// forty was worth — the one question in this table that has a legal
+  /// consequence.
+  ///
+  /// It is still here only because deleting it and removing its writer
+  /// have to land in one commit, and the writer is in etyme-money's
+  /// files. Named as their next piece of work rather than left silent.
+  /// Nothing new may read it.
+  overtimeRate Int? // cents per hour for overtime — deprecated, see above
   fromDate     DateTime
   toDate       DateTime? // null = current/open-ended
   reason       String? // why the rate changed
@@ -5364,6 +5548,80 @@ model ClassificationCall {
   @@index([companyId, personId])
   @@index([personId])
   @@index([decidedById])
+}
+
+/// What an employer asserts about one person's exempt status, and what
+/// the arithmetic was able to say when they asserted it.
+///
+/// ── Why this is recorded and never decided ──────────────────────────
+///
+/// A job title is not a primary duty. Exemption from overtime is an
+/// affirmative defense and the employer bears the burden of proving it,
+/// which means the position has to be theirs, taken in their own words,
+/// with their counsel behind it. A platform that inferred "exempt" from a
+/// title and a rate would be manufacturing the employer's defense out of
+/// data that does not contain it — and the employer would find that out
+/// on the day a Wage and Hour investigator asked who decided.
+///
+/// ── The asymmetry is the design ─────────────────────────────────────
+///
+/// Arithmetic can rule an exemption OUT: a salary below the regulation's
+/// floor, or a share-of-bill model that is not a salary basis at all,
+/// settles the question without anybody's opinion. Nothing in this data
+/// can rule an exemption IN, because the duties test is not here and
+/// never will be. So `screenOutcome` has exactly two values and neither
+/// of them is "exempt".
+///
+/// Keyed on BOTH the contract and the person, deliberately. The same
+/// person can honestly be exempt at one employer and not at another —
+/// different duties, different supervision, different salary basis — and
+/// two people on one buy contract can honestly differ from each other.
+/// A key on the person alone would force one of those answers to be
+/// wrong. `ClassificationCall` is keyed on (company, person) and this is
+/// not that row for exactly this reason.
+model ExemptAssertion {
+  id            String      @id @default(cuid())
+  buyContractId String
+  buyContract   BuyContract @relation(fields: [buyContractId], references: [id], onDelete: Cascade)
+  personId      String
+  person        Person      @relation("exemptSubject", fields: [personId], references: [id])
+
+  /// The employer on this leg. Only they may assert — the client is not
+  /// the party a Wage and Hour investigator bills.
+  assertedByCompanyId String
+  assertedByCompany   Company @relation("exemptAsserter", fields: [assertedByCompanyId], references: [id])
+
+  /// EXEMPT · NONEXEMPT. No third value: "unknown" is the absence of a row.
+  status String
+  /// EXECUTIVE · ADMINISTRATIVE · PROFESSIONAL · COMPUTER · OUTSIDE_SALES ·
+  /// HIGHLY_COMPENSATED. Required when EXEMPT. Null when NONEXEMPT.
+  basis  String?
+
+  /// US_FLSA · UK · DEFAULT
+  wageRule String @default("US_FLSA")
+
+  /// What the screen concluded when this was recorded, so the position is
+  /// re-derivable rather than trusted.
+  screenOutcome  String // CANNOT_BE_EXEMPT · ETYME_CANNOT_SAY
+  screenRulesOut String[]
+  screenSays     String
+
+  /// The employer's own words on the duties. Required and >= 40 chars where
+  /// the screen contradicts the assertion.
+  note String?
+
+  assertedById String?
+  assertedBy   Person?   @relation("exemptDecider", fields: [assertedById], references: [id])
+  assertedAt   DateTime  @default(now())
+  /// Twelve months by default. A promotion changes the duties, and a date
+  /// nothing sweeps is the 2017 certificate bug again.
+  reviewBy     DateTime?
+
+  @@unique([buyContractId, personId])
+  @@index([personId])
+  @@index([assertedByCompanyId])
+  @@index([reviewBy])
+  @@index([assertedById])
 }
 
 /// Somebody who asked to hear from us. Nobody else.

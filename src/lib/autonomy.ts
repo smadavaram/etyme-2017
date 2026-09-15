@@ -21,13 +21,13 @@
  * produce a table that looks rigorous and means nothing:
  *
  *   UNPROMPTED   The system did this and nobody asked. Only these have a
- *                rung on the ladder. Twelve of them.
+ *                rung on the ladder. Thirteen of them.
  *   ENFORCEMENT  The system decided what a person was allowed to do —
  *                refused, warned, or let through. Governance, not
  *                autonomy: a BLOCK on a tenure limit is aimed at
  *                somebody who asked for something. Three of them.
  *   ATTRIBUTED   A person did this and the row is the record that they
- *                did. Eighty-three of them.
+ *                did. Eighty-two of them.
  *
  * That last number is the finding. Most of what is in the automation log
  * is an audit trail of human acts, not automation. Giving those a rung
@@ -133,7 +133,7 @@ export type Act =
   | { kind: 'ENFORCEMENT'; outcome: Outcome; basis: Basis; says: string }
   | { kind: 'ATTRIBUTED'; basis: Basis }
 
-// ── The twelve things we do that nobody asked for ────
+// ── The thirteen things we do that nobody asked for ────
 
 const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
   DUE_CYCLES_SCAN: {
@@ -223,7 +223,7 @@ const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string
   },
 }
 
-// ── The eighty-three things a person did ─────────────
+// ── The eighty-two things a person did ─────────────
 //
 // The row already carries a plain-English summary and reason written by
 // the code that made it, so there is nothing to add here but the fact
