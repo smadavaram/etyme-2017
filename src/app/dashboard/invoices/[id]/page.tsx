@@ -29,6 +29,14 @@ interface Check {
   overridable: boolean
   overriddenBy?: { name: string; reason: string; at: string }
 }
+interface Band {
+  kind: 'REGULAR' | 'LEAVE' | 'OVERTIME'
+  hours: number
+  rate: number
+  amount: number
+  says: string
+}
+
 interface Line {
   id: string
   person: { id: string; name: string }
@@ -36,7 +44,44 @@ interface Line {
   rate: number
   amount: number
   description: string | null
+  /** How the amount is made up, where hours × rate is not the whole story. */
+  bands: Band[]
   receipt: { id: string; status: string; approvedHours: number; period: string } | null
+}
+
+/**
+ * The working under the amount.
+ *
+ * An invoice line exists to be checked by the person paying it, so the
+ * numbers printed here always come out: either the bands, which add up
+ * to the amount, or the plain multiplication where that is what the line
+ * is. Where neither can be shown honestly — an old line whose premium
+ * cannot be recovered — the hours are stated and no false sum is
+ * offered, because a multiplication that does not work is worse than
+ * none.
+ */
+function Working({ l }: { l: Line }) {
+  if (l.bands.length > 0) {
+    return (
+      <div className="text-xs text-etyme-muted">
+        {l.bands.map((b, i) => (
+          <div key={b.kind + i}>
+            {b.hours}h {b.says} — {amountFromUnits(b.rate)}/hr — {amountFromUnits(b.amount)}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const multipliesOut = Math.abs(Math.round(l.hours * l.rate * 100) - Math.round(l.amount * 100)) <= 1
+
+  return (
+    <div className="text-xs text-etyme-muted">
+      {multipliesOut
+        ? <>{l.hours}h × {amountFromUnits(l.rate)}</>
+        : <>{l.hours}h</>}
+    </div>
+  )
 }
 
 function Lbl({ children }: { children: React.ReactNode }) {
@@ -282,7 +327,7 @@ export default function InvoiceDetail() {
               </div>
               <div className="text-right shrink-0 tabular-nums">
                 <div className="text-sm text-etyme-ink">{amountFromUnits(l.amount)}</div>
-                <div className="text-xs text-etyme-muted">{l.hours}h × {amountFromUnits(l.rate)}</div>
+                <Working l={l} />
               </div>
               <div className="w-24 text-right shrink-0">
                 {l.receipt

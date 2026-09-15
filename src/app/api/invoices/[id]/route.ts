@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
 import { invoiceScope } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
-import { matchInvoice } from '@/lib/invoice-match'
+import { matchInvoice, recompute } from '@/lib/invoice-match'
 import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
 
 /**
@@ -58,7 +58,21 @@ export async function GET(
       invoiceLines: {
         include: {
           person: { select: { id: true, name: true } },
-          timesheet: { select: { id: true, status: true, totalHours: true, periodStart: true, periodEnd: true } },
+          timesheet: {
+            select: {
+              id: true, status: true, totalHours: true, periodStart: true, periodEnd: true,
+              // What the line was priced from, so the screen can show
+              // the working rather than a multiplication that does not
+              // come out. Read through the same function the match uses.
+              sellContractId: true, days: true, leaveDays: true,
+              overtimeDecisions: true,
+              sellContract: {
+                select: {
+                  overtimeAfterHours: true, overtimeMultiplierBps: true, billStraddle: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { createdAt: 'asc' },
       },
@@ -116,6 +130,27 @@ export async function GET(
         rate: l.rateCents / 100,
         amount: l.amountCents / 100,
         description: l.description,
+        // ── The working ───────────────────────────────────────────────
+        //
+        // A week signed at a premium does not multiply out: forty-five
+        // hours at $132 is $5,940 and the line says $6,270, because five
+        // of those hours were signed at time and a half. One row per
+        // timesheet per contract is a deliberate constraint, so the two
+        // lines a paper invoice would print are derived here instead —
+        // from the decisions, by the same function the match checks the
+        // line with, so the screen and the control cannot disagree.
+        //
+        // Empty where there is nothing to show: straight-time work, an
+        // expense, or an invoice raised before overtime was a decision.
+        // Then hours × rate is the whole story and the screen prints it.
+        bands: (recompute(l, { start: invoice.periodStart, end: invoice.periodEnd, label: '' })?.bands ?? [])
+          .map(b => ({
+            kind: b.kind,
+            hours: b.hours,
+            rate: b.rateCents / 100,
+            amount: b.amountCents / 100,
+            says: b.says,
+          })),
         receipt: l.timesheet
           ? {
               id: l.timesheet.id,

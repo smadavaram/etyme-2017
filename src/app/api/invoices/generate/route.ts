@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db'
 import { completeCycle } from '@/lib/cycle-complete'
 import { billableNow, expenseLine, expenseTotal } from '@/lib/expense-billing'
 import { emit } from '@/lib/events'
-import { periodFor, billableInPeriod, type Terms } from '@/lib/periods'
+import { periodFor, billableInPeriod, bandsOf, type Terms } from '@/lib/periods'
 import {
   partnerFunctions, mayConsolidate, selfBilling, taxFor,
   type Place, type Party,
@@ -328,7 +328,7 @@ export async function POST(request: NextRequest) {
    * lines, and the match failed its own addition on every invoice that
    * carried one.
    */
-  const priced = new Map<string, { hours: number; cents: number }>()
+  const priced = new Map<string, { hours: number; cents: number; working: string | null }>()
 
   /**
    * Decisions whose hours reach this invoice. A decision that has been
@@ -403,7 +403,21 @@ export async function POST(request: NextRequest) {
     // Guard: LEGACY_RULES.md — cannot invoice if time <= 0
     if (billable.hours <= 0) continue
 
-    priced.set(ts.id, { hours: billable.hours, cents: billable.value.totalCents })
+    // The working, written onto the line itself. A line with a premium
+    // on it does not multiply out — forty-five hours at $132 is $5,940
+    // and the line says $6,270 — and the client's AP desk files this
+    // document rather than opening our screen, so the two bands a paper
+    // invoice would print are stated in the description.
+    const bands = bandsOf(billable.split, rate)
+    const adds = bands.reduce((n, b) => n + b.amountCents, 0) === billable.value.totalCents
+    priced.set(ts.id, {
+      hours: billable.hours,
+      cents: billable.value.totalCents,
+      working:
+        bands.length > 1 && adds
+          ? bands.map((b) => `${b.hours}h ${b.says}`).join(', ')
+          : null,
+    })
     for (const week of billable.weeksBilled) {
       const id = idOfWeek.get(week)
       if (id) decisionsBilled.add(id)
@@ -716,7 +730,9 @@ export async function POST(request: NextRequest) {
               hours: worth.hours,
               rateCents: ts.sellContract.billRate,
               amountCents: worth.cents,
-              description: `${ts.person.name} — ${ts.periodStart.toISOString().slice(0, 10)} to ${ts.periodEnd.toISOString().slice(0, 10)}`,
+              description:
+                `${ts.person.name} — ${ts.periodStart.toISOString().slice(0, 10)} to ${ts.periodEnd.toISOString().slice(0, 10)}` +
+                (worth.working ? ` · ${worth.working}` : ''),
             },
           })
         }

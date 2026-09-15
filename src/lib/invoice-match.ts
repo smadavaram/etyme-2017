@@ -1,8 +1,116 @@
 import { prisma } from '@/lib/db'
 import { threeWayMatch, decimalToCents, type MatchInput, type MatchResult } from '@/lib/three-way-match'
 import { rateInForce } from '@/lib/contract-rate'
-import { billableInPeriod, periodFor, type Terms } from '@/lib/periods'
+import { bandsOf, billableInPeriod, periodFor, type Band, type Period, type Terms } from '@/lib/periods'
 import { policyOf, type Decision } from '@/lib/overtime'
+
+/**
+ * A line as this file needs to read it: the money on it, and the records
+ * it was priced from.
+ *
+ * Deliberately structural rather than a Prisma type — two callers load
+ * it, and a shape they both satisfy is what stops them drifting apart.
+ */
+export interface PricedLine {
+  hours: unknown
+  rateCents: number
+  amountCents: number
+  sellContractId: string | null
+  timesheet: {
+    id: string
+    periodStart: Date
+    periodEnd: Date
+    totalHours: unknown
+    days: unknown
+    leaveDays: unknown
+    sellContractId: string
+    overtimeDecisions: {
+      sellContractId: string
+      weekOf: Date
+      treatment: string
+      appliedBps: number
+      overtimeHours: unknown
+      accrualBps: number
+    }[]
+    sellContract: {
+      overtimeAfterHours: number | null
+      overtimeMultiplierBps: number
+      billStraddle: string
+    }
+  } | null
+}
+
+export interface Working {
+  /** The two or three lines a paper invoice would have printed. */
+  bands: Band[]
+  /** What the line is worth above plain hours × rate. */
+  premiumCents: number
+}
+
+/**
+ * Price a line again from the approval records, and cut the answer into
+ * the bands a person would expect to read.
+ *
+ * One function, two readers. The three-way match asks it whether the
+ * line's arithmetic stands up, and the invoice screen asks it what to
+ * print under the amount — and because it is the same call, a client
+ * cannot be shown a working the match disagrees with.
+ *
+ * Null where there is nothing to recompute from: no timesheet behind the
+ * line, no decision on this leg, or straight-time work. Then the line is
+ * hours × rate and always was, which is what every invoice raised before
+ * overtime became a decision looks like.
+ */
+export function recompute(line: PricedLine, period: Period): Working | null {
+  const ts = line.timesheet
+  if (!ts) return null
+
+  // The answers on the leg being billed, or — in a chain, where approval
+  // records one decision per timesheet — the ones on the leg the hours
+  // live on. Same rule the invoice priced by.
+  const ownLeg = ts.overtimeDecisions.filter(
+    (d) => d.sellContractId === (line.sellContractId ?? ts.sellContractId)
+  )
+  const answering = ownLeg.length > 0 ? ownLeg : ts.overtimeDecisions
+  if (answering.length === 0) return null
+
+  const decisions: Decision[] = answering.map((d) => ({
+    weekOf: d.weekOf.toISOString().slice(0, 10),
+    treatment: d.treatment as Decision['treatment'],
+    appliedBps: d.appliedBps,
+    overtimeHours: Number(d.overtimeHours),
+    accrualBps: d.accrualBps,
+  }))
+
+  const billable = billableInPeriod(
+    {
+      id: ts.id,
+      periodStart: ts.periodStart,
+      periodEnd: ts.periodEnd,
+      days: (ts.days as Record<string, number>) ?? {},
+      leaveDays: (ts.leaveDays as Record<string, number>) ?? {},
+      totalHours: Number(ts.totalHours),
+    },
+    period,
+    ts.sellContract.billStraddle as Terms['straddle'],
+    line.rateCents,
+    policyOf(ts.sellContract),
+    decisions
+  )
+  if (!billable) return null
+
+  const bands = bandsOf(billable.split, line.rateCents)
+
+  return {
+    // Shown only where they add up to what was actually billed. A
+    // working a cent out of the amount beside it is the same fault as a
+    // line that does not multiply out, and the honest answer is to print
+    // the amount and say what it is made of in words instead.
+    bands: bands.reduce((n, b) => n + b.amountCents, 0) === line.amountCents ? bands : [],
+    premiumCents: billable.value.totalCents - Math.round(Number(line.hours) * line.rateCents),
+  }
+}
+
 
 /**
  * Load the three records and match them.
@@ -113,82 +221,8 @@ export async function matchInvoice(invoiceId: string): Promise<MatchResult | nul
       })
     : null
 
-  /**
-   * What an hours line is worth above plain hours × rate.
-   *
-   * Recomputed here from the decision rows and the daily hours — the
-   * approval record — and compared against the invoice, which is what a
-   * three-way match is for. Null where there is nothing to recompute
-   * from: no timesheet, no decision on this leg, or straight-time work,
-   * in which case the extension check is the multiplication it always
-   * was rather than an opinion.
-   */
-  function premiumOn(line: {
-    hours: unknown
-    rateCents: number
-    sellContractId: string | null
-    timesheet: {
-      id: string
-      periodStart: Date
-      periodEnd: Date
-      totalHours: unknown
-      days: unknown
-      leaveDays: unknown
-      sellContractId: string
-      overtimeDecisions: {
-        sellContractId: string
-        weekOf: Date
-        treatment: string
-        appliedBps: number
-        overtimeHours: unknown
-        accrualBps: number
-      }[]
-      sellContract: {
-        overtimeAfterHours: number | null
-        overtimeMultiplierBps: number
-        billStraddle: string
-      }
-    } | null
-  }): number | null {
-    const ts = line.timesheet
-    if (!ts) return null
-
-    // The answers on the leg being billed, or — in a chain, where
-    // approval records one decision per timesheet — the ones on the leg
-    // the hours live on. Same rule the invoice priced by.
-    const ownLeg = ts.overtimeDecisions.filter(d => d.sellContractId === (line.sellContractId ?? ts.sellContractId))
-    const answering = ownLeg.length > 0 ? ownLeg : ts.overtimeDecisions
-    if (answering.length === 0) return null
-
-    const decisions: Decision[] = answering.map(d => ({
-      weekOf: d.weekOf.toISOString().slice(0, 10),
-      treatment: d.treatment as Decision['treatment'],
-      appliedBps: d.appliedBps,
-      overtimeHours: Number(d.overtimeHours),
-      accrualBps: d.accrualBps,
-    }))
-
-    const billable = billableInPeriod(
-      {
-        id: ts.id,
-        periodStart: ts.periodStart,
-        periodEnd: ts.periodEnd,
-        days: (ts.days as Record<string, number>) ?? {},
-        leaveDays: (ts.leaveDays as Record<string, number>) ?? {},
-        totalHours: Number(ts.totalHours),
-      },
-      // The period this invoice actually covers, as it was written on
-      // the day it was raised.
-      { start: inv.periodStart, end: inv.periodEnd, label: '' },
-      ts.sellContract.billStraddle as Terms['straddle'],
-      line.rateCents,
-      policyOf(ts.sellContract),
-      decisions
-    )
-    if (!billable) return null
-
-    return billable.value.totalCents - Math.round(Number(line.hours) * line.rateCents)
-  }
+  const premiumOn = (line: PricedLine): number | null =>
+    recompute(line, { start: inv.periodStart, end: inv.periodEnd, label: '' })?.premiumCents ?? null
 
   const input: MatchInput = {
     invoice: {

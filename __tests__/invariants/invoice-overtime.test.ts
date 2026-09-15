@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { billableInPeriod, periodFor, type Period, type Terms } from '@/lib/periods'
+import { bandsOf, billableInPeriod, periodFor, type Period, type Terms } from '@/lib/periods'
 import { policyOf, splitWeeks, valueOf, mayChange, type Decision } from '@/lib/overtime'
 import { threeWayMatch } from '@/lib/three-way-match'
+import { recompute } from '@/lib/invoice-match'
 
 /**
  * What an invoice may bill for a week that went over the line.
@@ -332,6 +333,130 @@ describe('what an invoice may bill for a week that went over the line', () => {
     // the history would silently lose the premium it was paid for.
     const unbackfilled = billableInPeriod(sheet(days), SEPTEMBER, 'SPLIT', RATE, policy)!
     expect(unbackfilled.value.totalCents).toBe(40 * RATE)
+  })
+
+  it('a premium week\'s invoice can be checked by the person paying it', () => {
+    // Omar Haddad on Nike's desk: $132 an hour, forty-five hours, the
+    // five over the line signed at the contract's time and a half. The
+    // line says $6,270 and forty-five times $132 is $5,940, so the
+    // amount on its own cannot be checked by anybody.
+    const NIKE = 13_200
+    const b = billableInPeriod(
+      sheet(week('2026-09-07', [9, 9, 9, 9, 9])), SEPTEMBER, 'SPLIT', NIKE, OT,
+      [decided('2026-09-07', 'PREMIUM', 15_000, 5)]
+    )!
+    const bands = bandsOf(b.split, NIKE)
+
+    // Two bands, each of which multiplies out on its own, adding to what
+    // was billed.
+    expect(bands.map((x) => [x.hours, x.rateCents, x.amountCents])).toEqual([
+      [40, 13_200, 528_000],
+      [5, 19_800, 99_000],
+    ])
+    expect(bands.map((x) => x.says)).toEqual(['at the usual rate', 'overtime, at time and a half'])
+    expect(bands.reduce((n, x) => n + x.amountCents, 0)).toBe(b.value.totalCents)
+    expect(b.value.totalCents).toBe(627_000)
+  })
+
+  it('every band multiplies out, and the bands add up to the amount charged', () => {
+    const cases: [string, number, number[], Decision[]][] = [
+      ['straight forty', 10_000, [8, 8, 8, 8, 8], []],
+      ['the usual rate on the overtime', 10_000, [9, 9, 9, 9, 9], [decided('2026-09-07', 'SAME_RATE', 10_000, 5)]],
+      ['double time', 13_200, [9, 9, 9, 9, 9], [decided('2026-09-07', 'PREMIUM', 20_000, 5)]],
+      ['banked, so no overtime band at all', 13_200, [9, 9, 9, 9, 9], [decided('2026-09-07', 'TIME_OFF', 0, 5)]],
+    ]
+
+    for (const [name, rate, hours, answer] of cases) {
+      const b = billableInPeriod(sheet(week('2026-09-07', hours)), SEPTEMBER, 'SPLIT', rate, OT, answer)!
+      const bands = bandsOf(b.split, rate)
+      for (const band of bands) {
+        expect(Math.round(band.hours * band.rateCents), name).toBe(band.amountCents)
+      }
+      expect(bands.reduce((n, x) => n + x.amountCents, 0), name).toBe(b.value.totalCents)
+    }
+  })
+
+  it('a week whose overtime was signed at the usual rate still says which hours were overtime', () => {
+    const b = billableInPeriod(
+      sheet(week('2026-09-07', [9, 9, 9, 9, 9])), SEPTEMBER, 'SPLIT', 13_200, OT,
+      [decided('2026-09-07', 'SAME_RATE', 10_000, 5)]
+    )!
+    const bands = bandsOf(b.split, 13_200)
+
+    // Nothing extra was charged, and the reader is still told that five
+    // of the forty-five hours were over the line and were signed at the
+    // plain rate — which is the fact the client agreed to.
+    expect(bands.map((x) => [x.kind, x.hours, x.rateCents])).toEqual([
+      ['REGULAR', 40, 13_200],
+      ['OVERTIME', 5, 13_200],
+    ])
+    expect(bands[1].says).toBe('overtime, at the usual rate')
+    expect(bands.reduce((n, x) => n + x.amountCents, 0)).toBe(b.value.totalCents)
+    // And the line as a whole still multiplies out, as it always did.
+    expect(b.value.totalCents).toBe(45 * 13_200)
+  })
+
+  it('a straight-time week has no bands to show, so the screen prints the plain multiplication', () => {
+    const b = billableInPeriod(
+      sheet(week('2026-09-07', [8, 8, 8, 8, 8])), SEPTEMBER, 'SPLIT', 13_200,
+      { afterHours: null, multiplierBps: 15_000 }
+    )!
+    const bands = bandsOf(b.split, 13_200)
+    expect(bands.length).toBe(1)
+    expect(bands[0].amountCents).toBe(40 * 13_200)
+  })
+
+  it('paid leave is its own band, at the usual rate, beside the hours worked', () => {
+    const b = billableInPeriod(
+      sheet(week('2026-09-07', [9, 9, 9, 9, 8]), { '2026-09-11': 8 }), SEPTEMBER, 'SPLIT', 13_200, OT,
+      []
+    )!
+    const bands = bandsOf(b.split, 13_200)
+    expect(bands.map((x) => [x.kind, x.hours])).toEqual([['REGULAR', 36], ['LEAVE', 8]])
+    expect(bands[1].says).toBe('paid leave, at the usual rate')
+  })
+
+  it('a working that does not add up to what was billed is not shown at all', () => {
+    const line = {
+      hours: 45, rateCents: 13_200,
+      // Somebody billed something else entirely. The screen must not
+      // print a working beside it that adds to a different number.
+      amountCents: 600_000,
+      sellContractId: 'sc-1',
+      timesheet: {
+        id: 'ts-1',
+        periodStart: new Date('2026-09-07T00:00:00.000Z'),
+        periodEnd: new Date('2026-09-13T00:00:00.000Z'),
+        totalHours: 45,
+        days: week('2026-09-07', [9, 9, 9, 9, 9]),
+        leaveDays: {},
+        sellContractId: 'sc-1',
+        overtimeDecisions: [{
+          sellContractId: 'sc-1', weekOf: new Date('2026-09-07T00:00:00.000Z'),
+          treatment: 'PREMIUM', appliedBps: 15_000, overtimeHours: 5, accrualBps: 10_000,
+        }],
+        sellContract: { overtimeAfterHours: 40, overtimeMultiplierBps: 15_000, billStraddle: 'SPLIT' },
+      },
+    }
+    const wrong = recompute(line, SEPTEMBER)!
+    expect(wrong.bands).toEqual([])
+
+    // Billed correctly, the same line shows its two bands.
+    const right = recompute({ ...line, amountCents: 627_000 }, SEPTEMBER)!
+    expect(right.bands.length).toBe(2)
+    expect(right.premiumCents).toBe(627_000 - 45 * 13_200)
+  })
+
+  it('an invoice screen never prints a multiplication that does not come out', () => {
+    const page = read('src/app/dashboard/invoices/[id]/page.tsx')
+    // The bare "{l.hours}h × {rate}" that printed 45h × $132.00 beside
+    // $6,270.00 is gone; what is printed now is checked first.
+    expect(page).toContain('function Working')
+    expect(page).toContain('multipliesOut')
+    expect(page).toContain('<Working l={l} />')
+    // And the line carries its own working on the document itself, for
+    // the AP desk that files the invoice rather than opening the screen.
+    expect(read(ROUTE)).toContain('worth.working')
   })
 
   it('the backfill answers only weeks somebody already approved, and never the worker whose hours they are', () => {

@@ -524,3 +524,97 @@ export function billableInPeriod(
     pendingHours: split.pendingHours,
   }
 }
+
+// ── The working, so a line can be checked by the person paying it ──────
+//
+// A line with a premium on it does not multiply out. Forty-five hours at
+// $132 is $5,940; the line says $6,270, because five of those hours were
+// signed at time and a half. Both numbers are right and printing only
+// the second beside the first makes the document uncheckable — which is
+// the whole job of an invoice line.
+//
+// `InvoiceLine` holds one row per timesheet per contract, deliberately,
+// so the two rows a paper invoice would print cannot be stored. The
+// working is therefore derived: the same split the money came from, cut
+// into the bands a person would expect to read.
+//
+// Amounts here are hours × the band's own rate, rounded once — the way a
+// billing clerk would do it — rather than the valuation's per-band
+// rounding. The two agree to the cent whenever the premium rate lands on
+// a whole cent, which is every ordinary case. Where they do not, the
+// caller compares against what was actually billed and shows no working
+// at all rather than a sum that is a cent out. A working that does not
+// add up is worse than none: it is the bug this exists to fix, smaller.
+
+export interface Band {
+  kind: 'REGULAR' | 'LEAVE' | 'OVERTIME'
+  hours: number
+  /** Cents an hour for this band: the contract's rate, or what was applied to it. */
+  rateCents: number
+  amountCents: number
+  /** What the band is, in the trade's words rather than the enum's. */
+  says: string
+}
+
+/** 'time and a half' · 'double time' · '1.75×' */
+function multipleWord(bps: number): string {
+  const x = bps / 10_000
+  if (x === 1) return 'the usual rate'
+  if (x === 1.5) return 'time and a half'
+  if (x === 2) return 'double time'
+  return `${x}×`
+}
+
+/**
+ * A billed split as the two or three lines a person would expect to read.
+ *
+ * Overtime is grouped by the rate that was applied, not by week: a
+ * semi-monthly sheet holding one week at the usual rate and one at double
+ * time reads as two bands, which is what happened, while two weeks
+ * answered the same way read as one.
+ */
+export function bandsOf(split: Split, rateCents: number): Band[] {
+  const out: Band[] = []
+
+  if (split.regularHours > 0) {
+    out.push({
+      kind: 'REGULAR',
+      hours: split.regularHours,
+      rateCents,
+      amountCents: Math.round(split.regularHours * rateCents),
+      says: 'at the usual rate',
+    })
+  }
+
+  if (split.leaveHours > 0) {
+    out.push({
+      kind: 'LEAVE',
+      hours: split.leaveHours,
+      rateCents,
+      // Leave drawn from the bank is paid at the ordinary rate. It was
+      // banked at a premium or it was not; either way what is owed now
+      // is an hour's pay.
+      amountCents: Math.round(split.leaveHours * rateCents),
+      says: 'paid leave, at the usual rate',
+    })
+  }
+
+  const byBps = new Map<number, number>()
+  for (const w of split.weeks) {
+    if (w.overtimeHours <= 0 || w.appliedBps == null) continue
+    byBps.set(w.appliedBps, r2((byBps.get(w.appliedBps) ?? 0) + w.overtimeHours))
+  }
+
+  for (const [bps, hours] of [...byBps.entries()].sort((a, b) => a[0] - b[0])) {
+    const bandRate = Math.round((rateCents * bps) / 10_000)
+    out.push({
+      kind: 'OVERTIME',
+      hours,
+      rateCents: bandRate,
+      amountCents: Math.round(hours * bandRate),
+      says: `overtime, at ${multipleWord(bps)}`,
+    })
+  }
+
+  return out
+}
