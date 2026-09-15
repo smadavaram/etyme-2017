@@ -1,6 +1,30 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import { as, req, json, resetDatabase, prisma } from './harness'
 
+/**
+ * Every money figure in a payload, however deeply nested.
+ *
+ * A key that names a rate, a pay, a bill or an amount. Values are
+ * compared exactly, never as a substring, because a cuid is a string of
+ * digits and letters and `8500` lives inside plenty of them.
+ */
+function ratesIn(value: unknown, found: number[] = []): number[] {
+  if (Array.isArray(value)) {
+    for (const v of value) ratesIn(v, found)
+    return found
+  }
+  if (value && typeof value === 'object') {
+    for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+      if (/rate|pay|bill|amount|cents/i.test(key)) {
+        const n = typeof v === 'string' ? Number(v) : v
+        if (typeof n === 'number' && Number.isFinite(n)) found.push(n)
+      }
+      ratesIn(v, found)
+    }
+  }
+  return found
+}
+
 import { POST as raiseRequisition } from '@/app/api/requisitions/route'
 import { POST as decideRequisition } from '@/app/api/requisitions/[id]/approve/route'
 import { POST as distributeRequisition } from '@/app/api/requisitions/[id]/distribute/route'
@@ -1133,7 +1157,26 @@ describe('Step 21 — one placement, opened, top to bottom', () => {
     expect(d.contracts.buy.vendor.name).toBe('CloudEPA')
     // One firm below them, and what CloudEPA pays Priya is not in here.
     expect(d.chain.hopsBelow).toBe(1)
-    expect(JSON.stringify(d)).not.toContain('8500')
+    //
+    // This used to be `expect(JSON.stringify(d)).not.toContain('8500')`,
+    // which reddened a commit at random: a generated cuid came back as
+    // `cmu27g8500000g8soyprwwh9d` and the string `8500` was inside an id.
+    // Grepping a blob for a number cannot tell a rate from an identifier.
+    // Ask the money fields instead, all of them, wherever they are nested
+    // — so a rate field added later is still covered.
+    expect(ratesIn(d)).not.toContain(85)
+    expect(ratesIn(d)).not.toContain(8500)
+    expect(ratesIn(d)).toEqual(expect.arrayContaining([135, 110]))
+  })
+
+  it('knows a rate from an identifier, so the check above is neither vacuous nor flaky', () => {
+    // The leak it is looking for: the bottom rung's pay rate, at any
+    // depth, under any name that means money.
+    expect(ratesIn({ chain: { below: [{ payRate: 85 }] } })).toContain(85)
+    expect(ratesIn({ contracts: { buy: { payRateCents: 8500 } } })).toContain(8500)
+    // The false alarm that reddened a commit: a cuid with 8500 inside it.
+    expect(ratesIn({ id: 'cmu27g8500000g8soyprwwh9d' })).toEqual([])
+    expect(JSON.stringify({ id: 'cmu27g8500000g8soyprwwh9d' })).toContain('8500')
   })
 
   it('finds the hours through the chain, on a contract that carries none of its own', async () => {

@@ -97,7 +97,7 @@ export function clientChecklist(f: ClientFacts): Checklist {
       key: 'msa', label: 'Master agreement on file',
       state: f.msaSigned ? 'DONE' : 'MISSING',
       why: 'Terms, margin floor and payment days. Every contract inherits them.',
-      href: '/dashboard/agreements',
+      href: '/dashboard/program/agreements',
     },
     {
       key: 'costCenters', label: 'Cost objects recorded',
@@ -150,7 +150,7 @@ export function supplierChecklist(f: SupplierFacts): Checklist {
       key: 'msa', label: 'Master agreement on file',
       state: f.msaSigned ? 'DONE' : 'MISSING',
       why: 'The paper the first submission needs.',
-      href: '/dashboard/agreements',
+      href: '/dashboard/program/agreements',
     },
     {
       key: 'insurance', label: 'Insurance current',

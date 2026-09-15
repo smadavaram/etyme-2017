@@ -1,6 +1,4 @@
 import { describe, it, expect } from 'vitest'
-import { readdirSync, statSync, readFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
 import { payerScope, sellContractScope } from '@/lib/resolve-client-company'
 import { payerRung, chainTop, type DatedRung } from '@/lib/chain-top'
 import { mayApprove, approvingOwnHours } from '@/lib/timesheet-authority'
@@ -231,58 +229,11 @@ describe('nobody is shown a button the server will refuse them', () => {
   })
 })
 
-describe('every link on the client’s dashboard reaches a page that exists', () => {
-  /**
-   * The biggest card on the client's home screen pointed at
-   * /dashboard/contractors, which has never existed. A bare Next 404:
-   * no shell, no nav, no way back. The sidebar's own "Contractors"
-   * correctly pointed at /dashboard/people all along.
-   */
-  const CLIENT_DESK = join(process.cwd(), 'src/app/dashboard/program')
-  const DASHBOARD = join(process.cwd(), 'src/app/dashboard')
-
-  function walk(dir: string, out: string[] = []): string[] {
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name)
-      if (statSync(p).isDirectory()) walk(p, out)
-      else if (name.endsWith('.tsx') || name.endsWith('.ts')) out.push(p)
-    }
-    return out
-  }
-
-  /** A route resolves when its folder chain ends in a page, dynamic segments included. */
-  function resolves(route: string): boolean {
-    let dir = DASHBOARD
-    for (const seg of route.split('/').filter(Boolean).slice(1)) {
-      const literal = join(dir, seg)
-      if (existsSync(literal) && statSync(literal).isDirectory()) {
-        dir = literal
-        continue
-      }
-      const dynamic = readdirSync(dir).find(
-        (n) => n.startsWith('[') && statSync(join(dir, n)).isDirectory()
-      )
-      if (!dynamic) return false
-      dir = join(dir, dynamic)
-    }
-    return existsSync(join(dir, 'page.tsx'))
-  }
-
-  it('sends every card, row and stat somewhere real', () => {
-    const dead: string[] = []
-    for (const file of walk(CLIENT_DESK)) {
-      const source = readFileSync(file, 'utf8')
-      for (const m of source.matchAll(/['"`](\/dashboard\/[a-zA-Z0-9\-_/]*)['"`?]/g)) {
-        const route = m[1].replace(/\/$/, '')
-        if (route === '/dashboard') continue
-        if (!resolves(route)) dead.push(`${route} — ${file}`)
-      }
-    }
-    expect(dead).toEqual([])
-  })
-
-  it('knows what a dead link looks like, so the check above is not vacuous', () => {
-    expect(resolves('/dashboard/contractors')).toBe(false)
-    expect(resolves('/dashboard/people')).toBe(true)
-  })
-})
+/**
+ * The dead-link scan that used to sit here has moved to
+ * `__tests__/invariants/dead-links.test.ts`, widened from this client
+ * desk to all of `src/`. It was scoped to one folder so that it would
+ * not go red on files outside this domain; the two it found there —
+ * `/dashboard/agreements` in `lib/party-onboarding.ts` — are fixed, so
+ * the scope came off.
+ */
