@@ -33,8 +33,43 @@ station.
 
 **The sharpest wedge is tenure**, not efficiency. A contractor's time on
 site aggregated across every supplier is a number no vendor can compute
-and no client can obtain by asking, and it is a legal exposure rather
-than a saving. Efficiency pitches lose to "we are managing fine".
+and no client can obtain by asking. Efficiency pitches lose to "we are
+managing fine".
+
+**Why tenure — the reason corrected 2026-09-15.** This paragraph used to
+say tenure was the wedge because it is "a legal exposure rather than a
+saving". The founder pushed back and was right. Nobody is fined at month
+nineteen. There is no tenure regulator. Enterprises have run eighteen-month
+rules on spreadsheets for years and mostly nothing happens. **A compliance
+pitch loses to "we have never been caught"** — which is worse than losing
+to "we are managing fine", because it is true.
+
+The conclusion survives; the reason does not. **Tenure is the wedge
+because it is the number nobody can produce.** A VMS sees inside one
+client's program. A supplier sees its own slice. Neither can add them up,
+and the client cannot get it by asking. That is a defensibility argument
+and it does not need anybody to be punished.
+
+**Compliance is the justification, not the motivation.** People buy
+because somebody asks a basic question about their own workforce and they
+cannot answer it — how many contractors do we have, what are we spending,
+who has been here longest, are we paying two suppliers differently for one
+skill. Every answer is "I'll get back to you", then three weeks, then a
+number nobody trusts. That happens monthly. The penalty is hypothetical.
+
+They then justify the purchase to finance with the exposure. Two
+sentences doing two jobs, and anything user-facing needs both: **the hook
+is the not-knowing; the business case is what it costs when somebody
+finally asks.** Leading with the penalty is selling a fear the buyer does
+not actually hold.
+
+**Say it to the client.** The page may not address hiring companies,
+primes, subs and bench operators as four equal audiences — that is the
+old plan, from before the client became the customer on 2026-09-10.
+Speaking to four is speaking sharply to none: a hiring manager who reads
+"primes, subs, bench operators" concludes this is software for staffing
+firms and leaves. Write to the client and let the suppliers read over
+their shoulder; they come anyway, because their client is there.
 
 **Never lead with AI.** It is in there, it does real work, and it is the
 least defensible thing in the product. Roughly half of what looks like
