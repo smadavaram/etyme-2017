@@ -184,6 +184,35 @@ describe('a week over the line', () => {
     expect(e.uncoveredPremiumCents).toBe(Math.round(5 * 7800 * 0.5))
   })
 
+  it('an employer who promised more than the law requires pays what they promised', () => {
+    // Statute is a floor and not a ceiling. Double time agreed on the
+    // buy contract beats time and a half, and the file says which one
+    // governed rather than quietly paying the smaller.
+    const e = buildExport('ADP', [
+      row({
+        assertion: nonexempt,
+        contractPremiumBps: 20_000,
+        weeks: [week({ overHours: 5, client: { treatment: 'SAME_RATE', appliedBps: 10_000 } })],
+      }),
+    ])
+    expect(e.lines[0].overtimeCents).toBe(5 * 7800 * 2)
+    expect(e.lines[0].totalCents).toBe(40 * 7800 + 5 * 7800 * 2)
+    expect(e.caveats.join(' ')).toContain('their own terms govern these hours')
+  })
+
+  it('an employer who promised less than the law requires still pays the floor', () => {
+    // A term is not a waiver. §207 rights cannot be bargained away.
+    const e = buildExport('ADP', [
+      row({
+        assertion: nonexempt,
+        contractPremiumBps: 10_000,
+        weeks: [week({ overHours: 5, client: { treatment: 'SAME_RATE', appliedBps: 10_000 } })],
+      }),
+    ])
+    expect(e.lines[0].overtimeCents).toBe(Math.round(5 * 7800 * 1.5))
+    expect(e.caveats.join(' ')).not.toContain('their own terms govern')
+  })
+
   it("an exempt employee's overtime is the contract's to price, and the salary caveat travels with the file", () => {
     const e = buildExport('ADP', [
       row({ assertion: exempt, weeks: [week({ overHours: 5 })] }),

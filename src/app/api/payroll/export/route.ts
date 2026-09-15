@@ -82,6 +82,10 @@ export async function GET(request: NextRequest) {
                 select: {
                   id: true, companyId: true, contractType: true, payCurrency: true,
                   payModel: true,
+                  // What an overtime hour is worth to the WORKER, which
+                  // is a different fact from what the client is billed
+                  // for one. Statute sets a floor; this may be better.
+                  overtimeAfterHours: true, overtimeMultiplierBps: true,
                   candidates: { select: { personId: true, payRate: true, state: true } },
                   exemptAssertions: {
                     select: {
@@ -142,7 +146,20 @@ export async function GET(request: NextRequest) {
         accrualBps: d.accrualBps,
       }))
 
-    const split = splitWeeks((s.days as Record<string, number>) ?? {}, policyOf(s.sellContract), {
+    // ── Whose line is the pay side judged on ────────────────────────
+    //
+    // The employer's own, where the buy contract names one. A client
+    // billed after forty and a worker paid a premium after forty-five
+    // are two thresholds and two different facts, and using the client's
+    // for both was only ever right because they usually match.
+    //
+    // Where the buy contract says nothing, the sell contract's line
+    // stands in — it is the only weekly line anybody has written down
+    // for this placement, and it is what the approval desk decided
+    // against.
+    const payPolicy = buy?.overtimeAfterHours != null ? policyOf(buy) : policyOf(s.sellContract)
+
+    const split = splitWeeks((s.days as Record<string, number>) ?? {}, payPolicy, {
       leaveDays: (s.leaveDays as Record<string, number>) ?? {},
       decisions,
     })
@@ -172,6 +189,10 @@ export async function GET(request: NextRequest) {
       acceptedHours: s.acceptedHours ? Number(s.acceptedHours) : null,
       employerAcceptedAt: s.employerAcceptedAt,
       payRateCents: candidate?.payRate ?? null,
+      // Only where the employer actually named a threshold. A default
+      // multiplier with no line to apply it to is not a term anybody
+      // agreed, and would quietly multiply a rate nobody set.
+      contractPremiumBps: buy?.overtimeAfterHours != null ? buy.overtimeMultiplierBps : null,
       payModel: buy?.payModel ?? 'FIXED_HOURLY',
       // Nothing in the schema records a salary basis, so the honest,
       // conservative read: paid by the hour unless somebody says.

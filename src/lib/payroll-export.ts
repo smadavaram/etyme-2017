@@ -147,6 +147,20 @@ export interface SheetToPay {
   employerAcceptedAt: Date | null
   /** Cents an hour from the buy leg. Null where nothing says what they are paid. */
   payRateCents: number | null
+  /**
+   * What an overtime hour is worth to the WORKER, in basis points of
+   * their pay rate, from the buy contract.
+   *
+   * Statute sets a floor and not a ceiling. Where an employer agreed
+   * more than the floor — double time past sixty, a premium after eight
+   * in a day — the worker is owed the better of the two, and until this
+   * column existed payroll had nothing to value that from except the
+   * client's billing terms, which are not a wage.
+   *
+   * Null or absent means the contract says nothing, and the floor
+   * stands: the absence of a term is not a waiver of one.
+   */
+  contractPremiumBps?: number | null
   payModel: string
   paidOnSalaryBasis: boolean
   rule: WageRuleName
@@ -255,6 +269,37 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
       continue
     }
 
+    // ── The floor, and the better thing the employer agreed ─────────
+    //
+    // `weekWage` prices what the law requires. A buy contract may have
+    // promised more, and a promise is not undone by a statute that
+    // happens to ask for less, so the worker gets the greater of the two
+    // — computed week by week, because a semi-monthly sheet can hold one
+    // week the floor governs and one the contract does.
+    const bps = s.contractPremiumBps ?? null
+    const overtimeCents = weeks.reduce((n, w, i) => {
+      const statutory = verdicts[i].overtimeCents ?? 0
+      const agreed =
+        bps == null ? 0 : Math.round(w.overHours * s.payRateCents! * (bps / 10_000))
+      return n + Math.max(statutory, agreed)
+    }, 0)
+
+    const contractGoverns =
+      bps != null &&
+      weeks.some((w, i) => {
+        const agreed = Math.round(w.overHours * s.payRateCents! * (bps / 10_000))
+        return w.overHours > 0 && agreed > (verdicts[i].overtimeCents ?? 0)
+      })
+
+    const notes = [...new Set(verdicts.flatMap((v) => v.caveats))]
+    if (contractGoverns) {
+      notes.push(
+        `${s.personName}'s buy contract prices an overtime hour above what the law requires, ` +
+          'so their own terms govern these hours. A statute asking for less does not undo a ' +
+          'promise an employer made.'
+      )
+    }
+
     lines.push({
       payrollId: s.payrollId,
       personName: s.personName,
@@ -265,13 +310,13 @@ export function buildExport(provider: Provider, sheets: SheetToPay[]): Export {
       overtimeHours,
       rateCents: s.payRateCents,
       regularCents: verdicts.reduce((n, v) => n + (v.regularCents ?? 0), 0),
-      overtimeCents: verdicts.reduce((n, v) => n + (v.overtimeCents ?? 0), 0),
-      totalCents: verdicts.reduce((n, v) => n + (v.regularCents ?? 0) + (v.overtimeCents ?? 0), 0),
+      overtimeCents,
+      totalCents: verdicts.reduce((n, v) => n + (v.regularCents ?? 0), 0) + overtimeCents,
       uncoveredPremiumCents: verdicts.reduce((n, v) => n + (v.uncoveredPremiumCents ?? 0), 0),
       currency: s.currency,
       costCode: s.costCode,
       orderNumber: s.orderNumber,
-      notes: [...new Set(verdicts.flatMap((v) => v.caveats))],
+      notes,
     })
   }
 
