@@ -258,8 +258,24 @@ export default function InvoiceDetail() {
           <Lbl>{inv.vendor?.name ?? 'Vendor'} → {inv.client?.name ?? 'Client'}</Lbl>
           <h1 className="font-serif text-3xl text-etyme-ink mt-1 tracking-[-0.02em]">{inv.number}</h1>
           <div className="text-etyme-muted mt-2">
-            {inv.periodStart} → {inv.periodEnd} · due {inv.dueAt} · {inv.status.toLowerCase()}
+            {inv.periodStart} → {inv.periodEnd} ·{' '}
+            {inv.terms?.clockStarted === false
+              ? 'not payable yet'
+              : <>due {inv.dueAt}</>} · {inv.status.toLowerCase()}
           </div>
+          {/* What the date counts from, said rather than assumed. "Due
+              the 9th" answers nothing when a client thinks the clock
+              started somewhere else. */}
+          {inv.terms?.says && (
+            <div className="text-xs text-etyme-muted mt-1">{inv.terms.says}</div>
+          )}
+          {/* And what settles it sooner, where anybody agreed a rung. */}
+          {inv.earlyPayment?.discount > 0 && (
+            <div className="text-xs text-etyme-verified mt-1">
+              {inv.earlyPayment.says}
+              {inv.earlyPayment.by ? ` Offer stands to ${inv.earlyPayment.by}.` : ''}
+            </div>
+          )}
         </div>
         <div className="text-right shrink-0">
           <Lbl>Total</Lbl>

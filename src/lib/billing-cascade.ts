@@ -317,6 +317,298 @@ export function dueOn(input: DueInput): DueVerdict {
   }
 }
 
+// ── Paying early, and what that is worth ──────────────────────────────
+//
+// "2/10 net 30" is the oldest discount in commerce: two per cent off if
+// you settle within ten days, otherwise the whole thing in thirty. A
+// staffing firm's working capital problem is the gap between paying
+// consultants on Friday and being paid by the client in sixty days, so a
+// rung that pulls cash in three weeks early is often worth more than the
+// margin on the placement.
+//
+// ── Where the rungs live ──────────────────────────────────────────────
+//
+// The agreement carries the standing ladder — what we offer this client
+// on everything. An order overrides it for its own spend, because a
+// project negotiated at a different rate is an ordinary thing and
+// retyping the agreement to express it would change every other invoice
+// under it.
+//
+// Override, never merge. A ladder built half from the agreement and half
+// from the order is a set of terms nobody signed: take 2/10 from the
+// order and 1/20 from the agreement and you have offered a client a rung
+// that appears in neither document.
+//
+// ── The days count from the same day the net terms do ─────────────────
+//
+// "Within ten days" of what? Of whatever `paymentTermsFrom` says. A
+// discount for paying within ten days of an invoice we cannot confirm
+// was received is not a term anybody agreed to, and holding a second
+// anchor here is how the two come to disagree.
+//
+// ── Off the work, not off the tax ─────────────────────────────────────
+//
+// The discount comes off the net amount. Tax is a debt to an authority
+// and not to us: reducing it because a client paid early understates a
+// remittance, which surfaces two years later with interest. Where the
+// regime is one that adjusts its base for a prompt-payment discount —
+// VAT and GST do, US sales tax does not — this says so rather than
+// adjusting a rate it has no business adjusting.
+
+export type RungOwner = 'AGREEMENT' | 'SALES_ORDER' | 'PURCHASE_ORDER'
+
+/** A discount row as stored: exactly one owner, a window and a rate. */
+export interface DiscountRow {
+  id: string
+  msaId?: string | null
+  salesOrderId?: string | null
+  purchaseOrderId?: string | null
+  /** Days from the anchor. Zero is real — settlement on the day. */
+  withinDays: number
+  /** Basis points off the net. 300 is three per cent. */
+  discountBps: number
+  note?: string | null
+}
+
+export interface OwnerVerdict {
+  ok: boolean
+  owner: RungOwner | null
+  says: string
+}
+
+/**
+ * Which document a rung belongs to.
+ *
+ * Exactly one of the three, and the database cannot say so: there are no
+ * migration files here and therefore no CHECK constraint, so the rule
+ * lives where the rows are read. It refuses both ways rather than
+ * guessing — a rung on nothing would silently apply to everything, and a
+ * rung on two documents would be counted twice by whoever asked second.
+ */
+export function ownerOf(row: DiscountRow): OwnerVerdict {
+  const held: [RungOwner, string | null | undefined][] = [
+    ['AGREEMENT', row.msaId],
+    ['SALES_ORDER', row.salesOrderId],
+    ['PURCHASE_ORDER', row.purchaseOrderId],
+  ]
+  const owners = held.filter(([, id]) => !!id).map(([o]) => o)
+
+  if (owners.length === 1) {
+    return { ok: true, owner: owners[0], says: `${owners[0].toLowerCase().replace('_', ' ')}` }
+  }
+
+  if (owners.length === 0) {
+    return {
+      ok: false,
+      owner: null,
+      says:
+        'This early-payment rung is not attached to anything — no agreement, no sales order, ' +
+        'no purchase order. Attach it to the document it was agreed in; a rung on nothing ' +
+        'would apply to everything.',
+    }
+  }
+
+  return {
+    ok: false,
+    owner: null,
+    says:
+      `This early-payment rung is attached to ${owners.length} documents at once ` +
+      `(${owners.join(' and ')}). It was agreed in one of them. Which?`,
+  }
+}
+
+export interface Rung {
+  id: string
+  withinDays: number
+  discountBps: number
+  note: string | null
+  owner: RungOwner
+}
+
+export interface Ladder {
+  /** Shortest window first, which is also best-rate-first in practice. */
+  rungs: Rung[]
+  source: 'AGREEMENT' | 'ORDER' | 'NONE'
+  says: string
+}
+
+/** "2%" · "1.5%" · "0.75%" */
+export function rateWords(bps: number): string {
+  const pct = bps / 100
+  return `${Number.isInteger(pct) ? pct : pct.toFixed(2).replace(/0$/, '')}%`
+}
+
+const windowWords = (days: number): string =>
+  days === 0 ? 'paid on the day' : `paid within ${days} day${days === 1 ? '' : 's'}`
+
+/**
+ * The ladder actually in force, and where it came from.
+ *
+ * Rows whose ownership is unclear are dropped rather than guessed at,
+ * because a rung that cannot say which document it came from cannot be
+ * defended when a client asks why they were charged what they were
+ * charged.
+ */
+export function ladderFor(input: {
+  agreement?: DiscountRow[]
+  order?: DiscountRow[]
+}): Ladder {
+  const clean = (rows: DiscountRow[]): Rung[] =>
+    rows
+      .map((r) => ({ row: r, verdict: ownerOf(r) }))
+      .filter(({ verdict }) => verdict.ok)
+      .map(({ row, verdict }) => ({
+        id: row.id,
+        withinDays: row.withinDays,
+        discountBps: row.discountBps,
+        note: row.note ?? null,
+        owner: verdict.owner!,
+      }))
+      .sort((a, b) => a.withinDays - b.withinDays || b.discountBps - a.discountBps)
+
+  const order = clean(input.order ?? [])
+  const agreement = clean(input.agreement ?? [])
+
+  if (order.length > 0) {
+    return {
+      rungs: order,
+      source: 'ORDER',
+      says:
+        `${order.map((r) => `${rateWords(r.discountBps)} ${windowWords(r.withinDays)}`).join(', ')} — ` +
+        'agreed on this order, which replaces the standing terms for its own spend.',
+    }
+  }
+
+  if (agreement.length > 0) {
+    return {
+      rungs: agreement,
+      source: 'AGREEMENT',
+      says: `${agreement.map((r) => `${rateWords(r.discountBps)} ${windowWords(r.withinDays)}`).join(', ')} — from the agreement.`,
+    }
+  }
+
+  return { rungs: [], source: 'NONE', says: 'No early-payment discount was agreed.' }
+}
+
+export interface DiscountOffer {
+  /** The best rung this payment date qualifies for. Null where none does. */
+  rung: Rung | null
+  /** Days from the anchor to the day being paid. Null where the clock has not started. */
+  daysTaken: number | null
+  /** Off the net. Zero where no rung applies. */
+  discountMinor: number
+  /** What settles the invoice on that day: net, less the discount, plus the tax in full. */
+  payMinor: number
+  says: string
+  /** True where the tax base may move with the discount and a person has to decide. */
+  taxNeedsAThought: boolean
+}
+
+export interface DiscountInput {
+  ladder: Ladder
+  /** The day the terms count from. Null where the clock has not started. */
+  anchoredOn: Date | null
+  /** The day somebody is proposing to pay. */
+  payingOn: Date
+  /** The work, in minor units, before tax. */
+  netMinor: number
+  /** Tax determined on the invoice, in minor units. */
+  taxMinor?: number
+  /** US_SALES_TAX · EU_VAT · UK_VAT · IN_GST · NONE, where it was determined. */
+  taxRegime?: string | null
+}
+
+const money = (minor: number): string => `${(minor / 100).toFixed(2)}`
+
+/**
+ * What settles this invoice on a given day.
+ *
+ * Every rung whose window still covers the day qualifies, and the best
+ * rate of those wins — a client inside the ten-day window is also inside
+ * the twenty-day one, and offering them the worse of the two because it
+ * appeared later in a list is the sort of quiet short-changing nobody
+ * ever queries and everybody remembers.
+ */
+export function discountOn(input: DiscountInput): DiscountOffer {
+  const tax = input.taxMinor ?? 0
+  const adjusts = ['EU_VAT', 'UK_VAT', 'IN_GST'].includes(input.taxRegime ?? '')
+  const none = (says: string): DiscountOffer => ({
+    rung: null,
+    daysTaken: null,
+    discountMinor: 0,
+    payMinor: input.netMinor + tax,
+    says,
+    taxNeedsAThought: false,
+  })
+
+  if (input.ladder.rungs.length === 0) return none(input.ladder.says)
+
+  if (!input.anchoredOn) {
+    return none(
+      'The discount window counts from the same day the payment terms do, and that day has ' +
+      'not happened yet. Nothing can be offered until it has.'
+    )
+  }
+
+  const days = Math.floor(
+    (new Date(input.payingOn).setUTCHours(0, 0, 0, 0) -
+      new Date(input.anchoredOn).setUTCHours(0, 0, 0, 0)) / A_DAY
+  )
+
+  if (days < 0) {
+    return none('That day is before the discount window opens.')
+  }
+
+  const qualifying = input.ladder.rungs.filter((r) => days <= r.withinDays)
+  if (qualifying.length === 0) {
+    const last = input.ladder.rungs[input.ladder.rungs.length - 1]
+    return {
+      ...none(
+        `Too late for a discount: the last rung was ${rateWords(last.discountBps)} for ` +
+        `${windowWords(last.withinDays)} and this is day ${days}. The full amount is due.`
+      ),
+      daysTaken: days,
+    }
+  }
+
+  const rung = qualifying.reduce((best, r) => (r.discountBps > best.discountBps ? r : best))
+  const discountMinor = Math.round((input.netMinor * rung.discountBps) / 10_000)
+  const payMinor = input.netMinor - discountMinor + tax
+
+  const taxWords = tax === 0
+    ? ''
+    : adjusts
+      ? ` The tax of ${money(tax)} is unchanged here — under this regime the taxable amount may ` +
+        'follow what is actually paid, which is a call for whoever files the return.'
+      : ` The tax of ${money(tax)} is unchanged: it is owed to an authority whatever we agree.`
+
+  return {
+    rung,
+    daysTaken: days,
+    discountMinor,
+    payMinor,
+    says:
+      `${rateWords(rung.discountBps)} off for ${windowWords(rung.withinDays)} — ` +
+      `${money(discountMinor)} off ${money(input.netMinor)} of work, so ${money(payMinor)} settles it.` +
+      taxWords,
+    taxNeedsAThought: adjusts && tax > 0 && discountMinor > 0,
+  }
+}
+
+/**
+ * The last day a discount is still available, and which one.
+ *
+ * What an AP clerk actually asks: not "what is the rate" but "by when".
+ */
+export function discountDeadline(
+  ladder: Ladder,
+  anchoredOn: Date | null
+): { by: Date; rung: Rung } | null {
+  if (!anchoredOn || ladder.rungs.length === 0) return null
+  const best = ladder.rungs.reduce((a, b) => (b.discountBps > a.discountBps ? b : a))
+  return { by: plus(anchoredOn, best.withinDays), rung: best }
+}
+
 /**
  * Said the way somebody would say it, for the screen.
  *

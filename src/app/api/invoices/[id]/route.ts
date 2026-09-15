@@ -4,6 +4,7 @@ import { invoiceScope } from '@/lib/resolve-client-company'
 import { prisma } from '@/lib/db'
 import { matchInvoice, recompute } from '@/lib/invoice-match'
 import { OVERRIDABLE, decimalToCents } from '@/lib/three-way-match'
+import { discountDeadline, discountOn, dueOn, ladderFor, resolveBillingTerms } from '@/lib/billing-cascade'
 
 /**
  * GET /api/invoices/:id
@@ -40,10 +41,24 @@ export async function GET(
   const invoice = await prisma.invoice.findFirst({
     where: { id, ...scope },
     include: {
-      purchaseOrder: { select: { id: true, number: true, amount: true, status: true, endDate: true } },
+      purchaseOrder: {
+        select: {
+          id: true, number: true, amount: true, status: true, endDate: true,
+          // What we offer this client for settling early on this order.
+          // A PO belongs to whoever pays, so on our own sales invoice
+          // this is the client's order and its rungs narrow the standing
+          // ladder for its own spend.
+          earlyPaymentDiscounts: true,
+        },
+      },
       engagement: {
         select: {
           id: true, title: true,
+          sellContracts: {
+            select: { paymentTerms: true, paymentTermsFrom: true },
+            orderBy: { createdAt: 'asc' },
+            take: 1,
+          },
           // The two parties hang off the master agreement, not the
           // engagement — an engagement is work under an MSA, not a
           // relationship in its own right.
@@ -51,6 +66,9 @@ export async function GET(
             select: {
               client: { select: { id: true, name: true } },
               vendor: { select: { id: true, name: true } },
+              paymentTerms: true, paymentTermsFrom: true,
+              /** The standing ladder: what we offer this client on everything. */
+              earlyPaymentDiscounts: true,
             },
           },
         },
@@ -95,6 +113,56 @@ export async function GET(
   })
   const paidCents = payments.reduce((sum, p) => sum + decimalToCents(p.amount), 0)
 
+  // ── When it is due, and what settles it sooner ──────────────────────
+  //
+  // The due date was written when the invoice was raised and is not
+  // recomputed here — a contract amended in March must not restate a
+  // February promise. What IS computed is the day the clock counts from,
+  // because the discount window counts from the same day, and whether
+  // that day has happened at all.
+  const contractTerms = invoice.engagement.sellContracts[0] ?? null
+  const terms = resolveBillingTerms({
+    company: { name: invoice.engagement.msa.vendor.name },
+    agreement: {
+      paymentTermsDays: invoice.engagement.msa.paymentTerms,
+      paymentTermsFrom: invoice.engagement.msa.paymentTermsFrom,
+      counterpartyName: invoice.engagement.msa.client.name,
+    },
+    contract: {
+      paymentTermsDays: contractTerms?.paymentTerms,
+      paymentTermsFrom: contractTerms?.paymentTermsFrom,
+    },
+  })
+
+  const clock = dueOn({
+    anchor: terms.paymentTermsFrom.value,
+    days: terms.paymentTermsDays.value,
+    periodEnd: invoice.periodEnd,
+    issuedAt: invoice.issuedAt ?? invoice.periodEnd,
+    receivedAt: invoice.receivedAt,
+    approvedAt: null,
+  })
+
+  // The standing ladder, narrowed by the order's own where there is one.
+  const ladder = ladderFor({
+    agreement: invoice.engagement.msa.earlyPaymentDiscounts,
+    order: invoice.purchaseOrder?.earlyPaymentDiscounts ?? [],
+  })
+
+  const grossMinor = decimalToCents(invoice.total)
+  const taxMinor = invoice.taxTotalCents ?? 0
+  const offer = discountOn({
+    ladder,
+    anchoredOn: clock.anchoredOn,
+    payingOn: new Date(),
+    // `Invoice.total` is the work. Tax is carried beside it, and the
+    // discount comes off the work only.
+    netMinor: grossMinor,
+    taxMinor,
+    taxRegime: invoice.taxRegime,
+  })
+  const deadline = discountDeadline(ladder, clock.anchoredOn)
+
   return NextResponse.json({
     data: {
       invoice: {
@@ -107,6 +175,29 @@ export async function GET(
         currency: invoice.currency,
         total: decimalToCents(invoice.total) / 100,
         paid: paidCents / 100,
+        // What the due date counts from, and whether that day has
+        // happened. An invoice whose clock has not started is not late
+        // however long it has been sitting there.
+        terms: {
+          days: terms.paymentTermsDays.value,
+          anchor: terms.paymentTermsFrom.value,
+          because: terms.paymentTermsFrom.because,
+          clockStarted: clock.clockStarted,
+          waitingFor: clock.waitingFor,
+          says: clock.says,
+        },
+        // "2% off for paying within 10 days — $125.40 off $6,270 of
+        // work, so $6,144.60 settles it."
+        earlyPayment: {
+          source: ladder.source,
+          rungs: ladder.rungs,
+          ladderSays: ladder.says,
+          discount: offer.discountMinor / 100,
+          pay: offer.payMinor / 100,
+          says: offer.says,
+          by: deadline?.by.toISOString().slice(0, 10) ?? null,
+          taxNeedsAThought: offer.taxNeedsAThought,
+        },
         engagement: invoice.engagement.title,
         vendor: invoice.engagement.msa.vendor,
         client: invoice.engagement.msa.client,
