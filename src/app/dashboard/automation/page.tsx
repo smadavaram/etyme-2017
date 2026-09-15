@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { ACTIONS, LADDER, RUNGS, type Rung } from '@/lib/autonomy'
 
 /**
  * Automation Log — what the system did, with reasons.
@@ -11,9 +12,20 @@ import { useEffect, useState, useCallback } from 'react'
  * AutomationLog row with a plain-English reason and an honest reversible flag."
  *
  * Working surface: dense table with filters and bulk inspection.
- * Every automated action is visible here — requirement distribution,
- * cycle generation, rolloff claims, invoice creation, blacklist changes.
- * Enterprise clients care deeply about this transparency.
+ *
+ * Every row says four things, because those are the four a procurement
+ * officer asks: what the system did, at what level it acted, under which
+ * rule, and whether it can still be undone.
+ *
+ * The level is the ladder in `lib/autonomy` — L0 Observe through L5
+ * Fully autonomous — derived from the action, never stored. Only what
+ * the system did unprompted gets one. A refusal aimed at somebody who
+ * asked for something is governance and shows its outcome instead, and a
+ * person's own act shows that a person did it.
+ *
+ * The row also says whether a rule or a model decided it, and says it
+ * does not know rather than guessing. Most of what we do unprompted is a
+ * date comparison, and the surface has to be able to say so.
  */
 
 // ── Types ────────────────────────────────────────────
@@ -27,6 +39,16 @@ interface AutomationEntry {
   reversible: boolean
   reversedAt: string | null
   at: string
+  kind: 'UNPROMPTED' | 'ENFORCEMENT' | 'ATTRIBUTED' | null
+  kindSays: string | null
+  level: Rung | null
+  levelName: string | null
+  levelSays: string | null
+  outcome: 'BLOCK' | 'WARN' | 'PERMIT' | null
+  actSays: string | null
+  decidedBy: 'RULE' | 'MODEL' | 'UNRECORDED'
+  decidedSays: string
+  undo: string
 }
 
 // ── Helpers ──────────────────────────────────────────
@@ -81,6 +103,27 @@ function actionCategory(action: string): string {
   return 'Other'
 }
 
+/**
+ * How loud the chip is. Looking and suggesting are quiet; acting on its
+ * own with a consequence is not, and should not read as though it were.
+ */
+function levelTone(rung: Rung): string {
+  if (rung === 'L0' || rung === 'L1' || rung === 'L2') return 'chip--passive'
+  if (rung === 'L3') return 'chip--action'
+  return 'chip--attention'
+}
+
+function outcomeTone(outcome: string): string {
+  if (outcome === 'PERMIT') return 'chip--verified'
+  return 'chip--attention'
+}
+
+function decidedLabel(by: string): string {
+  if (by === 'RULE') return 'By a rule'
+  if (by === 'MODEL') return 'By a model'
+  return 'Not recorded'
+}
+
 function timeAgo(dateStr: string): string {
   const now = new Date()
   const d = new Date(dateStr)
@@ -105,6 +148,7 @@ export default function AutomationPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionFilter, setActionFilter] = useState<string | null>(null)
   const [showReversibleOnly, setShowReversibleOnly] = useState(false)
+  const [levelFilter, setLevelFilter] = useState<Rung | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reversing, setReversing] = useState<string | null>(null)
 
@@ -116,6 +160,7 @@ export default function AutomationPage() {
       params.set('limit', '100')
       if (actionFilter) params.set('action', actionFilter)
       if (showReversibleOnly) params.set('reversible', '')
+      if (levelFilter) params.set('level', levelFilter)
 
       const res = await fetch(`/api/automation?${params.toString()}`)
       if (!res.ok) {
@@ -131,7 +176,7 @@ export default function AutomationPage() {
     } finally {
       setLoading(false)
     }
-  }, [actionFilter, showReversibleOnly])
+  }, [actionFilter, showReversibleOnly, levelFilter])
 
   useEffect(() => {
     fetchEntries()
@@ -166,14 +211,34 @@ export default function AutomationPage() {
   const total = Object.values(counts).reduce((a, b) => a + b, 0)
   const reversibleCount = entries.filter((e) => e.reversible && !e.reversedAt).length
 
+  // Level and kind are properties of the action, so they are counted here
+  // from the action tallies. Nothing is stored per row.
+  const levelCounts: Partial<Record<Rung, number>> = {}
+  let unpromptedCount = 0
+  let ruleCount = 0
+  for (const [action, count] of Object.entries(counts)) {
+    const act = ACTIONS[action]
+    if (!act) continue
+    if (act.basis === 'RULE') ruleCount += count
+    if (act.kind !== 'UNPROMPTED') continue
+    unpromptedCount += count
+    levelCounts[act.rung] = (levelCounts[act.rung] ?? 0) + count
+  }
+  const rungsPresent = RUNGS.filter((r) => (levelCounts[r] ?? 0) > 0)
+  const topRung = rungsPresent.length ? rungsPresent[rungsPresent.length - 1] : null
+
   return (
     <>
       {/* Head */}
       <div className="flex items-start justify-between mb-6">
         <div className="page-head">
           <p className="eyebrow">Operate</p>
-          <h1>Automation Log</h1>
-          <p>Everything the system did on your company&apos;s behalf — with reasons, payloads, and reversal options.</p>
+          <h1>What the system did on its own</h1>
+          <p>
+            Every action, the level it acted at, the rule it followed, and whether it
+            can still be undone. Most of this is a date or a threshold, not a
+            judgment, and the rows say which.
+          </p>
         </div>
 
         <button
@@ -192,9 +257,9 @@ export default function AutomationPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">recorded</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Action Types</p>
-          <p className="stat-value text-etyme-ink">{Object.keys(counts).length}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">distinct</p>
+          <p className="stat-label">On its own</p>
+          <p className="stat-value text-etyme-ink">{unpromptedCount}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">nobody asked</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
           <p className="stat-label">Reversible</p>
@@ -202,11 +267,52 @@ export default function AutomationPage() {
           <p className="text-[11px] text-etyme-faint mt-0.5">can be undone</p>
         </div>
         <div className="panel flex-1 min-w-[140px]">
-          <p className="stat-label">Categories</p>
-          <p className="stat-value text-etyme-ink">{categories.length}</p>
-          <p className="text-[11px] text-etyme-faint mt-0.5">domains</p>
+          <p className="stat-label">Highest level</p>
+          <p className="stat-value text-etyme-ink">{topRung ?? '—'}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">
+            {topRung ? LADDER[topRung].name.toLowerCase() : 'nothing yet'}
+          </p>
+        </div>
+        <div className="panel flex-1 min-w-[140px]">
+          <p className="stat-label">By a rule</p>
+          <p className="stat-value text-etyme-ink">{ruleCount}</p>
+          <p className="text-[11px] text-etyme-faint mt-0.5">no model involved</p>
         </div>
       </div>
+
+      {/* The ladder, as the reader's own filter. Only rungs we actually
+          reached are offered — a rung with nothing behind it is a claim. */}
+      {rungsPresent.length > 0 && (
+        <div className="panel mb-5">
+          <p className="stat-label mb-2">How far from a person&apos;s hand</p>
+          <div className="flex gap-1.5 flex-wrap">
+            <button
+              onClick={() => setLevelFilter(null)}
+              className={`filter-tab ${!levelFilter ? 'filter-tab--active' : 'filter-tab--inactive'}`}
+            >
+              Everything
+              <span className="ml-1.5 text-[10px] font-semibold opacity-70 tabular-nums">{total}</span>
+            </button>
+            {rungsPresent.map((r) => (
+              <button
+                key={r}
+                onClick={() => setLevelFilter(levelFilter === r ? null : r)}
+                className={`filter-tab ${levelFilter === r ? 'filter-tab--active' : 'filter-tab--inactive'}`}
+              >
+                {r} {LADDER[r].name}
+                <span className="ml-1.5 text-[10px] font-semibold opacity-70 tabular-nums">
+                  {levelCounts[r]}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[12px] text-etyme-muted mt-2.5">
+            {levelFilter
+              ? LADDER[levelFilter].says
+              : 'A level is only given to what the system did unprompted. A refusal aimed at somebody who asked for something is governance, not autonomy, and carries no level.'}
+          </p>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
@@ -265,7 +371,7 @@ export default function AutomationPage() {
             No automation entries found.
           </p>
           <p className="text-sm text-etyme-faint">
-            {actionFilter
+            {actionFilter || levelFilter
               ? 'Try a different filter to see other entries.'
               : 'The system hasn\'t performed any automated actions yet.'}
           </p>
@@ -312,7 +418,7 @@ export default function AutomationPage() {
                     </p>
                   </div>
 
-                  {/* Chips */}
+                  {/* Chips — the level it acted at, and what decided it. */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     {isReversed && (
                       <span className="chip chip--passive text-[9px]">Reversed</span>
@@ -320,6 +426,32 @@ export default function AutomationPage() {
                     {entry.reversible && !isReversed && (
                       <span className="chip chip--action text-[9px]">Reversible</span>
                     )}
+                    {entry.level && (
+                      <span
+                        className={`chip ${levelTone(entry.level)} text-[9px]`}
+                        title={entry.levelSays ?? undefined}
+                      >
+                        {entry.level} {entry.levelName}
+                      </span>
+                    )}
+                    {entry.outcome && (
+                      <span className={`chip ${outcomeTone(entry.outcome)} text-[9px]`}>
+                        {entry.outcome === 'BLOCK'
+                          ? 'Refused'
+                          : entry.outcome === 'WARN'
+                            ? 'Warned'
+                            : 'Let through'}
+                      </span>
+                    )}
+                    {entry.kind === 'ATTRIBUTED' && (
+                      <span className="chip chip--passive text-[9px]">A person did this</span>
+                    )}
+                    <span
+                      className="chip chip--passive text-[9px]"
+                      title={entry.decidedSays}
+                    >
+                      {decidedLabel(entry.decidedBy)}
+                    </span>
                     <span className="chip chip--passive text-[9px]">
                       {actionCategory(entry.action)}
                     </span>
@@ -341,6 +473,27 @@ export default function AutomationPage() {
                 {/* Expanded detail */}
                 {isExpanded && (
                   <div className="px-4 pb-4 pt-0 border-t border-etyme-rule/50">
+                    {/* The four sentences, before any field. A code is for
+                        the machine; the sentence is the product. */}
+                    <div className="mt-3 space-y-1.5">
+                      {entry.kindSays && (
+                        <p className="text-[12px] text-etyme-ink">{entry.kindSays}</p>
+                      )}
+                      {entry.levelSays && (
+                        <p className="text-[12px] text-etyme-muted">
+                          <span className="text-etyme-ink">
+                            {entry.level} · {entry.levelName}.
+                          </span>{' '}
+                          {entry.levelSays}
+                        </p>
+                      )}
+                      {entry.actSays && (
+                        <p className="text-[12px] text-etyme-muted">{entry.actSays}</p>
+                      )}
+                      <p className="text-[12px] text-etyme-muted">{entry.decidedSays}</p>
+                      <p className="text-[12px] text-etyme-muted">{entry.undo}</p>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
                       <div>
                         <p className="stat-label mb-1">Action</p>
@@ -413,6 +566,7 @@ export default function AutomationPage() {
         <p className="text-xs text-etyme-faint mt-4 tabular-nums">
           {entries.length} entr{entries.length !== 1 ? 'ies' : 'y'}
           {actionFilter && ` · ${actionLabel(actionFilter).toLowerCase()}`}
+          {levelFilter && ` · ${levelFilter} ${LADDER[levelFilter].name.toLowerCase()}`}
           {showReversibleOnly && ' · reversible only'}
         </p>
       )}

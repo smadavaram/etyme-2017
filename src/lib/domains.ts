@@ -239,6 +239,8 @@ export const DOMAINS: Domain[] = [
       'lib/seed-world', 'lib/seed-programmes', 'lib/seed-days', 'app/api/seed-world', 'lib/org-tree', 'lib/when',
       'lib/evals', 'middleware',
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
+      // How much we do unprompted, as a ladder a buyer already knows.
+      'lib/autonomy',
       'lib/contacts', 'lib/counterparty', 'lib/party-onboarding', 'lib/reconciliation',
       'app/dashboard/onboarding', 'app/dashboard/integrations',
       'app/api/contacts', 'app/api/counterparties', 'app/dashboard/contacts',

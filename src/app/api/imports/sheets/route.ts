@@ -252,6 +252,11 @@ export async function POST(request: NextRequest) {
         updated: written.updated,
         skipped: parsed.length - good.length,
         failures: written.failures,
+        // Whether a model read this file or the column headings did.
+        // Recorded because it varies run to run — a week where the key
+        // was misconfigured must not later read as a week the model
+        // worked for free. `lib/autonomy` reads this marker.
+        decidedBy: readBy === 'MODEL' ? 'MODEL' : 'RULE',
       },
       reversible: false,
     },
