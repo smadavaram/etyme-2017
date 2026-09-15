@@ -70,6 +70,10 @@ export const DOMAINS: Domain[] = [
       'lib/document-request', 'app/api/me/papers', 'app/dashboard/documents',
       // A visa petition from filing to the day it runs out.
       'lib/visa-petition',
+      // Terms, privacy and the DPA. Under regulation rather than the market,
+      // because a privacy notice that misdescribes what the system holds is a
+      // written misrepresentation rather than a positioning error.
+      'lib/legal', 'app/legal', 'app/terms', 'app/privacy', 'app/dpa',
       'app/api/shared', 'app/api/packet', 'app/packet',
       'lib/document-stages', 'lib/contract-clearance', 'lib/packets', 'lib/packet-derivation', 'lib/attestation',
       'lib/worker-classification', 'lib/holds', 'lib/representation',
