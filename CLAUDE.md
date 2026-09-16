@@ -641,6 +641,47 @@ continuity.** A lapsed certificate stops a supplier working, an expired
 work authorization stops a person working, and neither fails loudly on
 its own.
 
+### The list is not the domain — the purpose is
+
+Corrected by the founder the same day, before anybody built to the table
+below: *"companies can have more documents they would need on — some for
+compliance, some for agreement and some for proof."*
+
+So the seven documents in the table are **examples of the shapes, not the
+set of types**. Any client or supplier will need types nobody here has
+heard of, and they must be able to add one without a migration or a
+release. A fixed enum of document kinds is wrong the first week a client
+asks for a drug screen, a security clearance, a works council
+notification or a client-specific code of conduct.
+
+What is fixed is the **purpose**, and the purpose is what decides
+behavior:
+
+| Purpose | Behaves like | Examples |
+|---|---|---|
+| **Compliance** | has a validity window, watched for expiry, blocks or warns, gets chased | I-9, insurance, licenses, background checks, good standing |
+| **Agreement** | signed — possibly by both sides — has a term, amended and versioned | MSA, NDA, statement of work |
+| **Proof** | attached as evidence, usually never expires, supports something else rather than standing alone | degrees, transcripts, certifications |
+
+**That is roughly the split the four models already fell into**, which is
+the useful part of the finding: `Verification`/`VerificationDoc` is
+compliance, `DocInstance`/`DocTemplate` with `MasterAgreement` is
+agreement, and attachments are proof. They were not arbitrary — they were
+three purposes nobody had named. `DocumentPacket`/`PacketItem` is
+orthogonal to all three: it is the request-and-collect mechanism, and any
+purpose can be requested through it.
+
+So the five properties below are **declared by a type**, not hardcoded
+per document. A type says whether it has a start, an end, or neither;
+whether it is signed and by how many sides; whether it is reissued and
+so has an edition; and what other types it needs behind it. The I-9 is
+then the first type that happens to say "reissued: yes", rather than a
+special case in the code.
+
+Defaults ship, because CLAUDE.md says default aggressively and zero
+training means nobody defines an I-9 before they can hire. A company
+extends and renames from there.
+
 | Document | Valid from | Valid until | Signed by | Supplied by |
 |---|---|---|---|---|
 | **Master service agreement** | yes | yes | **both parties, countersigned** | the two firms |
