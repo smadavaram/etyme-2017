@@ -197,6 +197,24 @@ function generatePeriodEnds(start: Date, end: Date, def: CycleDefinition): Date[
     }
   }
 
+  // No trailing partial period, and this is deliberate rather than
+  // forgotten — see "The cycle engine, honestly" in CLAUDE.md.
+  //
+  // A contract ending on a Wednesday stops at the Friday before, so its
+  // last two days have no hours cycle and no invoice. The retired Rails
+  // engine emitted a short trailing group and the rebuild dropped it,
+  // which reads like a straight revenue leak and was tried as a one-line
+  // fix. It is not one: a trailing cycle is only correct while the
+  // contract really does end there. Extending leaves it stranded
+  // mid-contract, asking for a partial week that the next regular cycle
+  // also covers — and cycles are evidence, so the extension cannot
+  // quietly delete it.
+  //
+  // The honest fix is for the final regular cycle to COVER through the
+  // contract end rather than for an extra cycle to exist, and `Cycle`
+  // carries no period bounds to say so. Blocked on that column, which is
+  // the architect's.
+
   return periods
 }
 
