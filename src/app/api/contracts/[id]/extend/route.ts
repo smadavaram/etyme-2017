@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCallerContext } from '@/lib/api-context'
+import { writeCyclesFor } from '@/lib/contract-cycles'
+import { localKey } from '@/lib/cycle-generator'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { evaluateGovernance } from '@/lib/governance'
+import { loadContractHolidays } from '@/lib/holidays'
 import { hasPermission } from '@/lib/permissions'
 import { contractSide } from '@/lib/resolve-client-company'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
@@ -49,7 +52,7 @@ export async function POST(
       clientCompany: { select: { id: true, name: true } },
       endClientCompany: { select: { id: true, name: true } },
       workLocation: { select: { id: true, name: true, city: true, state: true, isRemote: true } },
-      company: { select: { id: true, name: true } },
+      company: { select: { id: true, name: true, templatePack: true } },
     },
   })
 
@@ -129,30 +132,87 @@ export async function POST(
   const newEnd = new Date(baseDate)
   newEnd.setMonth(newEnd.getMonth() + months)
 
-  await prisma.$transaction([
-    prisma.sellContract.update({
-      where: { id },
-      data: { endDate: newEnd },
-    }),
-    prisma.automationLog.create({
+  // ── The months added need their due dates ──────────────────────────
+  //
+  // This route moved `endDate`, wrote a log line saying it had extended
+  // the placement, and stopped. The comment above it claimed it wrote
+  // the billing and pay cycles behind it; it never did. So a placement
+  // extended by three months had no hours due, no pay day and no invoice
+  // date for any of them — the work carried on and nothing asked for a
+  // timesheet or raised a bill.
+  //
+  // The buy leg moves with the sell leg for the same reason it does on
+  // activation: a contract to pay somebody for work that is no longer
+  // under contract is the pair disagreeing about when the job ends.
+  const linked = await prisma.sellContract.findUnique({
+    where: { id },
+    select: { buyLinks: { select: { buyContractId: true } } },
+  })
+  const buyId = linked?.buyLinks[0]?.buyContractId ?? null
+  const buy = buyId
+    ? await prisma.buyContract.findUnique({
+        where: { id: buyId },
+        select: { id: true, contractType: true, vendorCompanyId: true },
+      })
+    : null
+
+  // What is already on the books, keyed the way the generator keys it.
+  const written = await prisma.cycle.findMany({
+    where: { OR: [{ sellContractId: id }, ...(buyId ? [{ buyContractId: buyId }] : [])] },
+    select: { kind: true, dueOn: true },
+  })
+  const already = new Map<string, Set<string>>()
+  for (const c of written) {
+    const days = already.get(c.kind) ?? new Set<string>()
+    days.add(localKey(c.dueOn))
+    already.set(c.kind, days)
+  }
+
+  const holidays = await loadContractHolidays(
+    contract.company.id,
+    contract.clientCompany.id,
+    (contract.startDate ?? baseDate).getFullYear(),
+    newEnd.getFullYear()
+  )
+
+  const added = await prisma.$transaction(async (tx) => {
+    await tx.sellContract.update({ where: { id }, data: { endDate: newEnd } })
+    if (buyId) await tx.buyContract.update({ where: { id: buyId }, data: { endDate: newEnd } })
+
+    const cycles = await writeCyclesFor(tx, {
+      sell: { id, startDate: contract.startDate, endDate: newEnd },
+      buy,
+      packId: contract.company.templatePack ?? 'US_IT',
+      holidays,
+      existing: already,
+    })
+
+    await tx.automationLog.create({
       data: {
         companyId: contract.clientCompany.id,
         action: 'CONTRACT_EXTENDED',
         summary: `${contract.person.name}'s contract at ${contract.endClientCompany?.name ?? contract.clientCompany.name} extended by ${months} month${months !== 1 ? 's' : ''} to ${newEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
-        reason: 'Extended via Program dashboard',
+        reason:
+          cycles.sell + cycles.buy > 0
+            ? `Extended by ${caller.person.name}. ${cycles.sell + cycles.buy} new due dates written — hours, pay and invoices for the added months.`
+            : `Extended by ${caller.person.name}. No new due dates: the contract has no start date, or every date in the new period was already on the books.`,
         payload: {
           contractId: id,
+          buyContractId: buyId,
           personId: contract.person.id,
           vendorId: contract.company.id,
           clientId: contract.clientCompany.id,
           oldEndDate: oldEnd?.toISOString() ?? null,
           newEndDate: newEnd.toISOString(),
           months,
+          cyclesAdded: { sell: cycles.sell, buy: cycles.buy },
         },
         reversible: true,
       },
-    }),
-  ])
+    })
+
+    return cycles
+  })
 
   void emit({
     type: 'contract.extended',

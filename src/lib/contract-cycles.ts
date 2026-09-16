@@ -40,6 +40,18 @@ export async function writeCyclesFor(
     packId: string
     /** YYYY-MM-DD, both companies' calendars unioned. Seeds pass none. */
     holidays?: Iterable<string>
+    /**
+     * kind → the days already written, so an extension adds the new months
+     * and rewrites none of the old ones.
+     *
+     * Generation still runs over the whole contract, not over the added
+     * months alone. A fortnightly cycle anchored on the original start
+     * falls on alternate weeks, and restarting the count at the old end
+     * date lands on the wrong ones half the time. Running the whole series
+     * and dropping what is already there keeps every date where the first
+     * generation put it, and makes calling this twice harmless.
+     */
+    existing?: Map<string, Set<string>>
   }
 ): Promise<Written> {
   const { sell, buy } = input
@@ -51,9 +63,10 @@ export async function writeCyclesFor(
     pack.cycleDefinitions
   )
   const holidays = input.holidays ?? []
+  const existing = input.existing ?? new Map<string, Set<string>>()
 
-  const sellCycles = generateCycles(sell.startDate, sell.endDate, split.sell, holidays)
-  const buyCycles = buy ? generateCycles(sell.startDate, sell.endDate, split.buy, holidays) : []
+  const sellCycles = generateCycles(sell.startDate, sell.endDate, split.sell, holidays, existing)
+  const buyCycles = buy ? generateCycles(sell.startDate, sell.endDate, split.buy, holidays, existing) : []
 
   const rows = [
     ...sellCycles.map((c) => ({ sellContractId: sell.id, kind: c.kind, dueOn: c.dueOn })),

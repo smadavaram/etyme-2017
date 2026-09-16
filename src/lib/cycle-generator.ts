@@ -29,9 +29,22 @@
  * to four thousand commits. When a real client needs a different day it
  * gets a different pack, not a setting.
  *
- * Weekend shift stays forward-only. The 2017 engine could shift backward
- * per frequency; nobody has asked, and a payment that moves earlier is a
- * surprise in a way that one moving later is not.
+ * ── Which way a date moves off a weekend ─────────────────────────────
+ *
+ * Pay moves back; everything else moves forward. Decided 2026-09-16.
+ *
+ * This was forward-only, on the reasoning that "a payment that moves
+ * earlier is a surprise in a way that one moving later is not". That is
+ * true of a bill and false of a pay day. US payroll pays a Saturday pay
+ * day on the Friday before, universally, because moving it to the Monday
+ * pays somebody after the period it covers — a contractor is short over a
+ * weekend for a date the calendar chose. Nobody is upset to be paid on
+ * Friday.
+ *
+ * So the direction is per category rather than global: PAY backward,
+ * HOURS and BILL forward. An invoice due on a Saturday is still due on
+ * the Monday — pulling a client's payment terms shorter is the surprise
+ * the original note described, and it is real on that side.
  *
  * ── The February rule ────────────────────────────────────────────────
  *
@@ -42,7 +55,7 @@
  * month anyway.
  */
 
-import { isMoneyKind } from '@/lib/cycle-kinds'
+import { categoryOf, isMoneyKind } from '@/lib/cycle-kinds'
 
 export type CycleFrequency = 'WEEKLY' | 'BIWEEKLY' | 'SEMIMONTHLY' | 'MONTHLY' | 'ON_COMPLETION'
 
@@ -75,14 +88,38 @@ const DEFAULT_SEMIMONTHLY_CUT = 15
 /** At or past this, a day of month means "the end of the month". */
 const MEANS_MONTH_END = 28
 
-/** Forward to the next working day. Iterates, because Monday can be a holiday too. */
-function shiftToBusinessDay(date: Date, holidays: Set<string>): Date {
+/**
+ * The calendar day this date names, where the reader is.
+ *
+ * Every date here is built with `new Date(y, m, d)` — local midnight —
+ * and the holiday calendar is keyed YYYY-MM-DD. Reading the key back out
+ * with `toISOString()` converted to UTC first, so east of Greenwich local
+ * midnight is the previous day and no holiday ever matched: under
+ * `TZ=Asia/Kolkata` a due date falling on a holiday was not shifted at
+ * all. Correct under UTC and west of it, which is why production never
+ * showed it and a second region would have.
+ */
+export function localKey(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
+}
+
+/**
+ * To the nearest working day, in the direction the kind wants. Iterates,
+ * because the day before a holiday can be a Sunday.
+ */
+function shiftToBusinessDay(date: Date, holidays: Set<string>, step: 1 | -1): Date {
   const d = new Date(date)
-  const key = () => d.toISOString().slice(0, 10)
-  while (WEEKEND_DAYS.includes(d.getDay()) || holidays.has(key())) {
-    d.setDate(d.getDate() + 1)
+  while (WEEKEND_DAYS.includes(d.getDay()) || holidays.has(localKey(d))) {
+    d.setDate(d.getDate() + step)
   }
   return d
+}
+
+/** Pay lands on or before its date; everything else on or after. */
+function shiftFor(kind: string): 1 | -1 {
+  return categoryOf(kind) === 'PAY' ? -1 : 1
 }
 
 function daysInMonth(year: number, month: number): number {
@@ -191,11 +228,28 @@ export function generateCycles(
     if (!isMoneyKind(def.kind)) continue
     const existing = existingDates.get(def.kind) ?? new Set<string>()
 
+    const step = shiftFor(def.kind)
+
+    // What this kind already sits on: the dates written by an earlier run,
+    // and the ones this run has produced so far.
+    //
+    // Two boundaries can shift onto one day. A semimonthly invoice cuts at
+    // month-end and again on the 1st, and when the 31st is a Saturday and
+    // the 1st a Sunday both move forward to the same Monday — two rows,
+    // one day, two invoices raised for one period. The guard against
+    // re-writing an extension's existing dates was here; the guard against
+    // a run colliding with itself was not.
+    const taken = new Set(existing)
+
     for (const periodEnd of generatePeriodEnds(start, end, def)) {
       const due = new Date(periodEnd)
       due.setDate(due.getDate() + (def.offsetDays ?? 0))
-      const shifted = shiftToBusinessDay(due, holidaySet)
-      if (existing.has(shifted.toISOString().slice(0, 10))) continue
+      const shifted = shiftToBusinessDay(due, holidaySet, step)
+      // Keyed the same way the holidays are, so an extension knows the
+      // dates it already wrote whatever timezone the server is in.
+      const day = localKey(shifted)
+      if (taken.has(day)) continue
+      taken.add(day)
       cycles.push({ kind: def.kind, dueOn: shifted })
     }
   }
