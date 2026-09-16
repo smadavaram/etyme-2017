@@ -310,6 +310,15 @@ export async function POST(
   // relationship that plainly exists, and marking it unsigned, is honest;
   // refusing the placement until somebody uploads a contract is not how
   // anybody actually works.
+  //
+  // It is written DRAFT, which is the honest name for what it is: a row
+  // so the contract has a parent, not an agreement anybody negotiated. A
+  // DRAFT with people under it raises MSA_UNSIGNED and MSA_NO_TERM on the
+  // agreements screen, and the first recorded signature makes it ACTIVE
+  // (`api/program/agreements/[id]/sign`). The alternative — refusing the
+  // award — would stop the ten-station path in CLAUDE.md Phase 1 at
+  // station three, and would move the placement into email where nothing
+  // can see it at all.
   const msa =
     agreement ??
     (await prisma.masterAgreement.create({
@@ -322,6 +331,7 @@ export async function POST(
         // assumed away, so "three placements running on a handshake" is a
         // number somebody can pull.
         signedAt: null,
+        status: 'DRAFT',
       },
       select: { id: true, paymentTerms: true, currency: true, client: { select: { name: true } } },
     }))

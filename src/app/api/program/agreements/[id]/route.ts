@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  STATUS_SAYS,
+  daysUntilExpiry,
+  isRenewalKind,
+  mayAmend,
+  termSays,
+  whatChanged,
+} from '@/lib/agreement-term'
 import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { hasPermission } from '@/lib/permissions'
+import { ensureBaseline, recordVersion, type TermSnapshot } from '../trail'
 import { paymentDaysSays, marginFloorSays } from '../verdict'
 
 /**
@@ -19,13 +29,27 @@ import { paymentDaysSays, marginFloorSays } from '../verdict'
  * product. When the client portal lands this becomes a proposal both sides
  * accept, and that is a different endpoint rather than a looser check.
  *
- * ── Why the signature is a date and not a checkbox ───────────────────
+ * ── Why the signature is not set here any more ───────────────────────
  *
- * The schema is explicit that a null signature means work is running on a
- * handshake, which is the ordinary state of this industry between an offer
- * and a start date and worth being able to count. A boolean would lose
- * when — and "signed six months after the first invoice" is the finding an
- * auditor stops on.
+ * It used to be, and it was a date somebody typed with nobody's name
+ * behind it. `POST /api/program/agreements/[id]/sign` records who signed,
+ * on which side, with what title, and `signedAt` is written from those
+ * rows when both sides have signed. A date with no signer answers none of
+ * the questions anybody asks of a signature.
+ *
+ * ── Why a permission ─────────────────────────────────────────────────
+ *
+ * Any seat at the vendor could change the payment days, the margin floor
+ * and the signature date. Payment days decide when every invoice under
+ * this agreement falls due and the margin floor decides what a recruiter
+ * may price at, so this is the pricing desk's work: `rates.write`, which
+ * the Owner, the Admin and the Contract Manager hold. `settings.manage`
+ * passes too, because at a four-person firm the owner is the whole desk.
+ *
+ * ── Why every change writes a version row ────────────────────────────
+ *
+ * This route overwrote the terms in place, so "what were the payment days
+ * on 3 March" had no answer. See `../trail`.
  */
 export async function PATCH(
   request: NextRequest,
@@ -51,6 +75,22 @@ export async function PATCH(
       clientId: true,
       client: { select: { name: true } },
       vendor: { select: { name: true } },
+      // The terms as they stand, so the trail can record what they were
+      // as well as what they became.
+      paymentTerms: true,
+      paymentTermsFrom: true,
+      currency: true,
+      minMarginPct: true,
+      capacity: true,
+      effectiveDate: true,
+      expiresAt: true,
+      renewalKind: true,
+      renewalMonths: true,
+      noticeDays: true,
+      status: true,
+      signedAt: true,
+      executedFileName: true,
+      createdAt: true,
     },
   })
 
@@ -73,6 +113,38 @@ export async function PATCH(
         },
       },
       { status: 403 }
+    )
+  }
+
+  // The pricing desk's work, not everybody's. Said as a sentence: a
+  // disabled button with no words is how somebody concludes the product
+  // is broken.
+  if (
+    !hasPermission(caller.permissions, 'rates.write') &&
+    !hasPermission(caller.permissions, 'settings.manage')
+  ) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_ALLOWED',
+          message:
+            'Changing the terms of an agreement is the contracting desk’s work — payment ' +
+            'days decide when every invoice under it falls due, and the margin floor decides ' +
+            'what anybody may price at. Ask an owner to give you rate permissions, or ask ' +
+            'your contract manager to make the change.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // An ended agreement is a historical document. Amending one would
+  // rewrite what a closed engagement was billed under.
+  const amendable = mayAmend(agreement.status)
+  if (!amendable.ok) {
+    return NextResponse.json(
+      { error: { code: 'AGREEMENT_ENDED', message: amendable.says } },
+      { status: 409 }
     )
   }
 
@@ -119,23 +191,123 @@ export async function PATCH(
     data.currency = cur
   }
 
-  if ('signedAt' in body) {
-    const at = body.signedAt
-    if (at === null) {
-      data.signedAt = null
-    } else {
-      const d = new Date(at)
-      if (isNaN(d.getTime())) return bad('That is not a date.', 'signedAt')
-      if (d.getTime() > Date.now() + 86_400_000) {
-        return bad('An agreement cannot have been signed in the future.', 'signedAt')
-      }
-      data.signedAt = d
+  // ── The term ────────────────────────────────────────────────────────
+
+  if ('effectiveDate' in body) {
+    const d = readDate(body.effectiveDate)
+    if (d === 'BAD') return bad('That is not a date. Give the day the agreement starts.', 'effectiveDate')
+    data.effectiveDate = d
+  }
+
+  if ('expiresAt' in body) {
+    const d = readDate(body.expiresAt)
+    if (d === 'BAD') return bad('That is not a date. Give the day the agreement runs out.', 'expiresAt')
+    data.expiresAt = d
+  }
+
+  if ('renewalKind' in body) {
+    const kind = body.renewalKind
+    if (typeof kind !== 'string' || !isRenewalKind(kind)) {
+      return bad(
+        'Say how this agreement renews: it runs to a fixed date, it rolls on with no end ' +
+          'date, or it renews itself for a further term.',
+        'renewalKind'
+      )
     }
+    data.renewalKind = kind
+  }
+
+  if ('renewalMonths' in body) {
+    const months = body.renewalMonths
+    if (months !== null) {
+      if (typeof months !== 'number' || !Number.isInteger(months) || months < 1 || months > 120) {
+        return bad('A renewal term is a whole number of months between 1 and 120.', 'renewalMonths')
+      }
+    }
+    data.renewalMonths = months
+  }
+
+  if ('noticeDays' in body) {
+    const days = body.noticeDays
+    if (days !== null) {
+      if (typeof days !== 'number' || !Number.isInteger(days) || days < 0 || days > 365) {
+        return bad('A notice period is whole days between 0 and 365, or nothing at all.', 'noticeDays')
+      }
+    }
+    data.noticeDays = days
+  }
+
+  // ── The executed document ───────────────────────────────────────────
+
+  if ('executedFileName' in body || 'executedFileUrl' in body) {
+    const name = body.executedFileName
+    const url = body.executedFileUrl
+    if (name === null || url === null) {
+      data.executedFileName = null
+      data.executedFileUrl = null
+      data.executedFileHash = null
+    } else {
+      if (typeof name !== 'string' || !name.trim()) {
+        return bad('Name the file, so somebody opening this later knows what they are looking at.', 'executedFileName')
+      }
+      if (typeof url !== 'string' || !/^https?:\/\//.test(url)) {
+        return bad('Give a link to the executed copy, starting http:// or https://.', 'executedFileUrl')
+      }
+      data.executedFileName = name.trim()
+      data.executedFileUrl = url.trim()
+      if ('executedFileHash' in body && typeof body.executedFileHash === 'string') {
+        data.executedFileHash = body.executedFileHash.trim() || null
+      }
+    }
+  }
+
+  // The signature is no longer a date somebody types. It is two named
+  // people on /sign, and `signedAt` is written from them.
+  if ('signedAt' in body) {
+    return bad(
+      'A signature is who signed, on which side, with what title. Record it on the ' +
+        'agreement’s Signing panel — the date on its own says nothing about authority.',
+      'signedAt'
+    )
   }
 
   if (Object.keys(data).length === 0) {
     return bad('Nothing to change.', null)
   }
+
+  // What actually moved, in the trade's words. A form re-saved without a
+  // change is not an amendment, and a trail that records one is a trail
+  // nobody can read.
+  const before: TermSnapshot = {
+    paymentTerms: agreement.paymentTerms,
+    paymentTermsFrom: agreement.paymentTermsFrom,
+    currency: agreement.currency,
+    minMarginPct: agreement.minMarginPct,
+    capacity: agreement.capacity,
+    effectiveDate: agreement.effectiveDate,
+    expiresAt: agreement.expiresAt,
+    renewalKind: agreement.renewalKind,
+    renewalMonths: agreement.renewalMonths,
+    noticeDays: agreement.noticeDays,
+    status: agreement.status,
+    signedAt: agreement.signedAt,
+    executedFileName: agreement.executedFileName,
+  }
+
+  const changed = whatChanged(before as unknown as Record<string, unknown>, data)
+  if (changed.length === 0) {
+    return bad('Nothing to change — those are already the terms on file.', null)
+  }
+
+  const reason = typeof body.reason === 'string' ? body.reason.trim() : ''
+
+  // The trail has to start before the change, or it answers "what did it
+  // become" and never "what was it".
+  // Dated when the agreement was recorded, because that is when those
+  // terms came into being. Dating it now would make every amendment look
+  // like it happened on the same day as the agreement itself, and
+  // `termsOn` would answer "nothing" for every day before today.
+  await ensureBaseline(id, before, agreement.createdAt)
 
   const updated = await prisma.masterAgreement.update({
     where: { id },
@@ -147,8 +319,57 @@ export async function PATCH(
       capacity: true,
       currency: true,
       signedAt: true,
+      effectiveDate: true,
+      expiresAt: true,
+      renewalKind: true,
+      renewalMonths: true,
+      noticeDays: true,
+      status: true,
+      endedAt: true,
+      executedFileName: true,
+      executedFileUrl: true,
     },
   })
+
+  const changedById = realPersonId(caller)
+
+  const written = await recordVersion({
+    agreementId: id,
+    action: data.executedFileName !== undefined && changed.length === 1 ? 'DOCUMENT_ATTACHED' : 'AMENDED',
+    changed,
+    changedById,
+    reason: reason || null,
+  })
+
+  await prisma.automationLog.create({
+    data: {
+      companyId,
+      action: 'AGREEMENT_AMENDED',
+      summary:
+        `${caller.person.name} changed ${changed.join(', ')} on the agreement with ` +
+        `${agreement.client.name}${written ? ` — amendment ${written.version}` : ''}.`,
+      reason: reason || 'Amended on the agreements screen. No reason was given.',
+      payload: {
+        agreementId: id,
+        counterparty: agreement.client.name,
+        changed,
+        version: written?.version ?? null,
+      },
+      // The prior terms are on the version row, so the change can be put
+      // back by hand. Nothing here reverses it automatically.
+      reversible: true,
+    },
+  })
+
+  const now = new Date()
+  const term = {
+    status: updated.status,
+    effectiveDate: updated.effectiveDate,
+    expiresAt: updated.expiresAt,
+    renewalKind: updated.renewalKind,
+    renewalMonths: updated.renewalMonths,
+    noticeDays: updated.noticeDays,
+  }
 
   return NextResponse.json({
     data: {
@@ -161,11 +382,35 @@ export async function PATCH(
         capacity: updated.capacity,
         currency: updated.currency,
         signedAt: updated.signedAt?.toISOString() ?? null,
+        effectiveDate: updated.effectiveDate?.toISOString() ?? null,
+        expiresAt: updated.expiresAt?.toISOString() ?? null,
+        renewalKind: updated.renewalKind,
+        renewalMonths: updated.renewalMonths,
+        noticeDays: updated.noticeDays,
       },
-      changedBy: realPersonId(caller),
-      says: `Terms recorded against ${agreement.client.name}.`,
+      status: updated.status,
+      statusSays: STATUS_SAYS[updated.status as keyof typeof STATUS_SAYS] ?? updated.status,
+      termSays: termSays(term, now, updated.endedAt),
+      daysToExpiry: daysUntilExpiry(updated.expiresAt, now),
+      executedDocument: updated.executedFileName
+        ? { fileName: updated.executedFileName, fileUrl: updated.executedFileUrl }
+        : null,
+      amendment: written?.version ?? null,
+      changed,
+      changedBy: changedById,
+      says:
+        `Amendment ${written?.version ?? ''} against ${agreement.client.name}: ` +
+        `${changed.join(', ')} changed.`.replace('  ', ' '),
     },
   })
+}
+
+/** A date, null to clear it, or 'BAD' where it is neither. */
+function readDate(value: unknown): Date | null | 'BAD' {
+  if (value === null || value === '') return null
+  if (typeof value !== 'string' && typeof value !== 'number') return 'BAD'
+  const d = new Date(value)
+  return Number.isNaN(d.getTime()) ? 'BAD' : d
 }
 
 function bad(message: string, field: string | null) {

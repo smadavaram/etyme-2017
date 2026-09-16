@@ -166,6 +166,10 @@ export const DOMAINS: Domain[] = [
       'app/api/checks', 'app/api/why',
       'lib/openings', 'lib/lead-reader', 'lib/requirement-quality',
       'lib/screening', 'lib/checks', 'lib/award', 'lib/first-good', 'lib/chain-top', 'lib/timesheet-flag',
+      // The term, the standing and the signature on a master agreement.
+      // Lives with app/api/program/agreements, which is the screen that
+      // reads it — commercial papering is L2.2.1 and belongs here.
+      'lib/agreement-term',
       'lib/budget-ledger', 'lib/overtime', 'lib/time-off', 'app/api/program/budget', 'app/dashboard/program/budget',
       'lib/invitation-visibility', 'lib/outcomes', 'lib/review',
       'lib/resolve-client-company', 'lib/resolve-end-client',

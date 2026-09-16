@@ -29,8 +29,8 @@ model Person {
   credentials            Credential[]
   contexts               Context[]
   consultant             ConsultantProfile?
-  accessedBy             AccessLog[]            @relation("subject")
-  actions                AccessLog[]            @relation("actor")
+  accessedBy             AccessLog[]              @relation("subject")
+  actions                AccessLog[]              @relation("actor")
   visas                  VisaPetition[]
   submissions            Submission[]
   texts                  TextMessage[]
@@ -39,29 +39,32 @@ model Person {
   // agreement can cover several people at their own rates.
   buyCandidacies         BuyContractCandidate[]
   timesheets             Timesheet[]
-  overtimeDecisions      OvertimeDecision[]     @relation("overtimeDecider")
-  timeOff                TimeOffEntry[]         @relation("timeOffPerson")
-  timeOffRecorded        TimeOffEntry[]         @relation("timeOffBy")
+  overtimeDecisions      OvertimeDecision[]       @relation("overtimeDecider")
+  timeOff                TimeOffEntry[]           @relation("timeOffPerson")
+  timeOffRecorded        TimeOffEntry[]           @relation("timeOffBy")
   invoiceLines           InvoiceLine[]
   matchOverrides         InvoiceMatchOverride[]
   verifications          Verification[]
   enrollments            Enrollment[]
   expenses               Expense[]
-  requisitionsRaised     Requirement[]          @relation("requisitionRaiser")
-  requisitionsOwned      Requirement[]          @relation("requisitionOwner")
-  approvalRules          ApprovalRule[]         @relation("approvalRuleApprover")
-  requirementApprovals   RequirementApproval[]  @relation("requirementApprover")
-  documentSharesCreated  DocumentShare[]        @relation("shareCreator")
-  documentSharesAbout    DocumentShare[]        @relation("shareSubject")
-  managedContracts       SellContract[]         @relation("hiringManager") // Addendum E: contracts this person owns at the client
-  eventsCaused           Event[]                @relation("eventActor")
-  rulesAuthored          ApprovalRule[]         @relation("ruleAuthor")
-  ruleVersions           ApprovalRuleVersion[]  @relation("ruleVersionAuthor")
-  packetsCreated         DocumentPacket[]       @relation("packetCreator")
-  packetsAbout           DocumentPacket[]       @relation("packetSubjectPerson")
-  packetItemsReviewed    PacketItem[]           @relation("packetItemReviewer")
-  serviceAccountsCreated ServiceAccount[]       @relation("serviceAccountCreator")
-  customDomainsAdded     CustomDomain[]         @relation("customDomainAdder")
+  requisitionsRaised     Requirement[]            @relation("requisitionRaiser")
+  requisitionsOwned      Requirement[]            @relation("requisitionOwner")
+  approvalRules          ApprovalRule[]           @relation("approvalRuleApprover")
+  requirementApprovals   RequirementApproval[]    @relation("requirementApprover")
+  documentSharesCreated  DocumentShare[]          @relation("shareCreator")
+  documentSharesAbout    DocumentShare[]          @relation("shareSubject")
+  managedContracts       SellContract[]           @relation("hiringManager") // Addendum E: contracts this person owns at the client
+  eventsCaused           Event[]                  @relation("eventActor")
+  rulesAuthored          ApprovalRule[]           @relation("ruleAuthor")
+  ruleVersions           ApprovalRuleVersion[]    @relation("ruleVersionAuthor")
+  agreementVersions      MasterAgreementVersion[] @relation("agreementVersionAuthor")
+  agreementSignatures    AgreementSignature[]     @relation("agreementAttestor")
+  agreementsEnded        MasterAgreement[]        @relation("agreementEndedBy")
+  packetsCreated         DocumentPacket[]         @relation("packetCreator")
+  packetsAbout           DocumentPacket[]         @relation("packetSubjectPerson")
+  packetItemsReviewed    PacketItem[]             @relation("packetItemReviewer")
+  serviceAccountsCreated ServiceAccount[]         @relation("serviceAccountCreator")
+  customDomainsAdded     CustomDomain[]           @relation("customDomainAdder")
   representations        Representation[]
   doNotSubmit            DoNotSubmit[]
   resumes                Resume[]
@@ -1336,15 +1339,76 @@ model MasterAgreement {
   paymentTermsFrom String @default("PERIOD_END")
 
   currency     String    @default("USD")
-  /// When it was actually signed. Null means work is running on a
-  /// handshake — which is the ordinary state of this industry between an
-  /// offer and a start date, and worth being able to count rather than
-  /// pretend away.
+  /// When it was fully executed — both sides signed. Null means work is
+  /// running on a handshake, which is the ordinary state of this industry
+  /// between an offer and a start date and worth being able to count
+  /// rather than pretend away.
+  ///
+  /// Written by the signing route from `AgreementSignature`, never typed
+  /// directly: one side's signature is not an executed agreement, and a
+  /// date somebody typed with nobody's name behind it answers none of the
+  /// questions an auditor asks.
   signedAt     DateTime?
   minMarginPct Int? // the floor a recruiter may not price below without approval
   rateCard     Json? // condition records: client + skill + level + location
   capacity     Int? // max resources for GSA global contracts (null = unlimited)
   createdAt    DateTime  @default(now())
+
+  // ── The term ────────────────────────────────────────────────────────
+  //
+  // An agreement that cannot expire is one nothing can be stale under,
+  // and "are we allowed to trade at all" is the question this row exists
+  // to answer. Both dates are nullable because most agreements already on
+  // file were recorded before anybody asked for a term, and a made-up
+  // date is worse than a blank — `termSays` returns the blank in words.
+
+  /// The day it starts biting. Null where nobody recorded one.
+  effectiveDate DateTime?
+  /// The day it stops. Null on an evergreen agreement, and also null on
+  /// one nobody has typed a term into — `renewalKind` tells them apart.
+  expiresAt     DateTime?
+  /// FIXED — runs to `expiresAt` and stops.
+  /// EVERGREEN — rolls on until somebody gives notice. Never expires.
+  /// AUTO_RENEW — rolls forward by `renewalMonths` when it reaches the date.
+  renewalKind   String    @default("FIXED")
+  /// How many months an AUTO_RENEW term adds each time.
+  renewalMonths Int?
+  /// How much notice either side owes to terminate. Said on the screen,
+  /// enforced by nobody — a notice period is a term, not a gate.
+  noticeDays    Int?
+
+  // ── Lifecycle ───────────────────────────────────────────────────────
+  //
+  // DRAFT · ACTIVE · EXPIRING · EXPIRED · TERMINATED.
+  //
+  // Without this an agreement somebody tore up stays live-looking forever
+  // and its capacity and margin floor keep enforcing against contracts
+  // nobody may write. DRAFT is the honest name for the placeholder the
+  // award path writes when a deal is done before the paper: it is a row
+  // that exists so the contract has a parent, not an agreement anybody
+  // negotiated.
+  //
+  // ACTIVE → EXPIRING → EXPIRED is moved by `cron/agreement-terms` off the
+  // calendar, the way `cron/visa-watch` moves a petition. TERMINATED is
+  // only ever a person's act and the calendar never overrides it.
+  /// DRAFT · ACTIVE · EXPIRING · EXPIRED · TERMINATED
+  status      String    @default("ACTIVE")
+  endedAt     DateTime?
+  /// Why it ended, in words. Required by the route: an agreement torn up
+  /// for no recorded reason is the one nobody can explain two years later.
+  endedReason String?
+  endedById   String?
+  endedBy     Person?   @relation("agreementEndedBy", fields: [endedById], references: [id])
+
+  // ── The executed document ───────────────────────────────────────────
+  //
+  // A file reference and a hash, not an e-signature integration. The
+  // contract of record used to live in somebody's email; this is the
+  // pointer to it plus enough to prove the file was not swapped. Nothing
+  // here sends an envelope anywhere.
+  executedFileName String?
+  executedFileUrl  String?
+  executedFileHash String? // SHA-256, so the same file twice is the same file
 
   engagements           Engagement[]
   requirements          Requirement[]
@@ -1352,9 +1416,129 @@ model MasterAgreement {
   salesOrders           SalesOrder[]
   /// "3% at zero days, 2% at ten, otherwise net thirty."
   earlyPaymentDiscounts EarlyPaymentDiscount[]
+  /// What it said, each time it changed. The answer to "what were the
+  /// terms on 3 March", which is the only question that matters in a
+  /// dispute.
+  versions              MasterAgreementVersion[]
+  /// Who put their name to it, one row per side.
+  signatures            AgreementSignature[]
 
   @@index([vendorId])
   @@index([clientId])
+  @@index([status, expiresAt]) // the nightly term watch reads exactly this
+  @@index([endedById])
+}
+
+/// What a master agreement said at one point in time, and who moved it.
+///
+/// ── Why a row and not a JSON blob ───────────────────────────────────
+///
+/// `RateHistory` and `ApprovalRuleVersion` both do this already, and both
+/// store the values as columns rather than a diff. The reason is that the
+/// question asked of this table is "what were the terms on a day", not
+/// "what changed on a day": answering the first from a chain of diffs
+/// means replaying every row from the beginning and getting it right, and
+/// a replay that is wrong is wrong silently. A row carrying the whole set
+/// of terms as they stood after the change answers it with one query and
+/// an ORDER BY.
+///
+/// So every column here is the value AFTER the change. Version 1 is what
+/// the agreement said when it was first recorded, written at creation so
+/// there is never a period the trail cannot cover.
+model MasterAgreementVersion {
+  id          String          @id @default(cuid())
+  agreementId String
+  agreement   MasterAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  /// Ascending from 1, per agreement. An amendment number is what a
+  /// contract manager cites — "under amendment three" — so it is a number
+  /// they can read rather than a cuid.
+  version Int
+
+  // ── The terms, as they stood after this change ──
+  paymentTerms     Int
+  paymentTermsFrom String
+  currency         String
+  minMarginPct     Int?
+  capacity         Int?
+  effectiveDate    DateTime?
+  expiresAt        DateTime?
+  renewalKind      String
+  renewalMonths    Int?
+  noticeDays       Int?
+  status           String
+  signedAt         DateTime?
+  executedFileName String?
+
+  /// RECORDED · AMENDED · SIGNED · DOCUMENT_ATTACHED · RENEWED · EXPIRED · TERMINATED
+  action      String
+  /// Which terms moved, in the words a contract manager would use —
+  /// "payment days", "margin floor". Never a column name: the trail is
+  /// read by the person who signed the thing, not by the schema's author.
+  changed     String[]
+  /// Null where the calendar did it rather than a person.
+  changedById String?
+  changedBy   Person?  @relation("agreementVersionAuthor", fields: [changedById], references: [id])
+  /// Why. An amendment with no reason is the one an auditor stops on.
+  reason      String?
+  changedAt   DateTime @default(now())
+
+  @@unique([agreementId, version])
+  @@index([agreementId, changedAt])
+  @@index([changedById])
+}
+
+/// Who signed a master agreement, on which side.
+///
+/// ── Why this is a table and not two more columns ────────────────────
+///
+/// A master agreement is executed by two parties, and "signed" on one
+/// side is not an executed agreement — it is a document out for
+/// counter-signature, which is a different thing to chase. Two columns
+/// would hold one signature, and the second would be typed into a notes
+/// field where nothing can read it.
+///
+/// ── What this is not ────────────────────────────────────────────────
+///
+/// Not an e-signature integration. Nothing here sends an envelope,
+/// verifies a certificate or holds a cryptographic signature. It is a
+/// record that somebody at this company looked at the executed paper and
+/// attested, in a sentence kept verbatim, that it says what it says. That
+/// is worth exactly what an attestation is worth and no more, which is
+/// why the attestor and the moment are both kept: an attestation nobody
+/// is named on is not an attestation.
+model AgreementSignature {
+  id          String          @id @default(cuid())
+  agreementId String
+  agreement   MasterAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  /// VENDOR · CLIENT. One row each; the second one recorded is the
+  /// counter-signature and is what makes the agreement executed.
+  party String
+
+  signerName  String
+  /// Their title on the paper. An agreement signed by somebody with no
+  /// authority is the finding, and a title is the only thing on file that
+  /// speaks to it.
+  signerTitle String
+  signerEmail String?
+  /// The date on the paper, which is not the date somebody typed it in.
+  signedAt    DateTime
+
+  /// WET_INK · ELECTRONIC · COUNTERPART
+  method String @default("WET_INK")
+
+  /// Who at this company said it was true, and when they said it.
+  attestedById String?
+  attestedBy   Person?  @relation("agreementAttestor", fields: [attestedById], references: [id])
+  attestedAt   DateTime @default(now())
+  /// The sentence they agreed to, kept word for word. An attestation
+  /// whose words nobody can produce is not an attestation.
+  attestation  String
+
+  @@unique([agreementId, party])
+  @@index([agreementId])
+  @@index([attestedById])
 }
 
 /// One rung of an early-payment discount: pay this fast, take this much off.

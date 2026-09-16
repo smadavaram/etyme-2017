@@ -13,6 +13,7 @@ import {
   signatureFinding,
   sowFinding,
   summarize,
+  termFinding,
   worstFirst,
   type AgreementInput,
   type ContractInput,
@@ -52,6 +53,17 @@ function agreement(over: Partial<AgreementInput> = {}): AgreementInput {
     minMarginPct: 20,
     currency: 'USD',
     capacity: null,
+    status: 'ACTIVE',
+    effectiveDate: new Date('2026-01-01'),
+    expiresAt: null,
+    renewalKind: 'EVERGREEN',
+    renewalMonths: null,
+    noticeDays: null,
+    endedAt: null,
+    signatures: [
+      { party: 'VENDOR', signedAt: new Date('2026-01-01') },
+      { party: 'CLIENT', signedAt: new Date('2026-01-01') },
+    ],
     contracts: [contract()],
     engagements: [engagement()],
     ...over,
@@ -280,5 +292,128 @@ describe('The terms of the agreement, said in English', () => {
   it('payment days are said in days, and due on receipt is said as due on receipt', () => {
     expect(paymentDaysSays(45)).toContain('45 days')
     expect(paymentDaysSays(0)).toBe('Due on receipt.')
+  })
+})
+
+// ── The term above the work ───────────────────────────────────────────
+
+describe('An agreement can run out, and a screen that cannot say so is hiding it', () => {
+  const NOW = new Date('2026-09-16T12:00:00.000Z')
+
+  function termed(over: Partial<AgreementInput> = {}): AgreementInput {
+    return agreement({ renewalKind: 'FIXED', expiresAt: new Date('2027-06-01T00:00:00.000Z'), ...over })
+  }
+
+  it('an agreement that ran out with people still working warns that work is running under lapsed paper', () => {
+    const f = termFinding(termed({ expiresAt: new Date('2026-06-01T00:00:00.000Z') }), NOW)
+    expect(f?.code).toBe('MSA_EXPIRED')
+    expect(f?.severity).toBe('WARN')
+    expect(f?.says).toContain('ran out on June 1, 2026')
+  })
+
+  it('an agreement that ran out with nobody working under it is a note, not a warning', () => {
+    const f = termFinding(
+      termed({ expiresAt: new Date('2026-06-01T00:00:00.000Z'), contracts: [] }),
+      NOW
+    )
+    expect(f?.code).toBe('MSA_EXPIRED')
+    expect(f?.severity).toBe('NOTE')
+  })
+
+  it('an agreement running out inside three months says how many days are left', () => {
+    const f = termFinding(termed({ expiresAt: new Date('2026-10-16T12:00:00.000Z') }), NOW)
+    expect(f?.code).toBe('MSA_LAPSING')
+    expect(f?.says).toContain('30 days')
+  })
+
+  it('an agreement with months to run says nothing at all about its term', () => {
+    expect(termFinding(termed(), NOW)).toBeNull()
+  })
+
+  it('an agreement with no end date on file is a note saying nobody knows when it runs out, never a warning', () => {
+    const f = termFinding(termed({ expiresAt: null }), NOW)
+    expect(f?.code).toBe('MSA_NO_TERM')
+    expect(f?.severity).toBe('NOTE')
+    expect(f?.says).toContain('Nothing on file says when')
+  })
+
+  it('an agreement that rolls on with no end date raises nothing, because that is what it is meant to do', () => {
+    expect(termFinding(termed({ renewalKind: 'EVERGREEN', expiresAt: null }), NOW)).toBeNull()
+  })
+
+  it('an agreement that renews itself is not reported as lapsed on the day it reaches its date', () => {
+    const f = termFinding(
+      termed({
+        renewalKind: 'AUTO_RENEW',
+        renewalMonths: 12,
+        expiresAt: new Date('2026-09-01T00:00:00.000Z'),
+      }),
+      NOW
+    )
+    expect(f).toBeNull()
+  })
+
+  it('an agreement somebody ended with people still working under it warns, and says when it was ended', () => {
+    const f = termFinding(
+      termed({ status: 'TERMINATED', endedAt: new Date('2026-08-01T00:00:00.000Z') }),
+      NOW
+    )
+    expect(f?.code).toBe('MSA_ENDED')
+    expect(f?.severity).toBe('WARN')
+    expect(f?.says).toContain('August 1, 2026')
+  })
+
+  it('an agreement that ran out is shown before one that is merely unsigned, because lapsed paper is the worse fact', () => {
+    const findings = agreementFindings(
+      termed({ signedAt: null, expiresAt: new Date('2026-06-01T00:00:00.000Z') }),
+      NOW
+    )
+    expect(findings[0].code).toBe('MSA_EXPIRED')
+  })
+
+  it('an agreement is never told it has both run out and is running out — one fact, said once', () => {
+    const codes = agreementFindings(
+      termed({ expiresAt: new Date('2026-06-01T00:00:00.000Z') }),
+      NOW
+    ).map((f) => f.code)
+    expect(codes.filter((c) => c === 'MSA_EXPIRED' || c === 'MSA_LAPSING' || c === 'MSA_NO_TERM')).toHaveLength(1)
+  })
+})
+
+describe('One signature is not an executed agreement', () => {
+  it('an agreement the supplier signed and the client has not says which side has still to counter-sign', () => {
+    const f = signatureFinding(
+      agreement({ signedAt: null, signatures: [{ party: 'VENDOR', signedAt: new Date('2026-03-01') }] })
+    )
+    expect(f?.code).toBe('MSA_AWAITING_SIGNATURE')
+    expect(f?.says).toContain('Northwind')
+  })
+
+  it('an agreement the client signed and we have not says we owe the counter-signature', () => {
+    const f = signatureFinding(
+      agreement({ signedAt: null, signatures: [{ party: 'CLIENT', signedAt: new Date('2026-03-01') }] })
+    )
+    expect(f?.code).toBe('MSA_AWAITING_SIGNATURE')
+    expect(f?.says).toContain('we have not counter-signed')
+  })
+
+  it('an agreement with one signature and people on site warns, and one with nobody placed is a note', () => {
+    const withPeople = signatureFinding(
+      agreement({ signedAt: null, signatures: [{ party: 'VENDOR', signedAt: new Date('2026-03-01') }] })
+    )
+    const without = signatureFinding(
+      agreement({
+        signedAt: null,
+        contracts: [],
+        signatures: [{ party: 'VENDOR', signedAt: new Date('2026-03-01') }],
+      })
+    )
+    expect(withPeople?.severity).toBe('WARN')
+    expect(without?.severity).toBe('NOTE')
+  })
+
+  it('an agreement nobody has signed at all still says it is running on a handshake', () => {
+    const f = signatureFinding(agreement({ signedAt: null, signatures: [] }))
+    expect(f?.code).toBe('MSA_UNSIGNED')
   })
 })

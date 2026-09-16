@@ -196,6 +196,11 @@ const UNPROMPTED: Record<string, { rung: Rung; basis: Basis; says: string }> = {
     basis: 'RULE',
     says: 'This requisition published itself because it sat inside the plan already approved — every desk cleared by rule and by name, nobody signing their own.',
   },
+  AGREEMENT_TERM_WATCH: {
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'Every night it reads the end date on every master agreement, marks the ones running out, rolls forward the ones whose own paper says they renew themselves, and tells the contracting desk at ninety, sixty and thirty days. Rolling a term forward changes what a firm is trading under, and it happens because a written agreement said the day had come.',
+  },
   CONTRACTS_ENDED: {
     rung: 'L5',
     basis: 'RULE',
@@ -231,7 +236,8 @@ const ENFORCEMENT: Record<string, { outcome: Outcome; basis: Basis; says: string
 
 const ATTRIBUTED: Record<string, { basis: Basis }> = {}
 const RULE_ATTRIBUTED = [
-  'ACCESS_GRANTED', 'ADDRESS_CHANGED', 'ALUMNI_ASK_BACK', 'API_KEY_ISSUED',
+  'ACCESS_GRANTED', 'ADDRESS_CHANGED', 'AGREEMENT_AMENDED', 'AGREEMENT_ENDED',
+  'AGREEMENT_SIGNED', 'ALUMNI_ASK_BACK', 'API_KEY_ISSUED',
   'API_KEY_REVOKED', 'APPROVAL_RULE_CREATED', 'APPROVAL_RULE_DEACTIVATED',
   'BENCH_CONSENT_DECLINED', 'BENCH_CONSENT_GIVEN', 'BENCH_LISTING_GRANTED',
   'BENCH_LISTING_REQUESTED', 'BENCH_LISTING_REVOKED', 'BLACKLIST_ADD',
@@ -376,6 +382,13 @@ export const JOBS: Record<string, Job> = {
     basis: 'RULE',
     says: 'Approves the weeks nobody answered, but only where the client agreed in a setting that silence counts. Anything it is unsure of it holds for a person instead.',
     writes: ['TIMESHEET_AUTO_APPROVED', 'TIMESHEET_HELD_FOR_PERSON'],
+  },
+  'agreement-terms': {
+    job: 'agreement-terms',
+    rung: 'L5',
+    basis: 'RULE',
+    says: 'Marks a master agreement as running out or run out, and rolls an auto-renewing one on for another term. A date comparison against a document both sides signed.',
+    writes: ['AGREEMENT_TERM_WATCH'],
   },
   'end-contracts': {
     job: 'end-contracts',

@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCallerContext } from '@/lib/api-context'
+import { logBulkAccess } from '@/lib/access-log'
+import {
+  STATUS_SAYS,
+  daysUntilExpiry,
+  signingSays,
+  termSays,
+} from '@/lib/agreement-term'
+import { getCallerContext, realPersonId } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import {
   agreementFindings,
@@ -48,6 +55,12 @@ export async function GET(request: NextRequest) {
     )
   }
 
+  // One clock for the whole answer. Reading `new Date()` inside each row
+  // would let two agreements on the same screen be judged a millisecond
+  // apart, which is how a boundary case reports itself differently on
+  // two refreshes.
+  const now = new Date()
+
   const agreements = await prisma.masterAgreement.findMany({
     where: { OR: [{ vendorId: companyId }, { clientId: companyId }] },
     select: {
@@ -60,6 +73,20 @@ export async function GET(request: NextRequest) {
       minMarginPct: true,
       capacity: true,
       createdAt: true,
+      // ── The term, the standing and the paper ──
+      effectiveDate: true,
+      expiresAt: true,
+      renewalKind: true,
+      renewalMonths: true,
+      noticeDays: true,
+      status: true,
+      endedAt: true,
+      endedReason: true,
+      executedFileName: true,
+      executedFileUrl: true,
+      signatures: {
+        select: { party: true, signerName: true, signerTitle: true, signedAt: true, method: true },
+      },
       vendor: { select: { id: true, name: true } },
       client: { select: { id: true, name: true } },
       engagements: {
@@ -131,6 +158,14 @@ export async function GET(request: NextRequest) {
       minMarginPct: seller ? a.minMarginPct : null,
       currency: a.currency,
       capacity: a.capacity,
+      status: a.status,
+      effectiveDate: a.effectiveDate,
+      expiresAt: a.expiresAt,
+      renewalKind: a.renewalKind,
+      renewalMonths: a.renewalMonths,
+      noticeDays: a.noticeDays,
+      endedAt: a.endedAt,
+      signatures: a.signatures.map((sig) => ({ party: sig.party, signedAt: sig.signedAt })),
       contracts,
       engagements: a.engagements.map((e) => ({
         id: e.id,
@@ -141,7 +176,7 @@ export async function GET(request: NextRequest) {
       })),
     }
 
-    const findings = findingsFor(role, agreementFindings(input))
+    const findings = findingsFor(role, agreementFindings(input, now))
 
     return {
       id: a.id,
@@ -155,7 +190,44 @@ export async function GET(request: NextRequest) {
         marginFloorSays: seller ? marginFloorSays(a.minMarginPct) : null,
         capacity: a.capacity,
         signedAt: a.signedAt?.toISOString() ?? null,
+        effectiveDate: a.effectiveDate?.toISOString() ?? null,
+        expiresAt: a.expiresAt?.toISOString() ?? null,
+        renewalKind: a.renewalKind,
+        renewalMonths: a.renewalMonths,
+        noticeDays: a.noticeDays,
       },
+      status: a.status,
+      statusSays: STATUS_SAYS[a.status as keyof typeof STATUS_SAYS] ?? a.status,
+      termSays: termSays(
+        {
+          status: a.status,
+          effectiveDate: a.effectiveDate,
+          expiresAt: a.expiresAt,
+          renewalKind: a.renewalKind,
+          renewalMonths: a.renewalMonths,
+          noticeDays: a.noticeDays,
+        },
+        now,
+        a.endedAt
+      ),
+      daysToExpiry: daysUntilExpiry(a.expiresAt, now),
+      endedAt: a.endedAt?.toISOString() ?? null,
+      endedReason: a.endedReason,
+      signing: {
+        says: signingSays(a.signatures),
+        // Both sides, so "who signed and with what authority" is on the
+        // row rather than in somebody's inbox.
+        signatures: a.signatures.map((sig) => ({
+          party: sig.party,
+          signerName: sig.signerName,
+          signerTitle: sig.signerTitle,
+          signedAt: sig.signedAt.toISOString(),
+          method: sig.method,
+        })),
+      },
+      executedDocument: a.executedFileName
+        ? { fileName: a.executedFileName, fileUrl: a.executedFileUrl }
+        : null,
       headcount: contracts.filter((c) => c.live).length,
       engagements: a.engagements.map((e) => ({
         id: e.id,
@@ -189,12 +261,34 @@ export async function GET(request: NextRequest) {
 
   const warned = rows.filter((r) => r.findings.some((f) => f.severity === 'WARN')).length
 
+  // This screen hands back consultants by name, with the rate each is
+  // billed at, for every agreement the caller is a party to. That is a
+  // read of other people's data and the invariant does not carve out a
+  // screen because it is convenient — every read leaves a row.
+  const subjects = [
+    ...new Set(agreements.flatMap((a) => a.sellContracts.map((c) => c.person.id))),
+  ]
+  logBulkAccess(subjects, {
+    actorPersonId: realPersonId(caller) ?? undefined,
+    actorCompanyId: companyId,
+    action: 'CONTRACT_VIEW',
+    reason: 'Read the agreements screen, which names the people working under each agreement.',
+  })
+
   return NextResponse.json({
     data: {
       agreements: rows,
       summary: {
         total: rows.length,
         unsigned: rows.filter((r) => r.terms.signedAt == null).length,
+        // A lapsed agreement and one with no term at all are different
+        // facts and are counted apart. Folding them together would report
+        // a firm that has never used the term column as one that let
+        // every agreement run out.
+        lapsed: rows.filter((r) => r.findings.some((f) => f.code === 'MSA_EXPIRED')).length,
+        lapsingSoon: rows.filter((r) => r.findings.some((f) => f.code === 'MSA_LAPSING')).length,
+        noTermOnFile: rows.filter((r) => r.findings.some((f) => f.code === 'MSA_NO_TERM')).length,
+        ended: rows.filter((r) => r.status === 'TERMINATED').length,
         needAttention: warned,
         engagements: rows.reduce((n, r) => n + r.engagements.length, 0),
         sowMissing: rows.reduce(

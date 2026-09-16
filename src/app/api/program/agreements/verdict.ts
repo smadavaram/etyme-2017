@@ -31,11 +31,23 @@
  * against a missing cost is a number that always looks healthy.
  */
 
+import { EXPIRING_WINDOW_DAYS, daysUntilExpiry } from '@/lib/agreement-term'
+
 // ── The closed list ───────────────────────────────────────────────────
 
 export type AgreementReason =
   /** People are on site and nobody has signed the master agreement. */
   | 'MSA_UNSIGNED'
+  /** One side signed and the other has not counter-signed. */
+  | 'MSA_AWAITING_SIGNATURE'
+  /** The term ran out and nobody renewed it. */
+  | 'MSA_EXPIRED'
+  /** The term runs out inside three months. */
+  | 'MSA_LAPSING'
+  /** Somebody ended the agreement and work is still running under it. */
+  | 'MSA_ENDED'
+  /** Nothing on file says when this agreement runs out. */
+  | 'MSA_NO_TERM'
   /** A contract is priced below the floor the agreement sets. */
   | 'MARGIN_FLOOR'
   /** Nobody knows the cost side, so no margin can be stated at all. */
@@ -61,12 +73,17 @@ export interface ReasonSpec {
 }
 
 export const AGREEMENT_REASONS: ReasonSpec[] = [
+  { code: 'MSA_ENDED', label: 'Ended agreement', hint: 'Somebody tore it up and work is still running' },
+  { code: 'MSA_EXPIRED', label: 'Lapsed agreement', hint: 'The term ran out and nobody renewed it' },
   { code: 'MSA_UNSIGNED', label: 'Unsigned agreement', hint: 'Work is running on a handshake' },
+  { code: 'MSA_AWAITING_SIGNATURE', label: 'Awaiting counter-signature', hint: 'One side signed, the other has not' },
   { code: 'SOW_MISSING', label: 'No statement of work', hint: 'Nobody wrote down what the work is' },
+  { code: 'MSA_LAPSING', label: 'Running out', hint: 'The term ends inside three months' },
   { code: 'MARGIN_FLOOR', label: 'Below the margin floor', hint: 'Priced under what this agreement allows' },
   { code: 'CAPACITY_EXCEEDED', label: 'Over capacity', hint: 'More people than the agreement permits' },
   { code: 'SOW_UNSIGNED', label: 'Unsigned statement of work', hint: 'Scope written, signature outstanding' },
   { code: 'MARGIN_UNKNOWN', label: 'Margin not knowable', hint: 'The cost side is not on file' },
+  { code: 'MSA_NO_TERM', label: 'No term on file', hint: 'Nothing says when this agreement runs out' },
 ]
 
 /**
@@ -77,12 +94,20 @@ export const AGREEMENT_REASONS: ReasonSpec[] = [
  * has not been filled in.
  */
 const RANK: AgreementReason[] = [
+  // Work running under paper that is torn up or lapsed beats work running
+  // under paper nobody signed: the first two are a relationship that no
+  // longer exists on paper, the third is one that has not started on paper.
+  'MSA_ENDED',
+  'MSA_EXPIRED',
   'MSA_UNSIGNED',
+  'MSA_AWAITING_SIGNATURE',
   'SOW_MISSING',
+  'MSA_LAPSING',
   'MARGIN_FLOOR',
   'CAPACITY_EXCEEDED',
   'SOW_UNSIGNED',
   'MARGIN_UNKNOWN',
+  'MSA_NO_TERM',
 ]
 
 export function isAgreementReason(value: string): value is AgreementReason {
@@ -138,6 +163,7 @@ export interface EngagementInput {
 export interface AgreementInput {
   id: string
   counterpartyName: string
+  /** When both sides had signed. Null while the paper is not executed. */
   signedAt: Date | null
   paymentTermsDays: number
   /** The floor a recruiter may not price below without approval. */
@@ -145,6 +171,20 @@ export interface AgreementInput {
   currency: string
   /** Max people under the agreement. Null means uncapped. */
   capacity: number | null
+
+  // ── Term and standing ──────────────────────────────────────────────
+  /** DRAFT · ACTIVE · EXPIRING · EXPIRED · TERMINATED */
+  status: string
+  effectiveDate: Date | null
+  expiresAt: Date | null
+  /** FIXED · EVERGREEN · AUTO_RENEW */
+  renewalKind: string
+  renewalMonths: number | null
+  noticeDays: number | null
+  endedAt: Date | null
+  /** Which sides have put their name to it. */
+  signatures: { party: string; signedAt: Date }[]
+
   contracts: ContractInput[]
   engagements: EngagementInput[]
 }
@@ -272,6 +312,27 @@ export function signatureFinding(agreement: AgreementInput): Finding | null {
   if (agreement.signedAt) return null
 
   const live = agreement.contracts.filter((c) => c.live).length
+
+  // One side has signed and the other has not. That is a different thing
+  // to chase from a document nobody has touched — somebody is sitting on
+  // a counterpart, and naming the side that owes it is the whole action.
+  if (agreement.signatures.length === 1) {
+    const signed = agreement.signatures[0].party
+    const owing = signed === 'VENDOR' ? agreement.counterpartyName : 'we'
+    const verb = owing === 'we' ? 'have' : 'has'
+    return {
+      code: 'MSA_AWAITING_SIGNATURE',
+      severity: live > 0 ? 'WARN' : 'NOTE',
+      says:
+        live > 0
+          ? `${live} ${live === 1 ? 'person is' : 'people are'} working under an agreement ` +
+            `${owing} ${verb} not counter-signed.`
+          : `One side has signed; ${owing} ${verb} not counter-signed it yet.`,
+      subjectType: 'AGREEMENT',
+      subjectId: agreement.id,
+    }
+  }
+
   if (live === 0) {
     return {
       code: 'MSA_UNSIGNED',
@@ -310,10 +371,107 @@ export function capacityFinding(agreement: AgreementInput): Finding | null {
   }
 }
 
+// ── The term ──────────────────────────────────────────────────────────
+
+/**
+ * Whether the paper above the work is still paper.
+ *
+ * Four different facts used to look identical on this screen, because the
+ * row carried no term at all: an agreement in force, one running out next
+ * month, one that lapsed two years ago, and one somebody tore up. They
+ * are now told apart, and every one of them warns rather than blocks —
+ * the reasoning is at the top of `lib/agreement-term`.
+ *
+ * At most one finding, because a lapsed agreement is not also "running
+ * out" and an ended one is not also lapsed. Stacking them would put the
+ * same fact on a row three times and bury the one thing to do about it.
+ */
+export function termFinding(agreement: AgreementInput, now: Date): Finding | null {
+  const live = agreement.contracts.filter((c) => c.live).length
+  const heads = `${live} ${live === 1 ? 'person is' : 'people are'}`
+
+  if (agreement.status === 'TERMINATED') {
+    const when = agreement.endedAt ? ` on ${onDay(agreement.endedAt)}` : ''
+    return {
+      code: 'MSA_ENDED',
+      severity: live > 0 ? 'WARN' : 'NOTE',
+      says:
+        live > 0
+          ? `${heads} still working at ${agreement.counterpartyName} under an agreement that was ended${when}.`
+          : `The agreement with ${agreement.counterpartyName} was ended${when}. Nothing new may be written under it.`,
+      subjectType: 'AGREEMENT',
+      subjectId: agreement.id,
+    }
+  }
+
+  // An evergreen agreement rolls on and is meant to. Nothing to say.
+  if (agreement.renewalKind === 'EVERGREEN') return null
+
+  if (!agreement.expiresAt) {
+    // Not a warning. It is nearly every agreement on file at a firm that
+    // has never had a term column, and a screen that warns about all of
+    // them warns about none of them.
+    return {
+      code: 'MSA_NO_TERM',
+      severity: 'NOTE',
+      says: `Nothing on file says when the agreement with ${agreement.counterpartyName} runs out.`,
+      subjectType: 'AGREEMENT',
+      subjectId: agreement.id,
+    }
+  }
+
+  const days = daysUntilExpiry(agreement.expiresAt, now)!
+
+  if (days <= 0) {
+    // An auto-renewing term that has reached its date rolls rather than
+    // lapses, and the nightly job rolls it. Calling it lapsed would raise
+    // an alarm about a document that says this is what it does.
+    if (agreement.renewalKind === 'AUTO_RENEW' && agreement.renewalMonths) return null
+    return {
+      code: 'MSA_EXPIRED',
+      severity: live > 0 ? 'WARN' : 'NOTE',
+      says:
+        live > 0
+          ? `${heads} working at ${agreement.counterpartyName} under an agreement that ran out on ${onDay(agreement.expiresAt)}.`
+          : `The agreement with ${agreement.counterpartyName} ran out on ${onDay(agreement.expiresAt)} and nobody has renewed it.`,
+      subjectType: 'AGREEMENT',
+      subjectId: agreement.id,
+    }
+  }
+
+  if (days <= EXPIRING_WINDOW_DAYS) {
+    return {
+      code: 'MSA_LAPSING',
+      severity: live > 0 ? 'WARN' : 'NOTE',
+      says:
+        live > 0
+          ? `The agreement with ${agreement.counterpartyName} runs out in ${days} ${days === 1 ? 'day' : 'days'}, with ${live} ${live === 1 ? 'person' : 'people'} working under it.`
+          : `The agreement with ${agreement.counterpartyName} runs out in ${days} ${days === 1 ? 'day' : 'days'}.`,
+      subjectType: 'AGREEMENT',
+      subjectId: agreement.id,
+    }
+  }
+
+  // The term sits comfortably in the future. Say nothing at all.
+  return null
+}
+
+function onDay(d: Date): string {
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
 // ── Everything, worst first ───────────────────────────────────────────
 
-export function agreementFindings(agreement: AgreementInput): Finding[] {
+export function agreementFindings(agreement: AgreementInput, now: Date = new Date()): Finding[] {
   const out: Finding[] = []
+
+  const term = termFinding(agreement, now)
+  if (term) out.push(term)
 
   const sig = signatureFinding(agreement)
   if (sig) out.push(sig)
