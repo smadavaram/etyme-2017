@@ -102,6 +102,9 @@ model Person {
   /// On the person rather than the seat: somebody is in one place
   /// whoever they work for.
   timezone String?
+
+  @@index([name])
+  @@index([createdAt])
 }
 
 model Credential {
@@ -4806,6 +4809,10 @@ model Import {
   committedAt DateTime?
   rows        ImportRow[]
   createdAt   DateTime    @default(now())
+
+  @@index([companyId])
+  @@index([companyId, kind])
+  @@index([createdAt])
 }
 
 model ImportRow {

@@ -19,15 +19,26 @@ export async function GET(request: NextRequest) {
   try {
     const stale = await prisma.opening.findMany({
       where: { status: 'LIVE', lastSeen: { lt: cutoff } },
-      select: { id: true, companyId: true, title: true, lastSeen: true },
+      select: { id: true, companyId: true, title: true, lastSeen: true, status: true },
     })
     if (stale.length === 0) {
       return NextResponse.json({ data: { cold: 0, says: 'Every live seat has been seen inside six weeks.' } })
     }
     await prisma.$transaction(async (tx) => {
-      await tx.opening.updateMany({ where: { id: { in: stale.map((o) => o.id) } }, data: { status: 'COLD' } })
+      // Idempotency guard: re-verify status before updating. Concurrent runs
+      // may have already marked these cold.
+      const toMark = await tx.opening.findMany({
+        where: { id: { in: stale.map((o) => o.id) }, status: 'LIVE' },
+        select: { id: true },
+      })
+      if (toMark.length === 0) {
+        return
+      }
+      await tx.opening.updateMany({ where: { id: { in: toMark.map((o) => o.id) } }, data: { status: 'COLD' } })
       const byCompany = new Map<string, string[]>()
-      for (const o of stale) byCompany.set(o.companyId, [...(byCompany.get(o.companyId) ?? []), `${o.title} (${coldSince(o.lastSeen, now)})`])
+      for (const o of stale.filter((s) => toMark.some((m) => m.id === s.id))) {
+        byCompany.set(o.companyId, [...(byCompany.get(o.companyId) ?? []), `${o.title} (${coldSince(o.lastSeen, now)})`])
+      }
       for (const [companyId, seats] of byCompany) {
         await tx.automationLog.create({
           data: {
@@ -35,7 +46,7 @@ export async function GET(request: NextRequest) {
             action: 'OPENINGS_COLD',
             summary: seats.length === 1 ? `${seats[0]} — gone cold.` : `${seats.length} seats gone cold: ${seats.join('; ')}.`,
             reason: `Nobody has advertised it in ${COLD_AFTER_DAYS} days. A seat that is not being advertised is not being filled.`,
-            payload: { openingIds: stale.filter((o) => o.companyId === companyId).map((o) => o.id) },
+            payload: { openingIds: stale.filter((o) => o.companyId === companyId && toMark.some((m) => m.id === o.id)).map((o) => o.id) },
             reversible: true,
           },
         })

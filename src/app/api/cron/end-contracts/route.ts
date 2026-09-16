@@ -48,22 +48,39 @@ export async function GET(request: NextRequest) {
     }
 
     await prisma.$transaction(async (tx) => {
-      if (sells.length) {
+      // Idempotency guard: re-verify contracts are still IN_PROGRESS.
+      // Concurrent runs may have already ended them.
+      const [sellsToEnd, buysToEnd] = await Promise.all([
+        sells.length ? tx.sellContract.findMany({
+          where: { id: { in: sells.map((c) => c.id) }, state: 'IN_PROGRESS' },
+          select: { id: true, companyId: true },
+        }) : Promise.resolve([]),
+        buys.length ? tx.buyContract.findMany({
+          where: { id: { in: buys.map((c) => c.id) }, state: 'IN_PROGRESS' },
+          select: { id: true },
+        }) : Promise.resolve([]),
+      ])
+
+      if (sellsToEnd.length === 0 && buysToEnd.length === 0) {
+        return
+      }
+
+      if (sellsToEnd.length) {
         await tx.sellContract.updateMany({
-          where: { id: { in: sells.map((c) => c.id) } },
+          where: { id: { in: sellsToEnd.map((c) => c.id) } },
           data: { state: 'ENDED' },
         })
       }
-      if (buys.length) {
+      if (buysToEnd.length) {
         await tx.buyContract.updateMany({
-          where: { id: { in: buys.map((c) => c.id) } },
+          where: { id: { in: buysToEnd.map((c) => c.id) } },
           data: { state: 'ENDED' },
         })
       }
 
       // One line per vendor, in the vendor's words.
       const byCompany = new Map<string, string[]>()
-      for (const c of sells) {
+      for (const c of sells.filter((s) => sellsToEnd.some((e) => e.id === s.id))) {
         const line = `${c.person.name} at ${c.clientCompany.name}, last day ${c.endDate!.toISOString().slice(0, 10)}`
         byCompany.set(c.companyId, [...(byCompany.get(c.companyId) ?? []), line])
       }
@@ -74,7 +91,7 @@ export async function GET(request: NextRequest) {
             action: 'CONTRACTS_ENDED',
             summary: lines.length === 1 ? `${lines[0]} — contract ended.` : `${lines.length} contracts ended: ${lines.join('; ')}.`,
             reason: 'The last day on the contract has passed. A contract that is over is marked over, so tenure, breaks in service and the rolloff board read the truth.',
-            payload: { sellContractIds: sells.filter((c) => c.companyId === companyId).map((c) => c.id) },
+            payload: { sellContractIds: sells.filter((c) => c.companyId === companyId && sellsToEnd.some((e) => e.id === c.id)).map((c) => c.id) },
             reversible: true,
           },
         })
