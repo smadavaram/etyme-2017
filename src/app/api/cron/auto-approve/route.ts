@@ -77,6 +77,25 @@ export async function GET(request: NextRequest) {
 
   for (const d of approving) {
     const sheet = waiting.find((t) => t.id === d.sheetId)!
+    const clientCompanyId =
+      sheet.sellContract.endClientCompanyId ?? sheet.sellContract.clientCompanyId
+
+    // Idempotency guard: check if already approved before writing.
+    // If this cron runs twice, the timesheet's clientApprovedAt will be
+    // set from the first run, so it won't be in the waiting list on the
+    // second run. But if two runs happen concurrently before either
+    // updates, both could try to approve the same timesheet.
+    const existing = await prisma.workAssertion.findFirst({
+      where: {
+        timesheetId: d.sheetId,
+        companyId: clientCompanyId,
+        role: 'CLIENT_APPROVAL',
+        state: 'LIVE',
+      },
+    })
+
+    if (existing) continue
+
     // Named nobody, in the ledger as well as the column. An automatic
     // approval carrying a manager's id is a forged signature wherever it
     // is written down.
@@ -87,8 +106,7 @@ export async function GET(request: NextRequest) {
         // the company that raised the invoice is the vendor approving
         // its own bill, which is the whole thing two signatures exist to
         // prevent.
-        companyId:
-          sheet.sellContract.endClientCompanyId ?? sheet.sellContract.clientCompanyId,
+        companyId: clientCompanyId,
         role: 'CLIENT_APPROVAL',
         hours: Number(sheet.totalHours),
         rateCents: sheet.sellContract.billRate,
@@ -98,6 +116,17 @@ export async function GET(request: NextRequest) {
         note: d.says,
       },
     }).catch(() => {})
+
+    // Idempotency guard: re-verify the timesheet status before updating.
+    // Another concurrent run may have already approved it.
+    const current = await prisma.timesheet.findUnique({
+      where: { id: d.sheetId },
+      select: { status: true, clientApprovedAt: true },
+    })
+
+    if (!current || current.status !== 'SUBMITTED' || current.clientApprovedAt) {
+      continue
+    }
 
     await prisma.$transaction([
       prisma.timesheet.update({
