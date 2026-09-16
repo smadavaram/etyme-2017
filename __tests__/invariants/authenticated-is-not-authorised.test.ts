@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import { daysOnSite } from '@/lib/tenure-days'
 
@@ -26,11 +26,20 @@ import { daysOnSite } from '@/lib/tenure-days'
  * the permissions the refusals are written against. So the rule is
  * stated once here, over the routes themselves, rather than three times
  * in three files nobody reads together.
+ *
+ * The distribute hole had a second cause worth naming, because it is the
+ * one that will happen again: there were two routes that put a role in
+ * front of suppliers. One grew the gates as the governance was built and
+ * the other was left where it started, and the screen called the one
+ * that had been left. Two routes doing one job do not stay in step — the
+ * older simply stops being maintained, and nothing says so. There is one
+ * now, and the last test here fails if a second appears.
  */
 
 const read = (p: string) => readFileSync(join(process.cwd(), p), 'utf8')
 
-const DISTRIBUTE = read('src/app/api/requirements/[id]/distribute/route.ts')
+const DISTRIBUTE = read('src/app/api/requisitions/[id]/distribute/route.ts')
+const REQUIREMENTS_PAGE = read('src/app/dashboard/requirements/[id]/page.tsx')
 const SUBMISSION_STATUS = read('src/app/api/submissions/[id]/status/route.ts')
 const ROLLOFF_CHECKLIST = read('src/app/api/rolloff/[id]/checklist/route.ts')
 const VISA_WATCH = read('src/app/api/cron/visa-watch/route.ts')
@@ -66,7 +75,7 @@ describe('a route that acts on a record asks who is calling, not just whether an
 
 describe('only the company that raised a requirement may put it in front of suppliers', () => {
   it('refuses a caller whose company did not raise it', () => {
-    expect(DISTRIBUTE).toMatch(/caller\.company\?\.id !== requirement\.companyId/)
+    expect(DISTRIBUTE).toMatch(/caller\.company\?\.id !== requisition\.companyId/)
   })
 
   it('refuses a desk that does not hold the supplier panel, naming the program office', () => {
@@ -84,12 +93,35 @@ describe('only the company that raised a requirement may put it in front of supp
     expect(DISTRIBUTE).toContain("code: 'NOT_CLEARED'")
   })
 
-  it('checks who is calling before it says whether the requirement is open', () => {
-    // Otherwise a stranger learns a role exists by reading the refusal.
-    const forbidden = DISTRIBUTE.indexOf("caller.company?.id !== requirement.companyId")
-    const notOpen = DISTRIBUTE.indexOf("code: 'NOT_OPEN'")
+  it('checks who is calling before it says anything about the requisition', () => {
+    // Otherwise a stranger reads another company's approval state off the
+    // refusal it gets back.
+    const forbidden = DISTRIBUTE.indexOf('caller.company?.id !== requisition.companyId')
+    const notApproved = DISTRIBUTE.indexOf("code: 'NOT_APPROVED'")
     expect(forbidden).toBeGreaterThan(-1)
-    expect(notOpen).toBeGreaterThan(forbidden)
+    expect(notApproved).toBeGreaterThan(forbidden)
+  })
+
+  it('will not send an invitation that expired before it was read', () => {
+    expect(DISTRIBUTE).toContain('expiresAt must be a date in the future')
+  })
+})
+
+describe('one route puts a role in front of suppliers, not two', () => {
+  it('the requirements path no longer has a distribute route of its own', () => {
+    // It was the ungoverned twin: same job, none of the gates, and it was
+    // the one the screen called.
+    expect(existsSync(join(process.cwd(), 'src/app/api/requirements/[id]/distribute/route.ts'))).toBe(false)
+  })
+
+  it('the screen that sends a role out calls the governed route', () => {
+    expect(REQUIREMENTS_PAGE).toContain('/api/requisitions/${requirementId}/distribute')
+    expect(REQUIREMENTS_PAGE).not.toContain('/api/requirements/${requirementId}/distribute')
+  })
+
+  it('sends a band per supplier, because each may be offered a different one', () => {
+    expect(REQUIREMENTS_PAGE).toContain('vendors:')
+    expect(REQUIREMENTS_PAGE).not.toContain('toCompanyIds')
   })
 })
 

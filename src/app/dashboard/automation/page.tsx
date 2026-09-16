@@ -63,7 +63,7 @@ function actionIcon(action: string): string {
     CONTRACT_CREATED:          '▤',
     IMPORT_COMMITTED:          '↓',
     CONSULTANT_CREATED:        '◌',
-    REQUIREMENT_DISTRIBUTED:   '◈',
+    REQUISITION_DISTRIBUTED:   '◈',
     INVOICE_GENERATED:         '▧',
     PAYMENT_RECORDED:          '▧',
     TIMESHEET_APPROVED:        '▦',

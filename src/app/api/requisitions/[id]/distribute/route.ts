@@ -168,9 +168,19 @@ export async function POST(
     )
   }
 
+  // A fortnight unless somebody says otherwise, and never a date that has
+  // already passed — an invitation that expires before it is read is a
+  // supplier told to bid and refused at the door.
   const expiresAt = body.expiresAt
     ? new Date(body.expiresAt)
     : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+
+  if (body.expiresAt && (isNaN(expiresAt.getTime()) || expiresAt <= new Date())) {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'expiresAt must be a date in the future', field: 'expiresAt' } },
+      { status: 422 }
+    )
+  }
 
   const results: Array<{ companyId: string; name: string; status: string; reason?: string }> = []
 

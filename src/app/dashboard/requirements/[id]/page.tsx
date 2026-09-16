@@ -729,21 +729,26 @@ function DistributeModal({
     setError(null)
 
     try {
-      const res = await fetch(`/api/requirements/${requirementId}/distribute`, {
+      // One band typed once, carried per vendor. The band lives on the
+      // invitation, never on the requirement, so every recipient can be
+      // offered a different number later without this screen changing.
+      const res = await fetch(`/api/requisitions/${requirementId}/distribute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          toCompanyIds: Array.from(selectedVendors),
-          payMin: payMin ? Number(payMin) : undefined,
-          payMax: payMax ? Number(payMax) : undefined,
+          vendors: Array.from(selectedVendors).map((companyId) => ({
+            companyId,
+            payMin: payMin ? Number(payMin) : undefined,
+            payMax: payMax ? Number(payMax) : undefined,
+            message: message || undefined,
+          })),
           expiresAt: new Date(expiresAt).toISOString(),
-          message: message || undefined,
         }),
       })
 
       const body = await readJson(res)
 
-      onSuccess(body.data?.message ?? `Distributed to ${body.data?.distributed} vendor(s)`)
+      onSuccess(body.data?.message ?? `Sent to ${body.data?.summary?.sent ?? 0} vendor(s)`)
     } catch (err: any) {
       setError(err.message)
     } finally {

@@ -30,7 +30,6 @@ import { POST as decideRequisition } from '@/app/api/requisitions/[id]/approve/r
 import { POST as distributeRequisition } from '@/app/api/requisitions/[id]/distribute/route'
 import { POST as answerInvitation } from '@/app/api/invitations/[id]/respond/route'
 import { POST as createRequirement } from '@/app/api/requirements/route'
-import { POST as distributeRequirement } from '@/app/api/requirements/[id]/distribute/route'
 import { POST as submitCandidate } from '@/app/api/submissions/route'
 import { POST as checkPackage } from '@/app/api/submissions/[id]/check/route'
 import { POST as forwardSubmission } from '@/app/api/submissions/[id]/forward/route'
@@ -362,9 +361,10 @@ describe('Step 4 — Magnit takes it on and passes it down the panel', () => {
 
   it('sends it to Computer Systems at a band of its own', async () => {
     as(MSP)
-    const r = await json(await distributeRequirement(
-      req('POST', `/api/requirements/${it_.mspRole}/distribute`, {
-        toCompanyIds: [co.prime], payMin: 10_500, payMax: 13_500, expiresAt: soon(10),
+    const r = await json(await distributeRequisition(
+      req('POST', `/api/requisitions/${it_.mspRole}/distribute`, {
+        vendors: [{ companyId: co.prime, payMin: 10_500, payMax: 13_500 }],
+        expiresAt: soon(10),
       }),
       { params: Promise.resolve({ id: it_.mspRole }) }
     ))
@@ -396,9 +396,10 @@ describe('Step 5 — Computer Systems takes it on and asks its sub-vendor', () =
 
   it('sends it to CloudEPA at a third band, $20 below what Adobe will pay', async () => {
     as(PRIME)
-    const r = await json(await distributeRequirement(
-      req('POST', `/api/requirements/${it_.primeRole}/distribute`, {
-        toCompanyIds: [co.sub], payMin: 9_500, payMax: 11_500, expiresAt: soon(7),
+    const r = await json(await distributeRequisition(
+      req('POST', `/api/requisitions/${it_.primeRole}/distribute`, {
+        vendors: [{ companyId: co.sub, payMin: 9_500, payMax: 11_500 }],
+        expiresAt: soon(7),
       }),
       { params: Promise.resolve({ id: it_.primeRole }) }
     ))

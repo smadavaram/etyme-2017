@@ -101,8 +101,11 @@ PATCH  /api/bench/listings/:id/revoke   consultant only, effective immediately
 GET    /api/requirements                scope=mine|network, sort=priority|recent, q, page
 POST   /api/requirements                manual create
 POST   /api/requirements/parse          { text } → parsed fields with per field confidence
-POST   /api/requirements/:id/distribute { toCompanyIds[], payMin, payMax, expiresAt, message }
-                                        → queues one RequirementInvitation each
+POST   /api/requisitions/:id/distribute { vendors: [{ companyId, payMin, payMax, message }], expiresAt }
+                                        → one RequirementInvitation each, at its own band
+                                        → the raising company, the desk holding the supplier
+                                          panel, an approved requisition, and only the
+                                          suppliers Procurement cleared
 GET    /api/requirements/:id/matches    scores with factors, basis, confidence, unknowns
 POST   /api/submissions                 { requirementId, personIds[], rate }
                                         → batch, per item errors, kind computed server side
@@ -157,7 +160,7 @@ The ninety second promise is satisfied at `siteLiveAt`. Everything after it is e
 Email forwarded to reqs@{slug}.etyme.com, or POST /requirements/parse
   → Claude returns fields with per field confidence; anything under 0.9 is flagged, not corrected silently
 POST /requirements → MatchWorker queued
-POST /requirements/:id/distribute
+POST /requisitions/:id/distribute
   → one RequirementInvitation per recipient, each with its own band
   → queued, not synchronous: fifty vendors must not block the request
   → AutomationLog: which vendors and why (reply rate above the threshold)
