@@ -452,9 +452,12 @@ describe('The security policy tells a researcher what to do, and promises nothin
   it('it says what is in scope and what is not, and sends the known gaps back to the posture', () => {
     expect(POLICY).toMatch(/### In scope/)
     expect(POLICY).toMatch(/### Out of scope/)
-    // The legacy Rails tree is in the repository and is not deployed.
-    expect(POLICY).toMatch(/2017 Rails tree/i)
-    expect(existsSync(join(ROOT, 'Gemfile')), 'the out-of-scope claim assumes it is still here').toBe(true)
+    // The 2017 Rails tree was scoped out here while it sat in the repository
+    // unbuilt and undeployed. It was deleted on 2026-09-16, so the carve-out
+    // went with it: a policy that scopes out code nobody can find reads as a
+    // policy written for a different repository.
+    expect(POLICY).not.toMatch(/2017 Rails tree/i)
+    expect(existsSync(join(ROOT, 'Gemfile')), 'the Rails tree is back — the carve-out may be needed again').toBe(false)
     // A reporter is pointed at the published gap list rather than rediscovering it.
     expect(POLICY).toMatch(/docs\/security-posture\.md/)
     expect(POLICY).toMatch(/is a welcome nudge but is not a new finding/i)

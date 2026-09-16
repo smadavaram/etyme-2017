@@ -326,9 +326,28 @@ Named so you approach them with care, not speed.
 
 1. **Cycle generation.** Nineteen kinds, five frequencies, business-day shifting
    against a per-company holiday calendar, month ends, February, and idempotency on
-   extension. The 2017 implementation in `payroll_cycles.rb` and `contract_cycle.rb`
-   is correct and was earned over years. **Port the arithmetic, not the architecture,
-   and write the tests first.**
+   extension.
+
+   **This paragraph used to say the 2017 implementation "is correct and was earned
+   over years", and that was false.** It was read against the Rails source on
+   2026-09-16, before the tree was deleted, and the engine it told you to port is
+   substantially a stub: `Contracts::Cycle#get_next_date` — the function every
+   timesheet, invoice and salary date derives from — has its body commented out
+   under a live TODO and returns `last_date + 1.day`. `group_by_biweekly` is a
+   copy of `group_by_weekly`, so legacy "biweekly" generated weekly periods. Nine
+   of the nineteen kinds were commented out; nineteen was a string constant, not
+   nineteen generators. `twice_a_month_submit_date` could raise, which is why
+   `Contract.set_cycle` wrapped every contract in a bare rescue — contracts
+   silently got no cycles at all.
+
+   The claim survived because nobody read the file, and it steered the rebuild for
+   months. **`lib/cycle-generator` is now the reference implementation.** It is
+   shorter, tested, and correct on more cases than the original ever was. Nothing
+   remains to port.
+
+   What is genuinely still open is listed under "The cycle engine, honestly" below.
+   **Write the tests first** still holds, and money arithmetic still gets asked
+   about rather than guessed.
 
 2. **Field-level permissions.** Cannot be retrofitted. Every read path filters by
    context from the first commit, or you audit every query later.
@@ -336,6 +355,56 @@ Named so you approach them with care, not speed.
 3. **Cross-vendor identity resolution.** Required for tenure aggregation. Deterministic
    matching on consented identifiers only; probabilistic matches surfaced for human
    confirmation, never silently merged.
+
+### The cycle engine, honestly
+
+Found by reading the Rails source against `lib/cycle-generator` on 2026-09-16.
+Written down here because the tree that would have shown them is gone, and
+because two of them are money.
+
+1. **Extending a placement writes no cycles.** `api/contracts/[id]/extend`
+   moves `endDate` and logs it; its own comment claims it writes the billing
+   and pay cycles behind it and it does not. Three months added to a placement
+   have no hours-due, invoice or pay rows. It also moves only the sell leg —
+   the `BuyContract` end date is left behind. Generate over `[oldEnd, newEnd]`
+   only and pass the existing `dueOn` set per kind into `generateCycles`'s
+   `existingDates`, which exists and no production caller passes.
+2. **No final partial period.** A contract ending on a Wednesday has no hours
+   cycle and no invoice cycle for its last two days; generation stops at the
+   last whole boundary. The Rails version emitted the short trailing group.
+3. **Business days only shift forward.** US payroll pays a Saturday pay day on
+   the Friday before; this moves it to the Monday after, which pays after the
+   work. The direction is a money decision, per kind rather than globally —
+   pay backward, bill forward. Nobody has made it.
+4. **No salary lag.** A contract's payment term is not mapped into `offsetDays`,
+   so pay day is the period end itself.
+5. **Nothing marks pay cleared.** Legacy ran calculate → process → clear. If AP
+   needs a settlement date it is a cycle kind, not a status.
+6. **DAILY frequency was dropped** with no note. Per-diem work exists. If it was
+   deliberate, say so beside the `ON_COMPLETION` comment.
+7. **`Cycle` stores no period bounds**, so `cycle-complete` reconstructs which
+   period a cycle covers heuristically. It holds for the packs shipped and is
+   guesswork the legacy row did not need. `periodStart`/`periodEnd` is a schema
+   request for the architect.
+8. **Holiday shifting is timezone-fragile.** `shiftToBusinessDay` builds dates in
+   local time and looks holidays up by UTC key. Under `TZ=Asia/Kolkata` a holiday
+   does not shift at all. Correct under UTC and US zones, so Vercel is fine
+   today and a second region would not be.
+
+### Where the 2017 Rails tree went
+
+Deleted from the working tree on 2026-09-16 after its business rules were
+extracted to `LEGACY_RULES.md` and the cycle engine was read against the
+rebuild. It is not lost — it is in this branch's own history, and the last
+commit that carries all 876 Ruby files is **`763c6f57`**:
+
+```
+git show 763c6f57:legacy-app/models/contract_cycle.rb
+git checkout 763c6f57 -- legacy-app/
+```
+
+An annotated tag would be friendlier and this repository's token cannot push
+one (HTTP 403 on any tag ref), so the commit is written down instead.
 
 ---
 

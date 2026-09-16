@@ -115,11 +115,6 @@ complaint from us.
 
 ### Out of scope
 
-- **The 2017 Rails tree.** This repository still carries the legacy
-  application — `app/controllers`, `app/models`, `vendor/`, `Gemfile`
-  and the rest. **None of it is deployed or reachable.** It is kept for
-  reference while business rules are ported out of it. Findings in it
-  are not vulnerabilities in Etyme.
 - **Third-party providers.** Vercel, the managed Postgres host, Resend,
   SendGrid, Anthropic, Microsoft Entra and Google. Report those to them;
   we will help you route it if you are not sure where it goes.

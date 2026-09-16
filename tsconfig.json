@@ -29,11 +29,6 @@
     "__tests__/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "app",
-    "config",
-    "db",
-    "lib",
-    "vendor"
+    "node_modules"
   ]
 }
