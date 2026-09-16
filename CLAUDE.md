@@ -395,16 +395,24 @@ because two of them are money.
 
 Deleted from the working tree on 2026-09-16 after its business rules were
 extracted to `LEGACY_RULES.md` and the cycle engine was read against the
-rebuild. It is not lost — it is in this branch's own history, and the last
-commit that carries all 876 Ruby files is **`763c6f57`**:
+rebuild.
+
+It is not lost, but it lives in exactly one place: the history of
+**`github.com/smadavaram/etyme-2017`**, where the last commit carrying all
+876 Ruby files is **`763c6f57`**. It has never existed in `etyme2040`,
+whose history was built by replaying app-only commits. So:
 
 ```
 git show 763c6f57:legacy-app/models/contract_cycle.rb
 git checkout 763c6f57 -- legacy-app/
 ```
 
-An annotated tag would be friendlier and this repository's token cannot push
-one (HTTP 403 on any tag ref), so the commit is written down instead.
+**`etyme-2017` is therefore archived, never deleted.** Whatever else moves,
+that repository is the only copy of four thousand commits of how this
+business actually worked, and no other copy is coming.
+
+An annotated tag would be friendlier and this repository's token is refused
+on any tag ref with a 403, so the commit is written down instead.
 
 ---
 
