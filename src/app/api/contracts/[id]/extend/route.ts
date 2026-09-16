@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
 import { evaluateGovernance } from '@/lib/governance'
+import { hasPermission } from '@/lib/permissions'
+import { contractSide } from '@/lib/resolve-client-company'
 import { resolvedEndClientId } from '@/lib/resolve-end-client'
 
 /**
@@ -12,24 +14,22 @@ import { resolvedEndClientId } from '@/lib/resolve-end-client'
  * Body: { months?: number } — defaults to 3
  *
  * Only IN_PROGRESS or PAUSED contracts can be extended.
+ *
+ * Who may is the same question `activate` answers, and this route was not
+ * asking it: it checked that somebody was signed in and then moved
+ * whatever contract id it was handed. An extension carries the end date
+ * forward and writes the billing and pay cycles behind it, so an account
+ * with no connection to either company could put months of money on
+ * somebody else's placement.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = await getSessionEmail()
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
-  // Who did it, for the event log.
-  const actor = await prisma.person.findUnique({
-    where: { primaryEmail: email },
-    select: { id: true },
-  })
+  const actor = { id: caller.person.id }
 
   const { id } = await params
   const body = await request.json().catch(() => ({}))
@@ -57,6 +57,34 @@ export async function POST(
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Contract not found' } },
       { status: 404 }
+    )
+  }
+
+  // A stranger is told so in words; a party missing the permission is told
+  // which one, because "forbidden" on a button on their own screen reads
+  // as a fault.
+  const side = contractSide(caller, contract)
+  if (!side) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_A_PARTY',
+          message: `${caller.company?.name ?? 'Your company'} is not a party to this contract. Only ${contract.company.name}, ${contract.clientCompany.name}${contract.endClientCompany ? ` or ${contract.endClientCompany.name}` : ''} can extend it.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  if (!hasPermission(caller.permissions, 'assignments.write')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Extending a placement needs the assignments.write permission. Ask whoever runs your company\'s access.',
+        },
+      },
+      { status: 403 }
     )
   }
 

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { emit } from '@/lib/events'
+import { hasPermission } from '@/lib/permissions'
+import { contractSide } from '@/lib/resolve-client-company'
 
 /**
  * POST /api/contracts/:id/rolloff
@@ -14,24 +16,20 @@ import { emit } from '@/lib/events'
  *
  * Only IN_PROGRESS or PAUSED contracts can roll off.
  * A contract can only have one rolloff event (unique on sellContractId).
+ *
+ * Starting somebody's exit is the same authority as ending their
+ * contract, and this route asked only for a session — so any account
+ * could begin the rolloff of anybody's placement, tell six parties it
+ * was happening, and put the person on a bench they had not left.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = await getSessionEmail()
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
-  // Who did it, for the event log.
-  const actor = await prisma.person.findUnique({
-    where: { primaryEmail: email },
-    select: { id: true },
-  })
+  const actor = { id: caller.person.id }
 
   const { id } = await params
 
@@ -50,6 +48,32 @@ export async function POST(
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Contract not found' } },
       { status: 404 }
+    )
+  }
+
+  const side = contractSide(caller, contract)
+  if (!side) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_A_PARTY',
+          message: `${caller.company?.name ?? 'Your company'} is not a party to this contract. Only ${contract.company.name}, ${contract.clientCompany.name}${contract.endClientCompany ? ` or ${contract.endClientCompany.name}` : ''} can roll somebody off it.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // The same permission that ends a contract, because this begins the end.
+  if (!hasPermission(caller.permissions, 'assignments.terminate')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Rolling somebody off needs the assignments.terminate permission. Ask whoever runs your company\'s access.',
+        },
+      },
+      { status: 403 }
     )
   }
 

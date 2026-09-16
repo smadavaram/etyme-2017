@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { existsSync, readFileSync } from 'fs'
-import { join } from 'path'
+import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
+import { join, relative, sep } from 'path'
 import { daysOnSite } from '@/lib/tenure-days'
 
 /**
@@ -210,5 +210,138 @@ describe('the trail is evidence, so a gap in it is an incident', () => {
 describe('a rate belongs to one side of the trade or the other', () => {
   it('refuses a rate history row that is neither a sell nor a buy', () => {
     expect(RATE_HISTORY).toMatch(/contractType !== 'SELL' && contractType !== 'BUY'/)
+  })
+})
+
+// ── The sweep ────────────────────────────────────────────────────────
+//
+// Six routes of this exact shape have been found by three separate
+// audits, one at a time, each after it had been live for weeks. Fixing
+// them individually has not stopped a seventh being written, because
+// nothing says the shape is wrong — `getSessionEmail` is an ordinary
+// export and reaching for it looks like authentication being done.
+//
+// So the whole API is read here instead. A route may use it only if it
+// is named below with a reason. A new one fails this test on the commit
+// that adds it, which is the only moment the cost of fixing it is small.
+
+/** About the caller themselves, or before they have a company at all. */
+const SELF_SCOPED = [
+  'me/route.ts',
+  'me/benches/route.ts',
+  'me/context/route.ts',
+  'me/portfolio/route.ts',
+  'me/portfolio/write/route.ts',
+  // Claiming a seat from a mailed token, and opening the first company:
+  // both happen before there is a company to be scoped to.
+  'claim/[token]/route.ts',
+  'onboarding/route.ts',
+]
+
+/**
+ * Some handlers in these files already take the caller's company; at
+ * least one does not. Narrower than a hole and wider than correct.
+ */
+const PART_SCOPED = [
+  'companies/route.ts',
+  'requirements/route.ts',
+  'submissions/route.ts',
+]
+
+/**
+ * Not yet looked at. Every one of these reads only a session and then
+ * works on a record fetched by id, which is the shape that produced all
+ * six holes. None is known to be exploited; none is known to be safe.
+ * This list may shrink and must never grow.
+ */
+const TO_REVIEW = [
+  'companies/[id]/locations/route.ts',
+  'companies/[id]/template-pack/route.ts',
+  'imports/route.ts',
+  'imports/[id]/commit/route.ts',
+  'imports/[id]/mapping/route.ts',
+  'imports/[id]/rows/route.ts',
+  'imports/[id]/rows/[rowId]/route.ts',
+  'market/leads/route.ts',
+  'requirements/parse/route.ts',
+  'rolloff/[id]/claim/route.ts',
+]
+
+function routesUnder(dir: string): string[] {
+  const out: string[] = []
+  const walk = (d: string) => {
+    for (const entry of readdirSync(d)) {
+      const full = join(d, entry)
+      if (statSync(full).isDirectory()) walk(full)
+      else if (entry === 'route.ts') out.push(full)
+    }
+  }
+  walk(dir)
+  return out
+}
+
+describe('signing somebody in is not the same as working out what they may do', () => {
+  const apiDir = join(process.cwd(), 'src/app/api')
+  const usingSessionOnly = routesUnder(apiDir)
+    .filter((f) => readFileSync(f, 'utf8').includes('getSessionEmail'))
+    .map((f) => relative(apiDir, f).split(sep).join('/'))
+    .sort()
+
+  const named = new Set([...SELF_SCOPED, ...PART_SCOPED, ...TO_REVIEW])
+
+  it('no route reads only a session without being named and accounted for', () => {
+    const unaccounted = usingSessionOnly.filter((r) => !named.has(r))
+    expect(
+      unaccounted,
+      'These routes identify the caller but never work out what they are allowed to do. ' +
+        'Take the company and the permissions from getCallerContext, or add the route to ' +
+        'SELF_SCOPED with the reason it does not need them:\n  ' +
+        unaccounted.join('\n  ')
+    ).toEqual([])
+  })
+
+  it('the backlog of unreviewed routes never grows', () => {
+    const stillOpen = usingSessionOnly.filter((r) => TO_REVIEW.includes(r))
+    expect(stillOpen.length).toBeLessThanOrEqual(TO_REVIEW.length)
+  })
+
+  it('a route that has been fixed is struck off the list rather than left on it', () => {
+    // A name left behind after the fix makes the backlog read as longer
+    // than it is, and the next reader trusts the list less.
+    const stale = [...TO_REVIEW, ...PART_SCOPED].filter((r) => !usingSessionOnly.includes(r))
+    expect(stale, `Fixed — remove from the list:\n  ${stale.join('\n  ')}`).toEqual([])
+  })
+
+  it('the three money routes an audit found are off the list for good', () => {
+    expect(usingSessionOnly).not.toContain('contracts/route.ts')
+    expect(usingSessionOnly).not.toContain('contracts/[id]/extend/route.ts')
+    expect(usingSessionOnly).not.toContain('contracts/[id]/rolloff/route.ts')
+  })
+})
+
+describe('writing a contract is the company that bills it, holding the permission', () => {
+  const CONTRACTS = read('src/app/api/contracts/route.ts')
+  const EXTEND = read('src/app/api/contracts/[id]/extend/route.ts')
+  const ROLLOFF = read('src/app/api/contracts/[id]/rolloff/route.ts')
+
+  it('refuses a caller writing a contract for a company that is not theirs', () => {
+    expect(CONTRACTS).toMatch(/caller\.company\?\.id !== companyId/)
+    expect(CONTRACTS).toContain('cannot write one for another firm')
+  })
+
+  it('refuses a seat without assignments.write, naming the permission', () => {
+    expect(CONTRACTS).toContain("hasPermission(caller.permissions, 'assignments.write')")
+  })
+
+  it('refuses a stranger extending somebody else\'s placement', () => {
+    expect(EXTEND).toContain('contractSide')
+    expect(EXTEND).toContain("code: 'NOT_A_PARTY'")
+    expect(EXTEND).toContain("hasPermission(caller.permissions, 'assignments.write')")
+  })
+
+  it('refuses a stranger rolling somebody off, and asks the permission that ends a contract', () => {
+    expect(ROLLOFF).toContain('contractSide')
+    expect(ROLLOFF).toContain("code: 'NOT_A_PARTY'")
+    expect(ROLLOFF).toContain("hasPermission(caller.permissions, 'assignments.terminate')")
   })
 })

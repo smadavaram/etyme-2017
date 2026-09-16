@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
-import { getSessionEmail, getCallerContext } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
+import { hasPermission } from '@/lib/permissions'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
 import { cyclesFor } from '@/lib/cycle-kinds'
@@ -23,14 +24,8 @@ import { canAttachPoToBuyContract } from '@/lib/purchase-order'
  *   ContractLink — joins them for profitability tracking
  */
 export async function POST(request: NextRequest) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const body = await request.json()
   const {
@@ -62,6 +57,42 @@ export async function POST(request: NextRequest) {
   if (!personId) return errResponse('personId is required', 'personId')
   if (!companyId) return errResponse('companyId is required', 'companyId')
   if (!clientCompanyId) return errResponse('clientCompanyId is required', 'clientCompanyId')
+
+  // ── Whose contract this is ─────────────────────────────────────────
+  //
+  // The company, the client, the bill rate and the pay rate all arrived
+  // in the request body and none of them was checked against the caller.
+  // The route asked only whether somebody was signed in, so any account
+  // — a consultant, a visitor on a demo — could write a live sell
+  // contract, a buy contract and a master agreement between two firms it
+  // had nothing to do with, at rates of its own choosing, and the cycles
+  // behind them.
+  //
+  // A sell contract is raised by the company that bills it. That company
+  // is the caller's, or this is not the caller's contract to write.
+  if (caller.company?.id !== companyId) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: `A contract is raised by the company that bills it. ${caller.company?.name ?? 'Your company'} cannot write one for another firm.`,
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  if (!hasPermission(caller.permissions, 'assignments.write')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Writing a contract needs the assignments.write permission. Ask whoever runs your company\'s access.',
+        },
+      },
+      { status: 403 }
+    )
+  }
   if (typeof billRate !== 'number' || billRate <= 0) return errResponse('billRate must be a positive number (cents/hr)', 'billRate')
   if (!startDate) return errResponse('startDate is required', 'startDate')
 
