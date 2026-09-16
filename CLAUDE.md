@@ -631,6 +631,71 @@ refuses it. It belongs in `etyme-money`'s next piece of work.
 
 ---
 
+## Paperwork — the shapes a document actually comes in
+
+From the founder, 2026-09-16, and written down because it is trade
+knowledge the code was guessing at. Every row is a real document a
+staffing firm handles, and the columns are the properties that differ.
+**In contracting and staffing these are not filing; they are business
+continuity.** A lapsed certificate stops a supplier working, an expired
+work authorization stops a person working, and neither fails loudly on
+its own.
+
+| Document | Valid from | Valid until | Signed by | Supplied by |
+|---|---|---|---|---|
+| **Master service agreement** | yes | yes | **both parties, countersigned** | the two firms |
+| **Visa** | — | yes | — | the government |
+| **I-9** | — | see below | the worker and the employer | the worker |
+| **License, green card, passport** | — | usually | — | the worker |
+| **Education documents** | — | **never expires** | — | the candidate |
+| **Certificate of insurance** | **yes** | yes | — | the supplier |
+| **Certificate of good standing** | **yes** | yes | — | the supplier |
+
+Five properties fall out of that table, and no single model in this
+codebase holds all five:
+
+1. **Validity is three shapes, not one.** No dates at all (a degree
+   certificate is true forever). An end only (a visa runs out). A start
+   *and* an end (insurance cover, a certificate of good standing) —
+   and the start matters, because cover that begins next month does not
+   cover a person starting this week. `Verification.expiresAt` already
+   says "null = permanent (e.g. education evaluation)", which is the
+   right instinct; it has `issuedAt` and nothing reads it as a floor.
+2. **A signature can need two sides.** An MSA is not executed until both
+   firms have signed, and the date that matters is the later of the two.
+   `MasterAgreement` learned this on 2026-09-16; `DocInstance`, which is
+   what an NDA or a signed contract uses, has no concept of a
+   countersignature and no dates at all.
+3. **The form itself has an edition.** The government reissues the I-9
+   every year. Which edition somebody signed is a fact about the
+   document, and an old edition is not a small problem — it is the
+   finding in an audit. Nothing here records a form version.
+4. **A document can require other documents.** An I-9 is not proof of
+   anything on its own; it is a form that must be backed by evidence of
+   the right to work — a license, a visa, a green card. So a "held"
+   I-9 with nothing behind it is not held. This is composition, and no
+   model expresses it.
+5. **Who owes it differs, and that decides who is chased.** A candidate
+   attaches their own education documents. A supplier produces its own
+   insurance — and a firm asks its **sub-vendor** for theirs, which is
+   why the certificate shows up in supplier onboarding rather than in
+   somebody's personal file.
+
+**Four models overlap here and none is a superset:** `Verification` and
+`VerificationDoc` (the person's compliance evidence, expiry watched by
+`cron/watch`), `DocInstance` and `DocTemplate` (papers sent for signature,
+no dates), `DocumentPacket` and `PacketItem` (a request with a link
+window, where `validUntil` is the link's life and not the document's),
+and `VisaPetition` (its own lifecycle and its own watch). They were built
+one at a time for one need each, which is why the same certificate can be
+represented three ways.
+
+Do not unify them in one pass because the table above is tidy. Do use
+the table as the test: a change to any of the four is wrong if it makes
+one of the five properties harder to express.
+
+---
+
 ## Pricing — decided 2026-08-29
 
 **Free while testing; the price is set after five real vendors are using
