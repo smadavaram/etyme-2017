@@ -43,6 +43,13 @@ const DELIBERATE: Record<string, string> = {
   'src/app/dashboard/program/page.tsx':
     'Six numbers with one figure each. Two across at 390 is still ' +
     'readable; one across is a page of scrolling before the first list.',
+  'src/app/dashboard/program/agreements/page.tsx':
+    'Six counts with one figure each, and the term read as label over ' +
+    'short value — Payment days / Net 30, Runs to / December 31, 2026. ' +
+    'Two across at 390 keeps the whole term in one glance, which is how ' +
+    'it is read; one across is eight full-width rows before the ' +
+    'signatures, and the counter-signature is the thing somebody came ' +
+    'for.',
   'src/app/dashboard/program/budget/page.tsx':
     'Budget, committed, spent, left — four figures that are read as a ' +
     'set, because the fourth is the first three subtracted. Two across ' +
