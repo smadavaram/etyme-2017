@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     })
 
     const notifications: Array<{
+      personId: string
       personName: string
       petitionType: string
       daysUntilExpiry: number
@@ -54,6 +55,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // What has already been said, so a milestone is announced once.
+    //
+    // The boundary used to be `days <= m && days > m - 1`, which is true
+    // on exactly one day per milestone. A job that did not run that night
+    // — or a petition filed with sixty-one days left — never produced the
+    // warning at all, and a missed visa warning is the whole point of the
+    // watch. Widening it to `days <= m` alone would instead send the same
+    // warning every night, so what was sent is read back first. Nothing
+    // dedupes these rows in the database, so the ledger is the notices
+    // themselves.
+    const said = await prisma.notification.findMany({
+      where: { type: 'VISA_EXPIRY', personId: { in: petitions.map((p) => p.personId) } },
+      select: { data: true },
+    })
+    const alreadySaid = new Set(
+      said
+        .map((n) => n.data as { petitionId?: string; milestone?: number } | null)
+        .filter((d): d is { petitionId: string; milestone: number } =>
+          Boolean(d?.petitionId && typeof d?.milestone === 'number')
+        )
+        .map((d) => `${d.petitionId}:${d.milestone}`)
+    )
+
     for (const p of petitions) {
       if (!p.expiresAt || p.expiresAt < now) continue
 
@@ -61,51 +85,78 @@ export async function GET(request: NextRequest) {
         (p.expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)
       )
 
-      // Check if we're at a milestone boundary
-      const milestone = MILESTONES.find((m) => daysUntilExpiry <= m && daysUntilExpiry > m - 1)
-      if (!milestone) continue
+      // Every milestone this petition is now inside, tightest first. The
+      // tightest is the honest one: with forty-five days left, the ninety
+      // day warning is stale and the sixty is the news. Once sixty has
+      // been said, ninety can never come up again, because the days only
+      // fall.
+      const crossed = MILESTONES.filter((m) => daysUntilExpiry <= m)
+      if (crossed.length === 0) continue
+      const milestone = Math.min(...crossed)
 
-      try {
-        await prisma.notification.create({
+      if (alreadySaid.has(`${p.id}:${milestone}`)) continue
+
+      await prisma.notification.create({
+        data: {
+          personId: p.personId,
+          type: 'VISA_EXPIRY',
+          title: `Visa petition expires in ${daysUntilExpiry} days`,
+          body: `${p.person.name}'s ${p.type} petition expires ${p.expiresAt.toLocaleDateString()}`,
           data: {
-            personId: p.personId,
-            type: 'VISA_EXPIRY',
-            title: `Visa petition expires in ${daysUntilExpiry} days`,
-            body: `${p.person.name}'s ${p.type} petition expires ${p.expiresAt.toLocaleDateString()}`,
-            data: {
-              petitionId: p.id,
-              petitionType: p.type,
-              daysUntilExpiry,
-              milestone,
-            },
+            petitionId: p.id,
+            petitionType: p.type,
+            daysUntilExpiry,
+            milestone,
           },
-        })
-        notifications.push({
-          personName: p.person.name,
-          petitionType: p.type,
-          daysUntilExpiry,
-          milestone,
-        })
-      } catch {
-        // Skip duplicate notifications
-      }
+        },
+      })
+      alreadySaid.add(`${p.id}:${milestone}`)
+      notifications.push({
+        personId: p.personId,
+        personName: p.person.name,
+        petitionType: p.type,
+        daysUntilExpiry,
+        milestone,
+      })
     }
 
-    // AutomationLog — find the person's company through their active context
-    if (notifications.length > 0 && petitions.length > 0) {
-      const context = await prisma.context.findFirst({
-        where: { personId: petitions[0].personId, revokedAt: null, companyId: { not: null } },
-        select: { companyId: true },
+    // One line per company, carrying only that company's own people.
+    //
+    // This used to find the first petition's company and write every
+    // notification into its log — so one client's automation log named
+    // another client's consultants and their visa types. An automation
+    // log is company-scoped and read by that company, which made it a
+    // leak rather than an untidiness.
+    if (notifications.length > 0) {
+      const contexts = await prisma.context.findMany({
+        where: {
+          personId: { in: notifications.map((n) => n.personId) },
+          revokedAt: null,
+          companyId: { not: null },
+        },
+        select: { personId: true, companyId: true },
       })
+      const companyOf = new Map(contexts.map((c) => [c.personId, c.companyId!]))
 
-      if (context?.companyId) {
+      const byCompany = new Map<string, typeof notifications>()
+      for (const n of notifications) {
+        const companyId = companyOf.get(n.personId)
+        if (!companyId) continue
+        byCompany.set(companyId, [...(byCompany.get(companyId) ?? []), n])
+      }
+
+      for (const [companyId, theirs] of byCompany) {
         await prisma.automationLog.create({
           data: {
-            companyId: context.companyId,
+            companyId,
             action: 'VISA_WATCH',
-            summary: `Sent ${notifications.length} visa expiry notification(s)`,
+            summary: `Sent ${theirs.length} visa expiry notification(s)`,
             reason: 'Nightly visa petition milestone scan',
-            payload: { notifications },
+            payload: {
+              notifications: theirs.map(({ personName, petitionType, daysUntilExpiry, milestone }) => ({
+                personName, petitionType, daysUntilExpiry, milestone,
+              })),
+            },
             reversible: false,
           },
         })

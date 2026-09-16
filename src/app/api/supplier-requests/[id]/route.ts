@@ -85,6 +85,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const marked = markItem(checklist, key, state, note || null, now)
     if (!marked.ok) return NextResponse.json({ error: { code: 'VALIDATION', message: marked.message } }, { status: 422 })
     const updated = await prisma.supplierRequest.update({ where: { id }, data: { checklist: marked.checklist as unknown as object, state: 'IN_REVIEW' } })
+
+    // Who verified it, and who waived it. The checklist carries the state,
+    // the reason and the hour, but not the name — so a waived certificate
+    // of insurance read as waived by nobody. A waiver is a desk taking a
+    // compliance item on itself, and it is answerable to a person.
+    const WORD: Record<ItemState, string> = { HELD: 'verified', WAIVED: 'waived', MISSING: 'unmarked', PROVIDED: 'recorded' } as Record<ItemState, string>
+    await prisma.automationLog.create({
+      data: {
+        companyId,
+        action: 'SUPPLIER_ITEM_MARKED',
+        summary: `${caller.person.name} (${STAGE_WORD[stage]}) ${WORD[state] ?? String(state).toLowerCase()} ${item.label} for ${row.name}`,
+        reason: note || (state === 'HELD' ? 'Verified against what the firm supplied.' : 'No reason given.'),
+        payload: { supplierRequestId: id, firm: row.name, key, state, desk: stage, byId: caller.person.id },
+        // An item can be marked again; a waiver can be taken back.
+        reversible: true,
+      },
+    })
+
     const ready = readiness(row.name, marked.checklist, stage)
     return NextResponse.json({ data: { request: { ...updated, checklist: marked.checklist }, readiness: ready, says: ready.says } })
   }
@@ -96,6 +114,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       where: { id },
       data: { state: 'DECLINED', decidedById: caller.person.id, decidedAt: now, decisionNote: note, decisions: [...decisions, decision] as unknown as object },
     })
+    // A firm refused is the end of the walk, and the only record of it
+    // was the decision array on the row itself. It belongs in the
+    // company's own log beside the approval it did not become.
+    await prisma.automationLog.create({
+      data: {
+        companyId,
+        action: 'SUPPLIER_DECLINED',
+        summary: `${row.name} was not approved — declined by ${caller.person.name} at ${STAGE_WORD[stage]}`,
+        reason: note,
+        payload: { supplierRequestId: id, firm: row.name, desk: stage, byId: caller.person.id },
+        // The walk is over. Recommending the firm again starts a new one.
+        reversible: false,
+      },
+    })
+
     void notify({
       personId: row.recommendedById, companyId, type: 'SYSTEM', entityId: id,
       title: `${row.name} was not approved`, body: `${caller.person.name} (${STAGE_WORD[stage]}): ${note}`, data: { href: '/dashboard/suppliers' },

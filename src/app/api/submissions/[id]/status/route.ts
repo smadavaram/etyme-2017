@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkOutcome } from '@/lib/outcomes'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { clientOf, endHoldsForSubmission } from '@/lib/holds'
 import { notify } from '@/lib/notify'
@@ -22,19 +22,19 @@ import { notify } from '@/lib/notify'
  *
  * CLAUDE.md: SubmissionKind is computed from ownership, never accepted from client.
  * This only changes the status, never the kind.
+ *
+ * Two parties may move it and no others: the supplier that put the person
+ * forward, and the client deciding. The route asked only whether somebody
+ * was signed in, so any account could place or reject anybody's candidate
+ * on anybody's role — and PLACED is the status that writes contracts and
+ * starts the billing.
  */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const { id } = await params
   const body = await request.json()
@@ -63,6 +63,38 @@ export async function PATCH(
     return NextResponse.json(
       { error: { code: 'NOT_FOUND', message: 'Submission not found' } },
       { status: 404 }
+    )
+  }
+
+  // Two parties are on this submission: the supplier that sent the person
+  // and the client deciding. Nobody else may move it.
+  const clientCompanyId = clientOf(submission.requirement)
+  const isSupplier = caller.company?.id === submission.fromCompany.id
+  const isClient = caller.company?.id === clientCompanyId
+  if (!isSupplier && !isClient) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only the supplier that submitted this candidate or the client deciding may change it',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // And a supplier cannot place its own candidate. Placing is the client's
+  // word, written by the award; a vendor marking its own submission PLACED
+  // is the vendor awarding itself the role.
+  if (status === 'PLACED' && !isClient) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Only the client can place a candidate. Await their award.',
+        },
+      },
+      { status: 403 }
     )
   }
 
@@ -123,7 +155,7 @@ export async function PATCH(
         companyId: submission.fromCompany.id,
         action: 'SUBMISSION_STATUS_CHANGED',
         summary: `${submission.person.name} submission for "${submission.requirement.title}" changed from ${submission.status} to ${status}`,
-        reason: `Status changed via UI`,
+        reason: `Changed by ${caller.person.name} at ${caller.company?.name ?? 'an unnamed company'}`,
         payload: {
           submissionId: id,
           personId: submission.personId,
@@ -145,7 +177,7 @@ export async function PATCH(
   const freed = await endHoldsForSubmission({
     personId: submission.personId,
     companyId: submission.fromCompany.id,
-    clientCompanyId: clientOf(submission.requirement),
+    clientCompanyId,
     submissionStatus: status,
   })
 

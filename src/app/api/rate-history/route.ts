@@ -258,6 +258,17 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Which side of the trade, and only those two. The column is a plain
+  // string, so anything truthy used to be written and then read back by
+  // queries that filter on SELL or BUY — a row belonging to neither leg,
+  // invisible to both and counted by nothing.
+  if (contractType !== 'SELL' && contractType !== 'BUY') {
+    return NextResponse.json(
+      { error: { code: 'VALIDATION', message: 'contractType must be SELL or BUY', field: 'contractType' } },
+      { status: 422 }
+    )
+  }
+
   if (typeof rate !== 'number' || rate < 0) {
     return NextResponse.json(
       { error: { code: 'VALIDATION', message: 'rate must be a non-negative number (cents)' } },

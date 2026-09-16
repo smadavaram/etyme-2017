@@ -1,3 +1,4 @@
+import { reportError } from '@/lib/alerts'
 import { prisma } from '@/lib/db'
 
 /**
@@ -39,7 +40,15 @@ interface LogAccessParams {
 
 /**
  * Write an access log entry. Fire-and-forget — never blocks the response.
- * If the log write fails, it logs to console but doesn't throw.
+ *
+ * A failure is reported, not swallowed. The trail is the evidence that
+ * the company wall held, so a run of writes failing silently means the
+ * evidence is missing exactly when somebody comes asking for it — and a
+ * console line on a serverless host is nobody's alarm. `reportError`
+ * writes an Incident and mails staff (CLAUDE.md, lib/alerts).
+ *
+ * Still not awaited: the invariant is that the read is recorded, not
+ * that the reader waits for it.
  */
 export function logAccess(params: LogAccessParams): void {
   const { subjectId, actorPersonId, actorCompanyId, action, allowed = true, reason } = params
@@ -57,7 +66,14 @@ export function logAccess(params: LogAccessParams): void {
       },
     })
     .catch((err) => {
-      console.error(`[AccessLog] Failed to log ${action} for subject ${subjectId}:`, err)
+      void reportError(
+        'access-log',
+        new Error(
+          `Could not record a ${action} of ${subjectId}. The read happened and is not in the trail. ` +
+            `Cause: ${err instanceof Error ? err.message : String(err)}`
+        ),
+        { personId: actorPersonId ?? null, companyId: actorCompanyId ?? null }
+      )
     })
 }
 
@@ -83,6 +99,13 @@ export function logBulkAccess(
   prisma.accessLog
     .createMany({ data })
     .catch((err) => {
-      console.error(`[AccessLog] Failed to bulk-log ${params.action} for ${subjectIds.length} subjects:`, err)
+      void reportError(
+        'access-log',
+        new Error(
+          `Could not record a ${params.action} of ${subjectIds.length} people. The reads happened and are not in the trail. ` +
+            `Cause: ${err instanceof Error ? err.message : String(err)}`
+        ),
+        { personId: params.actorPersonId ?? null, companyId: params.actorCompanyId ?? null }
+      )
     })
 }

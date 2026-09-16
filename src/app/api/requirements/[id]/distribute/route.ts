@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
-import { getSessionEmail } from '@/lib/api-context'
+import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
+import { hasPermission } from '@/lib/permissions'
+import { mayDistribute } from '@/lib/requisition-approval'
 
 /**
  * POST /api/requirements/:id/distribute
@@ -14,19 +16,20 @@ import { prisma } from '@/lib/db'
  *
  * Rate bands live on RequirementInvitation, never on Requirement (CLAUDE.md).
  * Every recipient may see a different one.
+ *
+ * Who may send it out is three questions, not one. Authenticated is not
+ * authorised: this route asked only whether somebody was signed in, so
+ * any account anywhere could put another company's role in front of
+ * vendors of its choosing. The gates are the ones `/api/requisitions/:id/
+ * distribute` already holds — the raising company, the desk that owns the
+ * supplier panel, and an approved requisition.
  */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const email = await getSessionEmail()
-
-  if (!email) {
-    return NextResponse.json(
-      { error: { code: 'UNAUTHORIZED', message: 'Not authenticated' } },
-      { status: 401 }
-    )
-  }
+  const { caller, error } = await getCallerContext(request)
+  if (error) return error
 
   const { id: requirementId } = await params
   const body = await request.json()
@@ -57,7 +60,10 @@ export async function POST(
   // Verify requirement exists and is OPEN
   const requirement = await prisma.requirement.findUnique({
     where: { id: requirementId },
-    select: { id: true, companyId: true, title: true, status: true },
+    select: {
+      id: true, companyId: true, title: true, status: true,
+      approvalState: true, clearedSupplierIds: true,
+    },
   })
 
   if (!requirement) {
@@ -67,11 +73,74 @@ export async function POST(
     )
   }
 
+  // The company that raised it is the only one that may put it to market.
+  // Checked before status, so a stranger learns nothing about a role
+  // they have no business seeing.
+  if (caller.company?.id !== requirement.companyId) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'Only the raising company may send this requirement to suppliers' } },
+      { status: 403 }
+    )
+  }
+
+  // And within it, only the desk that owns the supplier panel. A hiring
+  // manager raises the role and deliberately does not choose who sees it.
+  if (!hasPermission(caller.permissions, 'requirements.distribute')) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Choosing which suppliers see a requirement is the program office\'s call. Ask them to send it out.',
+        },
+      },
+      { status: 403 }
+    )
+  }
+
+  // The gate that makes approval mean something.
+  if (!mayDistribute(requirement.approvalState)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: 'NOT_APPROVED',
+          message: `This requirement is ${requirement.approvalState} — it must be approved before suppliers see it`,
+        },
+      },
+      { status: 409 }
+    )
+  }
+
   if (requirement.status !== 'OPEN') {
     return NextResponse.json(
       { error: { code: 'NOT_OPEN', message: `Requirement is ${requirement.status}, not OPEN` } },
       { status: 409 }
     )
+  }
+
+  // Only the suppliers Procurement cleared. An empty list means it
+  // cleared by rule; a named list is the go-ahead and the release
+  // cannot widen it.
+  const cleared = requirement.clearedSupplierIds ?? []
+  if (cleared.length > 0) {
+    const notCleared = toCompanyIds.filter((c: string) => !cleared.includes(c))
+    if (notCleared.length > 0) {
+      const named = await prisma.company.findMany({
+        where: { id: { in: notCleared } },
+        select: { id: true, name: true },
+      })
+      const names = notCleared.map((c: string) => named.find((n) => n.id === c)?.name ?? c).join(', ')
+      return NextResponse.json(
+        {
+          error: {
+            code: 'NOT_CLEARED',
+            message:
+              `${names} ${notCleared.length === 1 ? 'was' : 'were'} not among the suppliers Procurement cleared for this requirement. ` +
+              'Ask Procurement to add them, or leave them out.',
+          },
+        },
+        { status: 403 }
+      )
+    }
   }
 
   try {
@@ -132,7 +201,7 @@ export async function POST(
           companyId: requirement.companyId,
           action: 'REQUIREMENT_DISTRIBUTED',
           summary: `Distributed "${requirement.title}" to ${created.length} vendor(s)`,
-          reason: `Manual distribution by ${email}`,
+          reason: `Sent to suppliers by ${caller.person.name}`,
           payload: {
             requirementId,
             distributedTo: created.map((c) => c.toCompanyId),

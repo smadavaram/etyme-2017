@@ -3,6 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { endClientFilter } from '@/lib/resolve-end-client'
 import { notify } from '@/lib/notify'
+import { daysOnSite } from '@/lib/tenure-days'
 
 /**
  * POST /api/alumni/ask-back
@@ -83,10 +84,12 @@ export async function POST(request: NextRequest) {
   })
 
   const now = new Date()
-  const totalDays = contracts.reduce((sum, c) => {
-    const end = c.endDate ?? now
-    return sum + Math.max(0, Math.ceil((end.getTime() - c.startDate.getTime()) / (1000 * 60 * 60 * 24)))
-  }, 0)
+  // The union of the periods, not their sum. A person bought through a
+  // prime who bought from a bench vendor has two contracts for the same
+  // days at the same site; adding them said somebody three firms deep had
+  // been there three times as long, and a cap of eighteen months blocked
+  // them at six. `daysOnSite` is the ledger's own arithmetic (Addendum E).
+  const totalDays = daysOnSite(contracts, now)
 
   // Load tenure cap and break rules
   const tenureRule = await prisma.governanceRule.findFirst({
