@@ -942,7 +942,10 @@ export default function LandingPage() {
           lib/autonomy, which names every action this system takes, and
           the test recomputes it rather than trusting the words. The
           denominator is stated on the page for the same reason: it is
-          thirteen unprompted actions, not the whole product. */}
+          the count of unprompted actions, not the whole product. The
+          last sentence names no ordinal on purpose — the count grows
+          every time somebody adds an action, and "the one that is
+          left" stays true while "the thirteenth" goes stale. */}
       <section id="compliance" className="border-y border-etyme-rule bg-etyme-surface scroll-mt-6">
         <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
           <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
@@ -952,12 +955,12 @@ export default function LandingPage() {
                 Most of what looks like AI here is a rule, and we would rather say so
               </h2>
               <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-etyme-muted">
-                Thirteen things in here happen without anybody asking for them.
-                Twelve of the thirteen are a date, a threshold or a count —
-                a permit running out, a contract whose last day has passed, the
-                same person submitted twice. The thirteenth scores a person
-                against a role, and even that falls back to arithmetic when
-                there is no model to call.
+                Fourteen things in here happen without anybody asking for them.
+                Thirteen of the fourteen are a date, a threshold or a count —
+                a permit running out, an agreement whose term has lapsed, the
+                same person submitted twice. The one that is left scores a
+                person against a role, and even that falls back to arithmetic
+                when there is no model to call.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
