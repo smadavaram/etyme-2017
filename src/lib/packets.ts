@@ -174,13 +174,20 @@ export function packetsFor(purpose: Purpose): PacketSpec[] {
 export interface HeldDocument {
   /** Matches ItemSpec.key. */
   key: string
+  /**
+   * When it starts counting. Null means there is no floor — which is the
+   * truth for a degree certificate and a lie for an insurance policy.
+   * Added 2026-09-16: cover beginning next month covers nobody starting
+   * this week, and until then this asked only when it ran out.
+   */
+  validFrom?: Date | null
   /** When it stops counting. Null means it does not expire. */
   expiresAt: Date | null
   /** Only a document that actually passed counts as held. */
   accepted: boolean
 }
 
-export type ItemState = 'ALREADY_HELD' | 'EXPIRING' | 'EXPIRED' | 'NEEDED'
+export type ItemState = 'ALREADY_HELD' | 'EXPIRING' | 'EXPIRED' | 'NOT_YET_VALID' | 'NEEDED'
 
 export interface ResolvedItem extends ItemSpec {
   state: ItemState
@@ -202,14 +209,32 @@ export function resolveItems(
   now: Date,
   expiringWindowDays = 60
 ): ResolvedItem[] {
+  const coversToday = (h: HeldDocument): boolean => {
+    if (h.validFrom && h.validFrom.getTime() > now.getTime()) return false
+    if (h.expiresAt && h.expiresAt.getTime() < now.getTime()) return false
+    return true
+  }
+
   const byKey = new Map<string, HeldDocument>()
   for (const h of held) {
     if (!h.accepted) continue
     const existing = byKey.get(h.key)
     // Where several are held, the one that lasts longest is the one that
-    // counts.
-    if (!existing) byKey.set(h.key, h)
-    else if (existing.expiresAt && (!h.expiresAt || h.expiresAt > existing.expiresAt)) byKey.set(h.key, h)
+    // counts — except that one covering today beats one that runs longer
+    // and has not started. A supplier who files next year's certificate
+    // early holds both, and picking the future one would report a gap that
+    // does not exist.
+    if (!existing) {
+      byKey.set(h.key, h)
+      continue
+    }
+    const wasCovering = coversToday(existing)
+    const isCovering = coversToday(h)
+    if (wasCovering !== isCovering) {
+      if (isCovering) byKey.set(h.key, h)
+      continue
+    }
+    if (existing.expiresAt && (!h.expiresAt || h.expiresAt > existing.expiresAt)) byKey.set(h.key, h)
   }
 
   return spec.items.map((item) => {
@@ -217,6 +242,19 @@ export function resolveItems(
 
     if (!h) {
       return { ...item, state: 'NEEDED', note: 'Not on file', expiresAt: null }
+    }
+
+    // The floor, read before the ceiling. A document that has not started
+    // is on file and holds nothing; saying "already held" of it is how
+    // somebody is waved through on cover that begins after they do.
+    if (h.validFrom && h.validFrom.getTime() > now.getTime()) {
+      const until = Math.ceil((h.validFrom.getTime() - now.getTime()) / 86_400_000)
+      return {
+        ...item,
+        state: 'NOT_YET_VALID',
+        note: `Starts ${h.validFrom.toISOString().slice(0, 10)} — ${until} day${until === 1 ? '' : 's'} away, so it does not cover today`,
+        expiresAt: h.expiresAt,
+      }
     }
 
     if (h.expiresAt === null) {
@@ -312,7 +350,9 @@ export function progressOf(
  * and an emergency.
  */
 export function needsReopening(resolved: ResolvedItem[]): { reopen: boolean; because: string[] } {
-  const bad = resolved.filter((r) => r.required && (r.state === 'EXPIRED' || r.state === 'EXPIRING'))
+  const bad = resolved.filter(
+    (r) => r.required && (r.state === 'EXPIRED' || r.state === 'EXPIRING' || r.state === 'NOT_YET_VALID')
+  )
   return {
     reopen: bad.length > 0,
     because: bad.map((b) => `${b.label}: ${b.note.toLowerCase()}`),

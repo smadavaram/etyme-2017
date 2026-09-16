@@ -523,6 +523,10 @@ model Company {
   exemptAssertions    ExemptAssertion[]    @relation("exemptAsserter")
   reconRuns           ReconciliationRun[]  @relation("reconOwner")
   reconAgainst        ReconciliationRun[]  @relation("reconAgainst")
+  /// The company's own document dictionary. Empty on most companies:
+  /// the defaults ship in code and a row exists only where somebody
+  /// added a type or changed one of ours.
+  documentTypes       DocumentType[]
 
   @@index([listedById])
 }
@@ -4661,12 +4665,30 @@ model Verification {
   companyId String? // for company-level checks (insurance, partner verification)
   company   Company? @relation(fields: [companyId], references: [id])
 
-  type        VerificationType
+  type           VerificationType
+  /// The company's own word for what this document is, where it is one of
+  /// theirs rather than one of the ten the enum knows. `type` stays the
+  /// closest built-in so every packet, gate and report keeps resolving; a
+  /// firm that needs an export licence or a site induction certificate
+  /// defines it here instead of waiting for a migration.
+  documentTypeId String?
+  documentType   DocumentType?    @relation(fields: [documentTypeId], references: [id])
+
   status      VerificationStatus @default(PENDING)
   provider    String? // "HireRight" · "Sterling" · "WES" · "ECE" · "E-Verify" · "Quest"
   referenceId String? // external provider reference number
   issuedAt    DateTime?
+  /// The day cover actually begins, which is not always the day the paper
+  /// was issued: a broker prints a certificate in August for a policy that
+  /// starts on 1 September, and that certificate covers nobody who starts
+  /// in August. Null falls back to `issuedAt`, and both null means there is
+  /// no floor — which is the truth for a degree certificate.
+  validFrom   DateTime?
   expiresAt   DateTime? // null = permanent (e.g. education evaluation)
+  /// Which edition of the form this is, as printed on it — "10/21/2019",
+  /// "Rev. 08/01/2023". Only ever set on a type that says it is reissued.
+  /// An old edition is an audit finding, and until now nothing recorded it.
+  formEdition String?
   result      Json? // { outcome: "CLEAR", notes: "...", details: {...} }
 
   uploadedById String // personId of whoever uploaded this
@@ -4676,10 +4698,19 @@ model Verification {
   updatedAt    DateTime  @updatedAt
 
   documents VerificationDoc[]
+  /// The evidence this one was completed from. An I-9 is a form, not proof
+  /// — it is completed FROM a passport, a green card or a license — so an
+  /// I-9 on file with nothing here is a form nobody can stand behind.
+  backedBy  DocumentBacking[] @relation("documentBacked")
+  /// The forms this document is evidence for. One passport can back an
+  /// I-9 and an E-Verify case at once.
+  backs     DocumentBacking[] @relation("documentEvidence")
 
   @@index([personId, type, status])
   @@index([companyId, type, status])
   @@index([expiresAt]) // for expiry alert jobs
+  @@index([validFrom]) // cover that has not started yet is found the same way
+  @@index([documentTypeId])
 }
 
 model VerificationDoc {
@@ -4694,6 +4725,150 @@ model VerificationDoc {
   @@index([verificationId])
 }
 
+// ─────────────────────────────────────────────
+// DOCUMENT TYPES  — the dictionary, which is the company's and not ours.
+//
+// Seven documents were written down in CLAUDE.md from the founder's own
+// account and the instinct was to model those seven. That is the mistake
+// the enum above already made: a fixed list means a firm that needs an
+// export licence, a site induction certificate or a client's own security
+// attestation waits for a migration to record a document it is already
+// being asked for.
+//
+// So the list is the company's. What is ours is the SHAPE a type can
+// take, and three properties decide every behavior in the system:
+//
+//   purpose         COMPLIANCE is watched and gates a start. AGREEMENT is
+//                   signed, possibly by two sides, and has a term. PROOF is
+//                   attached as evidence and usually never expires.
+//   validityShape   NONE, END_ONLY, or START_AND_END. The start matters:
+//                   cover beginning next month covers nobody starting this
+//                   week, and until now nothing read it.
+//   requiresBacking Whether a document of this type is evidence on its own.
+//
+// `src/lib/document-type.ts` ships the defaults in code, so a new firm can
+// hire on its first day without defining an I-9. A row here exists only
+// where a company added a type or changed one of ours.
+// ─────────────────────────────────────────────
+
+model DocumentType {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Stable machine key, unique within the company. Matches a
+  /// VerificationType name where one exists so packets keep resolving.
+  key   String
+  /// What this company calls it, on every screen.
+  label String
+  /// What the holder is actually being asked for, in their words.
+  hint  String?
+
+  /// COMPLIANCE · AGREEMENT · PROOF. The purpose decides the behavior;
+  /// it is not a label. See src/lib/document-type.ts.
+  purpose String
+
+  /// NONE · END_ONLY · START_AND_END
+  validityShape String @default("END_ONLY")
+  /// How long an accepted one counts for where the paper carries no end
+  /// date. Null on a NONE shape, and null means permanent.
+  validMonths   Int?
+
+  /// True where the issuer reissues the form and which edition somebody
+  /// signed is a fact about it. The I-9 is the first type that says yes;
+  /// it is not the only one, which is why this is a property and not a
+  /// special case in code.
+  reissued Boolean @default(false)
+
+  /// Keys of types that may back this one. Any one of them is enough —
+  /// a passport OR a green card OR a visa satisfies an I-9. Modelling
+  /// List A against List B+C is a rule this does not carry.
+  backedByAnyOf   String[]
+  /// True where a document of this type is not evidence on its own.
+  requiresBacking Boolean  @default(false)
+
+  /// NOBODY · ONE_PARTY · BOTH_PARTIES. An MSA is not executed until both
+  /// firms have signed and the date that counts is the later of the two.
+  signedBy String @default("NOBODY")
+
+  /// CANDIDATE · SUPPLIER · CLIENT · EMPLOYEE · GOVERNMENT. Who owes it,
+  /// which is who gets chased for it.
+  suppliedBy String?
+
+  /// True where this company's own counsel says a missing or lapsed one
+  /// stops work. Addendum E: BLOCK where legally grounded, WARN elsewhere.
+  blocks Boolean @default(false)
+
+  /// True where this row overrides or renames one of the shipped defaults.
+  /// A default a company has not touched has no row at all.
+  builtIn Boolean @default(false)
+
+  /// Retired rather than deleted: documents already recorded against it
+  /// keep their meaning.
+  archivedAt DateTime?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  editions      DocumentEdition[]
+  verifications Verification[]
+
+  @@unique([companyId, key])
+  @@index([companyId, purpose])
+  @@index([companyId, archivedAt])
+}
+
+/// Which edition of a reissued form is the one to use, said by the company
+/// rather than guessed. A form signed on the edition that was current on
+/// the day is correct forever; one signed after it was superseded is the
+/// finding in an audit, and neither fact is knowable without these rows.
+model DocumentEdition {
+  id             String       @id @default(cuid())
+  documentTypeId String
+  documentType   DocumentType @relation(fields: [documentTypeId], references: [id], onDelete: Cascade)
+
+  /// As printed on the form. Never normalized: "10/21/2019" is what the
+  /// I-9 says about itself and an auditor reads it back literally.
+  edition       String
+  /// The day the issuer made this edition the one to use.
+  effectiveFrom DateTime
+  /// The day the issuer stopped accepting it. Null = still current.
+  retiredAt     DateTime?
+  /// Where the company got this from — a Federal Register notice, a
+  /// client bulletin. So "who said so" has an answer.
+  source        String?
+
+  recordedById String?
+  recordedAt   DateTime @default(now())
+
+  @@unique([documentTypeId, edition])
+  @@index([documentTypeId, effectiveFrom])
+}
+
+/// One document standing behind another. A join rather than a column
+/// because one passport backs an I-9 and an E-Verify case at once, and
+/// because who recorded the link is itself the audit answer.
+model DocumentBacking {
+  id         String       @id @default(cuid())
+  formId     String
+  form       Verification @relation("documentBacked", fields: [formId], references: [id], onDelete: Cascade)
+  evidenceId String
+  evidence   Verification @relation("documentEvidence", fields: [evidenceId], references: [id], onDelete: Cascade)
+
+  /// Which of the form's acceptable kinds this one answered, in the
+  /// company's own key. Kept so a later change to the type's list does not
+  /// silently rewrite what somebody actually looked at.
+  satisfiedKey String?
+
+  recordedById String?
+  recordedAt   DateTime @default(now())
+
+  @@unique([formId, evidenceId])
+  @@index([formId])
+  @@index([evidenceId])
+}
+
 enum VerificationType {
   I9_EVERIFY // federal work authorization (BLOCK gate)
   BACKGROUND_CHECK // criminal, credit, employment history (WARN gate)
@@ -4705,6 +4880,26 @@ enum VerificationType {
   INSURANCE_CYBER // cyber liability (BLOCK gate)
   BUSINESS_PARTNER // DUNS, SAM.gov, references (BLOCK for new vendors)
   REFERENCE_CHECK // professional references (informational)
+
+  // ── The evidence a form is completed FROM ──
+  //
+  // Added 2026-09-16. Until now an I-9 could be recorded and the document
+  // it was completed from could not, because no value here named one — so
+  // "this form is not evidence on its own" was unenforceable in the column
+  // that holds the form. `DocumentBacking` links a form to one of these.
+  //
+  // Which list a document belongs to under the real I-9 rules is not
+  // carried here. Any one of them is recorded as what somebody looked at.
+  RIGHT_TO_WORK // the generic name, for jurisdictions that separate it from the I-9
+  PASSPORT
+  GREEN_CARD
+  VISA // the stamp or the approval notice, as distinct from a VisaPetition
+  DRIVERS_LICENSE
+  WORK_PERMIT
+
+  // A supplier-level document the founder named: it has a start and an
+  // end, like cover, and nothing here could hold one.
+  GOOD_STANDING // certificate of good standing from the state of registration
 }
 
 enum VerificationStatus {

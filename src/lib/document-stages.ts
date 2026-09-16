@@ -395,7 +395,21 @@ export function compile(
 
 // ── Expiry ────────────────────────────────────────────────────────────
 
-export type Standing = 'MISSING' | 'VALID' | 'EXPIRING' | 'EXPIRED' | 'NO_EXPIRY_RECORDED'
+/**
+ * NOT_YET_VALID was added on 2026-09-16 and is the one that was missing.
+ * A certificate of insurance printed in August for cover that starts on
+ * 1 September is on file, is not expired, and covers nobody starting in
+ * August. Checking only the ceiling made that read as VALID — a
+ * compliance answer that is simply wrong, on the one document Addendum E
+ * names as a block.
+ */
+export type Standing =
+  | 'MISSING'
+  | 'NOT_YET_VALID'
+  | 'VALID'
+  | 'EXPIRING'
+  | 'EXPIRED'
+  | 'NO_EXPIRY_RECORDED'
 
 /** Chase this far ahead. Long enough to renew an insurance certificate. */
 export const WARN_WITHIN_DAYS = 30
@@ -404,6 +418,13 @@ export interface Held {
   key: string
   label: string
   issuedAt?: Date | null
+  /**
+   * The day cover actually begins, where the paper says so. Falls back to
+   * `issuedAt`, because for most documents the day it was issued is the
+   * day it starts. Both absent means there is no floor at all — which is
+   * the truth for a degree certificate and a lie for a policy.
+   */
+  validFrom?: Date | null
   expiresAt?: Date | null
   /** Who confirmed they had seen it, and when. */
   verifiedById?: string | null
@@ -445,6 +466,29 @@ export function standingOf(
   }
 
   const unverified = !held.verifiedAt
+
+  // ── The floor ──
+  //
+  // Read before anything else, because a document that has not started is
+  // not "valid but early" — it covers nobody today, whatever its expiry
+  // says. `spec.validMonths == null` means the kind does not expire, and a
+  // kind that does not expire does not have a start worth enforcing
+  // either; the floor is only asked of paper that covers a period.
+  const floor = held.validFrom ?? held.issuedAt ?? null
+  if (spec.validMonths != null && floor && floor.getTime() > on.getTime()) {
+    const until = Math.ceil((floor.getTime() - on.getTime()) / 86_400_000)
+    const day = floor.toISOString().slice(0, 10)
+    return {
+      key: spec.key,
+      label: spec.label,
+      standing: 'NOT_YET_VALID',
+      daysLeft: null,
+      unverified,
+      says:
+        `${spec.label} is on file but does not start until ${day} — ` +
+        `${until} day${until === 1 ? '' : 's'} away. It does not cover today.`,
+    }
+  }
 
   // Where the item expires but the document does not carry a date, fall
   // back to the issue date plus the window. Where neither is known, say
@@ -550,7 +594,10 @@ export function clearance(
 
   const blocking = standings.filter((s, i) => {
     if (!asks[i].required) return false
-    return s.standing === 'MISSING' || s.standing === 'EXPIRED'
+    // NOT_YET_VALID sits with EXPIRED and not with EXPIRING: both are a
+    // document on file that does not cover the day somebody starts, and
+    // the exposure is identical.
+    return s.standing === 'MISSING' || s.standing === 'EXPIRED' || s.standing === 'NOT_YET_VALID'
   })
 
   const chasing = standings.filter(
@@ -631,6 +678,8 @@ export interface CoverCertificate {
   /** The Verification status: PENDING · CLEAR · EXPIRED · FAILED · … */
   status: string
   issuedAt?: Date | null
+  /** The day the policy period begins, where the certificate says so. */
+  validFrom?: Date | null
   expiresAt?: Date | null
   verifiedAt?: Date | null
 }
@@ -697,7 +746,24 @@ export function supplierCoverGate(input: {
     // A renewal supersedes the one it renews, so the certificate that
     // counts is the one that runs longest — not the newest row, which on
     // a back-dated upload is the wrong one.
+    //
+    // Cover that covers TODAY comes first, ahead of cover that runs
+    // longest. A supplier who files next year's certificate early holds
+    // two: this year's, expiring in three weeks, and next year's, starting
+    // when that one ends. Sorting on expiry alone picks the one that has
+    // not started, and reading the floor would then block a supplier for
+    // being organized — which is the wrong answer arriving by the door the
+    // right answer came in.
+    const coversToday = (c: CoverCertificate): boolean => {
+      const floor = c.validFrom ?? c.issuedAt ?? null
+      if (floor && floor.getTime() > input.on.getTime()) return false
+      if (c.expiresAt && c.expiresAt.getTime() < input.on.getTime()) return false
+      return true
+    }
     const best = produced.slice().sort((a, b) => {
+      const at = coversToday(a) ? 1 : 0
+      const bt = coversToday(b) ? 1 : 0
+      if (at !== bt) return bt - at
       const ae = a.expiresAt?.getTime() ?? -Infinity
       const be = b.expiresAt?.getTime() ?? -Infinity
       if (ae !== be) return be - ae
@@ -710,6 +776,7 @@ export function supplierCoverGate(input: {
             key: kind,
             label,
             issuedAt: best.issuedAt ?? null,
+            validFrom: best.validFrom ?? null,
             expiresAt: best.expiresAt ?? null,
             verifiedAt: best.verifiedAt ?? null,
           }
@@ -730,9 +797,14 @@ export function supplierCoverGate(input: {
       }
     }
 
+    // Cover that has not begun stops work for the same reason lapsed cover
+    // does: the person is on a site with nothing behind them. Addendum E
+    // names lapsed supplier insurance as a block, and "starts next month"
+    // is the same exposure a week earlier.
     const stops =
       mustNotLapse.has(kind) &&
       (standing.standing === 'EXPIRED' ||
+        standing.standing === 'NOT_YET_VALID' ||
         (standing.standing === 'MISSING' && required.includes(kind)))
 
     if (stops) blocking.push(standing)

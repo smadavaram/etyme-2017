@@ -242,7 +242,18 @@ export async function GET(
     prisma.verification.findMany({
       where: { personId: placement.personId },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, type: true, status: true, provider: true, issuedAt: true, expiresAt: true },
+      // `validFrom` and `formEdition` were added on 2026-09-16 and have to
+      // be selected explicitly or the floor and the edition check read
+      // undefined and quietly pass.
+      select: {
+        id: true, type: true, status: true, provider: true,
+        issuedAt: true, validFrom: true, expiresAt: true, formEdition: true,
+        backedBy: {
+          select: {
+            evidence: { select: { type: true, validFrom: true, issuedAt: true, expiresAt: true, status: true } },
+          },
+        },
+      },
     }),
     ourBuy?.vendorCompany
       ? prisma.verification.findMany({
@@ -261,7 +272,7 @@ export async function GET(
         companyId: placement.companyId,
         type: { in: ['INSURANCE_GL', 'INSURANCE_WC', 'INSURANCE_EO', 'INSURANCE_CYBER'] },
       },
-      select: { type: true, status: true, issuedAt: true, expiresAt: true, verifiedAt: true },
+      select: { type: true, status: true, issuedAt: true, validFrom: true, expiresAt: true, verifiedAt: true },
     }),
   ])
 
@@ -329,7 +340,18 @@ export async function GET(
   // button rather than as a refusal after.
   const checklist = contractClearance({
     personName: placement.person.name,
-    personVerifications: personChecks,
+    personVerifications: personChecks.map((v) => ({
+      ...v,
+      // What each form was completed from. An I-9 with nothing here is a
+      // record that somebody looked, with no record of what they saw.
+      backedBy: v.backedBy.map((b) => ({
+        key: b.evidence.type,
+        inForce:
+          (b.evidence.status === 'CLEAR' || b.evidence.status === 'CONDITIONAL') &&
+          !((b.evidence.validFrom ?? b.evidence.issuedAt) && (b.evidence.validFrom ?? b.evidence.issuedAt)! > now) &&
+          !(b.evidence.expiresAt && b.evidence.expiresAt < now),
+      })),
+    })),
     supplierName: placement.company.name,
     supplierCertificates: ourCover,
     clientName: placement.clientCompany.name,

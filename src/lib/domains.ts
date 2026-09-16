@@ -249,6 +249,12 @@ export const DOMAINS: Domain[] = [
       'lib/db', 'lib/auth', 'lib/api-context', 'lib/domains', 'lib/matrix', 'lib/parties',
       // How much we do unprompted, as a ladder a buyer already knows.
       'lib/autonomy',
+      // What kind of thing a document is — purpose, validity shape, edition,
+      // and what has to stand behind it. The company's own dictionary over
+      // shipped defaults. Here rather than under regulation because
+      // compliance, money and demand all read the same answer, and because
+      // it is the schema's vocabulary made extensible.
+      'lib/document-type', 'app/api/document-types', 'app/dashboard/settings/documents',
       'lib/contacts', 'lib/counterparty', 'lib/party-onboarding', 'lib/reconciliation',
       'app/dashboard/onboarding', 'app/dashboard/integrations',
       'app/api/contacts', 'app/api/counterparties', 'app/dashboard/contacts',

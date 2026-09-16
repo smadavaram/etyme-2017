@@ -36,6 +36,17 @@
 
 import { packetByKey, resolveItems, type HeldDocument, type ResolvedItem } from '@/lib/packets'
 import { supplierCoverGate, type CoverCertificate, type CoverGate, type DocStanding } from '@/lib/document-stages'
+import {
+  typeByKey,
+  backingFinding,
+  editionFinding,
+  labelFor,
+  type BackingDocument,
+  type BackingFinding,
+  type DefinedType,
+  type Edition,
+  type EditionFinding,
+} from '@/lib/document-type'
 
 export type Outcome = 'PASS' | 'WARN' | 'BLOCK'
 
@@ -74,6 +85,18 @@ export interface Clearance {
   items: ChecklistItem[]
   /** The supplier's own cover, judged the same way it is everywhere else. */
   cover: CoverGate
+  /**
+   * Forms held with nothing behind them. An I-9 is a record that somebody
+   * looked at a document; a record of looking with no record of what was
+   * looked at is not evidence. Warns rather than blocks — see
+   * UNSUPPORTED_FORM_STOPS_A_START below.
+   */
+  unsupported: BackingFinding[]
+  /**
+   * Forms completed on an edition the issuer had already replaced, or on
+   * no recorded edition at all. An audit finding, not a bar to work.
+   */
+  editions: EditionFinding[]
   says: string
   /** What to do about it, where there is one thing to do. */
   fix: string | null
@@ -87,8 +110,21 @@ export interface VerificationRow {
   type: string
   status: string
   issuedAt?: Date | null
+  /**
+   * The day the document starts covering. Read as a floor since
+   * 2026-09-16: a right-to-work document that comes into force next month
+   * does not authorize somebody who starts this week, and until then
+   * nothing asked.
+   */
+  validFrom?: Date | null
   expiresAt?: Date | null
   verifiedAt?: Date | null
+  /** Which edition of a reissued form this is, as printed on it. */
+  formEdition?: string | null
+  /** The day the form was completed, which is what an edition is judged against. */
+  completedAt?: Date | null
+  /** The type keys of the documents recorded as standing behind this one. */
+  backedBy?: BackingDocument[]
 }
 
 /**
@@ -102,18 +138,26 @@ export function heldFrom(rows: VerificationRow[]): HeldDocument[] {
   const out: HeldDocument[] = []
   for (const r of rows) {
     const accepted = r.status === 'CLEAR' || r.status === 'CONDITIONAL'
-    out.push({ key: r.type, expiresAt: r.expiresAt ?? null, accepted })
+    const validFrom = r.validFrom ?? r.issuedAt ?? null
+    out.push({ key: r.type, validFrom, expiresAt: r.expiresAt ?? null, accepted })
     // The alias, so the packet's second name for the same thing resolves.
     for (const [alias, sources] of Object.entries(SATISFIED_BY)) {
-      if (sources.includes(r.type)) out.push({ key: alias, expiresAt: r.expiresAt ?? null, accepted })
+      if (sources.includes(r.type)) out.push({ key: alias, validFrom, expiresAt: r.expiresAt ?? null, accepted })
     }
   }
   return out
 }
 
+function outstanding(state: ResolvedItem['state']): boolean {
+  // NOT_YET_VALID sits with NEEDED and EXPIRED, not with EXPIRING: a
+  // document whose period starts after the first day is on file and holds
+  // nothing on the first day.
+  return state === 'NEEDED' || state === 'EXPIRED' || state === 'NOT_YET_VALID'
+}
+
 function blocksStart(item: ResolvedItem): boolean {
   if (!item.required) return false
-  if (item.state !== 'NEEDED' && item.state !== 'EXPIRED') return false
+  if (!outstanding(item.state)) return false
   return (AUTHORISATION_KEYS as readonly string[]).includes(item.key)
 }
 
@@ -136,7 +180,7 @@ const HOLDABLE = new Set<string>([
 
 function outstandingRequired(item: ResolvedItem, holdable: Set<string>): boolean {
   if (!item.required) return false
-  if (item.state !== 'NEEDED' && item.state !== 'EXPIRED') return false
+  if (!outstanding(item.state)) return false
   return holdable.has(item.key)
 }
 
@@ -155,6 +199,17 @@ export function contractClearance(input: {
   clientName?: string | null
   on: Date
   packetKey?: string
+  /**
+   * The company's own document dictionary, where it has one. Omitted
+   * means the shipped defaults, which is the answer for most companies.
+   */
+  documentTypes?: DefinedType[]
+  /**
+   * Which edition of each reissued form this company says is current,
+   * keyed by document type. Omitted means nothing can be judged, and
+   * nothing is claimed.
+   */
+  editions?: Record<string, Edition[]>
   /**
    * Documents held that are not verifications — a signed NDA, a signed
    * contract. Verification is a check somebody ran; these are things
@@ -181,6 +236,41 @@ export function contractClearance(input: {
     (i) => !i.blocks && outstandingRequired(resolved.find((r) => r.key === i.key)!, holdable)
   )
 
+  // ── Composition: a form with nothing behind it ──
+  //
+  // Only judged on documents actually held, and only for types that say
+  // they are not evidence on their own.
+  const unsupported: BackingFinding[] = []
+  const editions: EditionFinding[] = []
+  for (const row of input.personVerifications) {
+    const accepted = row.status === 'CLEAR' || row.status === 'CONDITIONAL'
+    if (!accepted) continue
+    const type = typeByKey(row.type, input.documentTypes ?? [])
+    if (!type) continue
+
+    if (type.requiresBacking) {
+      const finding = backingFinding(type, row.backedBy ?? [], (k) =>
+        labelFor(k, input.documentTypes ?? [])
+      )
+      if (finding.standing === 'UNSUPPORTED' || finding.standing === 'BACKING_NOT_IN_FORCE') {
+        unsupported.push(finding)
+      }
+    }
+
+
+    if (type.reissued) {
+      const finding = editionFinding(
+        type,
+        row.formEdition ?? null,
+        row.completedAt ?? row.issuedAt ?? null,
+        input.editions?.[row.type] ?? []
+      )
+      if (finding.standing === 'SUPERSEDED' || finding.standing === 'UNRECORDED') {
+        editions.push(finding)
+      }
+    }
+  }
+
   const rawCover = supplierCoverGate({
     supplierName: input.supplierName,
     certificates: input.supplierCertificates,
@@ -189,9 +279,26 @@ export function contractClearance(input: {
   })
   const cover = forActivation(rawCover)
 
+  // ── What moves the verdict, and what only gets said ──
+  //
+  // A form linked to proof that has expired is a real signal: somebody
+  // recorded evidence and the evidence ran out, and that happens to some
+  // placements and not all. It warns.
+  //
+  // A form with nothing recorded behind it at all is reported and does not
+  // move the verdict, for the reason already written above HOLDABLE: until
+  // 2026-09-16 there was nowhere to record what an I-9 was completed from,
+  // so every I-9 in every file is unsupported today. A warning that fires
+  // on every row is a click, not a warning, and it would bury the two that
+  // matter. It appears on the checklist, with its sentence and its fix,
+  // from the first day — and the day a company records backing routinely,
+  // flipping UNSUPPORTED_FORM_STOPS_A_START is the whole change.
+  const paperworkWarns =
+    unsupported.some((u) => u.standing === 'BACKING_NOT_IN_FORCE') || editions.length > 0
+
   const outcome: Outcome =
     blocking.length > 0 || cover.outcome === 'BLOCK' ? 'BLOCK'
-    : chasing.length > 0 || cover.outcome === 'WARN' ? 'WARN'
+    : chasing.length > 0 || cover.outcome === 'WARN' || paperworkWarns ? 'WARN'
     : 'PASS'
 
   return {
@@ -200,10 +307,34 @@ export function contractClearance(input: {
     chasing,
     items,
     cover,
-    says: sayIt(input.personName, outcome, blocking, chasing, cover),
-    fix: fixFor(blocking, chasing, cover),
+    unsupported,
+    editions,
+    says: sayIt(input.personName, outcome, blocking, chasing, cover, unsupported, editions),
+    fix: fixFor(blocking, chasing, cover, unsupported, editions),
   }
 }
+
+/**
+ * Whether an I-9 with nothing behind it refuses the start.
+ *
+ * It does not, and the choice is worth naming because the opposite is
+ * arguable. Work authorization is one of the five Addendum E names as a
+ * block, and an I-9 with no evidence recorded means nobody can show the
+ * authorization was ever verified.
+ *
+ * Against that: nothing in this system has ever recorded what an I-9 was
+ * completed from, because until 2026-09-16 there was nowhere to put it.
+ * Blocking on the absence would refuse every activation on every existing
+ * placement on the day this shipped — a control that fires on a hundred
+ * percent of rows teaches everybody to route around it, which is the
+ * workaround trap Addendum E is explicit about. The block that IS
+ * grounded — no I-9 at all — still fires, unchanged.
+ *
+ * So it warns, loudly, with a sentence and a fix, and it is counted. If
+ * the founder decides otherwise once backing is routinely recorded, this
+ * constant is the one line to change.
+ */
+export const UNSUPPORTED_FORM_STOPS_A_START = false
 
 /**
  * Lapsed blocks. Missing warns.
@@ -221,7 +352,13 @@ export function contractClearance(input: {
  */
 function forActivation(cover: CoverGate): CoverGate {
   if (cover.outcome !== 'BLOCK') return cover
-  const lapsed = cover.blocking.filter((b) => b.standing === 'EXPIRED')
+  // Cover that has not begun is treated as lapsed cover, not as missing
+  // cover: the difference that earns a downgrade is "nobody ever asked
+  // for it", and a certificate whose period starts next month was asked
+  // for, was supplied, and still leaves the person uncovered on day one.
+  const lapsed = cover.blocking.filter(
+    (b) => b.standing === 'EXPIRED' || b.standing === 'NOT_YET_VALID'
+  )
   const neverRecorded = cover.blocking.filter((b) => b.standing === 'MISSING')
   if (lapsed.length > 0) return cover
   return {
@@ -244,7 +381,9 @@ function sayIt(
   outcome: Outcome,
   blocking: ChecklistItem[],
   chasing: ChecklistItem[],
-  cover: CoverGate
+  cover: CoverGate,
+  unsupported: BackingFinding[] = [],
+  editions: EditionFinding[] = []
 ): string {
   if (outcome === 'PASS') return `${person} is cleared to start. Everything required is on file.`
   const parts: string[] = []
@@ -253,14 +392,27 @@ function sayIt(
   if (outcome === 'BLOCK') return parts.join('. ') + '.'
   if (chasing.length > 0) parts.push(`still waiting on ${names(chasing)} for ${person}`)
   if (cover.outcome === 'WARN') parts.push(cover.says)
+  for (const u of unsupported) {
+    if (u.standing === 'BACKING_NOT_IN_FORCE') parts.push(u.says)
+  }
+  for (const e of editions) parts.push(e.says)
   return `${parts.join('; ')}. The contract can start with a reason recorded.`
 }
 
-function fixFor(blocking: ChecklistItem[], chasing: ChecklistItem[], cover: CoverGate): string | null {
+function fixFor(
+  blocking: ChecklistItem[],
+  chasing: ChecklistItem[],
+  cover: CoverGate,
+  unsupported: BackingFinding[] = [],
+  editions: EditionFinding[] = []
+): string | null {
   if (blocking.length > 0) return `Get ${names(blocking)} on file, then activate.`
   if (cover.outcome === 'BLOCK') return cover.fix
   if (chasing.length > 0) return `Chase ${names(chasing)}, or activate with a reason.`
   if (cover.outcome === 'WARN') return cover.fix
+  const stale = unsupported.find((u) => u.standing === 'BACKING_NOT_IN_FORCE')
+  if (stale) return stale.fix
+  if (editions.length > 0) return editions[0].fix
   return null
 }
 
