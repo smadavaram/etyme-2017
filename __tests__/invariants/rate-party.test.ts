@@ -547,17 +547,18 @@ describe('a consultant reads their own pay and never the markup taken out of the
   /**
    * Known open, with the sentence and the owner.
    *
-   * This is the seventh defect, found by this scanner and not by walking
-   * the app — which is the whole point of writing it down.
+   * Empty, and the test below keeps it honest: a file listed here that has
+   * since been fixed fails, so the list cannot rot into fiction.
+   *
+   * The seventh defect lived here — `GET /api/contracts?side=sell` had no
+   * seat guard while `payerScope` answers a consultant seat with
+   * `{ personId }`, so the contracts naming them came back carrying the
+   * bill rate their agency charges for them. Closed 2026-09-16, along with
+   * its twin on the buy side, which this scanner does not look for: the
+   * same list mapped out every candidate line on a shared buy contract, so
+   * a consultant read what the agency pays each of their colleagues.
    */
-  const KNOWN_OPEN: Record<string, string> = {
-    'src/app/api/contracts/route.ts':
-      'GET /api/contracts?side=sell has no seat guard, and payerScope answers a ' +
-      'consultant seat with { personId }. So the sell contracts that name them ' +
-      'come back carrying `billRate` — their agency’s price for them — to the ' +
-      'person whose pay rate is on the buy leg. Exactly defect 4, in the page ' +
-      'the same session can also open. etyme-money.',
-  }
+  const KNOWN_OPEN: Record<string, string> = {}
 
   it('prices a consultant’s own week from the agreement that pays them, on every page their session can open', () => {
     for (const p of ['src/app/api/timesheets/route.ts', 'src/app/api/me/work/route.ts']) {
@@ -583,6 +584,20 @@ describe('a consultant reads their own pay and never the markup taken out of the
       .filter((p) => !(p in KNOWN_OPEN))
       .map((p) => `${p} — a consultant seat passes its scope and the rows carry a bill rate`)
     expect(wrong).toEqual([])
+  })
+
+  it('shows a consultant their own line on a shared agreement and nobody else’s', () => {
+    // A buy contract can name several people, each at their own rate.
+    // `buyContractScope` narrows a consultant to the agreements naming
+    // them — the right rows — and the route then mapped out every
+    // candidate line on those rows, so a consultant on a five-person
+    // contract read the other four people's pay, and a rate range
+    // computed across all of them.
+    const src = code(sourceOf('src/app/api/contracts/route.ts'))
+    expect(src).toContain('const visible = isConsultant')
+    expect(src).toMatch(/filter\(\(cd\) => cd\.person\.id === caller\.person\.id\)/)
+    // And the range is derived from what is visible, never from all of it.
+    expect(src).toMatch(/const rates = visible\.map/)
   })
 
   it('holds no file on the known-open list that has since been fixed', () => {

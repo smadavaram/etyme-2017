@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { reportError } from '@/lib/alerts'
 import { getCallerContext } from '@/lib/api-context'
 import { hasPermission } from '@/lib/permissions'
+import { isConsultantSeat } from '@/lib/seat'
 import { prisma } from '@/lib/db'
 import { generateCycles } from '@/lib/cycle-generator'
 import { cyclesFor } from '@/lib/cycle-kinds'
@@ -373,6 +374,11 @@ export async function GET(request: NextRequest) {
   const { caller, error } = await getCallerContext(request)
   if (error) return error
 
+  // Asked once, read on both sides. A consultant sits on a contract
+  // rather than holding one, and neither the markup above them nor the
+  // pay of anybody beside them is theirs to read.
+  const isConsultant = isConsultantSeat(caller)
+
   const url = request.nextUrl
   const side = url.searchParams.get('side') ?? 'sell'
   const companyId = url.searchParams.get('companyId')
@@ -418,8 +424,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       data: {
         contracts: contracts.map((c) => {
-          const rates = c.candidates.map((cd) => cd.payRate)
-          const single = c.candidates.length === 1 ? c.candidates[0] : null
+          // A consultant is named ON a buy contract; they are not party to
+          // it. `buyContractScope` narrows them to the agreements that name
+          // them, and then every candidate line on those agreements was
+          // mapped out in full — so on a shared contract a consultant read
+          // what the agency pays each of their colleagues, and a rate range
+          // computed across all of them. Their own line, and no other.
+          const visible = isConsultant
+            ? c.candidates.filter((cd) => cd.person.id === caller.person.id)
+            : c.candidates
+          const rates = visible.map((cd) => cd.payRate)
+          const single = visible.length === 1 ? visible[0] : null
           return {
             id: c.id,
             side: 'buy' as const,
@@ -427,8 +442,8 @@ export async function GET(request: NextRequest) {
             // reports headcount and a rate range instead of pretending to a
             // single person or a single rate.
             person: single?.person ?? null,
-            headcount: c.candidates.length,
-            candidates: c.candidates.map((cd) => ({
+            headcount: visible.length,
+            candidates: visible.map((cd) => ({
               id: cd.id,
               person: cd.person,
               payRate: cd.payRate,
@@ -517,8 +532,14 @@ export async function GET(request: NextRequest) {
         workLocation: c.workLocation,
         engagement: c.engagement ?? null,
         state: c.state,
-        billRate: c.billRate,
-        billCurrency: c.billCurrency,
+        // What the client is charged is the supplier's margin seen from the
+        // other end, and a consultant reading it can subtract their own pay
+        // rate from it. `payerScope` answers a consultant seat with their
+        // own contracts — the right rows — and the rows carried the bill
+        // rate anyway. Whose rate a caller may read is the same question
+        // `/api/placements/[id]` already asks before it renders one.
+        billRate: isConsultant ? null : c.billRate,
+        billCurrency: isConsultant ? null : c.billCurrency,
         startDate: c.startDate.toISOString(),
         endDate: c.endDate?.toISOString() ?? null,
         timesheets: c._count.timesheets,
