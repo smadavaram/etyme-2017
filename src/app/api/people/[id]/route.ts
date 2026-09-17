@@ -3,7 +3,7 @@ import { getCallerContext } from '@/lib/api-context'
 import { prisma } from '@/lib/db'
 import { staffOnly } from '@/lib/seat'
 import { endClientFilter } from '@/lib/resolve-end-client'
-import { chainTop } from '@/lib/chain-top'
+import { chainTop, askGoesTo } from '@/lib/chain-top'
 import { mayNameSubVendors, namesForClient } from '@/lib/chain-names'
 import { daysOnSite, monthsOf } from '@/lib/tenure-days'
 import { logAccess } from '@/lib/access-log'
@@ -164,6 +164,32 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   for (const l of listings) represented.set(l.company.id, asFirm(l.company, 'bench'))
   for (const s of subs) if (!represented.has(s.fromCompany.id)) represented.set(s.fromCompany.id, asFirm(s.fromCompany, 'submitted'))
 
+  // ── Where "Ask for them" will actually go ──────────────────────────
+  //
+  // Decided by the rule the ask route itself uses, so this page never
+  // promises a thread that route will not open (`lib/chain-top`). The
+  // ask goes to the rung this client pays; a firm below it is reached
+  // by its own prime and not from here, so the sentence names the
+  // supplier the client has a deal with and nobody under it.
+  const askRoute = askGoesTo({
+    rungs: everyRung.map((c) => ({ id: c.id, personId: c.personId, companyId: c.companyId, clientCompanyId: c.clientCompanyId })),
+    benchHolderIds: listings.map((l) => l.company.id),
+    submitterIds: subs.map((s) => s.fromCompany.id),
+    clientCompanyId: companyId,
+  })
+  // Only firms this client deals with can be routed to, so only those
+  // names are ever looked up here.
+  const firmName = new Map<string, string>()
+  for (const c of everyRung) if (c.clientCompanyId === companyId) firmName.set(c.companyId, c.company.name)
+  for (const s of subs) if (!firmName.has(s.fromCompany.id)) firmName.set(s.fromCompany.id, s.fromCompany.name)
+  const askFirms = askRoute.toCompanyIds.map((cid) => ({ id: cid, name: firmName.get(cid) ?? 'a supplier of yours' }))
+  const firstName = person.name.split(' ')[0]
+  const askSays = askFirms.length === 0
+    ? `No supplier of yours holds ${firstName} yet. Ask one of your own suppliers to bring them, and the submission comes through them.`
+    : askRoute.throughAPrime
+      ? `The ask goes to ${askFirms.map((f) => f.name).join(' and ')}, the supplier you pay for ${firstName}; reaching their own supplier is theirs to do, and the submission lands in Submissions like any other.`
+      : `The ask goes to ${askFirms.map((f) => f.name).join(' and ')}, who ${askFirms.length === 1 ? 'represents' : 'represent'} ${firstName}; they submit, and it lands in Submissions like any other.`
+
   // The roles they could be asked for: published, and not one they are
   // already on — that one is read in Submissions.
   const published = await prisma.requirement.findMany({
@@ -215,6 +241,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       spread: rates.length >= 2 ? { lowCents: Math.min(...rates), highCents: Math.max(...rates) } : null,
       paperwork: papers.map((p) => ({ type: p.type, status: p.status, expiresAt: p.expiresAt?.toISOString() ?? null, verifiedAt: p.verifiedAt?.toISOString() ?? null })),
       representedBy: [...represented.values()],
+      askGoesTo: { firms: askFirms, throughAPrime: askRoute.throughAPrime, says: askSays },
       openRequirements,
       alreadyOn,
       asks,

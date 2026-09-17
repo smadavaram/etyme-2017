@@ -415,3 +415,47 @@ describe('a client-facing list never names a firm below the rung the client pays
     }
   })
 })
+
+// ── The fourth leak, which is a channel rather than a row ────────────
+//
+// `POST /api/people/[id]/ask` was not on the list above and could not
+// have been: it named no firm off a client-scoped read. It did worse
+// than print a name. It opened a thread with whoever held the
+// consultant's bench listing, which on a chain is the firm at the
+// bottom — so one press of "Ask for them" named the prime's sub-vendor
+// to the client, wrote that name into message metadata that lands on
+// the client's own feed, and gave the two of them a direct channel the
+// paper between them does not have.
+//
+// The sweep above reads names off queries, so it cannot see a channel.
+// These four sentences say in the open what it cannot: the route reads
+// every rung at the client, asks no selling firm for a name while doing
+// it, and looks a name up only after the routing decision has landed on
+// a firm this client deals with.
+
+describe('an ask for a person goes to the rung the client pays, and opens no channel below it', () => {
+  const ask = readFileSync(join(ROOT, 'src/app/api/people/[id]/ask/route.ts'), 'utf8')
+
+  it('the ask route reads every rung at the client, which is why the rule is needed there too', () => {
+    expect(reads(ask).some((q) => everyRungAtAClient(q.text))).toBe(true)
+  })
+
+  it('and asks no selling firm for its name while it reads them, so the sweep has nothing to catch', () => {
+    expect(namesBelowTheRung(ask)).toEqual([])
+    expect(reads(ask).some((q) => everyRungAtAClient(q.text) && namesTheSellingFirm(q.text))).toBe(false)
+  })
+
+  it('the only firms it names are the ones the ask lands on, looked up after the decision — which this sweep cannot see, so it is said here', () => {
+    // A second `prisma.company.findMany` by id carries no client scope
+    // and the scanner deliberately ignores those, because fourteen
+    // files look a company up by id for ordinary reasons. The guarantee
+    // is the argument it is given: the ids the routing rule returned.
+    expect(ask).toContain('prisma.company.findMany({ where: { id: { in: route.toCompanyIds } }')
+  })
+
+  it('and the thread, the message and its metadata are all built from that firm and never from the bench holder', () => {
+    expect(ask).toContain('withCompanyId: firm.id')
+    expect(ask).toContain('supplierId: firm.id, supplierName: firm.name')
+    expect(ask).toContain("select: { companyId: true }")
+  })
+})

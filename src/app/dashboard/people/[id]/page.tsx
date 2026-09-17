@@ -32,6 +32,7 @@ interface Person {
   spread: { lowCents: number; highCents: number } | null
   paperwork: { type: string; status: string; expiresAt: string | null; verifiedAt: string | null }[]
   representedBy: { id: string; name: string; how: 'bench' | 'submitted' }[]
+  askGoesTo: { firms: { id: string; name: string }[]; throughAPrime: boolean; says: string }
   openRequirements: { id: string; title: string }[]
   alreadyOn: string[]
   asks: { id: string; at: string; by: string; supplier: string; role: string; requirementId: string | null; conversationId: string }[]
@@ -129,8 +130,8 @@ export default function PersonPage() {
         <p className="stat-label">Ask for this person</p>
         {data.blocked ? (
           <p className="text-[13px] text-etyme-muted">{person.name} is blocked here — {data.blocked.reason}. Lift the block on the Blocked list first.</p>
-        ) : data.representedBy.length === 0 ? (
-          <p className="text-[13px] text-etyme-muted">No supplier can put {person.name} forward yet. When one lists them on its bench, the ask goes to that firm.</p>
+        ) : data.askGoesTo.firms.length === 0 ? (
+          <p className="text-[13px] text-etyme-muted">{data.askGoesTo.says}</p>
         ) : data.openRequirements.length === 0 ? (
           <p className="text-[13px] text-etyme-muted">
             {data.alreadyOn.length > 0
@@ -140,9 +141,11 @@ export default function PersonPage() {
           </p>
         ) : (
           <>
-            <p className="text-[13px] text-etyme-muted">
-              The ask goes to {data.representedBy.map((r) => r.name).join(' and ')}, who {data.representedBy.length === 1 ? 'represents' : 'represent'} {person.name.split(' ')[0]}; they submit, and it lands in Submissions like any other.
-            </p>
+            {/* Where the ask actually goes — the rung this client pays,
+                decided server-side by the same rule the route uses. A
+                firm below it is reached by its own prime, never from
+                here, so this sentence never names one. */}
+            <p className="text-[13px] text-etyme-muted">{data.askGoesTo.says}</p>
             <div className="flex flex-wrap items-center gap-2">
               <select aria-label="Requirement" value={requirementId} onChange={(e) => setRequirementId(e.target.value)} className="rounded border border-etyme-rule bg-etyme-raised px-3 py-2 text-[13px]">
                 {data.openRequirements.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}

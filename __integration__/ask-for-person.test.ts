@@ -101,6 +101,122 @@ describe('asking for a person you were shown', () => {
     expect(again.body.error.code).toBe('ALREADY_SUBMITTED')
   })
 
+  // ── The rung the client pays, and nothing below it ────────────────
+  //
+  // Nike buys Helena Marsh from Computer Systems, who buy her from
+  // CloudEPA, and the bench listing that makes a submission possible at
+  // all is CloudEPA's. So "Ask for them" named CloudEPA on Nike's own
+  // page and opened a thread straight to it — the prime's supplier list
+  // and a direct channel, both given away by one button, and the NDA
+  // between prime and sub breached in each direction at once.
+
+  describe('asking for somebody you buy through a chain', () => {
+    beforeAll(async () => {
+      const [prime, sub, helena] = await Promise.all([
+        prisma.company.findUniqueOrThrow({ where: { slug: 'world-computer-systems' }, select: { id: true, name: true } }),
+        prisma.company.findUniqueOrThrow({ where: { slug: 'world-cloudepa' }, select: { id: true, name: true } }),
+        prisma.person.findFirstOrThrow({ where: { name: 'Helena Marsh' }, select: { id: true } }),
+      ])
+      it_.prime = prime.id; it_.primeName = prime.name
+      it_.sub = sub.id; it_.subName = sub.name
+      it_.helena = helena.id
+      const raisedBy = await prisma.requirement.findFirstOrThrow({ where: { companyId: it_.nike }, select: { raisedById: true, skills: true, location: true } })
+      const role = async (title: string) => (await prisma.requirement.create({
+        data: {
+          companyId: it_.nike, title, skills: raisedBy.skills, location: raisedBy.location, billMin: 10000, billMax: 15000,
+          months: 6, headcount: 1, status: 'OPEN', approvalState: 'AUTO_APPROVED', source: 'MANUAL', raisedById: raisedBy.raisedById, hoursPerWeek: 40,
+        },
+        select: { id: true },
+      })).id
+      it_.chainRole = await role('Central Finance lead')
+      it_.discloseRole = await role('S/4 migration lead')
+      // Somebody on a bench Nike has never bought from and was never
+      // offered: no contract, no submission, no deal of any kind.
+      const stranger = await prisma.person.create({ data: { name: 'Anselm Roche', primaryEmail: 'anselm.roche@seed.etyme.invalid' }, select: { id: true } })
+      const profile = await prisma.consultantProfile.create({ data: { personId: stranger.id, skills: ['Workday'], location: 'Beaverton, OR', visibility: 'VERIFIED', workAuth: 'USC' }, select: { id: true } })
+      await prisma.benchListing.create({ data: { consultantId: profile.id, companyId: it_.sub, tier: 'RETAINED', state: 'GRANTED' } })
+      it_.stranger = stranger.id
+      it_.openRole = (await prisma.requirement.findFirstOrThrow({ where: { companyId: it_.nike, title: 'Workday HCM integration lead' }, select: { id: true } })).id
+    }, 120_000)
+
+    it('the bench listing that would be submitted against belongs to the firm below the one Nike pays', async () => {
+      const listing = await prisma.benchListing.findFirstOrThrow({
+        where: { consultant: { personId: it_.helena }, state: 'GRANTED' },
+        select: { companyId: true },
+      })
+      expect(listing.companyId).toBe(it_.sub)
+      const paid = await prisma.sellContract.findFirstOrThrow({ where: { personId: it_.helena, clientCompanyId: it_.nike }, select: { companyId: true } })
+      expect(paid.companyId).toBe(it_.prime)
+    })
+
+    it('asking for her opens the thread with the prime Nike pays, and never with the sub-vendor holding her', async () => {
+      as(HIRING)
+      const r = await call(ask, 'POST', `/api/people/${it_.helena}/ask`, it_.helena, { requirementId: it_.chainRole })
+      expect(r.status, JSON.stringify(r.body)).toBe(201)
+      expect(r.body.data.asked).toEqual([it_.primeName])
+      expect(r.body.data.throughAPrime).toBe(true)
+      const withPrime = await prisma.conversation.findFirst({ where: { companyId: it_.nike, withCompanyId: it_.prime, topic: 'REQUIREMENT', topicId: it_.chainRole } })
+      const withSub = await prisma.conversation.findFirst({ where: { companyId: it_.nike, withCompanyId: it_.sub, topic: 'REQUIREMENT', topicId: it_.chainRole } })
+      expect(withPrime).not.toBeNull()
+      expect(withSub).toBeNull()
+    })
+
+    it('and nothing in the reply, the thread title, the message or its metadata names the firm below the rung Nike pays', async () => {
+      const thread = await prisma.conversation.findFirstOrThrow({
+        where: { companyId: it_.nike, withCompanyId: it_.prime, topic: 'REQUIREMENT', topicId: it_.chainRole },
+        include: { messages: true },
+      })
+      const everything = JSON.stringify({ title: thread.title, messages: thread.messages })
+      expect(everything).not.toContain(it_.subName)
+      expect(everything).not.toContain(it_.sub)
+      const asked = thread.messages.find((m) => m.type === 'ASK')!
+      expect((asked.metadata as Record<string, string>).supplierId).toBe(it_.prime)
+      expect((asked.metadata as Record<string, string>).supplierName).toBe(it_.primeName)
+    })
+
+    it('the prime is told who was asked for and on which role, and why it came to them', async () => {
+      const thread = await prisma.conversation.findFirstOrThrow({
+        where: { companyId: it_.nike, withCompanyId: it_.prime, topic: 'REQUIREMENT', topicId: it_.chainRole },
+        include: { messages: true },
+      })
+      const asked = thread.messages.find((m) => m.type === 'ASK')!
+      expect(asked.body).toContain('Helena Marsh')
+      expect(asked.body).toContain('Central Finance lead')
+      expect(asked.body).toContain('buys through you here, so the ask comes to you rather than to anyone below you')
+      const atPrime = (await prisma.context.findMany({ where: { companyId: it_.prime, revokedAt: null }, select: { personId: true } })).map((c) => c.personId)
+      let told = null
+      for (let i = 0; i < 20 && !told; i++) {
+        told = await prisma.notification.findFirst({ where: { personId: { in: atPrime }, type: 'CONVERSATION', body: { contains: 'Helena Marsh' } } })
+        if (!told) await new Promise((r) => setTimeout(r, 100))
+      }
+      expect(told, 'the prime heard about the ask').not.toBeNull()
+      expect(told!.body).toContain('Central Finance lead')
+    })
+
+    it('a client whose agreement discloses sub-vendor names still asks through the prime, because reading a name is not having a channel', async () => {
+      await prisma.masterAgreement.updateMany({ where: { clientId: it_.nike, vendorId: it_.prime }, data: { disclosesSubVendors: true } })
+      as(HIRING)
+      const r = await call(ask, 'POST', `/api/people/${it_.helena}/ask`, it_.helena, { requirementId: it_.discloseRole })
+      expect(r.status, JSON.stringify(r.body)).toBe(201)
+      expect(r.body.data.asked).toEqual([it_.primeName])
+      const withSub = await prisma.conversation.findFirst({ where: { companyId: it_.nike, withCompanyId: it_.sub, topic: 'REQUIREMENT', topicId: it_.discloseRole } })
+      expect(withSub).toBeNull()
+      await prisma.masterAgreement.updateMany({ where: { clientId: it_.nike, vendorId: it_.prime }, data: { disclosesSubVendors: false } })
+    })
+
+    it('somebody Nike has never bought through anyone is refused in a sentence that names Nike’s own suppliers and not the firm holding them', async () => {
+      as(HIRING)
+      const r = await call(ask, 'POST', `/api/people/${it_.stranger}/ask`, it_.stranger, { requirementId: it_.openRole })
+      expect(r.status, JSON.stringify(r.body)).toBe(409)
+      expect(r.body.error.code).toBe('NO_SUPPLIER_OF_YOUR_OWN')
+      expect(r.body.error.message).toContain('You have no supplier for Anselm Roche yet')
+      expect(r.body.error.message).toContain(it_.primeName)
+      expect(r.body.error.message).not.toContain(it_.subName)
+      const anywhere = await prisma.conversation.findFirst({ where: { companyId: it_.nike, topicId: it_.openRole, withCompanyId: it_.sub } })
+      expect(anywhere).toBeNull()
+    })
+  })
+
   it('a blocked person cannot be asked for until the block is lifted', async () => {
     const hm = await prisma.person.findUniqueOrThrow({ where: { primaryEmail: HIRING }, select: { id: true } })
     await prisma.blacklist.create({ data: { companyId: it_.nike, targetType: 'PERSON', targetId: it_.daniel, reason: 'Left mid-project in 2023.', blockedById: hm.id } })

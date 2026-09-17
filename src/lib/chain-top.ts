@@ -143,3 +143,141 @@ export function ownPriceMedian(
     ? Math.round((rates[mid - 1] + rates[mid]) / 2)
     : rates[mid]
 }
+
+/**
+ * Who a client's "ask for them" goes to.
+ *
+ * `chainTop` says which rung the client pays, and `lib/chain-names` says
+ * whose name it may read off that rung. This is the same rule read a
+ * third way, for a channel rather than a row: **an ask goes to the rung
+ * the client pays, and never to a firm below it.**
+ *
+ * The reason is the NDA between a prime and its sub, read in the
+ * direction people forget. It stops the sub going round the prime to
+ * reach the client; read the other way it stops the client going round
+ * the prime to reach the sub. "Ask for them" went to whoever held the
+ * consultant's bench listing, which on a chain is the firm at the
+ * bottom — so a button on the client's own page named the prime's
+ * sub-vendor and opened a direct thread with it. One press gave away the
+ * supplier list and the channel at once.
+ *
+ * Disclosure does not widen this. `MasterAgreement.disclosesSubVendors`
+ * is a term about reading a name; it is not a contract between the
+ * client and the sub, and no term on somebody else's paper creates one.
+ * A client that may read the name still asks through the prime, because
+ * the prime is the party with the deal and reaching its own supplier is
+ * its job. Nothing in this function reads the disclosure term at all,
+ * which is the point.
+ *
+ * ── What counts as a firm the client may ask ─────────────────────────
+ *
+ * Two kinds, and both are the client's own counterparty:
+ *
+ *   - a rung of this person's chain that the client itself is billed on
+ *     — the firm it pays; and
+ *   - a firm that has put this person in front of the client already.
+ *     A submission is an answer to the client's own requirement from a
+ *     supplier it invited, so that firm is a party to the client's
+ *     process even before anybody is placed. Excluding it would mean a
+ *     hiring manager could not ask again for a candidate the same firm
+ *     sent him last month, which is the ordinary case.
+ *
+ * A bench holder that is neither is a firm this client has no deal with,
+ * and the caller refuses rather than guessing at a channel.
+ */
+export interface AskFacts {
+  /** Every rung of this one person's chains standing at this client. */
+  rungs: Rung[]
+  /** Firms holding a granted bench listing for them, anywhere. */
+  benchHolderIds: string[]
+  /** Firms that have put them in front of this client, newest first. */
+  submitterIds: string[]
+  clientCompanyId: string
+}
+
+export type AskReason =
+  /** The bench holder is itself a firm the client deals with. */
+  | 'YOUR_OWN_SUPPLIER'
+  /** The bench holder sits below; the rung the client pays is asked. */
+  | 'THROUGH_THE_PRIME'
+  /** No bench route; the firm the client is billed on for them is asked. */
+  | 'THE_RUNG_YOU_PAY'
+  /** Nobody is placed; whoever put them forward here is asked. */
+  | 'PUT_THEM_FORWARD'
+  /** The client has no supplier for this person at all. */
+  | 'NO_SUPPLIER_OF_YOUR_OWN'
+
+export interface AskRoute {
+  /** The firms to write to. Empty where the client has no deal for them. */
+  toCompanyIds: string[]
+  reason: AskReason
+  /** True where the firm asked is not the firm holding the listing. */
+  throughAPrime: boolean
+}
+
+/**
+ * The rung above this one, walking toward the client.
+ *
+ * Null where none is on file or where two claim the place — the refusal
+ * `payerRung` and `chain-names` both make, for the same reason: a chain
+ * nobody can read must not be guessed at, and a guess here would open a
+ * thread with the wrong firm.
+ */
+function above<T extends Rung>(rung: T, all: T[]): T | null {
+  const parents = all.filter(
+    (c) => c.personId === rung.personId && c.companyId === rung.clientCompanyId && c.id !== rung.id
+  )
+  return parents.length === 1 ? parents[0] : null
+}
+
+/** Every firm this client pays that sits above the given firm's rungs. */
+function primesAbove(companyId: string, rungs: Rung[], clientCompanyId: string): string[] {
+  const out = new Set<string>()
+  for (const start of rungs.filter((r) => r.companyId === companyId)) {
+    const seen = new Set<string>([start.id])
+    let current: Rung | null = start
+    while (current && current.clientCompanyId !== clientCompanyId) {
+      const parent: Rung | null = above(current, rungs)
+      if (!parent || seen.has(parent.id)) { current = null; break }
+      seen.add(parent.id)
+      current = parent
+    }
+    if (current) out.add(current.companyId)
+  }
+  return [...out]
+}
+
+export function askGoesTo(facts: AskFacts): AskRoute {
+  const { rungs, benchHolderIds, submitterIds, clientCompanyId } = facts
+  const paysTheseFirms = rungs.filter((r) => r.clientCompanyId === clientCompanyId).map((r) => r.companyId)
+  const dealsWith = new Set<string>([...paysTheseFirms, ...submitterIds])
+
+  // The bench holder first, because a listing is what makes a submission
+  // possible at all — but only ever as a firm the client may reach, or
+  // as the bottom of a chain whose top it pays.
+  const to: string[] = []
+  let throughAPrime = false
+  for (const holder of benchHolderIds) {
+    if (dealsWith.has(holder)) {
+      if (!to.includes(holder)) to.push(holder)
+      continue
+    }
+    for (const prime of primesAbove(holder, rungs, clientCompanyId)) {
+      throughAPrime = true
+      if (!to.includes(prime)) to.push(prime)
+    }
+  }
+  if (to.length > 0) {
+    return { toCompanyIds: to, reason: throughAPrime ? 'THROUGH_THE_PRIME' : 'YOUR_OWN_SUPPLIER', throughAPrime }
+  }
+
+  // No listing this client can reach. The firm it is billed on for this
+  // person is still its own counterparty, and can go and find them.
+  const paid = [...new Set(paysTheseFirms)]
+  if (paid.length > 0) return { toCompanyIds: paid, reason: 'THE_RUNG_YOU_PAY', throughAPrime: false }
+
+  // Nobody placed. Whoever last put them in front of this client.
+  if (submitterIds.length > 0) return { toCompanyIds: [submitterIds[0]], reason: 'PUT_THEM_FORWARD', throughAPrime: false }
+
+  return { toCompanyIds: [], reason: 'NO_SUPPLIER_OF_YOUR_OWN', throughAPrime: false }
+}

@@ -44,10 +44,30 @@ describe('one person, as this client knows them', () => {
 })
 
 describe('asking for a person', () => {
-  it('the ask goes to the supplier that holds their consent on its bench, else whoever last put them forward — never the consultant', () => {
+  it('the ask goes to the rung this client pays — never to a firm below it, and never to the consultant', () => {
     expect(ask).toContain("prisma.benchListing.findMany({ where: { consultant: { personId: id }, state: 'GRANTED' }")
-    expect(ask).toContain('if (firms.size === 0 && subs[0]) firms.set(subs[0].fromCompany.id, subs[0].fromCompany)')
+    expect(ask).toContain('const route = askGoesTo({')
+    expect(ask).toContain('benchHolderIds: listings.map((l) => l.companyId)')
     expect(ask).not.toContain('notify({\n    personId: person.id')
+  })
+  it('the bench holder’s name is never read at all, so no name below the paid rung can reach the reply, the thread or the metadata', () => {
+    // The listing is selected by id. The only firms this route asks a
+    // name for are the ones the ask lands on, looked up after the
+    // routing decision, and each of those is a firm the client pays or
+    // one that has already put this person in front of it.
+    expect(ask).toContain("state: 'GRANTED' }, select: { companyId: true }")
+    expect(ask).toContain('prisma.company.findMany({ where: { id: { in: route.toCompanyIds } }')
+  })
+  it('disclosure is not read here, because reading a sub-vendor’s name is not the same as having a channel to it', () => {
+    // The term is named in the file's own explanation of why it is not
+    // read; it is never selected, and the name rule is never imported.
+    expect(ask).not.toContain('disclosesSubVendors: true')
+    expect(ask).not.toContain("from '@/lib/chain-names'")
+  })
+  it('a person no supplier of this client’s own holds is refused in a sentence that names the client’s own suppliers and not the firm holding them', () => {
+    expect(ask).toContain("code: 'NO_SUPPLIER_OF_YOUR_OWN'")
+    expect(ask).toContain('You have no supplier for ${person.name} yet')
+    expect(ask).toContain('prisma.requirementInvitation.findMany({')
   })
   it('it lands on the thread for that role with the supplier, in a sentence, and the supplier is told', () => {
     expect(ask).toContain("topic: 'REQUIREMENT', topicId: requirement.id")
@@ -70,7 +90,8 @@ describe('asking for a person', () => {
     expect(read('src/components/shell/sidebar.tsx')).toContain("{ label: 'Conversations', href: '/dashboard/conversations', icon: '💬', group: 'Hire' }")
   })
   it('the page says where the ask goes before the button is pressed', () => {
-    expect(page).toContain('The ask goes to {data.representedBy.map((r) => r.name).join(\' and \')}')
+    expect(page).toContain('<p className="text-[13px] text-etyme-muted">{data.askGoesTo.says}</p>')
+    expect(api).toContain('const askRoute = askGoesTo({')
     expect(page).toContain('Ask for them')
   })
 })
